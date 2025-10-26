@@ -51,6 +51,30 @@
             opacity: 0.9;
         }
 
+        .data-source-selector {
+            padding: 16px 30px;
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .data-source-selector label {
+            font-weight: 500;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .data-source-selector select {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            min-width: 200px;
+            cursor: pointer;
+        }
+
         .breadcrumbs {
             padding: 16px 30px;
             background: #f8f9fa;
@@ -908,6 +932,14 @@
 </head>
 <body>
     <div class="container">
+        <!-- Data Source Selector -->
+        <div class="data-source-selector">
+            <label for="dataSourceSelect">Data Source:</label>
+            <select id="dataSourceSelect">
+                <option value="">Loading...</option>
+            </select>
+        </div>
+        
         <div class="treemap-section">
             <div class="treemap-container">
                 <div class="treemap-header">
@@ -1027,22 +1059,91 @@
             }
         }
 
-        // Initialize
-        async function init() {
+        // API Configuration
+        const API_BASE_URL = 'http://localhost:8000';
+        let currentDataSourceId = null;
+        
+        // Load available data sources
+        async function loadDataSources() {
             try {
-                const response = await fetch('rows_MRT - Intercom chats - Topics in order.json');
-                rawData = await response.json();
-                document.getElementById('loading').style.display = 'none';
+                const response = await fetch(`${API_BASE_URL}/api/data-sources`);
+                if (!response.ok) {
+                    throw new Error('Failed to load data sources');
+                }
+                const dataSources = await response.json();
                 
-                // Set dimensions based on container
-                const container = document.querySelector('.treemap-svg-container');
-                width = container.clientWidth;
-                height = container.clientHeight;
+                const select = document.getElementById('dataSourceSelect');
+                select.innerHTML = '';
+                
+                if (dataSources.length === 0) {
+                    select.innerHTML = '<option value="">No data sources available</option>';
+                    return;
+                }
+                
+                dataSources.forEach((ds, index) => {
+                    const option = document.createElement('option');
+                    option.value = ds.id;
+                    option.textContent = ds.name;
+                    select.appendChild(option);
+                    
+                    // Select first one by default
+                    if (index === 0) {
+                        currentDataSourceId = ds.id;
+                    }
+                });
+                
+                // Add change listener
+                select.addEventListener('change', async (e) => {
+                    currentDataSourceId = e.target.value;
+                    await loadDataSource(currentDataSourceId);
+                });
+                
+                // Load the first data source
+                if (currentDataSourceId) {
+                    await loadDataSource(currentDataSourceId);
+                }
+            } catch (error) {
+                console.error('Error loading data sources:', error);
+                const select = document.getElementById('dataSourceSelect');
+                select.innerHTML = '<option value="">Error loading data sources</option>';
+            }
+        }
+        
+        // Load a specific data source
+        async function loadDataSource(dataSourceId) {
+            try {
+                document.getElementById('loading').style.display = 'flex';
+                document.getElementById('loading').innerHTML = 'Loading data...';
+                
+                const response = await fetch(`${API_BASE_URL}/api/data-sources/${dataSourceId}`);
+                if (!response.ok) {
+                    throw new Error('Failed to load data source');
+                }
+                const dataSource = await response.json();
+                rawData = dataSource.raw_data;
+                
+                document.getElementById('loading').style.display = 'none';
                 
                 processData();
                 renderTreemap(hierarchyData);
                 renderBarChart();
                 renderTopicsChart();
+            } catch (error) {
+                document.getElementById('loading').innerHTML = 
+                    '<div class="error">Error loading data: ' + error.message + '</div>';
+            }
+        }
+        
+        // Initialize
+        async function init() {
+            try {
+                // Set dimensions based on container
+                const container = document.querySelector('.treemap-svg-container');
+                width = container.clientWidth;
+                height = container.clientHeight;
+                
+                // Load data sources from API
+                await loadDataSources();
                 
                 // Add resize listener with debounce
                 window.addEventListener('resize', debounce(handleResize, 250));
@@ -1054,7 +1155,7 @@
                 });
             } catch (error) {
                 document.getElementById('loading').innerHTML = 
-                    '<div class="error">Error loading data: ' + error.message + '</div>';
+                    '<div class="error">Error initializing: ' + error.message + '</div>';
             }
         }
 
