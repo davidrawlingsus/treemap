@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intercom Topics Treemap</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Roboto', sans-serif;
+            background: #fafafa;
+            min-height: 100vh;
+            padding: 0;
+            margin: 0;
+        }
+
+        .container {
+            width: 100%;
+            height: 100vh;
+            margin: 0;
+            background: #fafafa;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .breadcrumbs {
+            padding: 16px 30px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            min-height: 56px;
+        }
+
+        .breadcrumb {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .breadcrumb-item {
+            padding: 6px 14px;
+            background: transparent;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease-in-out;
+            font-size: 14px;
+            color: #666;
+            font-weight: 500;
+        }
+
+        .breadcrumb-item:hover {
+            background: #e8e8e8;
+            color: #333;
+        }
+
+        .breadcrumb-item.current {
+            color: #667eea;
+            font-weight: 600;
+            cursor: default;
+        }
+
+        .breadcrumb-separator {
+            color: #ccc;
+            font-size: 14px;
+        }
+
+        .treemap-container {
+            width: 100%;
+            height: 100vh;
+            padding: 0;
+            background: #fafafa;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .node {
+            cursor: pointer;
+            stroke: rgba(255, 255, 255, 0.8);
+            stroke-width: 3px;
+            transition: filter 0.3s ease-in-out, transform 0.2s ease-in-out;
+            rx: 5px;
+            ry: 5px;
+        }
+
+        .node:hover {
+            filter: brightness(1.1);
+        }
+
+        .node-text {
+            pointer-events: none;
+            font-family: 'Inter', 'Roboto', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 500;
+            fill: white;
+            text-anchor: middle;
+            dominant-baseline: middle;
+        }
+
+        .node-label {
+            pointer-events: none;
+            font-family: 'Inter', 'Roboto', sans-serif;
+            font-size: 0.75rem;
+            font-weight: 500;
+            fill: white;
+            text-anchor: middle;
+            dominant-baseline: middle;
+            opacity: 0.95;
+        }
+
+        .category-label {
+            pointer-events: none;
+            font-family: 'Inter', 'Roboto', sans-serif;
+            font-weight: 600;
+            font-size: 0.9rem;
+            fill: white;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .category-percent {
+            pointer-events: none;
+            font-family: 'Inter', 'Roboto', sans-serif;
+            font-weight: 500;
+            font-size: 0.8rem;
+            fill: white;
+            opacity: 0.9;
+        }
+
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .overlay.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .overlay-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 1200px;
+            height: 85vh;
+            max-height: 800px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            animation: slideUp 0.3s ease-in-out;
+        }
+
+        @keyframes slideUp {
+            from { 
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .overlay-header {
+            padding: 20px 30px;
+            border-bottom: 1px solid #e8e8e8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .overlay-title {
+            font-family: 'Inter', 'Roboto', sans-serif;
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .overlay-subtitle {
+            font-family: 'Inter', 'Roboto', sans-serif;
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 4px;
+        }
+
+        .close-button {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 28px;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease-in-out;
+            line-height: 1;
+            padding: 0;
+        }
+
+        .close-button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
+        }
+
+        .verbatim-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #fafafa;
+            overflow-y: auto;
+            flex: 1;
+            box-sizing: border-box;
+        }
+
+        .verbatim-card {
+            background: white;
+            border: 1px solid #e8e8e8;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+            transition: all 0.3s ease-in-out;
+        }
+
+        .verbatim-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border-color: #d0d0d0;
+        }
+
+        .verbatim-text {
+            font-family: 'Inter', 'Roboto', sans-serif;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #333;
+            margin-bottom: 16px;
+        }
+
+        .verbatim-text p {
+            margin-bottom: 8px;
+        }
+
+        .verbatim-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #f0f0f0;
+            padding-top: 12px;
+        }
+
+        .verbatim-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .verbatim-meta-label {
+            font-weight: 600;
+            color: #555;
+        }
+
+        .sentiment {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .sentiment-positive {
+            background: #E8F5E9;
+            color: #2E7D32;
+        }
+
+        .sentiment-neutral {
+            background: #E3F2FD;
+            color: #1565C0;
+        }
+
+        .sentiment-negative {
+            background: #FFEBEE;
+            color: #C62828;
+        }
+
+        .stats {
+            padding: 24px 30px;
+            background: white;
+            border-bottom: 1px solid #e8e8e8;
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            gap: 30px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-family: 'Inter', 'Roboto', sans-serif;
+            font-size: 36px;
+            font-weight: 700;
+            color: #667eea;
+            display: block;
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-family: 'Inter', 'Roboto', sans-serif;
+            font-size: 13px;
+            color: #888;
+            margin-top: 8px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .loading {
+            text-align: center;
+            font-size: 18px;
+            color: #667eea;
+            font-family: 'Inter', 'Roboto', sans-serif;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .error {
+            text-align: center;
+            color: #dc3545;
+            font-family: 'Inter', 'Roboto', sans-serif;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        @media (max-width: 768px) {
+            .overlay-content {
+                width: 95%;
+                height: 90vh;
+            }
+
+            .overlay-header {
+                padding: 16px 20px;
+            }
+
+            .overlay-title {
+                font-size: 18px;
+            }
+
+            .overlay-subtitle {
+                font-size: 13px;
+            }
+
+            .verbatim-container {
+                grid-template-columns: 1fr;
+                padding: 20px;
+            }
+
+            .close-button {
+                width: 36px;
+                height: 36px;
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="treemap-container">
+            <div class="loading" id="loading">Loading data...</div>
+            <svg id="treemap"></svg>
+        </div>
+    </div>
+
+    <!-- Overlay Modal for Verbatims -->
+    <div id="overlay" class="overlay">
+        <div class="overlay-content">
+            <div class="overlay-header">
+                <div>
+                    <h2 class="overlay-title" id="overlayTitle">Customer Feedback</h2>
+                    <p class="overlay-subtitle" id="overlaySubtitle"></p>
+                </div>
+                <button class="close-button" onclick="closeOverlay()">&times;</button>
+            </div>
+            <div id="verbatims" class="verbatim-container" style="display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - dynamically set to viewport size
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        
+        // Vibrant color palette as per specification
+        const categoryColors = [
+            '#A97FFF', // Vibrant violet
+            '#77D9D6', // Aqua-teal
+            '#F8A04C', // Amber-orange
+            '#58B3F0', // Bright blue
+            '#6ED49B', // Fresh green
+            '#F47280', // Coral pink
+            '#9A7B6C', // Warm neutral
+            '#FFB366', // Peach
+            '#B794F6', // Lavender
+            '#4ECDC4', // Turquoise
+        ];
+        
+        const colorSchemes = {
+            categories: d3.scaleOrdinal(categoryColors)
+        };
+        
+        // Helper function to adjust color brightness
+        function adjustBrightness(color, percent) {
+            const num = parseInt(color.replace("#",""), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = (num >> 16) + amt;
+            const G = (num >> 8 & 0x00FF) + amt;
+            const B = (num & 0x0000FF) + amt;
+            return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 +
+                (G<255?G<1?0:G:255)*0x100 +
+                (B<255?B<1?0:B:255))
+                .toString(16).slice(1);
+        }
+
+        // Global state
+        let rawData = [];
+        let hierarchyData = null;
+        let currentView = 'root';
+        let viewStack = [];
+
+        // Initialize
+        async function init() {
+            try {
+                const response = await fetch('rows_MRT - Intercom chats - Topics in order.json');
+                rawData = await response.json();
+                document.getElementById('loading').style.display = 'none';
+                
+                processData();
+                renderTreemap(hierarchyData);
+            } catch (error) {
+                document.getElementById('loading').innerHTML = 
+                    '<div class="error">Error loading data: ' + error.message + '</div>';
+            }
+        }
+
+        // Process raw data into hierarchy
+        function processData() {
+            const categoryMap = new Map();
+
+            rawData.forEach(row => {
+                const topics = row['text  Topics'] || [];
+                
+                topics.forEach(topic => {
+                    if (!topic.category) return;
+
+                    // Get or create category
+                    if (!categoryMap.has(topic.category)) {
+                        categoryMap.set(topic.category, {
+                            name: topic.category,
+                            children: new Map()
+                        });
+                    }
+
+                    const category = categoryMap.get(topic.category);
+
+                    // Get or create topic
+                    if (!category.children.has(topic.label)) {
+                        category.children.set(topic.label, {
+                            name: topic.label,
+                            code: topic.code,
+                            verbatims: []
+                        });
+                    }
+
+                    // Add verbatim
+                    const topicData = category.children.get(topic.label);
+                    topicData.verbatims.push({
+                        text: row['text  Text Text'],
+                        sentiment: row['text  Overall Sentiment'],
+                        index: row.index,
+                        country: row['Additional columns location_country'],
+                        city: row['Additional columns location_city'],
+                        date: row['Additional columns created_at']
+                    });
+                });
+            });
+
+            // Convert to D3 hierarchy format
+            hierarchyData = {
+                name: 'Root',
+                children: Array.from(categoryMap.values()).map(cat => ({
+                    name: cat.name,
+                    children: Array.from(cat.children.values()).map(topic => ({
+                        name: topic.name,
+                        code: topic.code,
+                        value: topic.verbatims.length,
+                        verbatims: topic.verbatims
+                    }))
+                }))
+            };
+        }
+
+
+        // Render treemap
+        function renderTreemap(data) {
+            const svg = d3.select('#treemap');
+            svg.selectAll('*').remove();
+            svg.attr('width', width).attr('height', height);
+
+            document.getElementById('verbatims').style.display = 'none';
+
+            const root = d3.hierarchy(data)
+                .sum(d => d.value || 0)
+                .sort((a, b) => b.value - a.value);
+
+            const totalValue = root.value;
+
+            d3.treemap()
+                .size([width, height])
+                .paddingOuter(10)
+                .paddingTop(root.children && root.depth === 0 ? 30 : 3)
+                .paddingInner(3)
+                .round(true)
+                (root);
+
+            // Draw category groups (parent rectangles) first
+            if (root.children && root.depth === 0) {
+                const categoryGroups = svg.selectAll('.category-group')
+                    .data(root.children)
+                    .join('g')
+                    .attr('class', 'category-group');
+
+                // Category background rectangles with rounded corners
+                categoryGroups.append('rect')
+                    .attr('x', d => d.x0)
+                    .attr('y', d => d.y0)
+                    .attr('width', d => d.x1 - d.x0)
+                    .attr('height', d => d.y1 - d.y0)
+                    .attr('fill', 'none')
+                    .attr('stroke', '#ddd')
+                    .attr('stroke-width', 1)
+                    .attr('rx', 5)
+                    .attr('ry', 5)
+                    .attr('opacity', 0.6);
+
+                // Category label bar
+                categoryGroups.append('rect')
+                    .attr('x', d => d.x0)
+                    .attr('y', d => d.y0)
+                    .attr('width', d => d.x1 - d.x0)
+                    .attr('height', 26)
+                    .attr('fill', d => colorSchemes.categories(d.data.name))
+                    .attr('rx', 5)
+                    .attr('ry', 5)
+                    .attr('opacity', 0.95);
+
+                // Category labels with percentage
+                categoryGroups.append('text')
+                    .attr('class', 'category-label')
+                    .attr('x', d => d.x0 + 10)
+                    .attr('y', d => d.y0 + 17)
+                    .text(d => {
+                        const percent = ((d.value / totalValue) * 100).toFixed(1);
+                        const maxWidth = d.x1 - d.x0 - 20;
+                        let text = `${d.data.name} (${percent}%)`;
+                        if (maxWidth < 150) {
+                            text = d.data.name.substring(0, 12) + '...';
+                        }
+                        return text;
+                    });
+            }
+
+            // Draw leaf nodes (topics)
+            const nodes = svg.selectAll('.leaf-node')
+                .data(root.leaves())
+                .join('g')
+                .attr('class', 'leaf-node');
+
+            // Add rectangles with rounded corners
+            nodes.append('rect')
+                .attr('class', 'node')
+                .attr('x', d => d.x0)
+                .attr('y', d => d.y0)
+                .attr('width', d => d.x1 - d.x0)
+                .attr('height', d => d.y1 - d.y0)
+                .attr('rx', 5)
+                .attr('ry', 5)
+                .attr('fill', d => {
+                    const baseColor = colorSchemes.categories(d.parent.data.name);
+                    // Vary brightness for child nodes based on their index
+                    const siblings = d.parent.children;
+                    const index = siblings.indexOf(d);
+                    const brightnessAdjust = -10 + (index % 3) * 10; // -10, 0, +10
+                    return adjustBrightness(baseColor, brightnessAdjust);
+                })
+                .on('click', (event, d) => handleNodeClick(d));
+
+            // Add centered text labels
+            nodes.each(function(d) {
+                const nodeWidth = d.x1 - d.x0;
+                const nodeHeight = d.y1 - d.y0;
+                const centerX = (d.x0 + d.x1) / 2;
+                const centerY = (d.y0 + d.y1) / 2;
+                
+                // Only show text if node is large enough
+                if (nodeWidth < 50 || nodeHeight < 30) return;
+                
+                const percent = ((d.value / totalValue) * 100).toFixed(1);
+                const node = d3.select(this);
+                
+                // Truncate text based on width
+                let displayName = d.data.name;
+                if (nodeWidth < 100) {
+                    displayName = displayName.substring(0, 10) + '...';
+                } else if (nodeWidth < 150) {
+                    displayName = displayName.substring(0, 20) + (displayName.length > 20 ? '...' : '');
+                }
+                
+                // Topic name (centered)
+                const fontSize = Math.min(14, Math.max(10, nodeWidth / 15));
+                node.append('text')
+                    .attr('class', 'node-text')
+                    .attr('x', centerX)
+                    .attr('y', nodeHeight > 50 ? centerY - 8 : centerY)
+                    .style('font-size', `${fontSize}px`)
+                    .text(displayName);
+                
+                // Percentage (below name if space allows)
+                if (nodeHeight > 50) {
+                    node.append('text')
+                        .attr('class', 'node-label')
+                        .attr('x', centerX)
+                        .attr('y', centerY + 10)
+                        .style('font-size', `${fontSize - 2}px`)
+                        .text(`(${percent}%)`);
+                }
+            });
+        }
+
+        // Handle node click for drill-down
+        function handleNodeClick(node) {
+            // Check if this is a topic with verbatims (leaf node)
+            if (node.data.verbatims && node.data.verbatims.length > 0) {
+                // Show verbatims for this topic
+                const categoryName = node.parent ? node.parent.data.name : 'Unknown Category';
+                viewStack.push({ type: 'topic', data: node.data, parent: categoryName });
+                showVerbatims(node.data.verbatims, node.data.name, categoryName);
+            } else if (node.children || (node.data.children && node.data.children.length > 0)) {
+                // This is a category - drill down
+                viewStack.push({ type: 'category', data: node.data });
+                renderTreemap(node.data);
+            }
+        }
+
+        // Show verbatims in overlay
+        function showVerbatims(verbatims, topicName, categoryName) {
+            const overlay = document.getElementById('overlay');
+            const container = document.getElementById('verbatims');
+            const title = document.getElementById('overlayTitle');
+            const subtitle = document.getElementById('overlaySubtitle');
+            
+            // IMPORTANT: Show the container by removing inline display:none
+            container.style.display = 'grid';
+            
+            // Set header info
+            title.textContent = topicName;
+            subtitle.textContent = `${categoryName} • ${verbatims.length} conversation${verbatims.length !== 1 ? 's' : ''}`;
+            
+            // Clear and populate verbatims
+            container.innerHTML = '';
+
+            verbatims.forEach((v, index) => {
+                const card = document.createElement('div');
+                card.className = 'verbatim-card';
+                
+                const sentimentClass = v.sentiment ? `sentiment-${v.sentiment}` : 'sentiment-neutral';
+                
+                card.innerHTML = `
+                    <div class="verbatim-text">${v.text || 'No text available'}</div>
+                    <div class="verbatim-meta">
+                        <div class="verbatim-meta-item">
+                            <span class="verbatim-meta-label">Sentiment:</span>
+                            <span class="sentiment ${sentimentClass}">${v.sentiment || 'neutral'}</span>
+                        </div>
+                        ${v.country ? `
+                        <div class="verbatim-meta-item">
+                            <span class="verbatim-meta-label">Location:</span>
+                            <span>${v.city ? v.city + ', ' : ''}${v.country}</span>
+                        </div>
+                        ` : ''}
+                        <div class="verbatim-meta-item">
+                            <span class="verbatim-meta-label">Index:</span>
+                            <span>#${v.index}</span>
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(card);
+            });
+            
+            // Show overlay
+            overlay.classList.add('active');
+        }
+
+        // Close overlay
+        function closeOverlay() {
+            const overlay = document.getElementById('overlay');
+            const container = document.getElementById('verbatims');
+            overlay.classList.remove('active');
+            container.style.display = 'none';
+            viewStack = [];
+        }
+
+        // Close overlay when clicking on backdrop
+        document.addEventListener('DOMContentLoaded', () => {
+            const overlay = document.getElementById('overlay');
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    closeOverlay();
+                }
+            });
+            
+            // Close overlay with Escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && overlay.classList.contains('active')) {
+                    closeOverlay();
+                }
+            });
+        });
+
+
+        // Start the application
+        init();
+    </script>
+</body>
+</html>
+
