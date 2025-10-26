@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <meta name="theme-color" content="#667eea">
     <title>Intercom Topics Treemap</title>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
@@ -24,10 +25,12 @@
 
         .container {
             width: 100%;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
             background: #fafafa;
-            overflow: hidden;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
         }
 
         .header {
@@ -38,13 +41,13 @@
         }
 
         .header h1 {
-            font-size: 32px;
+            font-size: clamp(20px, 5vw, 32px);
             font-weight: 600;
             margin-bottom: 10px;
         }
 
         .header p {
-            font-size: 16px;
+            font-size: clamp(14px, 3vw, 16px);
             opacity: 0.9;
         }
 
@@ -92,15 +95,91 @@
             font-size: 14px;
         }
 
+        .treemap-section {
+            width: 100%;
+            padding: 30px 30px 0 30px;
+            background: #fafafa;
+            flex-shrink: 0;
+        }
+
         .treemap-container {
             width: 100%;
-            height: 100vh;
-            padding: 0;
-            background: #fafafa;
+            height: 60vh;
+            min-height: 400px;
+            max-height: 600px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .treemap-header {
+            padding: 20px 24px 16px 24px;
+            border-bottom: 1px solid #E6EBF3;
+        }
+
+        .treemap-title {
+            font-family: 'Inter', 'Roboto', sans-serif;
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+
+        .treemap-subtitle {
+            font-family: 'Inter', 'Roboto', sans-serif;
+            font-size: 13px;
+            color: #8B93A7;
+            margin: 4px 0 0 0;
+        }
+
+        .treemap-svg-container {
+            flex: 1;
+            position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
-            position: relative;
+        }
+
+        .visualizations-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+            margin: 0;
+        }
+
+        @media (max-width: 1024px) {
+            .visualizations-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                padding: 20px;
+            }
+
+            .treemap-section {
+                padding: 20px 20px 0 20px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .treemap-section {
+                padding: 16px 16px 0 16px;
+            }
+
+            .treemap-header {
+                padding: 16px 20px 12px 20px;
+            }
+
+            .treemap-title {
+                font-size: 18px;
+            }
+
+            .treemap-subtitle {
+                font-size: 12px;
+            }
         }
 
         .node {
@@ -110,16 +189,22 @@
             transition: filter 0.3s ease-in-out, transform 0.2s ease-in-out;
             rx: 5px;
             ry: 5px;
+            touch-action: manipulation; /* Prevents double-tap zoom on nodes */
         }
 
         .node:hover {
             filter: brightness(1.1);
         }
 
+        .node:active {
+            filter: brightness(0.95);
+            transform: scale(0.98);
+        }
+
         .node-text {
             pointer-events: none;
             font-family: 'Inter', 'Roboto', sans-serif;
-            font-size: 0.85rem;
+            font-size: clamp(10px, 1.5vw, 14px);
             font-weight: 500;
             fill: white;
             text-anchor: middle;
@@ -129,7 +214,7 @@
         .node-label {
             pointer-events: none;
             font-family: 'Inter', 'Roboto', sans-serif;
-            font-size: 0.75rem;
+            font-size: clamp(9px, 1.3vw, 12px);
             font-weight: 500;
             fill: white;
             text-anchor: middle;
@@ -141,7 +226,7 @@
             pointer-events: none;
             font-family: 'Inter', 'Roboto', sans-serif;
             font-weight: 600;
-            font-size: 0.9rem;
+            font-size: clamp(10px, 1.6vw, 14px);
             fill: white;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -389,26 +474,55 @@
         }
 
         @media (max-width: 768px) {
+            .node {
+                stroke-width: 2px;
+            }
+
+            .header {
+                padding: 20px 16px;
+            }
+
+            .breadcrumbs {
+                padding: 12px 16px;
+                min-height: 48px;
+            }
+
+            .breadcrumb-item {
+                padding: 5px 10px;
+                font-size: 12px;
+            }
+
             .overlay-content {
                 width: 95%;
                 height: 90vh;
+                border-radius: 8px;
             }
 
             .overlay-header {
                 padding: 16px 20px;
+                border-radius: 8px 8px 0 0;
             }
 
             .overlay-title {
-                font-size: 18px;
+                font-size: 16px;
             }
 
             .overlay-subtitle {
-                font-size: 13px;
+                font-size: 12px;
             }
 
             .verbatim-container {
                 grid-template-columns: 1fr;
-                padding: 20px;
+                padding: 16px;
+                gap: 16px;
+            }
+
+            .verbatim-card {
+                padding: 16px;
+            }
+
+            .verbatim-text {
+                font-size: 13px;
             }
 
             .close-button {
@@ -416,14 +530,374 @@
                 height: 36px;
                 font-size: 24px;
             }
+
+            .stats {
+                padding: 16px 20px;
+                gap: 20px;
+            }
+
+            .stat-value {
+                font-size: 28px;
+            }
+
+            .stat-label {
+                font-size: 11px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header {
+                padding: 16px 12px;
+            }
+
+            .header h1 {
+                margin-bottom: 6px;
+            }
+
+            .breadcrumbs {
+                padding: 10px 12px;
+            }
+
+            .overlay-content {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+                max-height: none;
+            }
+
+            .overlay-header {
+                padding: 12px 16px;
+                border-radius: 0;
+            }
+
+            .verbatim-container {
+                padding: 12px;
+                gap: 12px;
+            }
+
+            .verbatim-card {
+                padding: 14px;
+            }
+
+            .stat-value {
+                font-size: 24px;
+            }
+        }
+
+        /* Tablet landscape orientation */
+        @media (min-width: 769px) and (max-width: 1024px) {
+            .verbatim-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* Bar Chart Styles */
+        .chart {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .chart__header {
+            margin-bottom: 8px;
+        }
+
+        .chart__title {
+            font-family: 'Inter', 'Roboto', sans-serif;
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+
+        .chart__subtitle {
+            font-family: 'Inter', 'Roboto', sans-serif;
+            font-size: 13px;
+            color: #8B93A7;
+            margin: 4px 0 16px 0;
+        }
+
+        .chart__body {
+            position: relative;
+            display: flex;
+            gap: 0;
+        }
+
+        .chart__labels {
+            width: 240px;
+            flex-shrink: 0;
+        }
+
+        .chart__bars {
+            flex: 1;
+            position: relative;
+            min-width: 0;
+        }
+
+        .gridlines {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 24px;
+            pointer-events: none;
+        }
+
+        .gridline {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: #E6EBF3;
+        }
+
+        .axis--bottom {
+            display: flex;
+            position: relative;
+            height: 20px;
+            margin-top: 4px;
+        }
+
+        .axis__label {
+            position: absolute;
+            font-size: 12px;
+            color: #98A1B3;
+            transform: translateX(-50%);
+        }
+
+        .group {
+            margin-bottom: 16px;
+        }
+
+        .group__header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+            min-height: 32px;
+        }
+
+        .toggle {
+            width: 20px;
+            height: 20px;
+            border: 1px solid #E5EAF2;
+            border-radius: 4px;
+            background: white;
+            color: #7A8194;
+            font-size: 14px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            padding: 0;
+            transition: background 0.2s ease-in-out;
+        }
+
+        .toggle:hover {
+            background: #F4F6FA;
+        }
+
+        .toggle:focus {
+            outline: 2px solid #667eea;
+            outline-offset: 2px;
+        }
+
+        .group__label-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-left: 8px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .group__label {
+            font-family: 'Inter', 'Roboto', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            color: #5B6275;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .group__bar-container {
+            position: relative;
+            height: 32px;
+            display: flex;
+            align-items: center;
+        }
+
+        .bar__track {
+            position: absolute;
+            left: 0;
+            height: 16px;
+            background: rgba(0, 0, 0, 0.04);
+            border-radius: 9999px;
+            width: 100%;
+        }
+
+        .bar__fill {
+            position: absolute;
+            left: 0;
+            height: 16px;
+            border-radius: 9999px;
+            transition: width 0.6s ease-out;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+        }
+
+        .bar__value {
+            font-size: 12px;
+            font-weight: 500;
+            white-space: nowrap;
+            z-index: 1;
+        }
+
+        .bar__value--inside {
+            position: relative;
+            color: white;
+            padding-right: 8px;
+        }
+
+        .bar__value--outside {
+            position: absolute;
+            color: #6B7280;
+            padding-left: 8px;
+        }
+
+        .group__panel {
+            overflow: hidden;
+            transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+        }
+
+        .group__panel[hidden] {
+            display: block;
+            max-height: 0;
+            opacity: 0;
+        }
+
+        .group__panel:not([hidden]) {
+            max-height: 2000px;
+            opacity: 1;
+        }
+
+        .topic {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+            min-height: 28px;
+        }
+
+        .topic__label-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-left: 28px;
+        }
+
+        .bullet {
+            width: 10px;
+            height: 6px;
+            border-radius: 3px;
+            flex-shrink: 0;
+        }
+
+        .topic__label {
+            font-family: 'Inter', 'Roboto', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            color: #6B7280;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .topic__bar-container {
+            position: relative;
+            height: 28px;
+            display: flex;
+            align-items: center;
+        }
+
+        .topic .bar__fill {
+            height: 14px;
+        }
+
+        .topic .bar__track {
+            height: 14px;
+        }
+
+        .chart__footer {
+            margin-top: 16px;
+            padding-top: 12px;
+            border-top: 1px solid #E6EBF3;
+            font-size: 12px;
+            color: #8B93A7;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .chart__labels {
+                width: 180px;
+            }
+
+            .group__label {
+                font-size: 13px;
+            }
+
+            .topic__label {
+                font-size: 12px;
+            }
+
+            .bar__fill, .bar__track {
+                height: 14px !important;
+            }
+
+            .topic .bar__fill, .topic .bar__track {
+                height: 12px !important;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="treemap-container">
-            <div class="loading" id="loading">Loading data...</div>
-            <svg id="treemap"></svg>
+        <div class="treemap-section">
+            <div class="treemap-container">
+                <div class="treemap-header">
+                    <h2 class="treemap-title">Topic Distribution</h2>
+                    <p class="treemap-subtitle">Hierarchical view of conversation categories and topics</p>
+                </div>
+                <div class="treemap-svg-container">
+                    <div class="loading" id="loading">Loading data...</div>
+                    <svg id="treemap"></svg>
+                </div>
+            </div>
+        </div>
+
+        <div class="visualizations-grid">
+            <div class="chart" role="figure" aria-label="Topics by Category">
+                <div class="chart__header">
+                    <h2 class="chart__title">Topics by Category</h2>
+                    <p class="chart__subtitle">Frequency of customer conversation topics</p>
+                </div>
+                <div class="chart__body">
+                    <div class="chart__labels" id="barChartLabels"></div>
+                    <div class="chart__bars" id="barChartBars"></div>
+                </div>
+                <div class="chart__footer" id="barChartFooter">Frequency (n=<span id="totalCount">0</span>)</div>
+            </div>
+
+            <div style="background: white; border-radius: 8px; padding: 24px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); display: flex; align-items: center; justify-content: center; color: #999;">
+                <p>Second visualization will go here</p>
+            </div>
         </div>
     </div>
 
@@ -442,9 +916,22 @@
     </div>
 
     <script>
-        // Configuration - dynamically set to viewport size
-        const width = window.innerWidth;
-        const height = window.innerHeight;
+        // Configuration - dynamically set to container size
+        let width = 1200; // Will be updated when container is available
+        let height = 600; // Will be updated when container is available
+        
+        // Debounce function to limit resize calls
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
         
         // Vibrant color palette as per specification
         const categoryColors = [
@@ -483,6 +970,16 @@
         let currentView = 'root';
         let viewStack = [];
 
+        // Handle window resize
+        function handleResize() {
+            const container = document.querySelector('.treemap-svg-container');
+            width = container.clientWidth;
+            height = container.clientHeight;
+            if (hierarchyData) {
+                renderTreemap(hierarchyData);
+            }
+        }
+
         // Initialize
         async function init() {
             try {
@@ -490,8 +987,23 @@
                 rawData = await response.json();
                 document.getElementById('loading').style.display = 'none';
                 
+                // Set dimensions based on container
+                const container = document.querySelector('.treemap-svg-container');
+                width = container.clientWidth;
+                height = container.clientHeight;
+                
                 processData();
                 renderTreemap(hierarchyData);
+                renderBarChart();
+                
+                // Add resize listener with debounce
+                window.addEventListener('resize', debounce(handleResize, 250));
+                
+                // Handle orientation changes on mobile devices
+                window.addEventListener('orientationchange', () => {
+                    // Delay slightly to ensure new dimensions are available
+                    setTimeout(handleResize, 100);
+                });
             } catch (error) {
                 document.getElementById('loading').innerHTML = 
                     '<div class="error">Error loading data: ' + error.message + '</div>';
@@ -570,11 +1082,17 @@
 
             const totalValue = root.value;
 
+            // Responsive padding based on viewport
+            const isMobile = width < 768;
+            const outerPadding = isMobile ? 5 : 10;
+            const topPadding = root.children && root.depth === 0 ? (isMobile ? 28 : 30) : (isMobile ? 2 : 3);
+            const innerPadding = isMobile ? 2 : 3;
+
             d3.treemap()
                 .size([width, height])
-                .paddingOuter(10)
-                .paddingTop(root.children && root.depth === 0 ? 30 : 3)
-                .paddingInner(3)
+                .paddingOuter(outerPadding)
+                .paddingTop(topPadding)
+                .paddingInner(innerPadding)
                 .round(true)
                 (root);
 
@@ -612,14 +1130,21 @@
                 // Category labels with percentage
                 categoryGroups.append('text')
                     .attr('class', 'category-label')
-                    .attr('x', d => d.x0 + 10)
+                    .attr('x', d => d.x0 + (width < 768 ? 8 : 10))
                     .attr('y', d => d.y0 + 17)
                     .text(d => {
                         const percent = ((d.value / totalValue) * 100).toFixed(1);
                         const maxWidth = d.x1 - d.x0 - 20;
+                        const isMobile = width < 768;
                         let text = `${d.data.name} (${percent}%)`;
-                        if (maxWidth < 150) {
+                        
+                        // Responsive text truncation for category labels
+                        if (isMobile && maxWidth < 120) {
+                            text = d.data.name.substring(0, 8) + '...';
+                        } else if (maxWidth < 150) {
                             text = d.data.name.substring(0, 12) + '...';
+                        } else if (maxWidth < 200) {
+                            text = `${d.data.name.substring(0, 15)}... (${percent}%)`;
                         }
                         return text;
                     });
@@ -657,31 +1182,45 @@
                 const centerX = (d.x0 + d.x1) / 2;
                 const centerY = (d.y0 + d.y1) / 2;
                 
+                // Responsive minimum sizes based on viewport
+                const isMobile = width < 768;
+                const minWidth = isMobile ? 40 : 50;
+                const minHeight = isMobile ? 25 : 30;
+                
                 // Only show text if node is large enough
-                if (nodeWidth < 50 || nodeHeight < 30) return;
+                if (nodeWidth < minWidth || nodeHeight < minHeight) return;
                 
                 const percent = ((d.value / totalValue) * 100).toFixed(1);
                 const node = d3.select(this);
                 
-                // Truncate text based on width
+                // Responsive text truncation based on viewport
                 let displayName = d.data.name;
-                if (nodeWidth < 100) {
-                    displayName = displayName.substring(0, 10) + '...';
-                } else if (nodeWidth < 150) {
-                    displayName = displayName.substring(0, 20) + (displayName.length > 20 ? '...' : '');
+                const mobileBreakpoint = isMobile ? 60 : 100;
+                const tabletBreakpoint = isMobile ? 100 : 150;
+                
+                if (nodeWidth < mobileBreakpoint) {
+                    displayName = displayName.substring(0, 8) + '...';
+                } else if (nodeWidth < tabletBreakpoint) {
+                    displayName = displayName.substring(0, 15) + (displayName.length > 15 ? '...' : '');
+                } else if (nodeWidth < 200) {
+                    displayName = displayName.substring(0, 25) + (displayName.length > 25 ? '...' : '');
                 }
                 
+                // Responsive font sizing
+                const baseFontSize = isMobile ? 10 : 12;
+                const maxFontSize = isMobile ? 12 : 14;
+                const fontSize = Math.min(maxFontSize, Math.max(baseFontSize, nodeWidth / (isMobile ? 10 : 15)));
+                
                 // Topic name (centered)
-                const fontSize = Math.min(14, Math.max(10, nodeWidth / 15));
                 node.append('text')
                     .attr('class', 'node-text')
                     .attr('x', centerX)
-                    .attr('y', nodeHeight > 50 ? centerY - 8 : centerY)
+                    .attr('y', nodeHeight > (isMobile ? 40 : 50) ? centerY - 8 : centerY)
                     .style('font-size', `${fontSize}px`)
                     .text(displayName);
                 
                 // Percentage (below name if space allows)
-                if (nodeHeight > 50) {
+                if (nodeHeight > (isMobile ? 40 : 50)) {
                     node.append('text')
                         .attr('class', 'node-label')
                         .attr('x', centerX)
@@ -783,6 +1322,308 @@
             });
         });
 
+
+        // Bar Chart functionality
+        function generateCategoryColorPalette() {
+            return {
+                'GENERAL INFORMATION': '#A98CFD',
+                'BOOKING/PRICE': '#74C7E8',
+                'TOUR/ITINERARY': '#6FD4A1',
+                'ACCOMMODATION': '#F4A85B',
+                'FLIGHTS': '#F07D8C',
+                'AVAILABILITY': '#B794F6',
+                'TRAVELLER DETAILS': '#77D9D6',
+                'HELP': '#FFB366',
+                'NPD': '#9A7B6C'
+            };
+        }
+
+        function adjustColorLightness(color, percent) {
+            const num = parseInt(color.replace('#', ''), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = Math.min(255, Math.max(0, (num >> 16) + amt));
+            const G = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + amt));
+            const B = Math.min(255, Math.max(0, (num & 0x0000FF) + amt));
+            return '#' + ((1 << 24) + (R << 16) + (G << 8) + B).toString(16).slice(1);
+        }
+
+        function processBarChartData() {
+            const categoryMap = new Map();
+            let totalTopicInstances = 0;
+
+            rawData.forEach(row => {
+                const topics = row['text  Topics'] || [];
+                topics.forEach(topic => {
+                    if (!topic.category) return;
+
+                    totalTopicInstances++;
+
+                    if (!categoryMap.has(topic.category)) {
+                        categoryMap.set(topic.category, {
+                            name: topic.category,
+                            count: 0,
+                            topics: new Map()
+                        });
+                    }
+
+                    const category = categoryMap.get(topic.category);
+                    category.count++;
+
+                    if (!category.topics.has(topic.label)) {
+                        category.topics.set(topic.label, {
+                            name: topic.label,
+                            count: 0
+                        });
+                    }
+
+                    category.topics.get(topic.label).count++;
+                });
+            });
+
+            // Convert to array and sort
+            const categories = Array.from(categoryMap.values()).map(cat => ({
+                name: cat.name,
+                count: cat.count,
+                percent: (cat.count / totalTopicInstances) * 100,
+                topics: Array.from(cat.topics.values()).map(topic => ({
+                    name: topic.name,
+                    count: topic.count,
+                    percent: (topic.count / totalTopicInstances) * 100
+                })).sort((a, b) => b.count - a.count)
+            })).sort((a, b) => b.count - a.count);
+
+            return { categories, totalTopicInstances };
+        }
+
+        function renderBarChart() {
+            const { categories, totalTopicInstances } = processBarChartData();
+            const colorPalette = generateCategoryColorPalette();
+            
+            // Update total count
+            document.getElementById('totalCount').textContent = totalTopicInstances;
+
+            // Get max percent for scaling
+            const maxPercent = Math.max(...categories.map(c => c.percent));
+            const scale = maxPercent > 0 ? 100 / maxPercent : 1;
+
+            // Render labels and bars
+            const labelsContainer = document.getElementById('barChartLabels');
+            const barsContainer = document.getElementById('barChartBars');
+            
+            labelsContainer.innerHTML = '';
+            barsContainer.innerHTML = '';
+
+            // Create gridlines
+            const gridlinesContainer = document.createElement('div');
+            gridlinesContainer.className = 'gridlines';
+            const ticks = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+            ticks.forEach(tick => {
+                const line = document.createElement('div');
+                line.className = 'gridline';
+                line.style.left = `${tick}%`;
+                gridlinesContainer.appendChild(line);
+            });
+            barsContainer.appendChild(gridlinesContainer);
+
+            // Create content container for bars
+            const barsContent = document.createElement('div');
+            barsContent.style.position = 'relative';
+            barsContent.style.zIndex = '1';
+            barsContainer.appendChild(barsContent);
+
+            // Create axis labels
+            const axisContainer = document.createElement('div');
+            axisContainer.className = 'axis--bottom';
+            ticks.forEach(tick => {
+                const label = document.createElement('span');
+                label.className = 'axis__label';
+                label.style.left = `${tick}%`;
+                label.textContent = `${tick}%`;
+                axisContainer.appendChild(label);
+            });
+            barsContainer.appendChild(axisContainer);
+
+            // Render each category
+            categories.forEach((category, catIndex) => {
+                const categoryId = `cat-${catIndex}`;
+                const baseColor = colorPalette[category.name] || categoryColors[catIndex % categoryColors.length];
+
+                // Labels column: toggle + label
+                const labelGroup = document.createElement('div');
+                labelGroup.className = 'group';
+
+                const headerRow = document.createElement('div');
+                headerRow.className = 'group__header';
+
+                const toggle = document.createElement('button');
+                toggle.className = 'toggle';
+                toggle.setAttribute('aria-expanded', 'false');
+                toggle.setAttribute('aria-controls', categoryId);
+                toggle.textContent = '+';
+                toggle.onclick = () => toggleCategory(categoryId, toggle);
+
+                const labelWrapper = document.createElement('div');
+                labelWrapper.className = 'group__label-wrapper';
+
+                const label = document.createElement('div');
+                label.className = 'group__label';
+                label.textContent = category.name;
+
+                labelWrapper.appendChild(label);
+                headerRow.appendChild(toggle);
+                headerRow.appendChild(labelWrapper);
+                labelGroup.appendChild(headerRow);
+
+                // Topics panel (collapsed by default)
+                const panel = document.createElement('div');
+                panel.className = 'group__panel';
+                panel.id = categoryId;
+                panel.setAttribute('hidden', '');
+                panel.setAttribute('role', 'region');
+                panel.setAttribute('aria-labelledby', categoryId + '-label');
+
+                category.topics.forEach((topic, topicIndex) => {
+                    const topicRow = document.createElement('div');
+                    topicRow.className = 'topic';
+
+                    const topicLabelWrapper = document.createElement('div');
+                    topicLabelWrapper.className = 'topic__label-wrapper';
+                    topicLabelWrapper.style.width = '240px';
+
+                    const bullet = document.createElement('div');
+                    bullet.className = 'bullet';
+                    const topicColor = adjustColorLightness(baseColor, (topicIndex % 3 - 1) * 15);
+                    bullet.style.background = topicColor;
+                    bullet.style.opacity = '0.4';
+
+                    const topicLabel = document.createElement('div');
+                    topicLabel.className = 'topic__label';
+                    topicLabel.textContent = topic.name;
+
+                    topicLabelWrapper.appendChild(bullet);
+                    topicLabelWrapper.appendChild(topicLabel);
+                    topicRow.appendChild(topicLabelWrapper);
+                    panel.appendChild(topicRow);
+                });
+
+                labelGroup.appendChild(panel);
+                labelsContainer.appendChild(labelGroup);
+
+                // Bars column: category bar
+                const barGroup = document.createElement('div');
+                barGroup.className = 'group';
+
+                const barHeaderRow = document.createElement('div');
+                barHeaderRow.className = 'group__bar-container';
+
+                const track = document.createElement('div');
+                track.className = 'bar__track';
+
+                const fill = document.createElement('div');
+                fill.className = 'bar__fill';
+                fill.style.background = baseColor;
+                fill.style.width = '0%';
+                
+                const barWidthPercent = (category.percent / maxPercent) * 100;
+                
+                const value = document.createElement('div');
+                value.textContent = `${category.percent.toFixed(1)}%`;
+                
+                // Estimate if label fits inside (rough estimate: 40px for percentage label)
+                const estimatedLabelWidth = 40; // pixels
+                const containerWidth = barsContainer.clientWidth || 600; // fallback width
+                const barWidthPixels = (barWidthPercent / 100) * containerWidth;
+                
+                if (barWidthPixels > estimatedLabelWidth + 16) {
+                    // Enough space inside
+                    value.className = 'bar__value bar__value--inside';
+                    fill.appendChild(value);
+                } else {
+                    // Not enough space, place outside
+                    value.className = 'bar__value bar__value--outside';
+                    value.style.left = `${barWidthPercent}%`;
+                    barHeaderRow.appendChild(value);
+                }
+
+                setTimeout(() => {
+                    fill.style.width = `${barWidthPercent}%`;
+                }, 50);
+
+                barHeaderRow.appendChild(track);
+                barHeaderRow.appendChild(fill);
+                barGroup.appendChild(barHeaderRow);
+
+                // Topic bars panel
+                const barsPanel = document.createElement('div');
+                barsPanel.className = 'group__panel';
+                barsPanel.setAttribute('hidden', '');
+
+                category.topics.forEach((topic, topicIndex) => {
+                    const topicBarRow = document.createElement('div');
+                    topicBarRow.className = 'topic__bar-container';
+
+                    const topicTrack = document.createElement('div');
+                    topicTrack.className = 'bar__track';
+
+                    const topicFill = document.createElement('div');
+                    topicFill.className = 'bar__fill';
+                    const topicColor = adjustColorLightness(baseColor, (topicIndex % 3 - 1) * 15);
+                    topicFill.style.background = topicColor;
+                    topicFill.style.width = '0%';
+                    
+                    const topicBarWidthPercent = (topic.percent / maxPercent) * 100;
+                    
+                    const topicValue = document.createElement('div');
+                    topicValue.textContent = `${topic.percent.toFixed(1)}%`;
+                    
+                    // Estimate if label fits inside
+                    const estimatedLabelWidth = 40; // pixels
+                    const containerWidth = barsContainer.clientWidth || 600;
+                    const topicBarWidthPixels = (topicBarWidthPercent / 100) * containerWidth;
+                    
+                    if (topicBarWidthPixels > estimatedLabelWidth + 16) {
+                        // Enough space inside
+                        topicValue.className = 'bar__value bar__value--inside';
+                        topicFill.appendChild(topicValue);
+                    } else {
+                        // Not enough space, place outside
+                        topicValue.className = 'bar__value bar__value--outside';
+                        topicValue.style.left = `${topicBarWidthPercent}%`;
+                        topicBarRow.appendChild(topicValue);
+                    }
+
+                    setTimeout(() => {
+                        topicFill.style.width = `${topicBarWidthPercent}%`;
+                    }, 50 + topicIndex * 30);
+
+                    topicBarRow.appendChild(topicTrack);
+                    topicBarRow.appendChild(topicFill);
+                    barsPanel.appendChild(topicBarRow);
+                });
+
+                barGroup.appendChild(barsPanel);
+                barsContent.appendChild(barGroup);
+            });
+        }
+
+        function toggleCategory(categoryId, toggleButton) {
+            const panel = document.getElementById(categoryId);
+            const barsPanel = document.querySelectorAll('.group__panel')[
+                Array.from(document.querySelectorAll('.chart__labels .group__panel')).indexOf(panel)
+            ];
+
+            if (panel.hasAttribute('hidden')) {
+                panel.removeAttribute('hidden');
+                if (barsPanel) barsPanel.removeAttribute('hidden');
+                toggleButton.textContent = '−';
+                toggleButton.setAttribute('aria-expanded', 'true');
+            } else {
+                panel.setAttribute('hidden', '');
+                if (barsPanel) barsPanel.setAttribute('hidden', '');
+                toggleButton.textContent = '+';
+                toggleButton.setAttribute('aria-expanded', 'false');
+            }
+        }
 
         // Start the application
         init();
