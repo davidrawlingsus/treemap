@@ -773,35 +773,49 @@
             padding-left: 8px;
         }
 
-        .group__panel {
-            overflow: hidden;
-            transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
-        }
+         .group__panel {
+             overflow: hidden;
+             transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;
+         }
 
-        .group__panel[hidden] {
-            display: block;
-            max-height: 0;
-            opacity: 0;
-        }
+         .group__panel[hidden] {
+             display: block;
+             max-height: 0;
+             opacity: 0;
+             pointer-events: none;
+         }
 
-        .group__panel:not([hidden]) {
-            max-height: 2000px;
-            opacity: 1;
-        }
+         .group__panel:not([hidden]) {
+             max-height: 2000px;
+             opacity: 1;
+             pointer-events: auto;
+         }
 
-        .topic {
-            display: flex;
-            align-items: center;
-            margin-bottom: 6px;
-            min-height: 28px;
-        }
+         .topic {
+             display: flex;
+             align-items: center;
+             margin-bottom: 6px;
+             min-height: 28px;
+             cursor: pointer;
+             transition: background-color 0.2s ease-in-out;
+             border-radius: 4px;
+             padding: 2px 0;
+         }
 
-        .topic__label-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding-left: 28px;
-        }
+         .topic:hover {
+             background-color: rgba(102, 126, 234, 0.05);
+         }
+
+         .topic:hover .topic__label {
+             color: #667eea;
+         }
+
+         .topic__label-wrapper {
+             display: flex;
+             align-items: center;
+             gap: 8px;
+             padding-left: 28px;
+         }
 
         .bullet {
             width: 10px;
@@ -820,12 +834,17 @@
             text-overflow: ellipsis;
         }
 
-        .topic__bar-container {
-            position: relative;
-            height: 28px;
-            display: flex;
-            align-items: center;
-        }
+         .topic__bar-container {
+             position: relative;
+             height: 28px;
+             display: flex;
+             align-items: center;
+             margin-bottom: 6px;
+         }
+
+         .topic__bar-container[style*="cursor: pointer"]:hover .bar__fill {
+             filter: brightness(1.1);
+         }
 
         .topic .bar__fill {
             height: 14px;
@@ -833,6 +852,10 @@
 
         .topic .bar__track {
             height: 14px;
+        }
+        
+        .group__panel .topic__bar-container {
+            margin-bottom: 6px;
         }
 
         .chart__footer {
@@ -895,8 +918,16 @@
                 <div class="chart__footer" id="barChartFooter">Frequency (n=<span id="totalCount">0</span>)</div>
             </div>
 
-            <div style="background: white; border-radius: 8px; padding: 24px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); display: flex; align-items: center; justify-content: center; color: #999;">
-                <p>Second visualization will go here</p>
+            <div class="chart" role="figure" aria-label="All Topics">
+                <div class="chart__header">
+                    <h2 class="chart__title">All Topics</h2>
+                    <p class="chart__subtitle">Individual topic frequency across all categories</p>
+                </div>
+                <div class="chart__body">
+                    <div class="chart__labels" id="topicsChartLabels"></div>
+                    <div class="chart__bars" id="topicsChartBars"></div>
+                </div>
+                <div class="chart__footer" id="topicsChartFooter">Frequency (n=<span id="topicsCount">0</span>)</div>
             </div>
         </div>
     </div>
@@ -995,6 +1026,7 @@
                 processData();
                 renderTreemap(hierarchyData);
                 renderBarChart();
+                renderTopicsChart();
                 
                 // Add resize listener with debounce
                 window.addEventListener('resize', debounce(handleResize, 250));
@@ -1347,53 +1379,66 @@
             return '#' + ((1 << 24) + (R << 16) + (G << 8) + B).toString(16).slice(1);
         }
 
-        function processBarChartData() {
-            const categoryMap = new Map();
-            let totalTopicInstances = 0;
+         function processBarChartData() {
+             const categoryMap = new Map();
+             let totalTopicInstances = 0;
 
-            rawData.forEach(row => {
-                const topics = row['text  Topics'] || [];
-                topics.forEach(topic => {
-                    if (!topic.category) return;
+             rawData.forEach(row => {
+                 const topics = row['text  Topics'] || [];
+                 topics.forEach(topic => {
+                     if (!topic.category) return;
 
-                    totalTopicInstances++;
+                     totalTopicInstances++;
 
-                    if (!categoryMap.has(topic.category)) {
-                        categoryMap.set(topic.category, {
-                            name: topic.category,
-                            count: 0,
-                            topics: new Map()
-                        });
-                    }
+                     if (!categoryMap.has(topic.category)) {
+                         categoryMap.set(topic.category, {
+                             name: topic.category,
+                             count: 0,
+                             topics: new Map()
+                         });
+                     }
 
-                    const category = categoryMap.get(topic.category);
-                    category.count++;
+                     const category = categoryMap.get(topic.category);
+                     category.count++;
 
-                    if (!category.topics.has(topic.label)) {
-                        category.topics.set(topic.label, {
-                            name: topic.label,
-                            count: 0
-                        });
-                    }
+                     if (!category.topics.has(topic.label)) {
+                         category.topics.set(topic.label, {
+                             name: topic.label,
+                             count: 0,
+                             verbatims: []
+                         });
+                     }
 
-                    category.topics.get(topic.label).count++;
-                });
-            });
+                     const topicData = category.topics.get(topic.label);
+                     topicData.count++;
+                     
+                     // Add verbatim data
+                     topicData.verbatims.push({
+                         text: row['text  Text Text'],
+                         sentiment: row['text  Overall Sentiment'],
+                         index: row.index,
+                         country: row['Additional columns location_country'],
+                         city: row['Additional columns location_city'],
+                         date: row['Additional columns created_at']
+                     });
+                 });
+             });
 
-            // Convert to array and sort
-            const categories = Array.from(categoryMap.values()).map(cat => ({
-                name: cat.name,
-                count: cat.count,
-                percent: (cat.count / totalTopicInstances) * 100,
-                topics: Array.from(cat.topics.values()).map(topic => ({
-                    name: topic.name,
-                    count: topic.count,
-                    percent: (topic.count / totalTopicInstances) * 100
-                })).sort((a, b) => b.count - a.count)
-            })).sort((a, b) => b.count - a.count);
+             // Convert to array and sort
+             const categories = Array.from(categoryMap.values()).map(cat => ({
+                 name: cat.name,
+                 count: cat.count,
+                 percent: (cat.count / totalTopicInstances) * 100,
+                 topics: Array.from(cat.topics.values()).map(topic => ({
+                     name: topic.name,
+                     count: topic.count,
+                     percent: (topic.count / totalTopicInstances) * 100,
+                     verbatims: topic.verbatims
+                 })).sort((a, b) => b.count - a.count)
+             })).sort((a, b) => b.count - a.count);
 
-            return { categories, totalTopicInstances };
-        }
+             return { categories, totalTopicInstances };
+         }
 
         function renderBarChart() {
             const { categories, totalTopicInstances } = processBarChartData();
@@ -1474,37 +1519,54 @@
                 headerRow.appendChild(labelWrapper);
                 labelGroup.appendChild(headerRow);
 
-                // Topics panel (collapsed by default)
-                const panel = document.createElement('div');
-                panel.className = 'group__panel';
-                panel.id = categoryId;
-                panel.setAttribute('hidden', '');
-                panel.setAttribute('role', 'region');
-                panel.setAttribute('aria-labelledby', categoryId + '-label');
+                 // Topics panel (collapsed by default)
+                 const panel = document.createElement('div');
+                 panel.className = 'group__panel';
+                 panel.id = categoryId;
+                 panel.setAttribute('hidden', '');
+                 panel.setAttribute('role', 'region');
+                 panel.setAttribute('aria-labelledby', categoryId + '-label');
+                 panel.setAttribute('data-category-id', categoryId);
 
-                category.topics.forEach((topic, topicIndex) => {
-                    const topicRow = document.createElement('div');
-                    topicRow.className = 'topic';
+                 category.topics.forEach((topic, topicIndex) => {
+                     const topicRow = document.createElement('div');
+                     topicRow.className = 'topic';
+                     
+                     // Add click handler for drilldown to verbatims
+                     topicRow.onclick = () => {
+                         showVerbatims(topic.verbatims, topic.name, category.name);
+                     };
+                     topicRow.setAttribute('role', 'button');
+                     topicRow.setAttribute('tabindex', '0');
+                     topicRow.setAttribute('aria-label', `View ${topic.count} conversations about ${topic.name}`);
 
-                    const topicLabelWrapper = document.createElement('div');
-                    topicLabelWrapper.className = 'topic__label-wrapper';
-                    topicLabelWrapper.style.width = '240px';
+                     const topicLabelWrapper = document.createElement('div');
+                     topicLabelWrapper.className = 'topic__label-wrapper';
+                     topicLabelWrapper.style.width = '240px';
 
-                    const bullet = document.createElement('div');
-                    bullet.className = 'bullet';
-                    const topicColor = adjustColorLightness(baseColor, (topicIndex % 3 - 1) * 15);
-                    bullet.style.background = topicColor;
-                    bullet.style.opacity = '0.4';
+                     const bullet = document.createElement('div');
+                     bullet.className = 'bullet';
+                     const topicColor = adjustColorLightness(baseColor, (topicIndex % 3 - 1) * 15);
+                     bullet.style.background = topicColor;
+                     bullet.style.opacity = '0.4';
 
-                    const topicLabel = document.createElement('div');
-                    topicLabel.className = 'topic__label';
-                    topicLabel.textContent = topic.name;
+                     const topicLabel = document.createElement('div');
+                     topicLabel.className = 'topic__label';
+                     topicLabel.textContent = topic.name;
 
-                    topicLabelWrapper.appendChild(bullet);
-                    topicLabelWrapper.appendChild(topicLabel);
-                    topicRow.appendChild(topicLabelWrapper);
-                    panel.appendChild(topicRow);
-                });
+                     topicLabelWrapper.appendChild(bullet);
+                     topicLabelWrapper.appendChild(topicLabel);
+                     topicRow.appendChild(topicLabelWrapper);
+                     panel.appendChild(topicRow);
+                     
+                     // Add keyboard support
+                     topicRow.onkeydown = (e) => {
+                         if (e.key === 'Enter' || e.key === ' ') {
+                             e.preventDefault();
+                             showVerbatims(topic.verbatims, topic.name, category.name);
+                         }
+                     };
+                 });
 
                 labelGroup.appendChild(panel);
                 labelsContainer.appendChild(labelGroup);
@@ -1553,76 +1615,270 @@
                 barHeaderRow.appendChild(fill);
                 barGroup.appendChild(barHeaderRow);
 
-                // Topic bars panel
-                const barsPanel = document.createElement('div');
-                barsPanel.className = 'group__panel';
-                barsPanel.setAttribute('hidden', '');
+                 // Topic bars panel
+                 const barsPanel = document.createElement('div');
+                 barsPanel.className = 'group__panel';
+                 barsPanel.id = categoryId + '-bars';
+                 barsPanel.setAttribute('hidden', '');
+                 barsPanel.setAttribute('data-category-id', categoryId);
 
-                category.topics.forEach((topic, topicIndex) => {
-                    const topicBarRow = document.createElement('div');
-                    topicBarRow.className = 'topic__bar-container';
+                 category.topics.forEach((topic, topicIndex) => {
+                     const topicBarRow = document.createElement('div');
+                     topicBarRow.className = 'topic__bar-container';
+                     topicBarRow.style.cursor = 'pointer';
+                     topicBarRow.style.marginBottom = '6px';
+                     
+                     // Add click handler for drilldown to verbatims
+                     topicBarRow.onclick = () => {
+                         showVerbatims(topic.verbatims, topic.name, category.name);
+                     };
 
-                    const topicTrack = document.createElement('div');
-                    topicTrack.className = 'bar__track';
+                     const topicTrack = document.createElement('div');
+                     topicTrack.className = 'bar__track';
 
-                    const topicFill = document.createElement('div');
-                    topicFill.className = 'bar__fill';
-                    const topicColor = adjustColorLightness(baseColor, (topicIndex % 3 - 1) * 15);
-                    topicFill.style.background = topicColor;
-                    topicFill.style.width = '0%';
-                    
-                    const topicBarWidthPercent = (topic.percent / maxPercent) * 100;
-                    
-                    const topicValue = document.createElement('div');
-                    topicValue.textContent = `${topic.percent.toFixed(1)}%`;
-                    
-                    // Estimate if label fits inside
-                    const estimatedLabelWidth = 40; // pixels
-                    const containerWidth = barsContainer.clientWidth || 600;
-                    const topicBarWidthPixels = (topicBarWidthPercent / 100) * containerWidth;
-                    
-                    if (topicBarWidthPixels > estimatedLabelWidth + 16) {
-                        // Enough space inside
-                        topicValue.className = 'bar__value bar__value--inside';
-                        topicFill.appendChild(topicValue);
-                    } else {
-                        // Not enough space, place outside
-                        topicValue.className = 'bar__value bar__value--outside';
-                        topicValue.style.left = `${topicBarWidthPercent}%`;
-                        topicBarRow.appendChild(topicValue);
-                    }
+                     const topicFill = document.createElement('div');
+                     topicFill.className = 'bar__fill';
+                     const topicColor = adjustColorLightness(baseColor, (topicIndex % 3 - 1) * 15);
+                     topicFill.style.background = topicColor;
+                     topicFill.style.width = '0%';
+                     
+                     const topicBarWidthPercent = (topic.percent / maxPercent) * 100;
+                     
+                     const topicValue = document.createElement('div');
+                     topicValue.textContent = `${topic.percent.toFixed(1)}%`;
+                     
+                     // Estimate if label fits inside
+                     const estimatedLabelWidth = 40; // pixels
+                     const containerWidth = barsContainer.clientWidth || 600;
+                     const topicBarWidthPixels = (topicBarWidthPercent / 100) * containerWidth;
+                     
+                     if (topicBarWidthPixels > estimatedLabelWidth + 16) {
+                         // Enough space inside
+                         topicValue.className = 'bar__value bar__value--inside';
+                         topicFill.appendChild(topicValue);
+                     } else {
+                         // Not enough space, place outside
+                         topicValue.className = 'bar__value bar__value--outside';
+                         topicValue.style.left = `${topicBarWidthPercent}%`;
+                         topicBarRow.appendChild(topicValue);
+                     }
 
-                    setTimeout(() => {
-                        topicFill.style.width = `${topicBarWidthPercent}%`;
-                    }, 50 + topicIndex * 30);
+                     setTimeout(() => {
+                         topicFill.style.width = `${topicBarWidthPercent}%`;
+                     }, 50 + topicIndex * 30);
 
-                    topicBarRow.appendChild(topicTrack);
-                    topicBarRow.appendChild(topicFill);
-                    barsPanel.appendChild(topicBarRow);
-                });
+                     topicBarRow.appendChild(topicTrack);
+                     topicBarRow.appendChild(topicFill);
+                     barsPanel.appendChild(topicBarRow);
+                 });
 
                 barGroup.appendChild(barsPanel);
                 barsContent.appendChild(barGroup);
             });
         }
 
-        function toggleCategory(categoryId, toggleButton) {
-            const panel = document.getElementById(categoryId);
-            const barsPanel = document.querySelectorAll('.group__panel')[
-                Array.from(document.querySelectorAll('.chart__labels .group__panel')).indexOf(panel)
-            ];
+         function toggleCategory(categoryId, toggleButton) {
+             const panel = document.getElementById(categoryId);
+             const barsPanel = document.getElementById(categoryId + '-bars');
 
-            if (panel.hasAttribute('hidden')) {
-                panel.removeAttribute('hidden');
-                if (barsPanel) barsPanel.removeAttribute('hidden');
-                toggleButton.textContent = '−';
-                toggleButton.setAttribute('aria-expanded', 'true');
-            } else {
-                panel.setAttribute('hidden', '');
-                if (barsPanel) barsPanel.setAttribute('hidden', '');
-                toggleButton.textContent = '+';
-                toggleButton.setAttribute('aria-expanded', 'false');
-            }
+             if (panel && panel.hasAttribute('hidden')) {
+                 panel.removeAttribute('hidden');
+                 if (barsPanel) barsPanel.removeAttribute('hidden');
+                 toggleButton.textContent = '−';
+                 toggleButton.setAttribute('aria-expanded', 'true');
+             } else if (panel) {
+                 panel.setAttribute('hidden', '');
+                 if (barsPanel) barsPanel.setAttribute('hidden', '');
+                 toggleButton.textContent = '+';
+                 toggleButton.setAttribute('aria-expanded', 'false');
+             }
+         }
+
+         // Topics Chart (uncategorized)
+         function processTopicsData() {
+             const topicsMap = new Map();
+             let totalTopicInstances = 0;
+
+             rawData.forEach(row => {
+                 const topics = row['text  Topics'] || [];
+                 topics.forEach(topic => {
+                     if (!topic.label) return;
+
+                     totalTopicInstances++;
+
+                     if (!topicsMap.has(topic.label)) {
+                         topicsMap.set(topic.label, {
+                             name: topic.label,
+                             category: topic.category || 'Unknown',
+                             count: 0,
+                             verbatims: []
+                         });
+                     }
+
+                     const topicData = topicsMap.get(topic.label);
+                     topicData.count++;
+                     
+                     // Add verbatim data
+                     topicData.verbatims.push({
+                         text: row['text  Text Text'],
+                         sentiment: row['text  Overall Sentiment'],
+                         index: row.index,
+                         country: row['Additional columns location_country'],
+                         city: row['Additional columns location_city'],
+                         date: row['Additional columns created_at']
+                     });
+                 });
+             });
+
+             // Convert to array and sort by count
+             const topics = Array.from(topicsMap.values()).map(topic => ({
+                 name: topic.name,
+                 category: topic.category,
+                 count: topic.count,
+                 percent: (topic.count / totalTopicInstances) * 100,
+                 verbatims: topic.verbatims
+             })).sort((a, b) => b.count - a.count);
+
+             return { topics, totalTopicInstances };
+         }
+
+        function renderTopicsChart() {
+            const { topics, totalTopicInstances } = processTopicsData();
+            const colorPalette = generateCategoryColorPalette();
+            
+            // Update total count
+            document.getElementById('topicsCount').textContent = totalTopicInstances;
+
+            // Get max percent for scaling
+            const maxPercent = Math.max(...topics.map(t => t.percent));
+
+            // Render labels and bars
+            const labelsContainer = document.getElementById('topicsChartLabels');
+            const barsContainer = document.getElementById('topicsChartBars');
+            
+            labelsContainer.innerHTML = '';
+            barsContainer.innerHTML = '';
+
+            // Create gridlines
+            const gridlinesContainer = document.createElement('div');
+            gridlinesContainer.className = 'gridlines';
+            const ticks = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+            ticks.forEach(tick => {
+                const line = document.createElement('div');
+                line.className = 'gridline';
+                line.style.left = `${tick}%`;
+                gridlinesContainer.appendChild(line);
+            });
+            barsContainer.appendChild(gridlinesContainer);
+
+            // Create content container for bars
+            const barsContent = document.createElement('div');
+            barsContent.style.position = 'relative';
+            barsContent.style.zIndex = '1';
+            barsContainer.appendChild(barsContent);
+
+            // Create axis labels
+            const axisContainer = document.createElement('div');
+            axisContainer.className = 'axis--bottom';
+            ticks.forEach(tick => {
+                const label = document.createElement('span');
+                label.className = 'axis__label';
+                label.style.left = `${tick}%`;
+                label.textContent = `${tick}%`;
+                axisContainer.appendChild(label);
+            });
+            barsContainer.appendChild(axisContainer);
+
+             // Render each topic as a simple row
+             topics.forEach((topic, index) => {
+                 const baseColor = colorPalette[topic.category] || categoryColors[index % categoryColors.length];
+                 
+                 // Labels column
+                 const labelRow = document.createElement('div');
+                 labelRow.className = 'topic';
+                 labelRow.style.marginBottom = '8px';
+                 
+                 // Add click handler for drilldown to verbatims
+                 labelRow.onclick = () => {
+                     showVerbatims(topic.verbatims, topic.name, topic.category);
+                 };
+                 labelRow.setAttribute('role', 'button');
+                 labelRow.setAttribute('tabindex', '0');
+                 labelRow.setAttribute('aria-label', `View ${topic.count} conversations about ${topic.name}`);
+
+                 const labelWrapper = document.createElement('div');
+                 labelWrapper.className = 'topic__label-wrapper';
+                 labelWrapper.style.width = '240px';
+                 labelWrapper.style.paddingLeft = '0';
+
+                 const bullet = document.createElement('div');
+                 bullet.className = 'bullet';
+                 bullet.style.background = baseColor;
+                 bullet.style.opacity = '0.6';
+
+                 const label = document.createElement('div');
+                 label.className = 'topic__label';
+                 label.textContent = topic.name;
+
+                 labelWrapper.appendChild(bullet);
+                 labelWrapper.appendChild(label);
+                 labelRow.appendChild(labelWrapper);
+                 labelsContainer.appendChild(labelRow);
+                 
+                 // Add keyboard support
+                 labelRow.onkeydown = (e) => {
+                     if (e.key === 'Enter' || e.key === ' ') {
+                         e.preventDefault();
+                         showVerbatims(topic.verbatims, topic.name, topic.category);
+                     }
+                 };
+
+                // Bars column
+                const barRow = document.createElement('div');
+                barRow.className = 'topic__bar-container';
+                barRow.style.marginBottom = '8px';
+                barRow.style.cursor = 'pointer';
+                
+                // Add click handler for drilldown to verbatims
+                barRow.onclick = () => {
+                    showVerbatims(topic.verbatims, topic.name, topic.category);
+                };
+
+                const track = document.createElement('div');
+                track.className = 'bar__track';
+
+                const fill = document.createElement('div');
+                fill.className = 'bar__fill';
+                fill.style.background = baseColor;
+                fill.style.width = '0%';
+                
+                const barWidthPercent = (topic.percent / maxPercent) * 100;
+                
+                const value = document.createElement('div');
+                value.textContent = `${topic.percent.toFixed(1)}%`;
+                
+                // Estimate if label fits inside
+                const estimatedLabelWidth = 40;
+                const containerWidth = barsContainer.clientWidth || 600;
+                const barWidthPixels = (barWidthPercent / 100) * containerWidth;
+                
+                if (barWidthPixels > estimatedLabelWidth + 16) {
+                    value.className = 'bar__value bar__value--inside';
+                    fill.appendChild(value);
+                } else {
+                    value.className = 'bar__value bar__value--outside';
+                    value.style.left = `${barWidthPercent}%`;
+                    barRow.appendChild(value);
+                }
+
+                setTimeout(() => {
+                    fill.style.width = `${barWidthPercent}%`;
+                }, 50 + index * 20);
+
+                barRow.appendChild(track);
+                barRow.appendChild(fill);
+                barsContent.appendChild(barRow);
+            });
         }
 
         // Start the application
