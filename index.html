@@ -102,19 +102,35 @@
             flex-shrink: 0;
         }
 
-        .treemap-container {
-            width: 100%;
-            height: 60vh;
-            min-height: 400px;
-            max-height: 600px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-            display: flex;
-            flex-direction: column;
-            position: relative;
-            overflow: hidden;
-        }
+         .treemap-container {
+             width: 100%;
+             height: 60vh;
+             min-height: 400px;
+             max-height: 600px;
+             background: white;
+             border-radius: 8px;
+             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+             display: flex;
+             flex-direction: column;
+             position: relative;
+             overflow: hidden;
+         }
+
+         @media (max-width: 768px) {
+             .treemap-container {
+                 height: 70vh;
+                 min-height: 500px;
+                 max-height: 700px;
+             }
+         }
+
+         @media (max-width: 480px) {
+             .treemap-container {
+                 height: 75vh;
+                 min-height: 550px;
+                 max-height: none;
+             }
+         }
 
         .treemap-header {
             padding: 20px 24px 16px 24px;
