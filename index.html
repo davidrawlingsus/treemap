@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <meta name="theme-color" content="#667eea">
     <title>Intercom Topics Treemap</title>
+    <script src="/config.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -1059,8 +1060,8 @@
             }
         }
 
-        // API Configuration
-        const API_BASE_URL = 'http://localhost:8000';
+        // API Configuration - loaded from server config
+        const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
         let currentDataSourceId = null;
         
         // Load available data sources
