@@ -1280,9 +1280,40 @@
         let availableQuestions = [];
         let currentClientId = null;
         let currentDataSourceId = null;
+        let currentQuestionRefKey = null;
         let allClients = [];
         let clientSources = [];
         let dimensionNamesMap = {}; // Map of ref_key -> custom_name
+        
+        // State persistence constants
+        const STATE_STORAGE_KEY = 'treemap_app_state';
+        
+        // Save current state to localStorage
+        function saveState() {
+            try {
+                const state = {
+                    clientId: currentClientId,
+                    dataSourceId: currentDataSourceId,
+                    questionRefKey: currentQuestionRefKey
+                };
+                localStorage.setItem(STATE_STORAGE_KEY, JSON.stringify(state));
+            } catch (error) {
+                console.error('Error saving state:', error);
+            }
+        }
+        
+        // Load state from localStorage
+        function loadState() {
+            try {
+                const stateJson = localStorage.getItem(STATE_STORAGE_KEY);
+                if (stateJson) {
+                    return JSON.parse(stateJson);
+                }
+            } catch (error) {
+                console.error('Error loading state:', error);
+            }
+            return null;
+        }
         
         // Predefined dimension options
         let dimensionOptions = [
@@ -1333,27 +1364,40 @@
                     return;
                 }
                 
+                // Try to restore saved state
+                const savedState = loadState();
+                
                 allClients.forEach((client, index) => {
                     const option = document.createElement('option');
                     option.value = client.id;
                     option.textContent = client.name;
                     select.appendChild(option);
                     
-                    // Select first one by default
-                    if (index === 0) {
+                    // Restore saved client or select first one by default
+                    if (savedState && savedState.clientId === client.id) {
+                        currentClientId = client.id;
+                    } else if (!savedState && index === 0) {
                         currentClientId = client.id;
                     }
                 });
                 
+                // Set the select value to match the current client
+                if (currentClientId) {
+                    select.value = currentClientId;
+                }
+                
                 // Add change listener
                 select.addEventListener('change', async (e) => {
                     currentClientId = e.target.value;
+                    currentDataSourceId = null; // Reset data source when client changes
+                    currentQuestionRefKey = null; // Reset question when client changes
+                    saveState();
                     await loadClientSources(currentClientId);
                 });
                 
-                // Load sources for the first client
+                // Load sources for the selected client
                 if (currentClientId) {
-                    await loadClientSources(currentClientId);
+                    await loadClientSources(currentClientId, savedState);
                 }
             } catch (error) {
                 console.error('Error loading clients:', error);
@@ -1363,7 +1407,7 @@
         }
         
         // Load sources for a specific client
-        async function loadClientSources(clientId) {
+        async function loadClientSources(clientId, savedState = null) {
             try {
                 const response = await fetch(`${API_BASE_URL}/api/clients/${clientId}/sources`);
                 if (!response.ok) {
@@ -1385,19 +1429,26 @@
                     option.textContent = source.source_name || source.name;
                     select.appendChild(option);
                     
-                    // Select first one by default
-                    if (index === 0) {
+                    // Restore saved data source or select first one by default
+                    if (savedState && savedState.dataSourceId === source.id) {
+                        currentDataSourceId = source.id;
+                    } else if (!savedState && !currentDataSourceId && index === 0) {
                         currentDataSourceId = source.id;
                     }
                 });
+                
+                // Set the select value to match the current data source
+                if (currentDataSourceId) {
+                    select.value = currentDataSourceId;
+                }
                 
                 // Add change listener (only once)
                 select.removeEventListener('change', handleSourceChange);
                 select.addEventListener('change', handleSourceChange);
                 
-                // Load the first data source
+                // Load the selected data source
                 if (currentDataSourceId) {
-                    await loadDataSource(currentDataSourceId);
+                    await loadDataSource(currentDataSourceId, savedState);
                 }
             } catch (error) {
                 console.error('Error loading sources:', error);
@@ -1409,6 +1460,8 @@
         // Handle source selection change
         async function handleSourceChange(e) {
             currentDataSourceId = e.target.value;
+            currentQuestionRefKey = null; // Reset question when source changes
+            saveState();
             await loadDataSource(currentDataSourceId);
         }
         
@@ -1435,16 +1488,25 @@
         }
         
         // Load a specific data source
-        async function loadDataSource(dataSourceId) {
+        async function loadDataSource(dataSourceId, savedState = null) {
             try {
                 document.getElementById('loading').style.display = 'flex';
                 document.getElementById('loading').innerHTML = 'Loading data...';
                 
                 const response = await fetch(`${API_BASE_URL}/api/data-sources/${dataSourceId}`);
                 if (!response.ok) {
-                    throw new Error('Failed to load data source');
+                    throw new Error(`HTTP ${response.status}: Failed to load data source`);
                 }
+                
                 const dataSource = await response.json();
+                
+                // Validate response structure
+                if (!dataSource || !dataSource.raw_data) {
+                    throw new Error('Invalid response structure: missing raw_data');
+                }
+                
+                console.log(`Loaded data source: ${dataSource.name}, rows: ${dataSource.raw_data.length}`);
+                
                 fullRawData = dataSource.raw_data;
                 rawData = fullRawData;
                 currentSourceFormat = dataSource.source_format;
@@ -1453,7 +1515,7 @@
                 updateBreadcrumb();
                 
                 // Detect if this is survey data with multiple questions
-                detectAndSetupQuestionFilter();
+                await detectAndSetupQuestionFilter(savedState);
                 
                 document.getElementById('loading').style.display = 'none';
                 
@@ -1462,6 +1524,7 @@
                 renderBarChart();
                 renderTopicsChart();
             } catch (error) {
+                console.error('Error in loadDataSource:', error);
                 document.getElementById('loading').innerHTML = 
                     '<div class="error">Error loading data: ' + error.message + '</div>';
             }
@@ -1491,13 +1554,22 @@
         }
         
         // Detect survey format and setup question filter
-        async function detectAndSetupQuestionFilter() {
+        async function detectAndSetupQuestionFilter(savedState = null) {
             const questionLabel = document.getElementById('questionLabel');
             const questionSelect = document.getElementById('questionSelect');
             const dimensionNameEditor = document.getElementById('dimensionNameEditor');
             
+            // Validate rawData exists and has content
+            if (!rawData || rawData.length === 0) {
+                console.warn('No data available for question filter detection');
+                questionLabel.style.display = 'none';
+                questionSelect.style.display = 'none';
+                dimensionNameEditor.style.display = 'none';
+                return;
+            }
+            
             // Check if data has ref_key in metadata (normalized survey format)
-            const hasSurveyFormat = rawData.length > 0 && 
+            const hasSurveyFormat = rawData[0] && 
                                     rawData[0].metadata && 
                                     rawData[0].metadata.ref_key;
             
@@ -1506,12 +1578,26 @@
                 await loadDimensionNames();
                 
                 // Extract unique questions from normalized data
+                // Only include dimensions that have at least some topics
                 const questionSet = new Set();
                 const questionSamples = {};
+                const questionTopicCounts = {};
                 
                 rawData.forEach(row => {
-                    if (row.metadata && row.metadata.ref_key) {
+                    // Skip null/undefined rows
+                    if (!row || !row.metadata) return;
+                    
+                    if (row.metadata.ref_key) {
                         const refKey = row.metadata.ref_key;
+                        
+                        // Count rows with topics for this dimension
+                        if (!questionTopicCounts[refKey]) {
+                            questionTopicCounts[refKey] = 0;
+                        }
+                        if (row.topics && row.topics.length > 0) {
+                            questionTopicCounts[refKey]++;
+                        }
+                        
                         questionSet.add(refKey);
                         
                         // Store a sample text for each question
@@ -1521,7 +1607,11 @@
                     }
                 });
                 
-                availableQuestions = Array.from(questionSet).sort();
+                // Filter to only dimensions that have topics
+                const allQuestions = Array.from(questionSet).sort();
+                availableQuestions = allQuestions.filter(refKey => questionTopicCounts[refKey] > 0);
+                
+                console.log(`Found ${allQuestions.length} total dimensions, ${availableQuestions.length} with topics`);
                 
                 // Populate question selector with custom names
                 questionSelect.innerHTML = '<option value="">All Dimensions</option>';
@@ -1542,6 +1632,8 @@
                 // Add change listener
                 questionSelect.onchange = function() {
                     const selectedRefKey = this.value;
+                    currentQuestionRefKey = selectedRefKey;
+                    saveState();
                     filterByQuestion(selectedRefKey);
                     
                     // Show/hide dimension name editor based on selection
@@ -1556,15 +1648,26 @@
                 // Setup inline dimension editor
                 setupInlineDimensionEditor();
                 
-                // Auto-select first dimension if there are multiple
-                if (availableQuestions.length > 0) {
-                    questionSelect.value = availableQuestions[0];
-                    filterByQuestion(availableQuestions[0]);
-                    dimensionNameEditor.style.display = 'flex';
-                    updateInlineDimensionEditor(availableQuestions[0]);
+                // Restore saved question or default to "All Dimensions"
+                let questionToSelect = null;
+                if (savedState && savedState.questionRefKey && availableQuestions.includes(savedState.questionRefKey)) {
+                    questionToSelect = savedState.questionRefKey;
                 }
+                // Don't auto-select first dimension - default to showing all
                 
-                console.log(`Survey format detected: ${availableQuestions.length} dimensions found`);
+                if (questionToSelect) {
+                    currentQuestionRefKey = questionToSelect;
+                    questionSelect.value = questionToSelect;
+                    filterByQuestion(questionToSelect);
+                    dimensionNameEditor.style.display = 'flex';
+                    updateInlineDimensionEditor(questionToSelect);
+                } else {
+                    // Default to "All Dimensions" view
+                    currentQuestionRefKey = null;
+                    questionSelect.value = '';
+                    filterByQuestion(''); // Show all dimensions
+                    dimensionNameEditor.style.display = 'none';
+                }
             } else {
                 // Hide question selector for non-survey data
                 questionLabel.style.display = 'none';
@@ -1638,13 +1741,23 @@
         // Now works with normalized data format
         function processData() {
             const categoryMap = new Map();
+            
+            console.log(`Processing ${rawData.length} rows...`);
+            let rowsWithTopics = 0;
+            let topicsFound = 0;
 
             rawData.forEach(row => {
+                // Skip null/undefined rows or rows with no topics
+                if (!row || !row.topics || row.topics.length === 0) return;
+                
                 // Normalized format: {row_id, text, topics[], sentiment, metadata{}}
-                const topics = row.topics || [];
+                const topics = row.topics;
+                
+                rowsWithTopics++;
                 
                 topics.forEach(topic => {
-                    if (!topic.category) return;
+                    if (!topic || !topic.category) return;
+                    topicsFound++;
 
                     // Get or create category
                     if (!categoryMap.has(topic.category)) {
@@ -1692,6 +1805,14 @@
                     }))
                 }))
             };
+            
+            console.log(`Found ${rowsWithTopics} rows with topics, ${topicsFound} total topics`);
+            console.log(`Categories: ${categoryMap.size}, Hierarchy children: ${hierarchyData.children.length}`);
+            
+            // Log a sample row for debugging
+            if (rawData.length > 0) {
+                console.log('Sample row:', JSON.stringify(rawData[0], null, 2).substring(0, 500));
+            }
         }
 
 
@@ -1793,6 +1914,10 @@
                 .attr('rx', 5)
                 .attr('ry', 5)
                 .attr('fill', d => {
+                    // Handle case where parent might be null
+                    if (!d.parent || !d.parent.data) {
+                        return '#cccccc'; // Default gray color for orphaned nodes
+                    }
                     const baseColor = colorSchemes.categories(d.parent.data.name);
                     // Vary brightness for child nodes based on their index
                     const siblings = d.parent.children;

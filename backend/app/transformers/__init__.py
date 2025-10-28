@@ -66,12 +66,11 @@ class DataTransformer:
         if 'text  Topics' in sample and 'text  Text Text' in sample:
             return DataSourceType.INTERCOM_MRT
         
-        # Check for multi-ref survey format (has ref_* keys)
-        ref_keys = [k for k in sample.keys() if k.startswith('ref_')]
-        if ref_keys and isinstance(sample[ref_keys[0]], dict):
-            # Verify it has the expected structure
-            first_ref = sample[ref_keys[0]]
-            if 'text' in first_ref and 'topics' in first_ref:
+        # Check for multi-ref survey format (has fields with survey question structure)
+        # Look for ANY dict field with {text, topics} structure, not just ref_* fields
+        # This catches both ref_* fields and MRT's custom field names
+        for key, value in sample.items():
+            if isinstance(value, dict) and 'text' in value and 'topics' in value:
                 return DataSourceType.SURVEY_MULTI_REF
         
         return DataSourceType.GENERIC
@@ -165,33 +164,33 @@ class SurveyMultiRefTransformer:
             base_row_id = row.get('row_id', f'row_{i}')
             created_at = row.get('created_at')
             
-            # Find all ref_* fields
-            ref_keys = [k for k in row.keys() if k.startswith('ref_')]
+            # Find ALL fields with survey question structure {text, topics}
+            # Not limited to ref_* - includes MRT's custom field names
+            survey_fields = []
+            for key, value in row.items():
+                if isinstance(value, dict) and 'text' in value and 'topics' in value:
+                    survey_fields.append(key)
             
-            # Process each ref as a separate response
-            for ref_key in ref_keys:
-                ref_data = row[ref_key]
+            # Process each survey field as a separate response
+            for field_key in survey_fields:
+                field_data = row[field_key]
                 
-                # Skip if not a dict or missing required fields
-                if not isinstance(ref_data, dict):
-                    continue
+                topics = field_data.get('topics', [])
+                text = field_data.get('text', '')
                 
-                topics = ref_data.get('topics', [])
-                text = ref_data.get('text', '')
-                
-                # Skip empty responses
+                # Skip empty responses (no topics and no text)
                 if not topics and not text:
                     continue
                 
-                # Create normalized row for this ref
+                # Create normalized row for this field
                 normalized = NormalizedRow(
-                    row_id=f"{base_row_id}_{ref_key}",
+                    row_id=f"{base_row_id}_{field_key}",
                     text=text,
                     topics=topics,
-                    sentiment=ref_data.get('sentiment_overall'),
+                    sentiment=field_data.get('sentiment_overall'),
                     metadata={
                         'original_row_id': base_row_id,
-                        'ref_key': ref_key,
+                        'ref_key': field_key,  # Use field name as ref_key
                         'created_at': created_at,
                         'source_type': 'survey'
                     }
