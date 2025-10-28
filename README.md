@@ -1,6 +1,8 @@
 # Interactive Hierarchical Treemap Visualization
 
-An interactive treemap visualization for exploring Intercom chat data with drill-down capabilities to verbatims.
+A multi-format interactive treemap visualization for exploring conversation and survey data with drill-down capabilities to verbatims.
+
+Supports multiple data formats including Intercom conversations and multi-question surveys, automatically detecting and transforming data for visualization.
 
 ## Features
 
@@ -89,9 +91,21 @@ Root
 
 ```
 treemap/
-├── index.html                                    # Main visualization file
-├── rows_MRT - Intercom chats - Topics in order.json  # Data file
-└── README.md                                     # This file
+├── index.html                    # Frontend visualization
+├── QUICKSTART.md                 # Quick start guide
+├── README.md                     # This file
+├── Documentation/                # Complete documentation
+│   ├── README.md                # Documentation index
+│   ├── MULTI_FORMAT_GUIDE.md   # Multi-format system guide
+│   ├── FORMAT_COMPARISON.md    # Format comparison
+│   └── ...                      # Additional docs
+├── backend/                      # FastAPI backend
+│   ├── app/
+│   │   ├── transformers/        # Format transformation system
+│   │   ├── models/              # Database models
+│   │   └── main.py             # API endpoints
+│   └── migrate_data_sources.py # Migration script
+└── test_wattbike_local.sh       # Automated testing script
 ```
 
 ## Customization
@@ -102,10 +116,46 @@ You can customize the visualization by modifying these variables in `index.html`
 - `colorSchemes`: Color palettes for categories and topics
 - Grid layout in `.verbatim-container`: Card layout configuration
 
+## Documentation
+
+📚 **Complete documentation** is available in the [`Documentation/`](Documentation/) folder:
+
+- **[Multi-Format Guide](Documentation/MULTI_FORMAT_GUIDE.md)** - How to use different data formats
+- **[Format Comparison](Documentation/FORMAT_COMPARISON.md)** - Understanding data structures
+- **[Quick Test Guide](Documentation/QUICK_TEST_GUIDE.md)** - Local testing instructions
+- **[Test Checklist](Documentation/TEST_CHECKLIST.md)** - Comprehensive testing
+- **[Refactoring Summary](Documentation/REFACTORING_SUMMARY.md)** - Technical details
+
+See the [Documentation README](Documentation/README.md) for a complete index.
+
+## Multi-Format Support
+
+The system now supports multiple data formats:
+
+- **Intercom MRT Format**: Flat conversation data (1:1 row mapping)
+- **Survey Multi-Ref Format**: Multi-question surveys (1:N expansion)
+- **Generic Format**: Passthrough for unknown structures
+
+### Key Features
+
+- ✅ Automatic format detection
+- ✅ Real-time data transformation
+- ✅ Question-level filtering for surveys
+- ✅ Preserved original data
+- ✅ Unified visualization regardless of format
+
+### Quick Start
+
+1. **Start backend**: See [QUICKSTART.md](QUICKSTART.md)
+2. **Upload data**: Automatically detects and transforms format
+3. **Visualize**: Select data source and optionally filter by question
+4. **Test**: Run `./test_wattbike_local.sh` for automated testing
+
 ## Notes
 
-- The visualization loads data asynchronously
+- The visualization loads data asynchronously via API
 - Large datasets are handled efficiently with D3's treemap algorithm
 - Cards are scrollable when verbatim text is long
 - Responsive design adapts to different screen sizes
+- Survey data includes question-level filtering
 
