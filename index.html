@@ -51,6 +51,13 @@
             font-size: clamp(14px, 3vw, 16px);
             opacity: 0.9;
         }
+        
+        .header .breadcrumb-display {
+            font-size: clamp(12px, 2.5vw, 14px);
+            opacity: 0.85;
+            margin-top: 8px;
+            font-weight: 500;
+        }
 
         .data-source-selector {
             padding: 16px 30px;
@@ -935,9 +942,14 @@
     <div class="container">
         <!-- Data Source Selector -->
         <div class="data-source-selector">
-            <label for="dataSourceSelect">Data Source:</label>
-            <select id="dataSourceSelect">
+            <label for="clientSelect">Client:</label>
+            <select id="clientSelect">
                 <option value="">Loading...</option>
+            </select>
+            
+            <label for="sourceSelect" style="margin-left: 24px;">Source:</label>
+            <select id="sourceSelect">
+                <option value="">Select client first...</option>
             </select>
             
             <!-- Question/Reference Filter (for survey data) -->
@@ -1058,6 +1070,10 @@
         let viewStack = [];
         let currentSourceFormat = null;
         let availableQuestions = [];
+        let currentClientId = null;
+        let currentDataSourceId = null;
+        let allClients = [];
+        let clientSources = [];
 
         // Handle window resize
         function handleResize() {
@@ -1071,51 +1087,122 @@
 
         // API Configuration - loaded from server config
         const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
-        let currentDataSourceId = null;
         
-        // Load available data sources
-        async function loadDataSources() {
+        // Load available clients
+        async function loadClients() {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/data-sources`);
+                const response = await fetch(`${API_BASE_URL}/api/clients`);
                 if (!response.ok) {
-                    throw new Error('Failed to load data sources');
+                    throw new Error('Failed to load clients');
                 }
-                const dataSources = await response.json();
+                allClients = await response.json();
                 
-                const select = document.getElementById('dataSourceSelect');
+                const select = document.getElementById('clientSelect');
                 select.innerHTML = '';
                 
-                if (dataSources.length === 0) {
-                    select.innerHTML = '<option value="">No data sources available</option>';
+                if (allClients.length === 0) {
+                    select.innerHTML = '<option value="">No clients available</option>';
                     return;
                 }
                 
-                dataSources.forEach((ds, index) => {
+                allClients.forEach((client, index) => {
                     const option = document.createElement('option');
-                    option.value = ds.id;
-                    option.textContent = ds.name;
+                    option.value = client.id;
+                    option.textContent = client.name;
                     select.appendChild(option);
                     
                     // Select first one by default
                     if (index === 0) {
-                        currentDataSourceId = ds.id;
+                        currentClientId = client.id;
                     }
                 });
                 
                 // Add change listener
                 select.addEventListener('change', async (e) => {
-                    currentDataSourceId = e.target.value;
-                    await loadDataSource(currentDataSourceId);
+                    currentClientId = e.target.value;
+                    await loadClientSources(currentClientId);
                 });
+                
+                // Load sources for the first client
+                if (currentClientId) {
+                    await loadClientSources(currentClientId);
+                }
+            } catch (error) {
+                console.error('Error loading clients:', error);
+                const select = document.getElementById('clientSelect');
+                select.innerHTML = '<option value="">Error loading clients</option>';
+            }
+        }
+        
+        // Load sources for a specific client
+        async function loadClientSources(clientId) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/clients/${clientId}/sources`);
+                if (!response.ok) {
+                    throw new Error('Failed to load sources');
+                }
+                clientSources = await response.json();
+                
+                const select = document.getElementById('sourceSelect');
+                select.innerHTML = '';
+                
+                if (clientSources.length === 0) {
+                    select.innerHTML = '<option value="">No sources available</option>';
+                    return;
+                }
+                
+                clientSources.forEach((source, index) => {
+                    const option = document.createElement('option');
+                    option.value = source.id;
+                    option.textContent = source.source_name || source.name;
+                    select.appendChild(option);
+                    
+                    // Select first one by default
+                    if (index === 0) {
+                        currentDataSourceId = source.id;
+                    }
+                });
+                
+                // Add change listener (only once)
+                select.removeEventListener('change', handleSourceChange);
+                select.addEventListener('change', handleSourceChange);
                 
                 // Load the first data source
                 if (currentDataSourceId) {
                     await loadDataSource(currentDataSourceId);
                 }
             } catch (error) {
-                console.error('Error loading data sources:', error);
-                const select = document.getElementById('dataSourceSelect');
-                select.innerHTML = '<option value="">Error loading data sources</option>';
+                console.error('Error loading sources:', error);
+                const select = document.getElementById('sourceSelect');
+                select.innerHTML = '<option value="">Error loading sources</option>';
+            }
+        }
+        
+        // Handle source selection change
+        async function handleSourceChange(e) {
+            currentDataSourceId = e.target.value;
+            await loadDataSource(currentDataSourceId);
+        }
+        
+        // Update breadcrumb display
+        function updateBreadcrumb(questionRefKey) {
+            const client = allClients.find(c => c.id === currentClientId);
+            const source = clientSources.find(s => s.id === currentDataSourceId);
+            
+            if (client && source) {
+                let breadcrumb = `${client.name} > ${source.source_name || 'Unknown Source'}`;
+                
+                // Add question to breadcrumb if specified
+                if (questionRefKey) {
+                    const questionLabel = questionRefKey.replace('ref_', 'Q');
+                    breadcrumb += ` > ${questionLabel}`;
+                }
+                
+                // Update header subtitle if it exists
+                const headerP = document.querySelector('.header p');
+                if (headerP && !headerP.classList.contains('breadcrumb-display')) {
+                    headerP.innerHTML = `Topic visualization and analysis<br><span class="breadcrumb-display">${breadcrumb}</span>`;
+                }
             }
         }
         
@@ -1133,6 +1220,9 @@
                 fullRawData = dataSource.raw_data;
                 rawData = fullRawData;
                 currentSourceFormat = dataSource.source_format;
+                
+                // Update breadcrumb
+                updateBreadcrumb();
                 
                 // Detect if this is survey data with multiple questions
                 detectAndSetupQuestionFilter();
@@ -1154,17 +1244,25 @@
             const questionLabel = document.getElementById('questionLabel');
             const questionSelect = document.getElementById('questionSelect');
             
-            // Check if data has ref_key in metadata (survey format)
+            // Check if data has ref_key in metadata (normalized survey format)
             const hasSurveyFormat = rawData.length > 0 && 
                                     rawData[0].metadata && 
                                     rawData[0].metadata.ref_key;
             
             if (hasSurveyFormat) {
-                // Extract unique questions
+                // Extract unique questions from normalized data
                 const questionSet = new Set();
+                const questionSamples = {};
+                
                 rawData.forEach(row => {
                     if (row.metadata && row.metadata.ref_key) {
-                        questionSet.add(row.metadata.ref_key);
+                        const refKey = row.metadata.ref_key;
+                        questionSet.add(refKey);
+                        
+                        // Store a sample text for each question
+                        if (!questionSamples[refKey] && row.text) {
+                            questionSamples[refKey] = row.text.substring(0, 50);
+                        }
                     }
                 });
                 
@@ -1175,7 +1273,10 @@
                 availableQuestions.forEach(refKey => {
                     const option = document.createElement('option');
                     option.value = refKey;
-                    option.textContent = refKey.replace('ref_', 'Question ');
+                    // Display ref_key with sample text if available
+                    const sampleText = questionSamples[refKey] ? ` (${questionSamples[refKey]}...)` : '';
+                    option.textContent = refKey.replace('ref_', 'Q') + sampleText;
+                    option.title = questionSamples[refKey] || refKey; // Full text on hover
                     questionSelect.appendChild(option);
                 });
                 
@@ -1203,13 +1304,24 @@
                 // Show all questions
                 rawData = fullRawData;
             } else {
-                // Filter to specific question
-                rawData = fullRawData.filter(row => 
-                    row.metadata && row.metadata.ref_key === refKey
-                );
+                // Filter to specific question (works with normalized format)
+                rawData = fullRawData.filter(row => {
+                    // Normalized format: check metadata.ref_key
+                    if (row.metadata && row.metadata.ref_key === refKey) {
+                        return true;
+                    }
+                    // Raw format: check if ref_key exists as a property
+                    if (row[refKey] && typeof row[refKey] === 'object' && row[refKey].text) {
+                        return true;
+                    }
+                    return false;
+                });
             }
             
             console.log(`Filtered to ${rawData.length} rows for question: ${refKey || 'all'}`);
+            
+            // Update breadcrumb to show question selection
+            updateBreadcrumb(refKey);
             
             // Re-render visualizations
             processData();
@@ -1226,8 +1338,8 @@
                 width = container.clientWidth;
                 height = container.clientHeight;
                 
-                // Load data sources from API
-                await loadDataSources();
+                // Load clients from API (which will cascade to sources and data)
+                await loadClients();
                 
                 // Add resize listener with debounce
                 window.addEventListener('resize', debounce(handleResize, 250));
