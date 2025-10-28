@@ -186,20 +186,54 @@ def list_data_sources(
     return result
 
 
+def enrich_data_with_dimension_names(data: list, dimension_names_map: dict) -> list:
+    """
+    Enrich normalized data with dimension names from the map.
+    Adds dimension_name to metadata for LLM context.
+    """
+    if not data:
+        return data
+    
+    enriched = []
+    for row in data:
+        if isinstance(row, dict):
+            ref_key = row.get('metadata', {}).get('ref_key')
+            if ref_key and ref_key in dimension_names_map:
+                if 'metadata' not in row:
+                    row['metadata'] = {}
+                row['metadata']['dimension_name'] = dimension_names_map[ref_key]
+        enriched.append(row)
+    
+    return enriched
+
+
 @app.get("/api/data-sources/{data_source_id}", response_model=DataSourceDetail)
 def get_data_source(data_source_id: UUID, use_raw: bool = False, db: Session = Depends(get_db)):
     """
     Get a specific data source with full data.
+    Enriches the data with dimension names for LLM context.
     
     Args:
         data_source_id: UUID of the data source
         use_raw: If True, return raw_data; if False, return normalized_data (default)
         db: Database session
     """
-    data_source = db.query(DataSource).filter(DataSource.id == data_source_id).first()
+    data_source = db.query(DataSource).options(
+        joinedload(DataSource.dimension_names)
+    ).filter(DataSource.id == data_source_id).first()
     
     if not data_source:
         raise HTTPException(status_code=404, detail="Data source not found")
+    
+    # Build dimension names map
+    dimension_map = {dn.ref_key: dn.custom_name for dn in data_source.dimension_names}
+    
+    # Enrich data with dimension names for LLM context
+    if data_source.normalized_data and dimension_map:
+        data_source.normalized_data = enrich_data_with_dimension_names(
+            data_source.normalized_data, 
+            dimension_map
+        )
     
     # Return the appropriate data format
     # The response model will handle serialization
@@ -420,7 +454,7 @@ def create_or_update_dimension_name(
 ):
     """
     Create or update a single dimension name for a data source.
-    If the ref_key already exists for this data source, it will be updated.
+    Also enriches the normalized_data JSON with the dimension name for LLM context.
     """
     # Verify data source exists
     data_source = db.query(DataSource).filter(DataSource.id == data_source_id).first()
@@ -436,20 +470,31 @@ def create_or_update_dimension_name(
     if existing:
         # Update existing
         existing.custom_name = dimension_data.custom_name
-        db.commit()
-        db.refresh(existing)
-        return existing
     else:
         # Create new
-        new_dimension_name = DimensionName(
+        existing = DimensionName(
             data_source_id=data_source_id,
             ref_key=dimension_data.ref_key,
             custom_name=dimension_data.custom_name
         )
-        db.add(new_dimension_name)
-        db.commit()
-        db.refresh(new_dimension_name)
-        return new_dimension_name
+        db.add(existing)
+    
+    # ENRICH THE JSON: Update normalized_data to include dimension name
+    if data_source.normalized_data:
+        for row in data_source.normalized_data:
+            if isinstance(row, dict) and row.get('metadata', {}).get('ref_key') == dimension_data.ref_key:
+                # Add dimension_name to metadata
+                if 'metadata' not in row:
+                    row['metadata'] = {}
+                row['metadata']['dimension_name'] = dimension_data.custom_name
+        
+        # Mark the column as modified so SQLAlchemy knows to update it
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(data_source, 'normalized_data')
+    
+    db.commit()
+    db.refresh(existing)
+    return existing
 
 
 @app.post("/api/data-sources/{data_source_id}/dimension-names/batch", response_model=List[DimensionNameResponse])
@@ -460,6 +505,7 @@ def batch_update_dimension_names(
 ):
     """
     Batch create or update multiple dimension names for a data source.
+    Also enriches the normalized_data JSON with dimension names for LLM context.
     """
     # Verify data source exists
     data_source = db.query(DataSource).filter(DataSource.id == data_source_id).first()
@@ -467,6 +513,9 @@ def batch_update_dimension_names(
         raise HTTPException(status_code=404, detail="Data source not found")
     
     results = []
+    
+    # Build a map of ref_key -> custom_name
+    dimension_map = {d.ref_key: d.custom_name for d in batch_data.dimension_names}
     
     for dimension_data in batch_data.dimension_names:
         # Check if dimension name already exists
@@ -488,6 +537,21 @@ def batch_update_dimension_names(
             )
             db.add(new_dimension_name)
             results.append(new_dimension_name)
+    
+    # ENRICH THE JSON: Update normalized_data to include all dimension names
+    if data_source.normalized_data:
+        for row in data_source.normalized_data:
+            if isinstance(row, dict):
+                ref_key = row.get('metadata', {}).get('ref_key')
+                if ref_key and ref_key in dimension_map:
+                    # Add dimension_name to metadata
+                    if 'metadata' not in row:
+                        row['metadata'] = {}
+                    row['metadata']['dimension_name'] = dimension_map[ref_key]
+        
+        # Mark the column as modified so SQLAlchemy knows to update it
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(data_source, 'normalized_data')
     
     db.commit()
     
