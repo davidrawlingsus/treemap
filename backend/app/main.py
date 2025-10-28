@@ -18,7 +18,10 @@ app = FastAPI(title="Visualizd API", version="0.1.0")
 # CORS configuration - allow frontend to communicate with backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify your domain
+    allow_origins=[
+        "http://localhost:3000",  # Local development
+        "https://treemap-production-794d.up.railway.app",  # Production frontend
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
