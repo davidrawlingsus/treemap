@@ -91,11 +91,37 @@ class QuestionInfo(BaseModel):
     ref_key: str
     sample_text: Optional[str] = None
     response_count: int = 0
+    custom_name: Optional[str] = None  # Custom dimension name if assigned
 
 
 class DataSourceWithQuestions(DataSourceResponse):
     """Data source with detected questions"""
     questions: List[QuestionInfo] = []
+
+    class Config:
+        from_attributes = True
+
+
+# Dimension Name Schemas
+class DimensionNameCreate(BaseModel):
+    """Create or update a dimension name"""
+    ref_key: str
+    custom_name: str
+
+
+class DimensionNameBatchUpdate(BaseModel):
+    """Batch update multiple dimension names for a data source"""
+    dimension_names: List[DimensionNameCreate]
+
+
+class DimensionNameResponse(BaseModel):
+    """Response for dimension name"""
+    id: UUID
+    data_source_id: UUID
+    ref_key: str
+    custom_name: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

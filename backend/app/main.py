@@ -7,11 +7,12 @@ import json
 from uuid import UUID
 
 from app.database import get_db, engine, Base
-from app.models import Client, DataSource
+from app.models import Client, DataSource, DimensionName
 from app.schemas import (
     ClientCreate, ClientResponse,
     DataSourceCreate, DataSourceResponse, DataSourceDetail,
-    QuestionInfo, DataSourceWithQuestions
+    QuestionInfo, DataSourceWithQuestions,
+    DimensionNameCreate, DimensionNameBatchUpdate, DimensionNameResponse
 )
 from app.transformers import DataTransformer, DataSourceType
 
@@ -303,13 +304,23 @@ def get_data_source_questions(data_source_id: UUID, db: Session = Depends(get_db
     """
     Get available questions for a data source.
     Detects ref_* fields that contain objects with 'text' and 'topics' fields.
+    Includes custom dimension names if assigned.
     """
-    data_source = db.query(DataSource).options(joinedload(DataSource.client)).filter(
+    data_source = db.query(DataSource).options(
+        joinedload(DataSource.client),
+        joinedload(DataSource.dimension_names)
+    ).filter(
         DataSource.id == data_source_id
     ).first()
     
     if not data_source:
         raise HTTPException(status_code=404, detail="Data source not found")
+    
+    # Build a map of ref_key -> custom_name from dimension_names
+    dimension_name_map = {
+        dn.ref_key: dn.custom_name 
+        for dn in data_source.dimension_names
+    }
     
     # Detect questions from normalized_data
     questions = []
@@ -330,7 +341,8 @@ def get_data_source_questions(data_source_id: UUID, db: Session = Depends(get_db
                     question_refs[ref_key] = {
                         'ref_key': ref_key,
                         'sample_text': row.get('text', '')[:100],  # First 100 chars
-                        'response_count': 0
+                        'response_count': 0,
+                        'custom_name': dimension_name_map.get(ref_key)
                     }
             # Also check for raw format with ref_* keys
             else:
@@ -341,7 +353,8 @@ def get_data_source_questions(data_source_id: UUID, db: Session = Depends(get_db
                                 question_refs[key] = {
                                     'ref_key': key,
                                     'sample_text': value.get('text', '')[:100],
-                                    'response_count': 0
+                                    'response_count': 0,
+                                    'custom_name': dimension_name_map.get(key)
                                 }
         
         # Count responses for each question
@@ -378,6 +391,134 @@ def get_data_source_questions(data_source_id: UUID, db: Session = Depends(get_db
     }
     
     return result
+
+
+# Dimension Names Endpoints
+
+@app.get("/api/data-sources/{data_source_id}/dimension-names", response_model=List[DimensionNameResponse])
+def get_dimension_names(data_source_id: UUID, db: Session = Depends(get_db)):
+    """
+    Get all custom dimension names for a data source.
+    """
+    # Verify data source exists
+    data_source = db.query(DataSource).filter(DataSource.id == data_source_id).first()
+    if not data_source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    dimension_names = db.query(DimensionName).filter(
+        DimensionName.data_source_id == data_source_id
+    ).all()
+    
+    return dimension_names
+
+
+@app.post("/api/data-sources/{data_source_id}/dimension-names", response_model=DimensionNameResponse)
+def create_or_update_dimension_name(
+    data_source_id: UUID,
+    dimension_data: DimensionNameCreate,
+    db: Session = Depends(get_db)
+):
+    """
+    Create or update a single dimension name for a data source.
+    If the ref_key already exists for this data source, it will be updated.
+    """
+    # Verify data source exists
+    data_source = db.query(DataSource).filter(DataSource.id == data_source_id).first()
+    if not data_source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    # Check if dimension name already exists
+    existing = db.query(DimensionName).filter(
+        DimensionName.data_source_id == data_source_id,
+        DimensionName.ref_key == dimension_data.ref_key
+    ).first()
+    
+    if existing:
+        # Update existing
+        existing.custom_name = dimension_data.custom_name
+        db.commit()
+        db.refresh(existing)
+        return existing
+    else:
+        # Create new
+        new_dimension_name = DimensionName(
+            data_source_id=data_source_id,
+            ref_key=dimension_data.ref_key,
+            custom_name=dimension_data.custom_name
+        )
+        db.add(new_dimension_name)
+        db.commit()
+        db.refresh(new_dimension_name)
+        return new_dimension_name
+
+
+@app.post("/api/data-sources/{data_source_id}/dimension-names/batch", response_model=List[DimensionNameResponse])
+def batch_update_dimension_names(
+    data_source_id: UUID,
+    batch_data: DimensionNameBatchUpdate,
+    db: Session = Depends(get_db)
+):
+    """
+    Batch create or update multiple dimension names for a data source.
+    """
+    # Verify data source exists
+    data_source = db.query(DataSource).filter(DataSource.id == data_source_id).first()
+    if not data_source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    results = []
+    
+    for dimension_data in batch_data.dimension_names:
+        # Check if dimension name already exists
+        existing = db.query(DimensionName).filter(
+            DimensionName.data_source_id == data_source_id,
+            DimensionName.ref_key == dimension_data.ref_key
+        ).first()
+        
+        if existing:
+            # Update existing
+            existing.custom_name = dimension_data.custom_name
+            results.append(existing)
+        else:
+            # Create new
+            new_dimension_name = DimensionName(
+                data_source_id=data_source_id,
+                ref_key=dimension_data.ref_key,
+                custom_name=dimension_data.custom_name
+            )
+            db.add(new_dimension_name)
+            results.append(new_dimension_name)
+    
+    db.commit()
+    
+    # Refresh all objects
+    for result in results:
+        db.refresh(result)
+    
+    return results
+
+
+@app.delete("/api/data-sources/{data_source_id}/dimension-names/{ref_key}")
+def delete_dimension_name(
+    data_source_id: UUID,
+    ref_key: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a custom dimension name.
+    """
+    dimension_name = db.query(DimensionName).filter(
+        DimensionName.data_source_id == data_source_id,
+        DimensionName.ref_key == ref_key
+    ).first()
+    
+    if not dimension_name:
+        raise HTTPException(status_code=404, detail="Dimension name not found")
+    
+    db.delete(dimension_name)
+    db.commit()
+    
+    return {"message": "Dimension name deleted successfully"}
 
 
 if __name__ == "__main__":

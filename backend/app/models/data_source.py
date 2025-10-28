@@ -23,6 +23,9 @@ class DataSource(Base):
 
     # Relationship to client
     client = relationship("Client", back_populates="data_sources")
+    
+    # Relationship to dimension names
+    dimension_names = relationship("DimensionName", back_populates="data_source", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<DataSource(id={self.id}, name={self.name}, format={self.source_format})>"

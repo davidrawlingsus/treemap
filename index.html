@@ -66,6 +66,11 @@
             display: flex;
             align-items: center;
             gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        #dimensionNameEditor {
+            display: flex;
         }
 
         .data-source-selector label {
@@ -639,6 +644,174 @@
             }
         }
 
+        /* Dimension Editor Styles */
+        .dimension-editor-container {
+            padding: 30px;
+            background: #fafafa;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .dimension-editor-item {
+            background: white;
+            border: 1px solid #e8e8e8;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: all 0.3s ease-in-out;
+        }
+
+        .dimension-editor-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+        }
+
+        .dimension-ref {
+            font-weight: 600;
+            color: #667eea;
+            min-width: 80px;
+            font-size: 14px;
+        }
+
+        .dimension-select {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: 'Inter', 'Roboto', sans-serif;
+            transition: all 0.2s ease-in-out;
+            background: white;
+            cursor: pointer;
+        }
+
+        .dimension-select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .dimension-custom-input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: 'Inter', 'Roboto', sans-serif;
+            transition: all 0.2s ease-in-out;
+            display: none;
+        }
+
+        .dimension-custom-input.active {
+            display: block;
+        }
+
+        .dimension-custom-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .dimension-controls {
+            flex: 1;
+            display: flex;
+            gap: 8px;
+        }
+
+        .manage-options-btn {
+            padding: 8px 16px;
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .manage-options-btn:hover {
+            background: #e0e0e0;
+        }
+
+        .dimension-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .dimension-save-btn {
+            padding: 8px 16px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .dimension-save-btn:hover {
+            background: #5568d3;
+        }
+
+        .dimension-save-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .dimension-editor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #e8e8e8;
+        }
+
+        .dimension-editor-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .save-all-btn {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s ease-in-out;
+        }
+
+        .save-all-btn:hover {
+            background: #5568d3;
+        }
+
+        .save-all-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .dimension-status {
+            font-size: 13px;
+            color: #666;
+            font-style: italic;
+        }
+
+        .dimension-status.saved {
+            color: #2E7D32;
+        }
+
+        .dimension-status.unsaved {
+            color: #C62828;
+        }
+
         /* Bar Chart Styles */
         .chart {
             background: white;
@@ -952,11 +1125,32 @@
                 <option value="">Select client first...</option>
             </select>
             
-            <!-- Question/Reference Filter (for survey data) -->
-            <label for="questionSelect" id="questionLabel" style="display:none; margin-left: 24px;">Question:</label>
+            <!-- Dimension Filter (for survey data) -->
+            <label for="questionSelect" id="questionLabel" style="display:none; margin-left: 24px;">Dimension:</label>
             <select id="questionSelect" style="display:none;">
-                <option value="">All Questions</option>
+                <option value="">All Dimensions</option>
             </select>
+            
+            <!-- Inline Dimension Name Editor -->
+            <div id="dimensionNameEditor" style="display:none; margin-left: 12px; align-items: center; gap: 8px;">
+                <label style="font-size: 13px; color: #666;">Name:</label>
+                <select id="dimensionNameSelect" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; background: white; cursor: pointer;">
+                    <option value="">-- Select --</option>
+                </select>
+                <input 
+                    type="text" 
+                    id="dimensionNameCustom" 
+                    placeholder="or enter custom name"
+                    style="display:none; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; width: 200px;"
+                />
+                <button id="saveDimensionBtn" style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                    Save
+                </button>
+                <button id="manageOptionsBtn" style="padding: 6px 12px; background: #f0f0f0; color: #333; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                    Manage Options
+                </button>
+                <span id="saveStatusInline" style="font-size: 12px; color: #666; font-style: italic;"></span>
+            </div>
         </div>
         
         <div class="treemap-section">
@@ -1010,6 +1204,20 @@
                 <button class="close-button" onclick="closeOverlay()">&times;</button>
             </div>
             <div id="verbatims" class="verbatim-container" style="display: none;"></div>
+        </div>
+    </div>
+
+    <!-- Overlay Modal for Dimension Editor -->
+    <div id="dimensionEditorOverlay" class="overlay">
+        <div class="overlay-content">
+            <div class="overlay-header">
+                <div>
+                    <h2 class="overlay-title">Edit Dimension Names</h2>
+                    <p class="overlay-subtitle">Assign human-readable names to survey dimensions</p>
+                </div>
+                <button class="close-button" onclick="closeDimensionEditor()">&times;</button>
+            </div>
+            <div id="dimensionEditorContent" class="dimension-editor-container"></div>
         </div>
     </div>
 
@@ -1074,6 +1282,26 @@
         let currentDataSourceId = null;
         let allClients = [];
         let clientSources = [];
+        let dimensionNamesMap = {}; // Map of ref_key -> custom_name
+        
+        // Predefined dimension options
+        let dimensionOptions = [
+            'Original Desire',
+            'Triggers',
+            'False Beliefs',
+            'Competitors',
+            'Appeal',
+            'Exclusivity',
+            'Objections',
+            'Proof Elements',
+            'Trusted Personalities',
+            'Trusted Media',
+            'Usability Friction',
+            'Relevant Features',
+            'Relevant Benefits',
+            'Product Ideas',
+            'Service Ideas'
+        ];
 
         // Handle window resize
         function handleResize() {
@@ -1239,10 +1467,34 @@
             }
         }
         
+        // Load dimension names from API
+        async function loadDimensionNames() {
+            if (!currentDataSourceId) return;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/data-sources/${currentDataSourceId}/dimension-names`);
+                if (response.ok) {
+                    const dimensionNames = await response.json();
+                    dimensionNamesMap = {};
+                    dimensionNames.forEach(dn => {
+                        dimensionNamesMap[dn.ref_key] = dn.custom_name;
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading dimension names:', error);
+            }
+        }
+        
+        // Get display name for a dimension (custom name if available, otherwise formatted ref_key)
+        function getDimensionDisplayName(refKey) {
+            return dimensionNamesMap[refKey] || refKey.replace('ref_', 'Q');
+        }
+        
         // Detect survey format and setup question filter
-        function detectAndSetupQuestionFilter() {
+        async function detectAndSetupQuestionFilter() {
             const questionLabel = document.getElementById('questionLabel');
             const questionSelect = document.getElementById('questionSelect');
+            const dimensionNameEditor = document.getElementById('dimensionNameEditor');
             
             // Check if data has ref_key in metadata (normalized survey format)
             const hasSurveyFormat = rawData.length > 0 && 
@@ -1250,6 +1502,9 @@
                                     rawData[0].metadata.ref_key;
             
             if (hasSurveyFormat) {
+                // Load custom dimension names first
+                await loadDimensionNames();
+                
                 // Extract unique questions from normalized data
                 const questionSet = new Set();
                 const questionSamples = {};
@@ -1268,15 +1523,15 @@
                 
                 availableQuestions = Array.from(questionSet).sort();
                 
-                // Populate question selector
-                questionSelect.innerHTML = '<option value="">All Questions</option>';
+                // Populate question selector with custom names
+                questionSelect.innerHTML = '<option value="">All Dimensions</option>';
                 availableQuestions.forEach(refKey => {
                     const option = document.createElement('option');
                     option.value = refKey;
-                    // Display ref_key with sample text if available
-                    const sampleText = questionSamples[refKey] ? ` (${questionSamples[refKey]}...)` : '';
-                    option.textContent = refKey.replace('ref_', 'Q') + sampleText;
-                    option.title = questionSamples[refKey] || refKey; // Full text on hover
+                    
+                    // Use custom name if available, otherwise show ref_key
+                    const displayName = getDimensionDisplayName(refKey);
+                    option.textContent = displayName;
                     questionSelect.appendChild(option);
                 });
                 
@@ -1286,14 +1541,35 @@
                 
                 // Add change listener
                 questionSelect.onchange = function() {
-                    filterByQuestion(this.value);
+                    const selectedRefKey = this.value;
+                    filterByQuestion(selectedRefKey);
+                    
+                    // Show/hide dimension name editor based on selection
+                    if (selectedRefKey && selectedRefKey !== '') {
+                        dimensionNameEditor.style.display = 'flex';
+                        updateInlineDimensionEditor(selectedRefKey);
+                    } else {
+                        dimensionNameEditor.style.display = 'none';
+                    }
                 };
                 
-                console.log(`Survey format detected: ${availableQuestions.length} questions found`);
+                // Setup inline dimension editor
+                setupInlineDimensionEditor();
+                
+                // Auto-select first dimension if there are multiple
+                if (availableQuestions.length > 0) {
+                    questionSelect.value = availableQuestions[0];
+                    filterByQuestion(availableQuestions[0]);
+                    dimensionNameEditor.style.display = 'flex';
+                    updateInlineDimensionEditor(availableQuestions[0]);
+                }
+                
+                console.log(`Survey format detected: ${availableQuestions.length} dimensions found`);
             } else {
                 // Hide question selector for non-survey data
                 questionLabel.style.display = 'none';
                 questionSelect.style.display = 'none';
+                dimensionNameEditor.style.display = 'none';
                 availableQuestions = [];
             }
         }
@@ -1333,6 +1609,9 @@
         // Initialize
         async function init() {
             try {
+                // Load dimension options from localStorage
+                loadDimensionOptions();
+                
                 // Set dimensions based on container
                 const container = document.querySelector('.treemap-svg-container');
                 width = container.clientWidth;
@@ -2198,6 +2477,351 @@
                 barsContent.appendChild(barRow);
             });
         }
+
+        // Inline Dimension Editor Functions
+        
+        let currentEditingRefKey = null;
+        
+        function setupInlineDimensionEditor() {
+            const nameSelect = document.getElementById('dimensionNameSelect');
+            const customInput = document.getElementById('dimensionNameCustom');
+            const saveBtn = document.getElementById('saveDimensionBtn');
+            const manageBtn = document.getElementById('manageOptionsBtn');
+            
+            // Handle dimension name select change
+            nameSelect.onchange = function() {
+                if (this.value === 'CUSTOM') {
+                    customInput.style.display = 'block';
+                    customInput.focus();
+                } else {
+                    customInput.style.display = 'none';
+                    customInput.value = '';
+                }
+            };
+            
+            // Save button
+            saveBtn.onclick = saveInlineDimensionName;
+            
+            // Manage options button
+            manageBtn.onclick = manageOptions;
+        }
+        
+        function updateInlineDimensionEditor(refKey) {
+            currentEditingRefKey = refKey;
+            
+            const nameSelect = document.getElementById('dimensionNameSelect');
+            const customInput = document.getElementById('dimensionNameCustom');
+            
+            // Get current name for this dimension
+            const currentName = dimensionNamesMap[refKey] || '';
+            
+            // Populate the dropdown
+            let optionsHtml = '<option value="">-- Select --</option>';
+            dimensionOptions.forEach(opt => {
+                const selected = opt === currentName ? 'selected' : '';
+                optionsHtml += `<option value="${opt}" ${selected}>${opt}</option>`;
+            });
+            
+            // Check if current name is custom
+            const isCustom = currentName && !dimensionOptions.includes(currentName);
+            optionsHtml += `<option value="CUSTOM" ${isCustom ? 'selected' : ''}>Custom...</option>`;
+            
+            nameSelect.innerHTML = optionsHtml;
+            
+            // Show custom input if needed
+            if (isCustom) {
+                customInput.style.display = 'block';
+                customInput.value = currentName;
+            } else {
+                customInput.style.display = 'none';
+                customInput.value = '';
+            }
+        }
+        
+        async function saveInlineDimensionName() {
+            if (!currentEditingRefKey) return;
+            
+            const nameSelect = document.getElementById('dimensionNameSelect');
+            const customInput = document.getElementById('dimensionNameCustom');
+            const statusEl = document.getElementById('saveStatusInline');
+            const saveBtn = document.getElementById('saveDimensionBtn');
+            
+            let customName = '';
+            
+            if (nameSelect.value === 'CUSTOM') {
+                customName = customInput.value.trim();
+            } else if (nameSelect.value) {
+                customName = nameSelect.value;
+            }
+            
+            if (!customName) {
+                statusEl.textContent = 'Please select or enter a name';
+                statusEl.style.color = '#C62828';
+                setTimeout(() => statusEl.textContent = '', 2000);
+                return;
+            }
+            
+            statusEl.textContent = 'Saving...';
+            statusEl.style.color = '#666';
+            saveBtn.disabled = true;
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/data-sources/${currentDataSourceId}/dimension-names`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        ref_key: currentEditingRefKey,
+                        custom_name: customName
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to save dimension name');
+                }
+                
+                // Update local map
+                dimensionNamesMap[currentEditingRefKey] = customName;
+                
+                // Update the dimension dropdown to show the new name
+                const questionSelect = document.getElementById('questionSelect');
+                const selectedOption = questionSelect.querySelector(`option[value="${currentEditingRefKey}"]`);
+                if (selectedOption) {
+                    selectedOption.textContent = customName;
+                }
+                
+                statusEl.textContent = 'Saved!';
+                statusEl.style.color = '#2E7D32';
+                
+                setTimeout(() => statusEl.textContent = '', 2000);
+                
+            } catch (error) {
+                console.error('Error saving dimension name:', error);
+                statusEl.textContent = 'Error saving';
+                statusEl.style.color = '#C62828';
+            } finally {
+                saveBtn.disabled = false;
+            }
+        }
+        
+        // Old overlay editor functions (keeping for backwards compatibility)
+        
+        function handleDimensionSelectChange(selectElement, refKey) {
+            const item = selectElement.closest('.dimension-editor-item');
+            const customInput = item.querySelector('.dimension-custom-input');
+            
+            if (selectElement.value === 'CUSTOM') {
+                customInput.classList.add('active');
+                customInput.focus();
+            } else {
+                customInput.classList.remove('active');
+                customInput.value = '';
+            }
+        }
+        
+        async function openDimensionEditor() {
+            const overlay = document.getElementById('dimensionEditorOverlay');
+            const container = document.getElementById('dimensionEditorContent');
+            
+            // Build editor UI
+            container.innerHTML = `
+                <div class="dimension-editor-header">
+                    <div>
+                        <h3 style="margin: 0; font-size: 16px; color: #333;">Customize Dimension Names</h3>
+                        <p style="margin: 4px 0 0 0; font-size: 13px; color: #888;">
+                            Select from predefined dimensions or create custom ones
+                        </p>
+                    </div>
+                    <div class="dimension-editor-actions">
+                        <button class="manage-options-btn" onclick="manageOptions()">Manage Options</button>
+                        <span class="dimension-status" id="saveStatus"></span>
+                        <button class="save-all-btn" onclick="saveAllDimensions()">Save All</button>
+                    </div>
+                </div>
+                <div id="dimensionsList"></div>
+            `;
+            
+            const list = document.getElementById('dimensionsList');
+            
+            // Create editor items for each dimension
+            availableQuestions.forEach(refKey => {
+                const item = document.createElement('div');
+                item.className = 'dimension-editor-item';
+                item.setAttribute('data-ref-key', refKey);
+                
+                const currentName = dimensionNamesMap[refKey] || '';
+                
+                // Determine if current name is in the predefined list or custom
+                const isCustom = currentName && !dimensionOptions.includes(currentName);
+                const selectedValue = isCustom ? 'CUSTOM' : currentName;
+                
+                // Build options HTML
+                let optionsHtml = '<option value="">-- Select Dimension --</option>';
+                dimensionOptions.forEach(opt => {
+                    const selected = opt === currentName ? 'selected' : '';
+                    optionsHtml += `<option value="${opt}" ${selected}>${opt}</option>`;
+                });
+                optionsHtml += '<option value="CUSTOM" ' + (isCustom ? 'selected' : '') + '>Custom...</option>';
+                
+                item.innerHTML = `
+                    <div class="dimension-ref">${refKey.replace('ref_', 'Q')}</div>
+                    <div class="dimension-controls">
+                        <select 
+                            class="dimension-select" 
+                            data-ref-key="${refKey}"
+                            onchange="handleDimensionSelectChange(this, '${refKey}')"
+                        >
+                            ${optionsHtml}
+                        </select>
+                        <input 
+                            type="text" 
+                            class="dimension-custom-input ${isCustom ? 'active' : ''}" 
+                            placeholder="Enter custom dimension name"
+                            value="${isCustom ? currentName : ''}"
+                            data-ref-key="${refKey}"
+                        />
+                    </div>
+                `;
+                
+                list.appendChild(item);
+            });
+            
+            // Show overlay
+            overlay.classList.add('active');
+        }
+        
+        function closeDimensionEditor() {
+            const overlay = document.getElementById('dimensionEditorOverlay');
+            overlay.classList.remove('active');
+        }
+        
+        async function saveAllDimensions() {
+            const statusEl = document.getElementById('saveStatus');
+            const saveBtn = document.querySelector('.save-all-btn');
+            
+            statusEl.textContent = 'Saving...';
+            statusEl.className = 'dimension-status';
+            saveBtn.disabled = true;
+            
+            try {
+                // Collect all dimension names
+                const items = document.querySelectorAll('.dimension-editor-item');
+                const dimensionNames = [];
+                
+                items.forEach(item => {
+                    const refKey = item.getAttribute('data-ref-key');
+                    const select = item.querySelector('.dimension-select');
+                    const customInput = item.querySelector('.dimension-custom-input');
+                    
+                    let customName = '';
+                    
+                    if (select.value === 'CUSTOM') {
+                        customName = customInput.value.trim();
+                    } else if (select.value) {
+                        customName = select.value;
+                    }
+                    
+                    if (customName) {
+                        dimensionNames.push({
+                            ref_key: refKey,
+                            custom_name: customName
+                        });
+                    }
+                });
+                
+                // Send batch update to API
+                const response = await fetch(`${API_BASE_URL}/api/data-sources/${currentDataSourceId}/dimension-names/batch`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        dimension_names: dimensionNames
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to save dimension names');
+                }
+                
+                // Update local map
+                await loadDimensionNames();
+                
+                // Update the dropdown
+                await detectAndSetupQuestionFilter();
+                
+                statusEl.textContent = 'Saved successfully!';
+                statusEl.className = 'dimension-status saved';
+                
+                setTimeout(() => {
+                    closeDimensionEditor();
+                }, 1500);
+                
+            } catch (error) {
+                console.error('Error saving dimension names:', error);
+                statusEl.textContent = 'Error saving. Please try again.';
+                statusEl.className = 'dimension-status unsaved';
+            } finally {
+                saveBtn.disabled = false;
+            }
+        }
+        
+        function manageOptions() {
+            const newOptions = prompt(
+                'Manage Dimension Options\n\n' +
+                'Current options:\n' + dimensionOptions.join('\n') + '\n\n' +
+                'Enter new options (one per line, or leave blank to cancel):'
+            );
+            
+            if (newOptions !== null && newOptions.trim()) {
+                const lines = newOptions.trim().split('\n').map(line => line.trim()).filter(line => line);
+                
+                // Add new unique options
+                lines.forEach(line => {
+                    if (!dimensionOptions.includes(line)) {
+                        dimensionOptions.push(line);
+                    }
+                });
+                
+                // Sort alphabetically
+                dimensionOptions.sort();
+                
+                // Save to localStorage for persistence
+                localStorage.setItem('dimensionOptions', JSON.stringify(dimensionOptions));
+                
+                alert('Options updated! Close and reopen the editor to see changes.');
+            }
+        }
+        
+        // Load dimension options from localStorage on startup
+        function loadDimensionOptions() {
+            const saved = localStorage.getItem('dimensionOptions');
+            if (saved) {
+                try {
+                    dimensionOptions = JSON.parse(saved);
+                } catch (e) {
+                    console.error('Error loading dimension options:', e);
+                }
+            }
+        }
+        
+        // Close dimension editor on backdrop click
+        document.addEventListener('DOMContentLoaded', () => {
+            const dimensionOverlay = document.getElementById('dimensionEditorOverlay');
+            dimensionOverlay.addEventListener('click', (e) => {
+                if (e.target === dimensionOverlay) {
+                    closeDimensionEditor();
+                }
+            });
+            
+            // Close with Escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && dimensionOverlay.classList.contains('active')) {
+                    closeDimensionEditor();
+                }
+            });
+        });
 
         // Start the application
         init();
