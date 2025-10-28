@@ -10,3 +10,4 @@ echo "📚 API docs at http://localhost:8000/docs"
 echo ""
 uvicorn app.main:app --reload --port 8000
 
+

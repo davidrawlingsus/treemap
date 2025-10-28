@@ -193,3 +193,4 @@ cd backend && ./start.sh
 
 **Well done!** You now have a working foundation for your multi-tenant analytics platform. The architecture is clean, the database is set up, and your frontend is successfully communicating with the backend.
 
+

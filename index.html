@@ -939,6 +939,12 @@
             <select id="dataSourceSelect">
                 <option value="">Loading...</option>
             </select>
+            
+            <!-- Question/Reference Filter (for survey data) -->
+            <label for="questionSelect" id="questionLabel" style="display:none; margin-left: 24px;">Question:</label>
+            <select id="questionSelect" style="display:none;">
+                <option value="">All Questions</option>
+            </select>
         </div>
         
         <div class="treemap-section">
@@ -1046,9 +1052,12 @@
 
         // Global state
         let rawData = [];
+        let fullRawData = []; // Store unfiltered data
         let hierarchyData = null;
         let currentView = 'root';
         let viewStack = [];
+        let currentSourceFormat = null;
+        let availableQuestions = [];
 
         // Handle window resize
         function handleResize() {
@@ -1121,7 +1130,12 @@
                     throw new Error('Failed to load data source');
                 }
                 const dataSource = await response.json();
-                rawData = dataSource.raw_data;
+                fullRawData = dataSource.raw_data;
+                rawData = fullRawData;
+                currentSourceFormat = dataSource.source_format;
+                
+                // Detect if this is survey data with multiple questions
+                detectAndSetupQuestionFilter();
                 
                 document.getElementById('loading').style.display = 'none';
                 
@@ -1133,6 +1147,75 @@
                 document.getElementById('loading').innerHTML = 
                     '<div class="error">Error loading data: ' + error.message + '</div>';
             }
+        }
+        
+        // Detect survey format and setup question filter
+        function detectAndSetupQuestionFilter() {
+            const questionLabel = document.getElementById('questionLabel');
+            const questionSelect = document.getElementById('questionSelect');
+            
+            // Check if data has ref_key in metadata (survey format)
+            const hasSurveyFormat = rawData.length > 0 && 
+                                    rawData[0].metadata && 
+                                    rawData[0].metadata.ref_key;
+            
+            if (hasSurveyFormat) {
+                // Extract unique questions
+                const questionSet = new Set();
+                rawData.forEach(row => {
+                    if (row.metadata && row.metadata.ref_key) {
+                        questionSet.add(row.metadata.ref_key);
+                    }
+                });
+                
+                availableQuestions = Array.from(questionSet).sort();
+                
+                // Populate question selector
+                questionSelect.innerHTML = '<option value="">All Questions</option>';
+                availableQuestions.forEach(refKey => {
+                    const option = document.createElement('option');
+                    option.value = refKey;
+                    option.textContent = refKey.replace('ref_', 'Question ');
+                    questionSelect.appendChild(option);
+                });
+                
+                // Show question selector
+                questionLabel.style.display = 'inline';
+                questionSelect.style.display = 'inline';
+                
+                // Add change listener
+                questionSelect.onchange = function() {
+                    filterByQuestion(this.value);
+                };
+                
+                console.log(`Survey format detected: ${availableQuestions.length} questions found`);
+            } else {
+                // Hide question selector for non-survey data
+                questionLabel.style.display = 'none';
+                questionSelect.style.display = 'none';
+                availableQuestions = [];
+            }
+        }
+        
+        // Filter data by selected question
+        function filterByQuestion(refKey) {
+            if (!refKey) {
+                // Show all questions
+                rawData = fullRawData;
+            } else {
+                // Filter to specific question
+                rawData = fullRawData.filter(row => 
+                    row.metadata && row.metadata.ref_key === refKey
+                );
+            }
+            
+            console.log(`Filtered to ${rawData.length} rows for question: ${refKey || 'all'}`);
+            
+            // Re-render visualizations
+            processData();
+            renderTreemap(hierarchyData);
+            renderBarChart();
+            renderTopicsChart();
         }
         
         // Initialize
@@ -1161,11 +1244,13 @@
         }
 
         // Process raw data into hierarchy
+        // Now works with normalized data format
         function processData() {
             const categoryMap = new Map();
 
             rawData.forEach(row => {
-                const topics = row['text  Topics'] || [];
+                // Normalized format: {row_id, text, topics[], sentiment, metadata{}}
+                const topics = row.topics || [];
                 
                 topics.forEach(topic => {
                     if (!topic.category) return;
@@ -1192,12 +1277,13 @@
                     // Add verbatim
                     const topicData = category.children.get(topic.label);
                     topicData.verbatims.push({
-                        text: row['text  Text Text'],
-                        sentiment: row['text  Overall Sentiment'],
-                        index: row.index,
-                        country: row['Additional columns location_country'],
-                        city: row['Additional columns location_city'],
-                        date: row['Additional columns created_at']
+                        text: row.text || '',
+                        sentiment: row.sentiment || 'neutral',
+                        index: row.row_id,
+                        country: row.metadata?.country || '',
+                        city: row.metadata?.city || '',
+                        date: row.metadata?.created_at || '',
+                        source_type: row.metadata?.source_type || 'unknown'
                     });
                 });
             });
@@ -1502,7 +1588,8 @@
              let totalTopicInstances = 0;
 
              rawData.forEach(row => {
-                 const topics = row['text  Topics'] || [];
+                 // Normalized format: {row_id, text, topics[], sentiment, metadata{}}
+                 const topics = row.topics || [];
                  topics.forEach(topic => {
                      if (!topic.category) return;
 
@@ -1532,12 +1619,12 @@
                      
                      // Add verbatim data
                      topicData.verbatims.push({
-                         text: row['text  Text Text'],
-                         sentiment: row['text  Overall Sentiment'],
-                         index: row.index,
-                         country: row['Additional columns location_country'],
-                         city: row['Additional columns location_city'],
-                         date: row['Additional columns created_at']
+                         text: row.text || '',
+                         sentiment: row.sentiment || 'neutral',
+                         index: row.row_id,
+                         country: row.metadata?.country || '',
+                         city: row.metadata?.city || '',
+                         date: row.metadata?.created_at || ''
                      });
                  });
              });
@@ -1818,7 +1905,8 @@
              let totalTopicInstances = 0;
 
              rawData.forEach(row => {
-                 const topics = row['text  Topics'] || [];
+                 // Normalized format: {row_id, text, topics[], sentiment, metadata{}}
+                 const topics = row.topics || [];
                  topics.forEach(topic => {
                      if (!topic.label) return;
 
@@ -1838,12 +1926,12 @@
                      
                      // Add verbatim data
                      topicData.verbatims.push({
-                         text: row['text  Text Text'],
-                         sentiment: row['text  Overall Sentiment'],
-                         index: row.index,
-                         country: row['Additional columns location_country'],
-                         city: row['Additional columns location_city'],
-                         date: row['Additional columns created_at']
+                         text: row.text || '',
+                         sentiment: row.sentiment || 'neutral',
+                         index: row.row_id,
+                         country: row.metadata?.country || '',
+                         city: row.metadata?.city || '',
+                         date: row.metadata?.created_at || ''
                      });
                  });
              });

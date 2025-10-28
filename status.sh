@@ -40,3 +40,4 @@ fi
 echo ""
 echo "📍 Open: http://localhost:3000/index.html"
 
+
