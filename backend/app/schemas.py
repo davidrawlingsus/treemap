@@ -9,7 +9,7 @@ class ClientCreate(BaseModel):
     name: str
     slug: str
     is_active: bool = True
-    settings: dict[str, Any] = {}
+    settings: dict = {}
 
 
 class ClientResponse(BaseModel):
@@ -18,7 +18,7 @@ class ClientResponse(BaseModel):
     slug: str
     is_active: bool
     created_at: datetime
-    updated_at: datetime | None
+    updated_at: Optional[datetime]
 
     class Config:
         from_attributes = True
@@ -31,7 +31,7 @@ class DataSourceCreate(BaseModel):
     source_name: Optional[str] = None
     source_type: str = "intercom"
     source_format: str = "intercom_mrt"
-    raw_data: Union[dict[str, Any], list[Any]]  # Can be dict or list
+    raw_data: Union[dict, list]  # Can be dict or list
 
 
 class DataSourceResponse(BaseModel):
@@ -43,7 +43,7 @@ class DataSourceResponse(BaseModel):
     source_format: str
     is_normalized: bool
     created_at: datetime
-    updated_at: datetime | None
+    updated_at: Optional[datetime]
     
     # Include client name in response for convenience
     client_name: Optional[str] = None
@@ -53,8 +53,8 @@ class DataSourceResponse(BaseModel):
 
 
 class DataSourceDetail(DataSourceResponse):
-    normalized_data: Optional[Union[dict[str, Any], list[Any]]] = None
-    raw_data: Optional[Union[dict[str, Any], list[Any]]] = None
+    normalized_data: Optional[Union[dict, list]] = None
+    raw_data: Optional[Union[dict, list]] = None
     
     @model_serializer
     def serialize_model(self):
