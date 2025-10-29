@@ -7,14 +7,18 @@ import json
 from uuid import UUID
 
 from app.database import get_db, engine, Base
-from app.models import Client, DataSource, DimensionName
+from app.models import Client, DataSource, DimensionName, GrowthIdea
 from app.schemas import (
     ClientCreate, ClientResponse,
     DataSourceCreate, DataSourceResponse, DataSourceDetail,
     QuestionInfo, DataSourceWithQuestions,
-    DimensionNameCreate, DimensionNameBatchUpdate, DimensionNameResponse
+    DimensionNameCreate, DimensionNameBatchUpdate, DimensionNameResponse,
+    GrowthIdeaCreate, GrowthIdeaUpdate, GrowthIdeaResponse,
+    GrowthIdeaGenerateRequest, GrowthIdeaGenerateResponse,
+    ClientGrowthIdeasStats, TopicSpecificIdeaRequest
 )
 from app.transformers import DataTransformer, DataSourceType
+from app.services import OpenAIService
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -583,6 +587,500 @@ def delete_dimension_name(
     db.commit()
     
     return {"message": "Dimension name deleted successfully"}
+
+
+# Growth Ideas Endpoints
+
+@app.post("/api/data-sources/{data_source_id}/dimensions/{ref_key}/generate-ideas", 
+          response_model=GrowthIdeaGenerateResponse)
+async def generate_growth_ideas(
+    data_source_id: UUID,
+    ref_key: str,
+    request: Optional[GrowthIdeaGenerateRequest] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Generate growth ideas for a specific dimension using AI.
+    
+    Args:
+        data_source_id: UUID of the data source
+        ref_key: Reference key of the dimension (e.g., "ref_1")
+        request: Optional parameters for generation
+        db: Database session
+    """
+    # Get the data source with dimension names
+    data_source = db.query(DataSource).options(
+        joinedload(DataSource.dimension_names),
+        joinedload(DataSource.client)
+    ).filter(DataSource.id == data_source_id).first()
+    
+    if not data_source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    if not data_source.client_id:
+        raise HTTPException(
+            status_code=400, 
+            detail="Data source must be associated with a client to generate ideas"
+        )
+    
+    # Get dimension name if available
+    dimension_name = None
+    for dn in data_source.dimension_names:
+        if dn.ref_key == ref_key:
+            dimension_name = dn.custom_name
+            break
+    
+    # Filter normalized data for this dimension
+    dimension_data = []
+    if data_source.normalized_data:
+        for row in data_source.normalized_data:
+            if isinstance(row, dict):
+                row_ref_key = row.get('metadata', {}).get('ref_key')
+                if row_ref_key == ref_key:
+                    dimension_data.append(row)
+    
+    if not dimension_data:
+        raise HTTPException(
+            status_code=400,
+            detail=f"No data found for dimension {ref_key}"
+        )
+    
+    # Initialize OpenAI service
+    try:
+        openai_service = OpenAIService()
+    except ValueError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"OpenAI service not configured: {str(e)}"
+        )
+    
+    # Generate ideas
+    try:
+        result = openai_service.generate_ideas(
+            dimension_data=dimension_data,
+            dimension_name=dimension_name,
+            ref_key=ref_key,
+            data_source_name=data_source.name
+        )
+        
+        # Store the generated ideas in the database
+        created_ideas = []
+        for idea_text in result['ideas']:
+            growth_idea = GrowthIdea(
+                client_id=data_source.client_id,
+                data_source_id=data_source_id,
+                dimension_ref_key=ref_key,
+                dimension_name=dimension_name,
+                idea_text=idea_text,
+                status="pending",
+                context_data=result['context'],
+                generation_prompt=result['prompt']
+            )
+            db.add(growth_idea)
+            created_ideas.append(growth_idea)
+        
+        db.commit()
+        
+        # Refresh and prepare response
+        for idea in created_ideas:
+            db.refresh(idea)
+        
+        response_ideas = []
+        for idea in created_ideas:
+            response_ideas.append(GrowthIdeaResponse(
+                id=idea.id,
+                client_id=idea.client_id,
+                data_source_id=idea.data_source_id,
+                dimension_ref_key=idea.dimension_ref_key,
+                dimension_name=idea.dimension_name,
+                idea_text=idea.idea_text,
+                status=idea.status,
+                priority=idea.priority,
+                created_at=idea.created_at,
+                updated_at=idea.updated_at,
+                client_name=data_source.client.name if data_source.client else None,
+                data_source_name=data_source.name
+            ))
+        
+        return GrowthIdeaGenerateResponse(
+            ideas=response_ideas,
+            total_generated=len(response_ideas)
+        )
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error generating ideas: {str(e)}"
+        )
+
+
+@app.post("/api/data-sources/{data_source_id}/dimensions/{ref_key}/generate-topic-ideas", 
+          response_model=GrowthIdeaGenerateResponse)
+async def generate_topic_specific_ideas(
+    data_source_id: UUID,
+    ref_key: str,
+    request: TopicSpecificIdeaRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Generate growth ideas for a specific topic/category within a dimension using AI.
+    
+    Args:
+        data_source_id: UUID of the data source
+        ref_key: Reference key of the dimension (e.g., "ref_1")
+        request: Topic-specific parameters for generation
+        db: Database session
+    """
+    # Get the data source with dimension names
+    data_source = db.query(DataSource).options(
+        joinedload(DataSource.dimension_names),
+        joinedload(DataSource.client)
+    ).filter(DataSource.id == data_source_id).first()
+    
+    if not data_source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    if not data_source.client_id:
+        raise HTTPException(
+            status_code=400, 
+            detail="Data source must be associated with a client to generate ideas"
+        )
+    
+    # Get dimension name if available
+    dimension_name = None
+    for dn in data_source.dimension_names:
+        if dn.ref_key == ref_key:
+            dimension_name = dn.custom_name
+            break
+    
+    # Filter normalized data for this dimension
+    dimension_data = []
+    if data_source.normalized_data:
+        for row in data_source.normalized_data:
+            if isinstance(row, dict):
+                row_ref_key = row.get('metadata', {}).get('ref_key')
+                if row_ref_key == ref_key:
+                    dimension_data.append(row)
+    
+    if not dimension_data:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No data found for dimension '{ref_key}'"
+        )
+    
+    try:
+        # Generate topic-specific ideas using OpenAI
+        openai_service = OpenAIService()
+        result = openai_service.generate_topic_specific_ideas(
+            dimension_data=dimension_data,
+            dimension_name=dimension_name,
+            ref_key=ref_key,
+            data_source_name=data_source.name,
+            topic_name=request.topic_name,
+            category_name=request.category_name,
+            max_ideas=request.max_ideas
+        )
+        
+        if "error" in result:
+            raise HTTPException(
+                status_code=400,
+                detail=result["error"]
+            )
+        
+        # Store ideas in database
+        created_ideas = []
+        for idea_data in result["ideas"]:
+            idea = GrowthIdea(
+                client_id=data_source.client_id,
+                data_source_id=data_source_id,
+                dimension_ref_key=ref_key,
+                dimension_name=dimension_name,
+                idea_text=idea_data["idea"],
+                status="pending",
+                priority=idea_data.get("priority", 2),
+                context_data=result["context"],
+                generation_prompt=result["prompt"]
+            )
+            db.add(idea)
+            created_ideas.append(idea)
+        
+        db.commit()
+        
+        # Refresh to get IDs and return response
+        for idea in created_ideas:
+            db.refresh(idea)
+        
+        # Convert to response format
+        idea_responses = []
+        for idea in created_ideas:
+            idea_responses.append(GrowthIdeaResponse(
+                id=idea.id,
+                client_id=idea.client_id,
+                data_source_id=idea.data_source_id,
+                dimension_ref_key=idea.dimension_ref_key,
+                dimension_name=idea.dimension_name,
+                idea_text=idea.idea_text,
+                status=idea.status,
+                priority=idea.priority,
+                created_at=idea.created_at,
+                updated_at=idea.updated_at,
+                client_name=data_source.client.name if data_source.client else None,
+                data_source_name=data_source.name
+            ))
+        
+        return GrowthIdeaGenerateResponse(
+            ideas=idea_responses,
+            total_generated=len(idea_responses)
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error generating topic-specific ideas: {str(e)}"
+        )
+
+
+@app.get("/api/data-sources/{data_source_id}/dimensions/{ref_key}/ideas",
+         response_model=List[GrowthIdeaResponse])
+def get_dimension_ideas(
+    data_source_id: UUID,
+    ref_key: str,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Get all growth ideas for a specific dimension.
+    
+    Args:
+        data_source_id: UUID of the data source
+        ref_key: Reference key of the dimension
+        status: Optional filter by status (pending, accepted, rejected)
+        db: Database session
+    """
+    # Verify data source exists
+    data_source = db.query(DataSource).options(
+        joinedload(DataSource.client)
+    ).filter(DataSource.id == data_source_id).first()
+    
+    if not data_source:
+        raise HTTPException(status_code=404, detail="Data source not found")
+    
+    # Query ideas
+    query = db.query(GrowthIdea).filter(
+        GrowthIdea.data_source_id == data_source_id,
+        GrowthIdea.dimension_ref_key == ref_key
+    )
+    
+    if status:
+        query = query.filter(GrowthIdea.status == status)
+    
+    ideas = query.order_by(GrowthIdea.created_at.desc()).all()
+    
+    # Build response
+    response = []
+    for idea in ideas:
+        response.append(GrowthIdeaResponse(
+            id=idea.id,
+            client_id=idea.client_id,
+            data_source_id=idea.data_source_id,
+            dimension_ref_key=idea.dimension_ref_key,
+            dimension_name=idea.dimension_name,
+            idea_text=idea.idea_text,
+            status=idea.status,
+            priority=idea.priority,
+            created_at=idea.created_at,
+            updated_at=idea.updated_at,
+            client_name=data_source.client.name if data_source.client else None,
+            data_source_name=data_source.name
+        ))
+    
+    return response
+
+
+@app.patch("/api/growth-ideas/{idea_id}", response_model=GrowthIdeaResponse)
+def update_growth_idea(
+    idea_id: UUID,
+    update_data: GrowthIdeaUpdate,
+    db: Session = Depends(get_db)
+):
+    """
+    Update a growth idea's status or priority.
+    
+    Args:
+        idea_id: UUID of the idea
+        update_data: Update data (status and/or priority)
+        db: Database session
+    """
+    idea = db.query(GrowthIdea).options(
+        joinedload(GrowthIdea.client),
+        joinedload(GrowthIdea.data_source)
+    ).filter(GrowthIdea.id == idea_id).first()
+    
+    if not idea:
+        raise HTTPException(status_code=404, detail="Growth idea not found")
+    
+    # Update fields
+    if update_data.status is not None:
+        if update_data.status not in ["pending", "accepted", "rejected"]:
+            raise HTTPException(
+                status_code=400,
+                detail="Status must be 'pending', 'accepted', or 'rejected'"
+            )
+        idea.status = update_data.status
+    
+    if update_data.priority is not None:
+        idea.priority = update_data.priority
+    
+    db.commit()
+    db.refresh(idea)
+    
+    return GrowthIdeaResponse(
+        id=idea.id,
+        client_id=idea.client_id,
+        data_source_id=idea.data_source_id,
+        dimension_ref_key=idea.dimension_ref_key,
+        dimension_name=idea.dimension_name,
+        idea_text=idea.idea_text,
+        status=idea.status,
+        priority=idea.priority,
+        created_at=idea.created_at,
+        updated_at=idea.updated_at,
+        client_name=idea.client.name if idea.client else None,
+        data_source_name=idea.data_source.name if idea.data_source else None
+    )
+
+
+@app.delete("/api/growth-ideas/{idea_id}")
+def delete_growth_idea(idea_id: UUID, db: Session = Depends(get_db)):
+    """Delete a growth idea"""
+    idea = db.query(GrowthIdea).filter(GrowthIdea.id == idea_id).first()
+    
+    if not idea:
+        raise HTTPException(status_code=404, detail="Growth idea not found")
+    
+    db.delete(idea)
+    db.commit()
+    
+    return {"message": "Growth idea deleted successfully"}
+
+
+@app.get("/api/clients/{client_id}/growth-ideas", response_model=List[GrowthIdeaResponse])
+def get_client_growth_ideas(
+    client_id: UUID,
+    status: Optional[str] = None,
+    data_source_id: Optional[UUID] = None,
+    sort_by: Optional[str] = "date",  # date, priority
+    db: Session = Depends(get_db)
+):
+    """
+    Get all growth ideas for a client with optional filtering and sorting.
+    
+    Args:
+        client_id: UUID of the client
+        status: Optional filter by status
+        data_source_id: Optional filter by data source
+        sort_by: Sort order (date or priority)
+        db: Database session
+    """
+    # Verify client exists
+    client = db.query(Client).filter(Client.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    # Query ideas
+    query = db.query(GrowthIdea).options(
+        joinedload(GrowthIdea.data_source)
+    ).filter(GrowthIdea.client_id == client_id)
+    
+    if status:
+        query = query.filter(GrowthIdea.status == status)
+    
+    if data_source_id:
+        query = query.filter(GrowthIdea.data_source_id == data_source_id)
+    
+    # Apply sorting
+    if sort_by == "priority":
+        query = query.order_by(
+            GrowthIdea.priority.asc().nullslast(),
+            GrowthIdea.created_at.desc()
+        )
+    else:  # default to date
+        query = query.order_by(GrowthIdea.created_at.desc())
+    
+    ideas = query.all()
+    
+    # Build response
+    response = []
+    for idea in ideas:
+        response.append(GrowthIdeaResponse(
+            id=idea.id,
+            client_id=idea.client_id,
+            data_source_id=idea.data_source_id,
+            dimension_ref_key=idea.dimension_ref_key,
+            dimension_name=idea.dimension_name,
+            idea_text=idea.idea_text,
+            status=idea.status,
+            priority=idea.priority,
+            created_at=idea.created_at,
+            updated_at=idea.updated_at,
+            client_name=client.name,
+            data_source_name=idea.data_source.name if idea.data_source else None
+        ))
+    
+    return response
+
+
+@app.get("/api/clients/{client_id}/growth-ideas/stats", response_model=ClientGrowthIdeasStats)
+def get_client_growth_ideas_stats(client_id: UUID, db: Session = Depends(get_db)):
+    """
+    Get statistics for a client's growth ideas.
+    
+    Args:
+        client_id: UUID of the client
+        db: Database session
+    """
+    # Verify client exists
+    client = db.query(Client).filter(Client.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    # Get all ideas for this client
+    ideas = db.query(GrowthIdea).options(
+        joinedload(GrowthIdea.data_source)
+    ).filter(GrowthIdea.client_id == client_id).all()
+    
+    # Calculate statistics
+    total_ideas = len(ideas)
+    accepted_count = sum(1 for idea in ideas if idea.status == "accepted")
+    pending_count = sum(1 for idea in ideas if idea.status == "pending")
+    rejected_count = sum(1 for idea in ideas if idea.status == "rejected")
+    
+    # Group by data source
+    by_data_source = {}
+    for idea in ideas:
+        ds_name = idea.data_source.name if idea.data_source else "Unknown"
+        by_data_source[ds_name] = by_data_source.get(ds_name, 0) + 1
+    
+    # Group by priority
+    by_priority = {
+        "high": sum(1 for idea in ideas if idea.priority == 1),
+        "medium": sum(1 for idea in ideas if idea.priority == 2),
+        "low": sum(1 for idea in ideas if idea.priority == 3),
+        "none": sum(1 for idea in ideas if idea.priority is None)
+    }
+    
+    return ClientGrowthIdeasStats(
+        total_ideas=total_ideas,
+        accepted_count=accepted_count,
+        pending_count=pending_count,
+        rejected_count=rejected_count,
+        by_data_source=by_data_source,
+        by_priority=by_priority
+    )
 
 
 if __name__ == "__main__":

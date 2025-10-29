@@ -13,7 +13,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from app.database import Base
-from app.models import Client, DataSource, DimensionName  # Import all models here
+from app.models import Client, DataSource, DimensionName, GrowthIdea  # Import all models here
 from app.config import get_settings
 
 # this is the Alembic Config object
@@ -21,7 +21,9 @@ config = context.config
 
 # Get database URL from environment
 settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Convert to psycopg3 format (same as in database.py)
+database_url = settings.database_url.replace('postgresql://', 'postgresql+psycopg://')
+config.set_main_option("sqlalchemy.url", database_url)
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:

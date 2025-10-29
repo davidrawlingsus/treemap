@@ -414,6 +414,195 @@
             border-color: #d0d0d0;
         }
 
+        /* Overlay Tabs */
+        .overlay-tabs {
+            display: flex;
+            border-bottom: 1px solid #e8e8e8;
+            background: #f8f9fa;
+            border-radius: 12px 12px 0 0;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 16px 24px;
+            border: none;
+            background: transparent;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-button:hover {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .tab-button.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: white;
+        }
+
+        .tab-content {
+            display: none;
+            padding: 24px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Ideas Container */
+        .ideas-container {
+            display: grid;
+            gap: 16px;
+        }
+
+        .idea-card-overlay {
+            background: white;
+            border: 1px solid #e8e8e8;
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.3s ease-in-out;
+            position: relative;
+        }
+
+        .idea-card-overlay:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            border-color: #667eea;
+        }
+
+        .idea-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            gap: 12px;
+        }
+
+        .idea-text-overlay {
+            font-size: 15px;
+            line-height: 1.6;
+            color: #333;
+            margin-bottom: 16px;
+        }
+
+        .idea-actions-overlay {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .btn-overlay {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-accept-overlay {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-accept-overlay:hover {
+            background: #059669;
+        }
+
+        .btn-reject-overlay {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-reject-overlay:hover {
+            background: #dc2626;
+        }
+
+        .priority-select-overlay {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            background: white;
+        }
+
+        .badge-overlay {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-overlay.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-overlay.accepted {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-overlay.rejected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .idea-meta-overlay {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+        }
+
+        .empty-ideas-overlay {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-style: italic;
+        }
+
+        .btn-generate-topic-ideas {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-generate-topic-ideas:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-generate-topic-ideas:active {
+            transform: translateY(0);
+        }
+
+        .generate-ideas-header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+
         .verbatim-text {
             font-family: 'Inter', 'Roboto', sans-serif;
             font-size: 14px;
@@ -812,6 +1001,233 @@
             color: #C62828;
         }
 
+        /* Growth Ideas Panel Styles */
+        .growth-ideas-section {
+            margin: 30px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+
+        .growth-ideas-header {
+            padding: 20px 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .growth-ideas-header h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .growth-ideas-header .toggle-icon {
+            font-size: 24px;
+            transition: transform 0.3s;
+        }
+
+        .growth-ideas-header.collapsed .toggle-icon {
+            transform: rotate(-90deg);
+        }
+
+        .growth-ideas-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .growth-ideas-content.expanded {
+            max-height: 2000px;
+        }
+
+        .growth-ideas-inner {
+            padding: 24px;
+        }
+
+        .growth-ideas-controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .generate-ideas-btn {
+            padding: 12px 24px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .generate-ideas-btn:hover {
+            background: #5568d3;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .generate-ideas-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .view-dashboard-btn {
+            padding: 12px 24px;
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .view-dashboard-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .ideas-status {
+            padding: 10px 16px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ideas-list-container {
+            display: grid;
+            gap: 16px;
+            margin-top: 20px;
+        }
+
+        .idea-card-mini {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 16px;
+            transition: all 0.2s;
+        }
+
+        .idea-card-mini:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+        }
+
+        .idea-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+            gap: 12px;
+        }
+
+        .idea-text-mini {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #333;
+            margin-bottom: 12px;
+        }
+
+        .idea-actions-mini {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn-mini {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-accept-mini {
+            background: #10b981;
+            color: white;
+        }
+
+        .btn-accept-mini:hover {
+            background: #059669;
+        }
+
+        .btn-reject-mini {
+            background: #ef4444;
+            color: white;
+        }
+
+        .btn-reject-mini:hover {
+            background: #dc2626;
+        }
+
+        .priority-select-mini {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .badge-mini {
+            padding: 4px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-mini.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-mini.accepted {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .loading-ideas {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .loading-ideas .spinner-mini {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        .empty-ideas {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+            font-size: 14px;
+        }
+
         /* Bar Chart Styles */
         .chart {
             background: white;
@@ -1166,6 +1582,41 @@
             </div>
         </div>
 
+        <!-- Growth Ideas Panel -->
+        <div id="growthIdeasSection" class="growth-ideas-section" style="display: none;">
+            <div class="growth-ideas-header collapsed" onclick="toggleGrowthIdeasPanel()">
+                <h3>💡 AI Growth Ideas <span id="ideasCountBadge"></span></h3>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <div class="growth-ideas-content">
+                <div class="growth-ideas-inner">
+                    <div class="growth-ideas-controls">
+                        <button id="generateIdeasBtn" class="generate-ideas-btn" onclick="generateGrowthIdeas()">
+                            Generate Ideas
+                        </button>
+                        <a id="viewDashboardBtn" href="#" class="view-dashboard-btn" style="display: none;">
+                            View All Ideas Dashboard →
+                        </a>
+                        <div id="ideasStatus" class="ideas-status" style="display: none;">
+                            <span>•</span>
+                            <span id="ideasStatusText">Ready to generate ideas</span>
+                        </div>
+                    </div>
+                    
+                    <div id="loadingIdeas" class="loading-ideas" style="display: none;">
+                        <div class="spinner-mini"></div>
+                        <p>Generating growth ideas with AI...</p>
+                    </div>
+                    
+                    <div id="emptyIdeas" class="empty-ideas" style="display: none;">
+                        <p>No ideas generated yet. Click "Generate Ideas" to get AI-powered growth suggestions.</p>
+                    </div>
+                    
+                    <div id="ideasListContainer" class="ideas-list-container"></div>
+                </div>
+            </div>
+        </div>
+
         <div class="visualizations-grid">
             <div class="chart" role="figure" aria-label="Topics by Category">
                 <div class="chart__header">
@@ -1193,7 +1644,7 @@
         </div>
     </div>
 
-    <!-- Overlay Modal for Verbatims -->
+    <!-- Overlay Modal for Verbatims and Ideas -->
     <div id="overlay" class="overlay">
         <div class="overlay-content">
             <div class="overlay-header">
@@ -1203,7 +1654,24 @@
                 </div>
                 <button class="close-button" onclick="closeOverlay()">&times;</button>
             </div>
-            <div id="verbatims" class="verbatim-container" style="display: none;"></div>
+            
+            <!-- Tab Navigation -->
+            <div class="overlay-tabs">
+                <button class="tab-button active" id="feedbackTab" onclick="switchTab('feedback')">
+                    📝 Feedback
+                </button>
+                <button class="tab-button" id="ideasTab" onclick="switchTab('ideas')">
+                    💡 Ideas
+                </button>
+            </div>
+            
+            <!-- Tab Content -->
+            <div id="feedbackContent" class="tab-content active">
+                <div id="verbatims" class="verbatim-container" style="display: none;"></div>
+            </div>
+            <div id="ideasContent" class="tab-content">
+                <div id="ideasContainer" class="ideas-container" style="display: none;"></div>
+            </div>
         </div>
     </div>
 
@@ -1344,8 +1812,9 @@
             }
         }
 
-        // API Configuration - loaded from server config
-        const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+        // API Configuration - loaded from config.js
+        // Note: API_BASE_URL is set in config.js as window.API_BASE_URL
+        const API_BASE_URL = window.API_BASE_URL || 'http://localhost:8000';
         
         // Load available clients
         async function loadClients() {
@@ -1511,6 +1980,12 @@
                 rawData = fullRawData;
                 currentSourceFormat = dataSource.source_format;
                 
+                // === GROWTH IDEAS: Set client ID for this data source ===
+                currentClientId = dataSource.client_id || null;
+                if (currentClientId) {
+                    console.log(`✅ Client ID set: ${currentClientId}`);
+                }
+                
                 // Update breadcrumb
                 updateBreadcrumb();
                 
@@ -1640,20 +2115,36 @@
                     if (selectedRefKey && selectedRefKey !== '') {
                         dimensionNameEditor.style.display = 'flex';
                         updateInlineDimensionEditor(selectedRefKey);
+                        
+                        // === GROWTH IDEAS: Show panel and load ideas for this dimension ===
+                        currentDimensionRefKey = selectedRefKey;
+                        currentDimensionName = dimensionNamesMap[selectedRefKey] || selectedRefKey;
+                        showGrowthIdeasPanel();
+                        loadDimensionIdeas();
+                        
+                        // Update dashboard link if we have a client
+                        if (currentClientId) {
+                            updateClientDashboardLink();
+                        }
                     } else {
                         dimensionNameEditor.style.display = 'none';
+                        // Hide growth ideas panel when "All Dimensions" is selected
+                        hideGrowthIdeasPanel();
                     }
                 };
                 
                 // Setup inline dimension editor
                 setupInlineDimensionEditor();
                 
-                // Restore saved question or default to "All Dimensions"
+                // Restore saved question or auto-select if only one dimension
                 let questionToSelect = null;
                 if (savedState && savedState.questionRefKey && availableQuestions.includes(savedState.questionRefKey)) {
                     questionToSelect = savedState.questionRefKey;
+                } else if (availableQuestions.length === 1) {
+                    // Auto-select if there's only one dimension (no point showing "All" view)
+                    questionToSelect = availableQuestions[0];
                 }
-                // Don't auto-select first dimension - default to showing all
+                // Otherwise default to "All Dimensions"
                 
                 if (questionToSelect) {
                     currentQuestionRefKey = questionToSelect;
@@ -1661,9 +2152,19 @@
                     filterByQuestion(questionToSelect);
                     dimensionNameEditor.style.display = 'flex';
                     updateInlineDimensionEditor(questionToSelect);
+                    
+                    // === GROWTH IDEAS: Show panel for restored dimension ===
+                    currentDimensionRefKey = questionToSelect;
+                    currentDimensionName = dimensionNamesMap[questionToSelect] || questionToSelect;
+                    showGrowthIdeasPanel();
+                    loadDimensionIdeas();
+                    if (currentClientId) {
+                        updateClientDashboardLink();
+                    }
                 } else {
                     // Default to "All Dimensions" view
                     currentQuestionRefKey = null;
+                    hideGrowthIdeasPanel();
                     questionSelect.value = '';
                     filterByQuestion(''); // Show all dimensions
                     dimensionNameEditor.style.display = 'none';
@@ -2005,6 +2506,13 @@
             const title = document.getElementById('overlayTitle');
             const subtitle = document.getElementById('overlaySubtitle');
             
+            // Store current context for ideas tab
+            window.currentOverlayContext = {
+                topicName: topicName,
+                categoryName: categoryName,
+                verbatims: verbatims
+            };
+            
             // IMPORTANT: Show the container by removing inline display:none
             container.style.display = 'grid';
             
@@ -2044,8 +2552,12 @@
                 container.appendChild(card);
             });
             
-            // Show overlay
+            // Load ideas for this topic/category
+            loadIdeasForOverlay(topicName, categoryName);
+            
+            // Show overlay and switch to feedback tab
             overlay.classList.add('active');
+            switchTab('feedback');
         }
 
         // Close overlay
@@ -2055,6 +2567,236 @@
             overlay.classList.remove('active');
             container.style.display = 'none';
             viewStack = [];
+        }
+
+        // Tab switching functions
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tabName + 'Content').classList.add('active');
+        }
+
+        // Load ideas for the current overlay context
+        async function loadIdeasForOverlay(topicName, categoryName) {
+            if (!currentDataSourceId || !currentDimensionRefKey) {
+                console.log('No data source or dimension selected for ideas');
+                return;
+            }
+
+            try {
+                // Get all ideas for this dimension
+                const response = await fetch(
+                    `${API_BASE_URL}/api/data-sources/${currentDataSourceId}/dimensions/${currentDimensionRefKey}/ideas`
+                );
+                
+                if (!response.ok) {
+                    console.error('Failed to fetch ideas:', response.status);
+                    return;
+                }
+                
+                const allIdeas = await response.json();
+                
+                // Filter ideas that mention this topic/category
+                const filteredIdeas = allIdeas.filter(idea => {
+                    const ideaText = idea.idea_text.toLowerCase();
+                    const topicLower = topicName.toLowerCase();
+                    const categoryLower = categoryName.toLowerCase();
+                    
+                    // Check if idea mentions the topic or category
+                    return ideaText.includes(topicLower) || 
+                           ideaText.includes(categoryLower) ||
+                           // Also include ideas that might be related to common terms
+                           ideaText.includes('customer') ||
+                           ideaText.includes('feedback') ||
+                           ideaText.includes('improve') ||
+                           ideaText.includes('experience');
+                });
+                
+                // If no filtered ideas, show all ideas for this dimension
+                const ideasToShow = filteredIdeas.length > 0 ? filteredIdeas : allIdeas;
+                
+                renderIdeasInOverlay(ideasToShow, topicName, categoryName);
+                
+            } catch (error) {
+                console.error('Error loading ideas for overlay:', error);
+                renderIdeasInOverlay([], topicName, categoryName);
+            }
+        }
+
+        // Generate topic-specific ideas
+        async function generateTopicSpecificIdeas(topicName, categoryName) {
+            if (!currentDataSourceId || !currentDimensionRefKey) {
+                console.error('Missing data source or dimension context');
+                return;
+            }
+            
+            try {
+                const requestBody = {
+                    topic_name: topicName,
+                    category_name: categoryName || null,
+                    max_ideas: 6
+                };
+                
+                const response = await fetch(`${API_BASE_URL}/api/data-sources/${currentDataSourceId}/dimensions/${currentDimensionRefKey}/generate-topic-ideas`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                console.log('Generated topic-specific ideas:', result);
+                
+                // Reload ideas for the overlay
+                await loadIdeasForOverlay(topicName, categoryName);
+                
+            } catch (error) {
+                console.error('Error generating topic-specific ideas:', error);
+                alert(`Error generating ideas: ${error.message}`);
+            }
+        }
+
+        // Get priority text helper
+        function getPriorityText(priority) {
+            switch (priority) {
+                case 1: return 'High Priority';
+                case 2: return 'Medium Priority';
+                case 3: return 'Low Priority';
+                default: return '';
+            }
+        }
+
+        // Render ideas in the overlay
+        function renderIdeasInOverlay(ideas, topicName, categoryName) {
+            const container = document.getElementById('ideasContainer');
+            container.innerHTML = '';
+            
+            if (ideas.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-ideas-overlay">
+                        <p>No ideas found for "${topicName}"</p>
+                        <p>Generate specific ideas for this topic:</p>
+                        <button class="btn-generate-topic-ideas" onclick="generateTopicSpecificIdeas('${topicName}', '${categoryName || ''}')">
+                            🤖 Generate Ideas for "${topicName}"
+                        </button>
+                    </div>
+                `;
+                container.style.display = 'block';
+                return;
+            }
+            
+            // Add generate button at the top
+            const generateButton = document.createElement('div');
+            generateButton.className = 'generate-ideas-header';
+            generateButton.innerHTML = `
+                <button class="btn-generate-topic-ideas" onclick="generateTopicSpecificIdeas('${topicName}', '${categoryName || ''}')">
+                    🤖 Generate More Ideas for "${topicName}"
+                </button>
+            `;
+            container.appendChild(generateButton);
+            
+            container.style.display = 'block';
+            
+            ideas.forEach(idea => {
+                const card = document.createElement('div');
+                card.className = 'idea-card-overlay';
+                card.dataset.ideaId = idea.id;
+                
+                const statusBadge = `<span class="badge-overlay ${idea.status}">${idea.status}</span>`;
+                const priorityText = getPriorityText(idea.priority);
+                
+                card.innerHTML = `
+                    <div class="idea-card-header">
+                        <div>${statusBadge}</div>
+                        ${priorityText ? `<span class="badge-overlay priority-${idea.priority}">${priorityText}</span>` : ''}
+                    </div>
+                    <div class="idea-text-overlay">${escapeHtml(idea.idea_text)}</div>
+                    <div class="idea-actions-overlay">
+                        ${renderIdeaActionsOverlay(idea)}
+                        <select class="priority-select-overlay" onchange="updateIdeaPriorityOverlay('${idea.id}', this.value)">
+                            <option value="">Priority...</option>
+                            <option value="1" ${idea.priority === 1 ? 'selected' : ''}>High</option>
+                            <option value="2" ${idea.priority === 2 ? 'selected' : ''}>Medium</option>
+                            <option value="3" ${idea.priority === 3 ? 'selected' : ''}>Low</option>
+                        </select>
+                    </div>
+                    <div class="idea-meta-overlay">
+                        Dimension: ${idea.dimension_name || idea.dimension_ref_key} • 
+                        Created: ${new Date(idea.created_at).toLocaleDateString()}
+                    </div>
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
+        // Render action buttons for overlay ideas
+        function renderIdeaActionsOverlay(idea) {
+            if (idea.status === 'pending') {
+                return `
+                    <button class="btn-overlay btn-accept-overlay" onclick="acceptIdeaOverlay('${idea.id}')">Accept</button>
+                    <button class="btn-overlay btn-reject-overlay" onclick="rejectIdeaOverlay('${idea.id}')">Reject</button>
+                `;
+            } else if (idea.status === 'accepted') {
+                return `<button class="btn-overlay btn-reject-overlay" onclick="rejectIdeaOverlay('${idea.id}')">Reject</button>`;
+            } else {
+                return `<button class="btn-overlay btn-accept-overlay" onclick="acceptIdeaOverlay('${idea.id}')">Accept</button>`;
+            }
+        }
+
+        // Action handlers for overlay ideas
+        async function acceptIdeaOverlay(ideaId) {
+            try {
+                await ideaManager.updateIdeaStatus(ideaId, 'accepted');
+                // Reload ideas for current context
+                if (window.currentOverlayContext) {
+                    loadIdeasForOverlay(window.currentOverlayContext.topicName, window.currentOverlayContext.categoryName);
+                }
+            } catch (error) {
+                alert('Error accepting idea');
+            }
+        }
+
+        async function rejectIdeaOverlay(ideaId) {
+            try {
+                await ideaManager.updateIdeaStatus(ideaId, 'rejected');
+                // Reload ideas for current context
+                if (window.currentOverlayContext) {
+                    loadIdeasForOverlay(window.currentOverlayContext.topicName, window.currentOverlayContext.categoryName);
+                }
+            } catch (error) {
+                alert('Error rejecting idea');
+            }
+        }
+
+        async function updateIdeaPriorityOverlay(ideaId, priority) {
+            try {
+                const priorityValue = priority ? parseInt(priority) : null;
+                const idea = ideaManager.ideas.find(i => i.id === ideaId);
+                if (idea) {
+                    await ideaManager.updateIdeaStatus(ideaId, idea.status, priorityValue);
+                    // Reload ideas for current context
+                    if (window.currentOverlayContext) {
+                        loadIdeasForOverlay(window.currentOverlayContext.topicName, window.currentOverlayContext.categoryName);
+                    }
+                }
+            } catch (error) {
+                alert('Error updating priority');
+            }
         }
 
         // Close overlay when clicking on backdrop
@@ -2947,6 +3689,306 @@
                 }
             });
         });
+
+        // ===== GROWTH IDEAS MANAGER =====
+        
+        // Note: currentClientId is already declared earlier in the code
+        // We'll use the existing variable to avoid duplication
+        let currentDimensionRefKey = null;
+        let currentDimensionName = null;
+        
+        class IdeaManager {
+            constructor() {
+                this.ideas = [];
+            }
+            
+            async generateIdeas(dataSourceId, refKey) {
+                try {
+                    const response = await fetch(
+                        `${API_BASE_URL}/api/data-sources/${dataSourceId}/dimensions/${refKey}/generate-ideas`,
+                        {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({})
+                        }
+                    );
+                    
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.detail || 'Failed to generate ideas');
+                    }
+                    
+                    const result = await response.json();
+                    this.ideas = result.ideas;
+                    return result;
+                } catch (error) {
+                    console.error('Error generating ideas:', error);
+                    throw error;
+                }
+            }
+            
+            async fetchDimensionIdeas(dataSourceId, refKey) {
+                try {
+                    const response = await fetch(
+                        `${API_BASE_URL}/api/data-sources/${dataSourceId}/dimensions/${refKey}/ideas`
+                    );
+                    
+                    if (!response.ok) throw new Error('Failed to fetch ideas');
+                    
+                    this.ideas = await response.json();
+                    return this.ideas;
+                } catch (error) {
+                    console.error('Error fetching ideas:', error);
+                    throw error;
+                }
+            }
+            
+            async updateIdeaStatus(ideaId, status, priority = null) {
+                try {
+                    const body = { status };
+                    if (priority !== null) {
+                        body.priority = priority;
+                    }
+                    
+                    const response = await fetch(
+                        `${API_BASE_URL}/api/growth-ideas/${ideaId}`,
+                        {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(body)
+                        }
+                    );
+                    
+                    if (!response.ok) throw new Error('Failed to update idea');
+                    
+                    return await response.json();
+                } catch (error) {
+                    console.error('Error updating idea:', error);
+                    throw error;
+                }
+            }
+            
+            async deleteIdea(ideaId) {
+                try {
+                    const response = await fetch(
+                        `${API_BASE_URL}/api/growth-ideas/${ideaId}`,
+                        { method: 'DELETE' }
+                    );
+                    
+                    if (!response.ok) throw new Error('Failed to delete idea');
+                    
+                    return true;
+                } catch (error) {
+                    console.error('Error deleting idea:', error);
+                    throw error;
+                }
+            }
+        }
+        
+        const ideaManager = new IdeaManager();
+        
+        function showGrowthIdeasPanel() {
+            const section = document.getElementById('growthIdeasSection');
+            const header = section.querySelector('.growth-ideas-header');
+            const content = section.querySelector('.growth-ideas-content');
+            
+            section.style.display = 'block';
+            header.classList.remove('collapsed');
+            content.classList.add('expanded');
+        }
+        
+        function hideGrowthIdeasPanel() {
+            const section = document.getElementById('growthIdeasSection');
+            section.style.display = 'none';
+        }
+        
+        function toggleGrowthIdeasPanel() {
+            const header = document.querySelector('.growth-ideas-header');
+            const content = document.querySelector('.growth-ideas-content');
+            
+            header.classList.toggle('collapsed');
+            content.classList.toggle('expanded');
+        }
+        
+        async function generateGrowthIdeas() {
+            if (!currentDataSourceId || !currentDimensionRefKey) {
+                alert('Please select a dimension from the treemap first');
+                return;
+            }
+            
+            const generateBtn = document.getElementById('generateIdeasBtn');
+            const loadingEl = document.getElementById('loadingIdeas');
+            const emptyEl = document.getElementById('emptyIdeas');
+            const listContainer = document.getElementById('ideasListContainer');
+            const statusEl = document.getElementById('ideasStatus');
+            
+            // Show loading state
+            generateBtn.disabled = true;
+            generateBtn.textContent = 'Generating...';
+            loadingEl.style.display = 'block';
+            emptyEl.style.display = 'none';
+            listContainer.innerHTML = '';
+            statusEl.style.display = 'none';
+            
+            try {
+                const result = await ideaManager.generateIdeas(currentDataSourceId, currentDimensionRefKey);
+                
+                // Show success and render ideas
+                generateBtn.textContent = 'Generate More Ideas';
+                loadingEl.style.display = 'none';
+                statusEl.style.display = 'flex';
+                document.getElementById('ideasStatusText').textContent = 
+                    `Generated ${result.total_generated} new ideas`;
+                
+                renderIdeasList(result.ideas);
+                updateIdeasCount();
+                
+            } catch (error) {
+                loadingEl.style.display = 'none';
+                emptyEl.style.display = 'block';
+                alert(`Error generating ideas: ${error.message}`);
+            } finally {
+                generateBtn.disabled = false;
+            }
+        }
+        
+        async function loadDimensionIdeas() {
+            if (!currentDataSourceId || !currentDimensionRefKey) return;
+            
+            try {
+                const ideas = await ideaManager.fetchDimensionIdeas(
+                    currentDataSourceId, 
+                    currentDimensionRefKey
+                );
+                
+                if (ideas.length > 0) {
+                    renderIdeasList(ideas);
+                    updateIdeasCount();
+                    document.getElementById('ideasStatus').style.display = 'flex';
+                    document.getElementById('ideasStatusText').textContent = 
+                        `${ideas.length} existing idea${ideas.length !== 1 ? 's' : ''}`;
+                } else {
+                    document.getElementById('emptyIdeas').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('Error loading ideas:', error);
+            }
+        }
+        
+        function renderIdeasList(ideas) {
+            const container = document.getElementById('ideasListContainer');
+            container.innerHTML = '';
+            
+            if (!ideas || ideas.length === 0) {
+                document.getElementById('emptyIdeas').style.display = 'block';
+                return;
+            }
+            
+            document.getElementById('emptyIdeas').style.display = 'none';
+            
+            ideas.forEach(idea => {
+                container.appendChild(createIdeaCard(idea));
+            });
+        }
+        
+        function createIdeaCard(idea) {
+            const card = document.createElement('div');
+            card.className = 'idea-card-mini';
+            card.dataset.ideaId = idea.id;
+            
+            const statusBadge = `<span class="badge-mini ${idea.status}">${idea.status}</span>`;
+            
+            card.innerHTML = `
+                <div class="idea-card-header">
+                    <div>${statusBadge}</div>
+                </div>
+                <div class="idea-text-mini">${escapeHtml(idea.idea_text)}</div>
+                <div class="idea-actions-mini">
+                    ${renderIdeaActions(idea)}
+                    <select class="priority-select-mini" onchange="updateIdeaPriority('${idea.id}', this.value)">
+                        <option value="">Priority...</option>
+                        <option value="1" ${idea.priority === 1 ? 'selected' : ''}>High</option>
+                        <option value="2" ${idea.priority === 2 ? 'selected' : ''}>Medium</option>
+                        <option value="3" ${idea.priority === 3 ? 'selected' : ''}>Low</option>
+                    </select>
+                </div>
+            `;
+            
+            return card;
+        }
+        
+        function renderIdeaActions(idea) {
+            if (idea.status === 'pending') {
+                return `
+                    <button class="btn-mini btn-accept-mini" onclick="acceptIdea('${idea.id}')">Accept</button>
+                    <button class="btn-mini btn-reject-mini" onclick="rejectIdea('${idea.id}')">Reject</button>
+                `;
+            } else if (idea.status === 'accepted') {
+                return `<button class="btn-mini btn-reject-mini" onclick="rejectIdea('${idea.id}')">Reject</button>`;
+            } else {
+                return `<button class="btn-mini btn-accept-mini" onclick="acceptIdea('${idea.id}')">Accept</button>`;
+            }
+        }
+        
+        async function acceptIdea(ideaId) {
+            try {
+                await ideaManager.updateIdeaStatus(ideaId, 'accepted');
+                await loadDimensionIdeas();
+            } catch (error) {
+                alert('Error accepting idea');
+            }
+        }
+        
+        async function rejectIdea(ideaId) {
+            try {
+                await ideaManager.updateIdeaStatus(ideaId, 'rejected');
+                await loadDimensionIdeas();
+            } catch (error) {
+                alert('Error rejecting idea');
+            }
+        }
+        
+        async function updateIdeaPriority(ideaId, priority) {
+            try {
+                const priorityValue = priority ? parseInt(priority) : null;
+                const idea = ideaManager.ideas.find(i => i.id === ideaId);
+                if (idea) {
+                    await ideaManager.updateIdeaStatus(ideaId, idea.status, priorityValue);
+                    await loadDimensionIdeas();
+                }
+            } catch (error) {
+                alert('Error updating priority');
+            }
+        }
+        
+        function updateIdeasCount() {
+            const acceptedCount = ideaManager.ideas.filter(i => i.status === 'accepted').length;
+            const badge = document.getElementById('ideasCountBadge');
+            
+            if (acceptedCount > 0) {
+                badge.textContent = `(${acceptedCount} accepted)`;
+                badge.style.color = '#d1fae5';
+            } else {
+                badge.textContent = '';
+            }
+        }
+        
+        function updateClientDashboardLink() {
+            const viewDashboardBtn = document.getElementById('viewDashboardBtn');
+            
+            if (currentClientId) {
+                viewDashboardBtn.href = `/client-dashboard.html?client_id=${currentClientId}`;
+                viewDashboardBtn.style.display = 'inline-block';
+            } else {
+                viewDashboardBtn.style.display = 'none';
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
 
         // Start the application
         init();

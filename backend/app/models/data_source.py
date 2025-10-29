@@ -21,11 +21,10 @@ class DataSource(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationship to client
+    # Relationships
     client = relationship("Client", back_populates="data_sources")
-    
-    # Relationship to dimension names
     dimension_names = relationship("DimensionName", back_populates="data_source", cascade="all, delete-orphan")
+    growth_ideas = relationship("GrowthIdea", back_populates="data_source")
 
     def __repr__(self):
         return f"<DataSource(id={self.id}, name={self.name}, format={self.source_format})>"
