@@ -29,7 +29,6 @@
             min-height: 100vh;
             margin: 0;
             background: #fafafa;
-            overflow-y: auto;
             display: flex;
             flex-direction: column;
         }
@@ -67,6 +66,10 @@
             align-items: center;
             gap: 12px;
             flex-wrap: wrap;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
         
         #dimensionNameEditor {
@@ -1131,6 +1134,24 @@
                 <option value="">All Dimensions</option>
             </select>
             
+            <!-- Category Filter - Aligned Right -->
+            <div style="margin-left: auto; position: relative;">
+                <button id="categoryFilterBtn" style="padding: 8px 16px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 6px;">
+                    <span>☰ Filters</span>
+                    <span id="categoryFilterBadge" style="display: none; background: #667eea; color: white; padding: 2px 6px; border-radius: 10px; font-size: 11px; font-weight: 600;"></span>
+                </button>
+                <div id="categoryFilterDropdown" style="display: none; position: absolute; top: 100%; right: 0; margin-top: 8px; background: white; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 300px; max-width: 400px; z-index: 1000; max-height: 400px; overflow-y: auto;">
+                    <div style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa;">
+                        <strong style="font-size: 14px;">Filter Categories</strong>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="selectAllCategories" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 12px; font-weight: 500;">Select All</button>
+                            <button id="clearAllCategories" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 12px; font-weight: 500;">Clear All</button>
+                        </div>
+                    </div>
+                    <div id="categoryFilterList" style="padding: 8px;"></div>
+                </div>
+            </div>
+            
             <!-- Inline Dimension Name Editor -->
             <div id="dimensionNameEditor" style="display:none; margin-left: 12px; align-items: center; gap: 8px;">
                 <label style="font-size: 13px; color: #666;">Name:</label>
@@ -1273,11 +1294,14 @@
         // Global state
         let rawData = [];
         let fullRawData = []; // Store unfiltered data
+        let dimensionFilteredData = []; // Store dimension-filtered data (before category filtering)
         let hierarchyData = null;
         let currentView = 'root';
         let viewStack = [];
         let currentSourceFormat = null;
         let availableQuestions = [];
+        let availableCategories = [];
+        let selectedCategories = new Set(); // Empty = all categories shown
         let currentClientId = null;
         let currentDataSourceId = null;
         let currentQuestionRefKey = null;
@@ -1509,13 +1533,21 @@
                 
                 fullRawData = dataSource.raw_data;
                 rawData = fullRawData;
+                dimensionFilteredData = fullRawData; // Initialize dimension filter
                 currentSourceFormat = dataSource.source_format;
                 
                 // Update breadcrumb
                 updateBreadcrumb();
                 
                 // Detect if this is survey data with multiple questions
+                // This will set dimensionFilteredData and filter rawData if a dimension is selected
                 await detectAndSetupQuestionFilter(savedState);
+                
+                // Extract and setup category filter from the (possibly filtered) rawData
+                // This ensures we only show categories for the current dimension
+                availableCategories = extractAvailableCategories(rawData);
+                selectedCategories.clear(); // Reset filter when loading new data
+                populateCategoryFilter();
                 
                 document.getElementById('loading').style.display = 'none';
                 
@@ -1638,8 +1670,8 @@
                     
                     // Show/hide dimension name editor based on selection
                     if (selectedRefKey && selectedRefKey !== '') {
-                        dimensionNameEditor.style.display = 'flex';
-                        updateInlineDimensionEditor(selectedRefKey);
+                        dimensionNameEditor.style.display = 'none'; // Hidden for now
+                        // updateInlineDimensionEditor(selectedRefKey);
                     } else {
                         dimensionNameEditor.style.display = 'none';
                     }
@@ -1659,8 +1691,8 @@
                     currentQuestionRefKey = questionToSelect;
                     questionSelect.value = questionToSelect;
                     filterByQuestion(questionToSelect);
-                    dimensionNameEditor.style.display = 'flex';
-                    updateInlineDimensionEditor(questionToSelect);
+                    dimensionNameEditor.style.display = 'none'; // Hidden for now
+                    // updateInlineDimensionEditor(questionToSelect);
                 } else {
                     // Default to "All Dimensions" view
                     currentQuestionRefKey = null;
@@ -1681,10 +1713,10 @@
         function filterByQuestion(refKey) {
             if (!refKey) {
                 // Show all questions
-                rawData = fullRawData;
+                dimensionFilteredData = fullRawData;
             } else {
                 // Filter to specific question (works with normalized format)
-                rawData = fullRawData.filter(row => {
+                dimensionFilteredData = fullRawData.filter(row => {
                     // Normalized format: check metadata.ref_key
                     if (row.metadata && row.metadata.ref_key === refKey) {
                         return true;
@@ -1697,7 +1729,15 @@
                 });
             }
             
+            // Set rawData to the dimension-filtered data (category filter will further filter this)
+            rawData = dimensionFilteredData;
+            
             console.log(`Filtered to ${rawData.length} rows for question: ${refKey || 'all'}`);
+            
+            // Extract categories from the filtered data (dimension-specific)
+            availableCategories = extractAvailableCategories(rawData);
+            selectedCategories.clear(); // Reset category filter when changing dimension
+            populateCategoryFilter();
             
             // Update breadcrumb to show question selection
             updateBreadcrumb(refKey);
@@ -1723,6 +1763,9 @@
                 // Load clients from API (which will cascade to sources and data)
                 await loadClients();
                 
+                // Setup category filter UI
+                setupCategoryFilterUI();
+                
                 // Add resize listener with debounce
                 window.addEventListener('resize', debounce(handleResize, 250));
                 
@@ -1735,6 +1778,179 @@
                 document.getElementById('loading').innerHTML = 
                     '<div class="error">Error initializing: ' + error.message + '</div>';
             }
+        }
+
+        // Category Filter Functions
+        function extractAvailableCategories(data) {
+            const categories = new Set();
+            data.forEach(row => {
+                if (row && row.topics) {
+                    row.topics.forEach(topic => {
+                        if (topic && topic.category) {
+                            categories.add(topic.category);
+                        }
+                    });
+                }
+            });
+            return Array.from(categories).sort();
+        }
+
+        function populateCategoryFilter() {
+            const filterList = document.getElementById('categoryFilterList');
+            filterList.innerHTML = '';
+            
+            if (availableCategories.length === 0) {
+                filterList.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">No categories found</div>';
+                return;
+            }
+            
+            availableCategories.forEach(category => {
+                const isChecked = selectedCategories.size === 0 || selectedCategories.has(category);
+                
+                const label = document.createElement('label');
+                label.style.cssText = 'display: flex; align-items: center; padding: 8px 12px; cursor: pointer; border-radius: 4px; transition: background 0.2s;';
+                label.onmouseover = () => label.style.background = '#f5f5f5';
+                label.onmouseout = () => label.style.background = 'transparent';
+                
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = isChecked;
+                checkbox.style.cssText = 'margin-right: 8px; cursor: pointer;';
+                checkbox.onchange = () => {
+                    // If set is empty (showing all), first populate with all categories
+                    if (selectedCategories.size === 0) {
+                        availableCategories.forEach(cat => selectedCategories.add(cat));
+                    }
+                    
+                    // Now toggle the clicked category
+                    if (selectedCategories.has(category)) {
+                        selectedCategories.delete(category);
+                    } else {
+                        selectedCategories.add(category);
+                    }
+                    
+                    // If all are selected again, clear the set (meaning show all)
+                    if (selectedCategories.size === availableCategories.length) {
+                        selectedCategories.clear();
+                    }
+                    
+                    updateCategoryFilterBadge();
+                    applyFiltersAndRender();
+                };
+                
+                const text = document.createElement('span');
+                text.textContent = category;
+                text.style.cssText = 'font-size: 13px; flex: 1;';
+                
+                label.appendChild(checkbox);
+                label.appendChild(text);
+                filterList.appendChild(label);
+            });
+            
+            updateCategoryFilterBadge();
+        }
+
+        function toggleCategory(category) {
+            // If set is empty (showing all), first populate with all categories
+            if (selectedCategories.size === 0) {
+                availableCategories.forEach(cat => selectedCategories.add(cat));
+            }
+            
+            // Now toggle the clicked category
+            if (selectedCategories.has(category)) {
+                selectedCategories.delete(category);
+            } else {
+                selectedCategories.add(category);
+            }
+            
+            // If all are selected again, clear the set (meaning show all)
+            if (selectedCategories.size === availableCategories.length) {
+                selectedCategories.clear();
+            }
+            
+            updateCategoryFilterBadge();
+            applyFiltersAndRender();
+        }
+
+        function updateCategoryFilterBadge() {
+            const badge = document.getElementById('categoryFilterBadge');
+            const filterCount = selectedCategories.size;
+            
+            if (filterCount === 0 || filterCount === availableCategories.length) {
+                badge.style.display = 'none';
+            } else {
+                badge.style.display = 'inline-block';
+                badge.textContent = filterCount;
+            }
+        }
+
+        function applyFiltersAndRender() {
+            // Apply category filter to dimension-filtered data
+            if (selectedCategories.size === 0) {
+                // Show all categories (but still filtered by dimension)
+                rawData = dimensionFilteredData;
+            } else {
+                // Filter to only selected categories from dimension-filtered data
+                rawData = dimensionFilteredData.map(row => {
+                    if (!row || !row.topics) return row;
+                    
+                    const filteredTopics = row.topics.filter(topic => 
+                        topic && topic.category && selectedCategories.has(topic.category)
+                    );
+                    
+                    if (filteredTopics.length === 0) return null;
+                    
+                    return {
+                        ...row,
+                        topics: filteredTopics
+                    };
+                }).filter(row => row !== null);
+            }
+            
+            // Re-process and render
+            processData();
+            renderTreemap(hierarchyData);
+            renderBarChart();
+            renderTopicsChart();
+        }
+
+        function setupCategoryFilterUI() {
+            const filterBtn = document.getElementById('categoryFilterBtn');
+            const filterDropdown = document.getElementById('categoryFilterDropdown');
+            const selectAllBtn = document.getElementById('selectAllCategories');
+            const clearAllBtn = document.getElementById('clearAllCategories');
+            
+            // Toggle dropdown
+            filterBtn.onclick = (e) => {
+                e.stopPropagation();
+                const isVisible = filterDropdown.style.display !== 'none';
+                filterDropdown.style.display = isVisible ? 'none' : 'block';
+            };
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!filterBtn.contains(e.target) && !filterDropdown.contains(e.target)) {
+                    filterDropdown.style.display = 'none';
+                }
+            });
+            
+            // Select all categories (show everything)
+            selectAllBtn.onclick = () => {
+                selectedCategories.clear(); // Empty = show all
+                populateCategoryFilter();
+                applyFiltersAndRender();
+            };
+            
+            // Clear all categories (select just the first one as minimum)
+            clearAllBtn.onclick = () => {
+                selectedCategories.clear();
+                if (availableCategories.length > 0) {
+                    // Select only the first category
+                    selectedCategories.add(availableCategories[0]);
+                }
+                populateCategoryFilter();
+                applyFiltersAndRender();
+            };
         }
 
         // Process raw data into hierarchy
