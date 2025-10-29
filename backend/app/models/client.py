@@ -17,9 +17,8 @@ class Client(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    # Relationships
+    # Relationship to data sources
     data_sources = relationship("DataSource", back_populates="client")
-    growth_ideas = relationship("GrowthIdea", back_populates="client")
 
     def __repr__(self):
         return f"<Client(id={self.id}, name={self.name}, slug={self.slug})>"
