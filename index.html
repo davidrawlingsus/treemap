@@ -393,9 +393,8 @@
         }
 
         .verbatim-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
+            columns: 280px;
+            column-gap: 20px;
             padding: 30px;
             background: #fafafa;
             overflow-y: auto;
@@ -411,9 +410,19 @@
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
             transition: all 0.3s ease-in-out;
             min-height: 80px;
-            display: block;
+            height: auto;
+            display: flex;
+            flex-direction: column;
             width: 100%;
+            max-width: 100%;
             box-sizing: border-box;
+            overflow: visible;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            word-break: break-word;
+            break-inside: avoid;
+            page-break-inside: avoid;
+            margin-bottom: 20px;
         }
 
         .verbatim-card:hover {
@@ -428,6 +437,13 @@
             line-height: 1.6;
             color: #333;
             margin-bottom: 16px;
+            flex: 0 1 auto;
+            min-width: 0;
+            width: 100%;
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            word-break: break-word;
+            hyphens: auto;
         }
 
         .verbatim-text p {
@@ -442,6 +458,7 @@
             color: #666;
             border-top: 1px solid #f0f0f0;
             padding-top: 12px;
+            flex-shrink: 0;
         }
 
         .verbatim-meta-item {
@@ -676,9 +693,9 @@
             }
 
             .verbatim-container {
-                grid-template-columns: 1fr;
+                columns: 1;
+                column-gap: 16px;
                 padding: 16px;
-                gap: 16px;
                 min-height: 0;
                 overflow-y: auto;
             }
@@ -739,8 +756,9 @@
             }
 
             .verbatim-container {
+                columns: 1;
+                column-gap: 12px;
                 padding: 12px;
-                gap: 12px;
                 min-height: 0;
                 overflow-y: auto;
             }
@@ -757,16 +775,16 @@
         /* Tablet landscape orientation */
         @media (min-width: 769px) and (max-width: 1024px) {
             .verbatim-container {
-                grid-template-columns: repeat(2, 1fr);
+                columns: 2;
             }
         }
 
         /* Very small screens - ensure cards are visible */
         @media (max-width: 360px) {
             .verbatim-container {
-                grid-template-columns: 1fr;
+                columns: 1;
+                column-gap: 8px;
                 padding: 8px;
-                gap: 8px;
                 min-height: 0;
                 overflow-y: auto;
             }
@@ -2370,6 +2388,14 @@
             }
         }
 
+        // Escape HTML to prevent XSS and layout issues
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         // Show verbatims in overlay
         function showVerbatims(verbatims, topicName, categoryName) {
             const overlay = document.getElementById('overlay');
@@ -2378,7 +2404,7 @@
             const subtitle = document.getElementById('overlaySubtitle');
             
             // IMPORTANT: Show the container by removing inline display:none
-            container.style.display = 'grid';
+            container.style.display = 'block';
             
             // Set header info
             title.textContent = topicName;
@@ -2392,9 +2418,12 @@
                 card.className = 'verbatim-card';
                 
                 const sentimentClass = v.sentiment ? `sentiment-${v.sentiment}` : 'sentiment-neutral';
+                const escapedText = escapeHtml(v.text || 'No text available');
+                const escapedCity = v.city ? escapeHtml(v.city) : '';
+                const escapedCountry = v.country ? escapeHtml(v.country) : '';
                 
                 card.innerHTML = `
-                    <div class="verbatim-text">${v.text || 'No text available'}</div>
+                    <div class="verbatim-text">${escapedText}</div>
                     <div class="verbatim-meta">
                         <div class="verbatim-meta-item">
                             <span class="verbatim-meta-label">Sentiment:</span>
@@ -2403,7 +2432,7 @@
                         ${v.country ? `
                         <div class="verbatim-meta-item">
                             <span class="verbatim-meta-label">Location:</span>
-                            <span>${v.city ? v.city + ', ' : ''}${v.country}</span>
+                            <span>${escapedCity ? escapedCity + ', ' : ''}${escapedCountry}</span>
                         </div>
                         ` : ''}
                         <div class="verbatim-meta-item">
