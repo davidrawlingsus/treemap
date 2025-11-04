@@ -20,6 +20,7 @@ from app.schemas import (
     Token, UserLogin, UserResponse, UserWithClients
 )
 from app.transformers import DataTransformer, DataSourceType
+from app.config import get_settings
 from app.auth import (
     get_current_user, get_current_active_founder,
     create_access_token, verify_password
@@ -90,6 +91,8 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
     NOTE: For now, this accepts any email from the users table without password validation.
     Password fields may not exist in the Railway database yet.
     """
+    settings = get_settings()
+    
     # Try case-insensitive email lookup
     user = db.query(User).filter(
         User.email.ilike(credentials.email.strip())
@@ -97,12 +100,23 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
     
     if not user:
         # Helpful debugging: list available emails in dev (don't expose in production)
-        if os.getenv("ENVIRONMENT") == "development":
+        # Check if we're in development/debug mode (not production)
+        is_dev = (
+            os.getenv("ENVIRONMENT", "").lower() in ["development", "dev", "debug"] or
+            os.getenv("RAILWAY_ENVIRONMENT", "").lower() in ["development", "dev"] or
+            "localhost" in str(settings.get_database_url()) or
+            os.getenv("DATABASE_PUBLIC_URL")  # Local dev typically uses public URL
+        )
+        
+        if is_dev:
             available_emails = [u.email for u in db.query(User.email).all()]
-            raise HTTPException(
-                status_code=401,
-                detail=f"Incorrect email or password. Available emails: {', '.join(available_emails[:5])}"
-            )
+            user_count = len(available_emails)
+            if user_count == 0:
+                detail = "Incorrect email or password. No users found in database. Please run fix_dev_database.py to seed users."
+            else:
+                detail = f"Incorrect email or password. Available emails ({user_count}): {', '.join(available_emails[:10])}"
+            raise HTTPException(status_code=401, detail=detail)
+        
         raise HTTPException(
             status_code=401,
             detail="Incorrect email or password"

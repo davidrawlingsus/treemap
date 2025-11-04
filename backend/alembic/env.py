@@ -13,15 +13,19 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from app.database import Base
-from app.models import Client, DataSource, DimensionName  # Import all models here
+from app.models import Client, DataSource, DimensionName, User, Membership  # Import all models here
 from app.config import get_settings
 
 # this is the Alembic Config object
 config = context.config
 
-# Get database URL from environment
+# Get database URL from environment (use get_database_url to prefer public URL)
 settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.database_url)
+database_url = settings.get_database_url()
+# Convert to psycopg format if needed
+if database_url.startswith('postgresql://') and '+psycopg' not in database_url:
+    database_url = database_url.replace('postgresql://', 'postgresql+psycopg://')
+config.set_main_option("sqlalchemy.url", database_url)
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:
