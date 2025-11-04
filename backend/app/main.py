@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import text
+from sqlalchemy import text, func
 from typing import List, Optional
 import json
 import os
@@ -93,32 +93,58 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
     """
     settings = get_settings()
     
+    # Determine if we're in production (for debug messages)
+    is_production = (
+        os.getenv("ENVIRONMENT", "").lower() == "production" or
+        os.getenv("RAILWAY_ENVIRONMENT", "").lower() == "production" or
+        "production" in os.getenv("RAILWAY_SERVICE_NAME", "").lower()
+    )
+    
+    # Normalize email input
+    email_input = credentials.email.strip().lower()
+    
     # Try case-insensitive email lookup
-    user = db.query(User).filter(
-        User.email.ilike(credentials.email.strip())
-    ).first()
+    try:
+        user = db.query(User).filter(
+            func.lower(User.email) == email_input
+        ).first()
+        
+        # If not found, try ilike as fallback
+        if not user:
+            user = db.query(User).filter(
+                User.email.ilike(f"%{email_input}%")
+            ).first()
+    except Exception as e:
+        # Database error - show helpful message
+        if not is_production:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Database error during login: {str(e)}"
+            )
+        raise HTTPException(
+            status_code=500,
+            detail="Internal server error"
+        )
     
     if not user:
         # Helpful debugging: list available emails in dev (don't expose in production)
-        # Check if we're in development/debug mode (not production)
-        # Railway dev environments typically have "dev" or "development" in the environment name
-        # or we can check if we're not explicitly in production
-        db_url = str(settings.get_database_url())
-        is_production = (
-            os.getenv("ENVIRONMENT", "").lower() == "production" or
-            os.getenv("RAILWAY_ENVIRONMENT", "").lower() == "production" or
-            "production" in os.getenv("RAILWAY_SERVICE_NAME", "").lower()
-        )
-        
         # Always show debug info unless explicitly in production
-        # This helps debug issues on dev/staging environments
         if not is_production:
-            available_emails = [u.email for u in db.query(User.email).all()]
-            user_count = len(available_emails)
-            if user_count == 0:
-                detail = "Incorrect email or password. No users found in database. Please run: railway run python fix_dev_database.py"
-            else:
-                detail = f"Incorrect email or password. Available emails ({user_count}): {', '.join(available_emails[:10])}"
+            try:
+                all_users = db.query(User).all()
+                available_emails = [u.email for u in all_users]
+                user_count = len(available_emails)
+                
+                # Show what email was searched for
+                searched_email = credentials.email.strip()
+                
+                if user_count == 0:
+                    detail = f"Incorrect email or password. No users found in database. Searched for: '{searched_email}'. Please run: railway run python fix_dev_database.py"
+                else:
+                    detail = f"Incorrect email or password. Searched for: '{searched_email}'. Available emails ({user_count}): {', '.join(available_emails[:10])}"
+            except Exception as e:
+                detail = f"Incorrect email or password. Error listing users: {str(e)}"
+            
             raise HTTPException(status_code=401, detail=detail)
         
         raise HTTPException(
@@ -132,14 +158,20 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
             detail="User account is inactive"
         )
     
+    # NOTE: Password validation is disabled - any password is accepted
     # TODO: Add password verification when password fields are added
     # if not verify_password(credentials.password, user.hashed_password):
     #     raise HTTPException(status_code=401, detail="Incorrect email or password")
     
     # Update last login
     from datetime import datetime
-    user.last_login_at = datetime.utcnow()
-    db.commit()
+    try:
+        user.last_login_at = datetime.utcnow()
+        db.commit()
+    except Exception as e:
+        # Log but don't fail login if update fails
+        if not is_production:
+            print(f"Warning: Failed to update last_login_at: {e}")
     
     # Create access token
     access_token_expires = timedelta(minutes=60 * 24 * 7)  # 7 days
