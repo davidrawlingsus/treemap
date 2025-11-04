@@ -1696,9 +1696,12 @@
                 
                 if (!response.ok) {
                     const error = await response.json();
-                    console.error('Login error response:', error);
+                    console.error('Login error response (full):', JSON.stringify(error, null, 2));
+                    console.error('Login error keys:', Object.keys(error));
+                    console.error('Login error.detail:', error.detail);
+                    console.error('Login error.message:', error.message);
                     const errorMessage = error.detail || error.message || 'Login failed';
-                    console.error('Login error message:', errorMessage);
+                    console.error('Login error message (final):', errorMessage);
                     throw new Error(errorMessage);
                 }
                 
