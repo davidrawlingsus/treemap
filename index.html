@@ -38,6 +38,7 @@
             color: white;
             padding: 30px;
             text-align: center;
+            position: relative;
         }
 
         .header h1 {
@@ -56,6 +57,104 @@
             opacity: 0.85;
             margin-top: 8px;
             font-weight: 500;
+        }
+
+        /* Login Screen */
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .login-container h2 {
+            margin: 0 0 24px 0;
+            color: #333;
+            font-size: 24px;
+            font-weight: 600;
+        }
+
+        .login-container input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 16px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        .login-container button {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .login-container button:hover {
+            opacity: 0.9;
+        }
+
+        .login-container button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .login-error {
+            color: #dc3545;
+            margin-top: 12px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .user-info {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: white;
+            font-size: 14px;
+        }
+
+        .user-info button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        .user-info button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .hidden {
+            display: none !important;
         }
 
         .data-source-selector {
@@ -1276,7 +1375,21 @@
     </style>
 </head>
 <body>
-    <div class="container">
+    <!-- Login Overlay -->
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-container">
+            <h2>Login</h2>
+            <input type="email" id="loginEmail" placeholder="Email" autocomplete="email">
+            <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password">
+            <button id="loginButton" onclick="handleLogin()">Login</button>
+            <div id="loginError" class="login-error"></div>
+            <p style="margin-top: 16px; font-size: 12px; color: #666; text-align: center;">
+                Note: Password validation not yet implemented. Use any password with your email.
+            </p>
+        </div>
+    </div>
+
+    <div class="container" id="mainContainer" style="display: none;">
         <!-- Data Source Selector -->
         <div class="data-source-selector">
             <label for="clientSelect">Client:</label>
@@ -1529,13 +1642,160 @@
             }
         }
 
+        // Authentication Management
+        const AUTH_TOKEN_KEY = 'auth_token';
+        const USER_INFO_KEY = 'user_info';
+        
+        function getAuthToken() {
+            return localStorage.getItem(AUTH_TOKEN_KEY);
+        }
+        
+        function setAuthToken(token) {
+            localStorage.setItem(AUTH_TOKEN_KEY, token);
+        }
+        
+        function clearAuth() {
+            localStorage.removeItem(AUTH_TOKEN_KEY);
+            localStorage.removeItem(USER_INFO_KEY);
+        }
+        
+        function getAuthHeaders() {
+            const token = getAuthToken();
+            return token ? {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            } : {
+                'Content-Type': 'application/json'
+            };
+        }
+        
+        async function handleLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const loginButton = document.getElementById('loginButton');
+            const loginError = document.getElementById('loginError');
+            
+            if (!email) {
+                loginError.textContent = 'Please enter your email';
+                loginError.style.display = 'block';
+                return;
+            }
+            
+            loginButton.disabled = true;
+            loginButton.textContent = 'Logging in...';
+            loginError.style.display = 'none';
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Login failed');
+                }
+                
+                const data = await response.json();
+                setAuthToken(data.access_token);
+                
+                // Get user info
+                const userResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
+                    headers: getAuthHeaders()
+                });
+                
+                if (userResponse.ok) {
+                    const userInfo = await userResponse.json();
+                    localStorage.setItem(USER_INFO_KEY, JSON.stringify(userInfo));
+                }
+                
+                // Hide login, show app
+                document.getElementById('loginOverlay').classList.add('hidden');
+                document.getElementById('mainContainer').style.display = 'flex';
+                
+                // Initialize app
+                init();
+                
+            } catch (error) {
+                loginError.textContent = error.message || 'Login failed. Please try again.';
+                loginError.style.display = 'block';
+            } finally {
+                loginButton.disabled = false;
+                loginButton.textContent = 'Login';
+            }
+        }
+        
+        async function checkAuth() {
+            const token = getAuthToken();
+            if (!token) {
+                showLogin();
+                return false;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+                    headers: getAuthHeaders()
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Invalid token');
+                }
+                
+                const userInfo = await response.json();
+                localStorage.setItem(USER_INFO_KEY, JSON.stringify(userInfo));
+                
+                // Show app
+                document.getElementById('loginOverlay').classList.add('hidden');
+                document.getElementById('mainContainer').style.display = 'flex';
+                return true;
+                
+            } catch (error) {
+                clearAuth();
+                showLogin();
+                return false;
+            }
+        }
+        
+        function showLogin() {
+            document.getElementById('loginOverlay').classList.remove('hidden');
+            document.getElementById('mainContainer').style.display = 'none';
+        }
+        
+        function handleLogout() {
+            clearAuth();
+            showLogin();
+        }
+        
+        // Allow Enter key to submit login
+        document.addEventListener('DOMContentLoaded', () => {
+            const emailInput = document.getElementById('loginEmail');
+            const passwordInput = document.getElementById('loginPassword');
+            
+            if (emailInput) {
+                emailInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') handleLogin();
+                });
+            }
+            
+            if (passwordInput) {
+                passwordInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') handleLogin();
+                });
+            }
+        });
+
         // API Configuration - loaded from server config
         const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
         
         // Load available clients
         async function loadClients() {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/clients`);
+                const response = await fetch(`${API_BASE_URL}/api/clients`, {
+                    headers: getAuthHeaders()
+                });
                 if (!response.ok) {
                     throw new Error('Failed to load clients');
                 }
@@ -1594,7 +1854,9 @@
         // Load sources for a specific client
         async function loadClientSources(clientId, savedState = null) {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/clients/${clientId}/sources`);
+                const response = await fetch(`${API_BASE_URL}/api/clients/${clientId}/sources`, {
+                    headers: getAuthHeaders()
+                });
                 if (!response.ok) {
                     throw new Error('Failed to load sources');
                 }
@@ -1689,7 +1951,9 @@
                 document.getElementById('loading').innerHTML = 'Loading data...';
                 setLoading(true);
                 
-                const response = await fetch(`${API_BASE_URL}/api/data-sources/${dataSourceId}`);
+                const response = await fetch(`${API_BASE_URL}/api/data-sources/${dataSourceId}`, {
+                    headers: getAuthHeaders()
+                });
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: Failed to load data source`);
                 }
@@ -1741,7 +2005,9 @@
             if (!currentDataSourceId) return;
             
             try {
-                const response = await fetch(`${API_BASE_URL}/api/data-sources/${currentDataSourceId}/dimension-names`);
+                const response = await fetch(`${API_BASE_URL}/api/data-sources/${currentDataSourceId}/dimension-names`, {
+                    headers: getAuthHeaders()
+                });
                 if (response.ok) {
                     const dimensionNames = await response.json();
                     dimensionNamesMap = {};
@@ -3270,6 +3536,7 @@
                 const response = await fetch(`${API_BASE_URL}/api/data-sources/${currentDataSourceId}/dimension-names/batch`, {
                     method: 'POST',
                     headers: {
+                        ...getAuthHeaders(),
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
@@ -3359,8 +3626,12 @@
             });
         });
 
-        // Start the application
-        init();
+        // Start the application - check auth first
+        checkAuth().then(authenticated => {
+            if (authenticated) {
+                init();
+            }
+        });
     </script>
 </body>
 </html>

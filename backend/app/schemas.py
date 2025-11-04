@@ -126,3 +126,43 @@ class DimensionNameResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+# Authentication Schemas
+class Token(BaseModel):
+    """JWT token response"""
+    access_token: str
+    token_type: str = "bearer"
+
+
+class TokenData(BaseModel):
+    """Token payload data"""
+    user_id: Optional[str] = None
+
+
+class UserLogin(BaseModel):
+    """Login request"""
+    email: str
+    password: str
+
+
+class UserResponse(BaseModel):
+    """User response"""
+    id: UUID
+    email: str
+    name: Optional[str] = None
+    is_founder: bool
+    is_active: bool
+    email_verified_at: Optional[datetime] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class UserWithClients(UserResponse):
+    """User response with accessible clients"""
+    accessible_clients: List[ClientResponse] = []
+
+    class Config:
+        from_attributes = True
+

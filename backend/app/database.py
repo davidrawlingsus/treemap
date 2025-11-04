@@ -5,9 +5,14 @@ from app.config import get_settings
 
 settings = get_settings()
 
+# Get database URL (prefers public URL for local dev)
+database_url = settings.get_database_url()
+
 # Create synchronous engine for now (simpler for Phase 1)
 # Replace 'postgresql://' with 'postgresql+psycopg://' to use psycopg3
-database_url = settings.database_url.replace('postgresql://', 'postgresql+psycopg://')
+if database_url.startswith('postgresql://') and '+psycopg' not in database_url:
+    database_url = database_url.replace('postgresql://', 'postgresql+psycopg://')
+
 engine = create_engine(database_url)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

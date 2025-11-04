@@ -1,20 +1,29 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import text
 from typing import List, Optional
 import json
 from uuid import UUID
+from pathlib import Path
 
 from app.database import get_db, engine, Base
-from app.models import Client, DataSource, DimensionName
+from app.models import Client, DataSource, DimensionName, User, Membership
 from app.schemas import (
     ClientCreate, ClientResponse,
     DataSourceCreate, DataSourceResponse, DataSourceDetail,
     QuestionInfo, DataSourceWithQuestions,
-    DimensionNameCreate, DimensionNameBatchUpdate, DimensionNameResponse
+    DimensionNameCreate, DimensionNameBatchUpdate, DimensionNameResponse,
+    Token, UserLogin, UserResponse, UserWithClients
 )
 from app.transformers import DataTransformer, DataSourceType
+from app.auth import (
+    get_current_user, get_current_active_founder,
+    create_access_token, verify_password
+)
+from datetime import timedelta
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -26,6 +35,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",  # Local development
+        "http://localhost:8000",  # Same origin (serving frontend)
         "https://treemap-production-794d.up.railway.app",  # Production frontend
     ],
     allow_credentials=True,
@@ -33,9 +43,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Serve static files from the parent directory (where index.html is)
+# This allows accessing the frontend at http://localhost:8000/index.html
+frontend_path = Path(__file__).parent.parent.parent
+if (frontend_path / "index.html").exists():
+    @app.get("/", response_class=FileResponse)
+    def serve_index():
+        """Serve the frontend index.html"""
+        return FileResponse(frontend_path / "index.html")
+    
+    @app.get("/index.html", response_class=FileResponse)
+    def serve_index_html():
+        """Serve the frontend index.html"""
+        return FileResponse(frontend_path / "index.html")
+    
+    # Serve config.js dynamically
+    @app.get("/config.js")
+    def serve_config():
+        """Serve dynamic config.js with API URL"""
+        from fastapi.responses import Response
+        api_url = "http://localhost:8000"
+        config_content = f"window.APP_CONFIG = {{ API_BASE_URL: '{api_url}' }};"
+        return Response(content=config_content, media_type="application/javascript")
 
-@app.get("/")
-def read_root():
+@app.get("/api")
+def api_info():
+    """API information endpoint"""
     return {"message": "Visualizd API", "version": "0.1.0"}
 
 
@@ -48,6 +81,92 @@ def health_check(db: Session = Depends(get_db)):
         return {"status": "healthy", "database": "connected"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+
+# Authentication Endpoints
+@app.post("/api/auth/login", response_model=Token)
+def login(credentials: UserLogin, db: Session = Depends(get_db)):
+    """
+    Login endpoint - validates email and returns JWT token.
+    
+    NOTE: For now, this accepts any email from the users table without password validation.
+    Password fields may not exist in the Railway database yet.
+    """
+    user = db.query(User).filter(User.email == credentials.email).first()
+    
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Incorrect email or password"
+        )
+    
+    if not user.is_active:
+        raise HTTPException(
+            status_code=403,
+            detail="User account is inactive"
+        )
+    
+    # TODO: Add password verification when password fields are added
+    # if not verify_password(credentials.password, user.hashed_password):
+    #     raise HTTPException(status_code=401, detail="Incorrect email or password")
+    
+    # Update last login
+    from datetime import datetime
+    user.last_login_at = datetime.utcnow()
+    db.commit()
+    
+    # Create access token
+    access_token_expires = timedelta(minutes=60 * 24 * 7)  # 7 days
+    access_token = create_access_token(
+        data={"sub": str(user.id)},
+        expires_delta=access_token_expires
+    )
+    
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.get("/api/auth/me", response_model=UserWithClients)
+def get_current_user_info(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get current authenticated user information with accessible clients."""
+    # Get clients user has access to via memberships
+    memberships = db.query(Membership).filter(
+        Membership.user_id == current_user.id,
+        Membership.status == 'active'
+    ).options(joinedload(Membership.client)).all()
+    
+    accessible_clients = [m.client for m in memberships if m.client]
+    
+    # If user is founder, also include clients they founded
+    if current_user.is_founder:
+        founded_clients = db.query(Client).filter(
+            Client.founder_user_id == current_user.id
+        ).all()
+        # Merge and deduplicate
+        client_ids = {c.id for c in accessible_clients}
+        for client in founded_clients:
+            if client.id not in client_ids:
+                accessible_clients.append(client)
+    
+    return UserWithClients(
+        id=current_user.id,
+        email=current_user.email,
+        name=current_user.name,
+        is_founder=current_user.is_founder,
+        is_active=current_user.is_active,
+        email_verified_at=current_user.email_verified_at,
+        created_at=current_user.created_at,
+        accessible_clients=[ClientResponse(
+            id=c.id,
+            name=c.name,
+            slug=c.slug,
+            is_active=c.is_active,
+            created_at=c.created_at,
+            updated_at=c.updated_at
+        ) for c in accessible_clients]
+    )
 
 
 @app.post("/api/data-sources/upload", response_model=DataSourceResponse)
