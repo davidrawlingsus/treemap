@@ -153,38 +153,31 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
         )
     
     if not user:
-        # Helpful debugging: list available emails in dev (don't expose in production)
-        # Always show debug info unless explicitly in production
+        # Always show helpful debug info - this is a dev server
         try:
             all_users = db.query(User).all()
             available_emails = [u.email for u in all_users]
             user_count = len(available_emails)
             
-            if not is_production:
-                print(f"  No user found. Total users in DB: {user_count}")
-                if user_count > 0:
-                    print(f"  Available emails: {', '.join(available_emails[:10])}")
+            print(f"  No user found. Total users in DB: {user_count}")
+            if user_count > 0:
+                print(f"  Available emails: {', '.join(available_emails[:10])}")
             
-            # Always show debug info in non-production, or if we can't determine production status
-            if not is_production or user_count == 0:
-                if user_count == 0:
-                    detail = f"Incorrect email or password. No users found in database. Searched for: '{searched_email}'. Please run: railway run python fix_dev_database.py"
-                else:
-                    detail = f"Incorrect email or password. Searched for: '{searched_email}'. Available emails ({user_count}): {', '.join(available_emails[:10])}"
-                raise HTTPException(status_code=401, detail=detail)
+            if user_count == 0:
+                detail = f"Incorrect email or password. No users found in database. Searched for: '{searched_email}'. Please run: railway run python fix_dev_database.py"
+            else:
+                detail = f"Incorrect email or password. Searched for: '{searched_email}'. Available emails ({user_count}): {', '.join(available_emails[:10])}"
+            
+            raise HTTPException(status_code=401, detail=detail)
         except HTTPException:
             raise  # Re-raise HTTP exceptions
         except Exception as e:
             # Error getting user list - still show helpful message
             print(f"  Error listing users: {e}")
-            if not is_production:
-                detail = f"Incorrect email or password. Searched for: '{searched_email}'. Error listing users: {str(e)}"
-                raise HTTPException(status_code=401, detail=detail)
-        
-        raise HTTPException(
-            status_code=401,
-            detail="Incorrect email or password"
-        )
+            import traceback
+            traceback.print_exc()
+            detail = f"Incorrect email or password. Searched for: '{searched_email}'. Error listing users: {str(e)}"
+            raise HTTPException(status_code=401, detail=detail)
     
     if not user.is_active:
         raise HTTPException(
