@@ -101,18 +101,22 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
     if not user:
         # Helpful debugging: list available emails in dev (don't expose in production)
         # Check if we're in development/debug mode (not production)
-        is_dev = (
-            os.getenv("ENVIRONMENT", "").lower() in ["development", "dev", "debug"] or
-            os.getenv("RAILWAY_ENVIRONMENT", "").lower() in ["development", "dev"] or
-            "localhost" in str(settings.get_database_url()) or
-            os.getenv("DATABASE_PUBLIC_URL")  # Local dev typically uses public URL
+        # Railway dev environments typically have "dev" or "development" in the environment name
+        # or we can check if we're not explicitly in production
+        db_url = str(settings.get_database_url())
+        is_production = (
+            os.getenv("ENVIRONMENT", "").lower() == "production" or
+            os.getenv("RAILWAY_ENVIRONMENT", "").lower() == "production" or
+            "production" in os.getenv("RAILWAY_SERVICE_NAME", "").lower()
         )
         
-        if is_dev:
+        # Always show debug info unless explicitly in production
+        # This helps debug issues on dev/staging environments
+        if not is_production:
             available_emails = [u.email for u in db.query(User.email).all()]
             user_count = len(available_emails)
             if user_count == 0:
-                detail = "Incorrect email or password. No users found in database. Please run fix_dev_database.py to seed users."
+                detail = "Incorrect email or password. No users found in database. Please run: railway run python fix_dev_database.py"
             else:
                 detail = f"Incorrect email or password. Available emails ({user_count}): {', '.join(available_emails[:10])}"
             raise HTTPException(status_code=401, detail=detail)
