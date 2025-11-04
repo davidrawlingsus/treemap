@@ -111,32 +111,15 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
     """
     settings = get_settings()
     
-    # Determine if we're in production (for debug messages)
-    # Default to showing debug info unless explicitly in production
-    env_check = os.getenv("ENVIRONMENT", "").lower()
-    railway_env_check = os.getenv("RAILWAY_ENVIRONMENT", "").lower()
-    service_name_check = os.getenv("RAILWAY_SERVICE_NAME", "").lower()
-    
-    # Only hide debug if explicitly production
-    is_production = (
-        env_check == "production" or
-        railway_env_check == "production" or
-        "production" in service_name_check
-    )
-    
-    # Log environment info for debugging (only in non-prod)
-    if not is_production:
-        print(f"Login attempt - ENV: {env_check}, RAILWAY_ENV: {railway_env_check}, SERVICE: {service_name_check}, is_production: {is_production}")
-    
     # Normalize email input
     email_input = credentials.email.strip().lower()
     searched_email = credentials.email.strip()
     
-    # Log the search attempt
-    if not is_production:
-        print(f"Login attempt for email: '{searched_email}' (normalized: '{email_input}')")
+    # Log the search attempt (always log for debugging)
+    print(f"LOGIN DEBUG: Attempt for email: '{searched_email}' (normalized: '{email_input}')")
     
     # Try case-insensitive email lookup
+    user = None
     try:
         user = db.query(User).filter(
             func.lower(User.email) == email_input
@@ -144,54 +127,49 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
         
         # If not found, try ilike as fallback
         if not user:
-            if not is_production:
-                print(f"  First lookup failed, trying ilike...")
+            print(f"LOGIN DEBUG: First lookup failed, trying ilike...")
             user = db.query(User).filter(
                 User.email.ilike(f"%{email_input}%")
             ).first()
         
-        if user and not is_production:
-            print(f"  User found: {user.email} (active: {user.is_active}, founder: {user.is_founder})")
-        elif not user and not is_production:
-            print(f"  User not found after both lookup attempts")
+        if user:
+            print(f"LOGIN DEBUG: User found: {user.email} (active: {user.is_active}, founder: {user.is_founder})")
+        else:
+            print(f"LOGIN DEBUG: User not found after both lookup attempts")
             
     except Exception as e:
         # Database error - show helpful message
-        print(f"  Database error: {e}")
+        print(f"LOGIN DEBUG: Database error: {e}")
         import traceback
         traceback.print_exc()
-        if not is_production:
-            raise HTTPException(
-                status_code=500,
-                detail=f"Database error during login: {str(e)}"
-            )
         raise HTTPException(
             status_code=500,
-            detail="Internal server error"
+            detail=f"Database error during login: {str(e)}"
         )
     
     if not user:
-        # Always show helpful debug info - this is a dev server
+        # Always show helpful debug info
         try:
             all_users = db.query(User).all()
             available_emails = [u.email for u in all_users]
             user_count = len(available_emails)
             
-            print(f"  No user found. Total users in DB: {user_count}")
+            print(f"LOGIN DEBUG: No user found. Total users in DB: {user_count}")
             if user_count > 0:
-                print(f"  Available emails: {', '.join(available_emails[:10])}")
+                print(f"LOGIN DEBUG: Available emails: {', '.join(available_emails[:10])}")
             
             if user_count == 0:
                 detail = f"Incorrect email or password. No users found in database. Searched for: '{searched_email}'. Please run: railway run python fix_dev_database.py"
             else:
                 detail = f"Incorrect email or password. Searched for: '{searched_email}'. Available emails ({user_count}): {', '.join(available_emails[:10])}"
             
+            print(f"LOGIN DEBUG: Raising error with detail: {detail}")
             raise HTTPException(status_code=401, detail=detail)
         except HTTPException:
             raise  # Re-raise HTTP exceptions
         except Exception as e:
             # Error getting user list - still show helpful message
-            print(f"  Error listing users: {e}")
+            print(f"LOGIN DEBUG: Error listing users: {e}")
             import traceback
             traceback.print_exc()
             detail = f"Incorrect email or password. Searched for: '{searched_email}'. Error listing users: {str(e)}"
