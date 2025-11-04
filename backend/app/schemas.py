@@ -166,3 +166,65 @@ class UserWithClients(UserResponse):
     class Config:
         from_attributes = True
 
+
+# ProcessVoc Schemas
+class ProcessVocResponse(BaseModel):
+    """Response schema for single process_voc row"""
+    id: int
+    respondent_id: str
+    created: Optional[datetime] = None
+    last_modified: Optional[datetime] = None
+    client_id: Optional[str] = None
+    client_name: Optional[str] = None
+    project_id: Optional[str] = None
+    project_name: Optional[str] = None
+    total_rows: Optional[int] = None
+    data_source: Optional[str] = None
+    region: Optional[str] = None
+    response_type: Optional[str] = None
+    start_date: Optional[datetime] = None
+    submit_date: Optional[datetime] = None
+    user_type: Optional[str] = None
+    dimension_ref: str
+    dimension_name: Optional[str] = None
+    value: Optional[str] = None
+    overall_sentiment: Optional[str] = None
+    topics: Optional[List[dict]] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    client_uuid: Optional[UUID] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ProcessVocListResponse(BaseModel):
+    """Response for list of process_voc rows"""
+    items: List[ProcessVocResponse]
+    total: int
+
+    class Config:
+        from_attributes = True
+
+
+class DimensionQuestionInfo(BaseModel):
+    """Information about a dimension/question in process_voc"""
+    dimension_ref: str
+    dimension_name: Optional[str] = None
+    response_count: int = 0
+
+
+class VocSourceInfo(BaseModel):
+    """Information about a data source in process_voc"""
+    data_source: str
+    client_uuid: Optional[UUID] = None
+    client_name: Optional[str] = None
+    response_count: int = 0
+
+
+class VocClientInfo(BaseModel):
+    """Information about a client with data in process_voc"""
+    client_uuid: UUID
+    client_name: Optional[str] = None
+    data_source_count: int = 0
+

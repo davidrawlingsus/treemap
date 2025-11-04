@@ -1735,17 +1735,22 @@
         }
         
         async function checkAuth() {
+            console.log('checkAuth() called');
             const token = getAuthToken();
+            console.log('Token exists:', !!token);
             if (!token) {
+                console.log('No token, showing login');
                 showLogin();
                 return false;
             }
             
             try {
+                console.log('Checking auth with API...');
                 const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
                     headers: getAuthHeaders()
                 });
                 
+                console.log('Auth response status:', response.status);
                 if (!response.ok) {
                     throw new Error('Invalid token');
                 }
@@ -1756,9 +1761,11 @@
                 // Show app
                 document.getElementById('loginOverlay').classList.add('hidden');
                 document.getElementById('mainContainer').style.display = 'flex';
+                console.log('Auth successful');
                 return true;
                 
             } catch (error) {
+                console.error('Auth error:', error);
                 clearAuth();
                 showLogin();
                 return false;
@@ -1798,37 +1805,46 @@
         
         // Load available clients
         async function loadClients() {
+            console.log('loadClients() called');
             try {
-                const response = await fetch(`${API_BASE_URL}/api/clients`, {
+                console.log(`Fetching clients from ${API_BASE_URL}/api/voc/clients`);
+                const response = await fetch(`${API_BASE_URL}/api/voc/clients`, {
                     headers: getAuthHeaders()
                 });
+                console.log('Clients response status:', response.status);
                 if (!response.ok) {
                     throw new Error('Failed to load clients');
                 }
+                console.log('Parsing clients JSON...');
                 allClients = await response.json();
+                console.log(`Loaded ${allClients.length} clients:`, allClients);
                 
                 const select = document.getElementById('clientSelect');
+                console.log('Client select element:', select);
                 select.innerHTML = '';
                 
                 if (allClients.length === 0) {
+                    console.log('No clients available');
                     select.innerHTML = '<option value="">No clients available</option>';
                     return;
                 }
                 
                 // Try to restore saved state
                 const savedState = loadState();
+                console.log('Saved state:', savedState);
                 
+                console.log('Populating client dropdown...');
                 allClients.forEach((client, index) => {
                     const option = document.createElement('option');
-                    option.value = client.id;
-                    option.textContent = client.name;
+                    option.value = client.client_uuid;
+                    option.textContent = client.client_name || `Client ${client.client_uuid}`;
                     select.appendChild(option);
                     
                     // Restore saved client or select first one by default
-                    if (savedState && savedState.clientId === client.id) {
-                        currentClientId = client.id;
+                    if (savedState && savedState.clientId === client.client_uuid) {
+                        currentClientId = client.client_uuid;
                     } else if (!savedState && index === 0) {
-                        currentClientId = client.id;
+                        currentClientId = client.client_uuid;
                     }
                 });
                 
@@ -1848,10 +1864,14 @@
                 
                 // Load sources for the selected client
                 if (currentClientId) {
+                    console.log(`Loading sources for client: ${currentClientId}`);
                     await loadClientSources(currentClientId, savedState);
+                } else {
+                    console.log('No client selected, skipping source load');
                 }
             } catch (error) {
                 console.error('Error loading clients:', error);
+                console.error('Error stack:', error.stack);
                 const select = document.getElementById('clientSelect');
                 select.innerHTML = '<option value="">Error loading clients</option>';
             }
@@ -1859,49 +1879,72 @@
         
         // Load sources for a specific client
         async function loadClientSources(clientId, savedState = null) {
+            console.log(`loadClientSources() called for client: ${clientId}`);
             try {
-                const response = await fetch(`${API_BASE_URL}/api/clients/${clientId}/sources`, {
+                const url = `${API_BASE_URL}/api/voc/sources?client_uuid=${clientId}`;
+                console.log(`Fetching sources from: ${url}`);
+                const response = await fetch(url, {
                     headers: getAuthHeaders()
                 });
+                console.log('Sources response status:', response.status);
                 if (!response.ok) {
                     throw new Error('Failed to load sources');
                 }
                 clientSources = await response.json();
+                console.log(`Loaded ${clientSources.length} sources:`, clientSources);
                 
                 const select = document.getElementById('sourceSelect');
+                console.log('Source select element:', select);
+                if (!select) {
+                    console.error('Source select element not found!');
+                    return;
+                }
                 select.innerHTML = '';
                 
                 if (clientSources.length === 0) {
+                    console.log('No sources available');
                     select.innerHTML = '<option value="">No sources available</option>';
                     return;
                 }
                 
+                console.log('Populating source dropdown...');
                 clientSources.forEach((source, index) => {
                     const option = document.createElement('option');
-                    option.value = source.id;
-                    option.textContent = source.source_name || source.name;
+                    option.value = source.data_source;
+                    option.textContent = source.data_source || 'Unknown Source';
                     select.appendChild(option);
                     
                     // Restore saved data source or select first one by default
-                    if (savedState && savedState.dataSourceId === source.id) {
-                        currentDataSourceId = source.id;
-                    } else if (!savedState && !currentDataSourceId && index === 0) {
-                        currentDataSourceId = source.id;
+                    if (savedState && savedState.dataSourceId && savedState.dataSourceId === source.data_source) {
+                        currentDataSourceId = source.data_source;
+                        console.log(`Restored saved data source: ${currentDataSourceId}`);
+                    } else if (!currentDataSourceId && index === 0) {
+                        // Select first one if no saved state or saved state has no dataSourceId
+                        currentDataSourceId = source.data_source;
+                        console.log(`Selected first data source by default: ${currentDataSourceId}`);
                     }
                 });
+                
+                console.log(`Current data source ID after loop: ${currentDataSourceId}`);
                 
                 // Set the select value to match the current data source
                 if (currentDataSourceId) {
                     select.value = currentDataSourceId;
+                    console.log(`Set select value to: ${currentDataSourceId}`);
                 }
                 
                 // Add change listener (only once)
                 select.removeEventListener('change', handleSourceChange);
                 select.addEventListener('change', handleSourceChange);
+                console.log('Added change listener to source select');
                 
                 // Load the selected data source
                 if (currentDataSourceId) {
-                    await loadDataSource(currentDataSourceId, savedState);
+                    console.log(`About to load data source: client=${clientId}, source=${currentDataSourceId}`);
+                    await loadDataSource(clientId, currentDataSourceId, savedState);
+                    console.log('loadDataSource completed');
+                } else {
+                    console.log('No data source selected, skipping data load');
                 }
             } catch (error) {
                 console.error('Error loading sources:', error);
@@ -1915,16 +1958,16 @@
             currentDataSourceId = e.target.value;
             currentQuestionRefKey = null; // Reset question when source changes
             saveState();
-            await loadDataSource(currentDataSourceId);
+            await loadDataSource(currentClientId, currentDataSourceId);
         }
         
         // Update breadcrumb display
         function updateBreadcrumb(questionRefKey) {
-            const client = allClients.find(c => c.id === currentClientId);
-            const source = clientSources.find(s => s.id === currentDataSourceId);
+            const client = allClients.find(c => c.client_uuid === currentClientId);
+            const source = clientSources.find(s => s.data_source === currentDataSourceId);
             
             if (client && source) {
-                let breadcrumb = `${client.name} > ${source.source_name || 'Unknown Source'}`;
+                let breadcrumb = `${client.client_name || 'Unknown Client'} > ${source.data_source || 'Unknown Source'}`;
                 
                 // Add question to breadcrumb if specified
                 if (questionRefKey) {
@@ -1950,54 +1993,128 @@
             charts.forEach(c => c.classList.toggle('is-loading', isLoading));
         }
 
+        // Group process_voc rows by respondent_id and merge topics
+        function groupProcessVocRows(processVocRows, dimensionRef = null) {
+            console.log(`Grouping ${processVocRows.length} rows${dimensionRef ? ` for dimension ${dimensionRef}` : ' (all dimensions)'}`);
+            
+            // Filter by dimension if specified
+            let filteredRows = dimensionRef 
+                ? processVocRows.filter(row => row.dimension_ref === dimensionRef)
+                : processVocRows;
+            
+            console.log(`Filtered to ${filteredRows.length} rows`);
+            
+            // Group by respondent_id
+            const grouped = {};
+            let totalTopics = 0;
+            
+            filteredRows.forEach(row => {
+                const respondentId = row.respondent_id;
+                if (!grouped[respondentId]) {
+                    grouped[respondentId] = {
+                        row_id: respondentId,
+                        text: row.value || '',
+                        topics: [],
+                        sentiment: row.overall_sentiment || 'neutral',
+                        metadata: {
+                            ref_key: dimensionRef || row.dimension_ref,
+                            dimension_name: row.dimension_name,
+                            country: row.region || '',
+                            source_type: row.data_source || '',
+                            created_at: row.submit_date || row.created
+                        }
+                    };
+                }
+                
+                // Merge topics from this dimension
+                if (row.topics && Array.isArray(row.topics)) {
+                    grouped[respondentId].topics.push(...row.topics);
+                    totalTopics += row.topics.length;
+                }
+                
+                // Use first non-empty value as text
+                if (!grouped[respondentId].text && row.value) {
+                    grouped[respondentId].text = row.value;
+                }
+            });
+            
+            const result = Object.values(grouped);
+            console.log(`Grouped into ${result.length} unique respondents with ${totalTopics} total topics`);
+            if (result.length > 0) {
+                console.log(`Sample grouped row:`, JSON.stringify(result[0], null, 2).substring(0, 300));
+            }
+            
+            return result;
+        }
+
         // Load a specific data source
-        async function loadDataSource(dataSourceId, savedState = null) {
+        async function loadDataSource(clientUuid, dataSource, savedState = null) {
+            console.log(`loadDataSource() called: client=${clientUuid}, source=${dataSource}`);
             try {
                 document.getElementById('loading').style.display = 'flex';
                 document.getElementById('loading').innerHTML = 'Loading data...';
                 setLoading(true);
                 
-                const response = await fetch(`${API_BASE_URL}/api/data-sources/${dataSourceId}`, {
+                // Build query parameters
+                const params = new URLSearchParams();
+                if (clientUuid) params.append('client_uuid', clientUuid);
+                if (dataSource) params.append('data_source', dataSource);
+                
+                const url = `${API_BASE_URL}/api/voc/data?${params.toString()}`;
+                console.log(`Fetching data from: ${url}`);
+                const response = await fetch(url, {
                     headers: getAuthHeaders()
                 });
+                console.log('Data response status:', response.status);
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: Failed to load data source`);
+                    throw new Error(`HTTP ${response.status}: Failed to load data`);
                 }
                 
-                const dataSource = await response.json();
+                console.log('Parsing data JSON...');
+                const processVocRows = await response.json();
+                console.log(`Received ${processVocRows.length} process_voc rows`);
                 
                 // Validate response structure
-                if (!dataSource || !dataSource.raw_data) {
-                    throw new Error('Invalid response structure: missing raw_data');
+                if (!processVocRows || !Array.isArray(processVocRows)) {
+                    throw new Error('Invalid response structure: expected array of process_voc rows');
                 }
                 
-                console.log(`Loaded data source: ${dataSource.name}, rows: ${dataSource.raw_data.length}`);
+                console.log(`Loaded ${processVocRows.length} process_voc rows`);
                 
-                fullRawData = dataSource.raw_data;
-                rawData = fullRawData;
-                dimensionFilteredData = fullRawData; // Initialize dimension filter
-                currentSourceFormat = dataSource.source_format;
+                // Store raw process_voc rows
+                fullRawData = processVocRows;
+                dimensionFilteredData = processVocRows; // Initialize dimension filter
                 
                 // Update breadcrumb
                 updateBreadcrumb();
                 
                 // Detect if this is survey data with multiple questions
-                // This will set dimensionFilteredData and filter rawData if a dimension is selected
+                // This will set up the question filter and call filterByQuestion which groups and renders
                 await detectAndSetupQuestionFilter(savedState);
                 
-                // Extract and setup category filter from the (possibly filtered) rawData
-                // This ensures we only show categories for the current dimension
-                availableCategories = extractAvailableCategories(rawData);
-                selectedCategories.clear(); // Reset filter when loading new data
-                populateCategoryFilter();
+                // If detectAndSetupQuestionFilter didn't set up questions (no dimensions found),
+                // or if it returned early, we need to group and render the data ourselves
+                // filterByQuestion should have been called if questions were found, but as a fallback:
+                if (!rawData || rawData.length === 0) {
+                    console.log('No data grouped yet, grouping now...');
+                    const groupedData = groupProcessVocRows(dimensionFilteredData, null);
+                    rawData = groupedData;
+                    
+                    // Extract and setup category filter
+                    availableCategories = extractAvailableCategories(rawData);
+                    selectedCategories.clear();
+                    populateCategoryFilter();
+                    
+                    // Process and render
+                    processData();
+                    renderTreemap(hierarchyData);
+                    renderBarChart();
+                    renderTopicsChart();
+                }
+                // Otherwise, filterByQuestion already handled grouping and rendering
                 
                 document.getElementById('loading').style.display = 'none';
                 setLoading(false);
-                
-                processData();
-                renderTreemap(hierarchyData);
-                renderBarChart();
-                renderTopicsChart();
             } catch (error) {
                 console.error('Error in loadDataSource:', error);
                 document.getElementById('loading').innerHTML = 
@@ -2037,69 +2154,61 @@
             const questionSelect = document.getElementById('questionSelect');
             const dimensionNameEditor = document.getElementById('dimensionNameEditor');
             
-            // Validate rawData exists and has content
-            if (!rawData || rawData.length === 0) {
-                console.warn('No data available for question filter detection');
+            // Validate we have client and data source
+            if (!currentClientId || !currentDataSourceId) {
+                console.warn('No client or data source selected');
                 questionLabel.style.display = 'none';
                 questionSelect.style.display = 'none';
                 dimensionNameEditor.style.display = 'none';
                 return;
             }
             
-            // Check if data has ref_key in metadata (normalized survey format)
-            const hasSurveyFormat = rawData[0] && 
-                                    rawData[0].metadata && 
-                                    rawData[0].metadata.ref_key;
-            
-            if (hasSurveyFormat) {
-                // Load custom dimension names first
-                await loadDimensionNames();
+            try {
+                // Load questions from API
+                const params = new URLSearchParams();
+                params.append('client_uuid', currentClientId);
+                params.append('data_source', currentDataSourceId);
                 
-                // Extract unique questions from normalized data
-                // Only include dimensions that have at least some topics
-                const questionSet = new Set();
-                const questionSamples = {};
-                const questionTopicCounts = {};
+                const response = await fetch(`${API_BASE_URL}/api/voc/questions?${params.toString()}`, {
+                    headers: getAuthHeaders()
+                });
                 
-                rawData.forEach(row => {
-                    // Skip null/undefined rows
-                    if (!row || !row.metadata) return;
-                    
-                    if (row.metadata.ref_key) {
-                        const refKey = row.metadata.ref_key;
-                        
-                        // Count rows with topics for this dimension
-                        if (!questionTopicCounts[refKey]) {
-                            questionTopicCounts[refKey] = 0;
-                        }
-                        if (row.topics && row.topics.length > 0) {
-                            questionTopicCounts[refKey]++;
-                        }
-                        
-                        questionSet.add(refKey);
-                        
-                        // Store a sample text for each question
-                        if (!questionSamples[refKey] && row.text) {
-                            questionSamples[refKey] = row.text.substring(0, 50);
-                        }
+                if (!response.ok) {
+                    throw new Error('Failed to load questions');
+                }
+                
+                const questions = await response.json();
+                
+                // Filter to only dimensions that have topics (response_count > 0)
+                availableQuestions = questions
+                    .filter(q => q.response_count > 0)
+                    .map(q => q.dimension_ref)
+                    .sort();
+                
+                console.log(`Found ${availableQuestions.length} dimensions with data`);
+                
+                if (availableQuestions.length === 0) {
+                    // Hide question selector if no questions
+                    questionLabel.style.display = 'none';
+                    questionSelect.style.display = 'none';
+                    dimensionNameEditor.style.display = 'none';
+                    return;
+                }
+                
+                // Build dimension names map from API response
+                dimensionNamesMap = {};
+                questions.forEach(q => {
+                    if (q.dimension_name) {
+                        dimensionNamesMap[q.dimension_ref] = q.dimension_name;
                     }
                 });
                 
-                // Filter to only dimensions that have topics
-                const allQuestions = Array.from(questionSet).sort();
-                availableQuestions = allQuestions.filter(refKey => questionTopicCounts[refKey] > 0);
-                
-                console.log(`Found ${allQuestions.length} total dimensions, ${availableQuestions.length} with topics`);
-                
-                // Populate question selector with custom names
+                // Populate question selector
                 questionSelect.innerHTML = '<option value="">All Dimensions</option>';
                 availableQuestions.forEach(refKey => {
                     const option = document.createElement('option');
                     option.value = refKey;
-                    
-                    // Use custom name if available, otherwise show ref_key
-                    const displayName = getDimensionDisplayName(refKey);
-                    option.textContent = displayName;
+                    option.textContent = getDimensionDisplayName(refKey);
                     questionSelect.appendChild(option);
                 });
                 
@@ -2117,7 +2226,6 @@
                     // Show/hide dimension name editor based on selection
                     if (selectedRefKey && selectedRefKey !== '') {
                         dimensionNameEditor.style.display = 'none'; // Hidden for now
-                        // updateInlineDimensionEditor(selectedRefKey);
                     } else {
                         dimensionNameEditor.style.display = 'none';
                     }
@@ -2131,14 +2239,12 @@
                 if (savedState && savedState.questionRefKey && availableQuestions.includes(savedState.questionRefKey)) {
                     questionToSelect = savedState.questionRefKey;
                 }
-                // Don't auto-select first dimension - default to showing all
                 
                 if (questionToSelect) {
                     currentQuestionRefKey = questionToSelect;
                     questionSelect.value = questionToSelect;
                     filterByQuestion(questionToSelect);
-                    dimensionNameEditor.style.display = 'none'; // Hidden for now
-                    // updateInlineDimensionEditor(questionToSelect);
+                    dimensionNameEditor.style.display = 'none';
                 } else {
                     // Default to "All Dimensions" view
                     currentQuestionRefKey = null;
@@ -2146,8 +2252,9 @@
                     filterByQuestion(''); // Show all dimensions
                     dimensionNameEditor.style.display = 'none';
                 }
-            } else {
-                // Hide question selector for non-survey data
+            } catch (error) {
+                console.error('Error loading questions:', error);
+                // Hide question selector on error
                 questionLabel.style.display = 'none';
                 questionSelect.style.display = 'none';
                 dimensionNameEditor.style.display = 'none';
@@ -2157,28 +2264,14 @@
         
         // Filter data by selected question
         function filterByQuestion(refKey) {
-            if (!refKey) {
-                // Show all questions
-                dimensionFilteredData = fullRawData;
-            } else {
-                // Filter to specific question (works with normalized format)
-                dimensionFilteredData = fullRawData.filter(row => {
-                    // Normalized format: check metadata.ref_key
-                    if (row.metadata && row.metadata.ref_key === refKey) {
-                        return true;
-                    }
-                    // Raw format: check if ref_key exists as a property
-                    if (row[refKey] && typeof row[refKey] === 'object' && row[refKey].text) {
-                        return true;
-                    }
-                    return false;
-                });
-            }
+            // Group process_voc rows with optional dimension filter
+            const groupedData = groupProcessVocRows(fullRawData, refKey || null);
             
-            // Set rawData to the dimension-filtered data (category filter will further filter this)
-            rawData = dimensionFilteredData;
+            // Set rawData to the grouped and filtered data
+            rawData = groupedData;
+            dimensionFilteredData = fullRawData; // Keep full data for re-filtering
             
-            console.log(`Filtered to ${rawData.length} rows for question: ${refKey || 'all'}`);
+            console.log(`Filtered to ${rawData.length} grouped rows for question: ${refKey || 'all'}`);
             
             // Extract categories from the filtered data (dimension-specific)
             availableCategories = extractAvailableCategories(rawData);
@@ -2197,15 +2290,19 @@
         
         // Initialize
         async function init() {
+            console.log('init() called');
             try {
+                console.log('Loading dimension options...');
                 // Load dimension options from localStorage
                 loadDimensionOptions();
                 
+                console.log('Setting up container dimensions...');
                 // Set dimensions based on container
                 const container = document.querySelector('.treemap-svg-container');
                 width = container.clientWidth;
                 height = container.clientHeight;
                 
+                console.log('Loading clients...');
                 // Load clients from API (which will cascade to sources and data)
                 await loadClients();
                 
@@ -3633,10 +3730,17 @@
         });
 
         // Start the application - check auth first
+        console.log('Starting application...');
         checkAuth().then(authenticated => {
+            console.log('Auth check result:', authenticated);
             if (authenticated) {
+                console.log('Initializing app...');
                 init();
+            } else {
+                console.log('Not authenticated, showing login');
             }
+        }).catch(error => {
+            console.error('Error in checkAuth:', error);
         });
     </script>
 </body>
