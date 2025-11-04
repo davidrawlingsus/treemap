@@ -1535,20 +1535,11 @@
                                     <span style="font-size: 18px;">→</span>
                                 </div>
                             </div>
-                            <div class="filter-type-option" data-type="location" style="padding: 12px; margin: 4px 0; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: background 0.2s;">
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <div>
-                                        <strong style="font-size: 14px; color: #333;">Location</strong>
-                                        <div style="font-size: 12px; color: #666; margin-top: 2px;">Filter by user location</div>
-                                    </div>
-                                    <span style="font-size: 18px;">→</span>
-                                </div>
-                            </div>
                             <div class="filter-type-option" data-type="metadata" style="padding: 12px; margin: 4px 0; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: background 0.2s;">
                                 <div style="display: flex; justify-content: space-between; align-items: center;">
                                     <div>
-                                        <strong style="font-size: 14px; color: #333;">Other Metadata</strong>
-                                        <div style="font-size: 12px; color: #666; margin-top: 2px;">Filter by metadata fields</div>
+                                        <strong style="font-size: 14px; color: #333;">Metadata</strong>
+                                        <div style="font-size: 12px; color: #666; margin-top: 2px;">Filter by metadata fields including location</div>
                                     </div>
                                     <span style="font-size: 18px;">→</span>
                                 </div>
@@ -1577,6 +1568,7 @@
                             </div>
                             <div style="display: flex; gap: 8px;">
                                 <button id="selectAllItems" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 12px; font-weight: 500;">Select All</button>
+                                <button id="clearAllItems" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 12px; font-weight: 500;">Clear All</button>
                             </div>
                         </div>
                         <div style="padding: 8px 12px; border-bottom: 1px solid #e0e0e0; background: #f0f0f0; display: flex; gap: 8px; align-items: center;">
@@ -2485,17 +2477,18 @@
             
             // Extract available filter options from the filtered data (dimension-specific)
             extractAvailableFilterOptions(rawData);
-            filterRules = []; // Reset filters when changing dimension
+            
+            // Preserve metadata filters when changing dimensions, but reset category and topic filters
+            // (since categories and topics are dimension-specific, but metadata is not)
+            filterRules = filterRules.filter(rule => rule.type === 'metadata');
+            
             updateFilterUI();
             
             // Update breadcrumb to show question selection
             updateBreadcrumb(refKey);
             
-            // Re-render visualizations
-            processData();
-            renderTreemap(hierarchyData);
-            renderBarChart();
-            renderTopicsChart();
+            // Re-render visualizations (this will apply preserved metadata filters)
+            applyFiltersAndRender();
         }
         
         // Initialize
@@ -2561,22 +2554,33 @@
                         locations.add(`${city}, ${country}`);
                     }
                     
-                    // Extract all metadata fields (excluding location fields already handled)
+                    // Extract all metadata fields including location fields
                     Object.keys(row.metadata).forEach(key => {
-                        if (key !== 'country' && key !== 'city') {
-                            if (!metadataFields[key]) {
-                                metadataFields[key] = new Set();
-                            }
-                            const value = row.metadata[key];
-                            if (value !== null && value !== undefined) {
-                                // Convert to string for consistency (including empty strings)
-                                const strValue = String(value);
-                                // Always add trimmed value (including empty string if original was empty)
-                                const trimmedValue = strValue.trim();
-                                metadataFields[key].add(trimmedValue);
-                            }
+                        if (!metadataFields[key]) {
+                            metadataFields[key] = new Set();
+                        }
+                        const value = row.metadata[key];
+                        if (value !== null && value !== undefined) {
+                            // Convert to string for consistency (including empty strings)
+                            const strValue = String(value);
+                            // Always add trimmed value (including empty string if original was empty)
+                            const trimmedValue = strValue.trim();
+                            metadataFields[key].add(trimmedValue);
                         }
                     });
+                    
+                    // Also add location as a combined field for easier filtering
+                    if (country || city) {
+                        if (!metadataFields['location']) {
+                            metadataFields['location'] = new Set();
+                        }
+                        if (city && country) {
+                            metadataFields['location'].add(`${city}, ${country}`);
+                        }
+                        if (country) {
+                            metadataFields['location'].add(country);
+                        }
+                    }
                 }
                 // Also check row-level sentiment (in case it's not in metadata)
                 if (row && row.sentiment) {
@@ -2658,20 +2662,38 @@
                                 );
                             }
                         } else if (rule.type === 'location') {
-                            // Check if row metadata matches location filter
+                            // Location filtering is now handled via metadata field 'location'
+                            // This is kept for backwards compatibility but should use metadata type instead
                             const country = row.metadata?.country || '';
                             const city = row.metadata?.city || '';
                             const locationStr = city && country ? `${city}, ${country}` : country;
                             
                             matches = rule.values.has(country) || rule.values.has(locationStr);
                         } else if (rule.type === 'metadata' && rule.metadataField) {
-                            // Check if row metadata matches metadata field filter
-                            const fieldValue = row.metadata?.[rule.metadataField];
-                            if (fieldValue !== null && fieldValue !== undefined) {
+                            // Special handling for computed 'location' field
+                            let fieldValue;
+                            if (rule.metadataField === 'location') {
+                                // Compute location from country and city
+                                const country = row.metadata?.country || '';
+                                const city = row.metadata?.city || '';
+                                const locationStr = city && country ? `${city}, ${country}` : country;
+                                fieldValue = locationStr;
+                            } else {
+                                // For other metadata fields, get directly from metadata
+                                fieldValue = row.metadata?.[rule.metadataField];
+                            }
+                            
+                            if (fieldValue !== null && fieldValue !== undefined && fieldValue !== '') {
                                 // Convert to string and trim for comparison
                                 const strValue = String(fieldValue).trim();
                                 // Check if the value matches any selected filter value
-                                matches = rule.values.has(strValue);
+                                // For location, also check if country alone matches
+                                if (rule.metadataField === 'location') {
+                                    const country = row.metadata?.country || '';
+                                    matches = rule.values.has(strValue) || rule.values.has(country);
+                                } else {
+                                    matches = rule.values.has(strValue);
+                                }
                                 
                                 // Debug logging for first mismatch
                                 if (!matches && rule.mode === 'include' && !rule._debugLogged) {
@@ -2781,8 +2803,9 @@
             renderBarChart();
             renderTopicsChart();
             
-            // Update available options after filtering
-            extractAvailableFilterOptions(rawData);
+            // Update available options from unfiltered data so excluded items remain visible
+            // Use dimensionFilteredData (unfiltered by category/topic/metadata) instead of rawData (filtered)
+            extractAvailableFilterOptions(dimensionFilteredData);
             updateFilterUI();
         }
         
@@ -2798,6 +2821,7 @@
             const clearAllFilters = document.getElementById('clearAllFilters');
             const applyFilter = document.getElementById('applyFilter');
             const selectAllItems = document.getElementById('selectAllItems');
+            const clearAllItems = document.getElementById('clearAllItems');
             
             // Toggle dropdown
             filterBtn.onclick = (e) => {
@@ -2907,7 +2931,9 @@
                     }
                 }
                 
-                showFilterTypeView();
+                // Stay in the filter selection view instead of going back to top level
+                // Refresh the view to show updated selections
+                showFilterSelectionView();
                 applyFiltersAndRender();
             };
             
@@ -2915,6 +2941,12 @@
             selectAllItems.onclick = () => {
                 const items = getAvailableItemsForType(currentFilterType);
                 currentFilterSelections = new Set(items);
+                populateFilterSelectionList();
+            };
+            
+            // Clear all items
+            clearAllItems.onclick = () => {
+                currentFilterSelections.clear();
                 populateFilterSelectionList();
             };
         }
@@ -2951,12 +2983,12 @@
                     .join(' ');
                 title.textContent = `Select ${fieldLabel} Values`;
             } else {
-                const typeLabels = {
-                    'category': 'Categories',
-                    'topic': 'Topics',
-                    'location': 'Locations'
-                };
-                title.textContent = `Select ${typeLabels[currentFilterType] || 'Items'}`;
+                        const typeLabels = {
+                            'category': 'Categories',
+                            'topic': 'Topics',
+                            'location': 'Locations' // Kept for backwards compatibility
+                        };
+                        title.textContent = `Select ${typeLabels[currentFilterType] || 'Items'}`;
             }
             
             // Validate that metadataField is set for metadata filters
@@ -2984,7 +3016,34 @@
             } else {
                 currentFilterSelections.clear();
                 document.querySelector('input[name="filterMode"][value="include"]').checked = true;
+                // When mode is "include" and no existing rule, select all items by default
+                const mode = document.querySelector('input[name="filterMode"]:checked')?.value || 'include';
+                if (mode === 'include') {
+                    const items = getAvailableItemsForType(currentFilterType);
+                    currentFilterSelections = new Set(items);
+                }
             }
+            
+            // Add event listeners for mode changes
+            const modeInputs = document.querySelectorAll('input[name="filterMode"]');
+            modeInputs.forEach(input => {
+                // Remove existing listeners to avoid duplicates
+                const newInput = input.cloneNode(true);
+                input.parentNode.replaceChild(newInput, input);
+                
+                newInput.addEventListener('change', () => {
+                    if (newInput.value === 'include') {
+                        // When switching to include mode, select all items by default
+                        const items = getAvailableItemsForType(currentFilterType);
+                        currentFilterSelections = new Set(items);
+                        populateFilterSelectionList();
+                    } else {
+                        // When switching to exclude mode, clear selections
+                        currentFilterSelections.clear();
+                        populateFilterSelectionList();
+                    }
+                });
+            });
             
             populateFilterSelectionList();
         }
@@ -2992,7 +3051,7 @@
         function getAvailableItemsForType(type) {
             if (type === 'category') return availableCategories;
             if (type === 'topic') return availableTopics;
-            if (type === 'location') return availableLocations;
+            if (type === 'location') return availableLocations; // Kept for backwards compatibility
             if (type === 'metadata' && currentMetadataField) {
                 return availableMetadataFields[currentMetadataField] || [];
             }
@@ -3108,7 +3167,7 @@
                         const typeLabels = {
                             'category': 'Category',
                             'topic': 'Topic',
-                            'location': 'Location'
+                            'location': 'Location' // Kept for backwards compatibility
                         };
                         typeLabel = typeLabels[rule.type] || rule.type;
                     }
