@@ -108,14 +108,34 @@ def run_migrations():
         database_url = settings.get_database_url().replace('postgresql://', 'postgresql+psycopg://')
         alembic_cfg.set_main_option("sqlalchemy.url", database_url)
         
+        # Get current migration status
+        script = alembic.script.ScriptDirectory.from_config(alembic_cfg)
+        head_revision = script.get_current_head()
+        
+        # Check current version
+        current_version = None
+        if check_table_exists('alembic_version'):
+            with engine.connect() as conn:
+                result = conn.execute(text("SELECT version_num FROM alembic_version"))
+                current_version = result.scalar()
+        
+        # Check if users/memberships tables exist (from migration 003)
+        users_exists = check_table_exists('users')
+        memberships_exists = check_table_exists('memberships')
+        
+        # If tables exist but version is behind, we need to stamp instead of migrate
+        if users_exists and memberships_exists:
+            if current_version != head_revision:
+                print(f"⚠️  Users and memberships tables exist, but version is {current_version}")
+                print(f"   Stamping database to latest revision: {head_revision}")
+                command.stamp(alembic_cfg, head_revision)
+                print(f"✅ Database stamped to revision: {head_revision}")
+                return True
+        
         # Check if alembic_version table exists
         if not check_table_exists('alembic_version'):
             print("⚠️  alembic_version table doesn't exist, but tables do.")
             print("   This means tables were created manually. Stamping database to latest migration...")
-            
-            # Get the latest migration revision
-            script = alembic.script.ScriptDirectory.from_config(alembic_cfg)
-            head_revision = script.get_current_head()
             
             # Stamp the database to the latest migration
             command.stamp(alembic_cfg, head_revision)
