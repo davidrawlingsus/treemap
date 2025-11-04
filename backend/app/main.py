@@ -71,6 +71,24 @@ def api_info():
     return {"message": "Visualizd API", "version": "0.1.0"}
 
 
+@app.get("/api/debug/users")
+def debug_users(db: Session = Depends(get_db)):
+    """Debug endpoint to list all users - for troubleshooting login"""
+    users = db.query(User).all()
+    return {
+        "total_users": len(users),
+        "users": [
+            {
+                "email": u.email,
+                "name": u.name,
+                "is_active": u.is_active,
+                "is_founder": u.is_founder
+            }
+            for u in users
+        ]
+    }
+
+
 @app.get("/health")
 def health_check(db: Session = Depends(get_db)):
     """Check if API and database are working"""
