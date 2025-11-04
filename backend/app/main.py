@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import text
 from typing import List, Optional
 import json
+import os
 from uuid import UUID
 from pathlib import Path
 
@@ -89,9 +90,19 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
     NOTE: For now, this accepts any email from the users table without password validation.
     Password fields may not exist in the Railway database yet.
     """
-    user = db.query(User).filter(User.email == credentials.email).first()
+    # Try case-insensitive email lookup
+    user = db.query(User).filter(
+        User.email.ilike(credentials.email.strip())
+    ).first()
     
     if not user:
+        # Helpful debugging: list available emails in dev (don't expose in production)
+        if os.getenv("ENVIRONMENT") == "development":
+            available_emails = [u.email for u in db.query(User.email).all()]
+            raise HTTPException(
+                status_code=401,
+                detail=f"Incorrect email or password. Available emails: {', '.join(available_emails[:5])}"
+            )
         raise HTTPException(
             status_code=401,
             detail="Incorrect email or password"
