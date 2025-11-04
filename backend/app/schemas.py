@@ -228,3 +228,10 @@ class VocClientInfo(BaseModel):
     client_name: Optional[str] = None
     data_source_count: int = 0
 
+
+class VocProjectInfo(BaseModel):
+    """Information about a project in process_voc"""
+    project_name: str
+    project_id: Optional[str] = None
+    response_count: int = 0
+

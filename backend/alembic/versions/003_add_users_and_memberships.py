@@ -99,3 +99,5 @@ def downgrade():
     op.drop_constraint('users_email_key', 'users', type_='unique')
     op.drop_table('users')
 
+
+

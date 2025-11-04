@@ -18,7 +18,7 @@ from app.schemas import (
     QuestionInfo, DataSourceWithQuestions,
     DimensionNameCreate, DimensionNameBatchUpdate, DimensionNameResponse,
     Token, UserLogin, UserResponse, UserWithClients,
-    ProcessVocResponse, ProcessVocListResponse, DimensionQuestionInfo, VocSourceInfo, VocClientInfo
+    ProcessVocResponse, ProcessVocListResponse, DimensionQuestionInfo, VocSourceInfo, VocClientInfo, VocProjectInfo
 )
 from app.transformers import DataTransformer, DataSourceType
 from app.config import get_settings
@@ -792,6 +792,7 @@ def delete_dimension_name(
 def get_voc_data(
     client_uuid: Optional[UUID] = None,
     data_source: Optional[str] = None,
+    project_name: Optional[str] = None,
     dimension_ref: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
@@ -801,6 +802,7 @@ def get_voc_data(
     Query parameters:
     - client_uuid: Filter by client UUID (will match by UUID or by client name if UUID is null)
     - data_source: Filter by data source name (e.g., "email_survey")
+    - project_name: Filter by project name
     - dimension_ref: Filter by dimension reference (e.g., "ref_ljwfv")
     """
     query = db.query(ProcessVoc)
@@ -823,6 +825,8 @@ def get_voc_data(
     
     if data_source:
         query = query.filter(ProcessVoc.data_source == data_source)
+    if project_name:
+        query = query.filter(ProcessVoc.project_name == project_name)
     if dimension_ref:
         query = query.filter(ProcessVoc.dimension_ref == dimension_ref)
     
@@ -833,6 +837,7 @@ def get_voc_data(
 def get_voc_questions(
     client_uuid: Optional[UUID] = None,
     data_source: Optional[str] = None,
+    project_name: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """
@@ -841,6 +846,7 @@ def get_voc_questions(
     Query parameters:
     - client_uuid: Filter by client UUID (will match by UUID or by client name if UUID is null)
     - data_source: Filter by data source name
+    - project_name: Filter by project name
     """
     from sqlalchemy import func
     
@@ -866,6 +872,8 @@ def get_voc_questions(
     
     if data_source:
         query = query.filter(ProcessVoc.data_source == data_source)
+    if project_name:
+        query = query.filter(ProcessVoc.project_name == project_name)
     
     query = query.group_by(
         ProcessVoc.dimension_ref,
@@ -887,6 +895,7 @@ def get_voc_questions(
 @app.get("/api/voc/sources", response_model=List[VocSourceInfo])
 def get_voc_sources(
     client_uuid: Optional[UUID] = None,
+    project_name: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """
@@ -894,6 +903,7 @@ def get_voc_sources(
     
     Query parameters:
     - client_uuid: Filter by client UUID (will match by UUID or by client name if UUID is null)
+    - project_name: Filter by project name
     """
     from sqlalchemy import func
     
@@ -918,6 +928,9 @@ def get_voc_sources(
         else:
             query = query.filter(ProcessVoc.client_uuid == client_uuid)
     
+    if project_name:
+        query = query.filter(ProcessVoc.project_name == project_name)
+    
     query = query.group_by(
         ProcessVoc.data_source,
         ProcessVoc.client_uuid
@@ -934,6 +947,59 @@ def get_voc_sources(
         )
         for row in results
         if row.data_source is not None
+    ]
+
+
+@app.get("/api/voc/projects", response_model=List[VocProjectInfo])
+def get_voc_projects(
+    client_uuid: Optional[UUID] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    List available projects in process_voc for a client.
+    
+    Query parameters:
+    - client_uuid: Filter by client UUID (will match by UUID or by client name if UUID is null)
+    """
+    from sqlalchemy import func
+    
+    query = db.query(
+        ProcessVoc.project_name,
+        func.max(ProcessVoc.project_id).label('project_id'),
+        func.count(ProcessVoc.id).label('response_count')
+    )
+    
+    if client_uuid:
+        # Get client name for matching
+        client = db.query(Client).filter(Client.id == client_uuid).first()
+        if client:
+            # Filter by client_uuid OR by client_name (for rows where client_uuid is null)
+            query = query.filter(
+                or_(
+                    ProcessVoc.client_uuid == client_uuid,
+                    ProcessVoc.client_name == client.name
+                )
+            )
+        else:
+            query = query.filter(ProcessVoc.client_uuid == client_uuid)
+    
+    # Filter out null project names
+    query = query.filter(ProcessVoc.project_name.isnot(None))
+    
+    query = query.group_by(
+        ProcessVoc.project_name
+    )
+    
+    results = query.all()
+    
+    return [
+        VocProjectInfo(
+            project_name=row.project_name,
+            project_id=row.project_id,
+            response_count=row.response_count
+        )
+        for row in results
+        if row.project_name is not None
     ]
 
 

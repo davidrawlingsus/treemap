@@ -1492,6 +1492,11 @@
                 <option value="">Loading...</option>
             </select>
             
+            <label for="projectSelect" style="margin-left: 24px;">Project:</label>
+            <select id="projectSelect">
+                <option value="">Select client first...</option>
+            </select>
+            
             <label for="sourceSelect" style="margin-left: 24px;">Source:</label>
             <select id="sourceSelect">
                 <option value="">Select client first...</option>
@@ -1770,9 +1775,11 @@
         let availableMetadataFields = {}; // Map of fieldName -> array of values
         let currentMetadataField = null; // Currently selected metadata field
         let currentClientId = null;
+        let currentProjectName = null;
         let currentDataSourceId = null;
         let currentQuestionRefKey = null;
         let allClients = [];
+        let clientProjects = [];
         let clientSources = [];
         let dimensionNamesMap = {}; // Map of ref_key -> custom_name
         
@@ -1784,6 +1791,7 @@
             try {
                 const state = {
                     clientId: currentClientId,
+                    projectName: currentProjectName,
                     dataSourceId: currentDataSourceId,
                     questionRefKey: currentQuestionRefKey
                 };
@@ -2049,18 +2057,19 @@
                 // Add change listener
                 select.addEventListener('change', async (e) => {
                     currentClientId = e.target.value;
+                    currentProjectName = null; // Reset project when client changes
                     currentDataSourceId = null; // Reset data source when client changes
                     currentQuestionRefKey = null; // Reset question when client changes
                     saveState();
-                    await loadClientSources(currentClientId);
+                    await loadClientProjects(currentClientId);
                 });
                 
-                // Load sources for the selected client
+                // Load projects for the selected client
                 if (currentClientId) {
-                    console.log(`Loading sources for client: ${currentClientId}`);
-                    await loadClientSources(currentClientId, savedState);
+                    console.log(`Loading projects for client: ${currentClientId}`);
+                    await loadClientProjects(currentClientId, savedState);
                 } else {
-                    console.log('No client selected, skipping source load');
+                    console.log('No client selected, skipping project load');
                 }
             } catch (error) {
                 console.error('Error loading clients:', error);
@@ -2070,11 +2079,113 @@
             }
         }
         
+        // Load projects for a specific client
+        async function loadClientProjects(clientId, savedState = null) {
+            console.log(`loadClientProjects() called for client: ${clientId}`);
+            try {
+                // Restore saved project name if available
+                if (savedState && savedState.projectName) {
+                    currentProjectName = savedState.projectName;
+                    console.log(`Restoring saved project: ${currentProjectName}`);
+                }
+                
+                const url = `${API_BASE_URL}/api/voc/projects?client_uuid=${clientId}`;
+                console.log(`Fetching projects from: ${url}`);
+                const response = await fetch(url, {
+                    headers: getAuthHeaders()
+                });
+                console.log('Projects response status:', response.status);
+                if (!response.ok) {
+                    throw new Error('Failed to load projects');
+                }
+                clientProjects = await response.json();
+                console.log(`Loaded ${clientProjects.length} projects:`, clientProjects);
+                
+                const select = document.getElementById('projectSelect');
+                console.log('Project select element:', select);
+                if (!select) {
+                    console.error('Project select element not found!');
+                    return;
+                }
+                select.innerHTML = '';
+                
+                // Always add "All Projects" option
+                const allOption = document.createElement('option');
+                allOption.value = '';
+                allOption.textContent = 'All Projects';
+                select.appendChild(allOption);
+                
+                if (clientProjects.length === 0) {
+                    console.log('No projects available');
+                    // Keep "All Projects" option, don't return
+                } else {
+                    console.log('Populating project dropdown...');
+                    clientProjects.forEach((project) => {
+                        const option = document.createElement('option');
+                        option.value = project.project_name;
+                        option.textContent = project.project_name || 'Unknown Project';
+                        select.appendChild(option);
+                    });
+                }
+                
+                // Validate that the saved project name exists in the list
+                if (currentProjectName) {
+                    const projectExists = clientProjects.some(p => p.project_name === currentProjectName);
+                    if (!projectExists) {
+                        console.warn(`Saved project "${currentProjectName}" not found in available projects, clearing selection`);
+                        currentProjectName = null;
+                    }
+                }
+                
+                console.log(`Current project name after validation: ${currentProjectName}`);
+                
+                // Set the select value to match the current project (or empty for "All Projects")
+                if (currentProjectName) {
+                    select.value = currentProjectName;
+                    console.log(`Set select value to: ${currentProjectName}`);
+                } else {
+                    select.value = '';
+                    console.log('Set select value to empty (All Projects)');
+                }
+                
+                // Add change listener (only once)
+                select.removeEventListener('change', handleProjectChange);
+                select.addEventListener('change', handleProjectChange);
+                console.log('Added change listener to project select');
+                
+                // Load sources for the selected client (and project if selected)
+                if (currentClientId) {
+                    console.log(`Loading sources for client: ${currentClientId}, project: ${currentProjectName || 'All Projects'}`);
+                    await loadClientSources(currentClientId, savedState);
+                } else {
+                    console.log('No client selected, skipping source load');
+                }
+            } catch (error) {
+                console.error('Error loading projects:', error);
+                const select = document.getElementById('projectSelect');
+                if (select) {
+                    select.innerHTML = '<option value="">Error loading projects</option>';
+                }
+            }
+        }
+        
+        // Handle project selection change
+        async function handleProjectChange(e) {
+            currentProjectName = e.target.value || null; // Empty string becomes null
+            currentDataSourceId = null; // Reset data source when project changes
+            currentQuestionRefKey = null; // Reset question when project changes
+            saveState();
+            await loadClientSources(currentClientId);
+        }
+        
         // Load sources for a specific client
         async function loadClientSources(clientId, savedState = null) {
-            console.log(`loadClientSources() called for client: ${clientId}`);
+            console.log(`loadClientSources() called for client: ${clientId}, project: ${currentProjectName || 'All Projects'}`);
             try {
-                const url = `${API_BASE_URL}/api/voc/sources?client_uuid=${clientId}`;
+                let url = `${API_BASE_URL}/api/voc/sources?client_uuid=${clientId}`;
+                if (currentProjectName) {
+                    url += `&project_name=${encodeURIComponent(currentProjectName)}`;
+                }
                 console.log(`Fetching sources from: ${url}`);
                 const response = await fetch(url, {
                     headers: getAuthHeaders()
@@ -2160,7 +2271,14 @@
             const source = clientSources.find(s => s.data_source === currentDataSourceId);
             
             if (client && source) {
-                let breadcrumb = `${client.client_name || 'Unknown Client'} > ${source.data_source || 'Unknown Source'}`;
+                let breadcrumb = `${client.client_name || 'Unknown Client'}`;
+                
+                // Add project to breadcrumb if selected
+                if (currentProjectName) {
+                    breadcrumb += ` > ${currentProjectName}`;
+                }
+                
+                breadcrumb += ` > ${source.data_source || 'Unknown Source'}`;
                 
                 // Add question to breadcrumb if specified
                 if (questionRefKey) {
@@ -2251,7 +2369,7 @@
 
         // Load a specific data source
         async function loadDataSource(clientUuid, dataSource, savedState = null) {
-            console.log(`loadDataSource() called: client=${clientUuid}, source=${dataSource}`);
+            console.log(`loadDataSource() called: client=${clientUuid}, project=${currentProjectName || 'All Projects'}, source=${dataSource}`);
             try {
                 document.getElementById('loading').style.display = 'flex';
                 document.getElementById('loading').innerHTML = 'Loading data...';
@@ -2260,6 +2378,7 @@
                 // Build query parameters
                 const params = new URLSearchParams();
                 if (clientUuid) params.append('client_uuid', clientUuid);
+                if (currentProjectName) params.append('project_name', currentProjectName);
                 if (dataSource) params.append('data_source', dataSource);
                 
                 const url = `${API_BASE_URL}/api/voc/data?${params.toString()}`;
@@ -2370,6 +2489,9 @@
                 const params = new URLSearchParams();
                 params.append('client_uuid', currentClientId);
                 params.append('data_source', currentDataSourceId);
+                if (currentProjectName) {
+                    params.append('project_name', currentProjectName);
+                }
                 
                 const response = await fetch(`${API_BASE_URL}/api/voc/questions?${params.toString()}`, {
                     headers: getAuthHeaders()
