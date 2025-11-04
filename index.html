@@ -1503,21 +1503,78 @@
                 <option value="">All Dimensions</option>
             </select>
             
-            <!-- Category Filter - Aligned Right -->
+            <!-- Advanced Multi-Filter - Aligned Right -->
             <div style="margin-left: auto; position: relative;">
-                <button id="categoryFilterBtn" style="padding: 8px 16px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 6px;">
+                <button id="filterBtn" style="padding: 8px 16px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 6px;">
                     <span>☰ Filters</span>
-                    <span id="categoryFilterBadge" style="display: none; background: #667eea; color: white; padding: 2px 6px; border-radius: 10px; font-size: 11px; font-weight: 600;"></span>
+                    <span id="filterBadge" style="display: none; background: #667eea; color: white; padding: 2px 6px; border-radius: 10px; font-size: 11px; font-weight: 600;"></span>
                 </button>
-                <div id="categoryFilterDropdown" style="display: none; position: absolute; top: 100%; right: 0; margin-top: 8px; background: white; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 300px; max-width: 400px; z-index: 1000; max-height: 400px; overflow-y: auto;">
-                    <div style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa;">
-                        <strong style="font-size: 14px;">Filter Categories</strong>
-                        <div style="display: flex; gap: 8px;">
-                            <button id="selectAllCategories" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 12px; font-weight: 500;">Select All</button>
-                            <button id="clearAllCategories" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 12px; font-weight: 500;">Clear All</button>
+                <div id="filterDropdown" style="display: none; position: absolute; top: 100%; right: 0; margin-top: 8px; background: white; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 350px; max-width: 450px; z-index: 1000; max-height: 500px; overflow-y: auto;">
+                    <!-- Filter Type Selection View -->
+                    <div id="filterTypeView" style="display: block;">
+                        <div style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa;">
+                            <strong style="font-size: 14px;">Filter By</strong>
+                            <button id="clearAllFilters" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 12px; font-weight: 500;">Clear All</button>
+                        </div>
+                        <div id="filterTypeList" style="padding: 8px;">
+                            <div class="filter-type-option" data-type="category" style="padding: 12px; margin: 4px 0; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: background 0.2s;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <strong style="font-size: 14px; color: #333;">Category</strong>
+                                        <div style="font-size: 12px; color: #666; margin-top: 2px;">Filter by conversation categories</div>
+                                    </div>
+                                    <span style="font-size: 18px;">→</span>
+                                </div>
+                            </div>
+                            <div class="filter-type-option" data-type="topic" style="padding: 12px; margin: 4px 0; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: background 0.2s;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <strong style="font-size: 14px; color: #333;">Topic</strong>
+                                        <div style="font-size: 12px; color: #666; margin-top: 2px;">Filter by specific topics</div>
+                                    </div>
+                                    <span style="font-size: 18px;">→</span>
+                                </div>
+                            </div>
+                            <div class="filter-type-option" data-type="location" style="padding: 12px; margin: 4px 0; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: background 0.2s;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <strong style="font-size: 14px; color: #333;">Location</strong>
+                                        <div style="font-size: 12px; color: #666; margin-top: 2px;">Filter by user location</div>
+                                    </div>
+                                    <span style="font-size: 18px;">→</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="activeFiltersList" style="padding: 8px 12px; border-top: 1px solid #e0e0e0; background: #f8f9fa; max-height: 150px; overflow-y: auto;"></div>
+                    </div>
+                    
+                    <!-- Filter Selection View (for categories, topics, or locations) -->
+                    <div id="filterSelectionView" style="display: none;">
+                        <div style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <button id="backToFilterType" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 16px; font-weight: 500;">←</button>
+                                <strong id="filterSelectionTitle" style="font-size: 14px;">Select Items</strong>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button id="selectAllItems" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 12px; font-weight: 500;">Select All</button>
+                            </div>
+                        </div>
+                        <div style="padding: 8px 12px; border-bottom: 1px solid #e0e0e0; background: #f0f0f0; display: flex; gap: 8px; align-items: center;">
+                            <span style="font-size: 12px; color: #666;">Mode:</span>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px;">
+                                <input type="radio" name="filterMode" value="include" checked style="cursor: pointer;">
+                                <span>Include</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px;">
+                                <input type="radio" name="filterMode" value="exclude" style="cursor: pointer;">
+                                <span>Exclude</span>
+                            </label>
+                        </div>
+                        <div id="filterSelectionList" style="padding: 8px; max-height: 300px; overflow-y: auto;"></div>
+                        <div style="padding: 12px; border-top: 1px solid #e0e0e0; background: #f8f9fa;">
+                            <button id="applyFilter" style="width: 100%; padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">Apply Filter</button>
                         </div>
                     </div>
-                    <div id="categoryFilterList" style="padding: 8px;"></div>
                 </div>
             </div>
             
@@ -1693,7 +1750,11 @@
         let currentSourceFormat = null;
         let availableQuestions = [];
         let availableCategories = [];
-        let selectedCategories = new Set(); // Empty = all categories shown
+        let availableTopics = [];
+        let availableLocations = [];
+        
+        // Filter rules: array of {type: 'category'|'topic'|'location', mode: 'include'|'exclude', values: Set}
+        let filterRules = [];
         let currentClientId = null;
         let currentDataSourceId = null;
         let currentQuestionRefKey = null;
@@ -2201,7 +2262,6 @@
                 
                 // Store raw process_voc rows
                 fullRawData = processVocRows;
-                dimensionFilteredData = processVocRows; // Initialize dimension filter
                 
                 // Update breadcrumb
                 updateBreadcrumb();
@@ -2215,13 +2275,14 @@
                 // filterByQuestion should have been called if questions were found, but as a fallback:
                 if (!rawData || rawData.length === 0) {
                     console.log('No data grouped yet, grouping now...');
-                    const groupedData = groupProcessVocRows(dimensionFilteredData, null);
+                    const groupedData = groupProcessVocRows(fullRawData, null);
                     rawData = groupedData;
+                    dimensionFilteredData = groupedData; // Set to grouped data (has text field)
                     
                     // Extract and setup category filter
-                    availableCategories = extractAvailableCategories(rawData);
-                    selectedCategories.clear();
-                    populateCategoryFilter();
+                    extractAvailableFilterOptions(rawData);
+                    filterRules = []; // Reset filters when loading new data
+                    updateFilterUI();
                     
                     // Process and render
                     processData();
@@ -2387,14 +2448,14 @@
             
             // Set rawData to the grouped and filtered data
             rawData = groupedData;
-            dimensionFilteredData = fullRawData; // Keep full data for re-filtering
+            dimensionFilteredData = groupedData; // Keep grouped data for re-filtering (has text field)
             
             console.log(`Filtered to ${rawData.length} grouped rows for question: ${refKey || 'all'}`);
             
-            // Extract categories from the filtered data (dimension-specific)
-            availableCategories = extractAvailableCategories(rawData);
-            selectedCategories.clear(); // Reset category filter when changing dimension
-            populateCategoryFilter();
+            // Extract available filter options from the filtered data (dimension-specific)
+            extractAvailableFilterOptions(rawData);
+            filterRules = []; // Reset filters when changing dimension
+            updateFilterUI();
             
             // Update breadcrumb to show question selection
             updateBreadcrumb(refKey);
@@ -2424,8 +2485,8 @@
                 // Load clients from API (which will cascade to sources and data)
                 await loadClients();
                 
-                // Setup category filter UI
-                setupCategoryFilterUI();
+                // Setup advanced filter UI
+                setupFilterUI();
                 
                 // Add resize listener with debounce
                 window.addEventListener('resize', debounce(handleResize, 250));
@@ -2441,32 +2502,275 @@
             }
         }
 
-        // Category Filter Functions
-        function extractAvailableCategories(data) {
+        // Advanced Multi-Filter Functions
+        function extractAvailableFilterOptions(data) {
             const categories = new Set();
+            const topics = new Set();
+            const locations = new Set();
+            
             data.forEach(row => {
                 if (row && row.topics) {
                     row.topics.forEach(topic => {
                         if (topic && topic.category) {
                             categories.add(topic.category);
                         }
+                        if (topic && topic.label) {
+                            topics.add(topic.label);
+                        }
                     });
                 }
+                if (row && row.metadata) {
+                    const country = row.metadata.country;
+                    const city = row.metadata.city;
+                    if (country) {
+                        locations.add(country);
+                    }
+                    if (city && country) {
+                        locations.add(`${city}, ${country}`);
+                    }
+                }
             });
-            return Array.from(categories).sort();
+            
+            availableCategories = Array.from(categories).sort();
+            availableTopics = Array.from(topics).sort();
+            availableLocations = Array.from(locations).sort();
         }
 
-        function populateCategoryFilter() {
-            const filterList = document.getElementById('categoryFilterList');
+        function applyFiltersAndRender() {
+            let filteredData = dimensionFilteredData;
+            
+            // Apply all filter rules - all rules must pass (AND logic)
+            if (filterRules.length > 0) {
+                filteredData = filteredData.filter(row => {
+                    if (!row) return false;
+                    
+                    // Check each rule - all must pass
+                    return filterRules.every(rule => {
+                        if (rule.values.size === 0) return true; // Skip empty rules
+                        
+                        let matches = false;
+                        
+                        if (rule.type === 'category') {
+                            // Check if row has any topics matching the category filter
+                            if (row.topics && row.topics.length > 0) {
+                                matches = row.topics.some(topic => 
+                                    topic && topic.category && rule.values.has(topic.category)
+                                );
+                            }
+                        } else if (rule.type === 'topic') {
+                            // Check if row has any topics matching the topic filter
+                            if (row.topics && row.topics.length > 0) {
+                                matches = row.topics.some(topic => 
+                                    topic && topic.label && rule.values.has(topic.label)
+                                );
+                            }
+                        } else if (rule.type === 'location') {
+                            // Check if row metadata matches location filter
+                            const country = row.metadata?.country || '';
+                            const city = row.metadata?.city || '';
+                            const locationStr = city && country ? `${city}, ${country}` : country;
+                            
+                            matches = rule.values.has(country) || rule.values.has(locationStr);
+                        }
+                        
+                        // Apply include/exclude logic
+                        return rule.mode === 'include' ? matches : !matches;
+                    });
+                }).map(row => {
+                    // Ensure we preserve all row properties including text
+                    if (!row) return null;
+                    
+                    // Filter topics within rows based on category and topic rules
+                    if (row.topics && row.topics.length > 0) {
+                        const filteredTopics = row.topics.filter(topic => {
+                            // Check if this topic passes all category and topic filters
+                            return filterRules.every(rule => {
+                                if (rule.values.size === 0) return true;
+                                
+                                if (rule.type === 'category') {
+                                    const matches = topic && topic.category && rule.values.has(topic.category);
+                                    return rule.mode === 'include' ? matches : !matches;
+                                } else if (rule.type === 'topic') {
+                                    const matches = topic && topic.label && rule.values.has(topic.label);
+                                    return rule.mode === 'include' ? matches : !matches;
+                                }
+                                return true; // Location filters don't affect individual topics
+                            });
+                        });
+                        
+                        if (filteredTopics.length === 0) return null;
+                        
+                        // Preserve all original row properties
+                        return {
+                            ...row,
+                            text: row.text || '', // Explicitly preserve text
+                            topics: filteredTopics
+                        };
+                    }
+                    // If row has no topics, preserve it as-is (for location-only filters)
+                    return {
+                        ...row,
+                        text: row.text || '' // Explicitly preserve text
+                    };
+                }).filter(row => row !== null);
+            }
+            
+            rawData = filteredData;
+            
+            // Re-process and render
+            processData();
+            renderTreemap(hierarchyData);
+            renderBarChart();
+            renderTopicsChart();
+            
+            // Update available options after filtering
+            extractAvailableFilterOptions(rawData);
+            updateFilterUI();
+        }
+        
+        let currentFilterType = null;
+        let currentFilterSelections = new Set();
+        
+        function setupFilterUI() {
+            const filterBtn = document.getElementById('filterBtn');
+            const filterDropdown = document.getElementById('filterDropdown');
+            const filterTypeView = document.getElementById('filterTypeView');
+            const filterSelectionView = document.getElementById('filterSelectionView');
+            const backToFilterType = document.getElementById('backToFilterType');
+            const clearAllFilters = document.getElementById('clearAllFilters');
+            const applyFilter = document.getElementById('applyFilter');
+            const selectAllItems = document.getElementById('selectAllItems');
+            
+            // Toggle dropdown
+            filterBtn.onclick = (e) => {
+                e.stopPropagation();
+                const isVisible = filterDropdown.style.display !== 'none';
+                filterDropdown.style.display = isVisible ? 'none' : 'block';
+                if (!isVisible) {
+                    updateFilterUI();
+                }
+            };
+            
+            // Close dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!filterBtn.contains(e.target) && !filterDropdown.contains(e.target)) {
+                    filterDropdown.style.display = 'none';
+                }
+            });
+            
+            // Filter type selection
+            document.querySelectorAll('.filter-type-option').forEach(option => {
+                option.onmouseover = () => option.style.background = '#f5f5f5';
+                option.onmouseout = () => option.style.background = 'transparent';
+                option.onclick = () => {
+                    currentFilterType = option.dataset.type;
+                    currentFilterSelections.clear();
+                    showFilterSelectionView();
+                };
+            });
+            
+            // Back button
+            backToFilterType.onclick = () => {
+                showFilterTypeView();
+            };
+            
+            // Clear all filters
+            clearAllFilters.onclick = () => {
+                filterRules = [];
+                applyFiltersAndRender();
+                updateFilterUI();
+            };
+            
+            // Apply filter button
+            applyFilter.onclick = () => {
+                if (currentFilterSelections.size === 0) {
+                    alert('Please select at least one item to filter by.');
+                    return;
+                }
+                
+                const mode = document.querySelector('input[name="filterMode"]:checked').value;
+                
+                // Add or update filter rule for this type
+                const existingRuleIndex = filterRules.findIndex(r => r.type === currentFilterType);
+                if (existingRuleIndex >= 0) {
+                    // Update existing rule
+                    filterRules[existingRuleIndex].mode = mode;
+                    filterRules[existingRuleIndex].values = new Set(currentFilterSelections);
+                } else {
+                    // Add new rule
+                    filterRules.push({
+                        type: currentFilterType,
+                        mode: mode,
+                        values: new Set(currentFilterSelections)
+                    });
+                }
+                
+                showFilterTypeView();
+                applyFiltersAndRender();
+            };
+            
+            // Select all items
+            selectAllItems.onclick = () => {
+                const items = getAvailableItemsForType(currentFilterType);
+                currentFilterSelections = new Set(items);
+                populateFilterSelectionList();
+            };
+        }
+        
+        function showFilterTypeView() {
+            document.getElementById('filterTypeView').style.display = 'block';
+            document.getElementById('filterSelectionView').style.display = 'none';
+            currentFilterType = null;
+            currentFilterSelections.clear();
+            updateFilterUI(); // Refresh the active filters list
+        }
+        
+        function showFilterSelectionView() {
+            document.getElementById('filterTypeView').style.display = 'none';
+            document.getElementById('filterSelectionView').style.display = 'block';
+            
+            const title = document.getElementById('filterSelectionTitle');
+            const typeLabels = {
+                'category': 'Categories',
+                'topic': 'Topics',
+                'location': 'Locations'
+            };
+            title.textContent = `Select ${typeLabels[currentFilterType] || 'Items'}`;
+            
+            // Load existing selections if there's a rule for this type
+            const existingRule = filterRules.find(r => r.type === currentFilterType);
+            if (existingRule) {
+                currentFilterSelections = new Set(existingRule.values);
+                // Set the mode radio button
+                document.querySelector(`input[name="filterMode"][value="${existingRule.mode}"]`).checked = true;
+            } else {
+                currentFilterSelections.clear();
+                document.querySelector('input[name="filterMode"][value="include"]').checked = true;
+            }
+            
+            populateFilterSelectionList();
+        }
+        
+        function getAvailableItemsForType(type) {
+            if (type === 'category') return availableCategories;
+            if (type === 'topic') return availableTopics;
+            if (type === 'location') return availableLocations;
+            return [];
+        }
+        
+        function populateFilterSelectionList() {
+            const filterList = document.getElementById('filterSelectionList');
             filterList.innerHTML = '';
             
-            if (availableCategories.length === 0) {
-                filterList.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">No categories found</div>';
+            const items = getAvailableItemsForType(currentFilterType);
+            
+            if (items.length === 0) {
+                filterList.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">No items found</div>';
                 return;
             }
             
-            availableCategories.forEach(category => {
-                const isChecked = selectedCategories.size === 0 || selectedCategories.has(category);
+            items.forEach(item => {
+                const isChecked = currentFilterSelections.has(item);
                 
                 const label = document.createElement('label');
                 label.style.cssText = 'display: flex; align-items: center; padding: 8px 12px; cursor: pointer; border-radius: 4px; transition: background 0.2s;';
@@ -2478,140 +2782,81 @@
                 checkbox.checked = isChecked;
                 checkbox.style.cssText = 'margin-right: 8px; cursor: pointer;';
                 checkbox.onchange = () => {
-                    // If set is empty (showing all), first populate with all categories
-                    if (selectedCategories.size === 0) {
-                        availableCategories.forEach(cat => selectedCategories.add(cat));
-                    }
-                    
-                    // Now toggle the clicked category
-                    if (selectedCategories.has(category)) {
-                        selectedCategories.delete(category);
+                    if (checkbox.checked) {
+                        currentFilterSelections.add(item);
                     } else {
-                        selectedCategories.add(category);
+                        currentFilterSelections.delete(item);
                     }
-                    
-                    // If all are selected again, clear the set (meaning show all)
-                    if (selectedCategories.size === availableCategories.length) {
-                        selectedCategories.clear();
-                    }
-                    
-                    updateCategoryFilterBadge();
-                    applyFiltersAndRender();
                 };
                 
                 const text = document.createElement('span');
-                text.textContent = category;
+                text.textContent = item;
                 text.style.cssText = 'font-size: 13px; flex: 1;';
                 
                 label.appendChild(checkbox);
                 label.appendChild(text);
                 filterList.appendChild(label);
             });
-            
-            updateCategoryFilterBadge();
         }
-
-        function toggleCategory(category) {
-            // If set is empty (showing all), first populate with all categories
-            if (selectedCategories.size === 0) {
-                availableCategories.forEach(cat => selectedCategories.add(cat));
-            }
+        
+        function updateFilterUI() {
+            // Update active filters list
+            const activeFiltersList = document.getElementById('activeFiltersList');
+            activeFiltersList.innerHTML = '';
             
-            // Now toggle the clicked category
-            if (selectedCategories.has(category)) {
-                selectedCategories.delete(category);
+            if (filterRules.length === 0) {
+                activeFiltersList.innerHTML = '<div style="padding: 8px; color: #999; text-align: center; font-size: 12px;">No active filters</div>';
             } else {
-                selectedCategories.add(category);
+                filterRules.forEach((rule, index) => {
+                    const filterItem = document.createElement('div');
+                    filterItem.style.cssText = 'padding: 8px 12px; margin: 4px 0; background: white; border: 1px solid #e0e0e0; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;';
+                    
+                    const typeLabels = {
+                        'category': 'Category',
+                        'topic': 'Topic',
+                        'location': 'Location'
+                    };
+                    
+                    const modeLabel = rule.mode === 'include' ? 'Include' : 'Exclude';
+                    const count = rule.values.size;
+                    const itemsPreview = Array.from(rule.values).slice(0, 2).join(', ');
+                    const moreText = count > 2 ? ` +${count - 2} more` : '';
+                    
+                    filterItem.innerHTML = `
+                        <div style="flex: 1;">
+                            <div style="font-size: 12px; font-weight: 600; color: #333;">${typeLabels[rule.type]} (${modeLabel})</div>
+                            <div style="font-size: 11px; color: #666; margin-top: 2px;">${itemsPreview}${moreText}</div>
+                        </div>
+                        <div style="display: flex; gap: 4px;">
+                            <button class="edit-filter-btn" data-index="${index}" style="padding: 4px 8px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;">Edit</button>
+                            <button class="remove-filter-btn" data-index="${index}" style="padding: 4px 8px; background: #ff4444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px;">Remove</button>
+                        </div>
+                    `;
+                    
+                    const editBtn = filterItem.querySelector('.edit-filter-btn');
+                    editBtn.onclick = () => {
+                        currentFilterType = rule.type;
+                        showFilterSelectionView();
+                    };
+                    
+                    const removeBtn = filterItem.querySelector('.remove-filter-btn');
+                    removeBtn.onclick = () => {
+                        filterRules.splice(index, 1);
+                        applyFiltersAndRender();
+                    };
+                    
+                    activeFiltersList.appendChild(filterItem);
+                });
             }
             
-            // If all are selected again, clear the set (meaning show all)
-            if (selectedCategories.size === availableCategories.length) {
-                selectedCategories.clear();
-            }
-            
-            updateCategoryFilterBadge();
-            applyFiltersAndRender();
-        }
-
-        function updateCategoryFilterBadge() {
-            const badge = document.getElementById('categoryFilterBadge');
-            const filterCount = selectedCategories.size;
-            
-            if (filterCount === 0 || filterCount === availableCategories.length) {
+            // Update badge
+            const badge = document.getElementById('filterBadge');
+            if (filterRules.length === 0) {
                 badge.style.display = 'none';
             } else {
                 badge.style.display = 'inline-block';
-                badge.textContent = filterCount;
+                badge.textContent = filterRules.length;
             }
-        }
-
-        function applyFiltersAndRender() {
-            // Apply category filter to dimension-filtered data
-            if (selectedCategories.size === 0) {
-                // Show all categories (but still filtered by dimension)
-                rawData = dimensionFilteredData;
-            } else {
-                // Filter to only selected categories from dimension-filtered data
-                rawData = dimensionFilteredData.map(row => {
-                    if (!row || !row.topics) return row;
-                    
-                    const filteredTopics = row.topics.filter(topic => 
-                        topic && topic.category && selectedCategories.has(topic.category)
-                    );
-                    
-                    if (filteredTopics.length === 0) return null;
-                    
-                    return {
-                        ...row,
-                        topics: filteredTopics
-                    };
-                }).filter(row => row !== null);
-            }
-            
-            // Re-process and render
-            processData();
-            renderTreemap(hierarchyData);
-            renderBarChart();
-            renderTopicsChart();
-        }
-
-        function setupCategoryFilterUI() {
-            const filterBtn = document.getElementById('categoryFilterBtn');
-            const filterDropdown = document.getElementById('categoryFilterDropdown');
-            const selectAllBtn = document.getElementById('selectAllCategories');
-            const clearAllBtn = document.getElementById('clearAllCategories');
-            
-            // Toggle dropdown
-            filterBtn.onclick = (e) => {
-                e.stopPropagation();
-                const isVisible = filterDropdown.style.display !== 'none';
-                filterDropdown.style.display = isVisible ? 'none' : 'block';
-            };
-            
-            // Close dropdown when clicking outside
-            document.addEventListener('click', (e) => {
-                if (!filterBtn.contains(e.target) && !filterDropdown.contains(e.target)) {
-                    filterDropdown.style.display = 'none';
-                }
-            });
-            
-            // Select all categories (show everything)
-            selectAllBtn.onclick = () => {
-                selectedCategories.clear(); // Empty = show all
-                populateCategoryFilter();
-                applyFiltersAndRender();
-            };
-            
-            // Clear all categories (select just the first one as minimum)
-            clearAllBtn.onclick = () => {
-                selectedCategories.clear();
-                if (availableCategories.length > 0) {
-                    // Select only the first category
-                    selectedCategories.add(availableCategories[0]);
-                }
-                populateCategoryFilter();
-                applyFiltersAndRender();
-            };
         }
 
         // Process raw data into hierarchy
