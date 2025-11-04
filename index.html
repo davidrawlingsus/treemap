@@ -1471,7 +1471,7 @@
 </head>
 <body>
     <!-- Login Overlay -->
-    <div id="loginOverlay" class="login-overlay">
+    <div id="loginOverlay" class="login-overlay hidden">
         <div class="login-container">
             <h2>Login</h2>
             <input type="email" id="loginEmail" placeholder="Email" autocomplete="email">
@@ -1544,11 +1544,31 @@
                                     <span style="font-size: 18px;">→</span>
                                 </div>
                             </div>
+                            <div class="filter-type-option" data-type="metadata" style="padding: 12px; margin: 4px 0; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: background 0.2s;">
+                                <div style="display: flex; justify-content: space-between; align-items: center;">
+                                    <div>
+                                        <strong style="font-size: 14px; color: #333;">Other Metadata</strong>
+                                        <div style="font-size: 12px; color: #666; margin-top: 2px;">Filter by metadata fields</div>
+                                    </div>
+                                    <span style="font-size: 18px;">→</span>
+                                </div>
+                            </div>
                         </div>
                         <div id="activeFiltersList" style="padding: 8px 12px; border-top: 1px solid #e0e0e0; background: #f8f9fa; max-height: 150px; overflow-y: auto;"></div>
                     </div>
                     
-                    <!-- Filter Selection View (for categories, topics, or locations) -->
+                    <!-- Metadata Field Selection View (second level for metadata) -->
+                    <div id="metadataFieldView" style="display: none;">
+                        <div style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <button id="backFromMetadataField" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 16px; font-weight: 500;">←</button>
+                                <strong style="font-size: 14px;">Select Metadata Field</strong>
+                            </div>
+                        </div>
+                        <div id="metadataFieldList" style="padding: 8px; max-height: 350px; overflow-y: auto;"></div>
+                    </div>
+                    
+                    <!-- Filter Selection View (for categories, topics, locations, or metadata values) -->
                     <div id="filterSelectionView" style="display: none;">
                         <div style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa;">
                             <div style="display: flex; align-items: center; gap: 8px;">
@@ -1753,8 +1773,10 @@
         let availableTopics = [];
         let availableLocations = [];
         
-        // Filter rules: array of {type: 'category'|'topic'|'location', mode: 'include'|'exclude', values: Set}
+        // Filter rules: array of {type: 'category'|'topic'|'location'|'metadata', mode: 'include'|'exclude', values: Set, metadataField?: string}
         let filterRules = [];
+        let availableMetadataFields = {}; // Map of fieldName -> array of values
+        let currentMetadataField = null; // Currently selected metadata field
         let currentClientId = null;
         let currentDataSourceId = null;
         let currentQuestionRefKey = null;
@@ -2200,7 +2222,9 @@
                             dimension_name: row.dimension_name,
                             country: row.region || '',
                             source_type: row.data_source || '',
-                            created_at: row.submit_date || row.created
+                            created_at: row.submit_date || row.created,
+                            user_type: row.user_type || '',
+                            sentiment: row.overall_sentiment || 'neutral'
                         }
                     };
                 }
@@ -2209,6 +2233,13 @@
                 if (row.topics && Array.isArray(row.topics)) {
                     grouped[respondentId].topics.push(...row.topics);
                     totalTopics += row.topics.length;
+                } else if (dimensionRef) {
+                    // Log when rows don't have topics for debugging
+                    console.warn(`Row ${respondentId} for dimension ${dimensionRef} has no topics:`, {
+                        hasTopics: !!row.topics,
+                        topicsType: typeof row.topics,
+                        topicsValue: row.topics
+                    });
                 }
                 
                 // Use first non-empty value as text
@@ -2507,6 +2538,7 @@
             const categories = new Set();
             const topics = new Set();
             const locations = new Set();
+            const metadataFields = {}; // Map of fieldName -> Set of values
             
             data.forEach(row => {
                 if (row && row.topics) {
@@ -2528,27 +2560,88 @@
                     if (city && country) {
                         locations.add(`${city}, ${country}`);
                     }
+                    
+                    // Extract all metadata fields (excluding location fields already handled)
+                    Object.keys(row.metadata).forEach(key => {
+                        if (key !== 'country' && key !== 'city') {
+                            if (!metadataFields[key]) {
+                                metadataFields[key] = new Set();
+                            }
+                            const value = row.metadata[key];
+                            if (value !== null && value !== undefined) {
+                                // Convert to string for consistency (including empty strings)
+                                const strValue = String(value);
+                                // Always add trimmed value (including empty string if original was empty)
+                                const trimmedValue = strValue.trim();
+                                metadataFields[key].add(trimmedValue);
+                            }
+                        }
+                    });
+                }
+                // Also check row-level sentiment (in case it's not in metadata)
+                if (row && row.sentiment) {
+                    if (!metadataFields['sentiment']) {
+                        metadataFields['sentiment'] = new Set();
+                    }
+                    metadataFields['sentiment'].add(row.sentiment);
                 }
             });
             
             availableCategories = Array.from(categories).sort();
             availableTopics = Array.from(topics).sort();
             availableLocations = Array.from(locations).sort();
+            
+            // Convert metadata field Sets to sorted arrays
+            availableMetadataFields = {};
+            Object.keys(metadataFields).forEach(key => {
+                availableMetadataFields[key] = Array.from(metadataFields[key]).sort();
+            });
         }
 
         function applyFiltersAndRender() {
             let filteredData = dimensionFilteredData;
             
+            // Debug: Check if dimensionFilteredData is empty
+            if (!dimensionFilteredData || dimensionFilteredData.length === 0) {
+                console.warn('dimensionFilteredData is empty! Cannot apply filters.');
+                return;
+            }
+            
+            console.log(`Applying filters to ${dimensionFilteredData.length} rows`);
+            
             // Apply all filter rules - all rules must pass (AND logic)
             if (filterRules.length > 0) {
+                filterRules.forEach((r, idx) => {
+                    console.log(`Filter rule ${idx + 1}:`, {
+                        type: r.type,
+                        mode: r.mode,
+                        metadataField: r.metadataField,
+                        values: Array.from(r.values),
+                        valuesCount: r.values.size,
+                        fullRule: r
+                    });
+                });
+                
+                // Log sample of first row to see what metadata looks like
+                if (filteredData.length > 0) {
+                    console.log('Sample row metadata:', JSON.stringify(filteredData[0].metadata, null, 2));
+                }
+                
+                // Reset debug flags for all rules
+                filterRules.forEach(rule => {
+                    rule._debugLogged = false;
+                });
+                let firstRowLogged = false;
+                
                 filteredData = filteredData.filter(row => {
                     if (!row) return false;
                     
                     // Check each rule - all must pass
-                    return filterRules.every(rule => {
-                        if (rule.values.size === 0) return true; // Skip empty rules
+                    const ruleResults = filterRules.map(rule => {
+                        if (rule.values.size === 0) return { rule, passed: true, reason: 'empty values' }; // Skip empty rules
                         
                         let matches = false;
+                        let matchDetails = '';
                         
                         if (rule.type === 'category') {
                             // Check if row has any topics matching the category filter
@@ -2571,11 +2664,69 @@
                             const locationStr = city && country ? `${city}, ${country}` : country;
                             
                             matches = rule.values.has(country) || rule.values.has(locationStr);
+                        } else if (rule.type === 'metadata' && rule.metadataField) {
+                            // Check if row metadata matches metadata field filter
+                            const fieldValue = row.metadata?.[rule.metadataField];
+                            if (fieldValue !== null && fieldValue !== undefined) {
+                                // Convert to string and trim for comparison
+                                const strValue = String(fieldValue).trim();
+                                // Check if the value matches any selected filter value
+                                matches = rule.values.has(strValue);
+                                
+                                // Debug logging for first mismatch
+                                if (!matches && rule.mode === 'include' && !rule._debugLogged) {
+                                    // Log first mismatch to help debug
+                                    console.log(`❌ Metadata filter mismatch: field="${rule.metadataField}"`);
+                                    console.log(`  🔍 Filter values (${rule.values.size}):`, Array.from(rule.values));
+                                    console.log(`  📊 Row value: "${strValue}" (type: ${typeof fieldValue})`);
+                                    console.log(`  📋 Full row metadata:`, JSON.stringify(row.metadata, null, 2));
+                                    
+                                    // Check if any filter value is close to the row value
+                                    const filterValuesArray = Array.from(rule.values);
+                                    const similarValues = filterValuesArray.filter(fv => {
+                                        const fvStr = String(fv).trim();
+                                        return fvStr.toLowerCase() === strValue.toLowerCase() || 
+                                               fvStr === strValue ||
+                                               fvStr.includes(strValue) ||
+                                               strValue.includes(fvStr);
+                                    });
+                                    if (similarValues.length > 0) {
+                                        console.log(`  ⚠️  Similar values found:`, similarValues);
+                                    }
+                                    rule._debugLogged = true;
+                                }
+                            } else {
+                                // If field is null/undefined, check if empty string is in the filter values
+                                matches = rule.values.has('');
+                            }
                         }
                         
                         // Apply include/exclude logic
-                        return rule.mode === 'include' ? matches : !matches;
+                        const passed = rule.mode === 'include' ? matches : !matches;
+                        
+                        if (!passed && !rule._debugLogged) {
+                            console.log(`❌ Filter rule failed:`, {
+                                type: rule.type,
+                                mode: rule.mode,
+                                metadataField: rule.metadataField,
+                                matches: matches,
+                                details: matchDetails
+                            });
+                            rule._debugLogged = true;
+                        }
+                        
+                        return { rule, passed, matches, matchDetails };
                     });
+                    
+                    // Log all rule results for first row
+                    if (!firstRowLogged) {
+                        console.log('Rule results for first row:', ruleResults);
+                        firstRowLogged = true;
+                    }
+                    
+                    // Check if all rules passed
+                    const allPassed = ruleResults.every(r => r.passed);
+                    return allPassed;
                 }).map(row => {
                     // Ensure we preserve all row properties including text
                     if (!row) return null;
@@ -2616,6 +2767,13 @@
             }
             
             rawData = filteredData;
+            
+            console.log(`After filtering: ${filteredData.length} rows`);
+            
+            if (filteredData.length === 0) {
+                console.warn('No data remaining after applying filters!');
+                // Still try to render to show empty state
+            }
             
             // Re-process and render
             processData();
@@ -2665,13 +2823,30 @@
                 option.onclick = () => {
                     currentFilterType = option.dataset.type;
                     currentFilterSelections.clear();
-                    showFilterSelectionView();
+                    currentMetadataField = null;
+                    if (currentFilterType === 'metadata') {
+                        showMetadataFieldView();
+                    } else {
+                        showFilterSelectionView();
+                    }
                 };
             });
             
-            // Back button
-            backToFilterType.onclick = () => {
+            // Back from metadata field view
+            const backFromMetadataField = document.getElementById('backFromMetadataField');
+            backFromMetadataField.onclick = () => {
                 showFilterTypeView();
+            };
+            
+            // Back button (handles both metadata field view and filter type view)
+            backToFilterType.onclick = () => {
+                if (currentFilterType === 'metadata' && currentMetadataField) {
+                    // If we're in metadata value selection, go back to field selection
+                    showMetadataFieldView();
+                } else {
+                    // Otherwise go back to filter type selection
+                    showFilterTypeView();
+                }
             };
             
             // Clear all filters
@@ -2688,21 +2863,48 @@
                     return;
                 }
                 
+                // Validate metadata field is set for metadata filters
+                if (currentFilterType === 'metadata' && !currentMetadataField) {
+                    alert('Please select a metadata field first.');
+                    return;
+                }
+                
                 const mode = document.querySelector('input[name="filterMode"]:checked').value;
                 
                 // Add or update filter rule for this type
-                const existingRuleIndex = filterRules.findIndex(r => r.type === currentFilterType);
-                if (existingRuleIndex >= 0) {
-                    // Update existing rule
-                    filterRules[existingRuleIndex].mode = mode;
-                    filterRules[existingRuleIndex].values = new Set(currentFilterSelections);
+                if (currentFilterType === 'metadata') {
+                    // For metadata filters, check by metadataField
+                    const existingRuleIndex = filterRules.findIndex(r => 
+                        r.type === 'metadata' && r.metadataField === currentMetadataField
+                    );
+                    if (existingRuleIndex >= 0) {
+                        // Update existing rule
+                        filterRules[existingRuleIndex].mode = mode;
+                        filterRules[existingRuleIndex].values = new Set(currentFilterSelections);
+                    } else {
+                        // Add new rule
+                        filterRules.push({
+                            type: 'metadata',
+                            mode: mode,
+                            values: new Set(currentFilterSelections),
+                            metadataField: currentMetadataField
+                        });
+                    }
                 } else {
-                    // Add new rule
-                    filterRules.push({
-                        type: currentFilterType,
-                        mode: mode,
-                        values: new Set(currentFilterSelections)
-                    });
+                    // For other filter types
+                    const existingRuleIndex = filterRules.findIndex(r => r.type === currentFilterType);
+                    if (existingRuleIndex >= 0) {
+                        // Update existing rule
+                        filterRules[existingRuleIndex].mode = mode;
+                        filterRules[existingRuleIndex].values = new Set(currentFilterSelections);
+                    } else {
+                        // Add new rule
+                        filterRules.push({
+                            type: currentFilterType,
+                            mode: mode,
+                            values: new Set(currentFilterSelections)
+                        });
+                    }
                 }
                 
                 showFilterTypeView();
@@ -2720,25 +2922,61 @@
         function showFilterTypeView() {
             document.getElementById('filterTypeView').style.display = 'block';
             document.getElementById('filterSelectionView').style.display = 'none';
+            document.getElementById('metadataFieldView').style.display = 'none';
             currentFilterType = null;
             currentFilterSelections.clear();
+            currentMetadataField = null;
             updateFilterUI(); // Refresh the active filters list
+        }
+        
+        function showMetadataFieldView() {
+            document.getElementById('filterTypeView').style.display = 'none';
+            document.getElementById('filterSelectionView').style.display = 'none';
+            document.getElementById('metadataFieldView').style.display = 'block';
+            currentFilterSelections.clear();
+            populateMetadataFieldList();
         }
         
         function showFilterSelectionView() {
             document.getElementById('filterTypeView').style.display = 'none';
+            document.getElementById('metadataFieldView').style.display = 'none';
             document.getElementById('filterSelectionView').style.display = 'block';
             
             const title = document.getElementById('filterSelectionTitle');
-            const typeLabels = {
-                'category': 'Categories',
-                'topic': 'Topics',
-                'location': 'Locations'
-            };
-            title.textContent = `Select ${typeLabels[currentFilterType] || 'Items'}`;
+            if (currentFilterType === 'metadata' && currentMetadataField) {
+                // Format field name nicely (e.g., "user_type" -> "User Type")
+                const fieldLabel = currentMetadataField
+                    .split('_')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ');
+                title.textContent = `Select ${fieldLabel} Values`;
+            } else {
+                const typeLabels = {
+                    'category': 'Categories',
+                    'topic': 'Topics',
+                    'location': 'Locations'
+                };
+                title.textContent = `Select ${typeLabels[currentFilterType] || 'Items'}`;
+            }
             
-            // Load existing selections if there's a rule for this type
-            const existingRule = filterRules.find(r => r.type === currentFilterType);
+            // Validate that metadataField is set for metadata filters
+            if (currentFilterType === 'metadata' && !currentMetadataField) {
+                console.error('currentMetadataField is not set for metadata filter!');
+                // Try to recover by going back to field selection
+                showMetadataFieldView();
+                return;
+            }
+            
+            // Load existing selections if there's a rule for this type/field
+            let existingRule;
+            if (currentFilterType === 'metadata' && currentMetadataField) {
+                existingRule = filterRules.find(r => 
+                    r.type === 'metadata' && r.metadataField === currentMetadataField
+                );
+            } else {
+                existingRule = filterRules.find(r => r.type === currentFilterType);
+            }
+            
             if (existingRule) {
                 currentFilterSelections = new Set(existingRule.values);
                 // Set the mode radio button
@@ -2755,7 +2993,54 @@
             if (type === 'category') return availableCategories;
             if (type === 'topic') return availableTopics;
             if (type === 'location') return availableLocations;
+            if (type === 'metadata' && currentMetadataField) {
+                return availableMetadataFields[currentMetadataField] || [];
+            }
             return [];
+        }
+        
+        function populateMetadataFieldList() {
+            const fieldList = document.getElementById('metadataFieldList');
+            fieldList.innerHTML = '';
+            
+            const fields = Object.keys(availableMetadataFields).sort();
+            
+            if (fields.length === 0) {
+                fieldList.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">No metadata fields found</div>';
+                return;
+            }
+            
+            fields.forEach(fieldName => {
+                const values = availableMetadataFields[fieldName];
+                const valueCount = values.length;
+                
+                // Format field name nicely (e.g., "user_type" -> "User Type")
+                const fieldLabel = fieldName
+                    .split('_')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ');
+                
+                const fieldItem = document.createElement('div');
+                fieldItem.style.cssText = 'padding: 12px; margin: 4px 0; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: background 0.2s;';
+                fieldItem.onmouseover = () => fieldItem.style.background = '#f5f5f5';
+                fieldItem.onmouseout = () => fieldItem.style.background = 'transparent';
+                fieldItem.onclick = () => {
+                    currentMetadataField = fieldName;
+                    showFilterSelectionView();
+                };
+                
+                fieldItem.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="font-size: 14px; color: #333;">${fieldLabel}</strong>
+                            <div style="font-size: 12px; color: #666; margin-top: 2px;">${valueCount} ${valueCount === 1 ? 'value' : 'values'} available</div>
+                        </div>
+                        <span style="font-size: 18px;">→</span>
+                    </div>
+                `;
+                
+                fieldList.appendChild(fieldItem);
+            });
         }
         
         function populateFilterSelectionList() {
@@ -2811,11 +3096,22 @@
                     const filterItem = document.createElement('div');
                     filterItem.style.cssText = 'padding: 8px 12px; margin: 4px 0; background: white; border: 1px solid #e0e0e0; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;';
                     
-                    const typeLabels = {
-                        'category': 'Category',
-                        'topic': 'Topic',
-                        'location': 'Location'
-                    };
+                    let typeLabel;
+                    if (rule.type === 'metadata' && rule.metadataField) {
+                        // Format metadata field name nicely
+                        const fieldLabel = rule.metadataField
+                            .split('_')
+                            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                            .join(' ');
+                        typeLabel = `Metadata: ${fieldLabel}`;
+                    } else {
+                        const typeLabels = {
+                            'category': 'Category',
+                            'topic': 'Topic',
+                            'location': 'Location'
+                        };
+                        typeLabel = typeLabels[rule.type] || rule.type;
+                    }
                     
                     const modeLabel = rule.mode === 'include' ? 'Include' : 'Exclude';
                     const count = rule.values.size;
@@ -2824,7 +3120,7 @@
                     
                     filterItem.innerHTML = `
                         <div style="flex: 1;">
-                            <div style="font-size: 12px; font-weight: 600; color: #333;">${typeLabels[rule.type]} (${modeLabel})</div>
+                            <div style="font-size: 12px; font-weight: 600; color: #333;">${typeLabel} (${modeLabel})</div>
                             <div style="font-size: 11px; color: #666; margin-top: 2px;">${itemsPreview}${moreText}</div>
                         </div>
                         <div style="display: flex; gap: 4px;">
@@ -2836,7 +3132,12 @@
                     const editBtn = filterItem.querySelector('.edit-filter-btn');
                     editBtn.onclick = () => {
                         currentFilterType = rule.type;
-                        showFilterSelectionView();
+                        if (rule.type === 'metadata' && rule.metadataField) {
+                            currentMetadataField = rule.metadataField;
+                            showFilterSelectionView();
+                        } else {
+                            showFilterSelectionView();
+                        }
                     };
                     
                     const removeBtn = filterItem.querySelector('.remove-filter-btn');
@@ -2870,7 +3171,13 @@
 
             rawData.forEach(row => {
                 // Skip null/undefined rows or rows with no topics
-                if (!row || !row.topics || row.topics.length === 0) return;
+                if (!row || !row.topics || row.topics.length === 0) {
+                    if (rawData.length > 0 && rawData.length <= 10) {
+                        // Log for small datasets to help debug
+                        console.log(`Skipping row ${row?.row_id || 'unknown'}: hasTopics=${!!row?.topics}, topicsLength=${row?.topics?.length || 0}`);
+                    }
+                    return;
+                }
                 
                 // Normalized format: {row_id, text, topics[], sentiment, metadata{}}
                 const topics = row.topics;
@@ -2950,7 +3257,20 @@
                 .sum(d => d.value || 0)
                 .sort((a, b) => b.value - a.value);
 
-            const totalValue = root.value;
+            const totalValue = root.value || 0;
+            
+            // Handle empty data case
+            if (!root.children || root.children.length === 0 || totalValue === 0) {
+                svg.append('text')
+                    .attr('x', width / 2)
+                    .attr('y', height / 2)
+                    .attr('text-anchor', 'middle')
+                    .attr('dominant-baseline', 'middle')
+                    .style('font-size', '16px')
+                    .style('fill', '#999')
+                    .text('No data available for this dimension');
+                return;
+            }
 
             // Responsive padding based on viewport
             const isMobile = width < 768;
@@ -3003,7 +3323,7 @@
                     .attr('x', d => d.x0 + (width < 768 ? 8 : 10))
                     .attr('y', d => d.y0 + 17)
                     .text(d => {
-                        const percent = ((d.value / totalValue) * 100).toFixed(1);
+                        const percent = totalValue > 0 ? ((d.value / totalValue) * 100).toFixed(1) : '0.0';
                         const maxWidth = d.x1 - d.x0 - 20;
                         const isMobile = width < 768;
                         let text = `${d.data.name} (${percent}%)`;
@@ -3064,7 +3384,7 @@
                 // Only show text if node is large enough
                 if (nodeWidth < minWidth || nodeHeight < minHeight) return;
                 
-                const percent = ((d.value / totalValue) * 100).toFixed(1);
+                const percent = totalValue > 0 ? ((d.value / totalValue) * 100).toFixed(1) : '0.0';
                 const node = d3.select(this);
                 
                 // Responsive text truncation based on viewport
@@ -4218,6 +4538,16 @@
 
         // Start the application - check auth first
         console.log('Starting application...');
+        
+        // Quick synchronous check - if no token, show login immediately to avoid flash
+        const token = getAuthToken();
+        if (!token) {
+            console.log('No token found, showing login immediately');
+            document.getElementById('loginOverlay').classList.remove('hidden');
+        }
+        // If token exists, keep login hidden (it's already hidden by default)
+        // and let async checkAuth() verify it
+        
         checkAuth().then(authenticated => {
             console.log('Auth check result:', authenticated);
             if (authenticated) {
