@@ -1164,6 +1164,8 @@ def bulk_update_voc_data(
             row.project_name = update_item.project_name
         if update_item.dimension_name is not None:
             row.dimension_name = update_item.dimension_name
+        if update_item.data_source is not None:
+            row.data_source = update_item.data_source
         
         updated_count += 1
     
@@ -1182,11 +1184,12 @@ def bulk_update_filtered_voc_data(
     dimension_ref: Optional[str] = None,
     project_name: Optional[str] = None,
     dimension_name: Optional[str] = None,
+    data_source: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_founder)
 ):
     """
-    Bulk update project_name and/or dimension_name for all rows matching filter criteria.
+    Bulk update project_name, dimension_name, and/or data_source for all rows matching filter criteria.
     Requires founder authentication.
     At least one filter (project_id or dimension_ref) must be provided.
     """
@@ -1198,10 +1201,10 @@ def bulk_update_filtered_voc_data(
         )
     
     # Require at least one field to update
-    if project_name is None and dimension_name is None:
+    if project_name is None and dimension_name is None and data_source is None:
         raise HTTPException(
             status_code=400,
-            detail="At least one field (project_name or dimension_name) must be provided"
+            detail="At least one field (project_name, dimension_name, or data_source) must be provided"
         )
     
     # Build query with filters
@@ -1223,6 +1226,9 @@ def bulk_update_filtered_voc_data(
             updated = True
         if dimension_name is not None:
             row.dimension_name = dimension_name
+            updated = True
+        if data_source is not None:
+            row.data_source = data_source
             updated = True
         
         if updated:

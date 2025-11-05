@@ -476,6 +476,10 @@
                             <input type="text" id="bulkDimensionName" placeholder="Leave empty to keep existing">
                         </div>
                         <div class="filter-group">
+                            <label>New Data Source</label>
+                            <input type="text" id="bulkDataSource" placeholder="Leave empty to keep existing">
+                        </div>
+                        <div class="filter-group">
                             <button class="btn btn-primary" onclick="applyBulkEdit()">
                                 Update All Filtered Rows
                             </button>
@@ -732,6 +736,7 @@
                 const edited = editedRows.get(row.id) || {};
                 const projectName = edited.project_name !== undefined ? edited.project_name : (row.project_name || '');
                 const dimensionName = edited.dimension_name !== undefined ? edited.dimension_name : (row.dimension_name || '');
+                const dataSource = edited.data_source !== undefined ? edited.data_source : (row.data_source || '');
                 
                 return `
                     <tr data-row-id="${row.id}">
@@ -757,7 +762,13 @@
                                    onchange="markRowEdited(${row.id}, 'dimension_name', this.value)">
                         </td>
                         <td>${escapeHtml(row.client_name || '')}</td>
-                        <td>${escapeHtml(row.data_source || '')}</td>
+                        <td class="editable-cell">
+                            <input type="text" 
+                                   class="editable-input data-source-input" 
+                                   data-row-id="${row.id}"
+                                   value="${escapeHtml(dataSource)}"
+                                   onchange="markRowEdited(${row.id}, 'data_source', this.value)">
+                        </td>
                         <td class="text-cell" title="${escapeHtml(row.value || '')}">${escapeHtml((row.value || '').substring(0, 50))}</td>
                     </tr>
                 `;
@@ -843,7 +854,8 @@
                     updates.push({
                         id: rowId,
                         project_name: edited.project_name !== undefined ? edited.project_name : null,
-                        dimension_name: edited.dimension_name !== undefined ? edited.dimension_name : null
+                        dimension_name: edited.dimension_name !== undefined ? edited.dimension_name : null,
+                        data_source: edited.data_source !== undefined ? edited.data_source : null
                     });
                 }
             });
@@ -957,8 +969,9 @@
         async function applyBulkEdit() {
             const newProjectName = document.getElementById('bulkProjectName').value.trim();
             const newDimensionName = document.getElementById('bulkDimensionName').value.trim();
+            const newDataSource = document.getElementById('bulkDataSource').value.trim();
             
-            if (!newProjectName && !newDimensionName) {
+            if (!newProjectName && !newDimensionName && !newDataSource) {
                 showStatus('Please provide at least one value to update', 'error');
                 return;
             }
@@ -985,6 +998,9 @@
                 }
                 if (newDimensionName) {
                     params.append('dimension_name', newDimensionName);
+                }
+                if (newDataSource) {
+                    params.append('data_source', newDataSource);
                 }
                 
                 const response = await fetch(`${API_BASE_URL}/api/founder-admin/voc-data/bulk-update-filtered?${params.toString()}`, {
@@ -1016,6 +1032,7 @@
         function clearBulkEdit() {
             document.getElementById('bulkProjectName').value = '';
             document.getElementById('bulkDimensionName').value = '';
+            document.getElementById('bulkDataSource').value = '';
         }
 
         // Enter key handlers
