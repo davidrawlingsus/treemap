@@ -1101,6 +1101,7 @@ def get_voc_clients(
 @app.get("/api/founder-admin/voc-data", response_model=ProcessVocAdminListResponse)
 def get_founder_admin_voc_data(
     project_id: Optional[str] = None,
+    project_name: Optional[str] = None,
     dimension_ref: Optional[str] = None,
     page: int = 1,
     page_size: int = 100,
@@ -1108,18 +1109,20 @@ def get_founder_admin_voc_data(
     current_user: User = Depends(get_current_active_founder)
 ):
     """
-    Get all process_voc rows with optional filtering by project_id and dimension_ref.
+    Get all process_voc rows with optional filtering by project_id, project_name, and dimension_ref.
     Requires founder authentication.
     Returns paginated results.
     """
     # Build query
     query = db.query(ProcessVoc)
     
-    # Apply filters
+    # Apply filters (case-insensitive partial matching)
     if project_id:
-        query = query.filter(ProcessVoc.project_id == project_id)
+        query = query.filter(ProcessVoc.project_id.ilike(f"%{project_id}%"))
+    if project_name:
+        query = query.filter(ProcessVoc.project_name.ilike(f"%{project_name}%"))
     if dimension_ref:
-        query = query.filter(ProcessVoc.dimension_ref == dimension_ref)
+        query = query.filter(ProcessVoc.dimension_ref.ilike(f"%{dimension_ref}%"))
     
     # Get total count
     total = query.count()
@@ -1181,6 +1184,7 @@ def bulk_update_voc_data(
 @app.post("/api/founder-admin/voc-data/bulk-update-filtered", response_model=ProcessVocBulkUpdateResponse)
 def bulk_update_filtered_voc_data(
     project_id: Optional[str] = None,
+    filter_project_name: Optional[str] = None,
     dimension_ref: Optional[str] = None,
     project_name: Optional[str] = None,
     dimension_name: Optional[str] = None,
@@ -1191,13 +1195,15 @@ def bulk_update_filtered_voc_data(
     """
     Bulk update project_name, dimension_name, and/or data_source for all rows matching filter criteria.
     Requires founder authentication.
-    At least one filter (project_id or dimension_ref) must be provided.
+    At least one filter (project_id, filter_project_name, or dimension_ref) must be provided.
+    
+    Note: filter_project_name is used for filtering, while project_name is the new value to set.
     """
     # Require at least one filter to prevent accidental updates to all rows
-    if not project_id and not dimension_ref:
+    if not project_id and not filter_project_name and not dimension_ref:
         raise HTTPException(
             status_code=400,
-            detail="At least one filter (project_id or dimension_ref) must be provided"
+            detail="At least one filter (project_id, filter_project_name, or dimension_ref) must be provided"
         )
     
     # Require at least one field to update
@@ -1207,13 +1213,15 @@ def bulk_update_filtered_voc_data(
             detail="At least one field (project_name, dimension_name, or data_source) must be provided"
         )
     
-    # Build query with filters
+    # Build query with filters (case-insensitive partial matching)
     query = db.query(ProcessVoc)
     
     if project_id:
-        query = query.filter(ProcessVoc.project_id == project_id)
+        query = query.filter(ProcessVoc.project_id.ilike(f"%{project_id}%"))
+    if filter_project_name:
+        query = query.filter(ProcessVoc.project_name.ilike(f"%{filter_project_name}%"))
     if dimension_ref:
-        query = query.filter(ProcessVoc.dimension_ref == dimension_ref)
+        query = query.filter(ProcessVoc.dimension_ref.ilike(f"%{dimension_ref}%"))
     
     # Get all matching rows
     rows = query.all()

@@ -2020,6 +2020,13 @@
                 allClients = await response.json();
                 console.log(`Loaded ${allClients.length} clients:`, allClients);
                 
+                // Sort clients alphabetically by client_name
+                allClients.sort((a, b) => {
+                    const nameA = (a.client_name || '').toLowerCase();
+                    const nameB = (b.client_name || '').toLowerCase();
+                    return nameA.localeCompare(nameB);
+                });
+                
                 const select = document.getElementById('clientSelect');
                 console.log('Client select element:', select);
                 select.innerHTML = '';
@@ -2503,11 +2510,25 @@
                 
                 const questions = await response.json();
                 
+                // Build dimension names map from API response first
+                dimensionNamesMap = {};
+                questions.forEach(q => {
+                    if (q.dimension_name) {
+                        dimensionNamesMap[q.dimension_ref] = q.dimension_name;
+                    }
+                });
+                
                 // Filter to only dimensions that have topics (response_count > 0)
                 availableQuestions = questions
                     .filter(q => q.response_count > 0)
-                    .map(q => q.dimension_ref)
-                    .sort();
+                    .map(q => q.dimension_ref);
+                
+                // Sort dimensions alphabetically by display name
+                availableQuestions.sort((a, b) => {
+                    const nameA = (getDimensionDisplayName(a) || '').toLowerCase();
+                    const nameB = (getDimensionDisplayName(b) || '').toLowerCase();
+                    return nameA.localeCompare(nameB);
+                });
                 
                 console.log(`Found ${availableQuestions.length} dimensions with data`);
                 
@@ -2518,14 +2539,6 @@
                     dimensionNameEditor.style.display = 'none';
                     return;
                 }
-                
-                // Build dimension names map from API response
-                dimensionNamesMap = {};
-                questions.forEach(q => {
-                    if (q.dimension_name) {
-                        dimensionNamesMap[q.dimension_ref] = q.dimension_name;
-                    }
-                });
                 
                 // Populate question selector
                 questionSelect.innerHTML = '<option value="">All Dimensions</option>';

@@ -445,11 +445,15 @@
             <div class="filters">
                 <div class="filter-group">
                     <label>Project ID</label>
-                    <input type="text" id="filterProjectId" placeholder="Filter by project_id">
+                    <input type="text" id="filterProjectId" placeholder="Search project_id (partial match)">
+                </div>
+                <div class="filter-group">
+                    <label>Project Name</label>
+                    <input type="text" id="filterProjectName" placeholder="Search project_name (partial match)">
                 </div>
                 <div class="filter-group">
                     <label>Dimension Ref</label>
-                    <input type="text" id="filterDimensionRef" placeholder="Filter by dimension_ref">
+                    <input type="text" id="filterDimensionRef" placeholder="Search dimension_ref (partial match)">
                 </div>
                 <div class="filter-group">
                     <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
@@ -555,6 +559,7 @@
         let totalRows = 0;
         let currentFilters = {
             project_id: '',
+            project_name: '',
             dimension_ref: ''
         };
         let editedRows = new Map(); // Track edited values: rowId -> {project_name, dimension_name}
@@ -690,6 +695,9 @@
                 if (currentFilters.project_id) {
                     params.append('project_id', currentFilters.project_id);
                 }
+                if (currentFilters.project_name) {
+                    params.append('project_name', currentFilters.project_name);
+                }
                 if (currentFilters.dimension_ref) {
                     params.append('dimension_ref', currentFilters.dimension_ref);
                 }
@@ -798,6 +806,7 @@
         // Filters
         function applyFilters() {
             currentFilters.project_id = document.getElementById('filterProjectId').value.trim();
+            currentFilters.project_name = document.getElementById('filterProjectName').value.trim();
             currentFilters.dimension_ref = document.getElementById('filterDimensionRef').value.trim();
             currentPage = 1;
             editedRows.clear();
@@ -806,8 +815,10 @@
 
         function clearFilters() {
             document.getElementById('filterProjectId').value = '';
+            document.getElementById('filterProjectName').value = '';
             document.getElementById('filterDimensionRef').value = '';
             currentFilters.project_id = '';
+            currentFilters.project_name = '';
             currentFilters.dimension_ref = '';
             currentPage = 1;
             editedRows.clear();
@@ -947,7 +958,7 @@
 
         // Bulk Edit Functions
         function updateBulkEditSection() {
-            const hasFilters = currentFilters.project_id || currentFilters.dimension_ref;
+            const hasFilters = currentFilters.project_id || currentFilters.project_name || currentFilters.dimension_ref;
             const bulkSection = document.getElementById('bulkEditSection');
             const bulkInfo = document.getElementById('bulkEditInfo');
             
@@ -956,6 +967,9 @@
                 const filterText = [];
                 if (currentFilters.project_id) {
                     filterText.push(`Project ID: ${currentFilters.project_id}`);
+                }
+                if (currentFilters.project_name) {
+                    filterText.push(`Project Name: ${currentFilters.project_name}`);
                 }
                 if (currentFilters.dimension_ref) {
                     filterText.push(`Dimension Ref: ${currentFilters.dimension_ref}`);
@@ -976,7 +990,7 @@
                 return;
             }
             
-            if (!currentFilters.project_id && !currentFilters.dimension_ref) {
+            if (!currentFilters.project_id && !currentFilters.project_name && !currentFilters.dimension_ref) {
                 showStatus('Please apply filters before bulk editing', 'error');
                 return;
             }
@@ -989,6 +1003,9 @@
                 const params = new URLSearchParams();
                 if (currentFilters.project_id) {
                     params.append('project_id', currentFilters.project_id);
+                }
+                if (currentFilters.project_name) {
+                    params.append('filter_project_name', currentFilters.project_name);
                 }
                 if (currentFilters.dimension_ref) {
                     params.append('dimension_ref', currentFilters.dimension_ref);
