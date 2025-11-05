@@ -34,10 +34,10 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title="Visualizd API", version="0.1.0")
 
 # CORS configuration - allow frontend to communicate with backend
-# Allow all Railway origins (they use *.up.railway.app pattern) for flexibility
+# Allow all Railway origins (they use *.up.railway.app pattern) and localhost for flexibility
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https?://.*\.(up\.railway\.app|localhost)(:\d+)?$",  # Allow all Railway URLs and localhost
+    allow_origin_regex=r"https?://(.*\.up\.railway\.app|localhost)(:\d+)?$",  # Allow all Railway URLs and localhost
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
