@@ -235,3 +235,30 @@ class VocProjectInfo(BaseModel):
     project_id: Optional[str] = None
     response_count: int = 0
 
+
+class ProcessVocBulkUpdateItem(BaseModel):
+    """Single item in bulk update request"""
+    id: int
+    project_name: Optional[str] = None
+    dimension_name: Optional[str] = None
+
+
+class ProcessVocBulkUpdateRequest(BaseModel):
+    """Bulk update request for process_voc rows"""
+    updates: List[ProcessVocBulkUpdateItem]
+
+
+class ProcessVocBulkUpdateResponse(BaseModel):
+    """Response for bulk update"""
+    updated_count: int
+    message: str
+
+
+class ProcessVocAdminListResponse(BaseModel):
+    """Paginated response for admin listing"""
+    items: List[ProcessVocResponse]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
+

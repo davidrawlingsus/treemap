@@ -1,6 +1,5 @@
 """
 Script to create missing tables (users, memberships) in the database.
-Based on the schema defined in schema_introspection.json.
 
 Run this if the dev database is missing tables:
     python create_missing_tables.py

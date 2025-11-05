@@ -41,7 +41,7 @@ def main():
         print(f"\n🎉 Database setup complete!")
         print(f"\nNext steps:")
         print(f"1. Run the server: ./start.sh")
-        print(f"2. Upload your JSON file using: python upload_sample_data.py")
+        print(f"2. Upload data using: python upload_all_data.py")
         print(f"3. Open index.html in your browser")
         
     except Exception as e:

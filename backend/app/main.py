@@ -18,7 +18,8 @@ from app.schemas import (
     QuestionInfo, DataSourceWithQuestions,
     DimensionNameCreate, DimensionNameBatchUpdate, DimensionNameResponse,
     Token, UserLogin, UserResponse, UserWithClients,
-    ProcessVocResponse, ProcessVocListResponse, DimensionQuestionInfo, VocSourceInfo, VocClientInfo, VocProjectInfo
+    ProcessVocResponse, ProcessVocListResponse, DimensionQuestionInfo, VocSourceInfo, VocClientInfo, VocProjectInfo,
+    ProcessVocAdminListResponse, ProcessVocBulkUpdateRequest, ProcessVocBulkUpdateResponse
 )
 from app.transformers import DataTransformer, DataSourceType
 from app.config import get_settings
@@ -34,7 +35,7 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title="Visualizd API", version="0.1.0")
 
 # CORS configuration - allow frontend to communicate with backend
-# Allow all Railway origins (they use *.up.railway.app pattern) and localhost for flexibility
+# Allow all Railway origins (they use *.up.railway.app pattern) for flexibility
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"https?://(.*\.up\.railway\.app|localhost)(:\d+)?$",  # Allow all Railway URLs and localhost
@@ -65,6 +66,17 @@ if (frontend_path / "index.html").exists():
         api_url = "http://localhost:8000"
         config_content = f"window.APP_CONFIG = {{ API_BASE_URL: '{api_url}' }};"
         return Response(content=config_content, media_type="application/javascript")
+
+if (frontend_path / "founder_admin.html").exists():
+    @app.get("/founder_admin", response_class=FileResponse)
+    def serve_founder_admin():
+        """Serve the founder admin page"""
+        return FileResponse(frontend_path / "founder_admin.html")
+    
+    @app.get("/founder_admin.html", response_class=FileResponse)
+    def serve_founder_admin_html():
+        """Serve the founder admin page"""
+        return FileResponse(frontend_path / "founder_admin.html")
 
 @app.get("/api")
 def api_info():
@@ -1082,6 +1094,147 @@ def get_voc_clients(
         )
         for info in client_map.values()
     ]
+
+
+# Founder Admin Endpoints
+
+@app.get("/api/founder-admin/voc-data", response_model=ProcessVocAdminListResponse)
+def get_founder_admin_voc_data(
+    project_id: Optional[str] = None,
+    dimension_ref: Optional[str] = None,
+    page: int = 1,
+    page_size: int = 100,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder)
+):
+    """
+    Get all process_voc rows with optional filtering by project_id and dimension_ref.
+    Requires founder authentication.
+    Returns paginated results.
+    """
+    # Build query
+    query = db.query(ProcessVoc)
+    
+    # Apply filters
+    if project_id:
+        query = query.filter(ProcessVoc.project_id == project_id)
+    if dimension_ref:
+        query = query.filter(ProcessVoc.dimension_ref == dimension_ref)
+    
+    # Get total count
+    total = query.count()
+    
+    # Calculate pagination
+    total_pages = (total + page_size - 1) // page_size if total > 0 else 0
+    offset = (page - 1) * page_size
+    
+    # Get paginated results
+    items = query.order_by(ProcessVoc.id).offset(offset).limit(page_size).all()
+    
+    return ProcessVocAdminListResponse(
+        items=items,
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages
+    )
+
+
+@app.post("/api/founder-admin/voc-data/bulk-update", response_model=ProcessVocBulkUpdateResponse)
+def bulk_update_voc_data(
+    update_request: ProcessVocBulkUpdateRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder)
+):
+    """
+    Bulk update project_name and/or dimension_name for multiple process_voc rows.
+    Requires founder authentication.
+    """
+    updated_count = 0
+    
+    for update_item in update_request.updates:
+        # Find the row by ID
+        row = db.query(ProcessVoc).filter(ProcessVoc.id == update_item.id).first()
+        
+        if not row:
+            continue  # Skip if row not found
+        
+        # Update fields if provided
+        if update_item.project_name is not None:
+            row.project_name = update_item.project_name
+        if update_item.dimension_name is not None:
+            row.dimension_name = update_item.dimension_name
+        
+        updated_count += 1
+    
+    # Commit all changes
+    db.commit()
+    
+    return ProcessVocBulkUpdateResponse(
+        updated_count=updated_count,
+        message=f"Successfully updated {updated_count} row(s)"
+    )
+
+
+@app.post("/api/founder-admin/voc-data/bulk-update-filtered", response_model=ProcessVocBulkUpdateResponse)
+def bulk_update_filtered_voc_data(
+    project_id: Optional[str] = None,
+    dimension_ref: Optional[str] = None,
+    project_name: Optional[str] = None,
+    dimension_name: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder)
+):
+    """
+    Bulk update project_name and/or dimension_name for all rows matching filter criteria.
+    Requires founder authentication.
+    At least one filter (project_id or dimension_ref) must be provided.
+    """
+    # Require at least one filter to prevent accidental updates to all rows
+    if not project_id and not dimension_ref:
+        raise HTTPException(
+            status_code=400,
+            detail="At least one filter (project_id or dimension_ref) must be provided"
+        )
+    
+    # Require at least one field to update
+    if project_name is None and dimension_name is None:
+        raise HTTPException(
+            status_code=400,
+            detail="At least one field (project_name or dimension_name) must be provided"
+        )
+    
+    # Build query with filters
+    query = db.query(ProcessVoc)
+    
+    if project_id:
+        query = query.filter(ProcessVoc.project_id == project_id)
+    if dimension_ref:
+        query = query.filter(ProcessVoc.dimension_ref == dimension_ref)
+    
+    # Get all matching rows
+    rows = query.all()
+    updated_count = 0
+    
+    for row in rows:
+        updated = False
+        if project_name is not None:
+            row.project_name = project_name
+            updated = True
+        if dimension_name is not None:
+            row.dimension_name = dimension_name
+            updated = True
+        
+        if updated:
+            updated_count += 1
+    
+    # Commit all changes
+    db.commit()
+    
+    return ProcessVocBulkUpdateResponse(
+        updated_count=updated_count,
+        message=f"Successfully updated {updated_count} row(s) matching filters"
+    )
 
 
 if __name__ == "__main__":
