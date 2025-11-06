@@ -2212,36 +2212,51 @@
                 }
                 select.innerHTML = '';
                 
+                // Add "All Sources" option first
+                const allOption = document.createElement('option');
+                allOption.value = '';
+                allOption.textContent = 'All Sources';
+                select.appendChild(allOption);
+                
                 if (clientSources.length === 0) {
                     console.log('No sources available');
-                    select.innerHTML = '<option value="">No sources available</option>';
-                    return;
+                    // Keep "All Sources" option, don't return
+                } else {
+                    console.log('Populating source dropdown...');
+                    clientSources.forEach((source) => {
+                        const option = document.createElement('option');
+                        option.value = source.data_source;
+                        option.textContent = source.data_source || 'Unknown Source';
+                        select.appendChild(option);
+                    });
                 }
                 
-                console.log('Populating source dropdown...');
-                clientSources.forEach((source, index) => {
-                    const option = document.createElement('option');
-                    option.value = source.data_source;
-                    option.textContent = source.data_source || 'Unknown Source';
-                    select.appendChild(option);
-                    
-                    // Restore saved data source or select first one by default
-                    if (savedState && savedState.dataSourceId && savedState.dataSourceId === source.data_source) {
-                        currentDataSourceId = source.data_source;
+                // Restore saved data source from savedState if it exists
+                if (savedState && savedState.dataSourceId) {
+                    // Validate that the saved data source exists in the list
+                    const sourceExists = clientSources.some(s => s.data_source === savedState.dataSourceId);
+                    if (sourceExists) {
+                        currentDataSourceId = savedState.dataSourceId;
                         console.log(`Restored saved data source: ${currentDataSourceId}`);
-                    } else if (!currentDataSourceId && index === 0) {
-                        // Select first one if no saved state or saved state has no dataSourceId
-                        currentDataSourceId = source.data_source;
-                        console.log(`Selected first data source by default: ${currentDataSourceId}`);
+                    } else {
+                        console.warn(`Saved data source "${savedState.dataSourceId}" not found in available sources, clearing selection`);
+                        currentDataSourceId = null;
                     }
-                });
+                } else {
+                    // Default to "All Sources" (empty value) if no saved state
+                    currentDataSourceId = null;
+                    console.log('No saved data source, defaulting to "All Sources"');
+                }
                 
-                console.log(`Current data source ID after loop: ${currentDataSourceId}`);
+                console.log(`Current data source ID after validation: ${currentDataSourceId}`);
                 
-                // Set the select value to match the current data source
+                // Set the select value to match the current data source (or empty for "All Sources")
                 if (currentDataSourceId) {
                     select.value = currentDataSourceId;
                     console.log(`Set select value to: ${currentDataSourceId}`);
+                } else {
+                    select.value = '';
+                    console.log('Set select value to empty (All Sources)');
                 }
                 
                 // Add change listener (only once)
@@ -2249,14 +2264,10 @@
                 select.addEventListener('change', handleSourceChange);
                 console.log('Added change listener to source select');
                 
-                // Load the selected data source
-                if (currentDataSourceId) {
-                    console.log(`About to load data source: client=${clientId}, source=${currentDataSourceId}`);
-                    await loadDataSource(clientId, currentDataSourceId, savedState);
-                    console.log('loadDataSource completed');
-                } else {
-                    console.log('No data source selected, skipping data load');
-                }
+                // Load data (for all sources if currentDataSourceId is null, or specific source if selected)
+                console.log(`About to load data: client=${clientId}, source=${currentDataSourceId || 'All Sources'}`);
+                await loadDataSource(clientId, currentDataSourceId, savedState);
+                console.log('loadDataSource completed');
             } catch (error) {
                 console.error('Error loading sources:', error);
                 const select = document.getElementById('sourceSelect');
@@ -2266,7 +2277,7 @@
         
         // Handle source selection change
         async function handleSourceChange(e) {
-            currentDataSourceId = e.target.value;
+            currentDataSourceId = e.target.value || null; // Empty string becomes null
             currentQuestionRefKey = null; // Reset question when source changes
             saveState();
             await loadDataSource(currentClientId, currentDataSourceId);
@@ -2275,9 +2286,9 @@
         // Update breadcrumb display
         function updateBreadcrumb(questionRefKey) {
             const client = allClients.find(c => c.client_uuid === currentClientId);
-            const source = clientSources.find(s => s.data_source === currentDataSourceId);
+            const source = currentDataSourceId ? clientSources.find(s => s.data_source === currentDataSourceId) : null;
             
-            if (client && source) {
+            if (client) {
                 let breadcrumb = `${client.client_name || 'Unknown Client'}`;
                 
                 // Add project to breadcrumb if selected
@@ -2285,7 +2296,12 @@
                     breadcrumb += ` > ${currentProjectName}`;
                 }
                 
-                breadcrumb += ` > ${source.data_source || 'Unknown Source'}`;
+                // Add source to breadcrumb if selected, otherwise show "All Sources"
+                if (source) {
+                    breadcrumb += ` > ${source.data_source || 'Unknown Source'}`;
+                } else if (currentClientId) {
+                    breadcrumb += ` > All Sources`;
+                }
                 
                 // Add question to breadcrumb if specified
                 if (questionRefKey) {
