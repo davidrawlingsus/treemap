@@ -1103,13 +1103,14 @@ def get_founder_admin_voc_data(
     project_id: Optional[str] = None,
     project_name: Optional[str] = None,
     dimension_ref: Optional[str] = None,
+    client_name: Optional[str] = None,
     page: int = 1,
     page_size: int = 100,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_founder)
 ):
     """
-    Get all process_voc rows with optional filtering by project_id, project_name, and dimension_ref.
+    Get all process_voc rows with optional filtering by project_id, project_name, dimension_ref, and client_name.
     Requires founder authentication.
     Returns paginated results.
     """
@@ -1123,6 +1124,8 @@ def get_founder_admin_voc_data(
         query = query.filter(ProcessVoc.project_name.ilike(f"%{project_name}%"))
     if dimension_ref:
         query = query.filter(ProcessVoc.dimension_ref.ilike(f"%{dimension_ref}%"))
+    if client_name:
+        query = query.filter(ProcessVoc.client_name.ilike(f"%{client_name}%"))
     
     # Get total count
     total = query.count()
@@ -1169,6 +1172,8 @@ def bulk_update_voc_data(
             row.dimension_name = update_item.dimension_name
         if update_item.data_source is not None:
             row.data_source = update_item.data_source
+        if update_item.client_name is not None:
+            row.client_name = update_item.client_name
         
         updated_count += 1
     
@@ -1186,31 +1191,33 @@ def bulk_update_filtered_voc_data(
     project_id: Optional[str] = None,
     filter_project_name: Optional[str] = None,
     dimension_ref: Optional[str] = None,
+    filter_client_name: Optional[str] = None,
     project_name: Optional[str] = None,
     dimension_name: Optional[str] = None,
     data_source: Optional[str] = None,
+    client_name: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_founder)
 ):
     """
-    Bulk update project_name, dimension_name, and/or data_source for all rows matching filter criteria.
+    Bulk update project_name, dimension_name, data_source, and/or client_name for all rows matching filter criteria.
     Requires founder authentication.
-    At least one filter (project_id, filter_project_name, or dimension_ref) must be provided.
+    At least one filter (project_id, filter_project_name, dimension_ref, or filter_client_name) must be provided.
     
-    Note: filter_project_name is used for filtering, while project_name is the new value to set.
+    Note: filter_project_name and filter_client_name are used for filtering, while project_name and client_name are the new values to set.
     """
     # Require at least one filter to prevent accidental updates to all rows
-    if not project_id and not filter_project_name and not dimension_ref:
+    if not project_id and not filter_project_name and not dimension_ref and not filter_client_name:
         raise HTTPException(
             status_code=400,
-            detail="At least one filter (project_id, filter_project_name, or dimension_ref) must be provided"
+            detail="At least one filter (project_id, filter_project_name, dimension_ref, or filter_client_name) must be provided"
         )
     
     # Require at least one field to update
-    if project_name is None and dimension_name is None and data_source is None:
+    if project_name is None and dimension_name is None and data_source is None and client_name is None:
         raise HTTPException(
             status_code=400,
-            detail="At least one field (project_name, dimension_name, or data_source) must be provided"
+            detail="At least one field (project_name, dimension_name, data_source, or client_name) must be provided"
         )
     
     # Build query with filters (case-insensitive partial matching)
@@ -1222,6 +1229,8 @@ def bulk_update_filtered_voc_data(
         query = query.filter(ProcessVoc.project_name.ilike(f"%{filter_project_name}%"))
     if dimension_ref:
         query = query.filter(ProcessVoc.dimension_ref.ilike(f"%{dimension_ref}%"))
+    if filter_client_name:
+        query = query.filter(ProcessVoc.client_name.ilike(f"%{filter_client_name}%"))
     
     # Get all matching rows
     rows = query.all()
@@ -1238,6 +1247,9 @@ def bulk_update_filtered_voc_data(
         if data_source is not None:
             row.data_source = data_source
             updated = True
+        if client_name is not None:
+            row.client_name = client_name
+            updated = True
         
         if updated:
             updated_count += 1
@@ -1248,6 +1260,56 @@ def bulk_update_filtered_voc_data(
     return ProcessVocBulkUpdateResponse(
         updated_count=updated_count,
         message=f"Successfully updated {updated_count} row(s) matching filters"
+    )
+
+
+@app.delete("/api/founder-admin/voc-data/bulk-delete", response_model=ProcessVocBulkUpdateResponse)
+def bulk_delete_voc_data(
+    project_id: Optional[str] = None,
+    filter_project_name: Optional[str] = None,
+    dimension_ref: Optional[str] = None,
+    filter_client_name: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder)
+):
+    """
+    Bulk delete all rows matching filter criteria.
+    Requires founder authentication.
+    At least one filter (project_id, filter_project_name, dimension_ref, or filter_client_name) must be provided.
+    """
+    # Require at least one filter to prevent accidental deletion of all rows
+    if not project_id and not filter_project_name and not dimension_ref and not filter_client_name:
+        raise HTTPException(
+            status_code=400,
+            detail="At least one filter (project_id, filter_project_name, dimension_ref, or filter_client_name) must be provided"
+        )
+    
+    # Build query with filters (case-insensitive partial matching)
+    query = db.query(ProcessVoc)
+    
+    if project_id:
+        query = query.filter(ProcessVoc.project_id.ilike(f"%{project_id}%"))
+    if filter_project_name:
+        query = query.filter(ProcessVoc.project_name.ilike(f"%{filter_project_name}%"))
+    if dimension_ref:
+        query = query.filter(ProcessVoc.dimension_ref.ilike(f"%{dimension_ref}%"))
+    if filter_client_name:
+        query = query.filter(ProcessVoc.client_name.ilike(f"%{filter_client_name}%"))
+    
+    # Get all matching rows
+    rows = query.all()
+    deleted_count = len(rows)
+    
+    # Delete all matching rows
+    for row in rows:
+        db.delete(row)
+    
+    # Commit all changes
+    db.commit()
+    
+    return ProcessVocBulkUpdateResponse(
+        updated_count=deleted_count,
+        message=f"Successfully deleted {deleted_count} row(s) matching filters"
     )
 
 

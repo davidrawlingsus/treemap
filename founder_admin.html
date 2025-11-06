@@ -210,6 +210,15 @@
             background: #d0d0d0;
         }
 
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
         /* Table */
         .table-container {
             background: white;
@@ -444,6 +453,10 @@
             <!-- Filters -->
             <div class="filters">
                 <div class="filter-group">
+                    <label>Client Name</label>
+                    <input type="text" id="filterClientName" placeholder="Search client_name (partial match)">
+                </div>
+                <div class="filter-group">
                     <label>Project ID</label>
                     <input type="text" id="filterProjectId" placeholder="Search project_id (partial match)">
                 </div>
@@ -472,20 +485,27 @@
                     </p>
                     <div class="bulk-edit-fields">
                         <div class="filter-group">
-                            <label>New Project Name</label>
-                            <input type="text" id="bulkProjectName" placeholder="Leave empty to keep existing">
+                            <label>New Client Name</label>
+                            <input type="text" id="bulkClientName" placeholder="Leave empty to keep existing">
                         </div>
                         <div class="filter-group">
-                            <label>New Dimension Name</label>
-                            <input type="text" id="bulkDimensionName" placeholder="Leave empty to keep existing">
+                            <label>New Project Name</label>
+                            <input type="text" id="bulkProjectName" placeholder="Leave empty to keep existing">
                         </div>
                         <div class="filter-group">
                             <label>New Data Source</label>
                             <input type="text" id="bulkDataSource" placeholder="Leave empty to keep existing">
                         </div>
                         <div class="filter-group">
+                            <label>New Dimension Name</label>
+                            <input type="text" id="bulkDimensionName" placeholder="Leave empty to keep existing">
+                        </div>
+                        <div class="filter-group">
                             <button class="btn btn-primary" onclick="applyBulkEdit()">
                                 Update All Filtered Rows
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteBulkRows()" style="background: #dc3545; color: white;">
+                                Delete All Filtered Rows
                             </button>
                             <button class="btn btn-secondary" onclick="clearBulkEdit()">
                                 Clear
@@ -511,12 +531,12 @@
                             <tr>
                                 <th class="checkbox-cell"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()"></th>
                                 <th class="id-cell">ID</th>
+                                <th class="editable-cell">Client Name</th>
                                 <th>Project ID</th>
                                 <th class="editable-cell">Project Name</th>
                                 <th>Dimension Ref</th>
+                                <th class="editable-cell">Data Source</th>
                                 <th class="editable-cell">Dimension Name</th>
-                                <th>Client Name</th>
-                                <th>Data Source</th>
                                 <th class="text-cell">Value</th>
                             </tr>
                         </thead>
@@ -560,7 +580,8 @@
         let currentFilters = {
             project_id: '',
             project_name: '',
-            dimension_ref: ''
+            dimension_ref: '',
+            client_name: ''
         };
         let editedRows = new Map(); // Track edited values: rowId -> {project_name, dimension_name}
 
@@ -701,6 +722,9 @@
                 if (currentFilters.dimension_ref) {
                     params.append('dimension_ref', currentFilters.dimension_ref);
                 }
+                if (currentFilters.client_name) {
+                    params.append('client_name', currentFilters.client_name);
+                }
                 params.append('page', currentPage.toString());
                 params.append('page_size', pageSize.toString());
                 
@@ -745,6 +769,7 @@
                 const projectName = edited.project_name !== undefined ? edited.project_name : (row.project_name || '');
                 const dimensionName = edited.dimension_name !== undefined ? edited.dimension_name : (row.dimension_name || '');
                 const dataSource = edited.data_source !== undefined ? edited.data_source : (row.data_source || '');
+                const clientName = edited.client_name !== undefined ? edited.client_name : (row.client_name || '');
                 
                 return `
                     <tr data-row-id="${row.id}">
@@ -753,6 +778,13 @@
                                    ${editedRows.has(row.id) ? 'checked' : ''}>
                         </td>
                         <td class="id-cell">${row.id}</td>
+                        <td class="editable-cell">
+                            <input type="text" 
+                                   class="editable-input client-name-input" 
+                                   data-row-id="${row.id}"
+                                   value="${escapeHtml(clientName)}"
+                                   onchange="markRowEdited(${row.id}, 'client_name', this.value)">
+                        </td>
                         <td>${row.project_id || ''}</td>
                         <td class="editable-cell">
                             <input type="text" 
@@ -764,18 +796,17 @@
                         <td>${escapeHtml(row.dimension_ref || '')}</td>
                         <td class="editable-cell">
                             <input type="text" 
-                                   class="editable-input dimension-name-input" 
-                                   data-row-id="${row.id}"
-                                   value="${escapeHtml(dimensionName)}"
-                                   onchange="markRowEdited(${row.id}, 'dimension_name', this.value)">
-                        </td>
-                        <td>${escapeHtml(row.client_name || '')}</td>
-                        <td class="editable-cell">
-                            <input type="text" 
                                    class="editable-input data-source-input" 
                                    data-row-id="${row.id}"
                                    value="${escapeHtml(dataSource)}"
                                    onchange="markRowEdited(${row.id}, 'data_source', this.value)">
+                        </td>
+                        <td class="editable-cell">
+                            <input type="text" 
+                                   class="editable-input dimension-name-input" 
+                                   data-row-id="${row.id}"
+                                   value="${escapeHtml(dimensionName)}"
+                                   onchange="markRowEdited(${row.id}, 'dimension_name', this.value)">
                         </td>
                         <td class="text-cell" title="${escapeHtml(row.value || '')}">${escapeHtml((row.value || '').substring(0, 50))}</td>
                     </tr>
@@ -808,6 +839,7 @@
             currentFilters.project_id = document.getElementById('filterProjectId').value.trim();
             currentFilters.project_name = document.getElementById('filterProjectName').value.trim();
             currentFilters.dimension_ref = document.getElementById('filterDimensionRef').value.trim();
+            currentFilters.client_name = document.getElementById('filterClientName').value.trim();
             currentPage = 1;
             editedRows.clear();
             loadData();
@@ -817,9 +849,11 @@
             document.getElementById('filterProjectId').value = '';
             document.getElementById('filterProjectName').value = '';
             document.getElementById('filterDimensionRef').value = '';
+            document.getElementById('filterClientName').value = '';
             currentFilters.project_id = '';
             currentFilters.project_name = '';
             currentFilters.dimension_ref = '';
+            currentFilters.client_name = '';
             currentPage = 1;
             editedRows.clear();
             clearBulkEdit();
@@ -866,7 +900,8 @@
                         id: rowId,
                         project_name: edited.project_name !== undefined ? edited.project_name : null,
                         dimension_name: edited.dimension_name !== undefined ? edited.dimension_name : null,
-                        data_source: edited.data_source !== undefined ? edited.data_source : null
+                        data_source: edited.data_source !== undefined ? edited.data_source : null,
+                        client_name: edited.client_name !== undefined ? edited.client_name : null
                     });
                 }
             });
@@ -958,7 +993,7 @@
 
         // Bulk Edit Functions
         function updateBulkEditSection() {
-            const hasFilters = currentFilters.project_id || currentFilters.project_name || currentFilters.dimension_ref;
+            const hasFilters = currentFilters.project_id || currentFilters.project_name || currentFilters.dimension_ref || currentFilters.client_name;
             const bulkSection = document.getElementById('bulkEditSection');
             const bulkInfo = document.getElementById('bulkEditInfo');
             
@@ -974,6 +1009,9 @@
                 if (currentFilters.dimension_ref) {
                     filterText.push(`Dimension Ref: ${currentFilters.dimension_ref}`);
                 }
+                if (currentFilters.client_name) {
+                    filterText.push(`Client Name: ${currentFilters.client_name}`);
+                }
                 bulkInfo.textContent = `Will update all rows matching: ${filterText.join(', ')} (${totalRows} rows)`;
             } else {
                 bulkSection.style.display = 'none';
@@ -984,13 +1022,14 @@
             const newProjectName = document.getElementById('bulkProjectName').value.trim();
             const newDimensionName = document.getElementById('bulkDimensionName').value.trim();
             const newDataSource = document.getElementById('bulkDataSource').value.trim();
+            const newClientName = document.getElementById('bulkClientName').value.trim();
             
-            if (!newProjectName && !newDimensionName && !newDataSource) {
+            if (!newProjectName && !newDimensionName && !newDataSource && !newClientName) {
                 showStatus('Please provide at least one value to update', 'error');
                 return;
             }
             
-            if (!currentFilters.project_id && !currentFilters.project_name && !currentFilters.dimension_ref) {
+            if (!currentFilters.project_id && !currentFilters.project_name && !currentFilters.dimension_ref && !currentFilters.client_name) {
                 showStatus('Please apply filters before bulk editing', 'error');
                 return;
             }
@@ -1010,6 +1049,9 @@
                 if (currentFilters.dimension_ref) {
                     params.append('dimension_ref', currentFilters.dimension_ref);
                 }
+                if (currentFilters.client_name) {
+                    params.append('filter_client_name', currentFilters.client_name);
+                }
                 if (newProjectName) {
                     params.append('project_name', newProjectName);
                 }
@@ -1018,6 +1060,9 @@
                 }
                 if (newDataSource) {
                     params.append('data_source', newDataSource);
+                }
+                if (newClientName) {
+                    params.append('client_name', newClientName);
                 }
                 
                 const response = await fetch(`${API_BASE_URL}/api/founder-admin/voc-data/bulk-update-filtered?${params.toString()}`, {
@@ -1050,6 +1095,67 @@
             document.getElementById('bulkProjectName').value = '';
             document.getElementById('bulkDimensionName').value = '';
             document.getElementById('bulkDataSource').value = '';
+            document.getElementById('bulkClientName').value = '';
+        }
+
+        async function deleteBulkRows() {
+            if (!currentFilters.project_id && !currentFilters.project_name && !currentFilters.dimension_ref && !currentFilters.client_name) {
+                showStatus('Please apply filters before deleting rows', 'error');
+                return;
+            }
+            
+            // Double confirmation for deletion
+            const confirmMessage = `⚠️ WARNING: This will permanently delete ${totalRows} row(s). This action cannot be undone!\n\nAre you absolutely sure you want to proceed?`;
+            
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+            
+            // Second confirmation
+            const secondConfirm = prompt(`Type "DELETE" to confirm deletion of ${totalRows} row(s):`);
+            if (secondConfirm !== 'DELETE') {
+                showStatus('Deletion cancelled', 'error');
+                return;
+            }
+            
+            try {
+                const params = new URLSearchParams();
+                if (currentFilters.project_id) {
+                    params.append('project_id', currentFilters.project_id);
+                }
+                if (currentFilters.project_name) {
+                    params.append('filter_project_name', currentFilters.project_name);
+                }
+                if (currentFilters.dimension_ref) {
+                    params.append('dimension_ref', currentFilters.dimension_ref);
+                }
+                if (currentFilters.client_name) {
+                    params.append('filter_client_name', currentFilters.client_name);
+                }
+                
+                const response = await fetch(`${API_BASE_URL}/api/founder-admin/voc-data/bulk-delete?${params.toString()}`, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        handleLogout();
+                        return;
+                    }
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to delete rows');
+                }
+                
+                const result = await response.json();
+                showStatus(`Successfully deleted ${result.updated_count} row(s)`, 'success');
+                
+                // Reload data to show updated results
+                loadData();
+                
+            } catch (error) {
+                showStatus('Error deleting rows: ' + error.message, 'error');
+            }
         }
 
         // Enter key handlers

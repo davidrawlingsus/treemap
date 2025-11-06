@@ -242,6 +242,7 @@ class ProcessVocBulkUpdateItem(BaseModel):
     project_name: Optional[str] = None
     dimension_name: Optional[str] = None
     data_source: Optional[str] = None
+    client_name: Optional[str] = None
 
 
 class ProcessVocBulkUpdateRequest(BaseModel):
