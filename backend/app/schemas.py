@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, model_serializer
-from typing import Any, Union, Optional, List
+from typing import Any, Union, Optional, List, Dict
 from datetime import datetime
 from uuid import UUID
 
@@ -243,6 +243,9 @@ class ProcessVocBulkUpdateItem(BaseModel):
     dimension_name: Optional[str] = None
     data_source: Optional[str] = None
     client_name: Optional[str] = None
+    # Allow dynamic fields via dict
+    class Config:
+        extra = "allow"
 
 
 class ProcessVocBulkUpdateRequest(BaseModel):
@@ -263,4 +266,23 @@ class ProcessVocAdminListResponse(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
+
+class FieldMetadata(BaseModel):
+    """Metadata about a field"""
+    name: str
+    type: str  # 'string', 'integer', 'datetime', 'text', 'json'
+    nullable: bool
+    category: str  # 'client', 'project', 'dimension', 'response', 'metadata', 'timestamp'
+    editable: bool
+
+
+class FieldMetadataResponse(BaseModel):
+    """Response with all editable fields metadata"""
+    fields: List[FieldMetadata]
+
+
+class DynamicBulkUpdateRequest(BaseModel):
+    """Dynamic bulk update request - accepts any field as key-value pairs"""
+    updates: Dict[str, Optional[str]]  # field_name -> new_value (None means don't update)
 
