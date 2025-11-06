@@ -68,74 +68,7 @@
             font-weight: 500;
         }
 
-        /* Login Screen */
-        .login-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10000;
-        }
-
-        .login-container {
-            background: white;
-            padding: 40px;
-            border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            max-width: 400px;
-            width: 90%;
-        }
-
-        .login-container h2 {
-            margin: 0 0 24px 0;
-            color: #333;
-            font-size: 24px;
-            font-weight: 600;
-        }
-
-        .login-container input {
-            width: 100%;
-            padding: 12px;
-            margin-bottom: 16px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-            box-sizing: border-box;
-        }
-
-        .login-container button {
-            width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-
-        .login-container button:hover {
-            opacity: 0.9;
-        }
-
-        .login-container button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        .login-error {
-            color: #dc3545;
-            margin-top: 12px;
-            font-size: 14px;
-            display: none;
-        }
+        /* Login Screen styles moved to styles.css */
 
         .user-info {
             position: absolute;
@@ -2248,13 +2181,25 @@
                         currentDataSourceId = savedState.dataSourceId;
                         console.log(`Restored saved data source: ${currentDataSourceId}`);
                     } else {
-                        console.warn(`Saved data source "${savedState.dataSourceId}" not found in available sources, clearing selection`);
-                        currentDataSourceId = null;
+                        console.warn(`Saved data source "${savedState.dataSourceId}" not found in available sources`);
+                        // If saved source is invalid but there's only one source, select it
+                        if (clientSources.length === 1) {
+                            currentDataSourceId = clientSources[0].data_source;
+                            console.log(`Only one source available, selecting it by default: ${currentDataSourceId}`);
+                        } else {
+                            currentDataSourceId = null;
+                        }
                     }
                 } else {
-                    // Default to "All Sources" (empty value) if no saved state
-                    currentDataSourceId = null;
-                    console.log('No saved data source, defaulting to "All Sources"');
+                    // If there's only one source, select it by default; otherwise default to "All Sources"
+                    if (clientSources.length === 1) {
+                        currentDataSourceId = clientSources[0].data_source;
+                        console.log(`Only one source available, selecting it by default: ${currentDataSourceId}`);
+                    } else {
+                        // Default to "All Sources" (empty value) if no saved state and multiple sources
+                        currentDataSourceId = null;
+                        console.log('No saved data source, defaulting to "All Sources"');
+                    }
                 }
                 
                 console.log(`Current data source ID after validation: ${currentDataSourceId}`);

@@ -366,3 +366,94 @@
   margin-top: 8px;
 }
 
+/* Login Screen Styles - Marketing Site Branding */
+.login-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  font-family: var(--font-lato);
+}
+
+.login-container {
+  background: white;
+  padding: 40px;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  max-width: 400px;
+  width: 90%;
+}
+
+.login-container h2 {
+  margin: 0 0 24px 0;
+  color: #333;
+  font-size: 24px;
+  font-weight: 700;
+  font-family: var(--font-lato);
+}
+
+.login-container input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 16px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  box-sizing: border-box;
+  font-family: var(--font-lato);
+  transition: border-color 0.2s;
+}
+
+.login-container input:focus {
+  outline: none;
+  border-color: var(--brand-color);
+}
+
+.login-container button {
+  width: 100%;
+  padding: 12px;
+  background: var(--brand-color);
+  color: var(--bg-black);
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-family: var(--font-lato);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.login-container button:hover {
+  background: #a0d636;
+}
+
+.login-container button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--brand-color);
+}
+
+.login-error {
+  color: #dc3545;
+  margin-top: 12px;
+  font-size: 14px;
+  display: none;
+  font-family: var(--font-lato);
+}
+
+.login-container p {
+  margin-top: 16px;
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+  font-family: var(--font-lato);
+}
+
