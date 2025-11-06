@@ -10,8 +10,17 @@ const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:8000';
 
 console.log(`🔧 API_BASE_URL: ${API_BASE_URL}`);
 
-// Serve static files
-app.use(express.static('.'));
+// Serve static files from current directory
+app.use(express.static(__dirname));
+
+// Also serve common static files explicitly
+app.get('/styles.css', (req, res) => {
+  res.sendFile(path.join(__dirname, 'styles.css'));
+});
+
+app.get('/header.js', (req, res) => {
+  res.sendFile(path.join(__dirname, 'header.js'));
+});
 
 // Endpoint to get config (so frontend can fetch API URL dynamically)
 app.get('/config.js', (req, res) => {

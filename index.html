@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <meta name="theme-color" content="#667eea">
     <title>Intercom Topics Treemap</title>
+    
+    <!-- Lato font for marketing site header -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Marketing site styles -->
+    <link rel="stylesheet" href="/styles.css">
+    
     <script src="/config.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
@@ -2341,6 +2350,7 @@
             // Group by respondent_id
             const grouped = {};
             let totalTopics = 0;
+            let rowsWithoutTopics = 0;
             
             filteredRows.forEach(row => {
                 const respondentId = row.respondent_id;
@@ -2367,12 +2377,8 @@
                     grouped[respondentId].topics.push(...row.topics);
                     totalTopics += row.topics.length;
                 } else if (dimensionRef) {
-                    // Log when rows don't have topics for debugging
-                    console.warn(`Row ${respondentId} for dimension ${dimensionRef} has no topics:`, {
-                        hasTopics: !!row.topics,
-                        topicsType: typeof row.topics,
-                        topicsValue: row.topics
-                    });
+                    // Track rows without topics (expected for some dimensions)
+                    rowsWithoutTopics++;
                 }
                 
                 // Use first non-empty value as text
@@ -2383,6 +2389,9 @@
             
             const result = Object.values(grouped);
             console.log(`Grouped into ${result.length} unique respondents with ${totalTopics} total topics`);
+            if (rowsWithoutTopics > 0) {
+                console.log(`Note: ${rowsWithoutTopics} row(s) without topics${dimensionRef ? ` for dimension ${dimensionRef}` : ''} (expected behavior - some dimensions may not have topics)`);
+            }
             if (result.length > 0) {
                 console.log(`Sample grouped row:`, JSON.stringify(result[0], null, 2).substring(0, 300));
             }
@@ -4770,6 +4779,9 @@
             console.error('Error in checkAuth:', error);
         });
     </script>
+    
+    <!-- Marketing site header -->
+    <script src="/header.js"></script>
 </body>
 </html>
 

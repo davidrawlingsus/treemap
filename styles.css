@@ -1,0 +1,368 @@
+:root {
+  --font-lato: 'Lato', sans-serif;
+  --brand-color: #B9F040;
+  --bg-black: #000000;
+  --text-white: #ffffff;
+}
+
+/* Marketing site header styles */
+.marketably-header {
+  position: relative !important;
+  z-index: 9999 !important;
+  background: var(--bg-black) !important;
+  padding: 16px 0 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  display: block !important;
+  visibility: visible !important;
+}
+
+.marketably-header-content {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-left: 30px;
+}
+
+.marketably-logo {
+  display: flex;
+  flex-direction: column;
+}
+
+.marketably-logo-link {
+  font-weight: 700;
+  font-size: 1.875rem;
+  font-family: var(--font-lato);
+  text-decoration: none;
+  transition: opacity 0.2s;
+  display: inline-block;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.marketably-logo-link:hover {
+  opacity: 0.8;
+}
+
+.marketably-logo-text-white {
+  color: var(--text-white);
+}
+
+.marketably-logo-text-brand {
+  color: var(--brand-color);
+}
+
+.marketably-tagline {
+  font-size: 8px;
+  color: var(--brand-color);
+  letter-spacing: 0.12em;
+  margin-top: 4px;
+  white-space: nowrap;
+  font-weight: 400;
+  text-transform: uppercase;
+}
+
+.marketably-nav {
+  display: none; /* Hidden on mobile */
+  align-items: center;
+  gap: 32px;
+}
+
+@media (min-width: 1024px) {
+  .marketably-nav {
+    display: flex;
+  }
+}
+
+.marketably-nav-link {
+  color: var(--text-white);
+  text-decoration: none;
+  transition: color 0.2s;
+  position: relative;
+  font-size: 0.875rem;
+}
+
+.marketably-nav-link:hover {
+  color: var(--brand-color);
+}
+
+.marketably-nav-link.active {
+  color: var(--brand-color);
+  font-weight: 600;
+}
+
+.marketably-nav-link.active::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--brand-color);
+}
+
+.marketably-cta-group {
+  display: none;
+  align-items: center;
+  gap: 16px;
+  margin-left: 32px;
+}
+
+@media (min-width: 1024px) {
+  .marketably-cta-group {
+    display: flex;
+  }
+}
+
+.marketably-btn-secondary {
+  border: 2px solid var(--text-white);
+  color: var(--text-white);
+  padding: 8px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  text-decoration: none;
+  transition: all 0.2s;
+  background: transparent;
+  display: inline-block;
+}
+
+.marketably-btn-secondary:hover {
+  background: var(--text-white);
+  color: #1A2B3C;
+}
+
+.marketably-btn-primary {
+  background: var(--brand-color);
+  color: var(--bg-black);
+  padding: 8px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.marketably-btn-primary:hover {
+  background: #a0d636;
+}
+
+.marketably-mobile-menu-btn {
+  display: block;
+  background: none;
+  border: none;
+  color: var(--brand-color);
+  cursor: pointer;
+  padding: 8px;
+  transition: color 0.2s;
+}
+
+.marketably-mobile-menu-btn:hover {
+  color: var(--text-white);
+}
+
+@media (min-width: 1024px) {
+  .marketably-mobile-menu-btn {
+    display: none;
+  }
+}
+
+.marketably-mobile-menu {
+  display: none;
+  margin-top: 16px;
+  padding-bottom: 16px;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.marketably-mobile-menu.open {
+  display: flex;
+}
+
+.marketably-mobile-menu-link {
+  color: var(--text-white);
+  text-decoration: none;
+  transition: color 0.2s;
+  padding: 8px 0;
+}
+
+.marketably-mobile-menu-link:hover,
+.marketably-mobile-menu-link.active {
+  color: var(--brand-color);
+  font-weight: 600;
+}
+
+.marketably-mobile-cta {
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.marketably-mobile-cta .marketably-btn-secondary,
+.marketably-mobile-cta .marketably-btn-primary {
+  width: 100%;
+  text-align: center;
+  padding: 12px 24px;
+}
+
+/* Strategy Call Modal Styles */
+.strategy-call-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+}
+
+.strategy-call-modal {
+  background: white;
+  border-radius: 12px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.strategy-call-modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.strategy-call-modal-close:hover {
+  background: #f0f0f0;
+}
+
+.strategy-call-modal-content {
+  padding: 40px;
+}
+
+.strategy-call-modal h2 {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.strategy-call-modal p {
+  color: #666;
+  margin-bottom: 24px;
+  font-size: 14px;
+}
+
+.strategy-call-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.strategy-call-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.strategy-call-form-group label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.strategy-call-form-group input,
+.strategy-call-form-group textarea,
+.strategy-call-form-group select {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.strategy-call-form-group textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.strategy-call-form-group input:focus,
+.strategy-call-form-group textarea:focus,
+.strategy-call-form-group select:focus {
+  outline: none;
+  border-color: var(--brand-color);
+}
+
+.strategy-call-form-submit {
+  background: var(--brand-color);
+  color: var(--bg-black);
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.875rem;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s;
+  margin-top: 8px;
+}
+
+.strategy-call-form-submit:hover {
+  background: #a0d636;
+}
+
+.strategy-call-form-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.strategy-call-success {
+  text-align: center;
+  padding: 40px;
+}
+
+.strategy-call-success-icon {
+  color: var(--brand-color);
+  margin-bottom: 16px;
+}
+
+.strategy-call-success h3 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.strategy-call-success p {
+  color: #666;
+  font-size: 14px;
+}
+
+.strategy-call-error {
+  background: #fee;
+  color: #c33;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-top: 8px;
+}
+

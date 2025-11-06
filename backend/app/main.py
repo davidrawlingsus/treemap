@@ -49,6 +49,9 @@ app.add_middleware(
 # This allows accessing the frontend at http://localhost:8000/index.html
 frontend_path = Path(__file__).parent.parent.parent
 if (frontend_path / "index.html").exists():
+    # Mount static files directory to serve CSS, JS, and other assets
+    app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
+    
     @app.get("/", response_class=FileResponse)
     def serve_index():
         """Serve the frontend index.html"""
@@ -67,6 +70,30 @@ if (frontend_path / "index.html").exists():
         api_url = "http://localhost:8000"
         config_content = f"window.APP_CONFIG = {{ API_BASE_URL: '{api_url}' }};"
         return Response(content=config_content, media_type="application/javascript")
+    
+    # Serve static files directly (styles.css, header.js, etc.)
+    # Only match specific file extensions to avoid conflicting with API routes
+    @app.get("/styles.css")
+    def serve_styles():
+        """Serve styles.css"""
+        from fastapi.responses import Response
+        file_path = frontend_path / "styles.css"
+        if file_path.exists():
+            with open(file_path, 'r') as f:
+                content = f.read()
+            return Response(content=content, media_type="text/css")
+        raise HTTPException(status_code=404, detail="File not found")
+    
+    @app.get("/header.js")
+    def serve_header():
+        """Serve header.js"""
+        from fastapi.responses import Response
+        file_path = frontend_path / "header.js"
+        if file_path.exists():
+            with open(file_path, 'r') as f:
+                content = f.read()
+            return Response(content=content, media_type="application/javascript")
+        raise HTTPException(status_code=404, detail="File not found")
 
 if (frontend_path / "founder_admin.html").exists():
     @app.get("/founder_admin", response_class=FileResponse)
