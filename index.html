@@ -3528,6 +3528,19 @@
             }
         }
 
+        // Helper function to collect all verbatims from all topics in a category
+        function collectCategoryVerbatims(categoryData) {
+            if (!categoryData) return [];
+            const allVerbatims = [];
+            if (categoryData.children && Array.isArray(categoryData.children)) {
+                categoryData.children.forEach(topic => {
+                    if (topic && topic.verbatims && Array.isArray(topic.verbatims)) {
+                        allVerbatims.push(...topic.verbatims);
+                    }
+                });
+            }
+            return allVerbatims;
+        }
 
         // Render treemap
         function renderTreemap(data) {
@@ -3575,7 +3588,21 @@
                 const categoryGroups = svg.selectAll('.category-group')
                     .data(root.children)
                     .join('g')
-                    .attr('class', 'category-group');
+                    .attr('class', 'category-group')
+                    .style('cursor', 'pointer')
+                    .on('click', (event, d) => {
+                        try {
+                            // Collect all verbatims from all topics in this category
+                            if (d && d.data) {
+                                const allVerbatims = collectCategoryVerbatims(d.data);
+                                if (allVerbatims.length > 0) {
+                                    showVerbatims(allVerbatims, d.data.name || 'Category', d.data.name || 'Category');
+                                }
+                            }
+                        } catch (error) {
+                            console.error('Error handling category click:', error);
+                        }
+                    });
 
                 // Category background rectangles with rounded corners
                 categoryGroups.append('rect')
@@ -3718,9 +3745,17 @@
                 viewStack.push({ type: 'topic', data: node.data, parent: categoryName });
                 showVerbatims(node.data.verbatims, node.data.name, categoryName);
             } else if (node.children || (node.data.children && node.data.children.length > 0)) {
-                // This is a category - drill down
-                viewStack.push({ type: 'category', data: node.data });
-                renderTreemap(node.data);
+                // This is a category - collect all verbatims from all topics
+                const allVerbatims = collectCategoryVerbatims(node.data);
+                if (allVerbatims.length > 0) {
+                    // Show all verbatims for this category
+                    viewStack.push({ type: 'category', data: node.data });
+                    showVerbatims(allVerbatims, node.data.name, node.data.name);
+                } else {
+                    // No verbatims, drill down (fallback behavior)
+                    viewStack.push({ type: 'category', data: node.data });
+                    renderTreemap(node.data);
+                }
             }
         }
 
@@ -4171,19 +4206,58 @@
                 const categoryId = `cat-${catIndex}`;
                 const baseColor = colorPalette[category.name] || categoryColors[catIndex % categoryColors.length];
 
+                // Helper function to collect all verbatims from category (shared by header and bar)
+                const collectAllCategoryVerbatims = () => {
+                    const allVerbatims = [];
+                    category.topics.forEach(topic => {
+                        if (topic.verbatims && Array.isArray(topic.verbatims)) {
+                            allVerbatims.push(...topic.verbatims);
+                        }
+                    });
+                    return allVerbatims;
+                };
+
                 // Labels column: toggle + label
                 const labelGroup = document.createElement('div');
                 labelGroup.className = 'group';
 
                 const headerRow = document.createElement('div');
                 headerRow.className = 'group__header';
+                headerRow.style.cursor = 'pointer';
 
                 const toggle = document.createElement('button');
                 toggle.className = 'toggle';
                 toggle.setAttribute('aria-expanded', 'false');
                 toggle.setAttribute('aria-controls', categoryId);
                 toggle.textContent = '+';
-                toggle.onclick = () => toggleCategory(categoryId, toggle);
+                toggle.onclick = (e) => {
+                    e.stopPropagation(); // Prevent triggering headerRow click
+                    toggleCategory(categoryId, toggle);
+                };
+
+                // Add click handler to show all verbatims for this category
+                headerRow.onclick = (e) => {
+                    // Don't trigger if clicking the toggle button
+                    if (e.target === toggle || toggle.contains(e.target)) {
+                        return;
+                    }
+                    const allVerbatims = collectAllCategoryVerbatims();
+                    if (allVerbatims.length > 0) {
+                        showVerbatims(allVerbatims, category.name, category.name);
+                    }
+                };
+                headerRow.setAttribute('role', 'button');
+                headerRow.setAttribute('tabindex', '0');
+                headerRow.setAttribute('aria-label', `View all conversations in ${category.name}`);
+                headerRow.onkeydown = (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        const allVerbatims = collectAllCategoryVerbatims();
+                        if (allVerbatims.length > 0) {
+                            showVerbatims(allVerbatims, category.name, category.name);
+                        }
+                    }
+                };
 
                 const labelWrapper = document.createElement('div');
                 labelWrapper.className = 'group__label-wrapper';
@@ -4255,6 +4329,27 @@
 
                 const barHeaderRow = document.createElement('div');
                 barHeaderRow.className = 'group__bar-container';
+                barHeaderRow.style.cursor = 'pointer';
+
+                // Add click handler to show all verbatims for this category
+                barHeaderRow.onclick = () => {
+                    const allVerbatims = collectAllCategoryVerbatims();
+                    if (allVerbatims.length > 0) {
+                        showVerbatims(allVerbatims, category.name, category.name);
+                    }
+                };
+                barHeaderRow.setAttribute('role', 'button');
+                barHeaderRow.setAttribute('tabindex', '0');
+                barHeaderRow.setAttribute('aria-label', `View all conversations in ${category.name}`);
+                barHeaderRow.onkeydown = (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        const allVerbatims = collectAllCategoryVerbatims();
+                        if (allVerbatims.length > 0) {
+                            showVerbatims(allVerbatims, category.name, category.name);
+                        }
+                    }
+                };
 
                 const track = document.createElement('div');
                 track.className = 'bar__track';
