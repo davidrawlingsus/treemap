@@ -1459,14 +1459,14 @@
         }
 
         .group {
-            margin-bottom: 16px;
+            margin-bottom: 3px;
         }
 
         .group__header {
             display: flex;
             align-items: center;
             margin-bottom: 6px;
-            min-height: 32px;
+            height: 32px;
         }
 
         .toggle {
@@ -1524,6 +1524,7 @@
             height: 32px;
             display: flex;
             align-items: center;
+            margin-bottom: 6px;
         }
 
         .bar__track {
@@ -1587,11 +1588,12 @@
              display: flex;
              align-items: center;
              margin-bottom: 6px;
-             min-height: 28px;
+             height: 32px;
              cursor: pointer;
              transition: background-color 0.2s ease-in-out;
              border-radius: 4px;
              padding: 2px 0;
+             box-sizing: border-box;
          }
 
          .topic:hover {
@@ -1628,7 +1630,7 @@
 
          .topic__bar-container {
              position: relative;
-             height: 28px;
+             height: 32px;
              display: flex;
              align-items: center;
              margin-bottom: 6px;
@@ -5225,10 +5227,10 @@
              topics.forEach((topic, index) => {
                  const baseColor = colorPalette[topic.category] || categoryColors[index % categoryColors.length];
                  
-                 // Labels column
-                 const labelRow = document.createElement('div');
-                 labelRow.className = 'topic';
-                 labelRow.style.marginBottom = '8px';
+                // Labels column
+                const labelRow = document.createElement('div');
+                labelRow.className = 'topic';
+                labelRow.style.marginBottom = '6px';
                  
                  // Add click handler for drilldown to verbatims
                  labelRow.onclick = () => {
@@ -5268,7 +5270,7 @@
                 // Bars column
                 const barRow = document.createElement('div');
                 barRow.className = 'topic__bar-container';
-                barRow.style.marginBottom = '8px';
+                barRow.style.marginBottom = '6px';
                 barRow.style.cursor = 'pointer';
                 
                 // Add click handler for drilldown to verbatims
