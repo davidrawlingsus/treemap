@@ -255,11 +255,28 @@
             gap: 0;
         }
 
+        .favourites-section {
+            grid-column: 1;
+        }
+
         @media (max-width: 1024px) {
             .visualizations-grid {
                 grid-template-columns: 1fr;
                 gap: 20px;
                 padding: 20px;
+            }
+
+            .chart-column {
+                order: 1;
+            }
+
+            .chart[aria-label="All Topics"] {
+                order: 2;
+            }
+
+            .favourites-section {
+                order: 3;
+                grid-column: 1;
             }
 
             .treemap-section {
@@ -1286,12 +1303,47 @@
             margin-bottom: 8px;
         }
 
+        .chart__header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+
         .chart__title {
             font-family: 'Lato', sans-serif;
             font-size: 20px;
             font-weight: 600;
             color: #333;
             margin: 0;
+            flex: 1;
+        }
+
+        .chart__toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #666;
+            transition: color 0.2s, transform 0.2s;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .chart__toggle:hover {
+            color: #333;
+            background: #f0f0f0;
+        }
+
+        .chart__toggle-icon {
+            transition: transform 0.2s;
+        }
+
+        .chart.collapsed .chart__toggle-icon {
+            transform: rotate(-90deg);
         }
 
         .chart__subtitle {
@@ -1305,6 +1357,30 @@
             position: relative;
             display: flex;
             gap: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out, margin 0.3s ease-out, padding 0.3s ease-out;
+            max-height: 2000px;
+            opacity: 1;
+        }
+
+        .chart.collapsed .chart__body {
+            max-height: 0;
+            opacity: 0;
+            margin: 0;
+            padding: 0;
+            min-height: 0;
+        }
+
+        .chart__footer {
+            transition: opacity 0.3s ease-out, max-height 0.3s ease-out, margin 0.3s ease-out, padding 0.3s ease-out;
+            overflow: hidden;
+        }
+
+        .chart.collapsed .chart__footer {
+            opacity: 0;
+            max-height: 0;
+            margin: 0;
+            padding: 0;
         }
 
         .chart__labels {
@@ -1756,7 +1832,14 @@
             <div class="chart-column">
                 <div class="chart" role="figure" aria-label="Topics by Category">
                     <div class="chart__header">
-                        <h2 class="chart__title">Topics by Category</h2>
+                        <div class="chart__header-top">
+                            <h2 class="chart__title">Topics by Category</h2>
+                            <button class="chart__toggle" onclick="toggleChart(this)" aria-label="Toggle chart visibility">
+                                <svg class="chart__toggle-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M4 6 L8 10 L12 6" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                        </div>
                         <p class="chart__subtitle">Frequency of customer conversation topics</p>
                     </div>
                     <div class="chart__body">
@@ -1765,31 +1848,18 @@
                     </div>
                     <div class="chart__footer" id="barChartFooter">Frequency (n=<span id="totalCount">0</span>)</div>
                 </div>
-
-        <!-- Favourite Verbatims Section -->
-        <div class="favourites-section">
-            <h2>Favourite Verbatims</h2>
-            <div class="favourites-search-container">
-                <input
-                    type="text"
-                    id="favouritesSearch"
-                    class="favourites-search-input"
-                    placeholder="Search favourites..."
-                />
-                <button
-                    id="favouritesSearchClear"
-                    class="favourites-search-clear"
-                    onclick="clearFavouritesSearch()"
-                    title="Clear search"
-                >&times;</button>
-            </div>
-            <div id="favouritesContainer" class="favourites-container"></div>
-        </div>
             </div>
 
             <div class="chart" role="figure" aria-label="All Topics">
                 <div class="chart__header">
-                    <h2 class="chart__title">All Topics</h2>
+                    <div class="chart__header-top">
+                        <h2 class="chart__title">All Topics</h2>
+                        <button class="chart__toggle" onclick="toggleChart(this)" aria-label="Toggle chart visibility">
+                            <svg class="chart__toggle-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 6 L8 10 L12 6" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                    </div>
                     <p class="chart__subtitle">Individual topic frequency across all categories</p>
                 </div>
                 <div class="chart__body">
@@ -1797,6 +1867,26 @@
                     <div class="chart__bars" id="topicsChartBars"></div>
                 </div>
                 <div class="chart__footer" id="topicsChartFooter">Frequency (n=<span id="topicsCount">0</span>)</div>
+            </div>
+
+            <!-- Favourite Verbatims Section -->
+            <div class="favourites-section">
+                <h2>Favourite Verbatims</h2>
+                <div class="favourites-search-container">
+                    <input
+                        type="text"
+                        id="favouritesSearch"
+                        class="favourites-search-input"
+                        placeholder="Search favourites..."
+                    />
+                    <button
+                        id="favouritesSearchClear"
+                        class="favourites-search-clear"
+                        onclick="clearFavouritesSearch()"
+                        title="Clear search"
+                    >&times;</button>
+                </div>
+                <div id="favouritesContainer" class="favourites-container"></div>
             </div>
         </div>
     </div>
@@ -2325,15 +2415,10 @@
                 }
                 select.innerHTML = '';
                 
-                // Always add "All Projects" option
-                const allOption = document.createElement('option');
-                allOption.value = '';
-                allOption.textContent = 'All Projects';
-                select.appendChild(allOption);
-                
                 if (clientProjects.length === 0) {
                     console.log('No projects available');
-                    // Keep "All Projects" option, don't return
+                    select.innerHTML = '<option value="">No projects available</option>';
+                    currentProjectName = null;
                 } else {
                     console.log('Populating project dropdown...');
                     clientProjects.forEach((project) => {
@@ -2342,26 +2427,29 @@
                         option.textContent = project.project_name || 'Unknown Project';
                         select.appendChild(option);
                     });
-                }
-                
-                // Validate that the saved project name exists in the list
-                if (currentProjectName) {
-                    const projectExists = clientProjects.some(p => p.project_name === currentProjectName);
-                    if (!projectExists) {
-                        console.warn(`Saved project "${currentProjectName}" not found in available projects, clearing selection`);
-                        currentProjectName = null;
+                    
+                    // Validate that the saved project name exists in the list
+                    if (currentProjectName) {
+                        const projectExists = clientProjects.some(p => p.project_name === currentProjectName);
+                        if (!projectExists) {
+                            console.warn(`Saved project "${currentProjectName}" not found in available projects, defaulting to first`);
+                            currentProjectName = null;
+                        }
                     }
-                }
-                
-                console.log(`Current project name after validation: ${currentProjectName}`);
-                
-                // Set the select value to match the current project (or empty for "All Projects")
-                if (currentProjectName) {
-                    select.value = currentProjectName;
-                    console.log(`Set select value to: ${currentProjectName}`);
-                } else {
-                    select.value = '';
-                    console.log('Set select value to empty (All Projects)');
+                    
+                    // Default to first project if no saved selection
+                    if (!currentProjectName && clientProjects.length > 0) {
+                        currentProjectName = clientProjects[0].project_name;
+                        console.log(`Defaulting to first project: ${currentProjectName}`);
+                    }
+                    
+                    console.log(`Current project name after validation: ${currentProjectName}`);
+                    
+                    // Set the select value to match the current project
+                    if (currentProjectName) {
+                        select.value = currentProjectName;
+                        console.log(`Set select value to: ${currentProjectName}`);
+                    }
                 }
                 
                 // Add change listener (only once)
@@ -2371,7 +2459,7 @@
                 
                 // Load sources for the selected client (and project if selected)
                 if (currentClientId) {
-                    console.log(`Loading sources for client: ${currentClientId}, project: ${currentProjectName || 'All Projects'}`);
+                    console.log(`Loading sources for client: ${currentClientId}, project: ${currentProjectName || 'None'}`);
                     await loadClientSources(currentClientId, savedState);
                 } else {
                     console.log('No client selected, skipping source load');
@@ -2397,7 +2485,7 @@
         
         // Load sources for a specific client
         async function loadClientSources(clientId, savedState = null) {
-            console.log(`loadClientSources() called for client: ${clientId}, project: ${currentProjectName || 'All Projects'}`);
+            console.log(`loadClientSources() called for client: ${clientId}, project: ${currentProjectName || 'None'}`);
             try {
                 let url = `${API_BASE_URL}/api/voc/sources?client_uuid=${clientId}`;
                 if (currentProjectName) {
@@ -2422,15 +2510,10 @@
                 }
                 select.innerHTML = '';
                 
-                // Add "All Sources" option first
-                const allOption = document.createElement('option');
-                allOption.value = '';
-                allOption.textContent = 'All Sources';
-                select.appendChild(allOption);
-                
                 if (clientSources.length === 0) {
                     console.log('No sources available');
-                    // Keep "All Sources" option, don't return
+                    select.innerHTML = '<option value="">No sources available</option>';
+                    currentDataSourceId = null;
                 } else {
                     console.log('Populating source dropdown...');
                     clientSources.forEach((source) => {
@@ -2439,46 +2522,33 @@
                         option.textContent = source.data_source || 'Unknown Source';
                         select.appendChild(option);
                     });
-                }
-                
-                // Restore saved data source from savedState if it exists
-                if (savedState && savedState.dataSourceId) {
-                    // Validate that the saved data source exists in the list
-                    const sourceExists = clientSources.some(s => s.data_source === savedState.dataSourceId);
-                    if (sourceExists) {
-                        currentDataSourceId = savedState.dataSourceId;
-                        console.log(`Restored saved data source: ${currentDataSourceId}`);
-                    } else {
-                        console.warn(`Saved data source "${savedState.dataSourceId}" not found in available sources`);
-                        // If saved source is invalid but there's only one source, select it
-                        if (clientSources.length === 1) {
-                            currentDataSourceId = clientSources[0].data_source;
-                            console.log(`Only one source available, selecting it by default: ${currentDataSourceId}`);
+                    
+                    // Restore saved data source from savedState if it exists
+                    if (savedState && savedState.dataSourceId) {
+                        // Validate that the saved data source exists in the list
+                        const sourceExists = clientSources.some(s => s.data_source === savedState.dataSourceId);
+                        if (sourceExists) {
+                            currentDataSourceId = savedState.dataSourceId;
+                            console.log(`Restored saved data source: ${currentDataSourceId}`);
                         } else {
+                            console.warn(`Saved data source "${savedState.dataSourceId}" not found in available sources, defaulting to first`);
                             currentDataSourceId = null;
                         }
                     }
-                } else {
-                    // If there's only one source, select it by default; otherwise default to "All Sources"
-                    if (clientSources.length === 1) {
+                    
+                    // Default to first source if no saved selection
+                    if (!currentDataSourceId && clientSources.length > 0) {
                         currentDataSourceId = clientSources[0].data_source;
-                        console.log(`Only one source available, selecting it by default: ${currentDataSourceId}`);
-                    } else {
-                        // Default to "All Sources" (empty value) if no saved state and multiple sources
-                        currentDataSourceId = null;
-                        console.log('No saved data source, defaulting to "All Sources"');
+                        console.log(`Defaulting to first source: ${currentDataSourceId}`);
                     }
-                }
-                
-                console.log(`Current data source ID after validation: ${currentDataSourceId}`);
-                
-                // Set the select value to match the current data source (or empty for "All Sources")
-                if (currentDataSourceId) {
-                    select.value = currentDataSourceId;
-                    console.log(`Set select value to: ${currentDataSourceId}`);
-                } else {
-                    select.value = '';
-                    console.log('Set select value to empty (All Sources)');
+                    
+                    console.log(`Current data source ID after validation: ${currentDataSourceId}`);
+                    
+                    // Set the select value to match the current data source
+                    if (currentDataSourceId) {
+                        select.value = currentDataSourceId;
+                        console.log(`Set select value to: ${currentDataSourceId}`);
+                    }
                 }
                 
                 // Add change listener (only once)
@@ -2486,8 +2556,8 @@
                 select.addEventListener('change', handleSourceChange);
                 console.log('Added change listener to source select');
                 
-                // Load data (for all sources if currentDataSourceId is null, or specific source if selected)
-                console.log(`About to load data: client=${clientId}, source=${currentDataSourceId || 'All Sources'}`);
+                // Load data for the selected source
+                console.log(`About to load data: client=${clientId}, source=${currentDataSourceId || 'None'}`);
                 await loadDataSource(clientId, currentDataSourceId, savedState);
                 console.log('loadDataSource completed');
             } catch (error) {
@@ -2518,11 +2588,9 @@
                     breadcrumb += ` > ${currentProjectName}`;
                 }
                 
-                // Add source to breadcrumb if selected, otherwise show "All Sources"
+                // Add source to breadcrumb if selected
                 if (source) {
                     breadcrumb += ` > ${source.data_source || 'Unknown Source'}`;
-                } else if (currentClientId) {
-                    breadcrumb += ` > All Sources`;
                 }
                 
                 // Add question to breadcrumb if specified
@@ -2614,7 +2682,7 @@
 
         // Load a specific data source
         async function loadDataSource(clientUuid, dataSource, savedState = null) {
-            console.log(`loadDataSource() called: client=${clientUuid}, project=${currentProjectName || 'All Projects'}, source=${dataSource}`);
+            console.log(`loadDataSource() called: client=${clientUuid}, project=${currentProjectName || 'None'}, source=${dataSource || 'None'}`);
             try {
                 document.getElementById('loading').style.display = 'flex';
                 document.getElementById('loading').innerHTML = 'Loading data...';
@@ -4167,6 +4235,14 @@
                 } else {
                     clearButton.classList.remove('active');
                 }
+            }
+        }
+
+        // Toggle chart visibility
+        function toggleChart(button) {
+            const chart = button.closest('.chart');
+            if (chart) {
+                chart.classList.toggle('collapsed');
             }
         }
 
