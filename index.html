@@ -249,6 +249,12 @@
             margin: 0;
         }
 
+        .chart-column {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
         @media (max-width: 1024px) {
             .visualizations-grid {
                 grid-template-columns: 1fr;
@@ -670,10 +676,11 @@
         }
 
         .favourites-section {
-            margin-top: 60px;
-            padding: 40px 30px;
+            margin-top: 30px;
+            padding: 24px;
             background: white;
-            border-top: 2px solid #e8e8e8;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         }
 
         .favourites-section h2 {
@@ -1688,16 +1695,24 @@
         </div>
 
         <div class="visualizations-grid">
-            <div class="chart" role="figure" aria-label="Topics by Category">
-                <div class="chart__header">
-                    <h2 class="chart__title">Topics by Category</h2>
-                    <p class="chart__subtitle">Frequency of customer conversation topics</p>
+            <div class="chart-column">
+                <div class="chart" role="figure" aria-label="Topics by Category">
+                    <div class="chart__header">
+                        <h2 class="chart__title">Topics by Category</h2>
+                        <p class="chart__subtitle">Frequency of customer conversation topics</p>
+                    </div>
+                    <div class="chart__body">
+                        <div class="chart__labels" id="barChartLabels"></div>
+                        <div class="chart__bars" id="barChartBars"></div>
+                    </div>
+                    <div class="chart__footer" id="barChartFooter">Frequency (n=<span id="totalCount">0</span>)</div>
                 </div>
-                <div class="chart__body">
-                    <div class="chart__labels" id="barChartLabels"></div>
-                    <div class="chart__bars" id="barChartBars"></div>
+
+                <!-- Favourite Verbatims Section -->
+                <div class="favourites-section">
+                    <h2>Favourite Verbatims</h2>
+                    <div id="favouritesContainer" class="favourites-container"></div>
                 </div>
-                <div class="chart__footer" id="barChartFooter">Frequency (n=<span id="totalCount">0</span>)</div>
             </div>
 
             <div class="chart" role="figure" aria-label="All Topics">
@@ -1711,12 +1726,6 @@
                 </div>
                 <div class="chart__footer" id="topicsChartFooter">Frequency (n=<span id="topicsCount">0</span>)</div>
             </div>
-        </div>
-
-        <!-- Favourite Verbatims Section -->
-        <div class="favourites-section">
-            <h2>Favourite Verbatims</h2>
-            <div id="favouritesContainer" class="favourites-container"></div>
         </div>
     </div>
 
@@ -3912,9 +3921,9 @@
             const subtitle = document.getElementById('overlaySubtitle');
             if (subtitle && currentCategoryName) {
                 if (searchTerm === '') {
-                    subtitle.textContent = `${currentCategoryName} • ${verbatims.length} conversation${verbatims.length !== 1 ? 's' : ''}`;
+                    subtitle.textContent = `${currentCategoryName} • ${verbatims.length} verbatim${verbatims.length !== 1 ? 's' : ''}`;
                 } else {
-                    subtitle.textContent = `${currentCategoryName} • ${filteredVerbatims.length} of ${verbatims.length} conversation${verbatims.length !== 1 ? 's' : ''}`;
+                    subtitle.textContent = `${currentCategoryName} • ${filteredVerbatims.length} of ${verbatims.length} verbatim${verbatims.length !== 1 ? 's' : ''}`;
                 }
             }
             
@@ -4025,7 +4034,7 @@
             
             // Set header info
             title.textContent = topicName;
-            subtitle.textContent = `${categoryName} • ${verbatims.length} conversation${verbatims.length !== 1 ? 's' : ''}`;
+            subtitle.textContent = `${categoryName} • ${verbatims.length} verbatim${verbatims.length !== 1 ? 's' : ''}`;
             
             // Render verbatims with current settings
             renderVerbatims(verbatims, topicName, categoryName);
