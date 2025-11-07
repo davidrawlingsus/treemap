@@ -252,11 +252,12 @@
         .chart-column {
             display: flex;
             flex-direction: column;
-            gap: 0;
+            gap: 30px;
+            transition: all 0.3s ease-out;
         }
 
         .favourites-section {
-            grid-column: 1;
+            transition: all 0.3s ease-out;
         }
 
         @media (max-width: 1024px) {
@@ -267,6 +268,10 @@
             }
 
             .chart-column {
+                display: contents;
+            }
+
+            .chart-column > .chart {
                 order: 1;
             }
 
@@ -276,7 +281,6 @@
 
             .favourites-section {
                 order: 3;
-                grid-column: 1;
             }
 
             .treemap-section {
@@ -700,7 +704,6 @@
         }
 
         .favourites-section {
-            margin-top: 30px;
             padding: 24px;
             background: white;
             border-radius: 8px;
@@ -1297,6 +1300,11 @@
             border-radius: 8px;
             padding: 24px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            transition: padding 0.3s ease-out;
+        }
+
+        .chart.collapsed {
+            padding-bottom: 16px;
         }
 
         .chart__header {
@@ -1351,6 +1359,12 @@
             font-size: 13px;
             color: #8B93A7;
             margin: 4px 0 16px 0;
+            transition: margin 0.3s ease-out, opacity 0.3s ease-out;
+        }
+
+        .chart.collapsed .chart__subtitle {
+            margin-bottom: 0;
+            opacity: 0.7;
         }
 
         .chart__body {
@@ -1848,6 +1862,26 @@
                     </div>
                     <div class="chart__footer" id="barChartFooter">Frequency (n=<span id="totalCount">0</span>)</div>
                 </div>
+
+                <!-- Favourite Verbatims Section -->
+                <div class="favourites-section">
+                    <h2>Favourite Verbatims</h2>
+                    <div class="favourites-search-container">
+                        <input
+                            type="text"
+                            id="favouritesSearch"
+                            class="favourites-search-input"
+                            placeholder="Search favourites..."
+                        />
+                        <button
+                            id="favouritesSearchClear"
+                            class="favourites-search-clear"
+                            onclick="clearFavouritesSearch()"
+                            title="Clear search"
+                        >&times;</button>
+                    </div>
+                    <div id="favouritesContainer" class="favourites-container"></div>
+                </div>
             </div>
 
             <div class="chart" role="figure" aria-label="All Topics">
@@ -1867,26 +1901,6 @@
                     <div class="chart__bars" id="topicsChartBars"></div>
                 </div>
                 <div class="chart__footer" id="topicsChartFooter">Frequency (n=<span id="topicsCount">0</span>)</div>
-            </div>
-
-            <!-- Favourite Verbatims Section -->
-            <div class="favourites-section">
-                <h2>Favourite Verbatims</h2>
-                <div class="favourites-search-container">
-                    <input
-                        type="text"
-                        id="favouritesSearch"
-                        class="favourites-search-input"
-                        placeholder="Search favourites..."
-                    />
-                    <button
-                        id="favouritesSearchClear"
-                        class="favourites-search-clear"
-                        onclick="clearFavouritesSearch()"
-                        title="Clear search"
-                    >&times;</button>
-                </div>
-                <div id="favouritesContainer" class="favourites-container"></div>
             </div>
         </div>
     </div>
