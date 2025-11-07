@@ -346,7 +346,7 @@
             width: 100%;
             height: 100%;
             background: rgba(0, 0, 0, 0.6);
-            z-index: 1000;
+            z-index: 10001;
             animation: fadeIn 0.3s ease-in-out;
         }
 
@@ -437,7 +437,7 @@
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
             padding: 20px;
             min-width: 220px;
-            z-index: 1001;
+            z-index: 10002;
             display: none;
             animation: slideDown 0.2s ease-out;
         }
@@ -3968,8 +3968,9 @@
                     : '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="none" stroke="currentColor" stroke-width="2"/>';
                 
                 // Store verbatim data in a data attribute for the onclick handler
-                // Use base64 encoding to safely store JSON in data attribute
-                const verbatimData = btoa(JSON.stringify(v));
+                // Use base64 encoding with Unicode-safe encoding
+                const verbatimJson = JSON.stringify(v);
+                const verbatimData = btoa(unescape(encodeURIComponent(verbatimJson)));
                 
                 card.innerHTML = `
                     <div class="verbatim-card-header">
@@ -4106,8 +4107,9 @@
             if (!verbatimData) return;
             
             try {
-                // Decode base64 encoded JSON
-                const verbatim = JSON.parse(atob(verbatimData));
+                // Decode base64 encoded JSON with Unicode-safe decoding
+                const verbatimJson = decodeURIComponent(escape(atob(verbatimData)));
+                const verbatim = JSON.parse(verbatimJson);
                 toggleFavourite(verbatim);
             } catch (e) {
                 console.error('Error parsing verbatim data:', e);
@@ -4231,8 +4233,9 @@
                     </div>
                 ` : '';
                 
-                // Use base64 encoding to safely store JSON in data attribute
-                const verbatimData = btoa(JSON.stringify(v));
+                // Use base64 encoding with Unicode-safe encoding
+                const verbatimJson = JSON.stringify(v);
+                const verbatimData = btoa(unescape(encodeURIComponent(verbatimJson)));
                 
                 card.innerHTML = `
                     <div class="verbatim-card-header">
