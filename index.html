@@ -3648,6 +3648,18 @@
             return allVerbatims;
         }
 
+        // Helper function to find a category in hierarchyData by name
+        function findCategoryInHierarchy(categoryName) {
+            if (!hierarchyData || !hierarchyData.children) return null;
+            return hierarchyData.children.find(cat => cat.name === categoryName) || null;
+        }
+
+        // Helper function to find a topic in a category by name
+        function findTopicInCategory(categoryData, topicName) {
+            if (!categoryData || !categoryData.children) return null;
+            return categoryData.children.find(topic => topic.name === topicName) || null;
+        }
+
         // Render treemap
         function renderTreemap(data) {
             const svg = d3.select('#treemap');
@@ -4125,7 +4137,12 @@
                 // Remove from favourites
                 favourites.splice(index, 1);
             } else {
-                // Add to favourites
+                // Add to favourites - include category and topic from current context
+                // If verbatim already has category/topic (from favorites section), preserve them
+                // Otherwise use current context
+                const category = verbatim.category || currentCategoryName || null;
+                const topic = verbatim.topic || currentTopicName || null;
+                
                 favourites.push({
                     key: key,
                     verbatim: {
@@ -4135,7 +4152,9 @@
                         country: verbatim.country,
                         city: verbatim.city,
                         date: verbatim.date,
-                        source_type: verbatim.source_type
+                        source_type: verbatim.source_type,
+                        category: category,
+                        topic: topic
                     }
                 });
             }
@@ -4146,6 +4165,28 @@
             // Re-render verbatims if they're currently displayed to update favorite buttons
             if (currentVerbatimsData) {
                 renderVerbatims(currentVerbatimsData, currentTopicName, currentCategoryName);
+            }
+        }
+
+        // Handle breadcrumb category click - show all verbatims from category
+        function handleBreadcrumbCategoryClick(categoryName) {
+            const categoryData = findCategoryInHierarchy(categoryName);
+            if (categoryData) {
+                const allVerbatims = collectCategoryVerbatims(categoryData);
+                if (allVerbatims.length > 0) {
+                    showVerbatims(allVerbatims, categoryName, categoryName);
+                }
+            }
+        }
+
+        // Handle breadcrumb topic click - show all verbatims from topic
+        function handleBreadcrumbTopicClick(categoryName, topicName) {
+            const categoryData = findCategoryInHierarchy(categoryName);
+            if (categoryData) {
+                const topicData = findTopicInCategory(categoryData, topicName);
+                if (topicData && topicData.verbatims && topicData.verbatims.length > 0) {
+                    showVerbatims(topicData.verbatims, topicName, categoryName);
+                }
             }
         }
 
@@ -4197,6 +4238,29 @@
                 const escapedCity = v.city ? escapeHtml(v.city) : '';
                 const escapedCountry = v.country ? escapeHtml(v.country) : '';
                 
+                // Build breadcrumb HTML if category and topic are available
+                let breadcrumbHTML = '';
+                if (v.category && v.topic) {
+                    const escapedCategory = escapeHtml(v.category);
+                    const escapedTopic = escapeHtml(v.topic);
+                    breadcrumbHTML = `
+                        <div class="verbatim-breadcrumb" style="margin-top: 16px; margin-bottom: 12px; font-size: 13px; color: #666;">
+                            <span class="breadcrumb-link breadcrumb-category" 
+                                  style="color: #0066cc; cursor: pointer; text-decoration: underline;" 
+                                  data-category="${escapedCategory}">
+                                ${escapedCategory}
+                            </span>
+                            <span style="margin: 0 6px; color: #999;">&gt;</span>
+                            <span class="breadcrumb-link breadcrumb-topic" 
+                                  style="color: #0066cc; cursor: pointer; text-decoration: underline;" 
+                                  data-category="${escapedCategory}"
+                                  data-topic="${escapedTopic}">
+                                ${escapedTopic}
+                            </span>
+                        </div>
+                    `;
+                }
+                
                 // Build metadata HTML based on settings
                 const metaItems = [];
                 
@@ -4246,8 +4310,34 @@
                             </svg>
                         </button>
                     </div>
+                    ${breadcrumbHTML}
                     ${metaHTML ? `<div style="margin-top: 16px;">${metaHTML}</div>` : ''}
                 `;
+                
+                // Add click handlers for breadcrumbs
+                if (v.category && v.topic) {
+                    const categoryLink = card.querySelector('.breadcrumb-category');
+                    const topicLink = card.querySelector('.breadcrumb-topic');
+                    
+                    if (categoryLink) {
+                        categoryLink.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const categoryName = categoryLink.getAttribute('data-category');
+                            handleBreadcrumbCategoryClick(categoryName);
+                        });
+                    }
+                    
+                    if (topicLink) {
+                        topicLink.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const categoryName = topicLink.getAttribute('data-category');
+                            const topicName = topicLink.getAttribute('data-topic');
+                            handleBreadcrumbTopicClick(categoryName, topicName);
+                        });
+                    }
+                }
                 
                 container.appendChild(card);
             });
