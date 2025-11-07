@@ -1529,6 +1529,14 @@
                                 <span>Exclude</span>
                             </label>
                         </div>
+                        <div style="padding: 8px 12px; border-bottom: 1px solid #e0e0e0; background: #fff;">
+                            <input
+                                type="text"
+                                id="filterSelectionSearch"
+                                placeholder="Search items..."
+                                style="width: 100%; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;"
+                            />
+                        </div>
                         <div id="filterSelectionList" style="padding: 8px; max-height: 300px; overflow-y: auto;"></div>
                         <div style="padding: 12px; border-top: 1px solid #e0e0e0; background: #f8f9fa;">
                             <button id="applyFilter" style="width: 100%; padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">Apply Filter</button>
@@ -1666,6 +1674,14 @@
                 clearTimeout(timeout);
                 timeout = setTimeout(later, wait);
             };
+        }
+        
+        function resetFilterSelectionSearch() {
+            currentFilterSearchTerm = '';
+            const searchInput = document.getElementById('filterSelectionSearch');
+            if (searchInput) {
+                searchInput.value = '';
+            }
         }
         
         // Vibrant color palette as per specification
@@ -2916,6 +2932,7 @@
         
         let currentFilterType = null;
         let currentFilterSelections = new Set();
+        let currentFilterSearchTerm = '';
         
         function setupFilterUI() {
             const filterBtn = document.getElementById('filterBtn');
@@ -2927,6 +2944,14 @@
             const applyFilter = document.getElementById('applyFilter');
             const selectAllItems = document.getElementById('selectAllItems');
             const clearAllItems = document.getElementById('clearAllItems');
+            const filterSelectionSearch = document.getElementById('filterSelectionSearch');
+            
+            if (filterSelectionSearch) {
+                filterSelectionSearch.addEventListener('input', (event) => {
+                    currentFilterSearchTerm = event.target.value || '';
+                    populateFilterSelectionList();
+                });
+            }
             
             // Toggle dropdown
             filterBtn.onclick = (e) => {
@@ -2953,6 +2978,7 @@
                     currentFilterType = option.dataset.type;
                     currentFilterSelections.clear();
                     currentMetadataField = null;
+                    resetFilterSelectionSearch();
                     if (currentFilterType === 'metadata') {
                         showMetadataFieldView();
                     } else {
@@ -3044,8 +3070,9 @@
             
             // Select all items
             selectAllItems.onclick = () => {
-                const items = getAvailableItemsForType(currentFilterType);
-                currentFilterSelections = new Set(items);
+                const items = getVisibleFilterItems();
+                if (items.length === 0) return;
+                items.forEach(item => currentFilterSelections.add(item));
                 populateFilterSelectionList();
             };
             
@@ -3063,6 +3090,7 @@
             currentFilterType = null;
             currentFilterSelections.clear();
             currentMetadataField = null;
+            resetFilterSelectionSearch();
             updateFilterUI(); // Refresh the active filters list
         }
         
@@ -3070,6 +3098,7 @@
             document.getElementById('filterTypeView').style.display = 'none';
             document.getElementById('filterSelectionView').style.display = 'none';
             document.getElementById('metadataFieldView').style.display = 'block';
+            resetFilterSelectionSearch();
             currentFilterSelections.clear();
             populateMetadataFieldList();
         }
@@ -3080,6 +3109,11 @@
             document.getElementById('filterSelectionView').style.display = 'block';
             
             const title = document.getElementById('filterSelectionTitle');
+            const searchInput = document.getElementById('filterSelectionSearch');
+            if (searchInput && searchInput.value !== currentFilterSearchTerm) {
+                searchInput.value = currentFilterSearchTerm;
+            }
+
             if (currentFilterType === 'metadata' && currentMetadataField) {
                 // Format field name nicely (e.g., "user_type" -> "User Type")
                 const fieldLabel = currentMetadataField
@@ -3190,6 +3224,7 @@
                 fieldItem.onmouseout = () => fieldItem.style.background = 'transparent';
                 fieldItem.onclick = () => {
                     currentMetadataField = fieldName;
+                    resetFilterSelectionSearch();
                     showFilterSelectionView();
                 };
                 
@@ -3207,14 +3242,30 @@
             });
         }
         
+        function getVisibleFilterItems() {
+            const items = getAvailableItemsForType(currentFilterType) || [];
+            if (!items || items.length === 0) return [];
+            
+            const searchTerm = currentFilterSearchTerm ? currentFilterSearchTerm.trim().toLowerCase() : '';
+            if (!searchTerm) return items;
+            
+            return items.filter(item => {
+                if (item === null || item === undefined) return false;
+                return String(item).toLowerCase().includes(searchTerm);
+            });
+        }
+        
         function populateFilterSelectionList() {
             const filterList = document.getElementById('filterSelectionList');
             filterList.innerHTML = '';
             
-            const items = getAvailableItemsForType(currentFilterType);
+            const items = getVisibleFilterItems();
             
             if (items.length === 0) {
-                filterList.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">No items found</div>';
+                const message = currentFilterSearchTerm && currentFilterSearchTerm.trim().length > 0
+                    ? 'No items match your search'
+                    : 'No items found';
+                filterList.innerHTML = `<div style="padding: 12px; color: #999; text-align: center;">${message}</div>`;
                 return;
             }
             
@@ -3296,6 +3347,7 @@
                     const editBtn = filterItem.querySelector('.edit-filter-btn');
                     editBtn.onclick = () => {
                         currentFilterType = rule.type;
+                        resetFilterSelectionSearch();
                         if (rule.type === 'metadata' && rule.metadataField) {
                             currentMetadataField = rule.metadataField;
                             showFilterSelectionView();
