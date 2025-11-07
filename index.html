@@ -694,7 +694,58 @@
             font-size: 24px;
             font-weight: 600;
             color: #333;
+            margin-bottom: 16px;
+        }
+
+        .favourites-search-container {
+            position: relative;
             margin-bottom: 24px;
+        }
+
+        .favourites-search-input {
+            width: 100%;
+            padding: 10px 40px 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: 'Lato', sans-serif;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .favourites-search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .favourites-search-clear {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            display: none;
+            color: #999;
+            font-size: 18px;
+            line-height: 1;
+            width: 24px;
+            height: 24px;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        .favourites-search-clear:hover {
+            background-color: #f0f0f0;
+            color: #667eea;
+        }
+
+        .favourites-search-clear.active {
+            display: flex;
         }
 
         .favourites-container {
@@ -1715,11 +1766,25 @@
                     <div class="chart__footer" id="barChartFooter">Frequency (n=<span id="totalCount">0</span>)</div>
                 </div>
 
-                <!-- Favourite Verbatims Section -->
-                <div class="favourites-section">
-                    <h2>Favourite Verbatims</h2>
-                    <div id="favouritesContainer" class="favourites-container"></div>
-                </div>
+        <!-- Favourite Verbatims Section -->
+        <div class="favourites-section">
+            <h2>Favourite Verbatims</h2>
+            <div class="favourites-search-container">
+                <input
+                    type="text"
+                    id="favouritesSearch"
+                    class="favourites-search-input"
+                    placeholder="Search favourites..."
+                />
+                <button
+                    id="favouritesSearchClear"
+                    class="favourites-search-clear"
+                    onclick="clearFavouritesSearch()"
+                    title="Clear search"
+                >&times;</button>
+            </div>
+            <div id="favouritesContainer" class="favourites-container"></div>
+        </div>
             </div>
 
             <div class="chart" role="figure" aria-label="All Topics">
@@ -2212,6 +2277,7 @@
                     currentQuestionRefKey = null; // Reset question when client changes
                     saveState();
                     await loadClientProjects(currentClientId);
+                    renderFavourites(); // Re-render favourites for new client
                 });
                 
                 // Load projects for the selected client
@@ -2326,6 +2392,7 @@
             currentQuestionRefKey = null; // Reset question when project changes
             saveState();
             await loadClientSources(currentClientId);
+            renderFavourites(); // Re-render favourites for new project
         }
         
         // Load sources for a specific client
@@ -4055,6 +4122,7 @@
         let currentTopicName = null;
         let currentCategoryName = null;
         let verbatimSearchTerm = '';
+        let favouritesSearchTerm = '';
         
         function clearVerbatimSearch() {
             const searchInput = document.getElementById('verbatimSearch');
@@ -4076,6 +4144,28 @@
                     clearButton.style.display = 'flex';
                 } else {
                     clearButton.style.display = 'none';
+                }
+            }
+        }
+
+        function clearFavouritesSearch() {
+            const searchInput = document.getElementById('favouritesSearch');
+            if (searchInput) {
+                searchInput.value = '';
+                favouritesSearchTerm = '';
+                renderFavourites();
+                updateFavouritesSearchClearButton();
+            }
+        }
+
+        function updateFavouritesSearchClearButton() {
+            const searchInput = document.getElementById('favouritesSearch');
+            const clearButton = document.getElementById('favouritesSearchClear');
+            if (searchInput && clearButton) {
+                if (searchInput.value.trim() !== '') {
+                    clearButton.classList.add('active');
+                } else {
+                    clearButton.classList.remove('active');
                 }
             }
         }
@@ -4111,9 +4201,17 @@
             return `${verbatim.index || 'unknown'}_${textPrefix}`;
         }
 
+        function getFavouritesStorageKey() {
+            // Scope favorites by client and project (persist across sources within same client/project)
+            const clientId = currentClientId || 'no-client';
+            const projectName = currentProjectName || 'all-projects';
+            return `verbatimFavourites_${clientId}_${projectName}`;
+        }
+
         function getFavourites() {
             try {
-                const saved = localStorage.getItem('verbatimFavourites');
+                const storageKey = getFavouritesStorageKey();
+                const saved = localStorage.getItem(storageKey);
                 return saved ? JSON.parse(saved) : [];
             } catch (e) {
                 return [];
@@ -4121,7 +4219,8 @@
         }
 
         function saveFavourites(favourites) {
-            localStorage.setItem('verbatimFavourites', JSON.stringify(favourites));
+            const storageKey = getFavouritesStorageKey();
+            localStorage.setItem(storageKey, JSON.stringify(favourites));
         }
 
         function isFavourite(verbatim) {
@@ -4213,6 +4312,29 @@
             
             const favourites = getFavourites();
             
+            // Filter favourites based on search term
+            const searchTerm = favouritesSearchTerm.toLowerCase().trim();
+            const filteredFavourites = searchTerm === '' 
+                ? favourites 
+                : favourites.filter(fav => {
+                    const v = fav.verbatim;
+                    const text = (v.text || '').toLowerCase();
+                    const city = (v.city || '').toLowerCase();
+                    const country = (v.country || '').toLowerCase();
+                    const sentiment = (v.sentiment || '').toLowerCase();
+                    const index = String(v.index || '').toLowerCase();
+                    const category = (v.category || '').toLowerCase();
+                    const topic = (v.topic || '').toLowerCase();
+                    
+                    return text.includes(searchTerm) || 
+                           city.includes(searchTerm) || 
+                           country.includes(searchTerm) || 
+                           sentiment.includes(searchTerm) ||
+                           index.includes(searchTerm) ||
+                           category.includes(searchTerm) ||
+                           topic.includes(searchTerm);
+                });
+            
             if (favourites.length === 0) {
                 // Show skeleton cards and empty message
                 container.innerHTML = `
@@ -4240,11 +4362,17 @@
                 return;
             }
             
+            // Show message if search returns no results
+            if (filteredFavourites.length === 0 && searchTerm !== '') {
+                container.innerHTML = '<div style="padding: 40px; text-align: center; color: #999; font-size: 14px;">No favourites match your search</div>';
+                return;
+            }
+            
             // Render favourite verbatims
             container.innerHTML = '';
             const settings = loadMetadataSettings();
             
-            favourites.forEach(fav => {
+            filteredFavourites.forEach(fav => {
                 const v = fav.verbatim;
                 const card = document.createElement('div');
                 card.className = 'verbatim-card';
@@ -4449,6 +4577,16 @@
                         renderVerbatims(currentVerbatimsData, currentTopicName, currentCategoryName);
                     }
                     updateVerbatimSearchClearButton();
+                });
+            }
+            
+            // Setup favourites search input event listener
+            const favouritesSearchInput = document.getElementById('favouritesSearch');
+            if (favouritesSearchInput) {
+                favouritesSearchInput.addEventListener('input', (e) => {
+                    favouritesSearchTerm = e.target.value;
+                    renderFavourites();
+                    updateFavouritesSearchClearButton();
                 });
             }
             
