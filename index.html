@@ -769,9 +769,9 @@
         }
 
         .favourites-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
+            columns: 280px;
+            column-gap: 20px;
+            padding: 0;
         }
 
         .favourites-empty {
@@ -1018,6 +1018,11 @@
                 overflow-y: auto;
             }
 
+            .favourites-container {
+                columns: 1;
+                column-gap: 16px;
+            }
+
             .verbatim-card {
                 padding: 16px;
             }
@@ -1081,6 +1086,11 @@
                 overflow-y: auto;
             }
 
+            .favourites-container {
+                columns: 1;
+                column-gap: 12px;
+            }
+
             .verbatim-card {
                 padding: 14px;
             }
@@ -1095,6 +1105,10 @@
             .verbatim-container {
                 columns: 2;
             }
+
+            .favourites-container {
+                columns: 2;
+            }
         }
 
         /* Very small screens - ensure cards are visible */
@@ -1105,6 +1119,11 @@
                 padding: 8px;
                 min-height: 0;
                 overflow-y: auto;
+            }
+
+            .favourites-container {
+                columns: 1;
+                column-gap: 8px;
             }
             
             .verbatim-card {
