@@ -193,6 +193,7 @@ class ProcessVocResponse(BaseModel):
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     client_uuid: Optional[UUID] = None
+    is_favourite: Optional[bool] = None
 
     class Config:
         from_attributes = True

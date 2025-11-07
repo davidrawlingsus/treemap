@@ -633,6 +633,103 @@
             color: #C62828;
         }
 
+        .verbatim-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .favourite-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ccc;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+            margin-left: 12px;
+        }
+
+        .favourite-button:hover {
+            color: #ffa500;
+            transform: scale(1.1);
+        }
+
+        .favourite-button.active {
+            color: #ffa500;
+        }
+
+        .favourite-button svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+
+        .favourites-section {
+            margin-top: 60px;
+            padding: 40px 30px;
+            background: white;
+            border-top: 2px solid #e8e8e8;
+        }
+
+        .favourites-section h2 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 24px;
+        }
+
+        .favourites-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .favourites-empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .favourites-empty p {
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+
+        .skeleton-card {
+            background: white;
+            border: 1px solid #e8e8e8;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+            min-height: 120px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        .skeleton-line {
+            height: 12px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            margin-bottom: 12px;
+        }
+
+        .skeleton-line:last-child {
+            width: 60%;
+        }
+
         .stats {
             padding: 24px 30px;
             background: white;
@@ -1614,6 +1711,12 @@
                 </div>
                 <div class="chart__footer" id="topicsChartFooter">Frequency (n=<span id="topicsCount">0</span>)</div>
             </div>
+        </div>
+
+        <!-- Favourite Verbatims Section -->
+        <div class="favourites-section">
+            <h2>Favourite Verbatims</h2>
+            <div id="favouritesContainer" class="favourites-container"></div>
         </div>
     </div>
 
@@ -2698,6 +2801,9 @@
                 
                 // Setup advanced filter UI
                 setupFilterUI();
+                
+                // Initialize favourites section
+                renderFavourites();
                 
                 // Add resize listener with debounce
                 window.addEventListener('resize', debounce(handleResize, 250));
@@ -3854,9 +3960,27 @@
                     </div>
                 ` : '';
                 
+                // Check if this verbatim is a favourite
+                const isFav = isFavourite(v);
+                const favouriteClass = isFav ? 'active' : '';
+                const favouriteIcon = isFav 
+                    ? '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'
+                    : '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="none" stroke="currentColor" stroke-width="2"/>';
+                
+                // Store verbatim data in a data attribute for the onclick handler
+                // Use base64 encoding to safely store JSON in data attribute
+                const verbatimData = btoa(JSON.stringify(v));
+                
                 card.innerHTML = `
-                    <div class="verbatim-text">${escapedText}</div>
-                    ${metaHTML}
+                    <div class="verbatim-card-header">
+                        <div class="verbatim-text" style="flex: 1; margin-bottom: 0; padding-right: 8px;">${escapedText}</div>
+                        <button class="favourite-button ${favouriteClass}" data-verbatim="${verbatimData}" onclick="handleFavouriteClick(this)" title="${isFav ? 'Remove from favourites' : 'Add to favourites'}">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                ${favouriteIcon}
+                            </svg>
+                        </button>
+                    </div>
+                    ${metaHTML ? `<div style="margin-top: 16px;">${metaHTML}</div>` : ''}
                 `;
                 
                 container.appendChild(card);
@@ -3951,6 +4075,181 @@
             localStorage.setItem('verbatimMetadataSettings', JSON.stringify(settings));
         }
 
+        // Favorites management functions
+        function getFavouriteKey(verbatim) {
+            // Create a unique key based on index (row_id) and first 50 chars of text
+            const textPrefix = (verbatim.text || '').substring(0, 50).replace(/\s+/g, ' ').trim();
+            return `${verbatim.index || 'unknown'}_${textPrefix}`;
+        }
+
+        function getFavourites() {
+            try {
+                const saved = localStorage.getItem('verbatimFavourites');
+                return saved ? JSON.parse(saved) : [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveFavourites(favourites) {
+            localStorage.setItem('verbatimFavourites', JSON.stringify(favourites));
+        }
+
+        function isFavourite(verbatim) {
+            const favourites = getFavourites();
+            const key = getFavouriteKey(verbatim);
+            return favourites.some(fav => fav.key === key);
+        }
+
+        function handleFavouriteClick(button) {
+            const verbatimData = button.getAttribute('data-verbatim');
+            if (!verbatimData) return;
+            
+            try {
+                // Decode base64 encoded JSON
+                const verbatim = JSON.parse(atob(verbatimData));
+                toggleFavourite(verbatim);
+            } catch (e) {
+                console.error('Error parsing verbatim data:', e);
+            }
+        }
+
+        function toggleFavourite(verbatim) {
+            const favourites = getFavourites();
+            const key = getFavouriteKey(verbatim);
+            const index = favourites.findIndex(fav => fav.key === key);
+            
+            if (index >= 0) {
+                // Remove from favourites
+                favourites.splice(index, 1);
+            } else {
+                // Add to favourites
+                favourites.push({
+                    key: key,
+                    verbatim: {
+                        text: verbatim.text,
+                        sentiment: verbatim.sentiment,
+                        index: verbatim.index,
+                        country: verbatim.country,
+                        city: verbatim.city,
+                        date: verbatim.date,
+                        source_type: verbatim.source_type
+                    }
+                });
+            }
+            
+            saveFavourites(favourites);
+            renderFavourites();
+            
+            // Re-render verbatims if they're currently displayed to update favorite buttons
+            if (currentVerbatimsData) {
+                renderVerbatims(currentVerbatimsData, currentTopicName, currentCategoryName);
+            }
+        }
+
+        // Render favourites section
+        function renderFavourites() {
+            const container = document.getElementById('favouritesContainer');
+            if (!container) return;
+            
+            const favourites = getFavourites();
+            
+            if (favourites.length === 0) {
+                // Show skeleton cards and empty message
+                container.innerHTML = `
+                    <div class="favourites-empty">
+                        <p>You haven't chosen any favourites yet</p>
+                        <div class="favourites-container">
+                            <div class="skeleton-card">
+                                <div class="skeleton-line"></div>
+                                <div class="skeleton-line"></div>
+                                <div class="skeleton-line"></div>
+                            </div>
+                            <div class="skeleton-card">
+                                <div class="skeleton-line"></div>
+                                <div class="skeleton-line"></div>
+                                <div class="skeleton-line"></div>
+                            </div>
+                            <div class="skeleton-card">
+                                <div class="skeleton-line"></div>
+                                <div class="skeleton-line"></div>
+                                <div class="skeleton-line"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Render favourite verbatims
+            container.innerHTML = '';
+            const settings = loadMetadataSettings();
+            
+            favourites.forEach(fav => {
+                const v = fav.verbatim;
+                const card = document.createElement('div');
+                card.className = 'verbatim-card';
+                
+                const sentimentClass = v.sentiment ? `sentiment-${v.sentiment}` : 'sentiment-neutral';
+                const escapedText = escapeHtml(v.text || 'No text available');
+                const escapedCity = v.city ? escapeHtml(v.city) : '';
+                const escapedCountry = v.country ? escapeHtml(v.country) : '';
+                
+                // Build metadata HTML based on settings
+                const metaItems = [];
+                
+                if (settings.showSentiment) {
+                    metaItems.push(`
+                        <div class="verbatim-meta-item">
+                            <span class="verbatim-meta-label">Sentiment:</span>
+                            <span class="sentiment ${sentimentClass}">${v.sentiment || 'neutral'}</span>
+                        </div>
+                    `);
+                }
+                
+                if (settings.showLocation && v.country) {
+                    metaItems.push(`
+                        <div class="verbatim-meta-item">
+                            <span class="verbatim-meta-label">Location:</span>
+                            <span>${escapedCity ? escapedCity + ', ' : ''}${escapedCountry}</span>
+                        </div>
+                    `);
+                }
+                
+                if (settings.showIndex) {
+                    metaItems.push(`
+                        <div class="verbatim-meta-item">
+                            <span class="verbatim-meta-label">Index:</span>
+                            <span>#${v.index}</span>
+                        </div>
+                    `);
+                }
+                
+                const metaHTML = metaItems.length > 0 ? `
+                    <div class="verbatim-meta">
+                        ${metaItems.join('')}
+                    </div>
+                ` : '';
+                
+                // Use base64 encoding to safely store JSON in data attribute
+                const verbatimData = btoa(JSON.stringify(v));
+                
+                card.innerHTML = `
+                    <div class="verbatim-card-header">
+                        <div class="verbatim-text" style="flex: 1; margin-bottom: 0; padding-right: 8px;">${escapedText}</div>
+                        <button class="favourite-button active" data-verbatim="${verbatimData}" onclick="handleFavouriteClick(this)" title="Remove from favourites">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                            </svg>
+                        </button>
+                    </div>
+                    ${metaHTML ? `<div style="margin-top: 16px;">${metaHTML}</div>` : ''}
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
         // Initialize settings checkboxes on page load
         function initializeMetadataSettings() {
             const settings = loadMetadataSettings();
@@ -4028,6 +4327,9 @@
         document.addEventListener('DOMContentLoaded', () => {
             // Initialize metadata settings
             initializeMetadataSettings();
+            
+            // Initialize favourites section
+            renderFavourites();
             
             // Setup verbatim search input event listener
             const verbatimSearchInput = document.getElementById('verbatimSearch');
