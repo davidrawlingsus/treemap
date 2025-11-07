@@ -391,7 +391,7 @@
             border-bottom: 1px solid #e8e8e8;
             display: flex;
             justify-content: space-between;
-            align-items: center;
+            align-items: flex-start;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border-radius: 12px 12px 0 0;
@@ -1530,12 +1530,22 @@
                             </label>
                         </div>
                         <div style="padding: 8px 12px; border-bottom: 1px solid #e0e0e0; background: #fff;">
-                            <input
-                                type="text"
-                                id="filterSelectionSearch"
-                                placeholder="Search items..."
-                                style="width: 100%; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;"
-                            />
+                            <div style="position: relative;">
+                                <input
+                                    type="text"
+                                    id="filterSelectionSearch"
+                                    placeholder="Search items..."
+                                    style="width: 100%; padding: 6px 30px 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;"
+                                />
+                                <button
+                                    id="filterSelectionSearchClear"
+                                    onclick="clearFilterSelectionSearch()"
+                                    style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 0; display: none; color: #999; font-size: 18px; line-height: 1; width: 20px; height: 20px; align-items: center; justify-content: center; border-radius: 3px;"
+                                    title="Clear search"
+                                    onmouseover="this.style.backgroundColor='#f0f0f0'; this.style.color='#666';"
+                                    onmouseout="this.style.backgroundColor='transparent'; this.style.color='#999';"
+                                >&times;</button>
+                            </div>
                         </div>
                         <div id="filterSelectionList" style="padding: 8px; max-height: 300px; overflow-y: auto;"></div>
                         <div style="padding: 12px; border-top: 1px solid #e0e0e0; background: #f8f9fa;">
@@ -1611,18 +1621,51 @@
     <div id="overlay" class="overlay">
         <div class="overlay-content">
             <div class="overlay-header">
-                <div>
-                    <h2 class="overlay-title" id="overlayTitle">Customer Feedback</h2>
-                    <p class="overlay-subtitle" id="overlaySubtitle"></p>
-                </div>
-                <div class="overlay-header-actions">
-                    <button class="settings-button" onclick="toggleSettingsPanel()" title="Card Settings">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <circle cx="12" cy="12" r="3"></circle>
-                            <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"></path>
-                        </svg>
-                    </button>
-                    <button class="close-button" onclick="closeOverlay()">&times;</button>
+                <div style="flex: 1;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                        <div>
+                            <h2 class="overlay-title" id="overlayTitle">Customer Feedback</h2>
+                            <p class="overlay-subtitle" id="overlaySubtitle"></p>
+                        </div>
+                        <div class="overlay-header-actions">
+                            <button class="settings-button" onclick="toggleSettingsPanel()" title="Card Settings">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                    <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"></path>
+                                </svg>
+                            </button>
+                            <button class="close-button" onclick="closeOverlay()">&times;</button>
+                        </div>
+                    </div>
+                    <div style="margin-top: 12px; position: relative;">
+                        <input
+                            type="text"
+                            id="verbatimSearch"
+                            placeholder="Search verbatims..."
+                            style="width: 100%; padding: 8px 36px 8px 12px; border: 1px solid rgba(255, 255, 255, 0.3); border-radius: 6px; font-size: 14px; background: rgba(255, 255, 255, 0.2); color: white; backdrop-filter: blur(10px);"
+                        />
+                        <button
+                            id="verbatimSearchClear"
+                            onclick="clearVerbatimSearch()"
+                            style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 0; display: none; color: rgba(255, 255, 255, 0.8); font-size: 20px; line-height: 1; width: 24px; height: 24px; align-items: center; justify-content: center; border-radius: 3px;"
+                            title="Clear search"
+                            onmouseover="this.style.backgroundColor='rgba(255, 255, 255, 0.2)'; this.style.color='rgba(255, 255, 255, 1)';"
+                            onmouseout="this.style.backgroundColor='transparent'; this.style.color='rgba(255, 255, 255, 0.8)';"
+                        >&times;</button>
+                        <style>
+                            #verbatimSearch::placeholder {
+                                color: rgba(255, 255, 255, 0.7);
+                            }
+                            #verbatimSearch:focus {
+                                outline: none;
+                                border-color: rgba(255, 255, 255, 0.5);
+                                background: rgba(255, 255, 255, 0.25);
+                            }
+                            #verbatimSearchClear:hover {
+                                color: rgba(255, 255, 255, 1);
+                            }
+                        </style>
+                    </div>
                 </div>
                 <div id="settingsPanel" class="settings-panel">
                     <h3>Display Metadata</h3>
@@ -1681,6 +1724,29 @@
             const searchInput = document.getElementById('filterSelectionSearch');
             if (searchInput) {
                 searchInput.value = '';
+            }
+            updateFilterSelectionSearchClearButton();
+        }
+        
+        function clearFilterSelectionSearch() {
+            const searchInput = document.getElementById('filterSelectionSearch');
+            if (searchInput) {
+                searchInput.value = '';
+                currentFilterSearchTerm = '';
+                populateFilterSelectionList();
+                updateFilterSelectionSearchClearButton();
+            }
+        }
+        
+        function updateFilterSelectionSearchClearButton() {
+            const searchInput = document.getElementById('filterSelectionSearch');
+            const clearButton = document.getElementById('filterSelectionSearchClear');
+            if (searchInput && clearButton) {
+                if (searchInput.value.trim() !== '') {
+                    clearButton.style.display = 'flex';
+                } else {
+                    clearButton.style.display = 'none';
+                }
             }
         }
         
@@ -2950,6 +3016,7 @@
                 filterSelectionSearch.addEventListener('input', (event) => {
                     currentFilterSearchTerm = event.target.value || '';
                     populateFilterSelectionList();
+                    updateFilterSelectionSearchClearButton();
                 });
             }
             
@@ -3185,6 +3252,7 @@
             });
             
             populateFilterSelectionList();
+            updateFilterSelectionSearchClearButton();
         }
         
         function getAvailableItemsForType(type) {
@@ -3669,10 +3737,43 @@
             const container = document.getElementById('verbatims');
             const settings = loadMetadataSettings();
             
+            // Filter verbatims based on search term
+            const searchTerm = verbatimSearchTerm.toLowerCase().trim();
+            const filteredVerbatims = searchTerm === '' 
+                ? verbatims 
+                : verbatims.filter(v => {
+                    const text = (v.text || '').toLowerCase();
+                    const city = (v.city || '').toLowerCase();
+                    const country = (v.country || '').toLowerCase();
+                    const sentiment = (v.sentiment || '').toLowerCase();
+                    const index = String(v.index || '').toLowerCase();
+                    
+                    return text.includes(searchTerm) || 
+                           city.includes(searchTerm) || 
+                           country.includes(searchTerm) || 
+                           sentiment.includes(searchTerm) ||
+                           index.includes(searchTerm);
+                });
+            
+            // Update subtitle with filtered count
+            const subtitle = document.getElementById('overlaySubtitle');
+            if (subtitle && currentCategoryName) {
+                if (searchTerm === '') {
+                    subtitle.textContent = `${currentCategoryName} • ${verbatims.length} conversation${verbatims.length !== 1 ? 's' : ''}`;
+                } else {
+                    subtitle.textContent = `${currentCategoryName} • ${filteredVerbatims.length} of ${verbatims.length} conversation${verbatims.length !== 1 ? 's' : ''}`;
+                }
+            }
+            
             // Clear and populate verbatims
             container.innerHTML = '';
 
-            verbatims.forEach((v, index) => {
+            if (filteredVerbatims.length === 0 && searchTerm !== '') {
+                container.innerHTML = '<div style="padding: 40px; text-align: center; color: #999; font-size: 14px;">No verbatims match your search</div>';
+                return;
+            }
+
+            filteredVerbatims.forEach((v, index) => {
                 const card = document.createElement('div');
                 card.className = 'verbatim-card';
                 
@@ -3734,6 +3835,14 @@
             const title = document.getElementById('overlayTitle');
             const subtitle = document.getElementById('overlaySubtitle');
             
+            // Reset search term when opening overlay
+            verbatimSearchTerm = '';
+            const searchInput = document.getElementById('verbatimSearch');
+            if (searchInput) {
+                searchInput.value = '';
+            }
+            updateVerbatimSearchClearButton();
+            
             // Store data for re-rendering when settings change
             currentVerbatimsData = verbatims;
             currentTopicName = topicName;
@@ -3757,6 +3866,31 @@
         let currentVerbatimsData = null;
         let currentTopicName = null;
         let currentCategoryName = null;
+        let verbatimSearchTerm = '';
+        
+        function clearVerbatimSearch() {
+            const searchInput = document.getElementById('verbatimSearch');
+            if (searchInput) {
+                searchInput.value = '';
+                verbatimSearchTerm = '';
+                if (currentVerbatimsData) {
+                    renderVerbatims(currentVerbatimsData, currentTopicName, currentCategoryName);
+                }
+                updateVerbatimSearchClearButton();
+            }
+        }
+        
+        function updateVerbatimSearchClearButton() {
+            const searchInput = document.getElementById('verbatimSearch');
+            const clearButton = document.getElementById('verbatimSearchClear');
+            if (searchInput && clearButton) {
+                if (searchInput.value.trim() !== '') {
+                    clearButton.style.display = 'flex';
+                } else {
+                    clearButton.style.display = 'none';
+                }
+            }
+        }
 
         // Load metadata settings from localStorage
         function loadMetadataSettings() {
@@ -3839,6 +3973,14 @@
             const panel = document.getElementById('settingsPanel');
             const button = document.querySelector('.settings-button');
             
+            // Reset search term when closing overlay
+            verbatimSearchTerm = '';
+            const searchInput = document.getElementById('verbatimSearch');
+            if (searchInput) {
+                searchInput.value = '';
+            }
+            updateVerbatimSearchClearButton();
+            
             overlay.classList.remove('active');
             container.style.display = 'none';
             if (panel) panel.classList.remove('active');
@@ -3851,6 +3993,18 @@
         document.addEventListener('DOMContentLoaded', () => {
             // Initialize metadata settings
             initializeMetadataSettings();
+            
+            // Setup verbatim search input event listener
+            const verbatimSearchInput = document.getElementById('verbatimSearch');
+            if (verbatimSearchInput) {
+                verbatimSearchInput.addEventListener('input', (e) => {
+                    verbatimSearchTerm = e.target.value;
+                    if (currentVerbatimsData) {
+                        renderVerbatims(currentVerbatimsData, currentTopicName, currentCategoryName);
+                    }
+                    updateVerbatimSearchClearButton();
+                });
+            }
             
             // Fix mobile viewport height issues
             function setViewportHeight() {
