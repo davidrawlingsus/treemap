@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import text, or_, func
+from sqlalchemy.exc import IntegrityError
 from typing import List, Optional
 import json
 import os
@@ -46,7 +47,9 @@ from app.schemas import (
     ProcessVocListResponse,
     ProcessVocResponse,
     QuestionInfo,
+    AuthorizedDomainCreate,
     AuthorizedDomainResponse,
+    AuthorizedDomainUpdate,
     DataSourceWithQuestions,
     DynamicBulkUpdateRequest,
     Token,
@@ -103,6 +106,24 @@ def build_email_service(settings):
         api_key=settings.resend_api_key,
         from_email=settings.resend_from_email,
         reply_to_email=settings.resend_reply_to_email,
+    )
+
+
+def serialize_authorized_domain(domain: AuthorizedDomain) -> AuthorizedDomainResponse:
+    """Convert an AuthorizedDomain ORM object into a response model."""
+    clients = [
+        ClientResponse.model_validate(link.client)
+        for link in domain.client_links
+        if link.client is not None
+    ]
+    clients.sort(key=lambda client: client.name.lower())
+    return AuthorizedDomainResponse(
+        id=domain.id,
+        domain=domain.domain,
+        description=domain.description,
+        created_at=domain.created_at,
+        updated_at=domain.updated_at,
+        clients=clients,
     )
 
 
@@ -743,25 +764,158 @@ def list_authorized_domains_for_founder(
         .all()
     )
 
-    responses: List[AuthorizedDomainResponse] = []
-    for domain in domains:
-        clients = [
-            ClientResponse.model_validate(link.client)
-            for link in domain.client_links
-            if link.client is not None
-        ]
-        responses.append(
-            AuthorizedDomainResponse(
-                id=domain.id,
-                domain=domain.domain,
-                description=domain.description,
-                created_at=domain.created_at,
-                updated_at=domain.updated_at,
-                clients=clients,
-            )
+    return [serialize_authorized_domain(domain) for domain in domains]
+
+
+@app.post(
+    "/api/founder/authorized-domains",
+    response_model=AuthorizedDomainResponse,
+    status_code=201,
+)
+def create_authorized_domain_for_founder(
+    payload: AuthorizedDomainCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Create a new authorized domain and associate it with clients."""
+    normalized_domain = payload.domain.strip().lower()
+    if not normalized_domain:
+        raise HTTPException(status_code=400, detail="Domain is required.")
+
+    existing = (
+        db.query(AuthorizedDomain)
+        .filter(func.lower(AuthorizedDomain.domain) == normalized_domain)
+        .first()
+    )
+    if existing:
+        raise HTTPException(
+            status_code=400, detail="An authorized domain with this name already exists."
         )
 
-    return responses
+    client_ids = set(payload.client_ids or [])
+    clients: List[Client] = []
+    if client_ids:
+        clients = db.query(Client).filter(Client.id.in_(client_ids)).all()
+        found_ids = {client.id for client in clients}
+        missing = client_ids - found_ids
+        if missing:
+            raise HTTPException(
+                status_code=404,
+                detail="One or more selected clients were not found.",
+            )
+
+    authorized_domain = AuthorizedDomain(
+        domain=normalized_domain,
+        description=payload.description.strip() if payload.description else None,
+    )
+    authorized_domain.clients = clients
+
+    try:
+        db.add(authorized_domain)
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=400, detail="An authorized domain with this name already exists."
+        )
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    created_domain = (
+        db.query(AuthorizedDomain)
+        .options(
+            joinedload(AuthorizedDomain.client_links).joinedload(
+                AuthorizedDomainClient.client
+            )
+        )
+        .filter(AuthorizedDomain.id == authorized_domain.id)
+        .one()
+    )
+
+    return serialize_authorized_domain(created_domain)
+
+
+@app.put(
+    "/api/founder/authorized-domains/{domain_id}",
+    response_model=AuthorizedDomainResponse,
+)
+def update_authorized_domain_for_founder(
+    domain_id: UUID,
+    payload: AuthorizedDomainUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Update an existing authorized domain and its client associations."""
+    authorized_domain = (
+        db.query(AuthorizedDomain)
+        .options(joinedload(AuthorizedDomain.client_links))
+        .filter(AuthorizedDomain.id == domain_id)
+        .first()
+    )
+
+    if not authorized_domain:
+        raise HTTPException(status_code=404, detail="Authorized domain not found.")
+
+    normalized_domain = payload.domain.strip().lower()
+    if not normalized_domain:
+        raise HTTPException(status_code=400, detail="Domain is required.")
+
+    if normalized_domain != authorized_domain.domain:
+        duplicate = (
+            db.query(AuthorizedDomain)
+            .filter(func.lower(AuthorizedDomain.domain) == normalized_domain)
+            .filter(AuthorizedDomain.id != domain_id)
+            .first()
+        )
+        if duplicate:
+            raise HTTPException(
+                status_code=400,
+                detail="Another authorized domain with this name already exists.",
+            )
+        authorized_domain.domain = normalized_domain
+
+    authorized_domain.description = (
+        payload.description.strip() if payload.description else None
+    )
+
+    if payload.client_ids is not None:
+        client_ids = set(payload.client_ids)
+        clients: List[Client] = []
+        if client_ids:
+            clients = db.query(Client).filter(Client.id.in_(client_ids)).all()
+            found_ids = {client.id for client in clients}
+            missing = client_ids - found_ids
+            if missing:
+                raise HTTPException(
+                    status_code=404,
+                    detail="One or more selected clients were not found.",
+                )
+        authorized_domain.clients = clients
+
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=400, detail="An authorized domain with this name already exists."
+        )
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    updated_domain = (
+        db.query(AuthorizedDomain)
+        .options(
+            joinedload(AuthorizedDomain.client_links).joinedload(
+                AuthorizedDomainClient.client
+            )
+        )
+        .filter(AuthorizedDomain.id == domain_id)
+        .one()
+    )
+
+    return serialize_authorized_domain(updated_domain)
 
 
 @app.post("/api/data-sources/upload", response_model=DataSourceResponse)
