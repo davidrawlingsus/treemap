@@ -134,6 +134,11 @@ if (frontend_path / "index.html").exists():
         """Serve the frontend index.html"""
         return FileResponse(frontend_path / "index.html")
     
+    @app.get("/magic-login", response_class=FileResponse)
+    def serve_magic_login():
+        """Serve the magic login page (same as index for SPA routing)"""
+        return FileResponse(frontend_path / "index.html")
+    
     @app.get("/index.html", response_class=FileResponse)
     def serve_index_html():
         """Serve the frontend index.html"""

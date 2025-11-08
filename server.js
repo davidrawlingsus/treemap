@@ -28,10 +28,14 @@ app.get('/config.js', (req, res) => {
   res.send(`window.APP_CONFIG = { API_BASE_URL: '${API_BASE_URL}' };`);
 });
 
-// Serve index.html for root
-app.get('/', (req, res) => {
+// Support magic-link redirect path (and other SPA routes in the future)
+const sendIndex = (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
-});
+};
+
+// Serve index.html for root
+app.get('/', sendIndex);
+app.get('/magic-login', sendIndex);
 
 app.listen(PORT, () => {
   console.log(`✅ Frontend server running on http://localhost:${PORT}`);
