@@ -3,1528 +3,442 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Founder Admin - Process VOC Data</title>
+    <title>Founder Admin - Tools</title>
     <script src="/config.js"></script>
-    <script src="/auth.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        :root {
+            --bg: #f5f7fb;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --primary: #667eea;
+            --primary-dark: #4c51bf;
+            --danger: #e53e3e;
+            --text: #1a202c;
+            --muted: #718096;
+        }
 
         * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
         }
 
         body {
-            font-family: 'Inter', 'Roboto', sans-serif;
-            background: #fafafa;
+            font-family: "Inter", "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text);
             min-height: 100vh;
-            padding: 0;
-            margin: 0;
         }
 
-        /* Login Screen */
         .login-overlay {
             position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.7);
+            inset: 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            z-index: 10000;
+            background: rgba(15, 23, 42, 0.85);
+            z-index: 999;
         }
 
         .login-overlay.hidden {
             display: none;
         }
 
-        .login-container {
-            background: white;
-            padding: 40px;
+        .login-card {
+            background: var(--surface);
+            padding: 32px;
             border-radius: 12px;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-            max-width: 400px;
-            width: 90%;
+            box-shadow: 0 25px 50px -12px rgba(56, 66, 106, 0.35);
+            width: min(380px, 92vw);
         }
 
-        .login-container h2 {
-            margin: 0 0 24px 0;
-            color: #333;
-            font-size: 24px;
-            font-weight: 600;
+        .login-card h2 {
+            margin-bottom: 12px;
         }
 
-        .login-container input {
-            width: 100%;
-            padding: 12px;
+        .login-card p {
             margin-bottom: 16px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
+            color: var(--muted);
             font-size: 14px;
-            box-sizing: border-box;
+            line-height: 1.5;
         }
 
-        .login-container button {
+        .login-card input {
             width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        .login-container button:hover {
-            opacity: 0.9;
-        }
-
-        .login-container button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-        }
-
-        .login-error {
-            color: #e74c3c;
-            margin-top: 8px;
-            font-size: 14px;
-            display: none;
-        }
-
-        /* Main Container */
-        .container {
-            width: 100%;
-            min-height: 100vh;
-            background: #fafafa;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-            position: relative;
-        }
-
-        .header h1 {
-            font-size: 32px;
-            font-weight: 600;
-            margin-bottom: 10px;
-        }
-
-        .header p {
-            font-size: 16px;
-            opacity: 0.9;
-        }
-
-        .logout-btn {
-            position: absolute;
-            top: 30px;
-            right: 30px;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .logout-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        .content {
-            flex: 1;
-            padding: 30px;
-            max-width: 1400px;
-            margin: 0 auto;
-            width: 100%;
-        }
-
-        /* Filters */
-        .filters {
-            background: white;
-            padding: 20px;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            align-items: flex-end;
+            font-size: 15px;
+            margin-bottom: 12px;
+            transition: border 0.2s;
         }
 
-        .filter-group {
-            flex: 1;
-            min-width: 200px;
+        .login-card input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25);
         }
 
-        .filter-group label {
-            display: block;
-            margin-bottom: 5px;
+        .alert {
+            border-radius: 8px;
+            padding: 12px 14px;
             font-size: 14px;
-            font-weight: 500;
-            color: #333;
+            margin-bottom: 16px;
         }
 
-        .filter-group input,
-        .filter-group select,
-        .filter-group textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-            font-family: inherit;
-        }
-
-        .filter-group textarea {
-            resize: vertical;
-            min-height: 60px;
+        .alert-error {
+            background: #fff5f5;
+            color: var(--danger);
+            border: 1px solid #fed7d7;
         }
 
         .btn {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 8px;
             font-size: 14px;
-            font-weight: 500;
+            font-weight: 600;
             cursor: pointer;
-            transition: opacity 0.2s;
+            border: none;
+            transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+            text-decoration: none;
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary);
             color: white;
         }
 
         .btn-primary:hover {
-            opacity: 0.9;
+            background: var(--primary-dark);
         }
 
         .btn-secondary {
-            background: #e0e0e0;
-            color: #333;
+            background: #edf2f7;
+            color: var(--text);
         }
 
         .btn-secondary:hover {
-            background: #d0d0d0;
+            background: #e2e8f0;
         }
 
-        .btn-danger {
-            background: #dc3545;
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: #c82333;
-        }
-
-        /* Table */
-        .table-container {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            margin-bottom: 20px;
-        }
-
-        .table-header {
-            padding: 20px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .table-header h2 {
-            font-size: 20px;
-            font-weight: 600;
-            color: #333;
-        }
-
-        .table-actions {
-            display: flex;
-            gap: 10px;
-        }
-
-        .table-wrapper {
-            overflow-x: auto;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        th {
-            background: #f5f5f5;
-            padding: 12px;
-            text-align: left;
-            font-weight: 600;
-            font-size: 13px;
-            color: #666;
-            border-bottom: 2px solid #ddd;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-
-        td {
-            padding: 12px;
-            border-bottom: 1px solid #eee;
-            font-size: 14px;
-            color: #333;
-        }
-
-        tr:hover {
-            background: #f9f9f9;
-        }
-
-        .checkbox-cell {
-            width: 40px;
-            text-align: center;
-        }
-
-        .id-cell {
-            width: 80px;
-            font-family: monospace;
-            font-size: 12px;
-        }
-
-        .editable-cell {
-            min-width: 200px;
-        }
-
-        .editable-input {
-            width: 100%;
-            padding: 6px 8px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            font-size: 13px;
-        }
-
-        .editable-input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .text-cell {
-            max-width: 300px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        /* Pagination */
-        .pagination {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 20px;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .pagination-info {
-            color: #666;
-            font-size: 14px;
-        }
-
-        .pagination-controls {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-
-        .pagination-btn {
-            padding: 8px 16px;
-            border: 1px solid #ddd;
-            background: white;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .pagination-btn:hover:not(:disabled) {
-            background: #f5f5f5;
-        }
-
-        .pagination-btn:disabled {
-            opacity: 0.5;
+        .btn:disabled {
+            opacity: 0.6;
             cursor: not-allowed;
         }
 
-        .page-input {
-            width: 60px;
-            padding: 6px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            text-align: center;
-        }
-
-        /* Loading */
-        .loading {
-            text-align: center;
-            padding: 40px;
-            color: #666;
-        }
-
-        /* Status Messages */
-        .status-message {
-            padding: 12px 20px;
-            border-radius: 6px;
-            margin-bottom: 20px;
+        #appShell {
             display: none;
+            min-height: 100vh;
+            flex-direction: column;
         }
 
-        .status-message.success {
-            background: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .status-message.error {
-            background: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        .status-message.show {
-            display: block;
-        }
-
-        /* Bulk Edit Section */
-        .bulk-edit-section {
-            margin-bottom: 20px;
-        }
-
-        .bulk-edit-card {
-            background: #fff3cd;
-            border: 1px solid #ffc107;
-            padding: 20px;
-            border-radius: 8px;
-        }
-
-        .bulk-edit-card h3 {
-            margin: 0 0 10px 0;
-            color: #856404;
-            font-size: 18px;
-        }
-
-        .bulk-edit-info {
-            color: #856404;
-            font-size: 14px;
-            margin-bottom: 15px;
-        }
-
-        .bulk-edit-fields {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
-            align-items: flex-end;
-        }
-
-        /* Collapsible Sections */
-        .collapsible-section {
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
-            overflow: hidden;
-        }
-
-        .collapsible-header {
-            padding: 15px 20px;
-            background: #f5f5f5;
-            border-bottom: 1px solid #ddd;
-            cursor: pointer;
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 24px 32px;
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            user-select: none;
+            align-items: flex-start;
+            gap: 16px;
+            position: sticky;
+            top: 0;
+            z-index: 5;
         }
 
-        .collapsible-header:hover {
-            background: #e9e9e9;
-        }
-
-        .collapsible-header h3 {
-            margin: 0;
-            font-size: 16px;
+        header h1 {
+            font-size: 26px;
             font-weight: 600;
-            color: #333;
         }
 
-        .collapsible-toggle {
-            font-size: 20px;
-            color: #666;
-            transition: transform 0.2s;
-        }
-
-        .collapsible-section.collapsed .collapsible-toggle {
-            transform: rotate(-90deg);
-        }
-
-        .collapsible-content {
-            padding: 20px;
-            display: block;
-        }
-
-        .collapsible-section.collapsed .collapsible-content {
-            display: none;
-        }
-
-        /* Field Selector */
-        .field-selector {
-            margin-bottom: 20px;
-            padding: 15px;
-            background: #f9f9f9;
-            border-radius: 6px;
-            border: 1px solid #ddd;
-        }
-
-        .field-selector h4 {
-            margin: 0 0 15px 0;
+        .subtitle {
             font-size: 14px;
-            font-weight: 600;
-            color: #555;
+            color: var(--muted);
+            margin-top: 6px;
         }
 
-        .field-categories {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 10px;
-        }
-
-        .field-category {
-            background: white;
-            padding: 10px;
-            border-radius: 4px;
-            border: 1px solid #ddd;
-        }
-
-        .field-category h5 {
-            margin: 0 0 8px 0;
-            font-size: 12px;
-            font-weight: 600;
-            color: #666;
-            text-transform: uppercase;
-        }
-
-        .field-checkbox {
+        .founder-meta {
             display: flex;
-            align-items: center;
-            padding: 4px 0;
-            font-size: 13px;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
         }
 
-        .field-checkbox input[type="checkbox"] {
-            margin-right: 6px;
+        #founderEmail {
+            font-size: 12px;
+            color: var(--muted);
         }
 
-        .field-checkbox label {
-            cursor: pointer;
-            margin: 0;
+        main {
+            flex: 1;
+            padding: 32px;
+            display: flex;
+            justify-content: center;
         }
 
-        /* Dynamic Field Inputs */
-        .dynamic-fields {
+        .tools-grid {
+            width: min(960px, 100%);
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
         }
 
-        .dynamic-field {
-            display: none;
+        .tool-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px;
+            box-shadow: 0 20px 45px -24px rgba(15, 23, 42, 0.35);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
 
-        .dynamic-field.visible {
-            display: block;
+        .tool-card h2 {
+            font-size: 18px;
+            font-weight: 600;
         }
 
-        .field-type-badge {
-            display: inline-block;
-            padding: 2px 6px;
-            font-size: 10px;
-            border-radius: 3px;
-            background: #e0e0e0;
-            color: #555;
-            margin-left: 5px;
+        .tool-card p {
+            font-size: 14px;
+            color: var(--muted);
+            flex: 1;
+            line-height: 1.5;
         }
 
-        .field-type-badge.string { background: #e3f2fd; color: #1976d2; }
-        .field-type-badge.integer { background: #fff3e0; color: #f57c00; }
-        .field-type-badge.datetime { background: #f3e5f5; color: #7b1fa2; }
-        .field-type-badge.text { background: #e8f5e9; color: #388e3c; }
-        .field-type-badge.json { background: #fce4ec; color: #c2185b; }
+        .tool-card .actions {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .founder-meta {
+                align-items: flex-start;
+            }
+
+            main {
+                padding: 24px 20px 48px;
+            }
+        }
     </style>
 </head>
 <body>
-    <!-- Login Overlay -->
     <div id="loginOverlay" class="login-overlay">
-        <div class="login-container">
+        <div class="login-card">
             <h2>Founder Login</h2>
-            <input type="email" id="loginEmail" placeholder="Email" autocomplete="email">
-            <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password">
-            <button id="loginButton" onclick="handleLogin()">Login</button>
-            <div id="loginError" class="login-error"></div>
+            <p>Use your founder email to access admin tools.</p>
+            <div id="loginError" class="alert alert-error" style="display: none;"></div>
+            <input type="email" id="loginEmail" placeholder="founder@example.com" autocomplete="email">
+            <input type="password" id="loginPassword" placeholder="Password (if configured)" autocomplete="current-password">
+            <button class="btn btn-primary" id="loginButton">Login</button>
         </div>
     </div>
 
-    <!-- Main Container -->
-    <div id="mainContainer" class="container" style="display: none;">
-        <div class="header">
-            <button class="logout-btn" onclick="handleLogout()">Logout</button>
-            <h1>Founder Admin</h1>
-            <p>Manage Process VOC Data</p>
-        </div>
-
-        <div class="content">
-            <!-- Status Messages -->
-            <div id="statusMessage" class="status-message"></div>
-
-            <!-- Filters Section (Collapsible) -->
-            <div class="collapsible-section" id="filtersSection">
-                <div class="collapsible-header" onclick="toggleSection('filtersSection')">
-                    <h3>🔍 Filters</h3>
-                    <span class="collapsible-toggle">▼</span>
-                </div>
-                <div class="collapsible-content">
-                    <div class="filters">
-                        <div class="filter-group">
-                            <label>Client Name</label>
-                            <input type="text" id="filterClientName" placeholder="Search client_name (partial match)">
-                        </div>
-                        <div class="filter-group">
-                            <label>Project ID</label>
-                            <input type="text" id="filterProjectId" placeholder="Search project_id (partial match)">
-                        </div>
-                        <div class="filter-group">
-                            <label>Project Name</label>
-                            <input type="text" id="filterProjectName" placeholder="Search project_name (partial match)">
-                        </div>
-                        <div class="filter-group">
-                            <label>Dimension Ref</label>
-                            <input type="text" id="filterDimensionRef" placeholder="Search dimension_ref (partial match)">
-                        </div>
-                        <div class="filter-group">
-                            <label>Dimension Name</label>
-                            <input type="text" id="filterDimensionName" placeholder="Search dimension_name (partial match)">
-                        </div>
-                        <div class="filter-group">
-                            <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
-                        </div>
-                        <div class="filter-group">
-                            <button class="btn btn-secondary" onclick="clearFilters()">Clear</button>
-                        </div>
+    <div id="appShell">
+        <header>
+            <div>
+                <h1>Founder Admin</h1>
+                <div class="subtitle">Launch internal tools and manage Marketable operations.</div>
+            </div>
+            <div class="founder-meta">
+                <span id="founderEmail"></span>
+                <button class="btn btn-secondary" id="logoutButton">Logout</button>
+            </div>
+        </header>
+        <main>
+            <section class="tools-grid">
+                <article class="tool-card">
+                    <h2>VOC Process Editor</h2>
+                    <p>Review, update, and bulk-edit Process VOC records in the data warehouse.</p>
+                    <div class="actions">
+                        <a class="btn btn-primary" href="/founder_voc_editor.html">Open Tool</a>
                     </div>
-                </div>
-            </div>
-
-            <!-- Bulk Edit Section (Collapsible, shown when filters are active) -->
-            <div id="bulkEditSection" class="collapsible-section" style="display: none;">
-                <div class="collapsible-header" onclick="toggleSection('bulkEditSection')">
-                    <h3>✏️ Bulk Edit All Filtered Rows</h3>
-                    <span class="collapsible-toggle">▼</span>
-                </div>
-                <div class="collapsible-content">
-                    <div class="bulk-edit-card">
-                        <p class="bulk-edit-info" id="bulkEditInfo">
-                            Update all rows matching current filters
-                        </p>
-                        
-                        <!-- Field Selector -->
-                        <div class="field-selector" id="fieldSelector">
-                            <h4>Select Fields to Edit:</h4>
-                            <div class="field-categories" id="fieldCategories">
-                                <!-- Dynamically populated -->
-                            </div>
-                            <div style="margin-top: 10px;">
-                                <button class="btn btn-secondary" onclick="selectAllFields()" style="font-size: 12px; padding: 6px 12px;">Select All</button>
-                                <button class="btn btn-secondary" onclick="deselectAllFields()" style="font-size: 12px; padding: 6px 12px;">Deselect All</button>
-                            </div>
-                        </div>
-
-                        <!-- Dynamic Field Inputs -->
-                        <div class="dynamic-fields" id="dynamicFields">
-                            <!-- Dynamically populated based on selected fields -->
-                        </div>
-
-                        <!-- Action Buttons -->
-                        <div style="margin-top: 20px; display: flex; gap: 10px;">
-                            <button class="btn btn-primary" onclick="applyBulkEdit()">
-                                Update All Filtered Rows
-                            </button>
-                            <button class="btn btn-danger" onclick="deleteBulkRows()">
-                                Delete All Filtered Rows
-                            </button>
-                            <button class="btn btn-secondary" onclick="clearBulkEdit()">
-                                Clear
-                            </button>
-                        </div>
+                </article>
+                <article class="tool-card">
+                    <h2>User Impersonation</h2>
+                    <p>Generate impersonation tokens and open the customer visualizer as any account.</p>
+                    <div class="actions">
+                        <a class="btn btn-primary" href="/founder_impersonation.html">Open Tool</a>
                     </div>
-                </div>
-            </div>
-
-            <!-- Table -->
-            <div class="table-container">
-                <div class="table-header">
-                    <h2>Process VOC Data</h2>
-                    <div class="table-actions">
-                        <button class="btn btn-primary" onclick="saveBulkEdits()">Save Selected Changes</button>
-                        <button class="btn btn-secondary" onclick="selectAll()">Select All</button>
-                        <button class="btn btn-secondary" onclick="deselectAll()">Deselect None</button>
-                    </div>
-                </div>
-                <div class="table-wrapper">
-                    <table id="dataTable">
-                        <thead>
-                            <tr>
-                                <th class="checkbox-cell"><input type="checkbox" id="selectAllCheckbox" onchange="toggleSelectAll()"></th>
-                                <th class="id-cell">ID</th>
-                                <th class="editable-cell">Client Name</th>
-                                <th>Project ID</th>
-                                <th class="editable-cell">Project Name</th>
-                                <th>Dimension Ref</th>
-                                <th class="editable-cell">Data Source</th>
-                                <th class="editable-cell">Dimension Name</th>
-                                <th class="text-cell">Value</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tableBody">
-                            <tr>
-                                <td colspan="9" class="loading">Loading data...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Pagination -->
-            <div class="pagination">
-                <div class="pagination-info" id="paginationInfo">
-                    Showing 0 - 0 of 0 rows
-                </div>
-                <div class="pagination-controls">
-                    <button class="pagination-btn" onclick="goToFirstPage()">First</button>
-                    <button class="pagination-btn" onclick="goToPrevPage()">Previous</button>
-                    <span>Page</span>
-                    <input type="number" id="pageInput" class="page-input" min="1" value="1" onchange="goToPage()">
-                    <span id="totalPagesSpan">of 1</span>
-                    <button class="pagination-btn" onclick="goToNextPage()">Next</button>
-                    <button class="pagination-btn" onclick="goToLastPage()">Last</button>
-                </div>
-            </div>
-        </div>
+                </article>
+            </section>
+        </main>
     </div>
 
     <script>
-        // API Configuration
         const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
-        const AUTH_TOKEN_KEY = 'auth_token';
-        
-        // State
-        let currentPage = 1;
-        let pageSize = 100;
-        let totalPages = 1;
-        let totalRows = 0;
-        let currentFilters = {
-            project_id: '',
-            project_name: '',
-            dimension_ref: '',
-            dimension_name: '',
-            client_name: ''
+        const AUTH_TOKEN_KEY = 'visualizd_auth_token';
+
+        const elements = {
+            loginOverlay: document.getElementById('loginOverlay'),
+            loginEmail: document.getElementById('loginEmail'),
+            loginPassword: document.getElementById('loginPassword'),
+            loginButton: document.getElementById('loginButton'),
+            loginError: document.getElementById('loginError'),
+            appShell: document.getElementById('appShell'),
+            founderEmail: document.getElementById('founderEmail'),
+            logoutButton: document.getElementById('logoutButton'),
         };
-        let editedRows = new Map(); // Track edited values: rowId -> {project_name, dimension_name}
-        let fieldMetadata = []; // Store field metadata from API
-        let selectedFields = new Set(); // Track which fields are selected for bulk edit
 
-        // Authentication
-        function getAuthToken() {
-            return localStorage.getItem(AUTH_TOKEN_KEY);
-        }
+        let founderInfo = null;
 
-        function setAuthToken(token) {
-            localStorage.setItem(AUTH_TOKEN_KEY, token);
-        }
+        const getAuthToken = () => localStorage.getItem(AUTH_TOKEN_KEY);
+        const setAuthToken = (token) => localStorage.setItem(AUTH_TOKEN_KEY, token);
+        const clearAuth = () => localStorage.removeItem(AUTH_TOKEN_KEY);
 
-        function clearAuth() {
-            localStorage.removeItem(AUTH_TOKEN_KEY);
-        }
-
-        function getAuthHeaders() {
+        const authHeaders = () => {
             const token = getAuthToken();
-            return token ? {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            } : {
-                'Content-Type': 'application/json'
-            };
-        }
+            return token
+                ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+                : { 'Content-Type': 'application/json' };
+        };
 
-        async function handleLogin() {
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            const loginButton = document.getElementById('loginButton');
-            const loginError = document.getElementById('loginError');
-            
-            if (!email) {
-                loginError.textContent = 'Please enter your email';
-                loginError.style.display = 'block';
+        function showLoginError(message) {
+            if (!message) {
+                elements.loginError.style.display = 'none';
+                elements.loginError.textContent = '';
                 return;
             }
-            
-            loginButton.disabled = true;
-            loginButton.textContent = 'Logging in...';
-            loginError.style.display = 'none';
-            
+            elements.loginError.textContent = message;
+            elements.loginError.style.display = 'block';
+        }
+
+        async function validateFounderSession() {
+            const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+                headers: authHeaders(),
+            });
+
+            if (!response.ok) {
+                throw new Error('Could not validate founder session.');
+            }
+
+            const data = await response.json();
+            if (!data.is_founder) {
+                throw new Error('Access denied: founder privileges required.');
+            }
+            founderInfo = data;
+            return data;
+        }
+
+        function renderFounderInfo() {
+            if (founderInfo?.email) {
+                elements.founderEmail.textContent = founderInfo.email;
+            } else {
+                elements.founderEmail.textContent = '';
+            }
+        }
+
+        function showAppShell() {
+            elements.loginOverlay.classList.add('hidden');
+            elements.appShell.style.display = 'flex';
+            renderFounderInfo();
+        }
+
+        function resetLoginForm() {
+            elements.loginButton.disabled = false;
+            elements.loginButton.textContent = 'Login';
+        }
+
+        async function loginFounder() {
+            const email = elements.loginEmail.value.trim();
+            const password = elements.loginPassword.value;
+
+            if (!email) {
+                showLoginError('Please enter your founder email.');
+                return;
+            }
+
+            elements.loginButton.disabled = true;
+            elements.loginButton.textContent = 'Logging in...';
+            showLoginError();
+
             try {
                 const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
+                    body: JSON.stringify({ email, password }),
                 });
-                
+
                 if (!response.ok) {
-                    const error = await response.json();
+                    const error = await response.json().catch(() => ({}));
                     throw new Error(error.detail || 'Login failed');
                 }
-                
+
                 const data = await response.json();
                 setAuthToken(data.access_token);
-                
-                // Verify user is founder
-                const userResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
-                    headers: getAuthHeaders()
-                });
-                
-                if (userResponse.ok) {
-                    const userInfo = await userResponse.json();
-                    if (!userInfo.is_founder) {
-                        throw new Error('Access denied: Founder privileges required');
-                    }
-                }
-                
-                document.getElementById('loginOverlay').classList.add('hidden');
-                document.getElementById('mainContainer').style.display = 'flex';
-                loadData();
-                
+
+                await validateFounderSession();
+                showAppShell();
             } catch (error) {
-                loginError.textContent = error.message || 'Login failed. Please try again.';
-                loginError.style.display = 'block';
+                console.error('Founder login failed', error);
+                showLoginError(error.message || 'Unable to log in.');
+                clearAuth();
             } finally {
-                loginButton.disabled = false;
-                loginButton.textContent = 'Login';
+                resetLoginForm();
             }
         }
 
-        async function checkAuth() {
+        function logout() {
+            clearAuth();
+            founderInfo = null;
+            elements.appShell.style.display = 'none';
+            elements.loginOverlay.classList.remove('hidden');
+            elements.loginEmail.value = '';
+            elements.loginPassword.value = '';
+            showLoginError();
+        }
+
+        async function attemptExistingSession() {
             const token = getAuthToken();
             if (!token) {
-                showLogin();
                 return false;
             }
-            
+
             try {
-                const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-                    headers: getAuthHeaders()
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Invalid token');
-                }
-                
-                const userInfo = await response.json();
-                if (!userInfo.is_founder) {
-                    throw new Error('Access denied: Founder privileges required');
-                }
-                
-                document.getElementById('loginOverlay').classList.add('hidden');
-                document.getElementById('mainContainer').style.display = 'flex';
+                await validateFounderSession();
+                showAppShell();
                 return true;
-                
             } catch (error) {
+                console.warn('Existing founder session invalid', error);
                 clearAuth();
-                showLogin();
                 return false;
             }
         }
 
-        function showLogin() {
-            document.getElementById('loginOverlay').classList.remove('hidden');
-            document.getElementById('mainContainer').style.display = 'none';
-        }
+        function attachEventListeners() {
+            elements.loginButton.addEventListener('click', loginFounder);
+            elements.logoutButton.addEventListener('click', logout);
 
-        function handleLogout() {
-            clearAuth();
-            showLogin();
-        }
-
-        // Data Loading
-        async function loadData() {
-            const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = '<tr><td colspan="9" class="loading">Loading data...</td></tr>';
-            
-            try {
-                const params = new URLSearchParams();
-                if (currentFilters.project_id) {
-                    params.append('filter_project_id', currentFilters.project_id);
-                }
-                if (currentFilters.project_name) {
-                    params.append('filter_project_name', currentFilters.project_name);
-                }
-                if (currentFilters.dimension_ref) {
-                    params.append('filter_dimension_ref', currentFilters.dimension_ref);
-                }
-                if (currentFilters.dimension_name) {
-                    params.append('filter_dimension_name', currentFilters.dimension_name);
-                }
-                if (currentFilters.client_name) {
-                    params.append('filter_client_name', currentFilters.client_name);
-                }
-                params.append('page', currentPage.toString());
-                params.append('page_size', pageSize.toString());
-                
-                const response = await fetch(`${API_BASE_URL}/api/founder-admin/voc-data?${params.toString()}`, {
-                    headers: getAuthHeaders()
-                });
-                
-                if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        handleLogout();
-                        return;
-                    }
-                    throw new Error(`Failed to load data: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                
-                totalRows = data.total;
-                totalPages = data.total_pages;
-                currentPage = data.page;
-                
-                renderTable(data.items);
-                updatePagination();
-                updateBulkEditSection();
-                
-            } catch (error) {
-                tbody.innerHTML = `<tr><td colspan="9" style="color: #e74c3c;">Error: ${error.message}</td></tr>`;
-                showStatus('Error loading data: ' + error.message, 'error');
-            }
-        }
-
-        function renderTable(items) {
-            const tbody = document.getElementById('tableBody');
-            
-            if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" class="loading">No data found</td></tr>';
-                return;
-            }
-            
-            tbody.innerHTML = items.map(row => {
-                const edited = editedRows.get(row.id) || {};
-                const projectName = edited.project_name !== undefined ? edited.project_name : (row.project_name || '');
-                const dimensionName = edited.dimension_name !== undefined ? edited.dimension_name : (row.dimension_name || '');
-                const dataSource = edited.data_source !== undefined ? edited.data_source : (row.data_source || '');
-                const clientName = edited.client_name !== undefined ? edited.client_name : (row.client_name || '');
-                
-                return `
-                    <tr data-row-id="${row.id}">
-                        <td class="checkbox-cell">
-                            <input type="checkbox" class="row-checkbox" data-row-id="${row.id}" 
-                                   ${editedRows.has(row.id) ? 'checked' : ''}>
-                        </td>
-                        <td class="id-cell">${row.id}</td>
-                        <td class="editable-cell">
-                            <input type="text" 
-                                   class="editable-input client-name-input" 
-                                   data-row-id="${row.id}"
-                                   value="${escapeHtml(clientName)}"
-                                   onchange="markRowEdited(${row.id}, 'client_name', this.value)">
-                        </td>
-                        <td>${row.project_id || ''}</td>
-                        <td class="editable-cell">
-                            <input type="text" 
-                                   class="editable-input project-name-input" 
-                                   data-row-id="${row.id}"
-                                   value="${escapeHtml(projectName)}"
-                                   onchange="markRowEdited(${row.id}, 'project_name', this.value)">
-                        </td>
-                        <td>${escapeHtml(row.dimension_ref || '')}</td>
-                        <td class="editable-cell">
-                            <input type="text" 
-                                   class="editable-input data-source-input" 
-                                   data-row-id="${row.id}"
-                                   value="${escapeHtml(dataSource)}"
-                                   onchange="markRowEdited(${row.id}, 'data_source', this.value)">
-                        </td>
-                        <td class="editable-cell">
-                            <input type="text" 
-                                   class="editable-input dimension-name-input" 
-                                   data-row-id="${row.id}"
-                                   value="${escapeHtml(dimensionName)}"
-                                   onchange="markRowEdited(${row.id}, 'dimension_name', this.value)">
-                        </td>
-                        <td class="text-cell" title="${escapeHtml(row.value || '')}">${escapeHtml((row.value || '').substring(0, 50))}</td>
-                    </tr>
-                `;
-            }).join('');
-        }
-
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        function markRowEdited(rowId, field, value) {
-            if (!editedRows.has(rowId)) {
-                editedRows.set(rowId, {});
-            }
-            const edited = editedRows.get(rowId);
-            edited[field] = value;
-            
-            // Check checkbox
-            const checkbox = document.querySelector(`.row-checkbox[data-row-id="${rowId}"]`);
-            if (checkbox) {
-                checkbox.checked = true;
-            }
-        }
-
-        // Filters
-        function applyFilters() {
-            currentFilters.project_id = document.getElementById('filterProjectId').value.trim();
-            currentFilters.project_name = document.getElementById('filterProjectName').value.trim();
-            currentFilters.dimension_ref = document.getElementById('filterDimensionRef').value.trim();
-            currentFilters.dimension_name = document.getElementById('filterDimensionName').value.trim();
-            currentFilters.client_name = document.getElementById('filterClientName').value.trim();
-            currentPage = 1;
-            editedRows.clear();
-            loadData();
-        }
-
-        function clearFilters() {
-            document.getElementById('filterProjectId').value = '';
-            document.getElementById('filterProjectName').value = '';
-            document.getElementById('filterDimensionRef').value = '';
-            document.getElementById('filterDimensionName').value = '';
-            document.getElementById('filterClientName').value = '';
-            currentFilters.project_id = '';
-            currentFilters.project_name = '';
-            currentFilters.dimension_ref = '';
-            currentFilters.dimension_name = '';
-            currentFilters.client_name = '';
-            currentPage = 1;
-            editedRows.clear();
-            clearBulkEdit();
-            loadData();
-        }
-
-        // Selection
-        function toggleSelectAll() {
-            const selectAll = document.getElementById('selectAllCheckbox').checked;
-            document.querySelectorAll('.row-checkbox').forEach(cb => {
-                cb.checked = selectAll;
-            });
-        }
-
-        function selectAll() {
-            document.getElementById('selectAllCheckbox').checked = true;
-            toggleSelectAll();
-        }
-
-        function deselectAll() {
-            document.getElementById('selectAllCheckbox').checked = false;
-            toggleSelectAll();
-        }
-
-        // Bulk Save
-        async function saveBulkEdits() {
-            if (editedRows.size === 0) {
-                showStatus('No changes to save', 'error');
-                return;
-            }
-
-            const checkedBoxes = Array.from(document.querySelectorAll('.row-checkbox:checked'));
-            if (checkedBoxes.length === 0) {
-                showStatus('Please select at least one row to save', 'error');
-                return;
-            }
-
-            const updates = [];
-            checkedBoxes.forEach(checkbox => {
-                const rowId = parseInt(checkbox.getAttribute('data-row-id'));
-                const edited = editedRows.get(rowId);
-                if (edited) {
-                    updates.push({
-                        id: rowId,
-                        project_name: edited.project_name !== undefined ? edited.project_name : null,
-                        dimension_name: edited.dimension_name !== undefined ? edited.dimension_name : null,
-                        data_source: edited.data_source !== undefined ? edited.data_source : null,
-                        client_name: edited.client_name !== undefined ? edited.client_name : null
-                    });
+            elements.loginEmail.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    loginFounder();
                 }
             });
 
-            if (updates.length === 0) {
-                showStatus('No valid changes to save', 'error');
-                return;
-            }
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/founder-admin/voc-data/bulk-update`, {
-                    method: 'POST',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify({ updates })
-                });
-
-                if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        handleLogout();
-                        return;
-                    }
-                    const error = await response.json();
-                    throw new Error(error.detail || 'Failed to save changes');
-                }
-
-                const result = await response.json();
-                showStatus(`Successfully updated ${result.updated_count} row(s)`, 'success');
-                
-                // Clear edited rows and reload
-                editedRows.clear();
-                loadData();
-
-            } catch (error) {
-                showStatus('Error saving changes: ' + error.message, 'error');
-            }
-        }
-
-        function showStatus(message, type) {
-            const statusEl = document.getElementById('statusMessage');
-            statusEl.textContent = message;
-            statusEl.className = `status-message ${type} show`;
-            setTimeout(() => {
-                statusEl.classList.remove('show');
-            }, 5000);
-        }
-
-        // Pagination
-        function updatePagination() {
-            const start = totalRows === 0 ? 0 : (currentPage - 1) * pageSize + 1;
-            const end = Math.min(currentPage * pageSize, totalRows);
-            document.getElementById('paginationInfo').textContent = 
-                `Showing ${start} - ${end} of ${totalRows} rows`;
-            
-            document.getElementById('totalPagesSpan').textContent = `of ${totalPages}`;
-            document.getElementById('pageInput').value = currentPage;
-        }
-
-        function goToPage() {
-            const page = parseInt(document.getElementById('pageInput').value);
-            if (page >= 1 && page <= totalPages) {
-                currentPage = page;
-                loadData();
-            }
-        }
-
-        function goToFirstPage() {
-            currentPage = 1;
-            loadData();
-        }
-
-        function goToPrevPage() {
-            if (currentPage > 1) {
-                currentPage--;
-                loadData();
-            }
-        }
-
-        function goToNextPage() {
-            if (currentPage < totalPages) {
-                currentPage++;
-                loadData();
-            }
-        }
-
-        function goToLastPage() {
-            currentPage = totalPages;
-            loadData();
-        }
-
-        // Bulk Edit Functions
-        function updateBulkEditSection() {
-            const hasFilters = currentFilters.project_id || currentFilters.project_name || currentFilters.dimension_ref || currentFilters.dimension_name || currentFilters.client_name;
-            const bulkSection = document.getElementById('bulkEditSection');
-            const bulkInfo = document.getElementById('bulkEditInfo');
-            
-            if (hasFilters) {
-                bulkSection.style.display = 'block';
-                const filterText = [];
-                if (currentFilters.project_id) {
-                    filterText.push(`Project ID: ${currentFilters.project_id}`);
-                }
-                if (currentFilters.project_name) {
-                    filterText.push(`Project Name: ${currentFilters.project_name}`);
-                }
-                if (currentFilters.dimension_ref) {
-                    filterText.push(`Dimension Ref: ${currentFilters.dimension_ref}`);
-                }
-                if (currentFilters.dimension_name) {
-                    filterText.push(`Dimension Name: ${currentFilters.dimension_name}`);
-                }
-                if (currentFilters.client_name) {
-                    filterText.push(`Client Name: ${currentFilters.client_name}`);
-                }
-                bulkInfo.textContent = `Will update all rows matching: ${filterText.join(', ')} (${totalRows} rows)`;
-            } else {
-                bulkSection.style.display = 'none';
-            }
-        }
-
-        async function applyBulkEdit() {
-            if (!currentFilters.project_id && !currentFilters.project_name && !currentFilters.dimension_ref && !currentFilters.dimension_name && !currentFilters.client_name) {
-                showStatus('Please apply filters before bulk editing', 'error');
-                return;
-            }
-            
-            // Collect updates from all selected fields
-            const updates = {};
-            let hasUpdates = false;
-            
-            selectedFields.forEach(fieldName => {
-                const input = document.getElementById(`bulk_${fieldName}`);
-                if (input) {
-                    let value = input.value.trim();
-                    if (value) {
-                        // Handle datetime-local inputs - convert to ISO format
-                        const fieldMeta = fieldMetadata.find(f => f.name === fieldName);
-                        if (fieldMeta && fieldMeta.type === 'datetime' && input.type === 'datetime-local') {
-                            // datetime-local format is "YYYY-MM-DDTHH:mm" - convert to ISO format
-                            // Add seconds if not present
-                            if (value && value.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)) {
-                                value = value + ':00';
-                            }
-                            // Convert to ISO format with timezone (backend expects ISO format)
-                            // datetime.fromisoformat can handle "YYYY-MM-DDTHH:mm:ss" format
-                        }
-                        updates[fieldName] = value;
-                        hasUpdates = true;
-                    }
+            elements.loginPassword.addEventListener('keypress', (event) => {
+                if (event.key === 'Enter') {
+                    loginFounder();
                 }
             });
-            
-            if (!hasUpdates) {
-                showStatus('Please provide at least one value to update', 'error');
-                return;
-            }
-            
-            if (!confirm(`This will update ${totalRows} row(s). Are you sure?`)) {
-                return;
-            }
-            
-            try {
-                const params = new URLSearchParams();
-                if (currentFilters.project_id) {
-                    params.append('filter_project_id', currentFilters.project_id);
-                }
-                if (currentFilters.project_name) {
-                    params.append('filter_project_name', currentFilters.project_name);
-                }
-                if (currentFilters.dimension_ref) {
-                    params.append('filter_dimension_ref', currentFilters.dimension_ref);
-                }
-                if (currentFilters.dimension_name) {
-                    params.append('filter_dimension_name', currentFilters.dimension_name);
-                }
-                if (currentFilters.client_name) {
-                    params.append('filter_client_name', currentFilters.client_name);
-                }
-                
-                const response = await fetch(`${API_BASE_URL}/api/founder-admin/voc-data/bulk-update-filtered?${params.toString()}`, {
-                    method: 'POST',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify({ updates })
-                });
-                
-                if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        handleLogout();
-                        return;
-                    }
-                    const error = await response.json();
-                    throw new Error(error.detail || 'Failed to update rows');
-                }
-                
-                const result = await response.json();
-                showStatus(`Successfully updated ${result.updated_count} row(s)`, 'success');
-                
-                // Clear bulk edit fields and reload data
-                clearBulkEdit();
-                loadData();
-                
-            } catch (error) {
-                showStatus('Error updating rows: ' + error.message, 'error');
-            }
         }
 
-        function clearBulkEdit() {
-            // Clear all dynamic field inputs
-            selectedFields.forEach(fieldName => {
-                const input = document.getElementById(`bulk_${fieldName}`);
-                if (input) input.value = '';
-            });
-            // Deselect all fields
-            deselectAllFields();
-        }
+        attachEventListeners();
 
-        async function deleteBulkRows() {
-            if (!currentFilters.project_id && !currentFilters.project_name && !currentFilters.dimension_ref && !currentFilters.dimension_name && !currentFilters.client_name) {
-                showStatus('Please apply filters before deleting rows', 'error');
-                return;
-            }
-            
-            // Double confirmation for deletion
-            const confirmMessage = `⚠️ WARNING: This will permanently delete ${totalRows} row(s). This action cannot be undone!\n\nAre you absolutely sure you want to proceed?`;
-            
-            if (!confirm(confirmMessage)) {
-                return;
-            }
-            
-            // Second confirmation
-            const secondConfirm = prompt(`Type "DELETE" to confirm deletion of ${totalRows} row(s):`);
-            if (secondConfirm !== 'DELETE') {
-                showStatus('Deletion cancelled', 'error');
-                return;
-            }
-            
-            try {
-                const params = new URLSearchParams();
-                if (currentFilters.project_id) {
-                    params.append('filter_project_id', currentFilters.project_id);
-                }
-                if (currentFilters.project_name) {
-                    params.append('filter_project_name', currentFilters.project_name);
-                }
-                if (currentFilters.dimension_ref) {
-                    params.append('filter_dimension_ref', currentFilters.dimension_ref);
-                }
-                if (currentFilters.dimension_name) {
-                    params.append('filter_dimension_name', currentFilters.dimension_name);
-                }
-                if (currentFilters.client_name) {
-                    params.append('filter_client_name', currentFilters.client_name);
-                }
-                
-                const response = await fetch(`${API_BASE_URL}/api/founder-admin/voc-data/bulk-delete?${params.toString()}`, {
-                    method: 'DELETE',
-                    headers: getAuthHeaders()
-                });
-                
-                if (!response.ok) {
-                    if (response.status === 401 || response.status === 403) {
-                        handleLogout();
-                        return;
-                    }
-                    const error = await response.json();
-                    throw new Error(error.detail || 'Failed to delete rows');
-                }
-                
-                const result = await response.json();
-                showStatus(`Successfully deleted ${result.updated_count} row(s)`, 'success');
-                
-                // Reload data to show updated results
-                loadData();
-                
-            } catch (error) {
-                showStatus('Error deleting rows: ' + error.message, 'error');
-            }
-        }
-
-        // Enter key handlers
-        document.addEventListener('DOMContentLoaded', () => {
-            const emailInput = document.getElementById('loginEmail');
-            const passwordInput = document.getElementById('loginPassword');
-            
-            if (emailInput) {
-                emailInput.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') handleLogin();
-                });
-            }
-            
-            if (passwordInput) {
-                passwordInput.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') handleLogin();
-                });
+        attemptExistingSession().then((hasSession) => {
+            if (!hasSession) {
+                elements.loginOverlay.classList.remove('hidden');
+                elements.appShell.style.display = 'none';
             }
         });
-
-        // Collapsible Section Toggle
-        function toggleSection(sectionId) {
-            const section = document.getElementById(sectionId);
-            section.classList.toggle('collapsed');
-        }
-
-        // Load Field Metadata
-        async function loadFieldMetadata() {
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/founder-admin/field-metadata`, {
-                    headers: getAuthHeaders()
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to load field metadata');
-                }
-                
-                const data = await response.json();
-                fieldMetadata = data.fields;
-                renderFieldSelector();
-                
-            } catch (error) {
-                console.error('Error loading field metadata:', error);
-            }
-        }
-
-        // Render Field Selector
-        function renderFieldSelector() {
-            const container = document.getElementById('fieldCategories');
-            const categories = {};
-            
-            // Group fields by category
-            fieldMetadata.forEach(field => {
-                if (!categories[field.category]) {
-                    categories[field.category] = [];
-                }
-                categories[field.category].push(field);
-            });
-            
-            // Render categories
-            container.innerHTML = Object.entries(categories).map(([category, fields]) => `
-                <div class="field-category">
-                    <h5>${category}</h5>
-                    ${fields.map(field => `
-                        <div class="field-checkbox">
-                            <input type="checkbox" 
-                                   id="field_${field.name}" 
-                                   value="${field.name}"
-                                   onchange="toggleFieldInput('${field.name}', this.checked)">
-                            <label for="field_${field.name}">
-                                ${field.name}
-                                <span class="field-type-badge ${field.type}">${field.type}</span>
-                            </label>
-                        </div>
-                    `).join('')}
-                </div>
-            `).join('');
-        }
-
-        // Toggle Field Input Visibility
-        function toggleFieldInput(fieldName, show) {
-            if (show) {
-                selectedFields.add(fieldName);
-                showFieldInput(fieldName);
-            } else {
-                selectedFields.delete(fieldName);
-                hideFieldInput(fieldName);
-            }
-        }
-
-        // Show Field Input
-        function showFieldInput(fieldName) {
-            const fieldMeta = fieldMetadata.find(f => f.name === fieldName);
-            if (!fieldMeta) return;
-            
-            const container = document.getElementById('dynamicFields');
-            const existing = document.getElementById(`dynamic_field_${fieldName}`);
-            if (existing) {
-                existing.classList.add('visible');
-                return;
-            }
-            
-            let inputHtml = '';
-            const placeholder = fieldMeta.nullable ? 'Leave empty to keep existing' : 'Required';
-            
-            if (fieldMeta.type === 'integer') {
-                inputHtml = `<input type="number" id="bulk_${fieldName}" placeholder="${placeholder}">`;
-            } else if (fieldMeta.type === 'datetime') {
-                // datetime-local format: YYYY-MM-DDTHH:mm
-                inputHtml = `<input type="datetime-local" id="bulk_${fieldName}" placeholder="${placeholder}" step="1">`;
-            } else if (fieldMeta.type === 'text') {
-                inputHtml = `<textarea id="bulk_${fieldName}" rows="2" placeholder="${placeholder}"></textarea>`;
-            } else if (fieldMeta.type === 'json') {
-                inputHtml = `<textarea id="bulk_${fieldName}" rows="3" placeholder='${placeholder} (JSON format)'></textarea>`;
-            } else {
-                inputHtml = `<input type="text" id="bulk_${fieldName}" placeholder="${placeholder}">`;
-            }
-            
-            const fieldDiv = document.createElement('div');
-            fieldDiv.className = 'filter-group dynamic-field visible';
-            fieldDiv.id = `dynamic_field_${fieldName}`;
-            fieldDiv.innerHTML = `
-                <label>
-                    ${fieldName}
-                    <span class="field-type-badge ${fieldMeta.type}">${fieldMeta.type}</span>
-                </label>
-                ${inputHtml}
-            `;
-            
-            container.appendChild(fieldDiv);
-        }
-
-        // Hide Field Input
-        function hideFieldInput(fieldName) {
-            const fieldDiv = document.getElementById(`dynamic_field_${fieldName}`);
-            if (fieldDiv) {
-                fieldDiv.classList.remove('visible');
-                // Clear the input value
-                const input = document.getElementById(`bulk_${fieldName}`);
-                if (input) input.value = '';
-            }
-        }
-
-        // Select/Deselect All Fields
-        function selectAllFields() {
-            fieldMetadata.forEach(field => {
-                const checkbox = document.getElementById(`field_${field.name}`);
-                if (checkbox) {
-                    checkbox.checked = true;
-                    toggleFieldInput(field.name, true);
-                }
-            });
-        }
-
-        function deselectAllFields() {
-            fieldMetadata.forEach(field => {
-                const checkbox = document.getElementById(`field_${field.name}`);
-                if (checkbox) {
-                    checkbox.checked = false;
-                    toggleFieldInput(field.name, false);
-                }
-            });
-        }
-
-        // Initialize
-        const token = getAuthToken();
-        if (!token) {
-            showLogin();
-        } else {
-            checkAuth().then(authenticated => {
-                if (authenticated) {
-                    loadFieldMetadata();
-                    loadData();
-                }
-            });
-        }
     </script>
 </body>
 </html>
-
