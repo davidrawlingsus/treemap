@@ -391,11 +391,18 @@
 }
 
 .login-container h2 {
-  margin: 0 0 24px 0;
+  margin: 0 0 16px 0;
   color: #333;
   font-size: 24px;
   font-weight: 700;
   font-family: var(--font-lato);
+}
+
+.login-subtext {
+  font-size: 14px;
+  color: #4d5562;
+  margin-bottom: 20px;
+  line-height: 1.4;
 }
 
 .login-container input {
@@ -422,13 +429,12 @@
   color: var(--bg-black);
   border: none;
   border-radius: 6px;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s;
   font-family: var(--font-lato);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.01em;
 }
 
 .login-container button:hover {
@@ -449,11 +455,56 @@
   font-family: var(--font-lato);
 }
 
+.login-success {
+  color: #0f5132;
+  background: #d1e7dd;
+  border: 1px solid #badbcc;
+  margin-top: 12px;
+  font-size: 14px;
+  padding: 12px;
+  border-radius: 6px;
+  display: none;
+  font-family: var(--font-lato);
+}
+
 .login-container p {
   margin-top: 16px;
   font-size: 12px;
   color: #666;
   text-align: center;
   font-family: var(--font-lato);
+}
+
+.account-selection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.account-option {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  background: #f8f9fa;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f2937;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.1s;
+  text-align: left;
+}
+
+.account-option:hover {
+  border-color: var(--brand-color);
+  background: #eef7d8;
+}
+
+.account-selection-note {
+  font-size: 13px;
+  color: #4d5562;
+  margin-bottom: 12px;
+  line-height: 1.4;
 }
 

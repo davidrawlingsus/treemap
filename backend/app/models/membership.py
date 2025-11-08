@@ -19,12 +19,26 @@ class Membership(Base):
     joined_at = Column(DateTime(timezone=True), nullable=True)
     membership_metadata = Column("metadata", JSONB, nullable=True)  # Column name is "metadata" in DB, but attribute is "membership_metadata"
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+    provisioned_at = Column(DateTime(timezone=True), nullable=True)
+    provisioned_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    provisioning_method = Column(String(50), nullable=True)
 
     # Relationships
     user = relationship("User", foreign_keys=[user_id], back_populates="memberships")
     client = relationship("Client", back_populates="memberships")
     inviter = relationship("User", foreign_keys=[invited_by], back_populates="invitations_sent")
+    provisioned_by_user = relationship(
+        "User",
+        foreign_keys=[provisioned_by],
+        back_populates="provisioned_memberships",
+        overlaps="memberships,user",
+    )
 
     # Unique constraint: one membership per user-client pair
     __table_args__ = (

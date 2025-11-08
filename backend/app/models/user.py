@@ -16,9 +16,18 @@ class User(Base):
     is_active = Column(Boolean, nullable=False, default=True)
     email_verified_at = Column(DateTime(timezone=True), nullable=True)
     last_login_at = Column(DateTime(timezone=True), nullable=True)
+    hashed_password = Column(String(255), nullable=True)
+    last_magic_link_sent_at = Column(DateTime(timezone=True), nullable=True)
+    magic_link_token = Column(String(255), nullable=True)
+    magic_link_expires_at = Column(DateTime(timezone=True), nullable=True)
     user_metadata = Column("metadata", JSONB, nullable=True)  # Column name is "metadata" in DB, but attribute is "user_metadata"
     created_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
 
     # Relationships
     # Clients where this user is the founder
@@ -27,6 +36,12 @@ class User(Base):
     memberships = relationship("Membership", foreign_keys="Membership.user_id", back_populates="user")
     # Invitations sent by this user
     invitations_sent = relationship("Membership", foreign_keys="Membership.invited_by", back_populates="inviter")
+    provisioned_memberships = relationship(
+        "Membership",
+        foreign_keys="Membership.provisioned_by",
+        back_populates="provisioned_by_user",
+        overlaps="memberships,user",
+    )
 
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email}, is_founder={self.is_founder})>"

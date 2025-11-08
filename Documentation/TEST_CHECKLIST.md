@@ -13,6 +13,18 @@ Use this checklist to verify the refactoring works correctly with both data form
 
 ---
 
+## Auth & Provisioning Manual Tests
+
+- [ ] **Founder login** — existing founder credentials can still access `/founder_admin` and core dashboard.
+- [ ] **Authorized domain magic link** — request a link for an allowed domain user. Confirm API returns success and Resend delivers the email (check Resend dashboard/logs).
+- [ ] **Magic link verification** — follow the emailed link, confirm JWT persisted, `/api/auth/me` succeeds, and you land on the visualization app.
+- [ ] **Multi-account selection** — use a domain mapped to multiple clients and verify the account selection overlay appears, default client is applied after choosing, and switching via dropdown continues to work.
+- [ ] **Unauthorized domain blocked** — request a magic link for an unapproved domain and confirm a 403 error with the appropriate message.
+- [ ] **Expired link handling** — reuse an already-consumed or manually-expired token and confirm `/api/auth/magic-link/verify` returns an error and the login overlay reappears.
+- [ ] **Founder impersonation helper** — log into `founder_impersonation`, generate an impersonation token, and open the main app via the provided link to confirm client routing.
+
+---
+
 ## Step 1: Run Migration (If Existing Data)
 
 ```bash

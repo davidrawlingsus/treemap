@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 import os
@@ -7,6 +8,18 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./treemap.db"
     database_public_url: str = ""
     environment: str = "development"
+    jwt_secret_key: str = Field(default="change-me")
+    jwt_algorithm: str = Field(default="HS256")
+    access_token_expire_minutes: int = Field(default=60 * 24 * 7)  # 7 days
+    magic_link_token_expire_minutes: int = Field(default=60)  # 60 minutes
+    magic_link_rate_limit_seconds: int = Field(default=120)  # 2 minutes
+    frontend_base_url: str = Field(default="http://localhost:3000")
+    magic_link_redirect_path: str = Field(default="/magic-login")
+    resend_api_key: str | None = Field(default=None)
+    resend_from_email: str | None = Field(default=None)
+    resend_reply_to_email: str | None = Field(default=None)
+    google_oauth_client_id: str | None = Field(default=None)
+    google_oauth_client_secret: str | None = Field(default=None)
     
     class Config:
         env_file = ".env"

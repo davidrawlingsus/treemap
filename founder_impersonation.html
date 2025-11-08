@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Founder Tools – Impersonation & Access</title>
+    <script src="/config.js"></script>
+    <style>
+        :root {
+            --bg: #f7f9fc;
+            --surface: #ffffff;
+            --border: #e3e8f0;
+            --primary: #667eea;
+            --primary-dark: #4c51bf;
+            --danger: #e53e3e;
+            --text: #1a202c;
+            --muted: #718096;
+            --success: #38a169;
+            --code-bg: #2d3748;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: "Inter", "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        h1, h2, h3, h4 {
+            font-weight: 600;
+        }
+
+        .login-overlay {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.85);
+            z-index: 999;
+        }
+
+        .login-overlay.hidden {
+            display: none;
+        }
+
+        .login-card {
+            background: var(--surface);
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 25px 50px -12px rgba(56, 66, 106, 0.35);
+            width: min(380px, 92vw);
+        }
+
+        .login-card h2 {
+            margin-bottom: 12px;
+        }
+
+        .login-card p {
+            margin-bottom: 16px;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .login-card input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 15px;
+            margin-bottom: 12px;
+            transition: border 0.2s;
+        }
+
+        .login-card input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: #edf2f7;
+            color: var(--text);
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--primary);
+        }
+
+        .btn-ghost:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .alert {
+            border-radius: 8px;
+            padding: 12px 14px;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+
+        .alert-error {
+            background: #fff5f5;
+            color: #c53030;
+            border: 1px solid #fed7d7;
+        }
+
+        .alert-success {
+            background: #f0fff4;
+            color: #2f855a;
+            border: 1px solid #c6f6d5;
+        }
+
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+
+        header h1 {
+            font-size: 24px;
+        }
+
+        header .subtitle {
+            font-size: 14px;
+            color: var(--muted);
+        }
+
+        main {
+            padding: 24px 32px 48px;
+            display: grid;
+            gap: 24px;
+            grid-template-columns: 280px 1fr;
+        }
+
+        .panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px;
+            box-shadow: 0 10px 30px -18px rgba(15, 23, 42, 0.35);
+        }
+
+        .panel h2 {
+            font-size: 18px;
+            margin-bottom: 12px;
+        }
+
+        .panel h3 {
+            font-size: 15px;
+            margin: 16px 0 8px;
+        }
+
+        .filters {
+            display: grid;
+            gap: 12px;
+        }
+
+        .filters label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .filters input,
+        .filters select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .domain-list {
+            display: grid;
+            gap: 8px;
+            max-height: 260px;
+            overflow-y: auto;
+        }
+
+        .domain-card {
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+            background: #f8fafc;
+        }
+
+        .domain-card strong {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 6px;
+        }
+
+        .domain-clients {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            background: rgba(102, 126, 234, 0.12);
+            color: var(--primary-dark);
+            font-weight: 600;
+        }
+
+        .content-area {
+            display: grid;
+            gap: 24px;
+        }
+
+        .table-wrapper {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            background: var(--surface);
+            box-shadow: 0 20px 45px -24px rgba(15, 23, 42, 0.35);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f1f4f9;
+        }
+
+        th, td {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+            text-align: left;
+            font-size: 14px;
+            vertical-align: top;
+        }
+
+        tbody tr:hover {
+            background: #f9fbff;
+        }
+
+        .token-panel {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: var(--surface);
+            padding: 20px;
+        }
+
+        .token-panel pre {
+            background: var(--code-bg);
+            color: #f7fafc;
+            padding: 16px;
+            border-radius: 10px;
+            overflow-x: auto;
+            font-size: 13px;
+            margin: 12px 0;
+        }
+
+        .muted {
+            color: var(--muted);
+        }
+
+        .user-metadata {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #eef2ff;
+            color: var(--primary-dark);
+            padding: 4px 10px;
+            border-radius: 100px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .membership-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .membership-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            border-radius: 999px;
+            border: 1px solid rgba(102, 126, 234, 0.4);
+            padding: 4px 10px;
+            font-size: 12px;
+            background: rgba(102, 126, 234, 0.08);
+        }
+
+        .user-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 32px;
+            color: var(--muted);
+        }
+
+        @media (max-width: 1100px) {
+            main {
+                grid-template-columns: 1fr;
+            }
+
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-card">
+            <h2>Founder Login</h2>
+            <p>Use your founder email to access impersonation tools. Password is currently optional.</p>
+            <div id="loginError" class="alert alert-error" style="display: none;"></div>
+            <input type="email" id="loginEmail" placeholder="founder@example.com" autocomplete="email">
+            <input type="password" id="loginPassword" placeholder="Password (if configured)" autocomplete="current-password">
+            <button class="btn btn-primary" id="loginButton">Login</button>
+        </div>
+    </div>
+
+    <div id="appShell" style="display: none;">
+        <header>
+            <div>
+                <h1>Founder Tools</h1>
+                <div class="subtitle">Impersonate users, review authorizations, and open the app as a customer.</div>
+            </div>
+            <div style="display: flex; gap: 12px;">
+                <button class="btn btn-secondary" id="refreshButton">Refresh Data</button>
+                <button class="btn btn-ghost" id="logoutButton">Logout</button>
+            </div>
+        </header>
+
+        <main>
+            <div class="panel">
+                <h2>Filters</h2>
+                <div class="filters">
+                    <div>
+                        <label for="searchInput">Search (email or name)</label>
+                        <input type="text" id="searchInput" placeholder="david@company.com, rabbits, etc.">
+                    </div>
+                    <div>
+                        <label for="domainSelect">Email Domain</label>
+                        <select id="domainSelect">
+                            <option value="">All domains</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="clientSelect">Client Access</label>
+                        <select id="clientSelect">
+                            <option value="">All clients</option>
+                        </select>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary" id="applyFiltersButton">Apply</button>
+                        <button class="btn btn-secondary" id="clearFiltersButton">Clear</button>
+                    </div>
+                </div>
+
+                <h3>Authorized Domains</h3>
+                <p class="muted" style="font-size: 12px;">Domains mapped to client access. Useful when preparing invites.</p>
+                <div id="domainList" class="domain-list"></div>
+            </div>
+
+            <div class="content-area">
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Email</th>
+                                <th>Status</th>
+                                <th>Memberships</th>
+                                <th>Last Login</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usersTableBody">
+                            <tr><td colspan="5" class="empty-state">No users loaded yet.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="token-panel">
+                    <h2>Impersonation Token</h2>
+                    <div id="impersonationEmpty" class="muted">Select a user and click “Impersonate” to generate a token.</div>
+                    <div id="impersonationDetails" style="display: none;">
+                        <div class="user-metadata" id="impersonationSummary"></div>
+                        <pre id="impersonationToken"></pre>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button class="btn btn-primary" id="openVisualizerButton">Open Visualizer as User</button>
+                            <button class="btn btn-secondary" id="copyTokenButton">Copy Token</button>
+                            <button class="btn btn-ghost" id="clearTokenButton">Clear</button>
+                        </div>
+                        <p class="muted" style="font-size: 12px; margin-top: 12px;">
+                            Opening the visualizer launches <code>index.html?impersonationToken=... </code>.
+                            The main app now recognises this parameter, stores the token, and loads the user's clients.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+        const AUTH_TOKEN_KEY = 'visualizd_auth_token';
+
+        const elements = {
+            loginOverlay: document.getElementById('loginOverlay'),
+            loginEmail: document.getElementById('loginEmail'),
+            loginPassword: document.getElementById('loginPassword'),
+            loginButton: document.getElementById('loginButton'),
+            loginError: document.getElementById('loginError'),
+            appShell: document.getElementById('appShell'),
+            refreshButton: document.getElementById('refreshButton'),
+            logoutButton: document.getElementById('logoutButton'),
+            searchInput: document.getElementById('searchInput'),
+            domainSelect: document.getElementById('domainSelect'),
+            clientSelect: document.getElementById('clientSelect'),
+            applyFiltersButton: document.getElementById('applyFiltersButton'),
+            clearFiltersButton: document.getElementById('clearFiltersButton'),
+            domainList: document.getElementById('domainList'),
+            usersTableBody: document.getElementById('usersTableBody'),
+            impersonationEmpty: document.getElementById('impersonationEmpty'),
+            impersonationDetails: document.getElementById('impersonationDetails'),
+            impersonationSummary: document.getElementById('impersonationSummary'),
+            impersonationToken: document.getElementById('impersonationToken'),
+            openVisualizerButton: document.getElementById('openVisualizerButton'),
+            copyTokenButton: document.getElementById('copyTokenButton'),
+            clearTokenButton: document.getElementById('clearTokenButton'),
+        };
+
+        let domainCache = [];
+        let userRows = [];
+        let lastTokenInfo = null;
+
+        const getAuthToken = () => localStorage.getItem(AUTH_TOKEN_KEY);
+        const setAuthToken = (token) => localStorage.setItem(AUTH_TOKEN_KEY, token);
+        const clearAuth = () => localStorage.removeItem(AUTH_TOKEN_KEY);
+
+        const authHeaders = () => {
+            const token = getAuthToken();
+            return token
+                ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+                : { 'Content-Type': 'application/json' };
+        };
+
+        async function loginFounder() {
+            const email = elements.loginEmail.value.trim();
+            const password = elements.loginPassword.value;
+
+            if (!email) {
+                showLoginError('Please enter your founder email.');
+                return;
+            }
+
+            elements.loginButton.disabled = true;
+            elements.loginButton.textContent = 'Logging in...';
+            showLoginError();
+
+            try {
+                const resp = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password }),
+                });
+
+                if (!resp.ok) {
+                    const error = await resp.json().catch(() => ({}));
+                    throw new Error(error.detail || 'Login failed');
+                }
+
+                const data = await resp.json();
+                setAuthToken(data.access_token);
+
+                const meResp = await fetch(`${API_BASE_URL}/api/auth/me`, { headers: authHeaders() });
+                if (!meResp.ok) {
+                    throw new Error('Could not validate founder session.');
+                }
+
+                const userInfo = await meResp.json();
+                if (!userInfo.is_founder) {
+                    clearAuth();
+                    throw new Error('Access denied: founder privileges required.');
+                }
+
+                elements.loginOverlay.classList.add('hidden');
+                elements.appShell.style.display = 'block';
+                await Promise.all([loadAuthorizedDomains(), loadUsers()]);
+            } catch (error) {
+                showLoginError(error.message);
+                clearAuth();
+            } finally {
+                elements.loginButton.disabled = false;
+                elements.loginButton.textContent = 'Login';
+            }
+        }
+
+        function showLoginError(message) {
+            if (!message) {
+                elements.loginError.style.display = 'none';
+                elements.loginError.textContent = '';
+                return;
+            }
+            elements.loginError.textContent = message;
+            elements.loginError.style.display = 'block';
+        }
+
+        async function loadAuthorizedDomains() {
+            try {
+                const resp = await fetch(`${API_BASE_URL}/api/founder/authorized-domains`, {
+                    headers: authHeaders(),
+                });
+                if (!resp.ok) throw new Error('Failed to load domains');
+                const domains = await resp.json();
+                domainCache = domains;
+                renderDomainList(domains);
+                populateDomainFilter(domains);
+                populateClientFilter(domains);
+            } catch (error) {
+                console.error('Failed to load authorized domains', error);
+                elements.domainList.innerHTML = `<div class="alert alert-error">Unable to load authorized domains.</div>`;
+            }
+        }
+
+        function renderDomainList(domains) {
+            if (!domains.length) {
+                elements.domainList.innerHTML = `<div class="muted">No authorized domains configured yet.</div>`;
+                return;
+            }
+            elements.domainList.innerHTML = domains.map(domain => {
+                const clients = domain.clients
+                    .map(client => `<span class="badge">${client.name}</span>`)
+                    .join('');
+                const description = domain.description ? `<div class="muted" style="font-size: 12px;">${domain.description}</div>` : '';
+                return `
+                    <div class="domain-card">
+                        <strong>${domain.domain}</strong>
+                        ${description}
+                        <div class="domain-clients">
+                            ${clients || '<span class="muted" style="font-size: 12px;">No clients mapped</span>'}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function populateDomainFilter(domains) {
+            const current = elements.domainSelect.value;
+            elements.domainSelect.innerHTML = '<option value="">All domains</option>';
+            const uniqueDomains = domains.map(d => d.domain);
+            uniqueDomains.sort((a, b) => a.localeCompare(b));
+            uniqueDomains.forEach(domain => {
+                const option = document.createElement('option');
+                option.value = domain;
+                option.textContent = domain;
+                elements.domainSelect.appendChild(option);
+            });
+            if (uniqueDomains.includes(current)) {
+                elements.domainSelect.value = current;
+            }
+        }
+
+        function populateClientFilter(domains) {
+            const selected = elements.clientSelect.value;
+            const clientMap = new Map();
+            domains.forEach(domain => {
+                domain.clients.forEach(client => {
+                    clientMap.set(client.id, client.name);
+                });
+            });
+            elements.clientSelect.innerHTML = '<option value="">All clients</option>';
+            Array.from(clientMap.entries())
+                .sort((a, b) => a[1].localeCompare(b[1]))
+                .forEach(([id, name]) => {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = name;
+                    elements.clientSelect.appendChild(option);
+                });
+            if (clientMap.has(selected)) {
+                elements.clientSelect.value = selected;
+            }
+        }
+
+        async function loadUsers() {
+            try {
+                const params = new URLSearchParams();
+                const search = elements.searchInput.value.trim();
+                if (search) params.set('search', search);
+                const domain = elements.domainSelect.value;
+                if (domain) params.set('domain', domain);
+                const clientId = elements.clientSelect.value;
+                if (clientId) params.set('client_id', clientId);
+
+                const resp = await fetch(`${API_BASE_URL}/api/founder/users?${params.toString()}`, {
+                    headers: authHeaders(),
+                });
+                if (!resp.ok) throw new Error('Failed to load users');
+                userRows = await resp.json();
+                renderUsers();
+            } catch (error) {
+                console.error('Failed to load users', error);
+                elements.usersTableBody.innerHTML = `<tr><td colspan="5"><div class="alert alert-error">Unable to load users.</div></td></tr>`;
+            }
+        }
+
+        function renderUsers() {
+            if (!userRows.length) {
+                elements.usersTableBody.innerHTML = `<tr><td colspan="5" class="empty-state">No users match your filters.</td></tr>`;
+                return;
+            }
+
+            elements.usersTableBody.innerHTML = userRows.map(user => {
+                const statusPill = user.is_active
+                    ? `<span class="pill" style="background:#f0fff4;color:var(--success)">Active</span>`
+                    : `<span class="pill" style="background:#fff5f5;color:var(--danger)">Inactive</span>`;
+
+                const founderBadge = user.is_founder
+                    ? `<span class="pill" style="background:#ffe8d6;color:#c05621">Founder</span>`
+                    : '';
+
+                const memberships = user.memberships.length
+                    ? user.memberships.map(m => `
+                        <span class="membership-tag">
+                            ${m.client.name}
+                            <span style="font-size:11px;color:var(--muted);">${m.role}</span>
+                        </span>
+                    `).join('')
+                    : '<span class="muted">No memberships</span>';
+
+                const lastLogin = user.last_login_at
+                    ? new Date(user.last_login_at).toLocaleString()
+                    : 'Never';
+
+                return `
+                    <tr>
+                        <td>
+                            <div class="user-metadata">
+                                <strong>${user.email}</strong>
+                                <span class="muted" style="font-size: 12px;">Domain: ${user.email_domain}</span>
+                                <div style="display:flex; gap:6px; flex-wrap: wrap;">${statusPill}${founderBadge}</div>
+                            </div>
+                        </td>
+                        <td>
+                            <div class="muted" style="font-size: 12px;">
+                                Created: ${user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
+                            </div>
+                            <div class="muted" style="font-size: 12px;">
+                                Last magic link: ${user.last_magic_link_sent_at ? new Date(user.last_magic_link_sent_at).toLocaleString() : 'N/A'}
+                            </div>
+                        </td>
+                        <td>
+                            <div class="membership-list">${memberships}</div>
+                        </td>
+                        <td>${lastLogin}</td>
+                        <td>
+                            <div class="user-actions">
+                                <button class="btn btn-primary" data-user-id="${user.id}" data-user-email="${user.email}">
+                                    Impersonate
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            elements.usersTableBody.querySelectorAll('button[data-user-id]').forEach(button => {
+                button.addEventListener('click', () => {
+                    const userId = button.getAttribute('data-user-id');
+                    const email = button.getAttribute('data-user-email');
+                    impersonateUser(userId, email);
+                });
+            });
+        }
+
+        async function impersonateUser(userId, email) {
+            try {
+                const resp = await fetch(`${API_BASE_URL}/api/auth/impersonate`, {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({ user_id: userId }),
+                });
+                if (!resp.ok) {
+                    const error = await resp.json().catch(() => ({}));
+                    throw new Error(error.detail || 'Impersonation failed');
+                }
+                const data = await resp.json();
+                lastTokenInfo = {
+                    token: data.access_token,
+                    email,
+                    generatedAt: new Date(),
+                };
+                showImpersonationToken();
+            } catch (error) {
+                console.error('Impersonation failed', error);
+                alert(error.message || 'Unable to impersonate user.');
+            }
+        }
+
+        function showImpersonationToken() {
+            if (!lastTokenInfo) return;
+            elements.impersonationEmpty.style.display = 'none';
+            elements.impersonationDetails.style.display = 'block';
+            elements.impersonationSummary.innerHTML = `
+                <div><strong>${lastTokenInfo.email}</strong></div>
+                <div class="muted" style="font-size: 12px;">Generated at ${lastTokenInfo.generatedAt.toLocaleString()}</div>
+            `;
+            elements.impersonationToken.textContent = lastTokenInfo.token;
+        }
+
+        function clearImpersonationToken() {
+            lastTokenInfo = null;
+            elements.impersonationDetails.style.display = 'none';
+            elements.impersonationEmpty.style.display = 'block';
+        }
+
+        async function copyTokenToClipboard() {
+            if (!lastTokenInfo) return;
+            try {
+                await navigator.clipboard.writeText(lastTokenInfo.token);
+                alert('Token copied to clipboard.');
+            } catch (error) {
+                console.error('Clipboard copy failed', error);
+                alert('Unable to copy token automatically. Please copy it manually.');
+            }
+        }
+
+        function openVisualizerAsUser() {
+            if (!lastTokenInfo) return;
+            const url = `/index.html?impersonationToken=${encodeURIComponent(lastTokenInfo.token)}`;
+            window.open(url, '_blank', 'noopener');
+        }
+
+        function logout() {
+            clearAuth();
+            clearImpersonationToken();
+            elements.appShell.style.display = 'none';
+            elements.loginOverlay.classList.remove('hidden');
+            elements.loginEmail.value = '';
+            elements.loginPassword.value = '';
+        }
+
+        function clearFilters() {
+            elements.searchInput.value = '';
+            elements.domainSelect.value = '';
+            elements.clientSelect.value = '';
+        }
+
+        function attachEventListeners() {
+            elements.loginButton.addEventListener('click', loginFounder);
+            elements.loginEmail.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') loginFounder();
+            });
+            elements.loginPassword.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') loginFounder();
+            });
+            elements.refreshButton.addEventListener('click', async () => {
+                await Promise.all([loadAuthorizedDomains(), loadUsers()]);
+                clearImpersonationToken();
+            });
+            elements.logoutButton.addEventListener('click', logout);
+            elements.applyFiltersButton.addEventListener('click', loadUsers);
+            elements.clearFiltersButton.addEventListener('click', () => {
+                clearFilters();
+                loadUsers();
+            });
+            elements.openVisualizerButton.addEventListener('click', openVisualizerAsUser);
+            elements.copyTokenButton.addEventListener('click', copyTokenToClipboard);
+            elements.clearTokenButton.addEventListener('click', clearImpersonationToken);
+        }
+
+        function attemptExistingSession() {
+            const token = getAuthToken();
+            if (!token) return false;
+            elements.loginOverlay.classList.add('hidden');
+            elements.appShell.style.display = 'block';
+            Promise.all([loadAuthorizedDomains(), loadUsers()]);
+            return true;
+        }
+
+        attachEventListeners();
+        if (!attemptExistingSession()) {
+            elements.loginOverlay.classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>
+

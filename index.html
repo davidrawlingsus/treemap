@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="/styles.css">
     
     <script src="/config.js"></script>
+    <script src="/auth.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -775,9 +776,29 @@
         }
 
         .favourites-empty {
-            text-align: center;
-            padding: 60px 20px;
-            color: #999;
+            padding: 40px 20px 20px;
+        }
+
+        .favourites-empty-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(220px, 1fr));
+            grid-auto-rows: 150px;
+            gap: 24px;
+            justify-content: center;
+        }
+
+        @media (max-width: 1024px) {
+            .favourites-empty-grid {
+                grid-template-columns: repeat(2, minmax(220px, 1fr));
+                grid-auto-rows: 150px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .favourites-empty-grid {
+                grid-template-columns: minmax(0, 1fr);
+                grid-auto-rows: 140px;
+            }
         }
 
         .favourites-empty p {
@@ -791,7 +812,10 @@
             border-radius: 8px;
             padding: 20px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
-            min-height: 120px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
             animation: pulse 1.5s ease-in-out infinite;
         }
 
@@ -1688,14 +1712,26 @@
     <!-- Login Overlay -->
     <div id="loginOverlay" class="login-overlay hidden">
         <div class="login-container">
-            <h2>Login</h2>
-            <input type="email" id="loginEmail" placeholder="Email" autocomplete="email">
-            <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password">
-            <button id="loginButton" onclick="handleLogin()">Login</button>
-            <div id="loginError" class="login-error"></div>
-            <p style="margin-top: 16px; font-size: 12px; color: #666; text-align: center;">
-                Note: Password validation not yet implemented. Use any password with your email.
-            </p>
+            <div id="loginFormSection">
+                <h2>Sign in</h2>
+                <p class="login-subtext">
+                    Enter your work email and we'll email you a secure magic link.
+                    Only approved company domains can sign in.
+                </p>
+                <input type="email" id="loginEmail" placeholder="you@company.com" autocomplete="email">
+                <button id="loginButton" type="button">Send Magic Link</button>
+                <div id="loginError" class="login-error"></div>
+                <div id="loginSuccess" class="login-success"></div>
+            </div>
+
+            <div id="accountSelectionSection" class="hidden">
+                <h2>Select an account</h2>
+                <p class="account-selection-note">
+                    Choose which company dashboard you’d like to open. You can change this later from the account selector.
+                </p>
+                <div id="accountSelectionList" class="account-selection"></div>
+                <div id="accountSelectionError" class="login-error"></div>
+            </div>
         </div>
     </div>
 
@@ -2176,162 +2212,128 @@
             }
         }
 
-        // Authentication Management
-        const AUTH_TOKEN_KEY = 'auth_token';
-        const USER_INFO_KEY = 'user_info';
-        
-        function getAuthToken() {
-            return localStorage.getItem(AUTH_TOKEN_KEY);
+        // Authentication helpers provided by auth.js
+        let accessibleClients = [];
+        let accessibleClientIds = new Set();
+
+        function updateAccessibleClients(clients = []) {
+            accessibleClients = Array.isArray(clients) ? clients : [];
+            accessibleClientIds = new Set(
+                accessibleClients.map((client) => client.id)
+            );
         }
-        
-        function setAuthToken(token) {
-            localStorage.setItem(AUTH_TOKEN_KEY, token);
+
+        function enterAccountSelectionMode() {
+            const overlay = document.getElementById('loginOverlay');
+            const mainContainer = document.getElementById('mainContainer');
+            const formSection = document.getElementById('loginFormSection');
+            const selectionSection = document.getElementById('accountSelectionSection');
+            const successMessage = document.getElementById('loginSuccess');
+            const errorMessage = document.getElementById('loginError');
+
+            if (mainContainer) {
+                mainContainer.style.display = 'none';
+            }
+            if (overlay) {
+                overlay.classList.remove('hidden');
+            }
+            if (formSection) {
+                formSection.classList.add('hidden');
+            }
+            if (selectionSection) {
+                selectionSection.classList.remove('hidden');
+            }
+            if (successMessage) {
+                successMessage.style.display = 'none';
+            }
+            if (errorMessage) {
+                errorMessage.style.display = 'none';
+            }
         }
-        
-        function clearAuth() {
-            localStorage.removeItem(AUTH_TOKEN_KEY);
-            localStorage.removeItem(USER_INFO_KEY);
-        }
-        
-        function getAuthHeaders() {
-            const token = getAuthToken();
-            return token ? {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            } : {
-                'Content-Type': 'application/json'
-            };
-        }
-        
-        async function handleLogin() {
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            const loginButton = document.getElementById('loginButton');
-            const loginError = document.getElementById('loginError');
-            
-            if (!email) {
-                loginError.textContent = 'Please enter your email';
-                loginError.style.display = 'block';
+
+        function renderAccountSelection(clients) {
+            enterAccountSelectionMode();
+            const listEl = document.getElementById('accountSelectionList');
+            const errorEl = document.getElementById('accountSelectionError');
+
+            if (errorEl) {
+                errorEl.style.display = 'none';
+            }
+
+            if (!listEl) {
+                console.error('Account selection list element not found');
                 return;
             }
-            
-            loginButton.disabled = true;
-            loginButton.textContent = 'Logging in...';
-            loginError.style.display = 'none';
-            
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ email, password })
+
+            listEl.innerHTML = '';
+
+            clients.forEach((client) => {
+                const button = document.createElement('button');
+                button.className = 'account-option';
+                button.dataset.clientId = client.id;
+                button.textContent = client.name;
+                button.addEventListener('click', () => {
+                    selectClientAndLaunch(client.id);
                 });
-                
-                if (!response.ok) {
-                    const error = await response.json();
-                    console.error('Login error response (full):', JSON.stringify(error, null, 2));
-                    console.error('Login error keys:', Object.keys(error));
-                    console.error('Login error.detail:', error.detail);
-                    console.error('Login error.message:', error.message);
-                    const errorMessage = error.detail || error.message || 'Login failed';
-                    console.error('Login error message (final):', errorMessage);
-                    throw new Error(errorMessage);
+                listEl.appendChild(button);
+            });
+        }
+
+        function selectClientAndLaunch(clientId) {
+            currentClientId = clientId;
+            saveState();
+            if (typeof Auth !== 'undefined') {
+                Auth.hideLogin();
+            }
+            const mainContainer = document.getElementById('mainContainer');
+            if (mainContainer) {
+                mainContainer.style.display = 'flex';
+            }
+            init();
+        }
+
+        function handleAuthenticatedUser(userInfo) {
+            if (!userInfo) {
+                return;
+            }
+
+            updateAccessibleClients(userInfo.accessible_clients || []);
+
+            if (accessibleClients.length === 0) {
+                const errorEl = document.getElementById('accountSelectionError');
+                if (errorEl) {
+                    errorEl.textContent = 'No accounts are linked to your email yet. Please contact your administrator.';
+                    errorEl.style.display = 'block';
                 }
-                
-                const data = await response.json();
-                setAuthToken(data.access_token);
-                
-                // Get user info
-                const userResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
-                    headers: getAuthHeaders()
-                });
-                
-                if (userResponse.ok) {
-                    const userInfo = await userResponse.json();
-                    localStorage.setItem(USER_INFO_KEY, JSON.stringify(userInfo));
+                if (typeof Auth !== 'undefined') {
+                    Auth.showLogin();
                 }
-                
-                // Hide login, show app
-                document.getElementById('loginOverlay').classList.add('hidden');
-                document.getElementById('mainContainer').style.display = 'flex';
-                
-                // Initialize app
-                init();
-                
-            } catch (error) {
-                loginError.textContent = error.message || 'Login failed. Please try again.';
-                loginError.style.display = 'block';
-            } finally {
-                loginButton.disabled = false;
-                loginButton.textContent = 'Login';
+                return;
             }
+
+            if (accessibleClients.length === 1) {
+                selectClientAndLaunch(accessibleClients[0].id);
+                return;
+            }
+
+            renderAccountSelection(accessibleClients);
         }
-        
-        async function checkAuth() {
-            console.log('checkAuth() called');
-            const token = getAuthToken();
-            console.log('Token exists:', !!token);
-            if (!token) {
-                console.log('No token, showing login');
-                showLogin();
-                return false;
+
+        window.addEventListener('auth:authenticated', (event) => {
+            const userInfo = event.detail?.user;
+            handleAuthenticatedUser(userInfo);
+        });
+
+        window.addEventListener('auth:magicVerified', (event) => {
+            const userInfo = event.detail?.user;
+            if (userInfo) {
+                updateAccessibleClients(userInfo.accessible_clients || []);
             }
-            
-            try {
-                console.log('Checking auth with API...');
-                const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-                    headers: getAuthHeaders()
-                });
-                
-                console.log('Auth response status:', response.status);
-                if (!response.ok) {
-                    throw new Error('Invalid token');
-                }
-                
-                const userInfo = await response.json();
-                localStorage.setItem(USER_INFO_KEY, JSON.stringify(userInfo));
-                
-                // Show app
-                document.getElementById('loginOverlay').classList.add('hidden');
-                document.getElementById('mainContainer').style.display = 'flex';
-                console.log('Auth successful');
-                return true;
-                
-            } catch (error) {
-                console.error('Auth error:', error);
-                clearAuth();
-                showLogin();
-                return false;
-            }
-        }
-        
-        function showLogin() {
-            document.getElementById('loginOverlay').classList.remove('hidden');
-            document.getElementById('mainContainer').style.display = 'none';
-        }
-        
-        function handleLogout() {
-            clearAuth();
-            showLogin();
-        }
-        
-        // Allow Enter key to submit login
-        document.addEventListener('DOMContentLoaded', () => {
-            const emailInput = document.getElementById('loginEmail');
-            const passwordInput = document.getElementById('loginPassword');
-            
-            if (emailInput) {
-                emailInput.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') handleLogin();
-                });
-            }
-            
-            if (passwordInput) {
-                passwordInput.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') handleLogin();
-                });
-            }
+        });
+
+        window.addEventListener('auth:logout', () => {
+            accessibleClients = [];
+            accessibleClientIds = new Set();
         });
 
         // API Configuration - loaded from server config
@@ -2352,14 +2354,21 @@
                 console.log('Parsing clients JSON...');
                 allClients = await response.json();
                 console.log(`Loaded ${allClients.length} clients:`, allClients);
-                
+
+                if (accessibleClientIds.size > 0) {
+                    allClients = allClients.filter(client => {
+                        return client.client_uuid && accessibleClientIds.has(client.client_uuid);
+                    });
+                    console.log(`Filtered to ${allClients.length} authorized clients`);
+                }
+
                 // Sort clients alphabetically by client_name
                 allClients.sort((a, b) => {
                     const nameA = (a.client_name || '').toLowerCase();
                     const nameB = (b.client_name || '').toLowerCase();
                     return nameA.localeCompare(nameB);
                 });
-                
+
                 const select = document.getElementById('clientSelect');
                 console.log('Client select element:', select);
                 select.innerHTML = '';
@@ -2373,7 +2382,12 @@
                 // Try to restore saved state
                 const savedState = loadState();
                 console.log('Saved state:', savedState);
-                
+
+                if (currentClientId && accessibleClientIds.size > 0 && !accessibleClientIds.has(currentClientId)) {
+                    console.log('Stored client is not accessible, clearing');
+                    currentClientId = null;
+                }
+
                 console.log('Populating client dropdown...');
                 allClients.forEach((client, index) => {
                     const option = document.createElement('option');
@@ -2384,11 +2398,20 @@
                     // Restore saved client or select first one by default
                     if (savedState && savedState.clientId === client.client_uuid) {
                         currentClientId = client.client_uuid;
-                    } else if (!savedState && index === 0) {
+                    } else if (!savedState && index === 0 && !currentClientId) {
                         currentClientId = client.client_uuid;
                     }
                 });
-                
+
+                if (!currentClientId && accessibleClients.length > 0) {
+                    const preferredClient = accessibleClients.find(client =>
+                        accessibleClientIds.has(client.id)
+                    );
+                    if (preferredClient) {
+                        currentClientId = preferredClient.id;
+                    }
+                }
+
                 // Set the select value to match the current client
                 if (currentClientId) {
                     select.value = currentClientId;
@@ -4447,26 +4470,18 @@
                 });
             
             if (favourites.length === 0) {
-                // Show skeleton cards and empty message
+                const skeletonCards = Array.from({ length: 6 }).map(() => `
+                    <div class="skeleton-card">
+                        <div class="skeleton-line"></div>
+                        <div class="skeleton-line"></div>
+                        <div class="skeleton-line"></div>
+                    </div>
+                `).join('');
+
                 container.innerHTML = `
                     <div class="favourites-empty">
-                        <p>You haven't chosen any favourites yet</p>
-                        <div class="favourites-container">
-                            <div class="skeleton-card">
-                                <div class="skeleton-line"></div>
-                                <div class="skeleton-line"></div>
-                                <div class="skeleton-line"></div>
-                            </div>
-                            <div class="skeleton-card">
-                                <div class="skeleton-line"></div>
-                                <div class="skeleton-line"></div>
-                                <div class="skeleton-line"></div>
-                            </div>
-                            <div class="skeleton-card">
-                                <div class="skeleton-line"></div>
-                                <div class="skeleton-line"></div>
-                                <div class="skeleton-line"></div>
-                            </div>
+                        <div class="favourites-empty-grid">
+                            ${skeletonCards}
                         </div>
                     </div>
                 `;
@@ -5665,21 +5680,26 @@
         console.log('Starting application...');
         
         // Quick synchronous check - if no token, show login immediately to avoid flash
-        const token = getAuthToken();
+        const token = typeof Auth !== 'undefined' ? Auth.getAuthToken() : null;
         if (!token) {
             console.log('No token found, showing login immediately');
-            document.getElementById('loginOverlay').classList.remove('hidden');
+            if (typeof Auth !== 'undefined') {
+                Auth.showLogin();
+            } else {
+                document.getElementById('loginOverlay').classList.remove('hidden');
+            }
         }
         // If token exists, keep login hidden (it's already hidden by default)
         // and let async checkAuth() verify it
         
-        checkAuth().then(authenticated => {
+        const authCheck = typeof Auth !== 'undefined' ? Auth.checkAuth() : Promise.resolve(false);
+        authCheck.then(authenticated => {
             console.log('Auth check result:', authenticated);
-            if (authenticated) {
-                console.log('Initializing app...');
-                init();
-            } else {
+            if (!authenticated) {
                 console.log('Not authenticated, showing login');
+                if (typeof Auth !== 'undefined') {
+                    Auth.showLogin();
+                }
             }
         }).catch(error => {
             console.error('Error in checkAuth:', error);

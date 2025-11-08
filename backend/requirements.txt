@@ -9,4 +9,6 @@ python-multipart==0.0.20
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-dotenv==1.0.0
+requests==2.32.3
+pytest==8.3.2
 

@@ -9,9 +9,20 @@ import json
 import os
 from uuid import UUID
 from pathlib import Path
+from urllib.parse import quote
+import logging
 
 from app.database import get_db, engine, Base
-from app.models import Client, DataSource, DimensionName, User, Membership, ProcessVoc
+from app.models import (
+    Client,
+    DataSource,
+    DimensionName,
+    User,
+    Membership,
+    ProcessVoc,
+    AuthorizedDomain,
+    AuthorizedDomainClient,
+)
 from app.schemas import (
     ClientCreate, ClientResponse,
     DataSourceCreate, DataSourceResponse, DataSourceDetail,
@@ -20,15 +31,32 @@ from app.schemas import (
     Token, UserLogin, UserResponse, UserWithClients,
     ProcessVocResponse, ProcessVocListResponse, DimensionQuestionInfo, VocSourceInfo, VocClientInfo, VocProjectInfo,
     ProcessVocAdminListResponse, ProcessVocBulkUpdateRequest, ProcessVocBulkUpdateResponse,
-    FieldMetadata, FieldMetadataResponse, DynamicBulkUpdateRequest
+    FieldMetadata, FieldMetadataResponse, DynamicBulkUpdateRequest,
+    MagicLinkRequest, MagicLinkVerifyRequest, ImpersonateRequest,
+    FounderUserSummary, FounderUserMembership,
 )
 from app.transformers import DataTransformer, DataSourceType
 from app.config import get_settings
 from app.auth import (
     get_current_user, get_current_active_founder,
-    create_access_token, verify_password
+    create_access_token, verify_password,
+    generate_magic_link_token, is_magic_link_token_valid, clear_magic_link_state,
 )
-from datetime import timedelta
+from app.services import EmailService, MagicLinkEmailParams
+from datetime import datetime, timedelta
+
+
+logger = logging.getLogger(__name__)
+
+
+def build_email_service(settings):
+    """Instantiate an EmailService based on current settings."""
+    return EmailService(
+        api_key=settings.resend_api_key,
+        from_email=settings.resend_from_email,
+        reply_to_email=settings.resend_reply_to_email,
+    )
+
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -95,6 +123,17 @@ if (frontend_path / "index.html").exists():
             return Response(content=content, media_type="application/javascript")
         raise HTTPException(status_code=404, detail="File not found")
 
+    @app.get("/auth.js")
+    def serve_auth_js():
+        """Serve auth.js"""
+        from fastapi.responses import Response
+        file_path = frontend_path / "auth.js"
+        if file_path.exists():
+            with open(file_path, 'r') as f:
+                content = f.read()
+            return Response(content=content, media_type="application/javascript")
+        raise HTTPException(status_code=404, detail="File not found")
+
 if (frontend_path / "founder_admin.html").exists():
     @app.get("/founder_admin", response_class=FileResponse)
     def serve_founder_admin():
@@ -105,6 +144,17 @@ if (frontend_path / "founder_admin.html").exists():
     def serve_founder_admin_html():
         """Serve the founder admin page"""
         return FileResponse(frontend_path / "founder_admin.html")
+
+if (frontend_path / "founder_impersonation.html").exists():
+    @app.get("/founder_impersonation", response_class=FileResponse)
+    def serve_founder_impersonation():
+        """Serve the founder impersonation helper page"""
+        return FileResponse(frontend_path / "founder_impersonation.html")
+
+    @app.get("/founder_impersonation.html", response_class=FileResponse)
+    def serve_founder_impersonation_html():
+        """Serve the founder impersonation helper page"""
+        return FileResponse(frontend_path / "founder_impersonation.html")
 
 @app.get("/api")
 def api_info():
@@ -151,6 +201,7 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
     Password fields may not exist in the Railway database yet.
     """
     settings = get_settings()
+    is_production = settings.environment.lower() in {"production", "prod", "production2"}
     
     # Normalize email input
     email_input = credentials.email.strip().lower()
@@ -228,22 +279,262 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
     #     raise HTTPException(status_code=401, detail="Incorrect email or password")
     
     # Update last login
-    from datetime import datetime
     try:
         user.last_login_at = datetime.utcnow()
         db.commit()
     except Exception as e:
-        # Log but don't fail login if update fails
+        db.rollback()
         if not is_production:
             print(f"Warning: Failed to update last_login_at: {e}")
     
     # Create access token
-    access_token_expires = timedelta(minutes=60 * 24 * 7)  # 7 days
+    access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
     access_token = create_access_token(
         data={"sub": str(user.id)},
         expires_delta=access_token_expires
     )
     
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.post("/api/auth/magic-link/request")
+def request_magic_link(payload: MagicLinkRequest, db: Session = Depends(get_db)):
+    """
+    Request a passwordless magic-link for the given email address.
+    The email must belong to an authorized domain mapped to at least one client.
+    """
+    settings = get_settings()
+    email = payload.email.strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="A valid email address is required")
+
+    domain = email.split("@")[-1]
+
+    authorized_domain = (
+        db.query(AuthorizedDomain)
+        .options(joinedload(AuthorizedDomain.clients))
+        .filter(func.lower(AuthorizedDomain.domain) == domain.lower())
+        .first()
+    )
+
+    if not authorized_domain:
+        logger.info("Magic-link denied for unauthorized domain: %s", domain)
+        raise HTTPException(
+            status_code=403,
+            detail="This email domain is not authorized. Please contact support.",
+        )
+
+    clients = [client for client in authorized_domain.clients if client.is_active]
+    if not clients:
+        logger.warning(
+            "Authorized domain %s has no active client associations", domain
+        )
+        raise HTTPException(
+            status_code=403,
+            detail="No active clients are linked to this domain yet. Please contact support.",
+        )
+
+    user = (
+        db.query(User)
+        .filter(func.lower(User.email) == email)
+        .first()
+    )
+    now = datetime.utcnow()
+
+    if user:
+        if (
+            user.last_magic_link_sent_at
+            and now - user.last_magic_link_sent_at
+            < timedelta(seconds=settings.magic_link_rate_limit_seconds)
+        ):
+            raise HTTPException(
+                status_code=429,
+                detail="We recently sent you a link. Please check your inbox.",
+            )
+    else:
+        user = User(
+            email=email,
+            is_active=True,
+        )
+        db.add(user)
+        db.flush()
+
+    token, token_hash, expires_at = generate_magic_link_token()
+    user.magic_link_token = token_hash
+    user.magic_link_expires_at = expires_at
+    user.last_magic_link_sent_at = now
+    user.is_active = True
+
+    # Ensure memberships exist for all linked clients
+    for client in clients:
+        membership = (
+            db.query(Membership)
+            .filter(
+                Membership.user_id == user.id,
+                Membership.client_id == client.id,
+            )
+            .first()
+        )
+
+        if not membership:
+            membership = Membership(
+                user_id=user.id,
+                client_id=client.id,
+                role="viewer",
+                status="active",
+                provisioned_at=now,
+                provisioned_by=user.id,
+                provisioning_method="magic_link",
+                joined_at=now,
+            )
+            db.add(membership)
+        else:
+            membership.status = "active"
+            membership.provisioned_at = membership.provisioned_at or now
+            membership.provisioned_by = membership.provisioned_by or user.id
+            membership.provisioning_method = membership.provisioning_method or "magic_link"
+            membership.joined_at = membership.joined_at or now
+
+    email_service = build_email_service(settings)
+    if not email_service.is_configured():
+        logger.error("Resend is not configured. Cannot send magic-link email.")
+        raise HTTPException(
+            status_code=500,
+            detail="Email service is not configured. Please contact support.",
+        )
+
+    redirect_path = settings.magic_link_redirect_path.lstrip("/")
+    base_url = settings.frontend_base_url.rstrip("/")
+    if redirect_path:
+        magic_link_url = f"{base_url}/{redirect_path}?token={quote(token)}&email={quote(email)}"
+    else:
+        magic_link_url = f"{base_url}?token={quote(token)}&email={quote(email)}"
+
+    try:
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to persist magic-link state for %s", email)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to generate magic link. Please try again.",
+        ) from exc
+
+    email_params = MagicLinkEmailParams(
+        to_email=email,
+        magic_link=magic_link_url,
+        client_names=[client.name for client in clients],
+        expires_at=expires_at,
+    )
+
+    try:
+        email_service.send_magic_link_email(email_params)
+    except RuntimeError as exc:
+        logger.exception("Unable to send magic-link email to %s", email)
+        raise HTTPException(
+            status_code=502,
+            detail="Unable to send the magic link email. Please try again later.",
+        ) from exc
+
+    return {
+        "message": "Magic link sent. Please check your email.",
+        "expires_at": expires_at,
+    }
+
+
+@app.post("/api/auth/magic-link/verify", response_model=Token)
+def verify_magic_link(payload: MagicLinkVerifyRequest, db: Session = Depends(get_db)):
+    """Verify a magic-link token and issue a JWT."""
+    email = payload.email.strip().lower()
+    token = payload.token.strip()
+
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="A valid email address is required")
+    if not token:
+        raise HTTPException(status_code=400, detail="Magic-link token is required")
+
+    user = (
+        db.query(User)
+        .options(
+            joinedload(User.memberships).joinedload(Membership.client)
+        )
+        .filter(func.lower(User.email) == email)
+        .first()
+    )
+
+    if not user or not is_magic_link_token_valid(user, token):
+        logger.info("Invalid magic-link attempt for %s", email)
+        raise HTTPException(status_code=400, detail="Invalid or expired magic link")
+
+    now = datetime.utcnow()
+    clear_magic_link_state(user)
+    user.email_verified_at = user.email_verified_at or now
+    user.last_login_at = now
+
+    try:
+        db.commit()
+    except Exception as exc:
+        db.rollback()
+        logger.exception("Failed to validate magic link for %s", email)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to complete sign-in. Please try again.",
+        ) from exc
+
+    access_token = create_access_token(data={"sub": str(user.id)})
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.get("/api/auth/google/init")
+def google_oauth_init():
+    """
+    Placeholder endpoint for Google OAuth setup.
+    Returns configuration status and guidance to set credentials.
+    """
+    settings = get_settings()
+    configured = bool(
+        settings.google_oauth_client_id and settings.google_oauth_client_secret
+    )
+    if not configured:
+        raise HTTPException(
+            status_code=501,
+            detail=(
+                "Google OAuth is not configured yet. "
+                "Set GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET to enable it."
+            ),
+        )
+    raise HTTPException(
+        status_code=501,
+        detail="Google OAuth flow is not implemented yet. Configuration detected.",
+    )
+
+
+@app.get("/api/auth/google/callback")
+def google_oauth_callback():
+    """Stub callback endpoint for Google OAuth."""
+    raise HTTPException(
+        status_code=501,
+        detail="Google OAuth callback handling is not implemented yet.",
+    )
+
+
+@app.post("/api/auth/impersonate", response_model=Token)
+def impersonate_user(
+    payload: ImpersonateRequest,
+    current_founder: User = Depends(get_current_active_founder),
+    db: Session = Depends(get_db),
+):
+    """Allow founder users to impersonate another active user."""
+    target_user = db.query(User).filter(User.id == payload.user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Target user not found")
+    if not target_user.is_active:
+        raise HTTPException(status_code=403, detail="Target user is inactive")
+
+    logger.info(
+        "Founder %s impersonating user %s", current_founder.email, target_user.email
+    )
+    access_token = create_access_token(data={"sub": str(target_user.id)})
     return {"access_token": access_token, "token_type": "bearer"}
 
 
@@ -289,6 +580,126 @@ def get_current_user_info(
             updated_at=c.updated_at
         ) for c in accessible_clients]
     )
+
+
+def build_founder_user_summary(user: User) -> FounderUserSummary:
+    """Build a founder-oriented view of a user record."""
+    email_domain = user.email.split("@")[-1].lower() if "@" in user.email else ""
+    membership_summaries: List[FounderUserMembership] = []
+    for membership in user.memberships:
+        if membership.client is None:
+            continue
+        membership_summaries.append(
+            FounderUserMembership(
+                client=ClientResponse.model_validate(membership.client),
+                role=membership.role,
+                status=membership.status,
+                provisioned_at=membership.provisioned_at,
+                provisioning_method=membership.provisioning_method,
+                joined_at=membership.joined_at,
+            )
+        )
+
+    return FounderUserSummary(
+        id=user.id,
+        email=user.email,
+        name=user.name,
+        is_founder=user.is_founder,
+        is_active=user.is_active,
+        last_login_at=user.last_login_at,
+        email_verified_at=user.email_verified_at,
+        last_magic_link_sent_at=user.last_magic_link_sent_at,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+        email_domain=email_domain,
+        memberships=membership_summaries,
+    )
+
+
+@app.get("/api/founder/users", response_model=List[FounderUserSummary])
+def list_founder_users(
+    search: Optional[str] = None,
+    domain: Optional[str] = None,
+    client_id: Optional[UUID] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """List users with membership metadata for founder tooling."""
+    query = db.query(User)
+
+    if client_id:
+        query = query.join(Membership, Membership.user_id == User.id).filter(
+            Membership.client_id == client_id
+        )
+
+    if search:
+        normalized = f"%{search.lower()}%"
+        query = query.filter(
+            or_(
+                func.lower(User.email).like(normalized),
+                func.lower(User.name).like(normalized),
+            )
+        )
+
+    if domain:
+        normalized_domain = domain.lower()
+        query = query.filter(
+            func.lower(User.email).like(f"%@{normalized_domain}")
+        )
+
+    users = (
+        query.options(
+            joinedload(User.memberships).joinedload(Membership.client)
+        )
+        .order_by(func.lower(User.email))
+        .all()
+    )
+
+    # Deduplicate in case joins introduced duplicates
+    unique_users = {user.id: user for user in users}.values()
+
+    return [build_founder_user_summary(user) for user in unique_users]
+
+
+@app.get(
+    "/api/founder/authorized-domains",
+    response_model=List[AuthorizedDomainResponse],
+)
+def list_authorized_domains_for_founder(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """List authorized domains with associated clients for founder tooling."""
+    domains = (
+        db.query(AuthorizedDomain)
+        .options(
+            joinedload(AuthorizedDomain.client_links).joinedload(
+                AuthorizedDomainClient.client
+            )
+        )
+        .order_by(func.lower(AuthorizedDomain.domain))
+        .all()
+    )
+
+    responses: List[AuthorizedDomainResponse] = []
+    for domain in domains:
+        clients = [
+            ClientResponse.model_validate(link.client)
+            for link in domain.client_links
+            if link.client is not None
+        ]
+        responses.append(
+            AuthorizedDomainResponse(
+                id=domain.id,
+                domain=domain.domain,
+                description=domain.description,
+                created_at=domain.created_at,
+                updated_at=domain.updated_at,
+                clients=clients,
+            )
+        )
+
+    return responses
 
 
 @app.post("/api/data-sources/upload", response_model=DataSourceResponse)

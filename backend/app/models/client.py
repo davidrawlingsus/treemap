@@ -22,6 +22,18 @@ class Client(Base):
     founder = relationship("User", foreign_keys=[founder_user_id], back_populates="founded_clients")
     data_sources = relationship("DataSource", back_populates="client")
     memberships = relationship("Membership", back_populates="client")
+    authorized_domains = relationship(
+        "AuthorizedDomain",
+        secondary="authorized_domain_clients",
+        back_populates="clients",
+        overlaps="authorized_domain_links,client_links",
+    )
+    authorized_domain_links = relationship(
+        "AuthorizedDomainClient",
+        back_populates="client",
+        cascade="all, delete-orphan",
+        overlaps="authorized_domains,clients,client_links",
+    )
 
     def __repr__(self):
         return f"<Client(id={self.id}, name={self.name}, slug={self.slug})>"

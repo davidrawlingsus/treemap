@@ -4,6 +4,38 @@ from datetime import datetime
 from uuid import UUID
 
 
+# Authorized Domain Schemas
+class AuthorizedDomainBase(BaseModel):
+    domain: str = Field(..., description="Domain name (e.g. example.com)")
+    description: Optional[str] = Field(
+        default=None, description="Optional description for internal reference"
+    )
+
+
+class AuthorizedDomainCreate(AuthorizedDomainBase):
+    client_ids: List[UUID] = Field(
+        default_factory=list,
+        description="Clients to associate with this authorized domain",
+    )
+
+
+class AuthorizedDomainUpdate(AuthorizedDomainBase):
+    client_ids: Optional[List[UUID]] = Field(
+        default=None,
+        description="Optional list of clients to replace existing associations",
+    )
+
+
+class AuthorizedDomainResponse(AuthorizedDomainBase):
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+    clients: List["ClientResponse"] = Field(default_factory=list)
+
+    class Config:
+        from_attributes = True
+
+
 # Client Schemas
 class ClientCreate(BaseModel):
     name: str
@@ -145,6 +177,32 @@ class UserLogin(BaseModel):
     password: str
 
 
+class MagicLinkRequest(BaseModel):
+    """Request payload for initiating a magic-link email."""
+    email: str
+
+
+class MagicLinkVerifyRequest(BaseModel):
+    """Request payload for verifying a magic-link token."""
+    email: str
+    token: str
+
+
+class ImpersonateRequest(BaseModel):
+    """Payload for founder impersonation."""
+    user_id: UUID
+
+
+class FounderUserMembership(BaseModel):
+    """Membership details for founder user insights."""
+    client: ClientResponse
+    role: str
+    status: str
+    provisioned_at: Optional[datetime] = None
+    provisioning_method: Optional[str] = None
+    joined_at: Optional[datetime] = None
+
+
 class UserResponse(BaseModel):
     """User response"""
     id: UUID
@@ -152,8 +210,11 @@ class UserResponse(BaseModel):
     name: Optional[str] = None
     is_founder: bool
     is_active: bool
+    last_login_at: Optional[datetime] = None
     email_verified_at: Optional[datetime] = None
+    last_magic_link_sent_at: Optional[datetime] = None
     created_at: datetime
+    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -165,6 +226,19 @@ class UserWithClients(UserResponse):
 
     class Config:
         from_attributes = True
+
+
+class FounderUserSummary(UserResponse):
+    """Founder view of a user with memberships"""
+    email_domain: str
+    memberships: List[FounderUserMembership] = Field(default_factory=list)
+
+    class Config:
+        from_attributes = True
+
+
+# Resolve forward references
+AuthorizedDomainResponse.model_rebuild()
 
 
 # ProcessVoc Schemas
