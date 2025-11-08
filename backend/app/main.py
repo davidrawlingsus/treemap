@@ -88,7 +88,7 @@ primary_origin = extract_origin(settings_for_cors.frontend_base_url)
 if primary_origin:
     cors_allow_origins.append(primary_origin)
 
-for origin in settings_for_cors.additional_cors_origins:
+for origin in settings_for_cors.get_additional_cors_origins():
     normalized_origin = extract_origin(origin)
     if normalized_origin and normalized_origin not in cors_allow_origins:
         cors_allow_origins.append(normalized_origin)

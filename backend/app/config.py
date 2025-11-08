@@ -1,10 +1,14 @@
-from pydantic import Field, field_validator
+import json
+from pydantic import Field
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 import os
 
 
 class Settings(BaseSettings):
+    class Config:
+        env_file = ".env"
+        extra = "ignore"
     database_url: str = "sqlite:///./treemap.db"
     database_public_url: str = ""
     environment: str = "development"
@@ -20,25 +24,7 @@ class Settings(BaseSettings):
     resend_reply_to_email: str | None = Field(default=None)
     google_oauth_client_id: str | None = Field(default=None)
     google_oauth_client_secret: str | None = Field(default=None)
-    additional_cors_origins: list[str] = Field(default_factory=list)
-    
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
-    
-    @field_validator("additional_cors_origins", mode="before")
-    @classmethod
-    def parse_additional_cors_origins(cls, value):
-        if value is None:
-            return []
-        if isinstance(value, str):
-            if not value.strip():
-                return []
-            return [origin.strip() for origin in value.split(",") if origin.strip()]
-        if isinstance(value, (list, tuple, set)):
-            parsed = [str(origin).strip() for origin in value if str(origin).strip()]
-            return parsed
-        return value
+    additional_cors_origins: str | None = Field(default=None)
 
     def get_database_url(self) -> str:
         """
@@ -57,6 +43,32 @@ class Settings(BaseSettings):
         # Fall back to internal URL (for Railway deployment)
         return internal_url
 
+    def get_additional_cors_origins(self) -> list[str]:
+        value = self.additional_cors_origins
+        if not value:
+            return []
+
+        if isinstance(value, str):
+            stripped = value.strip()
+            if not stripped:
+                return []
+            if stripped.startswith("[") and stripped.endswith("]"):
+                try:
+                    parsed = json.loads(stripped)
+                    if isinstance(parsed, list):
+                        return [
+                            str(origin).strip()
+                            for origin in parsed
+                            if str(origin).strip()
+                        ]
+                except json.JSONDecodeError:
+                    pass
+            return [item.strip() for item in stripped.split(",") if item.strip()]
+
+        if isinstance(value, (list, tuple, set)):
+            return [str(origin).strip() for origin in value if str(origin).strip()]
+
+        return []
 
 @lru_cache()
 def get_settings():
