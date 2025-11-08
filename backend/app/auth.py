@@ -1,7 +1,7 @@
 """
 Authentication utilities for JWT tokens, password hashing, and magic-link support.
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import hashlib
 import secrets
 from typing import Optional, Tuple
@@ -37,12 +37,11 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     """Create a JWT access token."""
     settings = get_settings()
     to_encode = data.copy()
+    now = datetime.now(timezone.utc)
     if expires_delta is not None:
-        expire = datetime.utcnow() + expires_delta
+        expire = now + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(
-            minutes=settings.access_token_expire_minutes
-        )
+        expire = now + timedelta(minutes=settings.access_token_expire_minutes)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(
         to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm
@@ -112,7 +111,7 @@ def generate_magic_link_token(
     )
     token = secrets.token_urlsafe(32)
     token_hash = hash_token(token)
-    expires_at = datetime.utcnow() + timedelta(minutes=expiry_minutes)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=expiry_minutes)
     return token, token_hash, expires_at
 
 
@@ -125,7 +124,8 @@ def is_magic_link_token_valid(user: User, raw_token: str) -> bool:
     """Validate a raw magic-link token against the stored hash and expiry."""
     if not user.magic_link_token or not raw_token:
         return False
-    if not user.magic_link_expires_at or user.magic_link_expires_at < datetime.utcnow():
+    now = datetime.now(timezone.utc)
+    if not user.magic_link_expires_at or user.magic_link_expires_at < now:
         return False
     return hash_token(raw_token) == user.magic_link_token
 

@@ -1,4 +1,4 @@
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 import os
@@ -20,11 +20,26 @@ class Settings(BaseSettings):
     resend_reply_to_email: str | None = Field(default=None)
     google_oauth_client_id: str | None = Field(default=None)
     google_oauth_client_secret: str | None = Field(default=None)
+    additional_cors_origins: list[str] = Field(default_factory=list)
     
     class Config:
         env_file = ".env"
         extra = "ignore"
     
+    @field_validator("additional_cors_origins", mode="before")
+    @classmethod
+    def parse_additional_cors_origins(cls, value):
+        if value is None:
+            return []
+        if isinstance(value, str):
+            if not value.strip():
+                return []
+            return [origin.strip() for origin in value.split(",") if origin.strip()]
+        if isinstance(value, (list, tuple, set)):
+            parsed = [str(origin).strip() for origin in value if str(origin).strip()]
+            return parsed
+        return value
+
     def get_database_url(self) -> str:
         """
         Get the appropriate database URL.

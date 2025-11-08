@@ -9,7 +9,7 @@ import json
 import os
 from uuid import UUID
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 import logging
 
 from app.database import get_db, engine, Base
@@ -65,10 +65,36 @@ from app.auth import (
     generate_magic_link_token, is_magic_link_token_valid, clear_magic_link_state,
 )
 from app.services import EmailService, MagicLinkEmailParams
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 logger = logging.getLogger(__name__)
+
+
+def extract_origin(url: str | None) -> Optional[str]:
+    """Return the origin (scheme + host [+ port]) from a URL-like string."""
+    if not url:
+        return None
+    parsed = urlparse(url.strip())
+    if parsed.scheme and parsed.netloc:
+        return f"{parsed.scheme}://{parsed.netloc}"
+    return None
+
+
+settings_for_cors = get_settings()
+cors_allow_origins: List[str] = []
+
+primary_origin = extract_origin(settings_for_cors.frontend_base_url)
+if primary_origin:
+    cors_allow_origins.append(primary_origin)
+
+for origin in settings_for_cors.additional_cors_origins:
+    normalized_origin = extract_origin(origin)
+    if normalized_origin and normalized_origin not in cors_allow_origins:
+        cors_allow_origins.append(normalized_origin)
+
+if cors_allow_origins:
+    logger.info("Allowing additional CORS origins: %s", cors_allow_origins)
 
 
 def build_email_service(settings):
@@ -90,6 +116,7 @@ app = FastAPI(title="Visualizd API", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"https?://(.*\.up\.railway\.app|localhost)(:\d+)?$",  # Allow all Railway URLs and localhost
+    allow_origins=cors_allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -302,7 +329,7 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
     
     # Update last login
     try:
-        user.last_login_at = datetime.utcnow()
+        user.last_login_at = datetime.now(timezone.utc)
         db.commit()
     except Exception as e:
         db.rollback()
@@ -361,7 +388,7 @@ def request_magic_link(payload: MagicLinkRequest, db: Session = Depends(get_db))
         .filter(func.lower(User.email) == email)
         .first()
     )
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     if user:
         if (
@@ -419,7 +446,15 @@ def request_magic_link(payload: MagicLinkRequest, db: Session = Depends(get_db))
 
     email_service = build_email_service(settings)
     if not email_service.is_configured():
-        logger.error("Resend is not configured. Cannot send magic-link email.")
+        missing_config = []
+        if not settings.resend_api_key:
+            missing_config.append("RESEND_API_KEY")
+        if not settings.resend_from_email:
+            missing_config.append("RESEND_FROM_EMAIL")
+        logger.error(
+            "Resend is not configured. Missing configuration: %s",
+            ", ".join(missing_config) if missing_config else "unknown",
+        )
         raise HTTPException(
             status_code=500,
             detail="Email service is not configured. Please contact support.",
@@ -488,7 +523,7 @@ def verify_magic_link(payload: MagicLinkVerifyRequest, db: Session = Depends(get
         logger.info("Invalid magic-link attempt for %s", email)
         raise HTTPException(status_code=400, detail="Invalid or expired magic link")
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     clear_magic_link_state(user)
     user.email_verified_at = user.email_verified_at or now
     user.last_login_at = now

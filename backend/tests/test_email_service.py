@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -11,7 +11,7 @@ def test_email_service_requires_configuration():
         to_email="user@example.com",
         magic_link="https://example.com/magic",
         client_names=["Example Client"],
-        expires_at=datetime.utcnow() + timedelta(minutes=15),
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=15),
     )
 
     assert service.is_configured() is False
@@ -42,7 +42,7 @@ def test_email_service_sends_email(monkeypatch):
         to_email="user@example.com",
         magic_link="https://example.com/magic",
         client_names=["Example Client"],
-        expires_at=datetime.utcnow() + timedelta(minutes=30),
+        expires_at=datetime.now(timezone.utc) + timedelta(minutes=30),
     )
 
     service.send_magic_link_email(params)
