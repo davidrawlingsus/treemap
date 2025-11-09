@@ -20,12 +20,51 @@
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  padding-left: 30px;
+  width: 100%;
+  padding: 0 30px;
+  gap: 24px;
 }
 
 .marketably-logo {
   display: flex;
   flex-direction: column;
+}
+
+.marketably-user-info {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-white);
+  font-size: 0.875rem;
+}
+
+.marketably-user-email {
+  opacity: 0.75;
+}
+
+.marketably-logout-btn {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  color: var(--text-white);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.marketably-logout-btn:hover {
+  background: rgba(255, 255, 255, 0.24);
+  border-color: rgba(255, 255, 255, 0.36);
+}
+
+.marketably-logout-btn:focus-visible {
+  outline: 2px solid var(--brand-color);
+  outline-offset: 2px;
 }
 
 .marketably-logo-link {

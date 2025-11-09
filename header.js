@@ -28,6 +28,10 @@
           </a>
           <span class="marketably-tagline">Feedback-Fueled Marketing</span>
         </div>
+        <div class="marketably-user-info hidden" id="headerUserInfo">
+          <span class="marketably-user-email" id="headerUserEmail"></span>
+          <button class="marketably-logout-btn" id="headerLogoutButton" type="button">Log out</button>
+        </div>
       </div>
     `;
 
@@ -330,6 +334,9 @@
     // Create and insert header at the start of body
     const header = createHeader();
     document.body.insertAdjacentElement('afterbegin', header);
+    window.dispatchEvent(
+      new CustomEvent('marketablyHeader:ready', { detail: { header } })
+    );
     console.log('[MARKETABLY HEADER] Header inserted into body', header);
     console.log('[MARKETABLY HEADER] Header computed styles:', window.getComputedStyle(header));
 

@@ -71,35 +71,6 @@
 
         /* Login Screen styles moved to styles.css */
 
-        .user-info {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            color: white;
-            font-size: 14px;
-        }
-
-        .user-info button {
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-
-        .user-info button:hover {
-            background: rgba(255, 255, 255, 0.3);
-        }
-
-        .user-info span:empty {
-            display: none;
-        }
-
         .hidden {
             display: none !important;
         }
@@ -1745,10 +1716,6 @@
 
     <div class="container" id="mainContainer" style="display: none;">
         <div class="header">
-            <div class="user-info hidden" id="headerUserInfo">
-                <span id="headerUserEmail"></span>
-                <button id="headerLogoutButton" type="button">Log out</button>
-            </div>
             <h1>Intercom Topics Treemap</h1>
             <p>Topic visualization and analysis</p>
         </div>
@@ -2168,9 +2135,13 @@
         let clientSources = [];
         let dimensionNamesMap = {}; // Map of ref_key -> custom_name
 
-        const headerUserInfoEl = document.getElementById('headerUserInfo');
-        const headerUserEmailEl = document.getElementById('headerUserEmail');
-        const headerLogoutButton = document.getElementById('headerLogoutButton');
+        let headerUserInfoEl = null;
+        let headerUserEmailEl = null;
+        let headerLogoutButton = null;
+        const headerControlState = {
+            initialized: false,
+            user: null,
+        };
 
         function getHeaderDisplayEmail(user) {
             if (!user || typeof user !== 'object') {
@@ -2185,36 +2156,65 @@
             );
         }
 
-        function showHeaderUserInfo(user) {
-            if (!headerUserInfoEl) {
+        function handleHeaderLogoutClick() {
+            if (typeof Auth !== 'undefined' && typeof Auth.handleLogout === 'function') {
+                Auth.handleLogout();
+            } else {
+                window.dispatchEvent(new Event('auth:logout'));
+            }
+        }
+
+        function ensureHeaderControls() {
+            if (headerControlState.initialized && headerUserInfoEl && headerLogoutButton) {
+                return true;
+            }
+
+            headerUserInfoEl = document.getElementById('headerUserInfo');
+            headerUserEmailEl = document.getElementById('headerUserEmail');
+            headerLogoutButton = document.getElementById('headerLogoutButton');
+
+            if (!headerUserInfoEl || !headerLogoutButton) {
+                return false;
+            }
+
+            headerLogoutButton.addEventListener('click', handleHeaderLogoutClick);
+            headerControlState.initialized = true;
+            return true;
+        }
+
+        function applyHeaderUserState() {
+            if (!ensureHeaderControls()) {
                 return;
             }
-            const email = getHeaderDisplayEmail(user);
-            if (headerUserEmailEl) {
-                headerUserEmailEl.textContent = email;
+
+            const user = headerControlState.user;
+            if (user) {
+                const email = getHeaderDisplayEmail(user);
+                if (headerUserEmailEl) {
+                    headerUserEmailEl.textContent = email;
+                }
+                headerUserInfoEl.classList.remove('hidden');
+            } else {
+                if (headerUserEmailEl) {
+                    headerUserEmailEl.textContent = '';
+                }
+                headerUserInfoEl.classList.add('hidden');
             }
-            headerUserInfoEl.classList.remove('hidden');
+        }
+
+        function showHeaderUserInfo(user) {
+            headerControlState.user = user || null;
+            applyHeaderUserState();
         }
 
         function hideHeaderUserInfo() {
-            if (!headerUserInfoEl) {
-                return;
-            }
-            headerUserInfoEl.classList.add('hidden');
-            if (headerUserEmailEl) {
-                headerUserEmailEl.textContent = '';
-            }
+            headerControlState.user = null;
+            applyHeaderUserState();
         }
 
-        if (headerLogoutButton) {
-            headerLogoutButton.addEventListener('click', () => {
-                if (typeof Auth !== 'undefined' && typeof Auth.handleLogout === 'function') {
-                    Auth.handleLogout();
-                } else {
-                    window.dispatchEvent(new Event('auth:logout'));
-                }
-            });
-        }
+        window.addEventListener('marketablyHeader:ready', () => {
+            applyHeaderUserState();
+        });
 
         const storedHeaderUser = typeof Auth !== 'undefined' && typeof Auth.getStoredUserInfo === 'function'
             ? Auth.getStoredUserInfo()
@@ -2222,6 +2222,8 @@
 
         if (storedHeaderUser) {
             showHeaderUserInfo(storedHeaderUser);
+        } else {
+            applyHeaderUserState();
         }
         
         // State persistence constants
@@ -5785,4 +5787,5 @@
     <script src="/header.js"></script>
 </body>
 </html>
+
 
