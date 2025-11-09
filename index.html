@@ -76,17 +76,16 @@
         }
 
         .data-source-selector {
-            padding: 16px 30px;
+            padding: 18px 28px 22px;
             background: white;
-            border-bottom: 1px solid #e0e0e0;
+            border-bottom: 1px solid #e4e6eb;
             display: flex;
-            align-items: center;
-            gap: 12px;
-            flex-wrap: wrap;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 18px;
             position: sticky;
             top: 0;
             z-index: 100;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
         
         #dimensionNameEditor {
@@ -100,12 +99,188 @@
         }
 
         .data-source-selector select {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
+            padding: 10px 14px;
+            border: 1px solid #d6d9df;
             border-radius: 6px;
-            font-size: 14px;
-            min-width: 200px;
+            font-size: 15px;
+            line-height: 1.35;
+            min-height: 44px;
+            width: 100%;
             cursor: pointer;
+            color: #222;
+            background-color: #fff;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .data-source-selector select:focus {
+            outline: none;
+            border-color: #111;
+            box-shadow: 0 0 0 1px #111;
+        }
+
+        .data-source-selector__content {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            width: 100%;
+            flex-wrap: wrap;
+        }
+
+        .filter-panels {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .filter-panel {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .filter-panel label {
+            font-weight: 500;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .filter-panel select {
+            min-width: 200px;
+        }
+
+        .filter-tabs {
+            display: none;
+            width: 100%;
+            gap: 28px;
+            overflow-x: auto;
+        }
+
+        .filter-tabs::-webkit-scrollbar {
+            display: none;
+        }
+
+        .filter-tab {
+            position: relative;
+            background: none;
+            border: none;
+            padding: 0 0 14px;
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            color: #5c606b;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+
+        .filter-tab::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 100%;
+            height: 2px;
+            background: transparent;
+            transition: background-color 0.2s ease;
+        }
+
+        .filter-tab:hover {
+            color: #1a1c21;
+        }
+
+        .filter-tab.active {
+            color: #111;
+        }
+
+        .filter-tab.active::after {
+            background: #111;
+        }
+
+        .filter-tab.complete:not(.active) {
+            color: #2f3540;
+        }
+
+        .filter-tab[disabled],
+        .filter-tab.is-disabled,
+        .filter-tab[aria-disabled="true"] {
+            cursor: not-allowed;
+            color: #c3c6ce;
+        }
+
+        .filter-tab[disabled]::after,
+        .filter-tab.is-disabled::after,
+        .filter-tab[aria-disabled="true"]::after {
+            background: transparent;
+        }
+
+        .filter-tab:focus-visible {
+            outline: none;
+            color: #111;
+        }
+
+        .filter-tab:focus-visible::after {
+            background: #111;
+        }
+
+        .data-source-actions {
+            margin-left: auto;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+        }
+
+        .filter-menu {
+            position: relative;
+        }
+
+        .filter-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 44px;
+            height: 44px;
+            position: relative;
+            border: 1px solid #d6d9df;
+            border-radius: 6px;
+            background: #fff;
+            color: #111;
+            cursor: pointer;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+        }
+
+        .filter-button:hover {
+            border-color: #111;
+            color: #111;
+        }
+
+        .filter-button:focus-visible {
+            outline: none;
+            border-color: #111;
+            box-shadow: 0 0 0 1px #111;
+        }
+
+        .filter-button img {
+            width: 18px;
+            height: 18px;
+        }
+
+        .filter-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 5px;
+            border-radius: 999px;
+            background: #111;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 600;
+            display: none;
+            align-items: center;
+            justify-content: center;
         }
 
         .breadcrumbs {
@@ -262,6 +437,14 @@
             .treemap-section {
                 padding: 20px 20px 0 20px;
             }
+
+            .data-source-selector__content {
+                gap: 18px;
+            }
+
+            .filter-panels {
+                gap: 18px;
+            }
         }
 
         @media (max-width: 768px) {
@@ -279,6 +462,84 @@
 
             .treemap-subtitle {
                 font-size: 12px;
+            }
+
+            .filter-tabs {
+                display: flex;
+            }
+
+            .data-source-selector {
+                padding: 16px 20px;
+                gap: 12px;
+            }
+
+            .data-source-selector__content {
+                flex-direction: row;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .filter-panels {
+                flex-direction: column;
+                gap: 0;
+                flex: 1;
+                min-width: 0;
+            }
+
+            .filter-panel {
+                display: none;
+                width: 100%;
+            }
+
+            .filter-panel.active {
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .filter-panel label {
+                display: none;
+            }
+
+            .filter-panel select {
+                flex: 1;
+                width: 100%;
+                min-width: 0;
+            }
+
+            .data-source-actions {
+                margin-left: 0;
+                width: auto;
+                flex-shrink: 0;
+            }
+
+            .filter-menu {
+                width: auto;
+            }
+
+            .filter-menu > button {
+                width: auto;
+            }
+
+            #filterDropdown {
+                left: auto;
+                right: 0;
+                min-width: 350px;
+                max-width: 450px;
+                width: auto;
+            }
+
+            #dimensionNameEditor {
+                width: 100%;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            #dimensionNameEditor select,
+            #dimensionNameEditor input {
+                flex: 1;
+                min-width: 140px;
             }
         }
 
@@ -1722,151 +1983,180 @@
     <div class="container" id="mainContainer" style="display: none;">
         <!-- Data Source Selector -->
         <div class="data-source-selector">
-            <label for="clientSelect">Client:</label>
-            <select id="clientSelect">
-                <option value="">Loading...</option>
-            </select>
-            
-            <label for="projectSelect" style="margin-left: 24px;">Project:</label>
-            <select id="projectSelect">
-                <option value="">Select client first...</option>
-            </select>
-            
-            <label for="sourceSelect" style="margin-left: 24px;">Source:</label>
-            <select id="sourceSelect">
-                <option value="">Select client first...</option>
-            </select>
-            
-            <!-- Dimension Filter (for survey data) -->
-            <label for="questionSelect" id="questionLabel" style="display:none; margin-left: 24px;">Dimension:</label>
-            <select id="questionSelect" style="display:none;">
-                <option value="">All Dimensions</option>
-            </select>
-            
-            <!-- Advanced Multi-Filter - Aligned Right -->
-            <div style="margin-left: auto; position: relative;">
-                <button id="filterBtn" style="padding: 8px 16px; background: #f0f0f0; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; font-size: 14px; display: flex; align-items: center; gap: 6px;">
-                    <span>☰ Filters</span>
-                    <span id="filterBadge" style="display: none; background: #667eea; color: white; padding: 2px 6px; border-radius: 10px; font-size: 11px; font-weight: 600;"></span>
+            <div class="filter-tabs" role="tablist" aria-label="Data filters">
+                <button type="button" class="filter-tab active" id="clientTab" role="tab" aria-selected="true" aria-controls="clientPanel" data-target="clientPanel">
+                    <span class="filter-tab__label">Client</span>
                 </button>
-                <div id="filterDropdown" style="display: none; position: absolute; top: 100%; right: 0; margin-top: 8px; background: white; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 350px; max-width: 450px; z-index: 1000; max-height: 500px; overflow-y: auto;">
-                    <!-- Filter Type Selection View -->
-                    <div id="filterTypeView" style="display: block;">
-                        <div style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa;">
-                            <strong style="font-size: 14px;">Filter By</strong>
-                            <button id="clearAllFilters" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 12px; font-weight: 500;">Clear All</button>
-                        </div>
-                        <div id="filterTypeList" style="padding: 8px;">
-                            <div class="filter-type-option" data-type="category" style="padding: 12px; margin: 4px 0; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: background 0.2s;">
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <div>
-                                        <strong style="font-size: 14px; color: #333;">Category</strong>
-                                        <div style="font-size: 12px; color: #666; margin-top: 2px;">Filter by conversation categories</div>
-                                    </div>
-                                    <span style="font-size: 18px;">→</span>
-                                </div>
-                            </div>
-                            <div class="filter-type-option" data-type="topic" style="padding: 12px; margin: 4px 0; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: background 0.2s;">
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <div>
-                                        <strong style="font-size: 14px; color: #333;">Topic</strong>
-                                        <div style="font-size: 12px; color: #666; margin-top: 2px;">Filter by specific topics</div>
-                                    </div>
-                                    <span style="font-size: 18px;">→</span>
-                                </div>
-                            </div>
-                            <div class="filter-type-option" data-type="metadata" style="padding: 12px; margin: 4px 0; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: background 0.2s;">
-                                <div style="display: flex; justify-content: space-between; align-items: center;">
-                                    <div>
-                                        <strong style="font-size: 14px; color: #333;">Metadata</strong>
-                                        <div style="font-size: 12px; color: #666; margin-top: 2px;">Filter by metadata fields including location</div>
-                                    </div>
-                                    <span style="font-size: 18px;">→</span>
-                                </div>
-                            </div>
-                        </div>
-                        <div id="activeFiltersList" style="padding: 8px 12px; border-top: 1px solid #e0e0e0; background: #f8f9fa; max-height: 150px; overflow-y: auto;"></div>
+                <button type="button" class="filter-tab" id="projectTab" role="tab" aria-selected="false" aria-controls="projectPanel" data-target="projectPanel" disabled>
+                    <span class="filter-tab__label">Project</span>
+                </button>
+                <button type="button" class="filter-tab" id="sourceTab" role="tab" aria-selected="false" aria-controls="sourcePanel" data-target="sourcePanel" disabled>
+                    <span class="filter-tab__label">Source</span>
+                </button>
+                <button type="button" class="filter-tab" id="dimensionTab" role="tab" aria-selected="false" aria-controls="dimensionPanel" data-target="dimensionPanel" disabled>
+                    <span class="filter-tab__label">Dimension</span>
+                </button>
+            </div>
+
+            <div class="data-source-selector__content">
+                <div class="filter-panels">
+                    <div class="filter-panel active" id="clientPanel" role="tabpanel" aria-labelledby="clientTab">
+                        <label for="clientSelect">Client:</label>
+                        <select id="clientSelect">
+                            <option value="">Loading...</option>
+                        </select>
                     </div>
-                    
-                    <!-- Metadata Field Selection View (second level for metadata) -->
-                    <div id="metadataFieldView" style="display: none;">
-                        <div style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa;">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <button id="backFromMetadataField" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 16px; font-weight: 500;">←</button>
-                                <strong style="font-size: 14px;">Select Metadata Field</strong>
-                            </div>
-                        </div>
-                        <div id="metadataFieldList" style="padding: 8px; max-height: 350px; overflow-y: auto;"></div>
+
+                    <div class="filter-panel" id="projectPanel" role="tabpanel" aria-labelledby="projectTab">
+                        <label for="projectSelect">Project:</label>
+                        <select id="projectSelect">
+                            <option value="">Select client first...</option>
+                        </select>
                     </div>
-                    
-                    <!-- Filter Selection View (for categories, topics, locations, or metadata values) -->
-                    <div id="filterSelectionView" style="display: none;">
-                        <div style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa;">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <button id="backToFilterType" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 16px; font-weight: 500;">←</button>
-                                <strong id="filterSelectionTitle" style="font-size: 14px;">Select Items</strong>
-                            </div>
-                            <div style="display: flex; gap: 8px;">
-                                <button id="selectAllItems" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 12px; font-weight: 500;">Select All</button>
-                                <button id="clearAllItems" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 12px; font-weight: 500;">Clear All</button>
-                            </div>
-                        </div>
-                        <div style="padding: 8px 12px; border-bottom: 1px solid #e0e0e0; background: #f0f0f0; display: flex; gap: 8px; align-items: center;">
-                            <span style="font-size: 12px; color: #666;">Mode:</span>
-                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px;">
-                                <input type="radio" name="filterMode" value="include" checked style="cursor: pointer;">
-                                <span>Include</span>
-                            </label>
-                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px;">
-                                <input type="radio" name="filterMode" value="exclude" style="cursor: pointer;">
-                                <span>Exclude</span>
-                            </label>
-                        </div>
-                        <div style="padding: 8px 12px; border-bottom: 1px solid #e0e0e0; background: #fff;">
-                            <div style="position: relative;">
-                                <input
-                                    type="text"
-                                    id="filterSelectionSearch"
-                                    placeholder="Search items..."
-                                    style="width: 100%; padding: 6px 30px 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;"
-                                />
-                                <button
-                                    id="filterSelectionSearchClear"
-                                    onclick="clearFilterSelectionSearch()"
-                                    style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 0; display: none; color: #999; font-size: 18px; line-height: 1; width: 20px; height: 20px; align-items: center; justify-content: center; border-radius: 3px;"
-                                    title="Clear search"
-                                    onmouseover="this.style.backgroundColor='#f0f0f0'; this.style.color='#666';"
-                                    onmouseout="this.style.backgroundColor='transparent'; this.style.color='#999';"
-                                >&times;</button>
-                            </div>
-                        </div>
-                        <div id="filterSelectionList" style="padding: 8px; max-height: 300px; overflow-y: auto;"></div>
-                        <div style="padding: 12px; border-top: 1px solid #e0e0e0; background: #f8f9fa;">
-                            <button id="applyFilter" style="width: 100%; padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">Apply Filter</button>
-                        </div>
+
+                    <div class="filter-panel" id="sourcePanel" role="tabpanel" aria-labelledby="sourceTab">
+                        <label for="sourceSelect">Source:</label>
+                        <select id="sourceSelect">
+                            <option value="">Select client first...</option>
+                        </select>
+                    </div>
+
+                    <!-- Dimension Filter (for survey data) -->
+                    <div class="filter-panel" id="dimensionPanel" role="tabpanel" aria-labelledby="dimensionTab">
+                        <label for="questionSelect" id="questionLabel" style="display:none;">Dimension:</label>
+                        <select id="questionSelect" style="display:none;">
+                            <option value="">All Dimensions</option>
+                        </select>
                     </div>
                 </div>
-            </div>
-            
-            <!-- Inline Dimension Name Editor -->
-            <div id="dimensionNameEditor" style="display:none; margin-left: 12px; align-items: center; gap: 8px;">
-                <label style="font-size: 13px; color: #666;">Name:</label>
-                <select id="dimensionNameSelect" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; background: white; cursor: pointer;">
-                    <option value="">-- Select --</option>
-                </select>
-                <input 
-                    type="text" 
-                    id="dimensionNameCustom" 
-                    placeholder="or enter custom name"
-                    style="display:none; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; width: 200px;"
-                />
-                <button id="saveDimensionBtn" style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                    Save
-                </button>
-                <button id="manageOptionsBtn" style="padding: 6px 12px; background: #f0f0f0; color: #333; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 13px;">
-                    Manage Options
-                </button>
-                <span id="saveStatusInline" style="font-size: 12px; color: #666; font-style: italic;"></span>
+
+                <div class="data-source-actions">
+                    <!-- Advanced Multi-Filter -->
+                    <div class="filter-menu">
+                        <button id="filterBtn" class="filter-button" type="button" aria-label="Open filters">
+                            <img src="/images/filter_list.svg" alt="" aria-hidden="true">
+                            <span id="filterBadge" class="filter-badge" aria-hidden="true"></span>
+                        </button>
+                        <div id="filterDropdown" style="display: none; position: absolute; top: 100%; right: 0; margin-top: 8px; background: white; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 350px; max-width: 450px; z-index: 1000; max-height: 500px; overflow-y: auto;">
+                            <!-- Filter Type Selection View -->
+                            <div id="filterTypeView" style="display: block;">
+                                <div style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa;">
+                                    <strong style="font-size: 14px;">Filter By</strong>
+                                    <button id="clearAllFilters" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 12px; font-weight: 500;">Clear All</button>
+                                </div>
+                                <div id="filterTypeList" style="padding: 8px;">
+                                    <div class="filter-type-option" data-type="category" style="padding: 12px; margin: 4px 0; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: background 0.2s;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <div>
+                                                <strong style="font-size: 14px; color: #333;">Category</strong>
+                                                <div style="font-size: 12px; color: #666; margin-top: 2px;">Filter by conversation categories</div>
+                                            </div>
+                                            <span style="font-size: 18px;">→</span>
+                                        </div>
+                                    </div>
+                                    <div class="filter-type-option" data-type="topic" style="padding: 12px; margin: 4px 0; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: background 0.2s;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <div>
+                                                <strong style="font-size: 14px; color: #333;">Topic</strong>
+                                                <div style="font-size: 12px; color: #666; margin-top: 2px;">Filter by specific topics</div>
+                                            </div>
+                                            <span style="font-size: 18px;">→</span>
+                                        </div>
+                                    </div>
+                                    <div class="filter-type-option" data-type="metadata" style="padding: 12px; margin: 4px 0; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: background 0.2s;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <div>
+                                                <strong style="font-size: 14px; color: #333;">Metadata</strong>
+                                                <div style="font-size: 12px; color: #666; margin-top: 2px;">Filter by metadata fields including location</div>
+                                            </div>
+                                            <span style="font-size: 18px;">→</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="activeFiltersList" style="padding: 8px 12px; border-top: 1px solid #e0e0e0; background: #f8f9fa; max-height: 150px; overflow-y: auto;"></div>
+                            </div>
+                            
+                            <!-- Metadata Field Selection View (second level for metadata) -->
+                            <div id="metadataFieldView" style="display: none;">
+                                <div style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <button id="backFromMetadataField" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 16px; font-weight: 500;">←</button>
+                                        <strong style="font-size: 14px;">Select Metadata Field</strong>
+                                    </div>
+                                </div>
+                                <div id="metadataFieldList" style="padding: 8px; max-height: 350px; overflow-y: auto;"></div>
+                            </div>
+                            
+                            <!-- Filter Selection View (for categories, topics, locations, or metadata values) -->
+                            <div id="filterSelectionView" style="display: none;">
+                                <div style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <button id="backToFilterType" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 16px; font-weight: 500;">←</button>
+                                        <strong id="filterSelectionTitle" style="font-size: 14px;">Select Items</strong>
+                                    </div>
+                                    <div style="display: flex; gap: 8px;">
+                                        <button id="selectAllItems" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 12px; font-weight: 500;">Select All</button>
+                                        <button id="clearAllItems" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 12px; font-weight: 500;">Clear All</button>
+                                    </div>
+                                </div>
+                                <div style="padding: 8px 12px; border-bottom: 1px solid #e0e0e0; background: #f0f0f0; display: flex; gap: 8px; align-items: center;">
+                                    <span style="font-size: 12px; color: #666;">Mode:</span>
+                                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px;">
+                                        <input type="radio" name="filterMode" value="include" checked style="cursor: pointer;">
+                                        <span>Include</span>
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px;">
+                                        <input type="radio" name="filterMode" value="exclude" style="cursor: pointer;">
+                                        <span>Exclude</span>
+                                    </label>
+                                </div>
+                                <div style="padding: 8px 12px; border-bottom: 1px solid #e0e0e0; background: #fff;">
+                                    <div style="position: relative;">
+                                        <input
+                                            type="text"
+                                            id="filterSelectionSearch"
+                                            placeholder="Search items..."
+                                            style="width: 100%; padding: 6px 30px 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px;"
+                                        />
+                                        <button
+                                            id="filterSelectionSearchClear"
+                                            onclick="clearFilterSelectionSearch()"
+                                            style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 0; display: none; color: #999; font-size: 18px; line-height: 1; width: 20px; height: 20px; align-items: center; justify-content: center; border-radius: 3px;"
+                                            title="Clear search"
+                                            onmouseover="this.style.backgroundColor='#f0f0f0'; this.style.color='#666';"
+                                            onmouseout="this.style.backgroundColor='transparent'; this.style.color='#999';"
+                                        >&times;</button>
+                                    </div>
+                                </div>
+                                <div id="filterSelectionList" style="padding: 8px; max-height: 300px; overflow-y: auto;"></div>
+                                <div style="padding: 12px; border-top: 1px solid #e0e0e0; background: #f8f9fa;">
+                                    <button id="applyFilter" style="width: 100%; padding: 8px 16px; background: #667eea; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500;">Apply Filter</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Inline Dimension Name Editor -->
+                    <div id="dimensionNameEditor" style="display:none; align-items: center; gap: 8px;">
+                        <label style="font-size: 13px; color: #666;">Name:</label>
+                        <select id="dimensionNameSelect" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; background: white; cursor: pointer;">
+                            <option value="">-- Select --</option>
+                        </select>
+                        <input 
+                            type="text" 
+                            id="dimensionNameCustom" 
+                            placeholder="or enter custom name"
+                            style="display:none; padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; width: 200px;"
+                        />
+                        <button id="saveDimensionBtn" style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                            Save
+                        </button>
+                        <button id="manageOptionsBtn" style="padding: 6px 12px; background: #f0f0f0; color: #333; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                            Manage Options
+                        </button>
+                        <span id="saveStatusInline" style="font-size: 12px; color: #666; font-style: italic;"></span>
+                    </div>
+                </div>
             </div>
         </div>
         
@@ -2292,6 +2582,203 @@
         let accessibleClientIds = new Set();
         let authenticatedUser = null;
 
+        const FILTER_TAB_CONFIG = [
+            { key: 'client', tabId: 'clientTab', panelId: 'clientPanel', selectId: 'clientSelect' },
+            { key: 'project', tabId: 'projectTab', panelId: 'projectPanel', selectId: 'projectSelect' },
+            { key: 'source', tabId: 'sourceTab', panelId: 'sourcePanel', selectId: 'sourceSelect' },
+            { key: 'dimension', tabId: 'dimensionTab', panelId: 'dimensionPanel', selectId: 'questionSelect' }
+        ];
+
+        function getFilterTabConfig(key) {
+            return FILTER_TAB_CONFIG.find((config) => config.key === key);
+        }
+
+        function isMobileFilterView() {
+            return window.matchMedia('(max-width: 768px)').matches;
+        }
+
+        function hasSelectableOption(selectEl) {
+            if (!selectEl) {
+                return false;
+            }
+            return Array.from(selectEl.options || []).some((option) => option.value !== '');
+        }
+
+        function setTabEnabled(key, enabled) {
+            const config = getFilterTabConfig(key);
+            if (!config) return;
+            const tab = document.getElementById(config.tabId);
+            if (!tab) return;
+            tab.disabled = !enabled;
+            tab.classList.toggle('is-disabled', !enabled);
+            tab.setAttribute('aria-disabled', enabled ? 'false' : 'true');
+            tab.setAttribute('tabindex', enabled ? '0' : '-1');
+            if (!enabled) {
+                tab.classList.remove('complete');
+                tab.classList.remove('active');
+                tab.setAttribute('aria-selected', 'false');
+            }
+        }
+
+        function setTabVisibility(key, visible) {
+            const config = getFilterTabConfig(key);
+            if (!config) return;
+            const tab = document.getElementById(config.tabId);
+            const panel = document.getElementById(config.panelId);
+            if (tab) {
+                tab.style.display = visible ? '' : 'none';
+                if (!visible) {
+                    tab.classList.remove('active');
+                    tab.setAttribute('aria-selected', 'false');
+                }
+            }
+            if (panel) {
+                panel.dataset.hidden = visible ? 'false' : 'true';
+                panel.setAttribute('aria-hidden', visible ? 'false' : 'true');
+                if (!visible) {
+                    panel.classList.remove('active');
+                }
+            }
+        }
+
+        function markTabComplete(key, complete) {
+            const config = getFilterTabConfig(key);
+            if (!config) return;
+            const tab = document.getElementById(config.tabId);
+            if (!tab) return;
+            tab.classList.toggle('complete', complete);
+        }
+
+        function setActiveTab(tabId) {
+            const tab = document.getElementById(tabId);
+            if (!tab || tab.disabled || tab.style.display === 'none') {
+                return;
+            }
+            FILTER_TAB_CONFIG.forEach(({ tabId: id, panelId }) => {
+                const tabEl = document.getElementById(id);
+                const panelEl = document.getElementById(panelId);
+                const tabIsVisible = !(tabEl && tabEl.style.display === 'none');
+                const isActive = id === tabId && tabIsVisible && !(tabEl && tabEl.disabled);
+                if (tabEl) {
+                    tabEl.classList.toggle('active', isActive);
+                    tabEl.setAttribute('aria-selected', isActive ? 'true' : 'false');
+                }
+                if (panelEl) {
+                    panelEl.classList.toggle('active', isActive);
+                    panelEl.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+                }
+            });
+        }
+
+        function ensureActiveFilterTab() {
+            const availableTabs = FILTER_TAB_CONFIG
+                .map(({ tabId }) => document.getElementById(tabId))
+                .filter((tab) => tab && tab.style.display !== 'none' && !tab.disabled);
+
+            if (availableTabs.length === 0) {
+                return;
+            }
+
+            const currentlyActive = availableTabs.find((tab) => tab.classList.contains('active'));
+            if (currentlyActive) {
+                setActiveTab(currentlyActive.id);
+                return;
+            }
+
+            const firstIncomplete = availableTabs.find((tab) => !tab.classList.contains('complete'));
+            if (firstIncomplete) {
+                setActiveTab(firstIncomplete.id);
+                return;
+            }
+
+            setActiveTab(availableTabs[0].id);
+        }
+
+        function focusNextTab(currentKey) {
+            if (!isMobileFilterView()) {
+                return;
+            }
+            const currentIndex = FILTER_TAB_CONFIG.findIndex((config) => config.key === currentKey);
+            if (currentIndex === -1) {
+                return;
+            }
+            for (let i = currentIndex + 1; i < FILTER_TAB_CONFIG.length; i++) {
+                const nextConfig = FILTER_TAB_CONFIG[i];
+                const tabEl = document.getElementById(nextConfig.tabId);
+                if (tabEl && !tabEl.disabled && tabEl.style.display !== 'none') {
+                    setActiveTab(nextConfig.tabId);
+                    break;
+                }
+            }
+        }
+
+        function applyPanelDisplayForViewport() {
+            const currentActive = document.querySelector('.filter-tab.active');
+            if (currentActive) {
+                setActiveTab(currentActive.id);
+            } else {
+                ensureActiveFilterTab();
+            }
+        }
+
+        function syncFilterTabState() {
+            const clientSelect = document.getElementById('clientSelect');
+            const projectSelect = document.getElementById('projectSelect');
+            const sourceSelect = document.getElementById('sourceSelect');
+            const questionSelect = document.getElementById('questionSelect');
+
+            setTabEnabled('client', !!clientSelect);
+            markTabComplete('client', !!clientSelect && !!clientSelect.value);
+
+            const projectHasOptions = hasSelectableOption(projectSelect);
+            setTabEnabled('project', projectHasOptions);
+            markTabComplete('project', !!projectSelect && !!projectSelect.value);
+
+            const sourceHasOptions = hasSelectableOption(sourceSelect);
+            setTabEnabled('source', sourceHasOptions);
+            markTabComplete('source', !!sourceSelect && !!sourceSelect.value);
+
+            const dimensionVisible = !!questionSelect && questionSelect.style.display !== 'none';
+            setTabVisibility('dimension', dimensionVisible);
+            setTabEnabled('dimension', dimensionVisible);
+            markTabComplete('dimension', !!questionSelect && !!questionSelect.value);
+
+            ensureActiveFilterTab();
+            applyPanelDisplayForViewport();
+        }
+
+        let filterTabsInitialized = false;
+
+        function setupFilterTabs() {
+            if (filterTabsInitialized) {
+                syncFilterTabState();
+                return;
+            }
+
+            FILTER_TAB_CONFIG.forEach((config) => {
+                const tab = document.getElementById(config.tabId);
+                const select = document.getElementById(config.selectId);
+                if (tab) {
+                    tab.addEventListener('click', () => setActiveTab(config.tabId));
+                }
+                if (select && !select.dataset.mobileNavBound) {
+                    select.addEventListener('change', (event) => {
+                        syncFilterTabState();
+                        if (event.target.value) {
+                            focusNextTab(config.key);
+                        } else if (isMobileFilterView()) {
+                            setActiveTab(config.tabId);
+                        }
+                    });
+                    select.dataset.mobileNavBound = 'true';
+                }
+            });
+
+            window.addEventListener('resize', applyPanelDisplayForViewport);
+            filterTabsInitialized = true;
+            syncFilterTabState();
+        }
+
         function updateAccessibleClients(clients = []) {
             accessibleClients = Array.isArray(clients) ? clients : [];
             accessibleClientIds = new Set(
@@ -2571,11 +3058,13 @@
                 } else {
                     console.log('No client selected, skipping project load');
                 }
+                syncFilterTabState();
             } catch (error) {
                 console.error('Error loading clients:', error);
                 console.error('Error stack:', error.stack);
                 const select = document.getElementById('clientSelect');
                 select.innerHTML = '<option value="">Error loading clients</option>';
+                syncFilterTabState();
             }
         }
         
@@ -2658,12 +3147,14 @@
                 } else {
                     console.log('No client selected, skipping source load');
                 }
+                syncFilterTabState();
             } catch (error) {
                 console.error('Error loading projects:', error);
                 const select = document.getElementById('projectSelect');
                 if (select) {
                     select.innerHTML = '<option value="">Error loading projects</option>';
                 }
+                syncFilterTabState();
             }
         }
         
@@ -2749,6 +3240,7 @@
                 select.removeEventListener('change', handleSourceChange);
                 select.addEventListener('change', handleSourceChange);
                 console.log('Added change listener to source select');
+                syncFilterTabState();
                 
                 // Load data for the selected source
                 console.log(`About to load data: client=${clientId}, source=${currentDataSourceId || 'None'}`);
@@ -2758,6 +3250,7 @@
                 console.error('Error loading sources:', error);
                 const select = document.getElementById('sourceSelect');
                 select.innerHTML = '<option value="">Error loading sources</option>';
+                syncFilterTabState();
             }
         }
         
@@ -2978,16 +3471,16 @@
         
         // Detect survey format and setup question filter
         async function detectAndSetupQuestionFilter(savedState = null) {
-            const questionLabel = document.getElementById('questionLabel');
             const questionSelect = document.getElementById('questionSelect');
             const dimensionNameEditor = document.getElementById('dimensionNameEditor');
             
             // Validate we have client and data source
             if (!currentClientId || !currentDataSourceId) {
                 console.warn('No client or data source selected');
-                questionLabel.style.display = 'none';
                 questionSelect.style.display = 'none';
+                document.getElementById('questionLabel').style.display = 'none';
                 dimensionNameEditor.style.display = 'none';
+                syncFilterTabState();
                 return;
             }
             
@@ -3034,9 +3527,10 @@
                 
                 if (availableQuestions.length === 0) {
                     // Hide question selector if no questions
-                    questionLabel.style.display = 'none';
                     questionSelect.style.display = 'none';
+                    document.getElementById('questionLabel').style.display = 'none';
                     dimensionNameEditor.style.display = 'none';
+                    syncFilterTabState();
                     return;
                 }
                 
@@ -3050,8 +3544,9 @@
                 });
                 
                 // Show question selector
-                questionLabel.style.display = 'inline';
                 questionSelect.style.display = 'inline';
+                document.getElementById('questionLabel').style.display = 'inline';
+                syncFilterTabState();
                 
                 // Add change listener
                 questionSelect.onchange = function() {
@@ -3089,13 +3584,15 @@
                     filterByQuestion(''); // Show all dimensions
                     dimensionNameEditor.style.display = 'none';
                 }
+                syncFilterTabState();
             } catch (error) {
                 console.error('Error loading questions:', error);
                 // Hide question selector on error
-                questionLabel.style.display = 'none';
                 questionSelect.style.display = 'none';
+                document.getElementById('questionLabel').style.display = 'none';
                 dimensionNameEditor.style.display = 'none';
                 availableQuestions = [];
+                syncFilterTabState();
             }
         }
         
@@ -3890,7 +4387,7 @@
             if (filterRules.length === 0) {
                 badge.style.display = 'none';
             } else {
-                badge.style.display = 'inline-block';
+                badge.style.display = 'flex';
                 badge.textContent = filterRules.length;
             }
         }
@@ -4823,6 +5320,10 @@
         }
 
         // Close overlay when clicking on backdrop
+        document.addEventListener('DOMContentLoaded', () => {
+            setupFilterTabs();
+        });
+
         document.addEventListener('DOMContentLoaded', () => {
             // Initialize metadata settings
             initializeMetadataSettings();
