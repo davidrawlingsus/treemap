@@ -106,6 +106,22 @@
   gap: 32px;
 }
 
+/* Mobile adjustments for logo and logout button */
+@media (max-width: 1023px) {
+  .marketably-logo-link {
+    font-size: 1.5rem; /* 20% smaller than 1.875rem */
+  }
+  
+  .marketably-tagline {
+    font-size: 6.4px; /* 20% smaller than 8px */
+  }
+  
+  .marketably-logout-btn {
+    font-size: 0.65rem; /* Slightly smaller to prevent wrapping */
+    padding: 6px 10px; /* Slightly reduced padding */
+  }
+}
+
 @media (min-width: 1024px) {
   .marketably-nav {
     display: flex;
