@@ -96,6 +96,10 @@
             background: rgba(255, 255, 255, 0.3);
         }
 
+        .user-info span:empty {
+            display: none;
+        }
+
         .hidden {
             display: none !important;
         }
@@ -777,19 +781,23 @@
 
         .favourites-empty {
             padding: 40px 20px 20px;
+            column-span: all;
+            width: 100%;
+            display: block;
         }
 
         .favourites-empty-grid {
             display: grid;
-            grid-template-columns: repeat(3, minmax(220px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             grid-auto-rows: 150px;
             gap: 24px;
             justify-content: center;
+            width: 100%;
         }
 
         @media (max-width: 1024px) {
             .favourites-empty-grid {
-                grid-template-columns: repeat(2, minmax(220px, 1fr));
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
                 grid-auto-rows: 150px;
             }
         }
@@ -1736,6 +1744,14 @@
     </div>
 
     <div class="container" id="mainContainer" style="display: none;">
+        <div class="header">
+            <div class="user-info hidden" id="headerUserInfo">
+                <span id="headerUserEmail"></span>
+                <button id="headerLogoutButton" type="button">Log out</button>
+            </div>
+            <h1>Intercom Topics Treemap</h1>
+            <p>Topic visualization and analysis</p>
+        </div>
         <!-- Data Source Selector -->
         <div class="data-source-selector">
             <label for="clientSelect">Client:</label>
@@ -2151,6 +2167,62 @@
         let clientProjects = [];
         let clientSources = [];
         let dimensionNamesMap = {}; // Map of ref_key -> custom_name
+
+        const headerUserInfoEl = document.getElementById('headerUserInfo');
+        const headerUserEmailEl = document.getElementById('headerUserEmail');
+        const headerLogoutButton = document.getElementById('headerLogoutButton');
+
+        function getHeaderDisplayEmail(user) {
+            if (!user || typeof user !== 'object') {
+                return '';
+            }
+            return (
+                user.email ||
+                user.email_address ||
+                user.user_email ||
+                user.name ||
+                ''
+            );
+        }
+
+        function showHeaderUserInfo(user) {
+            if (!headerUserInfoEl) {
+                return;
+            }
+            const email = getHeaderDisplayEmail(user);
+            if (headerUserEmailEl) {
+                headerUserEmailEl.textContent = email;
+            }
+            headerUserInfoEl.classList.remove('hidden');
+        }
+
+        function hideHeaderUserInfo() {
+            if (!headerUserInfoEl) {
+                return;
+            }
+            headerUserInfoEl.classList.add('hidden');
+            if (headerUserEmailEl) {
+                headerUserEmailEl.textContent = '';
+            }
+        }
+
+        if (headerLogoutButton) {
+            headerLogoutButton.addEventListener('click', () => {
+                if (typeof Auth !== 'undefined' && typeof Auth.handleLogout === 'function') {
+                    Auth.handleLogout();
+                } else {
+                    window.dispatchEvent(new Event('auth:logout'));
+                }
+            });
+        }
+
+        const storedHeaderUser = typeof Auth !== 'undefined' && typeof Auth.getStoredUserInfo === 'function'
+            ? Auth.getStoredUserInfo()
+            : null;
+
+        if (storedHeaderUser) {
+            showHeaderUserInfo(storedHeaderUser);
+        }
         
         // State persistence constants
         const STATE_STORAGE_KEY = 'treemap_app_state';
@@ -2297,6 +2369,7 @@
                 return;
             }
 
+            showHeaderUserInfo(userInfo);
             updateAccessibleClients(userInfo.accessible_clients || []);
 
             if (accessibleClients.length === 0) {
@@ -2328,12 +2401,14 @@
             const userInfo = event.detail?.user;
             if (userInfo) {
                 updateAccessibleClients(userInfo.accessible_clients || []);
+                showHeaderUserInfo(userInfo);
             }
         });
 
         window.addEventListener('auth:logout', () => {
             accessibleClients = [];
             accessibleClientIds = new Set();
+            hideHeaderUserInfo();
         });
 
         // API Configuration - loaded from server config
