@@ -429,6 +429,15 @@
   width: 90%;
 }
 
+.login-container.account-selection-mode {
+  max-width: 960px;
+  width: min(92vw, 960px);
+  padding: 56px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
 .login-container h2 {
   margin: 0 0 16px 0;
   color: #333;
@@ -514,11 +523,57 @@
   font-family: var(--font-lato);
 }
 
+.account-selection-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.account-selection-greeting {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.account-selection-header h2 {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+  text-align: left;
+}
+
+.account-selection-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .account-selection {
   display: flex;
   flex-direction: column;
   gap: 12px;
   margin-top: 12px;
+}
+
+.account-selection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.account-selection-grid::-webkit-scrollbar {
+  width: 8px;
+}
+
+.account-selection-grid::-webkit-scrollbar-thumb {
+  background: rgba(107, 114, 128, 0.25);
+  border-radius: 4px;
 }
 
 .account-option {
@@ -533,11 +588,27 @@
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s, transform 0.1s;
   text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .account-option:hover {
   border-color: var(--brand-color);
   background: #eef7d8;
+  transform: translateY(-1px);
+}
+
+.account-option::after {
+  content: '→';
+  font-size: 16px;
+  color: #9ca3af;
+  transition: color 0.2s;
+}
+
+.account-option:hover::after {
+  color: #6b7280;
 }
 
 .account-selection-note {
@@ -545,5 +616,22 @@
   color: #4d5562;
   margin-bottom: 12px;
   line-height: 1.4;
+  text-align: left;
+}
+
+@media (max-width: 640px) {
+  .login-container.account-selection-mode {
+    padding: 40px 24px;
+    gap: 24px;
+  }
+
+  .account-selection-header h2 {
+    font-size: 26px;
+  }
+
+  .account-selection-grid {
+    grid-template-columns: 1fr;
+    max-height: 420px;
+  }
 }
 

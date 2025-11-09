@@ -98,6 +98,13 @@
     const accountSection = global.document.getElementById(
       'accountSelectionSection'
     );
+    const loginContainer = global.document.querySelector('.login-container');
+    const accountSelectionList = global.document.getElementById(
+      'accountSelectionList'
+    );
+    const accountSelectionGreeting = global.document.getElementById(
+      'accountSelectionGreeting'
+    );
 
     if (mainContainer) {
       mainContainer.style.display = 'none';
@@ -110,6 +117,15 @@
     }
     if (accountSection) {
       accountSection.classList.add('hidden');
+    }
+    if (loginContainer) {
+      loginContainer.classList.remove('account-selection-mode');
+    }
+    if (accountSelectionGreeting) {
+      accountSelectionGreeting.textContent = '';
+    }
+    if (accountSelectionList) {
+      accountSelectionList.innerHTML = '';
     }
     resetLoginForm();
   };

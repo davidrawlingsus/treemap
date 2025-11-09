@@ -1704,12 +1704,17 @@
             </div>
 
             <div id="accountSelectionSection" class="hidden">
-                <h2>Select an account</h2>
-                <p class="account-selection-note">
-                    Choose which company dashboard you’d like to open. You can change this later from the account selector.
-                </p>
-                <div id="accountSelectionList" class="account-selection"></div>
-                <div id="accountSelectionError" class="login-error"></div>
+                <div class="account-selection-header">
+                    <p class="account-selection-greeting" id="accountSelectionGreeting"></p>
+                    <h2>Which client?</h2>
+                    <p class="account-selection-note">
+                        Pick a client to open their dashboard. You can switch at any time from the client selector.
+                    </p>
+                </div>
+                <div class="account-selection-content">
+                    <div id="accountSelectionList" class="account-selection-grid" role="list"></div>
+                    <div id="accountSelectionError" class="login-error"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -2285,6 +2290,7 @@
         // Authentication helpers provided by auth.js
         let accessibleClients = [];
         let accessibleClientIds = new Set();
+        let authenticatedUser = null;
 
         function updateAccessibleClients(clients = []) {
             accessibleClients = Array.isArray(clients) ? clients : [];
@@ -2300,6 +2306,7 @@
             const selectionSection = document.getElementById('accountSelectionSection');
             const successMessage = document.getElementById('loginSuccess');
             const errorMessage = document.getElementById('loginError');
+            const loginContainer = document.querySelector('.login-container');
 
             if (mainContainer) {
                 mainContainer.style.display = 'none';
@@ -2319,12 +2326,17 @@
             if (errorMessage) {
                 errorMessage.style.display = 'none';
             }
+            if (loginContainer) {
+                loginContainer.classList.add('account-selection-mode');
+                loginContainer.scrollTop = 0;
+            }
         }
 
         function renderAccountSelection(clients) {
             enterAccountSelectionMode();
             const listEl = document.getElementById('accountSelectionList');
             const errorEl = document.getElementById('accountSelectionError');
+            const greetingEl = document.getElementById('accountSelectionGreeting');
 
             if (errorEl) {
                 errorEl.style.display = 'none';
@@ -2336,14 +2348,59 @@
             }
 
             listEl.innerHTML = '';
+            listEl.scrollTop = 0;
 
-            clients.forEach((client) => {
+            if (greetingEl) {
+                const nameSources = [
+                    authenticatedUser?.first_name,
+                    authenticatedUser?.name,
+                    authenticatedUser?.email
+                        ? authenticatedUser.email.split('@')[0]
+                        : null,
+                ].filter(Boolean);
+                const firstName = nameSources.length
+                    ? String(nameSources[0]).split(' ')[0]
+                    : null;
+                greetingEl.textContent = firstName
+                    ? `Hi ${firstName},`
+                    : 'Welcome back,';
+                greetingEl.style.display = 'block';
+            }
+
+            const getClientLabel = (client) =>
+                client?.name ||
+                client?.client_name ||
+                client?.display_name ||
+                client?.clientUuid ||
+                client?.client_uuid ||
+                client?.id ||
+                'Client';
+
+            const sortedClients = [...clients].sort((a, b) => {
+                const labelA = getClientLabel(a).toLowerCase();
+                const labelB = getClientLabel(b).toLowerCase();
+                return labelA.localeCompare(labelB);
+            });
+
+            sortedClients.forEach((client) => {
+                const clientId =
+                    client?.id ??
+                    client?.client_uuid ??
+                    client?.clientUuid ??
+                    client?.uuid ??
+                    null;
+
                 const button = document.createElement('button');
                 button.className = 'account-option';
-                button.dataset.clientId = client.id;
-                button.textContent = client.name;
+                if (clientId) {
+                    button.dataset.clientId = clientId;
+                }
+                button.textContent = getClientLabel(client);
+                button.setAttribute('role', 'listitem');
                 button.addEventListener('click', () => {
-                    selectClientAndLaunch(client.id);
+                    if (clientId) {
+                        selectClientAndLaunch(clientId);
+                    }
                 });
                 listEl.appendChild(button);
             });
@@ -2352,6 +2409,10 @@
         function selectClientAndLaunch(clientId) {
             currentClientId = clientId;
             saveState();
+            const loginContainer = document.querySelector('.login-container');
+            if (loginContainer) {
+                loginContainer.classList.remove('account-selection-mode');
+            }
             if (typeof Auth !== 'undefined') {
                 Auth.hideLogin();
             }
@@ -2367,6 +2428,7 @@
                 return;
             }
 
+            authenticatedUser = userInfo;
             showHeaderUserInfo(userInfo);
             updateAccessibleClients(userInfo.accessible_clients || []);
 
@@ -2406,6 +2468,7 @@
         window.addEventListener('auth:logout', () => {
             accessibleClients = [];
             accessibleClientIds = new Set();
+            authenticatedUser = null;
             hideHeaderUserInfo();
         });
 
