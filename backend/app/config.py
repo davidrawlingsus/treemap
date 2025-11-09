@@ -1,8 +1,18 @@
 import json
+import os
+from functools import lru_cache
+from pathlib import Path
+
+from dotenv import load_dotenv
 from pydantic import Field
 from pydantic_settings import BaseSettings
-from functools import lru_cache
-import os
+
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+LOCAL_ENV_FILE = PROJECT_ROOT / ".env.local"
+
+if LOCAL_ENV_FILE.exists():
+    load_dotenv(LOCAL_ENV_FILE, override=True)
 
 
 class Settings(BaseSettings):
