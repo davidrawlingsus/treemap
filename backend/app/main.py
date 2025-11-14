@@ -435,10 +435,17 @@ def request_magic_link(payload: MagicLinkRequest, db: Session = Depends(get_db))
         db.flush()
 
     token, token_hash, expires_at = generate_magic_link_token()
+    logger.info(f"Generated magic link token for {email} - expires at: {expires_at}")
+    logger.debug(f"Token hash (first 10 chars): {token_hash[:10]}...")
+    
     user.magic_link_token = token_hash
     user.magic_link_expires_at = expires_at
     user.last_magic_link_sent_at = now
     user.is_active = True
+    
+    # Flush to ensure user fields are updated in the session
+    db.flush()
+    logger.debug(f"Flushed user magic link state to session")
 
     # Ensure memberships exist for all linked clients
     for client in clients:
@@ -494,7 +501,24 @@ def request_magic_link(payload: MagicLinkRequest, db: Session = Depends(get_db))
         magic_link_url = f"{base_url}?token={quote(token)}&email={quote(email)}"
 
     try:
+        logger.info(f"Committing magic link state for {email} to database")
         db.commit()
+        logger.info(f"Successfully committed magic link token for {email}")
+        
+        # Verify the commit by re-querying the user from database
+        db.expire(user)  # Expire cached data
+        verification_user = db.query(User).filter(func.lower(User.email) == email).first()
+        if verification_user and verification_user.magic_link_token:
+            logger.info(f"Verified token persistence - stored hash (first 10): {verification_user.magic_link_token[:10]}...")
+            logger.debug(f"Token expires at: {verification_user.magic_link_expires_at}")
+        else:
+            logger.error(f"Token verification failed - token not found in database for {email}")
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to persist magic link token. Please try again.",
+            )
+    except HTTPException:
+        raise
     except Exception as exc:
         db.rollback()
         logger.exception("Failed to persist magic-link state for %s", email)
@@ -530,10 +554,15 @@ def verify_magic_link(payload: MagicLinkVerifyRequest, db: Session = Depends(get
     """Verify a magic-link token and issue a JWT."""
     email = payload.email.strip().lower()
     token = payload.token.strip()
+    
+    logger.info(f"Magic link verification attempt for email: {email}")
+    logger.debug(f"Token (first 10 chars): {token[:10]}...")
 
     if not email or "@" not in email:
+        logger.warning(f"Invalid email format: {email}")
         raise HTTPException(status_code=400, detail="A valid email address is required")
     if not token:
+        logger.warning("Missing token in verification request")
         raise HTTPException(status_code=400, detail="Magic-link token is required")
 
     user = (
@@ -545,9 +574,28 @@ def verify_magic_link(payload: MagicLinkVerifyRequest, db: Session = Depends(get
         .first()
     )
 
-    if not user or not is_magic_link_token_valid(user, token):
-        logger.info("Invalid magic-link attempt for %s", email)
+    if not user:
+        logger.warning(f"User not found for email: {email}")
         raise HTTPException(status_code=400, detail="Invalid or expired magic link")
+    
+    logger.info(f"Found user: {user.email}, checking token validity")
+    logger.debug(f"User has stored token: {bool(user.magic_link_token)}, expires_at: {user.magic_link_expires_at}")
+    
+    is_valid, error_reason = is_magic_link_token_valid(user, token)
+    if not is_valid:
+        logger.warning(f"Invalid magic-link token for {email} - reason: {error_reason}")
+        
+        # Provide more specific error messages based on the failure reason
+        error_messages = {
+            "no_token_provided": "No authentication token provided",
+            "no_stored_token": "No magic link was requested for this email",
+            "no_expiration_time": "Invalid magic link state",
+            "token_expired": "This magic link has expired. Please request a new one",
+            "token_mismatch": "Invalid magic link. The token may have been used or is incorrect",
+        }
+        
+        detail = error_messages.get(error_reason, "Invalid or expired magic link")
+        raise HTTPException(status_code=400, detail=detail)
 
     now = datetime.now(timezone.utc)
     clear_magic_link_state(user)
@@ -555,7 +603,9 @@ def verify_magic_link(payload: MagicLinkVerifyRequest, db: Session = Depends(get
     user.last_login_at = now
 
     try:
+        logger.info(f"Clearing magic link state and updating user {email}")
         db.commit()
+        logger.info(f"Successfully verified magic link for {email}")
     except Exception as exc:
         db.rollback()
         logger.exception("Failed to validate magic link for %s", email)
@@ -565,6 +615,7 @@ def verify_magic_link(payload: MagicLinkVerifyRequest, db: Session = Depends(get
         ) from exc
 
     access_token = create_access_token(data={"sub": str(user.id)})
+    logger.info(f"Issued JWT access token for {email}")
     return {"access_token": access_token, "token_type": "bearer"}
 
 

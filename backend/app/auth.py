@@ -120,14 +120,48 @@ def hash_token(raw_token: str) -> str:
     return hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
 
 
-def is_magic_link_token_valid(user: User, raw_token: str) -> bool:
-    """Validate a raw magic-link token against the stored hash and expiry."""
-    if not user.magic_link_token or not raw_token:
-        return False
+def is_magic_link_token_valid(user: User, raw_token: str) -> tuple[bool, str]:
+    """
+    Validate a raw magic-link token against the stored hash and expiry.
+    
+    Returns:
+        tuple[bool, str]: (is_valid, error_reason)
+    """
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"Validating magic link token for user: {user.email}")
+    
+    if not raw_token:
+        logger.warning("No token provided in validation request")
+        return False, "no_token_provided"
+    
+    if not user.magic_link_token:
+        logger.warning(f"No stored token found for user {user.email}")
+        return False, "no_stored_token"
+    
     now = datetime.now(timezone.utc)
-    if not user.magic_link_expires_at or user.magic_link_expires_at < now:
-        return False
-    return hash_token(raw_token) == user.magic_link_token
+    if not user.magic_link_expires_at:
+        logger.warning(f"No expiration time set for user {user.email}")
+        return False, "no_expiration_time"
+    
+    if user.magic_link_expires_at < now:
+        logger.warning(f"Token expired - expires_at: {user.magic_link_expires_at}, now: {now}")
+        time_since_expiry = now - user.magic_link_expires_at
+        logger.info(f"Token expired {time_since_expiry.total_seconds()} seconds ago")
+        return False, "token_expired"
+    
+    raw_token_hash = hash_token(raw_token)
+    stored_token_hash = user.magic_link_token
+    is_valid = raw_token_hash == stored_token_hash
+    
+    logger.info(f"Token hash comparison - valid: {is_valid}")
+    if not is_valid:
+        logger.warning(f"Hash mismatch - computed: {raw_token_hash[:10]}..., stored: {stored_token_hash[:10]}...")
+        return False, "token_mismatch"
+    
+    logger.info(f"Token validation successful for {user.email}")
+    return True, "valid"
 
 
 def clear_magic_link_state(user: User) -> None:
