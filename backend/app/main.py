@@ -255,6 +255,25 @@ def debug_users(db: Session = Depends(get_db)):
     }
 
 
+@app.get("/api/debug/magic-link-state")
+def debug_magic_link_state(email: str, db: Session = Depends(get_db)):
+    """Debug endpoint to check magic link state for a user"""
+    user = db.query(User).filter(func.lower(User.email) == email.lower()).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User not found: {email}")
+    
+    return {
+        "email": user.email,
+        "has_magic_link_token": user.magic_link_token is not None,
+        "token_hash_preview": user.magic_link_token[:10] + "..." if user.magic_link_token else None,
+        "magic_link_expires_at": user.magic_link_expires_at.isoformat() if user.magic_link_expires_at else None,
+        "last_magic_link_sent_at": user.last_magic_link_sent_at.isoformat() if user.last_magic_link_sent_at else None,
+        "is_active": user.is_active,
+        "email_verified_at": user.email_verified_at.isoformat() if user.email_verified_at else None,
+    }
+
+
 @app.get("/health")
 def health_check(db: Session = Depends(get_db)):
     """Check if API and database are working"""
