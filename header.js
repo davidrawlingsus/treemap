@@ -23,7 +23,7 @@
       <div class="marketably-header-content">
         <!-- Logo -->
         <div class="marketably-logo">
-          <a href="/" class="marketably-logo-link">
+          <a href="https://marketably.ai" class="marketably-logo-link">
             <span class="marketably-logo-text-white">market</span><span class="marketably-logo-text-brand">ably</span>
           </a>
           <span class="marketably-tagline">Feedback-Fueled Marketing</span>
