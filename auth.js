@@ -295,15 +295,26 @@
     });
 
     try {
+      console.log('[MAGIC LINK] Verifying token...');
       const result = await verifyMagicLink(email.trim().toLowerCase(), token);
+      console.log('[MAGIC LINK] Verification successful, token received:', result.access_token ? 'YES' : 'NO');
+      
       setAuthToken(result.access_token);
+      console.log('[MAGIC LINK] Token saved to localStorage');
+      console.log('[MAGIC LINK] Verify token in storage:', localStorage.getItem('visualizd_auth_token') ? 'YES' : 'NO');
+      
       const userInfo = await fetchCurrentUser();
+      console.log('[MAGIC LINK] User info fetched:', userInfo);
+      
       setUserInfo(userInfo);
+      console.log('[MAGIC LINK] User info saved');
+      
       showLoginMessages({ error: null, success: null });
 
       global.dispatchEvent(
         new CustomEvent('auth:magicVerified', { detail: { user: userInfo } })
       );
+      console.log('[MAGIC LINK] auth:magicVerified event dispatched');
       return true;
     } catch (error) {
       console.error('Failed to process magic link', error);
