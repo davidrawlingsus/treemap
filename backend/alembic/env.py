@@ -22,10 +22,20 @@ config = context.config
 # Get database URL from environment (use get_database_url to prefer public URL)
 settings = get_settings()
 database_url = settings.get_database_url()
+
+# DEBUG: Log what Alembic is using
+print(f"🔧 ALEMBIC: Getting database URL from settings")
+print(f"🔧 ALEMBIC: Raw database_url: {database_url[:50]}...")
+print(f"🔧 ALEMBIC: Database type: {'PostgreSQL' if 'postgresql' in database_url else 'SQLite' if 'sqlite' in database_url else 'Unknown'}")
+
 # Convert to psycopg format if needed
 if database_url.startswith('postgresql://') and '+psycopg' not in database_url:
     database_url = database_url.replace('postgresql://', 'postgresql+psycopg://')
+    print(f"🔧 ALEMBIC: Converted to psycopg format")
+
+print(f"🔧 ALEMBIC: Final database_url: {database_url[:50]}...")
 config.set_main_option("sqlalchemy.url", database_url)
+print(f"🔧 ALEMBIC: Set config.sqlalchemy.url successfully")
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:
