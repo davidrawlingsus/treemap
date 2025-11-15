@@ -454,8 +454,8 @@ def request_magic_link(payload: MagicLinkRequest, db: Session = Depends(get_db))
         db.flush()
 
     token, token_hash, expires_at = generate_magic_link_token()
-    logger.info(f"Generated magic link token for {email} - expires at: {expires_at}")
-    logger.debug(f"Token hash (first 10 chars): {token_hash[:10]}...")
+    logger.warning(f"🔑 Generated magic link token for {email} - expires at: {expires_at}")
+    logger.warning(f"🔑 Token hash (first 10 chars): {token_hash[:10]}...")
     
     user.magic_link_token = token_hash
     user.magic_link_expires_at = expires_at
@@ -520,16 +520,16 @@ def request_magic_link(payload: MagicLinkRequest, db: Session = Depends(get_db))
         magic_link_url = f"{base_url}?token={quote(token)}&email={quote(email)}"
 
     try:
-        logger.info(f"Committing magic link state for {email} to database")
+        logger.warning(f"💾 Committing magic link state for {email} to database")
         db.commit()
-        logger.info(f"Successfully committed magic link token for {email}")
+        logger.warning(f"✅ Successfully committed magic link token for {email}")
         
         # Verify the commit by re-querying the user from database
         db.expire(user)  # Expire cached data
         verification_user = db.query(User).filter(func.lower(User.email) == email).first()
         if verification_user and verification_user.magic_link_token:
-            logger.info(f"Verified token persistence - stored hash (first 10): {verification_user.magic_link_token[:10]}...")
-            logger.debug(f"Token expires at: {verification_user.magic_link_expires_at}")
+            logger.warning(f"✅ Verified token persistence - stored hash (first 10): {verification_user.magic_link_token[:10]}...")
+            logger.warning(f"✅ Token expires at: {verification_user.magic_link_expires_at}")
         else:
             logger.error(f"Token verification failed - token not found in database for {email}")
             raise HTTPException(

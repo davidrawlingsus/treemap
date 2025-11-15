@@ -10,10 +10,12 @@ settings = get_settings()
 database_url = settings.get_database_url()
 
 # DEBUG: Log what we're actually using
-print(f"🔍 DATABASE_URL from env: {os.getenv('DATABASE_URL', 'NOT SET')[:50]}...")
-print(f"🔍 DATABASE_PUBLIC_URL from env: {os.getenv('DATABASE_PUBLIC_URL', 'NOT SET')[:50]}...")
-print(f"🔍 Final database_url: {database_url[:50]}...")
-print(f"🔍 Database type: {'PostgreSQL' if 'postgresql' in database_url else 'SQLite' if 'sqlite' in database_url else 'Unknown'}")
+import logging
+logger = logging.getLogger(__name__)
+logger.warning(f"🔍 DATABASE_URL from env: {os.getenv('DATABASE_URL', 'NOT SET')[:50]}...")
+logger.warning(f"🔍 DATABASE_PUBLIC_URL from env: {os.getenv('DATABASE_PUBLIC_URL', 'NOT SET')[:50]}...")
+logger.warning(f"🔍 Final database_url: {database_url[:50]}...")
+logger.warning(f"🔍 Database type: {'PostgreSQL' if 'postgresql' in database_url else 'SQLite' if 'sqlite' in database_url else 'Unknown'}")
 
 # Create synchronous engine for now (simpler for Phase 1)
 # Replace 'postgresql://' with 'postgresql+psycopg://' to use psycopg3
