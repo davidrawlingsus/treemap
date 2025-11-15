@@ -617,12 +617,17 @@ def verify_magic_link(payload: MagicLinkVerifyRequest, db: Session = Depends(get
         raise HTTPException(status_code=400, detail=detail)
 
     now = datetime.now(timezone.utc)
-    clear_magic_link_state(user)
+    
+    # DON'T clear the token immediately - allow reuse within expiry window
+    # This protects against email link scanners that pre-fetch URLs
+    # Token will naturally expire based on magic_link_expires_at
+    logger.info(f"Magic link verified for {email} - token remains valid until expiry")
+    
     user.email_verified_at = user.email_verified_at or now
     user.last_login_at = now
 
     try:
-        logger.info(f"Clearing magic link state and updating user {email}")
+        logger.info(f"Updating user login timestamp for {email}")
         db.commit()
         logger.info(f"Successfully verified magic link for {email}")
     except Exception as exc:
