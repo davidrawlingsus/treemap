@@ -275,10 +275,6 @@
     }
   };
 
-  // Flag to prevent double-processing of magic links
-  let magicLinkProcessing = false;
-  let magicLinkProcessed = false;
-
   const processMagicLinkIfPresent = async () => {
     const params = new URLSearchParams(global.location.search);
     const token = params.get('token');
@@ -288,13 +284,20 @@
       return false;
     }
 
-    // Prevent double-processing
-    if (magicLinkProcessing || magicLinkProcessed) {
-      console.log('[MAGIC LINK] Already processing or processed, skipping');
-      return magicLinkProcessed;
+    // Create unique key for this magic link token
+    const magicLinkKey = `magic_link_${token.substring(0, 10)}`;
+    
+    // Check if this specific token is already being processed or was processed
+    const processingState = global.sessionStorage.getItem(magicLinkKey);
+    if (processingState === 'processing' || processingState === 'completed') {
+      console.log('[MAGIC LINK] Token already processed or processing, skipping');
+      // If it was completed, we should already be authenticated
+      return processingState === 'completed';
     }
 
-    magicLinkProcessing = true;
+    // Mark as processing IMMEDIATELY
+    global.sessionStorage.setItem(magicLinkKey, 'processing');
+    console.log('[MAGIC LINK] Marked token as processing in sessionStorage');
 
     // Remove params from URL FIRST to prevent double verification attempts
     const cleanUrl = global.location.pathname + global.location.hash;
@@ -328,8 +331,10 @@
       );
       console.log('[MAGIC LINK] auth:magicVerified event dispatched');
       
-      magicLinkProcessed = true;
-      magicLinkProcessing = false;
+      // Mark as completed in sessionStorage
+      global.sessionStorage.setItem(magicLinkKey, 'completed');
+      console.log('[MAGIC LINK] Marked token as completed in sessionStorage');
+      
       return true;
     } catch (error) {
       console.error('Failed to process magic link', error);
@@ -346,8 +351,10 @@
             new CustomEvent('auth:authenticated', { detail: { user: userInfo } })
           );
           
-          magicLinkProcessed = true;
-          magicLinkProcessing = false;
+          // Mark as completed since we have a valid session
+          global.sessionStorage.setItem(magicLinkKey, 'completed');
+          console.log('[MAGIC LINK] Marked as completed (existing valid session)');
+          
           return true;
         } catch (e) {
           console.log('Existing session is invalid, showing error');
@@ -363,8 +370,10 @@
         success: null,
       });
       
-      magicLinkProcessing = false;
-      // Don't set magicLinkProcessed = true on failure, allow retry
+      // Remove processing flag on failure to allow retry
+      global.sessionStorage.removeItem(magicLinkKey);
+      console.log('[MAGIC LINK] Removed processing flag due to error');
+      
       return false;
     }
   };
