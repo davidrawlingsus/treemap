@@ -1,15 +1,4 @@
-[phases.setup]
-nixPkgs = ['python310', 'postgresql']
-
-[phases.install]
-cmds = [
-  'cd backend',
-  'pip install -r requirements.txt'
-]
-
-[phases.build]
-cmds = []
-
+# Force Python detection and set proper start command
 [start]
 cmd = 'cd backend && alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT'
 
