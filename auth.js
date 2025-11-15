@@ -284,6 +284,10 @@
       return false;
     }
 
+    // Remove params from URL FIRST to prevent double verification attempts
+    const cleanUrl = global.location.pathname + global.location.hash;
+    global.history.replaceState({}, global.document.title, cleanUrl);
+
     showLogin();
     showLoginMessages({
       success: 'Verifying your secure link...',
@@ -297,16 +301,31 @@
       setUserInfo(userInfo);
       showLoginMessages({ error: null, success: null });
 
-      // Remove magic link params from URL
-      const cleanUrl = global.location.pathname + global.location.hash;
-      global.history.replaceState({}, global.document.title, cleanUrl);
-
       global.dispatchEvent(
         new CustomEvent('auth:magicVerified', { detail: { user: userInfo } })
       );
       return true;
     } catch (error) {
       console.error('Failed to process magic link', error);
+      
+      // Check if we already have a valid session BEFORE clearing auth
+      const existingToken = getAuthToken();
+      if (existingToken) {
+        console.log('Token verification failed but existing session found, validating...');
+        try {
+          const userInfo = await fetchCurrentUser();
+          setUserInfo(userInfo);
+          console.log('Existing session is valid, continuing with existing auth');
+          global.dispatchEvent(
+            new CustomEvent('auth:authenticated', { detail: { user: userInfo } })
+          );
+          return true;
+        } catch (e) {
+          console.log('Existing session is invalid, showing error');
+          // Fall through to show error
+        }
+      }
+      
       clearAuth();
       showLoginMessages({
         error:
