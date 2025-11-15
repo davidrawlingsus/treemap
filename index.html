@@ -2976,13 +2976,9 @@
         });
 
         window.addEventListener('auth:magicVerified', (event) => {
-            console.log('[APP] auth:magicVerified event received');
             const userInfo = event.detail?.user;
             if (userInfo) {
-                console.log('[APP] Handling authenticated user from magic link:', userInfo.email);
                 handleAuthenticatedUser(userInfo);
-            } else {
-                console.warn('[APP] auth:magicVerified event received but no userInfo');
             }
         });
 

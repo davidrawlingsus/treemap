@@ -280,31 +280,23 @@
     const token = params.get('token');
     const email = params.get('email');
 
-    console.log('[MAGIC LINK] processMagicLinkIfPresent called - token present:', !!token, 'email present:', !!email);
-
     if (!token || !email) {
       return false;
     }
 
     // Create unique key for this magic link token
     const magicLinkKey = `magic_link_${token.substring(0, 10)}`;
-    console.log('[MAGIC LINK] Magic link key:', magicLinkKey);
     
     // Check if this specific token is already being processed or was processed
     const processingState = global.sessionStorage.getItem(magicLinkKey);
-    console.log('[MAGIC LINK] Current processing state in sessionStorage:', processingState);
     
     if (processingState === 'processing' || processingState === 'completed') {
-      console.log('[MAGIC LINK] Token already processed or processing, skipping');
-      console.log('[MAGIC LINK] Returning early with result:', processingState === 'completed');
-      // If it was completed, we should already be authenticated
+      console.log('[MAGIC LINK] Already processed, skipping');
       return processingState === 'completed';
     }
 
-    // Mark as processing IMMEDIATELY
-    console.log('[MAGIC LINK] Setting sessionStorage key to "processing"');
+    // Mark as processing IMMEDIATELY to prevent duplicate processing
     global.sessionStorage.setItem(magicLinkKey, 'processing');
-    console.log('[MAGIC LINK] Verified sessionStorage set - value is now:', global.sessionStorage.getItem(magicLinkKey));
 
     // Remove params from URL FIRST to prevent double verification attempts
     const cleanUrl = global.location.pathname + global.location.hash;
@@ -317,30 +309,20 @@
     });
 
     try {
-      console.log('[MAGIC LINK] Verifying token...');
       const result = await verifyMagicLink(email.trim().toLowerCase(), token);
-      console.log('[MAGIC LINK] Verification successful, token received:', result.access_token ? 'YES' : 'NO');
-      
       setAuthToken(result.access_token);
-      console.log('[MAGIC LINK] Token saved to localStorage');
-      console.log('[MAGIC LINK] Verify token in storage:', localStorage.getItem('visualizd_auth_token') ? 'YES' : 'NO');
       
       const userInfo = await fetchCurrentUser();
-      console.log('[MAGIC LINK] User info fetched:', userInfo);
-      
       setUserInfo(userInfo);
-      console.log('[MAGIC LINK] User info saved');
       
       showLoginMessages({ error: null, success: null });
 
       global.dispatchEvent(
         new CustomEvent('auth:magicVerified', { detail: { user: userInfo } })
       );
-      console.log('[MAGIC LINK] auth:magicVerified event dispatched');
       
       // Mark as completed in sessionStorage
       global.sessionStorage.setItem(magicLinkKey, 'completed');
-      console.log('[MAGIC LINK] Marked token as completed in sessionStorage');
       
       return true;
     } catch (error) {
@@ -349,22 +331,18 @@
       // Check if we already have a valid session BEFORE clearing auth
       const existingToken = getAuthToken();
       if (existingToken) {
-        console.log('Token verification failed but existing session found, validating...');
         try {
           const userInfo = await fetchCurrentUser();
           setUserInfo(userInfo);
-          console.log('Existing session is valid, continuing with existing auth');
           global.dispatchEvent(
             new CustomEvent('auth:authenticated', { detail: { user: userInfo } })
           );
           
           // Mark as completed since we have a valid session
           global.sessionStorage.setItem(magicLinkKey, 'completed');
-          console.log('[MAGIC LINK] Marked as completed (existing valid session)');
           
           return true;
         } catch (e) {
-          console.log('Existing session is invalid, showing error');
           // Fall through to show error
         }
       }
@@ -379,7 +357,6 @@
       
       // Remove processing flag on failure to allow retry
       global.sessionStorage.removeItem(magicLinkKey);
-      console.log('[MAGIC LINK] Removed processing flag due to error');
       
       return false;
     }

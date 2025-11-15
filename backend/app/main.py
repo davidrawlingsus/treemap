@@ -65,7 +65,7 @@ from app.config import get_settings
 from app.auth import (
     get_current_user, get_current_active_founder,
     create_access_token, verify_password,
-    generate_magic_link_token, is_magic_link_token_valid, clear_magic_link_state,
+    generate_magic_link_token, is_magic_link_token_valid,
 )
 from app.services import EmailService, MagicLinkEmailParams
 from datetime import datetime, timedelta, timezone
@@ -255,23 +255,6 @@ def debug_users(db: Session = Depends(get_db)):
     }
 
 
-@app.get("/api/debug/magic-link-state")
-def debug_magic_link_state(email: str, db: Session = Depends(get_db)):
-    """Debug endpoint to check magic link state for a user"""
-    user = db.query(User).filter(func.lower(User.email) == email.lower()).first()
-    
-    if not user:
-        raise HTTPException(status_code=404, detail=f"User not found: {email}")
-    
-    return {
-        "email": user.email,
-        "has_magic_link_token": user.magic_link_token is not None,
-        "token_hash_preview": user.magic_link_token[:10] + "..." if user.magic_link_token else None,
-        "magic_link_expires_at": user.magic_link_expires_at.isoformat() if user.magic_link_expires_at else None,
-        "last_magic_link_sent_at": user.last_magic_link_sent_at.isoformat() if user.last_magic_link_sent_at else None,
-        "is_active": user.is_active,
-        "email_verified_at": user.email_verified_at.isoformat() if user.email_verified_at else None,
-    }
 
 
 @app.get("/health")
@@ -454,17 +437,14 @@ def request_magic_link(payload: MagicLinkRequest, db: Session = Depends(get_db))
         db.flush()
 
     token, token_hash, expires_at = generate_magic_link_token()
-    logger.warning(f"🔑 Generated magic link token for {email} - expires at: {expires_at}")
-    logger.warning(f"🔑 Token hash (first 10 chars): {token_hash[:10]}...")
+    logger.info(f"Generated magic link token for {email}")
     
     user.magic_link_token = token_hash
     user.magic_link_expires_at = expires_at
     user.last_magic_link_sent_at = now
     user.is_active = True
     
-    # Flush to ensure user fields are updated in the session
     db.flush()
-    logger.debug(f"Flushed user magic link state to session")
 
     # Ensure memberships exist for all linked clients
     for client in clients:
@@ -520,24 +500,8 @@ def request_magic_link(payload: MagicLinkRequest, db: Session = Depends(get_db))
         magic_link_url = f"{base_url}?token={quote(token)}&email={quote(email)}"
 
     try:
-        logger.warning(f"💾 Committing magic link state for {email} to database")
         db.commit()
-        logger.warning(f"✅ Successfully committed magic link token for {email}")
-        
-        # Verify the commit by re-querying the user from database
-        db.expire(user)  # Expire cached data
-        verification_user = db.query(User).filter(func.lower(User.email) == email).first()
-        if verification_user and verification_user.magic_link_token:
-            logger.warning(f"✅ Verified token persistence - stored hash (first 10): {verification_user.magic_link_token[:10]}...")
-            logger.warning(f"✅ Token expires at: {verification_user.magic_link_expires_at}")
-        else:
-            logger.error(f"Token verification failed - token not found in database for {email}")
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to persist magic link token. Please try again.",
-            )
-    except HTTPException:
-        raise
+        logger.info(f"Committed magic link state for {email}")
     except Exception as exc:
         db.rollback()
         logger.exception("Failed to persist magic-link state for %s", email)

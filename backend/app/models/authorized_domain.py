@@ -77,7 +77,7 @@ class AuthorizedDomainClient(Base):
     client = relationship(
         "Client",
         back_populates="authorized_domain_links",
-        overlaps="authorized_domains,client_links",
+        overlaps="authorized_domains,client_links,clients",
     )
 
     __table_args__ = (
