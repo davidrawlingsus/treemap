@@ -280,24 +280,31 @@
     const token = params.get('token');
     const email = params.get('email');
 
+    console.log('[MAGIC LINK] processMagicLinkIfPresent called - token present:', !!token, 'email present:', !!email);
+
     if (!token || !email) {
       return false;
     }
 
     // Create unique key for this magic link token
     const magicLinkKey = `magic_link_${token.substring(0, 10)}`;
+    console.log('[MAGIC LINK] Magic link key:', magicLinkKey);
     
     // Check if this specific token is already being processed or was processed
     const processingState = global.sessionStorage.getItem(magicLinkKey);
+    console.log('[MAGIC LINK] Current processing state in sessionStorage:', processingState);
+    
     if (processingState === 'processing' || processingState === 'completed') {
       console.log('[MAGIC LINK] Token already processed or processing, skipping');
+      console.log('[MAGIC LINK] Returning early with result:', processingState === 'completed');
       // If it was completed, we should already be authenticated
       return processingState === 'completed';
     }
 
     // Mark as processing IMMEDIATELY
+    console.log('[MAGIC LINK] Setting sessionStorage key to "processing"');
     global.sessionStorage.setItem(magicLinkKey, 'processing');
-    console.log('[MAGIC LINK] Marked token as processing in sessionStorage');
+    console.log('[MAGIC LINK] Verified sessionStorage set - value is now:', global.sessionStorage.getItem(magicLinkKey));
 
     // Remove params from URL FIRST to prevent double verification attempts
     const cleanUrl = global.location.pathname + global.location.hash;
