@@ -275,6 +275,10 @@
     }
   };
 
+  // Flag to prevent double-processing of magic links
+  let magicLinkProcessing = false;
+  let magicLinkProcessed = false;
+
   const processMagicLinkIfPresent = async () => {
     const params = new URLSearchParams(global.location.search);
     const token = params.get('token');
@@ -283,6 +287,14 @@
     if (!token || !email) {
       return false;
     }
+
+    // Prevent double-processing
+    if (magicLinkProcessing || magicLinkProcessed) {
+      console.log('[MAGIC LINK] Already processing or processed, skipping');
+      return magicLinkProcessed;
+    }
+
+    magicLinkProcessing = true;
 
     // Remove params from URL FIRST to prevent double verification attempts
     const cleanUrl = global.location.pathname + global.location.hash;
@@ -315,6 +327,9 @@
         new CustomEvent('auth:magicVerified', { detail: { user: userInfo } })
       );
       console.log('[MAGIC LINK] auth:magicVerified event dispatched');
+      
+      magicLinkProcessed = true;
+      magicLinkProcessing = false;
       return true;
     } catch (error) {
       console.error('Failed to process magic link', error);
@@ -330,6 +345,9 @@
           global.dispatchEvent(
             new CustomEvent('auth:authenticated', { detail: { user: userInfo } })
           );
+          
+          magicLinkProcessed = true;
+          magicLinkProcessing = false;
           return true;
         } catch (e) {
           console.log('Existing session is invalid, showing error');
@@ -344,6 +362,9 @@
           'We could not verify your magic link. Please request a new one.',
         success: null,
       });
+      
+      magicLinkProcessing = false;
+      // Don't set magicLinkProcessed = true on failure, allow retry
       return false;
     }
   };
