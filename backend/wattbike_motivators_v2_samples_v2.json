@@ -1,0 +1,1617 @@
+{
+  "metadata": {
+    "client_name": "Wattbike",
+    "client_id": "6ba47904-3e08-4d8d-a3b3-fadbab803c9e",
+    "dimension_ref": "ref_14u6n",
+    "dimension_name": "01. Initial motivators",
+    "data_source": "all",
+    "total_responses": 946,
+    "sample_size": 100,
+    "sampling_strategy": "topic-stratified",
+    "full_dataset_distribution": {
+      "I'M AVOIDING...": {
+        "count": 357,
+        "percentage": 37.7
+      },
+      "TRAINING GOAL": {
+        "count": 302,
+        "percentage": 31.9
+      },
+      "I WANTED...": {
+        "count": 151,
+        "percentage": 16.0
+      },
+      "DESIRED FEATURE": {
+        "count": 138,
+        "percentage": 14.6
+      },
+      "UPGRADING FROM...": {
+        "count": 137,
+        "percentage": 14.5
+      },
+      "VS TURBO TRAINER": {
+        "count": 124,
+        "percentage": 13.1
+      },
+      "LIFESTYLE": {
+        "count": 90,
+        "percentage": 9.5
+      },
+      "APPS": {
+        "count": 80,
+        "percentage": 8.5
+      },
+      "SOCIAL PROOF": {
+        "count": 73,
+        "percentage": 7.7
+      },
+      "INJURY": {
+        "count": 65,
+        "percentage": 6.9
+      },
+      "COVID": {
+        "count": 61,
+        "percentage": 6.4
+      },
+      "USED WATTBIKE AT...": {
+        "count": 52,
+        "percentage": 5.5
+      },
+      "COMPARING TO": {
+        "count": 13,
+        "percentage": 1.4
+      }
+    },
+    "sample_distribution": {
+      "I'M AVOIDING...": {
+        "count": 58,
+        "percentage": 40.6
+      },
+      "TRAINING GOAL": {
+        "count": 35,
+        "percentage": 24.5
+      },
+      "LIFESTYLE": {
+        "count": 21,
+        "percentage": 14.7
+      },
+      "I WANTED...": {
+        "count": 19,
+        "percentage": 13.3
+      },
+      "DESIRED FEATURE": {
+        "count": 19,
+        "percentage": 13.3
+      },
+      "UPGRADING FROM...": {
+        "count": 18,
+        "percentage": 12.6
+      },
+      "VS TURBO TRAINER": {
+        "count": 17,
+        "percentage": 11.9
+      },
+      "COVID": {
+        "count": 10,
+        "percentage": 7.0
+      },
+      "SOCIAL PROOF": {
+        "count": 9,
+        "percentage": 6.3
+      },
+      "APPS": {
+        "count": 8,
+        "percentage": 5.6
+      },
+      "INJURY": {
+        "count": 8,
+        "percentage": 5.6
+      },
+      "USED WATTBIKE AT...": {
+        "count": 6,
+        "percentage": 4.2
+      },
+      "COMPARING TO": {
+        "count": 1,
+        "percentage": 0.7
+      }
+    },
+    "sentiment_distribution": {
+      "positive": 35,
+      "negative": 26,
+      "neutral": 39
+    },
+    "top_topics_in_dataset": [
+      {
+        "category": "I'M AVOIDING...",
+        "label": "winter",
+        "count": 197,
+        "percentage": 20.8
+      },
+      {
+        "category": "I'M AVOIDING...",
+        "label": "bad weather",
+        "count": 117,
+        "percentage": 12.4
+      },
+      {
+        "category": "UPGRADING FROM...",
+        "label": "turbo trainer",
+        "count": 103,
+        "percentage": 10.9
+      },
+      {
+        "category": "I WANTED...",
+        "label": "training at home / indoors",
+        "count": 88,
+        "percentage": 9.3
+      },
+      {
+        "category": "VS TURBO TRAINER",
+        "label": "hassle changing bikes",
+        "count": 76,
+        "percentage": 8.0
+      },
+      {
+        "category": "APPS",
+        "label": "zwift",
+        "count": 61,
+        "percentage": 6.4
+      },
+      {
+        "category": "SOCIAL PROOF",
+        "label": "friend recommended / friend bought",
+        "count": 60,
+        "percentage": 6.3
+      },
+      {
+        "category": "COVID",
+        "label": "lockdown",
+        "count": 52,
+        "percentage": 5.5
+      },
+      {
+        "category": "LIFESTYLE",
+        "label": "family use",
+        "count": 45,
+        "percentage": 4.8
+      },
+      {
+        "category": "USED WATTBIKE AT...",
+        "label": "gym",
+        "count": 39,
+        "percentage": 4.1
+      }
+    ]
+  },
+  "samples": [
+    {
+      "id": 497784,
+      "text": "Winter riding",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 13
+    },
+    {
+      "id": 505544,
+      "text": "Keep cycling in the winter",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 26
+    },
+    {
+      "id": 509604,
+      "text": "So I can ride safely in winter",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 30
+    },
+    {
+      "id": 501424,
+      "text": "Continuing training through winter",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 34
+    },
+    {
+      "id": 503244,
+      "text": "Weather proof, instant availability.",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "bad weather",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 36
+    },
+    {
+      "id": 514084,
+      "text": "Ability to train during the winter nights",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 41
+    },
+    {
+      "id": 501544,
+      "text": "Time flexibility and weather-resistant training!",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "bad weather",
+          "category": "I'M AVOIDING..."
+        },
+        {
+          "label": "flexible",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 48
+    },
+    {
+      "id": 511064,
+      "text": "To continue training over the winter, and inclement weather",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 59
+    },
+    {
+      "id": 497804,
+      "text": "Train when I wanted to, independent of the weather and when I can fit it in",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "bad weather",
+          "category": "I'M AVOIDING..."
+        },
+        {
+          "label": "busy",
+          "category": "LIFESTYLE"
+        }
+      ],
+      "length": 75
+    },
+    {
+      "id": 516024,
+      "text": "Didn't want to lose the cycling strength and fitness built up from spring -winter",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 81
+    },
+    {
+      "id": 509064,
+      "text": "Being able to train indoors in winter, also the analytics of my pedalling style and output",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        },
+        {
+          "label": "data to improve performance",
+          "category": "I WANTED..."
+        },
+        {
+          "label": "indoor bike / trainer",
+          "category": "I WANTED..."
+        }
+      ],
+      "length": 90
+    },
+    {
+      "id": 499444,
+      "text": "I want to be able to train year round regardless of the weather, and I wanted a high quality bike that had a small footprint",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        },
+        {
+          "label": "bad weather",
+          "category": "I'M AVOIDING..."
+        },
+        {
+          "label": "quality",
+          "category": "DESIRED FEATURE"
+        }
+      ],
+      "length": 124
+    },
+    {
+      "id": 514864,
+      "text": "Weather \ud83d\ude21",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "bad weather",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 9
+    },
+    {
+      "id": 515084,
+      "text": "wet cold winters",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 16
+    },
+    {
+      "id": 497044,
+      "text": "weather and time constraints",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "bad weather",
+          "category": "I'M AVOIDING..."
+        },
+        {
+          "label": "busy",
+          "category": "LIFESTYLE"
+        }
+      ],
+      "length": 28
+    },
+    {
+      "id": 503884,
+      "text": "Road cycling has become too dangerous",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "roads",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 37
+    },
+    {
+      "id": 498144,
+      "text": "Need for additional fitness in poor weather",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "bad weather",
+          "category": "I'M AVOIDING..."
+        },
+        {
+          "label": "get fitter",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 43
+    },
+    {
+      "id": 512084,
+      "text": "Weather too bad for cycling outside in winter",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "bad weather",
+          "category": "I'M AVOIDING..."
+        },
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 45
+    },
+    {
+      "id": 513344,
+      "text": "Winter training and my Turbo Trainer wasn't very good",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        },
+        {
+          "label": "turbo trainer",
+          "category": "UPGRADING FROM..."
+        }
+      ],
+      "length": 53
+    },
+    {
+      "id": 502404,
+      "text": "Poor UK weather restricting our ability to keep fit over winter",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "bad weather",
+          "category": "I'M AVOIDING..."
+        },
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 63
+    },
+    {
+      "id": 510184,
+      "text": "Wanted a winter trainer and didn't want to have to keep taking bike on n off.",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        },
+        {
+          "label": "hassle changing bikes",
+          "category": "VS TURBO TRAINER"
+        }
+      ],
+      "length": 77
+    },
+    {
+      "id": 497684,
+      "text": "Ability to exercise indoors in poor weather/winter conditions and with reduced daylight hours.",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        },
+        {
+          "label": "bad weather",
+          "category": "I'M AVOIDING..."
+        },
+        {
+          "label": "dark",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 94
+    },
+    {
+      "id": 502884,
+      "text": "Wanted to train in the winter but don't like the dark/cold/wet mornings and get more consistent training than in the city",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "dark",
+          "category": "I'M AVOIDING..."
+        },
+        {
+          "label": "consistency",
+          "category": "TRAINING GOAL"
+        },
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 121
+    },
+    {
+      "id": 504904,
+      "text": "Illness and winter. Had just bought a new road bike but had a couple of illnesses which impacted in my fitness. Wattbike was to restore some of that fitness.",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 157
+    },
+    {
+      "id": 496744,
+      "text": "Winter",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 6
+    },
+    {
+      "id": 497364,
+      "text": "Winter training",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 15
+    },
+    {
+      "id": 510944,
+      "text": "Winter exercise",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 15
+    },
+    {
+      "id": 496704,
+      "text": "Winter training.",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 16
+    },
+    {
+      "id": 507124,
+      "text": "Bad Scottish weather \ud83d\ude01",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "bad weather",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 22
+    },
+    {
+      "id": 497244,
+      "text": "Cycling during winter months.",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 29
+    },
+    {
+      "id": 497144,
+      "text": "Cycle training during the winter periods",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 40
+    },
+    {
+      "id": 499104,
+      "text": "Wanted to be able to train in the colder months",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 47
+    },
+    {
+      "id": 513924,
+      "text": "More options to ride my bike, particularly during the winter",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 60
+    },
+    {
+      "id": 501044,
+      "text": "Winter training, dark evenings etc. More capable than bike based systems.",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "dark",
+          "category": "I'M AVOIDING..."
+        },
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 73
+    },
+    {
+      "id": 514104,
+      "text": "I wanted to train during winter, due to low temperatures and lack of daylights hours.",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        },
+        {
+          "label": "dark",
+          "category": "I'M AVOIDING..."
+        },
+        {
+          "label": "cold",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 85
+    },
+    {
+      "id": 509704,
+      "text": "Maintain training program when weather prevents outdoor riding and get a good measure of progressive fitness",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "bad weather",
+          "category": "I'M AVOIDING..."
+        },
+        {
+          "label": "get fitter",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 108
+    },
+    {
+      "id": 500904,
+      "text": "Lose weight",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "weight loss",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 11
+    },
+    {
+      "id": 505924,
+      "text": "Training for Ironman",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "event",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 20
+    },
+    {
+      "id": 501284,
+      "text": "Power training and V02 max",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "power training",
+          "category": "TRAINING GOAL"
+        },
+        {
+          "label": "vo2 max",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 26
+    },
+    {
+      "id": 507404,
+      "text": "Training for Cycling Time Trials",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "cycling",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 32
+    },
+    {
+      "id": 504564,
+      "text": "improve cycling performance and get fitter",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "improvement",
+          "category": "TRAINING GOAL"
+        },
+        {
+          "label": "get fitter",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 42
+    },
+    {
+      "id": 497024,
+      "text": "Fitness and competition with friends and others",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "fitness generally",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 47
+    },
+    {
+      "id": 513864,
+      "text": "Personal fitness to supplement other aerobic activities",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "fitness generally",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 55
+    },
+    {
+      "id": 515064,
+      "text": "To improve / keep fitness over the winter months and improve my cycling",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "improvement",
+          "category": "TRAINING GOAL"
+        },
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        },
+        {
+          "label": "get fitter",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 71
+    },
+    {
+      "id": 510984,
+      "text": "Regular training with the ability to integrate with apps that help improve my performance",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "regular",
+          "category": "TRAINING GOAL"
+        },
+        {
+          "label": "apps",
+          "category": "APPS"
+        },
+        {
+          "label": "improvement",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 89
+    },
+    {
+      "id": 507704,
+      "text": "To train accurately, been told by many athletes how great the wattbike brand is, so I wanted the best and got one",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "accurate",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 113
+    },
+    {
+      "id": 512364,
+      "text": "Fitness",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "fitness generally",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 7
+    },
+    {
+      "id": 512464,
+      "text": "To get fit",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "get fit",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 10
+    },
+    {
+      "id": 500804,
+      "text": "Cross triaining aid",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "cross train",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 19
+    },
+    {
+      "id": 507964,
+      "text": "Fitness out of the cold",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "fitness generally",
+          "category": "TRAINING GOAL"
+        },
+        {
+          "label": "cold",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 23
+    },
+    {
+      "id": 504584,
+      "text": "ease of being able to train",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "ease",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 27
+    },
+    {
+      "id": 504384,
+      "text": "Ease of access to cardio exercise",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "cardio",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 33
+    },
+    {
+      "id": 497484,
+      "text": "Short time slots available to ride so for convenience",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "shorter",
+          "category": "TRAINING GOAL"
+        },
+        {
+          "label": "busy",
+          "category": "LIFESTYLE"
+        }
+      ],
+      "length": 53
+    },
+    {
+      "id": 509384,
+      "text": "Easy time efficient cross training to compliment my running.",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "ease",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 60
+    },
+    {
+      "id": 505084,
+      "text": "Enjoyed cycling but did not always have the time to go out for several hours on a ride",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "cycling",
+          "category": "TRAINING GOAL"
+        },
+        {
+          "label": "busy",
+          "category": "LIFESTYLE"
+        }
+      ],
+      "length": 86
+    },
+    {
+      "id": 514324,
+      "text": "Training for iron man and a bike that is robust to jump on and be ready to go\u2026that provides varied workouts.",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "event",
+          "category": "TRAINING GOAL"
+        },
+        {
+          "label": "variety of programmes / workouts",
+          "category": "DESIRED FEATURE"
+        },
+        {
+          "label": "robust",
+          "category": "DESIRED FEATURE"
+        }
+      ],
+      "length": 108
+    },
+    {
+      "id": 508624,
+      "text": "Injuries doing other types of fitness.",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "fitness generally",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 38
+    },
+    {
+      "id": 513224,
+      "text": "Not being able to commute to work on road bike anymore so replicate that in a shorter time.",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "shorter",
+          "category": "TRAINING GOAL"
+        },
+        {
+          "label": "lockdown",
+          "category": "COVID"
+        }
+      ],
+      "length": 91
+    },
+    {
+      "id": 507204,
+      "text": "Getting fit at home",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "training at home / indoors",
+          "category": "I WANTED..."
+        },
+        {
+          "label": "get fit",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 19
+    },
+    {
+      "id": 501324,
+      "text": "Ability to jump on it at any time!",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "training at home / indoors",
+          "category": "I WANTED..."
+        }
+      ],
+      "length": 34
+    },
+    {
+      "id": 502764,
+      "text": "Home exercising options and indoor training for outdoor cycling",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "training at home / indoors",
+          "category": "I WANTED..."
+        }
+      ],
+      "length": 63
+    },
+    {
+      "id": 501964,
+      "text": "Looking to have easy access to gym equipment at home, to encourage more regular exercise",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "training at home / indoors",
+          "category": "I WANTED..."
+        },
+        {
+          "label": "regular",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 88
+    },
+    {
+      "id": 506944,
+      "text": "Being able to ride even when weather is bad or short on time, an indoor bike was best choice for my wife and I to both use",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "indoor bike / trainer",
+          "category": "I WANTED..."
+        },
+        {
+          "label": "bad weather",
+          "category": "I'M AVOIDING..."
+        },
+        {
+          "label": "family use",
+          "category": "LIFESTYLE"
+        }
+      ],
+      "length": 122
+    },
+    {
+      "id": 506124,
+      "text": "Training",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "training at home / indoors",
+          "category": "I WANTED..."
+        }
+      ],
+      "length": 8
+    },
+    {
+      "id": 505564,
+      "text": "Prefer to train at home rather than the gym",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "training at home / indoors",
+          "category": "I WANTED..."
+        }
+      ],
+      "length": 43
+    },
+    {
+      "id": 504544,
+      "text": "High gym prices. The ease of using my own equipment at home",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "training at home / indoors",
+          "category": "I WANTED..."
+        }
+      ],
+      "length": 59
+    },
+    {
+      "id": 503844,
+      "text": "Wanting an experience similar to the pro indoor bike that I could have in my home to train on.",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "indoor bike / trainer",
+          "category": "I WANTED..."
+        },
+        {
+          "label": "quality",
+          "category": "DESIRED FEATURE"
+        },
+        {
+          "label": "training at home / indoors",
+          "category": "I WANTED..."
+        }
+      ],
+      "length": 94
+    },
+    {
+      "id": 505484,
+      "text": "I purchased the bike because I struggle to exercise outdoors. I had heard good things about the Wattbike Atom next generation.",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "training at home / indoors",
+          "category": "I WANTED..."
+        },
+        {
+          "label": "friend recommended / friend bought",
+          "category": "SOCIAL PROOF"
+        }
+      ],
+      "length": 126
+    },
+    {
+      "id": 501104,
+      "text": "Needed a indoor trainer",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "indoor bike / trainer",
+          "category": "I WANTED..."
+        }
+      ],
+      "length": 23
+    },
+    {
+      "id": 512304,
+      "text": "Lockdown and wanting train at home",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "training at home / indoors",
+          "category": "I WANTED..."
+        },
+        {
+          "label": "lockdown",
+          "category": "COVID"
+        }
+      ],
+      "length": 34
+    },
+    {
+      "id": 514344,
+      "text": "Needing some form of smart trainer",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "smart trainer",
+          "category": "I WANTED..."
+        }
+      ],
+      "length": 34
+    },
+    {
+      "id": 509744,
+      "text": "Fitness training from home as unable to always attend a gym",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "training at home / indoors",
+          "category": "I WANTED..."
+        },
+        {
+          "label": "fitness generally",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 59
+    },
+    {
+      "id": 512404,
+      "text": "Wanting to exercise indoors due to weather and dark mornings and evenings.",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "training at home / indoors",
+          "category": "I WANTED..."
+        },
+        {
+          "label": "bad weather",
+          "category": "I'M AVOIDING..."
+        },
+        {
+          "label": "dark",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 74
+    },
+    {
+      "id": 514544,
+      "text": "Have always wanted one",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "reputation",
+          "category": "DESIRED FEATURE"
+        }
+      ],
+      "length": 22
+    },
+    {
+      "id": 506304,
+      "text": "The ability to ride anytime anywhere in the world",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "virtual routes",
+          "category": "DESIRED FEATURE"
+        }
+      ],
+      "length": 49
+    },
+    {
+      "id": 511944,
+      "text": "Good quality build, after I tried a friend's it was a no brainer",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "quality",
+          "category": "DESIRED FEATURE"
+        },
+        {
+          "label": "friends",
+          "category": "USED WATTBIKE AT..."
+        }
+      ],
+      "length": 64
+    },
+    {
+      "id": 503404,
+      "text": "I wanted to be able to train without being limited by the weather and also to follow training programmes put together by professionals.",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "variety of programmes / workouts",
+          "category": "DESIRED FEATURE"
+        },
+        {
+          "label": "bad weather",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 135
+    },
+    {
+      "id": 504444,
+      "text": "After service",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "after care",
+          "category": "DESIRED FEATURE"
+        }
+      ],
+      "length": 13
+    },
+    {
+      "id": 510104,
+      "text": "Was told it was the best home fitness bike",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "reputation",
+          "category": "DESIRED FEATURE"
+        },
+        {
+          "label": "friend recommended / friend bought",
+          "category": "SOCIAL PROOF"
+        }
+      ],
+      "length": 42
+    },
+    {
+      "id": 507664,
+      "text": "Need for vigorous indoor exercise on a high quality bike",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "quality",
+          "category": "DESIRED FEATURE"
+        }
+      ],
+      "length": 56
+    },
+    {
+      "id": 505184,
+      "text": "I wanted the best bike on the market that would feel like my road bike, without needing to use my roadbike",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "real bike feel",
+          "category": "DESIRED FEATURE"
+        }
+      ],
+      "length": 106
+    },
+    {
+      "id": 510024,
+      "text": "I NEEDED A MORE RELIABLE EXERCISE BIKE",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "quality",
+          "category": "DESIRED FEATURE"
+        }
+      ],
+      "length": 38
+    },
+    {
+      "id": 506924,
+      "text": "I wanted a better bike.",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "indoor bike",
+          "category": "UPGRADING FROM..."
+        }
+      ],
+      "length": 23
+    },
+    {
+      "id": 504484,
+      "text": "Sick of unstable turbos when out of saddle",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "turbo trainer",
+          "category": "UPGRADING FROM..."
+        },
+        {
+          "label": "unstable",
+          "category": "VS TURBO TRAINER"
+        }
+      ],
+      "length": 42
+    },
+    {
+      "id": 514364,
+      "text": "Bored of the turbo - needed a better indoor experience",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "turbo trainer",
+          "category": "UPGRADING FROM..."
+        }
+      ],
+      "length": 54
+    },
+    {
+      "id": 508264,
+      "text": "Indoor clip in trainer unreliable in terms of power readings and more faff to set up.",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "turbo trainer",
+          "category": "UPGRADING FROM..."
+        },
+        {
+          "label": "hassle changing bikes",
+          "category": "VS TURBO TRAINER"
+        },
+        {
+          "label": "poor data",
+          "category": "VS TURBO TRAINER"
+        }
+      ],
+      "length": 85
+    },
+    {
+      "id": 509804,
+      "text": "Better turbo sessions",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "turbo trainer",
+          "category": "UPGRADING FROM..."
+        }
+      ],
+      "length": 21
+    },
+    {
+      "id": 513404,
+      "text": "Wanted to upgrade from turbo trainer to a smart bike.",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "turbo trainer",
+          "category": "UPGRADING FROM..."
+        }
+      ],
+      "length": 53
+    },
+    {
+      "id": 508944,
+      "text": "Had wanted either a turbo trainer or wattbike for long time for winter training",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "turbo trainer",
+          "category": "UPGRADING FROM..."
+        },
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 79
+    },
+    {
+      "id": 509624,
+      "text": "We wanted a turbo trainer for 2 people to use easily ie different sizes and one that would help us achieve our fitness goals",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "turbo trainer",
+          "category": "UPGRADING FROM..."
+        },
+        {
+          "label": "family use",
+          "category": "LIFESTYLE"
+        },
+        {
+          "label": "get fitter",
+          "category": "TRAINING GOAL"
+        }
+      ],
+      "length": 124
+    },
+    {
+      "id": 511364,
+      "text": "Already had turbo",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "turbo trainer",
+          "category": "UPGRADING FROM..."
+        }
+      ],
+      "length": 17
+    },
+    {
+      "id": 499504,
+      "text": "Smart trainer app compatible, solid build, English company.",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "smart trainer",
+          "category": "UPGRADING FROM..."
+        },
+        {
+          "label": "british",
+          "category": "DESIRED FEATURE"
+        }
+      ],
+      "length": 59
+    },
+    {
+      "id": 499764,
+      "text": "Upgraded from a turbo trainer as part of winter training for mountaineering.",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "turbo trainer",
+          "category": "UPGRADING FROM..."
+        },
+        {
+          "label": "winter",
+          "category": "I'M AVOIDING..."
+        }
+      ],
+      "length": 76
+    },
+    {
+      "id": 514524,
+      "text": "I had used a Wattbike Trainer in a gym and wanted to upgrade from my old Cyclops turbo trainer at home. The Wattbike Atom was an obvious choice.",
+      "sentiment": "positive",
+      "topics": [
+        {
+          "label": "turbo trainer",
+          "category": "UPGRADING FROM..."
+        }
+      ],
+      "length": 144
+    },
+    {
+      "id": 498224,
+      "text": "No need to use my bike indoors.",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "save regular bike",
+          "category": "VS TURBO TRAINER"
+        }
+      ],
+      "length": 31
+    },
+    {
+      "id": 499564,
+      "text": "Had a tacx neo 2t and wanted 2 people to use it without changing bikes.",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "hassle changing bikes",
+          "category": "VS TURBO TRAINER"
+        },
+        {
+          "label": "family use",
+          "category": "LIFESTYLE"
+        }
+      ],
+      "length": 71
+    },
+    {
+      "id": 511304,
+      "text": "Had a Direct drive trainer - was a faff fl getting my road bike on and off, adjusting the rear derailleur",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "hassle changing bikes",
+          "category": "VS TURBO TRAINER"
+        },
+        {
+          "label": "easy adjustment",
+          "category": "DESIRED FEATURE"
+        }
+      ],
+      "length": 105
+    },
+    {
+      "id": 510004,
+      "text": "I wanted an indoor trainer that wasn't my road bike based on anecdotes about damage being caused to frames. Wattbike was touted as being 'best in slot' so I bought a Wattbike",
+      "sentiment": "neutral",
+      "topics": [
+        {
+          "label": "hassle changing bikes",
+          "category": "VS TURBO TRAINER"
+        }
+      ],
+      "length": 174
+    },
+    {
+      "id": 505584,
+      "text": "Not wanting to use one of my bikes",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "save regular bike",
+          "category": "VS TURBO TRAINER"
+        }
+      ],
+      "length": 34
+    },
+    {
+      "id": 500144,
+      "text": "The hassle of using my road bike and on a turbo trainer",
+      "sentiment": "negative",
+      "topics": [
+        {
+          "label": "hassle changing bikes",
+          "category": "VS TURBO TRAINER"
+        },
+        {
+          "label": "turbo trainer",
+          "category": "UPGRADING FROM..."
+        }
+      ],
+      "length": 55
+    }
+  ]
+}

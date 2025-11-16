@@ -1977,6 +1977,272 @@
                 height: 12px !important;
             }
         }
+        
+        /* AI Insights Slideout Styles */
+        .ai-insights-tab {
+            position: fixed;
+            right: 0;
+            top: calc(50% + 60px);
+            transform: translateY(-50%);
+            background: linear-gradient(135deg, #b9f040 0%, #a0d635 100%);
+            color: #1a1a1a;
+            padding: 16px 12px;
+            border-radius: 8px 0 0 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            box-shadow: -2px 2px 8px rgba(0,0,0,0.15);
+            z-index: 1000;
+            transition: all 0.3s ease;
+            display: none; /* Hidden by default until dimension is selected */
+        }
+
+        .ai-insights-tab:hover {
+            background: linear-gradient(135deg, #c7ff4d 0%, #b9f040 100%);
+            padding-right: 16px;
+        }
+
+        .ai-insights-panel {
+            position: fixed;
+            right: -520px;
+            top: 120px;
+            width: 500px;
+            height: calc(100vh - 120px);
+            background: white;
+            box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+            z-index: 1001;
+            transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            border-top: 3px solid #b9f040;
+        }
+
+        .ai-insights-panel.open {
+            right: 0;
+        }
+
+        .ai-insights-header {
+            padding: 20px 24px 16px 24px;
+            border-bottom: 1px solid #e4e6eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+        }
+
+        .ai-insights-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0;
+            color: #333;
+        }
+
+        .ai-close-btn {
+            background: none;
+            border: none;
+            color: #666;
+            font-size: 28px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .ai-close-btn:hover {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .ai-insights-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        .ai-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            text-align: center;
+        }
+
+        .ai-loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #e4e6eb;
+            border-top-color: #b9f040;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .ai-summary-section {
+            margin-bottom: 32px;
+        }
+
+        .ai-summary-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ai-summary-text {
+            line-height: 1.6;
+            color: #555;
+            margin-bottom: 12px;
+        }
+
+        .ai-insights-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .ai-insights-list li {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #f8f9fa;
+            border-left: 3px solid #b9f040;
+            border-radius: 4px;
+            color: #333;
+            line-height: 1.5;
+        }
+
+        .ai-category-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #fff;
+            border: 1px solid #e4e6eb;
+            border-radius: 6px;
+        }
+
+        .ai-category-name {
+            font-weight: 600;
+            color: #85c024;
+            margin-bottom: 4px;
+        }
+
+        .ai-patterns-box {
+            padding: 16px;
+            background: linear-gradient(135deg, rgba(185,240,64,0.1) 0%, rgba(160,214,53,0.1) 100%);
+            border-radius: 8px;
+            border: 1px solid rgba(185,240,64,0.3);
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .ai-metadata {
+            margin-top: 32px;
+            padding-top: 16px;
+            border-top: 1px solid #e4e6eb;
+            font-size: 12px;
+            color: #999;
+        }
+
+        .ai-status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .ai-status-cached {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .ai-status-generated {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .ai-regenerate-btn {
+            margin-top: 16px;
+            padding: 10px 20px;
+            background: white;
+            border: 2px solid #b9f040;
+            color: #85c024;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            font-size: 14px;
+        }
+
+        .ai-regenerate-btn:hover {
+            background: #b9f040;
+            color: #1a1a1a;
+        }
+
+        .ai-insights-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .ai-insights-overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .ai-error {
+            padding: 24px;
+            text-align: center;
+        }
+
+        .ai-error h3 {
+            color: #dc2626;
+            margin-bottom: 12px;
+        }
+
+        .ai-error button {
+            margin-top: 16px;
+            padding: 10px 20px;
+            background: #b9f040;
+            color: #1a1a1a;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            .ai-insights-panel {
+                width: 100%;
+                right: -100%;
+            }
+            
+            .ai-insights-tab {
+                padding: 12px 10px;
+                font-size: 12px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -3510,6 +3776,10 @@
                 questionSelect.style.display = 'none';
                 document.getElementById('questionLabel').style.display = 'none';
                 dimensionNameEditor.style.display = 'none';
+                // Hide AI Insights tab when no data source
+                if (window.AIInsightsPanel) {
+                    window.AIInsightsPanel.setCurrentDimension('');
+                }
                 syncFilterTabState();
                 return;
             }
@@ -3560,6 +3830,10 @@
                     questionSelect.style.display = 'none';
                     document.getElementById('questionLabel').style.display = 'none';
                     dimensionNameEditor.style.display = 'none';
+                    // Hide AI Insights tab when no dimensions available
+                    if (window.AIInsightsPanel) {
+                        window.AIInsightsPanel.setCurrentDimension('');
+                    }
                     syncFilterTabState();
                     return;
                 }
@@ -3585,6 +3859,11 @@
                     saveState();
                     filterByQuestion(selectedRefKey);
                     
+                    // Update AI Insights panel with current dimension (will show/hide tab)
+                    if (window.AIInsightsPanel) {
+                        window.AIInsightsPanel.setCurrentDimension(selectedRefKey);
+                    }
+                    
                     // Show/hide dimension name editor based on selection
                     if (selectedRefKey && selectedRefKey !== '') {
                         dimensionNameEditor.style.display = 'none'; // Hidden for now
@@ -3607,12 +3886,20 @@
                     questionSelect.value = questionToSelect;
                     filterByQuestion(questionToSelect);
                     dimensionNameEditor.style.display = 'none';
+                    // Update AI Insights panel with restored dimension
+                    if (window.AIInsightsPanel) {
+                        window.AIInsightsPanel.setCurrentDimension(questionToSelect);
+                    }
                 } else {
                     // Default to "All Dimensions" view
                     currentQuestionRefKey = null;
                     questionSelect.value = '';
                     filterByQuestion(''); // Show all dimensions
                     dimensionNameEditor.style.display = 'none';
+                    // Hide AI Insights tab when no specific dimension selected
+                    if (window.AIInsightsPanel) {
+                        window.AIInsightsPanel.setCurrentDimension('');
+                    }
                 }
                 syncFilterTabState();
             } catch (error) {
@@ -3622,6 +3909,10 @@
                 document.getElementById('questionLabel').style.display = 'none';
                 dimensionNameEditor.style.display = 'none';
                 availableQuestions = [];
+                // Hide AI Insights tab on error
+                if (window.AIInsightsPanel) {
+                    window.AIInsightsPanel.setCurrentDimension('');
+                }
                 syncFilterTabState();
             }
         }
@@ -6371,10 +6662,281 @@
         }).catch(error => {
             console.error('Error in checkAuth:', error);
         });
+        
+        // AI Insights Slideout Panel
+        const AIInsightsPanel = {
+            isOpen: false,
+            currentContext: null,
+            currentDimensionRef: null,  // Track current dimension
+            
+            init() {
+                const tab = document.getElementById('aiInsightsTab');
+                const panel = document.getElementById('aiInsightsPanel');
+                const closeBtn = document.getElementById('closeAiPanel');
+                const overlay = document.getElementById('aiInsightsOverlay');
+                
+                if (!tab || !panel) return;
+                
+                // Ensure tab is hidden initially
+                tab.style.display = 'none';
+                
+                // Open on tab click
+                tab.addEventListener('click', () => this.open());
+                
+                // Close handlers
+                if (closeBtn) closeBtn.addEventListener('click', () => this.close());
+                if (overlay) overlay.addEventListener('click', () => this.close());
+                
+                // ESC key to close
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && this.isOpen) {
+                        this.close();
+                    }
+                });
+                
+                console.log('AI Insights Panel initialized');
+            },
+            
+            setCurrentDimension(dimensionRef) {
+                this.currentDimensionRef = dimensionRef;
+                console.log('Current dimension set to:', dimensionRef);
+                
+                // Show/hide the AI Insights tab based on whether a dimension is selected
+                const tab = document.getElementById('aiInsightsTab');
+                if (tab) {
+                    if (dimensionRef && dimensionRef !== '') {
+                        tab.style.display = 'block';
+                    } else {
+                        tab.style.display = 'none';
+                        // Also close the panel if it's open
+                        this.close();
+                    }
+                }
+            },
+            
+            async open() {
+                // Get current context from the app state
+                const clientSelect = document.getElementById('clientSelect');
+                const client_uuid = clientSelect?.value;
+                
+                // Get data source (look for active project/source)
+                const data_source = this.getCurrentDataSource();
+                const dimension_ref = this.currentDimensionRef;
+                
+                if (!client_uuid) {
+                    alert('Please select a client first');
+                    return;
+                }
+                
+                if (!dimension_ref) {
+                    alert('Please select a dimension first by clicking on a treemap section');
+                    return;
+                }
+                
+                this.currentContext = { client_uuid, data_source, dimension_ref };
+                
+                // Open UI
+                const panel = document.getElementById('aiInsightsPanel');
+                const overlay = document.getElementById('aiInsightsOverlay');
+                if (panel) panel.classList.add('open');
+                if (overlay) overlay.classList.add('visible');
+                this.isOpen = true;
+                
+                // Load content
+                await this.loadSummary();
+            },
+            
+            close() {
+                const panel = document.getElementById('aiInsightsPanel');
+                const overlay = document.getElementById('aiInsightsOverlay');
+                if (panel) panel.classList.remove('open');
+                if (overlay) overlay.classList.remove('visible');
+                this.isOpen = false;
+            },
+            
+            async loadSummary(forceRegenerate = false) {
+                const content = document.getElementById('aiInsightsContent');
+                if (!content) return;
+                
+                // Show loading
+                content.innerHTML = `
+                    <div class="ai-loading">
+                        <div class="ai-loading-spinner"></div>
+                        <p>${forceRegenerate ? 'Regenerating insights...' : 'Loading AI insights...'}</p>
+                        <small>This may take a few seconds</small>
+                    </div>
+                `;
+                
+                try {
+                    const { client_uuid, data_source, dimension_ref } = this.currentContext;
+                    const url = `${API_BASE_URL}/api/dimensions/${client_uuid}/${data_source}/${dimension_ref}/summary${forceRegenerate ? '?force_regenerate=true' : ''}`;
+                    
+                    console.log('Fetching AI summary from:', url);
+                    
+                    const response = await fetch(url, {
+                        headers: getAuthHeaders()
+                    });
+                    
+                    if (!response.ok) {
+                        const error = await response.json().catch(() => ({ detail: 'Unknown error' }));
+                        throw new Error(error.detail || 'Failed to load summary');
+                    }
+                    
+                    const data = await response.json();
+                    console.log('AI summary loaded:', data);
+                    this.renderSummary(data);
+                    
+                } catch (error) {
+                    console.error('Error loading AI summary:', error);
+                    content.innerHTML = `
+                        <div class="ai-error">
+                            <h3>⚠️ Error Loading Insights</h3>
+                            <p>${error.message}</p>
+                            <button onclick="AIInsightsPanel.loadSummary()">Try Again</button>
+                        </div>
+                    `;
+                }
+            },
+            
+            // Simple markdown to HTML converter
+            convertMarkdown(text) {
+                if (!text) return '';
+                return text
+                    // Fix malformed bold: **TEXT\n\n** -> **TEXT:**
+                    .replace(/\*\*([A-Z\s]+)\n\n\*\*/g, '**$1:**')
+                    // Fix incomplete bold at line end: **TEXT\n -> **TEXT:**\n
+                    .replace(/\*\*([A-Z\s]+)$/gm, '**$1:**')
+                    // Remove orphaned ** at start of line (after whitespace/newlines)
+                    .replace(/^[\s\n]*\*\*\s+/gm, '')
+                    // Remove orphaned ** in the middle of sentences
+                    .replace(/\s+\*\*\s+/g, ' ')
+                    // Bold: **text** -> <strong>text</strong>
+                    .replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>')
+                    // Italic: *text* -> <em>text</em>
+                    .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+                    // Line breaks (but keep double breaks as paragraphs)
+                    .replace(/\n\n/g, '</p><p>')
+                    .replace(/\n/g, '<br>');
+            },
+            
+            renderSummary(data) {
+                const { summary, status, generated_at, duration_ms, from_cache } = data;
+                const content = document.getElementById('aiInsightsContent');
+                if (!content) return;
+                
+                const statusBadge = from_cache
+                    ? '<span class="ai-status-badge ai-status-cached">✓ From cache</span>'
+                    : '<span class="ai-status-badge ai-status-generated">✨ Freshly generated</span>';
+                
+                // Parse summary paragraphs with markdown support
+                const paragraphs = summary.summary_text.split('\n\n')
+                    .map(para => `<p class="ai-summary-text">${this.convertMarkdown(para)}</p>`)
+                    .join('');
+                
+                // Format key insights with markdown support
+                const insightsList = (summary.key_insights || [])
+                    .map(insight => `<li>${this.convertMarkdown(insight)}</li>`)
+                    .join('');
+                
+                // Format category snapshot with markdown support
+                const categoryItems = summary.category_snapshot 
+                    ? Object.entries(summary.category_snapshot).map(([cat, desc]) => `
+                        <div class="ai-category-item">
+                            <div class="ai-category-name">${this.convertMarkdown(cat)}</div>
+                            <div>${this.convertMarkdown(desc)}</div>
+                        </div>
+                    `).join('')
+                    : '<p>No category breakdown available</p>';
+                
+                content.innerHTML = `
+                    <div class="ai-summary-section">
+                        <h3>📝 Summary</h3>
+                        ${paragraphs}
+                    </div>
+                    
+                    ${insightsList ? `
+                        <div class="ai-summary-section">
+                            <h3>💡 Key Insights</h3>
+                            <ul class="ai-insights-list">
+                                ${insightsList}
+                            </ul>
+                        </div>
+                    ` : ''}
+                    
+                    ${categoryItems ? `
+                        <div class="ai-summary-section">
+                            <h3>📊 Category Breakdown</h3>
+                            ${categoryItems}
+                        </div>
+                    ` : ''}
+                    
+                    ${summary.patterns ? `
+                        <div class="ai-summary-section">
+                            <h3>🔍 Patterns</h3>
+                            <div class="ai-patterns-box">${this.convertMarkdown(summary.patterns)}</div>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="ai-metadata">
+                        <div>
+                            ${statusBadge}
+                            Generated ${new Date(generated_at).toLocaleDateString()}
+                            ${summary.tokens_used ? ` • ${summary.tokens_used} tokens` : ''}
+                            ${duration_ms ? ` • ${(duration_ms / 1000).toFixed(1)}s` : ''}
+                        </div>
+                        <div>
+                            ${summary.sample_size} / ${summary.total_responses} responses analyzed
+                        </div>
+                    </div>
+                    
+                    <button class="ai-regenerate-btn" onclick="AIInsightsPanel.loadSummary(true)">
+                        🔄 Regenerate Insights
+                    </button>
+                `;
+            },
+            
+            getCurrentDataSource() {
+                // Try to find current data source from the UI state
+                // This is a simple implementation - adjust based on your app's state management
+                const sourceSelect = document.getElementById('sourceSelect');
+                if (sourceSelect && sourceSelect.value) {
+                    return sourceSelect.value;
+                }
+                return 'all';  // Default fallback
+            }
+        };
+        
+        // Initialize AI Insights Panel when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => AIInsightsPanel.init());
+        } else {
+            AIInsightsPanel.init();
+        }
+        
+        // Make it globally accessible
+        window.AIInsightsPanel = AIInsightsPanel;
     </script>
     
     <!-- Marketing site header -->
     <script src="/header.js"></script>
+    
+    <!-- AI Insights Slideout -->
+    <div id="aiInsightsTab" class="ai-insights-tab">
+        <span>💡 AI Insights</span>
+    </div>
+    
+    <div id="aiInsightsPanel" class="ai-insights-panel">
+        <div class="ai-insights-header">
+            <h2>AI-Generated Insights</h2>
+            <button id="closeAiPanel" class="ai-close-btn">&times;</button>
+        </div>
+        
+        <div id="aiInsightsContent" class="ai-insights-content">
+            <!-- Content loaded dynamically -->
+        </div>
+    </div>
+    
+    <div id="aiInsightsOverlay" class="ai-insights-overlay"></div>
 </body>
 </html>
 
