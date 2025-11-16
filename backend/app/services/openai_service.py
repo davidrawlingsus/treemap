@@ -67,7 +67,14 @@ class OpenAIService:
         try:
             # Use OpenAI API (v1.0+ format)
             from openai import OpenAI
-            client = OpenAI(api_key=self.api_key)
+            import httpx
+            
+            # Create OpenAI client with explicit configuration
+            # Avoid proxy issues in Railway environment
+            client = OpenAI(
+                api_key=self.api_key,
+                http_client=httpx.Client(timeout=60.0)
+            )
             
             response = client.chat.completions.create(
                 model=self.model,
