@@ -1,7 +1,7 @@
 """add dimension summaries table
 
-Revision ID: 004
-Revises: 002
+Revision ID: 006
+Revises: 005
 Create Date: 2025-11-15
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision = '004'
-down_revision = '002'
+revision = '006'
+down_revision = '005'
 branch_labels = None
 depends_on = None
 
