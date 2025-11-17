@@ -33,6 +33,10 @@
             padding: 0;
             margin: 0;
         }
+        
+        body.slideout-open {
+            overflow: hidden;
+        }
 
         .container {
             width: 100%;
@@ -417,6 +421,14 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            min-height: 0;
+            overflow: hidden;
+        }
+        
+        .treemap-svg-container svg {
+            max-width: 100%;
+            max-height: 100%;
+            display: block;
         }
 
         .visualizations-grid {
@@ -1994,7 +2006,7 @@
             writing-mode: vertical-rl;
             text-orientation: mixed;
             box-shadow: -2px 2px 8px rgba(0,0,0,0.15);
-            z-index: 1000;
+            z-index: 10001;
             transition: all 0.3s ease;
             display: none; /* Hidden by default until dimension is selected */
         }
@@ -2007,12 +2019,12 @@
         .ai-insights-panel {
             position: fixed;
             right: -520px;
-            top: 120px;
+            top: 0;
             width: 500px;
-            height: calc(100vh - 120px);
+            height: 100vh;
             background: white;
             box-shadow: -4px 0 20px rgba(0,0,0,0.15);
-            z-index: 1001;
+            z-index: 10000;
             transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             flex-direction: column;
@@ -2200,7 +2212,7 @@
             right: 0;
             bottom: 0;
             background: rgba(0,0,0,0.4);
-            z-index: 1000;
+            z-index: 9999;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.3s;
@@ -2534,7 +2546,8 @@
     </div>
 
     <!-- Overlay Modal for Verbatims -->
-    <div id="overlay" class="overlay">
+    <!-- Old overlay modal - hidden, kept for backward compatibility -->
+    <div id="overlay" class="overlay" style="display: none !important;">
         <div class="overlay-content">
             <div class="overlay-header">
                 <div style="flex: 1;">
@@ -4825,6 +4838,13 @@
 
         // Render treemap
         function renderTreemap(data) {
+            // Recalculate container dimensions to ensure accurate sizing
+            const container = document.querySelector('.treemap-svg-container');
+            if (container) {
+                width = container.clientWidth;
+                height = container.clientHeight;
+            }
+            
             const svg = d3.select('#treemap');
             svg.selectAll('*').remove();
             svg.attr('width', width).attr('height', height);
@@ -5163,38 +5183,62 @@
             });
         }
 
-        // Show verbatims in overlay
+        // Show verbatims in slideout panel
         function showVerbatims(verbatims, topicName, categoryName) {
-            const overlay = document.getElementById('overlay');
-            const container = document.getElementById('verbatims');
-            const title = document.getElementById('overlayTitle');
-            const subtitle = document.getElementById('overlaySubtitle');
+            // Use the slideout panel instead of the overlay
+            if (window.SlideoutPanel) {
+                window.SlideoutPanel.openVerbatims(verbatims, topicName, categoryName);
+            }
+        }
+        
+        // Helper functions for slideout search and settings
+        function handleSlideoutSearch() {
+            const searchInput = document.getElementById('slideoutSearch');
+            const clearBtn = document.getElementById('slideoutSearchClear');
             
-            // Reset search term when opening overlay
-            verbatimSearchTerm = '';
-            const searchInput = document.getElementById('verbatimSearch');
+            if (searchInput && window.SlideoutPanel) {
+                window.SlideoutPanel.verbatimSearchTerm = searchInput.value;
+                
+                // Show/hide clear button
+                if (clearBtn) {
+                    clearBtn.style.display = searchInput.value ? 'flex' : 'none';
+                }
+                
+                // Re-render verbatims with search filter
+                if (window.SlideoutPanel.currentMode === 'verbatims') {
+                    window.SlideoutPanel.renderVerbatims(
+                        window.SlideoutPanel.currentVerbatimsData,
+                        window.SlideoutPanel.currentTopicName,
+                        window.SlideoutPanel.currentCategoryName
+                    );
+                }
+            }
+        }
+        
+        function clearSlideoutSearch() {
+            const searchInput = document.getElementById('slideoutSearch');
             if (searchInput) {
                 searchInput.value = '';
+                handleSlideoutSearch();
             }
-            updateVerbatimSearchClearButton();
-            
-            // Store data for re-rendering when settings change
-            currentVerbatimsData = verbatims;
-            currentTopicName = topicName;
-            currentCategoryName = categoryName;
-            
-            // IMPORTANT: Show the container by removing inline display:none
-            container.style.display = 'block';
-            
-            // Set header info
-            title.textContent = topicName;
-            subtitle.textContent = `${categoryName} • ${verbatims.length} verbatim${verbatims.length !== 1 ? 's' : ''}`;
-            
-            // Render verbatims with current settings
-            renderVerbatims(verbatims, topicName, categoryName);
-            
-            // Show overlay
-            overlay.classList.add('active');
+        }
+        
+        function toggleSlideoutSettings() {
+            const panel = document.getElementById('slideoutSettingsPanel');
+            if (panel) {
+                panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+            }
+        }
+        
+        function updateSlideoutSettings() {
+            // Re-render verbatims with new settings
+            if (window.SlideoutPanel && window.SlideoutPanel.currentMode === 'verbatims') {
+                window.SlideoutPanel.renderVerbatims(
+                    window.SlideoutPanel.currentVerbatimsData,
+                    window.SlideoutPanel.currentTopicName,
+                    window.SlideoutPanel.currentCategoryName
+                );
+            }
         }
 
         // Store current verbatims data for re-rendering
@@ -6663,17 +6707,18 @@
             console.error('Error in checkAuth:', error);
         });
         
-        // AI Insights Slideout Panel
-        const AIInsightsPanel = {
+        // Slideout Panel - handles both AI Insights and Verbatims
+        const SlideoutPanel = {
             isOpen: false,
+            currentMode: null, // 'ai-insights' or 'verbatims'
             currentContext: null,
             currentDimensionRef: null,  // Track current dimension
             
             init() {
-                const tab = document.getElementById('aiInsightsTab');
-                const panel = document.getElementById('aiInsightsPanel');
-                const closeBtn = document.getElementById('closeAiPanel');
-                const overlay = document.getElementById('aiInsightsOverlay');
+                const tab = document.getElementById('slideoutTab');
+                const panel = document.getElementById('slideoutPanel');
+                const closeBtn = document.getElementById('closeSlideoutPanel');
+                const overlay = document.getElementById('slideoutOverlay');
                 
                 if (!tab || !panel) return;
                 
@@ -6681,7 +6726,7 @@
                 tab.style.display = 'none';
                 
                 // Open on tab click
-                tab.addEventListener('click', () => this.open());
+                tab.addEventListener('click', () => this.openAIInsights());
                 
                 // Close handlers
                 if (closeBtn) closeBtn.addEventListener('click', () => this.close());
@@ -6694,7 +6739,7 @@
                     }
                 });
                 
-                console.log('AI Insights Panel initialized');
+                console.log('Slideout Panel initialized');
             },
             
             setCurrentDimension(dimensionRef) {
@@ -6702,7 +6747,7 @@
                 console.log('Current dimension set to:', dimensionRef);
                 
                 // Show/hide the AI Insights tab based on whether a dimension is selected
-                const tab = document.getElementById('aiInsightsTab');
+                const tab = document.getElementById('slideoutTab');
                 if (tab) {
                     if (dimensionRef && dimensionRef !== '') {
                         tab.style.display = 'block';
@@ -6714,7 +6759,7 @@
                 }
             },
             
-            async open() {
+            async openAIInsights() {
                 // Get current context from the app state
                 const clientSelect = document.getElementById('clientSelect');
                 const client_uuid = clientSelect?.value;
@@ -6734,29 +6779,209 @@
                 }
                 
                 this.currentContext = { client_uuid, data_source, dimension_ref };
+                this.currentMode = 'ai-insights';
                 
                 // Open UI
-                const panel = document.getElementById('aiInsightsPanel');
-                const overlay = document.getElementById('aiInsightsOverlay');
+                const panel = document.getElementById('slideoutPanel');
+                const overlay = document.getElementById('slideoutOverlay');
+                const title = document.getElementById('slideoutTitle');
+                
+                if (title) title.textContent = 'AI-Generated Insights';
                 if (panel) panel.classList.add('open');
                 if (overlay) overlay.classList.add('visible');
                 this.isOpen = true;
+                
+                // Prevent body scroll
+                document.body.classList.add('slideout-open');
                 
                 // Load content
                 await this.loadSummary();
             },
             
+            openVerbatims(verbatims, topicName, categoryName) {
+                console.log('SlideoutPanel.openVerbatims called with:', { 
+                    verbatimsCount: verbatims?.length, 
+                    topicName, 
+                    categoryName,
+                    firstVerbatim: verbatims?.[0]
+                });
+                
+                this.currentMode = 'verbatims';
+                this.currentVerbatimsData = verbatims;
+                this.currentTopicName = topicName;
+                this.currentCategoryName = categoryName;
+                this.verbatimSearchTerm = '';
+                
+                // Open UI
+                const panel = document.getElementById('slideoutPanel');
+                const overlay = document.getElementById('slideoutOverlay');
+                const title = document.getElementById('slideoutTitle');
+                const subtitle = document.getElementById('slideoutSubtitle');
+                
+                if (title) {
+                    title.textContent = topicName;
+                }
+                if (subtitle) {
+                    subtitle.textContent = `${categoryName} • ${verbatims.length} verbatim${verbatims.length !== 1 ? 's' : ''}`;
+                    subtitle.style.display = 'block';
+                }
+                
+                if (panel) panel.classList.add('open');
+                if (overlay) overlay.classList.add('visible');
+                this.isOpen = true;
+                
+                // Prevent body scroll
+                document.body.classList.add('slideout-open');
+                
+                // Render verbatims
+                this.renderVerbatims(verbatims, topicName, categoryName);
+            },
+            
             close() {
-                const panel = document.getElementById('aiInsightsPanel');
-                const overlay = document.getElementById('aiInsightsOverlay');
+                const panel = document.getElementById('slideoutPanel');
+                const overlay = document.getElementById('slideoutOverlay');
+                const subtitle = document.getElementById('slideoutSubtitle');
+                
                 if (panel) panel.classList.remove('open');
                 if (overlay) overlay.classList.remove('visible');
+                if (subtitle) subtitle.style.display = 'none';
+                
+                // Re-enable body scroll
+                document.body.classList.remove('slideout-open');
+                
                 this.isOpen = false;
+                this.currentMode = null;
+            },
+            
+            renderVerbatims(verbatims, topicName, categoryName) {
+                console.log('SlideoutPanel.renderVerbatims called with:', { 
+                    verbatimsCount: verbatims?.length, 
+                    topicName, 
+                    categoryName 
+                });
+                
+                const content = document.getElementById('slideoutContent');
+                if (!content) {
+                    console.error('slideoutContent element not found!');
+                    return;
+                }
+                
+                // Clear search
+                const searchInput = document.getElementById('slideoutSearch');
+                if (searchInput) {
+                    searchInput.value = '';
+                    searchInput.style.display = 'block';
+                    searchInput.placeholder = 'Search verbatims...';
+                }
+                
+                // Show settings button
+                const settingsBtn = document.getElementById('slideoutSettingsBtn');
+                if (settingsBtn) settingsBtn.style.display = 'flex';
+                
+                // Filter verbatims by search term
+                let displayVerbatims = verbatims;
+                if (this.verbatimSearchTerm) {
+                    const searchLower = this.verbatimSearchTerm.toLowerCase();
+                    displayVerbatims = verbatims.filter(v => 
+                        (v.text || '').toLowerCase().includes(searchLower)
+                    );
+                }
+                
+                console.log('Rendering', displayVerbatims.length, 'verbatim cards');
+                
+                // Render verbatim cards
+                content.innerHTML = '';
+                
+                if (displayVerbatims.length === 0) {
+                    content.innerHTML = '<div class="ai-error" style="background: #f8f9fa; border: none; margin: 20px 0;"><p>No verbatims match your search.</p></div>';
+                    return;
+                }
+                
+                displayVerbatims.forEach((v, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'verbatim-card';
+                    
+                    const escapedText = escapeHtml(v.text || 'No text available');
+                    
+                    // Build metadata HTML based on settings
+                    const metaItems = [];
+                    
+                    // Check user's settings
+                    const showSentiment = document.getElementById('showSentiment')?.checked !== false;
+                    const showLocation = document.getElementById('showLocation')?.checked !== false;
+                    const showIndex = document.getElementById('showIndex')?.checked !== false;
+                    
+                    if (showSentiment && v.sentiment) {
+                        const sentimentClass = `sentiment-${v.sentiment}`;
+                        const sentimentLabel = v.sentiment.charAt(0).toUpperCase() + v.sentiment.slice(1);
+                        metaItems.push(`<span class="verbatim-metadata-item ${sentimentClass}">${sentimentLabel}</span>`);
+                    }
+                    
+                    if (showLocation) {
+                        if (v.city && v.country) {
+                            metaItems.push(`<span class="verbatim-metadata-item">📍 ${escapeHtml(v.city)}, ${escapeHtml(v.country)}</span>`);
+                        } else if (v.country) {
+                            metaItems.push(`<span class="verbatim-metadata-item">📍 ${escapeHtml(v.country)}</span>`);
+                        }
+                    }
+                    
+                    if (showIndex) {
+                        metaItems.push(`<span class="verbatim-metadata-item">#${index + 1}</span>`);
+                    }
+                    
+                    const metaHTML = metaItems.length > 0 
+                        ? `<div class="verbatim-metadata">${metaItems.join('')}</div>` 
+                        : '';
+                    
+                    // Check if this verbatim is a favourite
+                    const verbatimObj = {
+                        text: v.text,
+                        category: categoryName,
+                        topic: topicName,
+                        sentiment: v.sentiment,
+                        city: v.city,
+                        country: v.country
+                    };
+                    // Use base64 encoding with Unicode-safe encoding (matches handleFavouriteClick format)
+                    const verbatimJson = JSON.stringify(verbatimObj);
+                    const verbatimData = btoa(unescape(encodeURIComponent(verbatimJson)));
+                    
+                    // Get favourites from localStorage
+                    const favourites = (typeof getFavourites === 'function') ? getFavourites() : [];
+                    const isFav = favourites.some(fav => fav.verbatim.text === v.text);
+                    const favouriteClass = isFav ? 'is-favourite' : '';
+                    const favouriteIcon = isFav 
+                        ? '<path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>'
+                        : '<path stroke="currentColor" stroke-width="2" fill="none" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>';
+                    
+                    card.innerHTML = `
+                        <div class="verbatim-card-header">
+                            <div class="verbatim-text" style="flex: 1; margin-bottom: 0; padding-right: 8px;">${escapedText}</div>
+                            <button class="favourite-button ${favouriteClass}" data-verbatim="${verbatimData}" onclick="handleFavouriteClick(this)" title="${isFav ? 'Remove from favourites' : 'Add to favourites'}">
+                                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    ${favouriteIcon}
+                                </svg>
+                            </button>
+                        </div>
+                        ${metaHTML ? `<div style="margin-top: 16px;">${metaHTML}</div>` : ''}
+                    `;
+                    
+                    content.appendChild(card);
+                });
+                
+                console.log('Finished rendering', displayVerbatims.length, 'cards to slideoutContent');
             },
             
             async loadSummary(forceRegenerate = false) {
-                const content = document.getElementById('aiInsightsContent');
+                const content = document.getElementById('slideoutContent');
                 if (!content) return;
+                
+                // Hide search and settings for AI insights
+                const searchInput = document.getElementById('slideoutSearch');
+                if (searchInput) searchInput.style.display = 'none';
+                
+                const settingsBtn = document.getElementById('slideoutSettingsBtn');
+                if (settingsBtn) settingsBtn.style.display = 'none';
                 
                 // Show loading
                 content.innerHTML = `
@@ -6792,7 +7017,7 @@
                         <div class="ai-error">
                             <h3>⚠️ Error Loading Insights</h3>
                             <p>${error.message}</p>
-                            <button onclick="AIInsightsPanel.loadSummary()">Try Again</button>
+                            <button onclick="SlideoutPanel.loadSummary()">Try Again</button>
                         </div>
                     `;
                 }
@@ -6821,7 +7046,7 @@
             
             renderSummary(data) {
                 const { summary, status, generated_at, duration_ms, from_cache } = data;
-                const content = document.getElementById('aiInsightsContent');
+                const content = document.getElementById('slideoutContent');
                 if (!content) return;
                 
                 const statusBadge = from_cache
@@ -6889,7 +7114,7 @@
                         </div>
                     </div>
                     
-                    <button class="ai-regenerate-btn" onclick="AIInsightsPanel.loadSummary(true)">
+                    <button class="ai-regenerate-btn" onclick="SlideoutPanel.loadSummary(true)">
                         🔄 Regenerate Insights
                     </button>
                 `;
@@ -6906,37 +7131,86 @@
             }
         };
         
-        // Initialize AI Insights Panel when DOM is ready
+        // Initialize Slideout Panel when DOM is ready
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => AIInsightsPanel.init());
+            document.addEventListener('DOMContentLoaded', () => SlideoutPanel.init());
         } else {
-            AIInsightsPanel.init();
+            SlideoutPanel.init();
         }
         
         // Make it globally accessible
-        window.AIInsightsPanel = AIInsightsPanel;
+        window.SlideoutPanel = SlideoutPanel;
+        // Keep backward compatibility
+        window.AIInsightsPanel = SlideoutPanel;
     </script>
     
     <!-- Marketing site header -->
     <script src="/header.js"></script>
     
-    <!-- AI Insights Slideout -->
-    <div id="aiInsightsTab" class="ai-insights-tab">
+    <!-- Slideout Panel (AI Insights / Verbatims) -->
+    <div id="slideoutTab" class="ai-insights-tab">
         <span>💡 AI Insights</span>
     </div>
     
-    <div id="aiInsightsPanel" class="ai-insights-panel">
+    <div id="slideoutPanel" class="ai-insights-panel">
         <div class="ai-insights-header">
-            <h2>AI-Generated Insights</h2>
-            <button id="closeAiPanel" class="ai-close-btn">&times;</button>
+            <div style="flex: 1;">
+                <h2 id="slideoutTitle">AI-Generated Insights</h2>
+                <p id="slideoutSubtitle" class="overlay-subtitle" style="display: none; margin-top: 4px; font-size: 13px; color: #666;"></p>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <button id="slideoutSettingsBtn" class="settings-button" onclick="toggleSlideoutSettings()" title="Card Settings" style="display: none;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"></path>
+                    </svg>
+                </button>
+                <button id="closeSlideoutPanel" class="ai-close-btn">&times;</button>
+            </div>
         </div>
         
-        <div id="aiInsightsContent" class="ai-insights-content">
+        <!-- Search box for verbatims -->
+        <div style="padding: 0 24px 16px 24px;">
+            <div style="position: relative;">
+                <input
+                    type="text"
+                    id="slideoutSearch"
+                    placeholder="Search verbatims..."
+                    style="width: 100%; padding: 8px 36px 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: white; color: #333; display: none;"
+                    oninput="handleSlideoutSearch()"
+                />
+                <button
+                    id="slideoutSearchClear"
+                    onclick="clearSlideoutSearch()"
+                    style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 0; display: none; color: #666; font-size: 20px; line-height: 1; width: 24px; height: 24px; align-items: center; justify-content: center; border-radius: 3px;"
+                    title="Clear search"
+                >&times;</button>
+            </div>
+            
+            <!-- Settings panel for verbatims -->
+            <div id="slideoutSettingsPanel" class="settings-panel" style="display: none; margin-top: 12px;">
+                <h3 style="font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #333;">Display Metadata</h3>
+                <div class="settings-option">
+                    <input type="checkbox" id="showSentiment" checked onchange="updateSlideoutSettings()">
+                    <label for="showSentiment">Sentiment</label>
+                </div>
+                <div class="settings-option">
+                    <input type="checkbox" id="showLocation" checked onchange="updateSlideoutSettings()">
+                    <label for="showLocation">Location</label>
+                </div>
+                <div class="settings-option">
+                    <input type="checkbox" id="showIndex" checked onchange="updateSlideoutSettings()">
+                    <label for="showIndex">Index</label>
+                </div>
+            </div>
+        </div>
+        
+        <div id="slideoutContent" class="ai-insights-content">
             <!-- Content loaded dynamically -->
         </div>
     </div>
     
-    <div id="aiInsightsOverlay" class="ai-insights-overlay"></div>
+    <div id="slideoutOverlay" class="ai-insights-overlay"></div>
 </body>
 </html>
 
