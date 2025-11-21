@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Founder Admin - Database Management</title>
+    <script src="/config.js"></script>
+    <style>
+        :root {
+            --bg: #f5f7fb;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --primary: #667eea;
+            --primary-dark: #4c51bf;
+            --danger: #e53e3e;
+            --text: #1a202c;
+            --muted: #718096;
+            --success: #48bb78;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: "Inter", "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .login-overlay {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.85);
+            z-index: 999;
+        }
+
+        .login-overlay.hidden {
+            display: none;
+        }
+
+        .login-card {
+            background: var(--surface);
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 25px 50px -12px rgba(56, 66, 106, 0.35);
+            width: min(380px, 92vw);
+        }
+
+        .login-card h2 {
+            margin-bottom: 12px;
+        }
+
+        .login-card input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 15px;
+            margin-bottom: 12px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: #edf2f7;
+            color: var(--text);
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c53030;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #appShell {
+            display: none;
+            min-height: 100vh;
+            flex-direction: column;
+        }
+
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 24px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        header h1 {
+            font-size: 26px;
+            font-weight: 600;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            gap: 24px;
+            padding: 24px;
+            max-width: 1800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            height: fit-content;
+            position: sticky;
+            top: 24px;
+        }
+
+        .sidebar h2 {
+            font-size: 18px;
+            margin-bottom: 16px;
+        }
+
+        .table-list {
+            list-style: none;
+        }
+
+        .table-item {
+            padding: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 6px;
+            transition: background 0.2s;
+        }
+
+        .table-item:hover {
+            background: #f7fafc;
+        }
+
+        .table-item.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .table-item-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .table-item-meta {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .content-area {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .content-header h2 {
+            font-size: 22px;
+        }
+
+        .columns-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .column-card {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            background: #f7fafc;
+        }
+
+        .column-card h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .column-card .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-right: 6px;
+            margin-bottom: 6px;
+        }
+
+        .badge-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .badge-type {
+            background: #edf2f7;
+            color: var(--text);
+        }
+
+        .badge-nullable {
+            background: #fed7d7;
+            color: var(--danger);
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table th {
+            background: #f7fafc;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .data-table tr:hover {
+            background: #f7fafc;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            font-size: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .alert-danger {
+            background: #fed7d7;
+            color: var(--danger);
+            border: 1px solid #fc8181;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--muted);
+        }
+
+        .empty-state h3 {
+            margin-bottom: 8px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                position: relative;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-card">
+            <h2>Founder Login</h2>
+            <input type="email" id="loginEmail" placeholder="founder@example.com" autocomplete="email">
+            <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password">
+            <button class="btn btn-primary" id="loginButton" style="width: 100%;">Login</button>
+            <div id="loginError" style="color: var(--danger); margin-top: 12px; display: none;"></div>
+        </div>
+    </div>
+
+    <div id="appShell" class="app-shell">
+        <header>
+            <h1>Database Management</h1>
+            <div>
+                <button class="btn btn-secondary" onclick="location.href='/founder_admin.html'">← Back to Admin</button>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <aside class="sidebar">
+                <h2>Tables</h2>
+                <ul class="table-list" id="tableList">
+                    <li class="table-item">
+                        <div style="text-align: center; padding: 20px; color: var(--muted);">
+                            Loading...
+                        </div>
+                    </li>
+                </ul>
+            </aside>
+
+            <main class="content-area">
+                <div id="tableDetail">
+                    <div class="empty-state">
+                        <h3>Select a table</h3>
+                        <p>Choose a table from the sidebar to view its structure and data</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal for editing rows -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">Edit Row</h3>
+                <button class="btn btn-secondary" onclick="closeModal()">×</button>
+            </div>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+        const AUTH_TOKEN_KEY = 'visualizd_auth_token';
+
+        let currentTable = null;
+        let currentPage = 1;
+        let tables = [];
+
+        const getAuthToken = () => localStorage.getItem(AUTH_TOKEN_KEY);
+        const authHeaders = () => ({
+            'Authorization': `Bearer ${getAuthToken()}`,
+            'Content-Type': 'application/json'
+        });
+
+        async function validateSession() {
+            const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+                headers: authHeaders()
+            });
+            if (!response.ok) throw new Error('Session invalid');
+            const data = await response.json();
+            if (!data.is_founder) throw new Error('Founder access required');
+            return data;
+        }
+
+        async function login() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const errorEl = document.getElementById('loginError');
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                if (!response.ok) throw new Error('Login failed');
+                const data = await response.json();
+                localStorage.setItem(AUTH_TOKEN_KEY, data.access_token);
+                await validateSession();
+                document.getElementById('loginOverlay').classList.add('hidden');
+                document.getElementById('appShell').style.display = 'flex';
+                loadTables();
+            } catch (error) {
+                errorEl.textContent = error.message;
+                errorEl.style.display = 'block';
+            }
+        }
+
+        async function loadTables() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/founder/database/tables`, {
+                    headers: authHeaders()
+                });
+                if (!response.ok) throw new Error('Failed to load tables');
+                tables = await response.json();
+                renderTableList();
+            } catch (error) {
+                console.error('Failed to load tables:', error);
+            }
+        }
+
+        function renderTableList() {
+            const list = document.getElementById('tableList');
+            if (tables.length === 0) {
+                list.innerHTML = '<li style="padding: 20px; text-align: center; color: var(--muted);">No tables found</li>';
+                return;
+            }
+
+            list.innerHTML = tables.map(table => `
+                <li class="table-item ${currentTable === table.name ? 'active' : ''}" 
+                    style="display: flex; justify-content: space-between; align-items: center; padding-right: 8px;">
+                    <div onclick="selectTable('${table.name}')" style="flex: 1; cursor: pointer;">
+                        <div class="table-item-name">${table.name}</div>
+                        <div class="table-item-meta">
+                            ${table.row_count !== null ? `${table.row_count} rows` : ''} • 
+                            ${table.columns.length} columns
+                        </div>
+                    </div>
+                    <button class="btn btn-danger" 
+                        style="padding: 4px 8px; font-size: 11px; opacity: 0.7;" 
+                        onclick="event.stopPropagation(); deleteTable('${table.name}')"
+                        title="Delete table">
+                        ×
+                    </button>
+                </li>
+            `).join('');
+        }
+
+        async function selectTable(tableName) {
+            currentTable = tableName;
+            currentPage = 1;
+            renderTableList();
+            await loadTableDetail(tableName);
+        }
+
+        async function loadTableDetail(tableName) {
+            try {
+                const [columnsRes, dataRes] = await Promise.all([
+                    fetch(`${API_BASE_URL}/api/founder/database/tables/${tableName}/columns`, {
+                        headers: authHeaders()
+                    }),
+                    fetch(`${API_BASE_URL}/api/founder/database/tables/${tableName}/data?page=${currentPage}&page_size=50`, {
+                        headers: authHeaders()
+                    })
+                ]);
+
+                if (!columnsRes.ok || !dataRes.ok) throw new Error('Failed to load table data');
+                const columns = await columnsRes.json();
+                const data = await dataRes.json();
+
+                renderTableDetail(tableName, columns, data);
+            } catch (error) {
+                document.getElementById('tableDetail').innerHTML = `
+                    <div class="alert alert-danger">Error: ${error.message}</div>
+                `;
+            }
+        }
+
+        function renderTableDetail(tableName, columns, data) {
+            const detail = document.getElementById('tableDetail');
+            const pkColumns = columns.filter(c => c.primary_key).map(c => c.name);
+
+            detail.innerHTML = `
+                <div class="content-header">
+                    <h2>${tableName}</h2>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary" onclick="showAddRowModal('${tableName}', ${JSON.stringify(columns).replace(/"/g, '&quot;')})">
+                            Add Row
+                        </button>
+                        <button class="btn btn-danger" onclick="deleteTable('${tableName}')">
+                            Delete Table
+                        </button>
+                    </div>
+                </div>
+
+                <div class="columns-grid">
+                    ${columns.map(col => `
+                        <div class="column-card">
+                            <h3>${col.name}</h3>
+                            ${col.primary_key ? '<span class="badge badge-primary">PK</span>' : ''}
+                            <span class="badge badge-type">${col.type}</span>
+                            ${col.nullable ? '<span class="badge badge-nullable">NULL</span>' : ''}
+                            ${col.foreign_key ? `<div style="font-size: 11px; margin-top: 8px; color: var(--muted);">FK: ${col.foreign_key}</div>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div style="margin-top: 32px;">
+                    <h3 style="margin-bottom: 16px;">Data (${data.total} rows)</h3>
+                    ${data.rows.length === 0 ? 
+                        '<div class="empty-state"><p>No data in this table</p></div>' :
+                        `
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    ${columns.map(col => `<th>${col.name}</th>`).join('')}
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${data.rows.map(row => `
+                                    <tr>
+                                        ${columns.map(col => {
+                                            const value = row[col.name];
+                                            if (value === null) return '<td style="color: var(--muted);"><em>null</em></td>';
+                                            if (typeof value === 'object') return `<td><pre style="font-size: 11px; margin: 0;">${JSON.stringify(value, null, 2)}</pre></td>`;
+                                            return `<td>${String(value).substring(0, 100)}${String(value).length > 100 ? '...' : ''}</td>`;
+                                        }).join('')}
+                                        <td>
+                                            <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" 
+                                                onclick="showEditRowModal('${tableName}', ${JSON.stringify(pkColumns).replace(/"/g, '&quot;')}, ${JSON.stringify(row).replace(/"/g, '&quot;')}, ${JSON.stringify(columns).replace(/"/g, '&quot;')})">
+                                                Edit
+                                            </button>
+                                            <button class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;" 
+                                                onclick="deleteRow('${tableName}', '${pkColumns[0]}', '${row[pkColumns[0]]}')">
+                                                Delete
+                                            </button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                        `
+                    }
+                    ${data.total_pages > 1 ? `
+                        <div class="pagination">
+                            <div>Page ${data.page} of ${data.total_pages} (${data.total} total)</div>
+                            <div class="pagination-controls">
+                                <button class="btn btn-secondary" ${data.page === 1 ? 'disabled' : ''} onclick="changePage(${data.page - 1})">Previous</button>
+                                <button class="btn btn-secondary" ${data.page === data.total_pages ? 'disabled' : ''} onclick="changePage(${data.page + 1})">Next</button>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function changePage(page) {
+            currentPage = page;
+            if (currentTable) {
+                loadTableDetail(currentTable);
+            }
+        }
+
+        function showAddRowModal(tableName, columns) {
+            const modal = document.getElementById('editModal');
+            const modalBody = document.getElementById('modalBody');
+            document.getElementById('modalTitle').textContent = `Add Row to ${tableName}`;
+
+            const pkColumns = columns.filter(c => c.primary_key).map(c => c.name);
+
+            modalBody.innerHTML = `
+                <form id="rowForm">
+                    ${columns.filter(col => !col.primary_key || col.nullable || col.default).map(col => `
+                        <div class="form-group">
+                            <label>${col.name} (${col.type}) ${col.primary_key ? '(PK)' : ''}</label>
+                            ${col.type === 'string' || col.type === 'text' ? `
+                                <input type="text" name="${col.name}" ${!col.nullable && !col.primary_key ? 'required' : ''}>
+                            ` : col.type === 'integer' ? `
+                                <input type="number" name="${col.name}" ${!col.nullable && !col.primary_key ? 'required' : ''}>
+                            ` : col.type === 'boolean' ? `
+                                <select name="${col.name}">
+                                    <option value="">--</option>
+                                    <option value="true">true</option>
+                                    <option value="false">false</option>
+                                </select>
+                            ` : `
+                                <input type="text" name="${col.name}" ${!col.nullable && !col.primary_key ? 'required' : ''}>
+                            `}
+                        </div>
+                    `).join('')}
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create Row</button>
+                    </div>
+                </form>
+            `;
+
+            document.getElementById('rowForm').onsubmit = async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const data = {};
+                formData.forEach((value, key) => {
+                    if (value !== '') {
+                        // Try to parse as JSON if it looks like JSON
+                        if ((value.startsWith('{') || value.startsWith('[')) && (value.endsWith('}') || value.endsWith(']'))) {
+                            try {
+                                data[key] = JSON.parse(value);
+                            } catch {
+                                data[key] = value;
+                            }
+                        } else {
+                            data[key] = value;
+                        }
+                    }
+                });
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/founder/database/tables/${tableName}/rows`, {
+                        method: 'POST',
+                        headers: authHeaders(),
+                        body: JSON.stringify({ data })
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.detail || 'Failed to create row');
+                    }
+
+                    closeModal();
+                    loadTableDetail(tableName);
+                } catch (error) {
+                    alert(`Error: ${error.message}`);
+                }
+            };
+
+            modal.classList.add('show');
+        }
+
+        function showEditRowModal(tableName, pkColumns, row, columns) {
+            const modal = document.getElementById('editModal');
+            const modalBody = document.getElementById('modalBody');
+            document.getElementById('modalTitle').textContent = `Edit Row in ${tableName}`;
+
+            modalBody.innerHTML = `
+                <form id="rowForm">
+                    ${columns.filter(col => !pkColumns.includes(col.name)).map(col => {
+                        let value = row[col.name];
+                        if (value === null) value = '';
+                        else if (typeof value === 'object') value = JSON.stringify(value);
+                        else value = String(value);
+
+                        return `
+                            <div class="form-group">
+                                <label>${col.name} (${col.type})</label>
+                                ${col.type === 'string' || col.type === 'text' ? `
+                                    <input type="text" name="${col.name}" value="${value.replace(/"/g, '&quot;')}" ${!col.nullable ? 'required' : ''}>
+                                ` : col.type === 'integer' ? `
+                                    <input type="number" name="${col.name}" value="${value}" ${!col.nullable ? 'required' : ''}>
+                                ` : col.type === 'boolean' ? `
+                                    <select name="${col.name}">
+                                        <option value="">--</option>
+                                        <option value="true" ${value === 'true' ? 'selected' : ''}>true</option>
+                                        <option value="false" ${value === 'false' ? 'selected' : ''}>false</option>
+                                    </select>
+                                ` : `
+                                    <input type="text" name="${col.name}" value="${value.replace(/"/g, '&quot;')}" ${!col.nullable ? 'required' : ''}>
+                                `}
+                            </div>
+                        `;
+                    }).join('')}
+                    ${pkColumns.map(pk => `
+                        <input type="hidden" name="${pk}" value="${row[pk]}">
+                    `).join('')}
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Update Row</button>
+                    </div>
+                </form>
+            `;
+
+            document.getElementById('rowForm').onsubmit = async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const data = {};
+                formData.forEach((value, key) => {
+                    if (value !== '') {
+                        if ((value.startsWith('{') || value.startsWith('[')) && (value.endsWith('}') || value.endsWith(']'))) {
+                            try {
+                                data[key] = JSON.parse(value);
+                            } catch {
+                                data[key] = value;
+                            }
+                        } else {
+                            data[key] = value;
+                        }
+                    }
+                });
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/founder/database/tables/${tableName}/rows`, {
+                        method: 'PUT',
+                        headers: authHeaders(),
+                        body: JSON.stringify({ data })
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.detail || 'Failed to update row');
+                    }
+
+                    closeModal();
+                    loadTableDetail(tableName);
+                } catch (error) {
+                    alert(`Error: ${error.message}`);
+                }
+            };
+
+            modal.classList.add('show');
+        }
+
+        async function deleteRow(tableName, pkColumn, pkValue) {
+            if (!confirm(`Are you sure you want to delete this row?`)) return;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/founder/database/tables/${tableName}/rows?id=${encodeURIComponent(pkValue)}`, {
+                    method: 'DELETE',
+                    headers: authHeaders()
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to delete row');
+                }
+
+                loadTableDetail(tableName);
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        async function deleteTable(tableName) {
+            // Double confirmation for table deletion
+            const confirmed = confirm(
+                `⚠️ WARNING: You are about to delete the table "${tableName}".\n\n` +
+                `This will permanently delete:\n` +
+                `- All data in the table\n` +
+                `- The table structure\n` +
+                `- All relationships to this table\n\n` +
+                `This action CANNOT be undone!\n\n` +
+                `Click OK to continue, or Cancel to abort.`
+            );
+            
+            if (!confirmed) return;
+            
+            // Require typing the table name to confirm
+            const tableNameConfirm = prompt(`To confirm deletion, please type the table name exactly: "${tableName}"`);
+            
+            if (tableNameConfirm !== tableName) {
+                if (tableNameConfirm !== null) {
+                    alert('Table name does not match. Deletion cancelled.');
+                }
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/founder/database/tables/${encodeURIComponent(tableName)}?confirm=true`, {
+                    method: 'DELETE',
+                    headers: authHeaders()
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to delete table');
+                }
+
+                // Clear current table if it was deleted
+                if (currentTable === tableName) {
+                    currentTable = null;
+                    document.getElementById('tableDetail').innerHTML = `
+                        <div class="empty-state">
+                            <h3>Select a table</h3>
+                            <p>Choose a table from the sidebar to view its structure and data</p>
+                        </div>
+                    `;
+                }
+
+                // Reload table list
+                loadTables();
+                
+                alert(`Table "${tableName}" has been deleted successfully.`);
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('editModal').classList.remove('show');
+        }
+
+        // Initialize
+        document.getElementById('loginButton').addEventListener('click', login);
+        document.getElementById('loginEmail').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') login();
+        });
+        document.getElementById('loginPassword').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') login();
+        });
+
+        // Check existing session
+        (async () => {
+            try {
+                await validateSession();
+                document.getElementById('loginOverlay').classList.add('hidden');
+                document.getElementById('appShell').style.display = 'flex';
+                loadTables();
+            } catch {
+                document.getElementById('loginOverlay').classList.remove('hidden');
+            }
+        })();
+    </script>
+</body>
+</html>
+
