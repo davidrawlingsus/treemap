@@ -2354,33 +2354,7 @@
                                     <button id="clearAllFilters" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 12px; font-weight: 500;">Clear All</button>
                                 </div>
                                 <div id="filterTypeList" style="padding: 8px;">
-                                    <div class="filter-type-option" data-type="category" style="padding: 12px; margin: 4px 0; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: background 0.2s;">
-                                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                                            <div>
-                                                <strong style="font-size: 14px; color: #333;">Category</strong>
-                                                <div style="font-size: 12px; color: #666; margin-top: 2px;">Filter by conversation categories</div>
-                                            </div>
-                                            <span style="font-size: 18px;">→</span>
-                                        </div>
-                                    </div>
-                                    <div class="filter-type-option" data-type="topic" style="padding: 12px; margin: 4px 0; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: background 0.2s;">
-                                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                                            <div>
-                                                <strong style="font-size: 14px; color: #333;">Topic</strong>
-                                                <div style="font-size: 12px; color: #666; margin-top: 2px;">Filter by specific topics</div>
-                                            </div>
-                                            <span style="font-size: 18px;">→</span>
-                                        </div>
-                                    </div>
-                                    <div class="filter-type-option" data-type="metadata" style="padding: 12px; margin: 4px 0; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: background 0.2s;">
-                                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                                            <div>
-                                                <strong style="font-size: 14px; color: #333;">Metadata</strong>
-                                                <div style="font-size: 12px; color: #666; margin-top: 2px;">Filter by metadata fields including location</div>
-                                            </div>
-                                            <span style="font-size: 18px;">→</span>
-                                        </div>
-                                    </div>
+                                    <!-- Filter types will be dynamically populated here -->
                                 </div>
                                 <div id="activeFiltersList" style="padding: 8px 12px; border-top: 1px solid #e0e0e0; background: #f8f9fa; max-height: 150px; overflow-y: auto;"></div>
                             </div>
@@ -3632,20 +3606,33 @@
             filteredRows.forEach(row => {
                 const respondentId = row.respondent_id;
                 if (!grouped[respondentId]) {
+                    // Build metadata object from survey_metadata.metadata if available,
+                    // otherwise fall back to individual columns for backwards compatibility
+                    const surveyMetadata = row.survey_metadata?.metadata || {};
+                    
+                    // Merge survey metadata with other fields that aren't part of survey_metadata
+                    // (These are always needed regardless of survey_metadata)
+                    // Note: dimension_name is removed from metadata as requested
+                    const metadata = {
+                        ref_key: dimensionRef || row.dimension_ref,
+                        source_type: row.data_source || '',
+                        created_at: row.created,
+                        sentiment: row.overall_sentiment || 'neutral',
+                        // Merge in all fields from survey_metadata.metadata
+                        ...surveyMetadata
+                    };
+                    
+                    // Map 'region' to 'country' for backwards compatibility with existing code
+                    if (metadata.region && !metadata.country) {
+                        metadata.country = metadata.region;
+                    }
+                    
                     grouped[respondentId] = {
                         row_id: respondentId,
                         text: row.value || '',
                         topics: [],
                         sentiment: row.overall_sentiment || 'neutral',
-                        metadata: {
-                            ref_key: dimensionRef || row.dimension_ref,
-                            dimension_name: row.dimension_name,
-                            country: row.region || '',
-                            source_type: row.data_source || '',
-                            created_at: row.submit_date || row.created,
-                            user_type: row.user_type || '',
-                            sentiment: row.overall_sentiment || 'neutral'
-                        }
+                        metadata: metadata
                     };
                 }
                 
@@ -4065,9 +4052,103 @@
             availableLocations = Array.from(locations).sort();
             
             // Convert metadata field Sets to sorted arrays
+            // Exclude sentiment and dimension_name from metadata fields (sentiment is top-level, dimension_name removed)
             availableMetadataFields = {};
+            let sentimentValues = [];
             Object.keys(metadataFields).forEach(key => {
-                availableMetadataFields[key] = Array.from(metadataFields[key]).sort();
+                // Skip dimension_name (removed from UI)
+                if (key === 'dimension_name') return;
+                
+                // Store sentiment separately for top-level filter
+                if (key === 'sentiment') {
+                    sentimentValues = Array.from(metadataFields[key]).sort();
+                } else {
+                    // All other metadata fields go into availableMetadataFields
+                    availableMetadataFields[key] = Array.from(metadataFields[key]).sort();
+                }
+            });
+            
+            // Populate filter type list dynamically after extracting options
+            populateFilterTypeList(sentimentValues);
+        }
+        
+        function populateFilterTypeList(sentimentValues = []) {
+            const filterTypeList = document.getElementById('filterTypeList');
+            if (!filterTypeList) return;
+            
+            filterTypeList.innerHTML = '';
+            
+            // Always show Category and Topic
+            const staticFilters = [
+                {
+                    type: 'category',
+                    label: 'Category',
+                    description: 'Filter by conversation categories'
+                },
+                {
+                    type: 'topic',
+                    label: 'Topic',
+                    description: 'Filter by specific topics'
+                }
+            ];
+            
+            // Add Sentiment as top-level filter if available
+            if (sentimentValues && sentimentValues.length > 0) {
+                staticFilters.push({
+                    type: 'sentiment',
+                    label: 'Sentiment',
+                    description: 'Filter by sentiment (positive, negative, neutral)'
+                });
+                // Store sentiment values in availableMetadataFields for getAvailableItemsForType
+                availableMetadataFields['sentiment'] = sentimentValues;
+            }
+            
+            // Add Metadata as a top-level option that opens the metadata field selection view
+            const metadataFieldCount = Object.keys(availableMetadataFields)
+                .filter(key => key !== 'sentiment' && key !== 'dimension_name')
+                .length;
+            
+            if (metadataFieldCount > 0) {
+                staticFilters.push({
+                    type: 'metadata',
+                    label: 'Metadata',
+                    description: `Filter by ${metadataFieldCount} metadata field${metadataFieldCount !== 1 ? 's' : ''}`
+                });
+            }
+            
+            // Create filter type options (only top-level: Category, Topic, Sentiment, Metadata)
+            staticFilters.forEach(filter => {
+                const option = document.createElement('div');
+                option.className = 'filter-type-option';
+                option.dataset.type = filter.type;
+                option.style.cssText = 'padding: 12px; margin: 4px 0; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: background 0.2s;';
+                option.onmouseover = () => option.style.background = '#f5f5f5';
+                option.onmouseout = () => option.style.background = 'transparent';
+                option.onclick = () => {
+                    currentFilterType = filter.type;
+                    currentFilterSelections.clear();
+                    if (filter.type === 'metadata') {
+                        // Metadata opens the metadata field selection view (second level)
+                        currentMetadataField = null;
+                        showMetadataFieldView();
+                    } else {
+                        // Category, Topic, or Sentiment - go directly to value selection
+                        currentMetadataField = null;
+                        showFilterSelectionView();
+                    }
+                };
+                
+                option.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong style="font-size: 14px; color: #333;">${filter.label}</strong>
+                            <div style="font-size: 12px; color: #666; margin-top: 2px;">${filter.description}</div>
+                        </div>
+                        <span style="font-size: 18px;">→</span>
+                    </div>
+                `;
+                
+                filterTypeList.appendChild(option);
             });
         }
 
@@ -4130,6 +4211,10 @@
                                     topic && topic.label && rule.values.has(topic.label)
                                 );
                             }
+                        } else if (rule.type === 'sentiment') {
+                            // Check sentiment from metadata or row-level sentiment
+                            const sentiment = row.metadata?.sentiment || row.sentiment || 'neutral';
+                            matches = rule.values.has(sentiment);
                         } else if (rule.type === 'location') {
                             // Location filtering is now handled via metadata field 'location'
                             // This is kept for backwards compatibility but should use metadata type instead
@@ -4319,22 +4404,8 @@
                 }
             });
             
-            // Filter type selection
-            document.querySelectorAll('.filter-type-option').forEach(option => {
-                option.onmouseover = () => option.style.background = '#f5f5f5';
-                option.onmouseout = () => option.style.background = 'transparent';
-                option.onclick = () => {
-                    currentFilterType = option.dataset.type;
-                    currentFilterSelections.clear();
-                    currentMetadataField = null;
-                    resetFilterSelectionSearch();
-                    if (currentFilterType === 'metadata') {
-                        showMetadataFieldView();
-                    } else {
-                        showFilterSelectionView();
-                    }
-                };
-            });
+            // Filter type selection is now handled dynamically in populateFilterTypeList()
+            // This code is kept for backwards compatibility but will be overridden by dynamic handlers
             
             // Back from metadata field view
             const backFromMetadataField = document.getElementById('backFromMetadataField');
@@ -4376,7 +4447,7 @@
                 const mode = document.querySelector('input[name="filterMode"]:checked').value;
                 
                 // Add or update filter rule for this type
-                if (currentFilterType === 'metadata') {
+                if (currentFilterType === 'metadata' && currentMetadataField) {
                     // For metadata filters, check by metadataField
                     const existingRuleIndex = filterRules.findIndex(r => 
                         r.type === 'metadata' && r.metadataField === currentMetadataField
@@ -4395,7 +4466,7 @@
                         });
                     }
                 } else {
-                    // For other filter types
+                    // For other filter types (category, topic, sentiment)
                     const existingRuleIndex = filterRules.findIndex(r => r.type === currentFilterType);
                     if (existingRuleIndex >= 0) {
                         // Update existing rule
@@ -4471,12 +4542,13 @@
                     .join(' ');
                 title.textContent = `Select ${fieldLabel} Values`;
             } else {
-                        const typeLabels = {
-                            'category': 'Categories',
-                            'topic': 'Topics',
-                            'location': 'Locations' // Kept for backwards compatibility
-                        };
-                        title.textContent = `Select ${typeLabels[currentFilterType] || 'Items'}`;
+                const typeLabels = {
+                    'category': 'Categories',
+                    'topic': 'Topics',
+                    'sentiment': 'Sentiment',
+                    'location': 'Locations' // Kept for backwards compatibility
+                };
+                title.textContent = `Select ${typeLabels[currentFilterType] || 'Items'}`;
             }
             
             // Validate that metadataField is set for metadata filters
@@ -4540,6 +4612,7 @@
         function getAvailableItemsForType(type) {
             if (type === 'category') return availableCategories;
             if (type === 'topic') return availableTopics;
+            if (type === 'sentiment') return availableMetadataFields['sentiment'] || [];
             if (type === 'location') return availableLocations; // Kept for backwards compatibility
             if (type === 'metadata' && currentMetadataField) {
                 return availableMetadataFields[currentMetadataField] || [];
@@ -4551,7 +4624,10 @@
             const fieldList = document.getElementById('metadataFieldList');
             fieldList.innerHTML = '';
             
-            const fields = Object.keys(availableMetadataFields).sort();
+            // Get all metadata fields, excluding sentiment (top-level) and dimension_name (removed)
+            const fields = Object.keys(availableMetadataFields)
+                .filter(key => key !== 'sentiment' && key !== 'dimension_name')
+                .sort();
             
             if (fields.length === 0) {
                 fieldList.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">No metadata fields found</div>';
@@ -4673,6 +4749,7 @@
                         const typeLabels = {
                             'category': 'Category',
                             'topic': 'Topic',
+                            'sentiment': 'Sentiment',
                             'location': 'Location' // Kept for backwards compatibility
                         };
                         typeLabel = typeLabels[rule.type] || rule.type;
@@ -4700,6 +4777,10 @@
                         resetFilterSelectionSearch();
                         if (rule.type === 'metadata' && rule.metadataField) {
                             currentMetadataField = rule.metadataField;
+                            showFilterSelectionView();
+                        } else if (rule.type === 'sentiment' || rule.type === 'category' || rule.type === 'topic') {
+                            // Top-level filters (sentiment, category, topic) - go directly to value selection
+                            currentMetadataField = null;
                             showFilterSelectionView();
                         } else {
                             showFilterSelectionView();
