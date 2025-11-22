@@ -264,6 +264,7 @@ class ProcessVocResponse(BaseModel):
     value: Optional[str] = None
     overall_sentiment: Optional[str] = None
     topics: Optional[List[dict]] = None
+    survey_metadata: Optional[dict] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     client_uuid: Optional[UUID] = None
