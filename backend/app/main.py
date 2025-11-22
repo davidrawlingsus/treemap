@@ -2828,12 +2828,13 @@ def add_table_column(
 @app.delete("/api/founder/database/tables/{table_name}")
 def delete_table(
     table_name: str,
-    confirm: bool = False,
+    confirm: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_founder),
 ):
     """Delete a table. ⚠️ DANGEROUS: This will permanently delete all data in the table."""
-    if not confirm:
+    # Handle confirm parameter - FastAPI query params come as strings
+    if confirm is None or confirm.lower() not in ('true', '1', 'yes'):
         raise HTTPException(
             status_code=400,
             detail="Deletion requires explicit confirmation. Set 'confirm=true' parameter."
@@ -2841,18 +2842,53 @@ def delete_table(
     
     inspector = inspect(engine)
     
-    if table_name not in inspector.get_table_names():
+    # Get list of tables - use exact name from database
+    table_names = inspector.get_table_names()
+    if table_name not in table_names:
         raise HTTPException(status_code=404, detail=f"Table '{table_name}' not found")
     
+    # Get the exact table name as it appears in PostgreSQL (handles case sensitivity)
+    # Since inspector returns the actual names, we should use the exact match
+    actual_table_name = table_name  # Use the parameter which should match exactly
+    
     try:
-        drop_sql = f'DROP TABLE "{table_name}" CASCADE'
-        db.execute(text(drop_sql))
+        # PostgreSQL: unquoted identifiers are lowercased, quoted preserve case
+        # Try with quotes first (most common), then without if needed
+        # Use CASCADE to handle foreign key constraints
+        try:
+            # Use the exact table name with quotes to preserve any case sensitivity
+            drop_sql = text(f'DROP TABLE "{actual_table_name}" CASCADE')
+            result = db.execute(drop_sql)
+            logger.info(f"Executed: DROP TABLE \"{actual_table_name}\" CASCADE")
+        except Exception as first_error:
+            # If quoted version fails (rare), try unquoted lowercase
+            logger.warning(f"Quoted drop failed for {actual_table_name}, trying unquoted: {first_error}")
+            drop_sql = text(f'DROP TABLE {actual_table_name.lower()} CASCADE')
+            result = db.execute(drop_sql)
+            actual_table_name = actual_table_name.lower()
+        
         db.commit()
         
+        # Verify deletion by checking if table still exists
+        fresh_inspector = inspect(engine)
+        remaining_tables = fresh_inspector.get_table_names()
+        if actual_table_name in remaining_tables or table_name in remaining_tables:
+            logger.error(f"Table {table_name} still exists after deletion. Remaining: {remaining_tables}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Table '{table_name}' still exists after deletion attempt. Remaining tables: {', '.join(remaining_tables[:5])}"
+            )
+        
+        logger.info(f"Successfully deleted table: {table_name}")
         return {"message": f"Table '{table_name}' deleted successfully"}
+    except HTTPException:
+        db.rollback()
+        raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=400, detail=f"Failed to delete table: {str(e)}")
+        error_msg = str(e)
+        logger.error(f"Failed to delete table {table_name}: {error_msg}", exc_info=True)
+        raise HTTPException(status_code=400, detail=f"Failed to delete table: {error_msg}")
 
 
 @app.delete("/api/founder/database/tables/{table_name}/columns/{column_name}")

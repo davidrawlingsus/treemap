@@ -857,9 +857,12 @@
                 });
 
                 if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.detail || 'Failed to delete table');
+                    const errorData = await response.json().catch(() => ({ detail: `HTTP ${response.status}: ${response.statusText}` }));
+                    throw new Error(errorData.detail || 'Failed to delete table');
                 }
+
+                const result = await response.json();
+                console.log('Delete table response:', result);
 
                 // Clear current table if it was deleted
                 if (currentTable === tableName) {
@@ -873,11 +876,12 @@
                 }
 
                 // Reload table list
-                loadTables();
+                await loadTables();
                 
                 alert(`Table "${tableName}" has been deleted successfully.`);
             } catch (error) {
-                alert(`Error: ${error.message}`);
+                console.error('Delete table error:', error);
+                alert(`Error deleting table: ${error.message}`);
             }
         }
 
