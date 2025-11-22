@@ -3622,11 +3622,6 @@
                         ...surveyMetadata
                     };
                     
-                    // Map 'region' to 'country' for backwards compatibility with existing code
-                    if (metadata.region && !metadata.country) {
-                        metadata.country = metadata.region;
-                    }
-                    
                     grouped[respondentId] = {
                         row_id: respondentId,
                         text: row.value || '',
@@ -3986,7 +3981,6 @@
         function extractAvailableFilterOptions(data) {
             const categories = new Set();
             const topics = new Set();
-            const locations = new Set();
             const metadataFields = {}; // Map of fieldName -> Set of values
             
             data.forEach(row => {
@@ -4001,16 +3995,7 @@
                     });
                 }
                 if (row && row.metadata) {
-                    const country = row.metadata.country;
-                    const city = row.metadata.city;
-                    if (country) {
-                        locations.add(country);
-                    }
-                    if (city && country) {
-                        locations.add(`${city}, ${country}`);
-                    }
-                    
-                    // Extract all metadata fields including location fields
+                    // Extract all metadata fields as-is from raw metadata (no computation, no mapping)
                     Object.keys(row.metadata).forEach(key => {
                         if (!metadataFields[key]) {
                             metadataFields[key] = new Set();
@@ -4024,19 +4009,6 @@
                             metadataFields[key].add(trimmedValue);
                         }
                     });
-                    
-                    // Also add location as a combined field for easier filtering
-                    if (country || city) {
-                        if (!metadataFields['location']) {
-                            metadataFields['location'] = new Set();
-                        }
-                        if (city && country) {
-                            metadataFields['location'].add(`${city}, ${country}`);
-                        }
-                        if (country) {
-                            metadataFields['location'].add(country);
-                        }
-                    }
                 }
                 // Also check row-level sentiment (in case it's not in metadata)
                 if (row && row.sentiment) {
@@ -4049,7 +4021,7 @@
             
             availableCategories = Array.from(categories).sort();
             availableTopics = Array.from(topics).sort();
-            availableLocations = Array.from(locations).sort();
+            availableLocations = []; // No longer computed, kept for backwards compatibility
             
             // Convert metadata field Sets to sorted arrays
             // Exclude sentiment and dimension_name from metadata fields (sentiment is top-level, dimension_name removed)
@@ -4216,38 +4188,17 @@
                             const sentiment = row.metadata?.sentiment || row.sentiment || 'neutral';
                             matches = rule.values.has(sentiment);
                         } else if (rule.type === 'location') {
-                            // Location filtering is now handled via metadata field 'location'
+                            // Location filtering is now handled via metadata field filters
                             // This is kept for backwards compatibility but should use metadata type instead
-                            const country = row.metadata?.country || '';
-                            const city = row.metadata?.city || '';
-                            const locationStr = city && country ? `${city}, ${country}` : country;
-                            
-                            matches = rule.values.has(country) || rule.values.has(locationStr);
+                            matches = false; // Legacy location type - use metadata filters instead
                         } else if (rule.type === 'metadata' && rule.metadataField) {
-                            // Special handling for computed 'location' field
-                            let fieldValue;
-                            if (rule.metadataField === 'location') {
-                                // Compute location from country and city
-                                const country = row.metadata?.country || '';
-                                const city = row.metadata?.city || '';
-                                const locationStr = city && country ? `${city}, ${country}` : country;
-                                fieldValue = locationStr;
-                            } else {
-                                // For other metadata fields, get directly from metadata
-                                fieldValue = row.metadata?.[rule.metadataField];
-                            }
+                            // Get metadata field value directly from metadata
+                            const fieldValue = row.metadata?.[rule.metadataField];
                             
                             if (fieldValue !== null && fieldValue !== undefined && fieldValue !== '') {
                                 // Convert to string and trim for comparison
                                 const strValue = String(fieldValue).trim();
-                                // Check if the value matches any selected filter value
-                                // For location, also check if country alone matches
-                                if (rule.metadataField === 'location') {
-                                    const country = row.metadata?.country || '';
-                                    matches = rule.values.has(strValue) || rule.values.has(country);
-                                } else {
-                                    matches = rule.values.has(strValue);
-                                }
+                                matches = rule.values.has(strValue);
                                 
                                 // Debug logging for first mismatch
                                 if (!matches && rule.mode === 'include' && !rule._debugLogged) {
