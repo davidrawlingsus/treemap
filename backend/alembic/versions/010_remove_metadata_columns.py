@@ -24,12 +24,19 @@ def upgrade():
     Remove individual metadata columns from process_voc table.
     All data has been migrated to survey_metadata JSONB column.
     """
-    # Drop the individual metadata columns
-    op.drop_column('process_voc', 'region')
-    op.drop_column('process_voc', 'response_type')
-    op.drop_column('process_voc', 'user_type')
-    op.drop_column('process_voc', 'start_date')
-    op.drop_column('process_voc', 'submit_date')
+    # Check which columns exist before dropping (for idempotency)
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    
+    # Get existing columns
+    existing_columns = [col['name'] for col in inspector.get_columns('process_voc')]
+    
+    # Drop the individual metadata columns only if they exist
+    columns_to_drop = ['region', 'response_type', 'user_type', 'start_date', 'submit_date']
+    
+    for column_name in columns_to_drop:
+        if column_name in existing_columns:
+            op.drop_column('process_voc', column_name)
 
 
 def downgrade():
