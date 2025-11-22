@@ -379,6 +379,54 @@
             margin-bottom: 8px;
         }
 
+        .column-row {
+            display: grid;
+            grid-template-columns: 2fr 1.5fr 100px 80px auto;
+            gap: 8px;
+            margin-bottom: 12px;
+            align-items: end;
+        }
+
+        .column-row input,
+        .column-row select {
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .column-row label {
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .column-row .form-group {
+            margin: 0;
+        }
+
+        .column-row .form-group input[type="checkbox"] {
+            width: auto;
+            cursor: pointer;
+            margin: 0;
+        }
+
+        .remove-column-btn {
+            background: var(--danger);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .remove-column-btn:hover {
+            background: #c53030;
+        }
+
         @media (max-width: 1024px) {
             .main-content {
                 flex-direction: column;
@@ -412,7 +460,12 @@
 
         <div class="main-content">
             <aside class="sidebar">
-                <h2>Tables</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h2 style="margin: 0;">Tables</h2>
+                    <button class="btn btn-primary" onclick="showCreateTableModal()" style="padding: 6px 12px; font-size: 12px;">
+                        + Create
+                    </button>
+                </div>
                 <ul class="table-list" id="tableList">
                     <li class="table-item">
                         <div style="text-align: center; padding: 20px; color: var(--muted);">
@@ -441,6 +494,49 @@
                 <button class="btn btn-secondary" onclick="closeModal()">×</button>
             </div>
             <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <!-- Modal for creating tables -->
+    <div id="createTableModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3>Create New Table</h3>
+                <button class="btn btn-secondary" onclick="closeCreateTableModal()">×</button>
+            </div>
+            <div id="createTableBody">
+                <form id="createTableForm">
+                    <div class="form-group">
+                        <label>Table Name *</label>
+                        <input type="text" id="tableNameInput" required pattern="[a-zA-Z0-9_]+" 
+                               placeholder="my_table_name" style="font-family: monospace;">
+                        <small style="color: var(--muted); font-size: 12px; margin-top: 4px; display: block;">
+                            Only letters, numbers, and underscores allowed
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <label style="margin: 0;">Columns *</label>
+                            <button type="button" class="btn btn-secondary" onclick="addColumnRow()" 
+                                    style="padding: 6px 12px; font-size: 12px;">+ Add Column</button>
+                        </div>
+                        <div id="columnsContainer">
+                            <!-- Column rows will be added here -->
+                        </div>
+                        <small style="color: var(--muted); font-size: 12px; margin-top: 4px; display: block;">
+                            At least one column is required
+                        </small>
+                    </div>
+
+                    <div id="createTableError" class="alert alert-danger" style="display: none;"></div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeCreateTableModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create Table</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -888,6 +984,218 @@
         function closeModal() {
             document.getElementById('editModal').classList.remove('show');
         }
+
+        function showCreateTableModal() {
+            const modal = document.getElementById('createTableModal');
+            const container = document.getElementById('columnsContainer');
+            
+            // Reset form
+            document.getElementById('createTableForm').reset();
+            document.getElementById('tableNameInput').value = '';
+            document.getElementById('createTableError').style.display = 'none';
+            container.innerHTML = '';
+            
+            // Add initial column row
+            addColumnRow();
+            
+            modal.classList.add('show');
+        }
+
+        function closeCreateTableModal() {
+            document.getElementById('createTableModal').classList.remove('show');
+        }
+
+        function addColumnRow() {
+            const container = document.getElementById('columnsContainer');
+            const index = container.children.length;
+            
+            const row = document.createElement('div');
+            row.className = 'column-row';
+            row.dataset.index = index;
+            
+            row.innerHTML = `
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" name="col_name_${index}" placeholder="column_name" 
+                           pattern="[a-zA-Z0-9_]+" required style="font-family: monospace;">
+                </div>
+                <div class="form-group">
+                    <label>Type</label>
+                    <select name="col_type_${index}" required>
+                        <option value="TEXT">TEXT</option>
+                        <option value="INTEGER">INTEGER</option>
+                        <option value="BIGINT">BIGINT</option>
+                        <option value="BOOLEAN">BOOLEAN</option>
+                        <option value="NUMERIC">NUMERIC</option>
+                        <option value="TIMESTAMP">TIMESTAMP</option>
+                        <option value="DATE">DATE</option>
+                        <option value="UUID">UUID</option>
+                        <option value="JSONB">JSONB</option>
+                    </select>
+                </div>
+                <div class="form-group" style="display: flex; align-items: center; padding-top: 20px;">
+                    <label style="margin-right: 8px; margin-bottom: 0;">Nullable:</label>
+                    <input type="checkbox" name="col_nullable_${index}" checked style="margin: 0;">
+                </div>
+                <div class="form-group">
+                    <label>Default</label>
+                    <input type="text" name="col_default_${index}" placeholder="optional">
+                </div>
+                <div class="form-group" style="display: flex; align-items: end; padding-bottom: 0;">
+                    <button type="button" class="remove-column-btn" onclick="removeColumnRow(${index})" 
+                            title="Remove column" style="width: 100%;">×</button>
+                </div>
+            `;
+            
+            container.appendChild(row);
+        }
+
+        function removeColumnRow(index) {
+            const container = document.getElementById('columnsContainer');
+            const row = container.querySelector(`[data-index="${index}"]`);
+            if (row) {
+                row.remove();
+                // Reindex remaining rows
+                Array.from(container.children).forEach((child, idx) => {
+                    child.dataset.index = idx;
+                    const inputs = child.querySelectorAll('input, select');
+                    inputs.forEach(input => {
+                        const name = input.name;
+                        if (name) {
+                            input.name = name.replace(/_\d+/, `_${idx}`);
+                        }
+                    });
+                    const removeBtn = child.querySelector('.remove-column-btn');
+                    if (removeBtn) {
+                        removeBtn.onclick = () => removeColumnRow(idx);
+                    }
+                });
+            }
+        }
+
+        // Handle create table form submission
+        document.addEventListener('DOMContentLoaded', () => {
+            const createTableForm = document.getElementById('createTableForm');
+            if (createTableForm) {
+                createTableForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const errorEl = document.getElementById('createTableError');
+                    errorEl.style.display = 'none';
+                    
+                    const tableName = document.getElementById('tableNameInput').value.trim();
+                    const container = document.getElementById('columnsContainer');
+                    
+                    if (!tableName) {
+                        errorEl.textContent = 'Table name is required';
+                        errorEl.style.display = 'block';
+                        return;
+                    }
+                    
+                    // Validate table name
+                    if (!/^[a-zA-Z0-9_]+$/.test(tableName)) {
+                        errorEl.textContent = 'Table name can only contain letters, numbers, and underscores';
+                        errorEl.style.display = 'block';
+                        return;
+                    }
+                    
+                    // Collect columns
+                    const columns = [];
+                    const columnRows = Array.from(container.querySelectorAll('.column-row'));
+                    
+                    if (columnRows.length === 0) {
+                        errorEl.textContent = 'At least one column is required';
+                        errorEl.style.display = 'block';
+                        return;
+                    }
+                    
+                    for (const row of columnRows) {
+                        const nameInput = row.querySelector('input[name^="col_name_"]');
+                        const typeSelect = row.querySelector('select[name^="col_type_"]');
+                        const nullableCheck = row.querySelector('input[name^="col_nullable_"]');
+                        const defaultInput = row.querySelector('input[name^="col_default_"]');
+                        
+                        if (!nameInput || !typeSelect || !nullableCheck || !defaultInput) {
+                            continue; // Skip invalid rows
+                        }
+                        
+                        const name = nameInput.value.trim();
+                        const type = typeSelect.value;
+                        const nullable = nullableCheck.checked;
+                        const defaultVal = defaultInput.value.trim();
+                        
+                        if (!name) {
+                            errorEl.textContent = 'All columns must have a name';
+                            errorEl.style.display = 'block';
+                            return;
+                        }
+                        
+                        if (!/^[a-zA-Z0-9_]+$/.test(name)) {
+                            errorEl.textContent = `Column name "${name}" can only contain letters, numbers, and underscores`;
+                            errorEl.style.display = 'block';
+                            return;
+                        }
+                        
+                        const col = {
+                            name: name,
+                            type: type,
+                            nullable: nullable
+                        };
+                        
+                        if (defaultVal) {
+                            // Try to parse numeric/boolean defaults
+                            if (type === 'INTEGER' || type === 'BIGINT' || type === 'NUMERIC') {
+                                const num = Number(defaultVal);
+                                if (!isNaN(num)) {
+                                    col.default = num;
+                                } else {
+                                    col.default = defaultVal;
+                                }
+                            } else if (type === 'BOOLEAN') {
+                                col.default = defaultVal.toLowerCase() === 'true';
+                            } else {
+                                col.default = defaultVal;
+                            }
+                        }
+                        
+                        columns.push(col);
+                    }
+                    
+                    if (columns.length === 0) {
+                        errorEl.textContent = 'At least one valid column is required';
+                        errorEl.style.display = 'block';
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/api/founder/database/tables`, {
+                            method: 'POST',
+                            headers: authHeaders(),
+                            body: JSON.stringify({
+                                table_name: tableName,
+                                columns: columns
+                            })
+                        });
+                        
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.detail || 'Failed to create table');
+                        }
+                        
+                        const result = await response.json();
+                        closeCreateTableModal();
+                        
+                        // Reload tables and select the new table
+                        await loadTables();
+                        await selectTable(tableName);
+                        
+                        alert(result.message || `Table "${tableName}" created successfully!`);
+                    } catch (error) {
+                        errorEl.textContent = `Error: ${error.message}`;
+                        errorEl.style.display = 'block';
+                    }
+                });
+            }
+        });
 
         // Initialize
         document.getElementById('loginButton').addEventListener('click', login);
