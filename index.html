@@ -3733,64 +3733,132 @@
             
             console.log(`Filtered to ${filteredRows.length} rows`);
             
-            // Group by respondent_id
-            const grouped = {};
-            let totalTopics = 0;
-            let rowsWithoutTopics = 0;
-            
-            filteredRows.forEach(row => {
-                const respondentId = row.respondent_id;
-                if (!grouped[respondentId]) {
-                    // Build metadata object from survey_metadata.metadata if available,
-                    // otherwise fall back to individual columns for backwards compatibility
-                    const surveyMetadata = row.survey_metadata?.metadata || {};
+            // When "All Dimensions" is selected, we need to preserve dimension context with topics
+            // to avoid mixing verbatims from different dimensions
+            if (!dimensionRef) {
+                // Group by respondent_id AND dimension_ref to keep topics separate
+                const grouped = {};
+                let totalTopics = 0;
+                let rowsWithoutTopics = 0;
+                
+                filteredRows.forEach(row => {
+                    const key = `${row.respondent_id}::${row.dimension_ref}`;
+                    if (!grouped[key]) {
+                        // Build metadata object from survey_metadata.metadata if available,
+                        // otherwise fall back to individual columns for backwards compatibility
+                        const surveyMetadata = row.survey_metadata?.metadata || {};
+                        
+                        // Merge survey metadata with other fields that aren't part of survey_metadata
+                        // (These are always needed regardless of survey_metadata)
+                        // Note: dimension_name is removed from metadata as requested
+                        const metadata = {
+                            ref_key: row.dimension_ref,
+                            source_type: row.data_source || '',
+                            created_at: row.created,
+                            sentiment: row.overall_sentiment || 'neutral',
+                            // Merge in all fields from survey_metadata.metadata
+                            ...surveyMetadata
+                        };
+                        
+                        grouped[key] = {
+                            row_id: row.respondent_id,
+                            text: row.value || '',
+                            topics: [],
+                            sentiment: row.overall_sentiment || 'neutral',
+                            metadata: metadata,
+                            dimension_ref: row.dimension_ref // Preserve dimension for topic matching
+                        };
+                    }
                     
-                    // Merge survey metadata with other fields that aren't part of survey_metadata
-                    // (These are always needed regardless of survey_metadata)
-                    // Note: dimension_name is removed from metadata as requested
-                    const metadata = {
-                        ref_key: dimensionRef || row.dimension_ref,
-                        source_type: row.data_source || '',
-                        created_at: row.created,
-                        sentiment: row.overall_sentiment || 'neutral',
-                        // Merge in all fields from survey_metadata.metadata
-                        ...surveyMetadata
-                    };
+                    // Add topics with dimension context
+                    if (row.topics && Array.isArray(row.topics)) {
+                        // Attach dimension_ref to each topic so we can match verbatims correctly
+                        const topicsWithDimension = row.topics.map(topic => ({
+                            ...topic,
+                            _dimension_ref: row.dimension_ref // Internal field for matching
+                        }));
+                        grouped[key].topics.push(...topicsWithDimension);
+                        totalTopics += row.topics.length;
+                    } else {
+                        rowsWithoutTopics++;
+                    }
                     
-                    grouped[respondentId] = {
-                        row_id: respondentId,
-                        text: row.value || '',
-                        topics: [],
-                        sentiment: row.overall_sentiment || 'neutral',
-                        metadata: metadata
-                    };
+                    // Use first non-empty value as text
+                    if (!grouped[key].text && row.value) {
+                        grouped[key].text = row.value;
+                    }
+                });
+                
+                const result = Object.values(grouped);
+                console.log(`Grouped into ${result.length} unique respondent-dimension combinations with ${totalTopics} total topics`);
+                if (rowsWithoutTopics > 0) {
+                    console.log(`Note: ${rowsWithoutTopics} row(s) without topics (expected behavior - some dimensions may not have topics)`);
+                }
+                if (result.length > 0) {
+                    console.log(`Sample grouped row:`, JSON.stringify(result[0], null, 2).substring(0, 300));
                 }
                 
-                // Merge topics from this dimension
-                if (row.topics && Array.isArray(row.topics)) {
-                    grouped[respondentId].topics.push(...row.topics);
-                    totalTopics += row.topics.length;
-                } else if (dimensionRef) {
-                    // Track rows without topics (expected for some dimensions)
-                    rowsWithoutTopics++;
+                return result;
+            } else {
+                // Single dimension: group by respondent_id only (original behavior)
+                const grouped = {};
+                let totalTopics = 0;
+                let rowsWithoutTopics = 0;
+                
+                filteredRows.forEach(row => {
+                    const respondentId = row.respondent_id;
+                    if (!grouped[respondentId]) {
+                        // Build metadata object from survey_metadata.metadata if available,
+                        // otherwise fall back to individual columns for backwards compatibility
+                        const surveyMetadata = row.survey_metadata?.metadata || {};
+                        
+                        // Merge survey metadata with other fields that aren't part of survey_metadata
+                        // (These are always needed regardless of survey_metadata)
+                        // Note: dimension_name is removed from metadata as requested
+                        const metadata = {
+                            ref_key: dimensionRef || row.dimension_ref,
+                            source_type: row.data_source || '',
+                            created_at: row.created,
+                            sentiment: row.overall_sentiment || 'neutral',
+                            // Merge in all fields from survey_metadata.metadata
+                            ...surveyMetadata
+                        };
+                        
+                        grouped[respondentId] = {
+                            row_id: respondentId,
+                            text: row.value || '',
+                            topics: [],
+                            sentiment: row.overall_sentiment || 'neutral',
+                            metadata: metadata
+                        };
+                    }
+                    
+                    // Merge topics from this dimension
+                    if (row.topics && Array.isArray(row.topics)) {
+                        grouped[respondentId].topics.push(...row.topics);
+                        totalTopics += row.topics.length;
+                    } else {
+                        // Track rows without topics (expected for some dimensions)
+                        rowsWithoutTopics++;
+                    }
+                    
+                    // Use first non-empty value as text
+                    if (!grouped[respondentId].text && row.value) {
+                        grouped[respondentId].text = row.value;
+                    }
+                });
+                
+                const result = Object.values(grouped);
+                console.log(`Grouped into ${result.length} unique respondents with ${totalTopics} total topics`);
+                if (rowsWithoutTopics > 0) {
+                    console.log(`Note: ${rowsWithoutTopics} row(s) without topics${dimensionRef ? ` for dimension ${dimensionRef}` : ''} (expected behavior - some dimensions may not have topics)`);
+                }
+                if (result.length > 0) {
+                    console.log(`Sample grouped row:`, JSON.stringify(result[0], null, 2).substring(0, 300));
                 }
                 
-                // Use first non-empty value as text
-                if (!grouped[respondentId].text && row.value) {
-                    grouped[respondentId].text = row.value;
-                }
-            });
-            
-            const result = Object.values(grouped);
-            console.log(`Grouped into ${result.length} unique respondents with ${totalTopics} total topics`);
-            if (rowsWithoutTopics > 0) {
-                console.log(`Note: ${rowsWithoutTopics} row(s) without topics${dimensionRef ? ` for dimension ${dimensionRef}` : ''} (expected behavior - some dimensions may not have topics)`);
+                return result;
             }
-            if (result.length > 0) {
-                console.log(`Sample grouped row:`, JSON.stringify(result[0], null, 2).substring(0, 300));
-            }
-            
-            return result;
         }
 
         // Load a specific data source
@@ -4989,12 +5057,19 @@
                 
                 // Normalized format: {row_id, text, topics[], sentiment, metadata{}}
                 const topics = row.topics;
+                const rowDimensionRef = row.dimension_ref || row.metadata?.ref_key;
                 
                 rowsWithTopics++;
                 
                 topics.forEach(topic => {
                     if (!topic || !topic.category) return;
                     topicsFound++;
+
+                    // When "All Dimensions" is selected, only add verbatim to topic if dimensions match
+                    // This prevents verbatims from one dimension being added to topics from another dimension
+                    if (rowDimensionRef && topic._dimension_ref && topic._dimension_ref !== rowDimensionRef) {
+                        return; // Skip this topic - it's from a different dimension
+                    }
 
                     // Get or create category
                     if (!categoryMap.has(topic.category)) {
