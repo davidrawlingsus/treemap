@@ -2038,41 +2038,43 @@ def save_csv_data(
         # The trigger function can_insert_process_voc() expects 'app.user_id' to be set
         # It reads it using: current_setting('app.user_id', true)::UUID
         # PostgreSQL custom variables with dots need to be set using SET (session-level, not LOCAL)
-        savepoint_name = "before_set_vars"
         user_id_str = str(current_user.id)
         
+        # First, ensure we're in a clean transaction state
+        # If there was a previous error, rollback first
         try:
-            # Create savepoint before attempting to set variables
-            db.execute(text(f"SAVEPOINT {savepoint_name}"))
-            
+            db.rollback()
+        except Exception:
+            pass  # Ignore if already clean
+        
+        # Now set the session variable at the start of a fresh transaction
+        try:
             # Set app.user_id as session variable (not LOCAL, as triggers need session-level vars)
             # PostgreSQL allows custom variables with dots when set at session level
             # The function expects: current_setting('app.user_id', true)::UUID
-            # Try both quoted and unquoted versions
-            try:
-                # Try unquoted first (PostgreSQL should handle this)
-                db.execute(text(f"SET app.user_id = '{user_id_str}'"))
-            except Exception:
-                # If that fails, try with quotes around the variable name
-                db.execute(text(f'SET "app.user_id" = \'{user_id_str}\''))
-            
-            # Release savepoint if we got here
-            db.execute(text(f"RELEASE SAVEPOINT {savepoint_name}"))
+            # Use quoted variable name to handle the dot
+            db.execute(text(f'SET "app.user_id" = \'{user_id_str}\''))
             db.flush()
             logger.info(f"Set app.user_id session variable for trigger: {user_id_str}")
             
-        except Exception as e:
-            # If setting variables failed, rollback to savepoint
-            logger.warning(f"Error setting app.user_id (rolling back to savepoint): {e}")
+            # Verify the variable was set correctly
             try:
-                db.execute(text(f"ROLLBACK TO SAVEPOINT {savepoint_name}"))
-                db.execute(text(f"RELEASE SAVEPOINT {savepoint_name}"))
-                db.flush()
-                logger.info("Rolled back to savepoint, transaction state restored")
-            except Exception as rollback_error:
-                logger.error(f"Failed to rollback to savepoint: {rollback_error}")
-                db.rollback()
-                raise HTTPException(status_code=500, detail="Transaction error, please try again")
+                var_check = db.execute(text("SELECT current_setting('app.user_id', true) as user_id")).first()
+                if var_check and var_check.user_id:
+                    logger.info(f"Verified app.user_id is set: {var_check.user_id}")
+                else:
+                    logger.warning("app.user_id session variable was not set correctly")
+            except Exception as verify_error:
+                logger.warning(f"Could not verify app.user_id: {verify_error}")
+            
+        except Exception as e:
+            # If setting variables failed, rollback the entire transaction
+            logger.error(f"Error setting app.user_id session variable: {e}")
+            db.rollback()
+            raise HTTPException(
+                status_code=500, 
+                detail=f"Failed to set database session variables for permission check: {str(e)}"
+            )
         
         # Create a mapping of column names to short dimension_refs
         # dimension_ref must be <= 50 chars, so we'll generate short refs
@@ -2097,8 +2099,10 @@ def save_csv_data(
         rows_to_insert = []
         
         # Process each CSV row
+        # Include project_id in respondent_id to make it unique per upload
+        # This prevents conflicts when the same CSV is uploaded multiple times
         for row_index, csv_row in enumerate(request.csv_data):
-            respondent_id = f"csv_row_{row_index + 1}"
+            respondent_id = f"csv_{request.project_id}_{row_index + 1}"
             
             # For each TTA column, create a processVoc entry
             for tta_mapping in tta_columns:
@@ -2172,44 +2176,59 @@ def save_csv_data(
                 error_str = str(batch_error)
                 logger.error(f"Error inserting batch {i//BATCH_SIZE + 1}: {batch_error}")
                 
-                # Check if it's a trigger permission error
-                if "does not have permission" in error_str.lower() or "check_process_voc_insert" in error_str.lower():
-                    # The trigger is rejecting the inserts - session variables might not be set correctly
-                    logger.error("Trigger permission check failed. Session variables may not be set correctly.")
-                    # Try to get more info about what the trigger expects
-                    try:
-                        trigger_info = db.execute(text("""
-                            SELECT 
-                                pg_get_functiondef(p.oid) as func_def,
-                                pg_get_function_arguments(p.oid) as func_args
-                            FROM pg_proc p
-                            WHERE p.proname = 'check_process_voc_insert'
-                            LIMIT 1
-                        """)).first()
-                        if trigger_info:
-                            logger.error(f"Trigger function info: {trigger_info.func_def[:1000] if trigger_info.func_def else 'N/A'}")
-                    except:
-                        pass
-                    
+                # Always rollback on error to get back to a clean state
+                try:
                     db.rollback()
+                except Exception as rollback_err:
+                    logger.error(f"Error during rollback: {rollback_err}")
+                
+                # Check if transaction was aborted
+                if "current transaction is aborted" in error_str.lower() or "infailedsqltransaction" in error_str.lower():
+                    logger.error("Transaction was aborted")
+                    # Re-set session variable after rollback
+                    try:
+                        db.execute(text(f'SET "app.user_id" = \'{user_id_str}\''))
+                        db.flush()
+                    except Exception as reset_err:
+                        logger.error(f"Could not reset session variable: {reset_err}")
                     raise HTTPException(
-                        status_code=403,
-                        detail=f"Permission denied by database trigger. User may not have permission to insert data for this client. Error: {error_str[:200]}"
+                        status_code=500,
+                        detail="Database transaction error. Please try uploading again."
                     )
                 
-                # If batch insert fails for other reasons, try individual inserts for this batch
-                db.rollback()
-                # Retry with individual inserts for this batch
-                for row_data in batch:
+                # Check if it's a trigger permission error
+                if "does not have permission" in error_str.lower() or "check_process_voc_insert" in error_str.lower() or "permission denied" in error_str.lower():
+                    # The trigger is rejecting the inserts - session variables might not be set correctly
+                    logger.error("Trigger permission check failed. Session variables may not be set correctly.")
+                    
+                    # Verify session variable is still set (after rollback, it should persist)
                     try:
-                        process_voc = ProcessVoc(**row_data)
-                        db.add(process_voc)
-                        db.flush()
-                        rows_created += 1
-                    except Exception as row_error:
-                        logger.error(f"Error inserting row: {row_error}")
-                        # Continue with next row
-                        continue
+                        var_check = db.execute(text("SELECT current_setting('app.user_id', true) as user_id")).first()
+                        if var_check and var_check.user_id:
+                            logger.info(f"Session variable app.user_id is set: {var_check.user_id}")
+                        else:
+                            logger.error("Session variable app.user_id is NOT set - re-setting it")
+                            # Try to re-set it
+                            db.execute(text(f'SET "app.user_id" = \'{user_id_str}\''))
+                            db.flush()
+                    except Exception as verify_error:
+                        logger.error(f"Could not verify/reset session variable: {verify_error}")
+                    
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"Permission denied by database trigger. User may not have permission to insert data for this client. Please verify your access permissions. Error: {error_str[:300]}"
+                    )
+                
+                # For other errors, re-set session variable and fail the batch
+                # Don't try to recover - just fail cleanly
+                try:
+                    db.execute(text(f'SET "app.user_id" = \'{user_id_str}\''))
+                    db.flush()
+                except Exception as reset_err:
+                    logger.error(f"Could not reset session variable: {reset_err}")
+                
+                # Re-raise the original error to be handled by outer exception handler
+                raise
         
         try:
             db.commit()
