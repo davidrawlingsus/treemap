@@ -2340,6 +2340,10 @@
                 </div>
 
                 <div class="data-source-actions">
+                    <!-- Add Data Button -->
+                    <a id="addDataBtn" href="#" style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; text-decoration: none; display: inline-block; margin-right: 8px;">
+                        Add
+                    </a>
                     <!-- Advanced Multi-Filter -->
                     <div class="filter-menu">
                         <button id="filterBtn" class="filter-button" type="button" aria-label="Open filters">
@@ -3342,6 +3346,19 @@
                     console.log('No client selected, skipping project load');
                 }
                 syncFilterTabState();
+                
+                // Add button click handler
+                const addDataBtn = document.getElementById('addDataBtn');
+                if (addDataBtn) {
+                    addDataBtn.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        if (currentClientId) {
+                            window.location.href = `/add.html?client_uuid=${currentClientId}`;
+                        } else {
+                            alert('Please select a client first');
+                        }
+                    });
+                }
             } catch (error) {
                 console.error('Error loading clients:', error);
                 console.error('Error stack:', error.stack);

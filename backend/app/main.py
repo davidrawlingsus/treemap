@@ -9,6 +9,10 @@ from sqlalchemy.sql import sqltypes
 from typing import List, Optional
 import json
 import os
+import csv
+import io
+import uuid
+import hashlib
 from uuid import UUID
 from pathlib import Path
 from urllib.parse import quote, urlparse
@@ -72,6 +76,10 @@ from app.schemas import (
     RowUpdateRequest,
     TableCreateRequest,
     ColumnAddRequest,
+    CsvColumnMapping,
+    CsvUploadResponse,
+    CsvColumnMappingRequest,
+    CsvSaveResponse,
 )
 from app.transformers import DataTransformer, DataSourceType
 from app.config import get_settings
@@ -257,6 +265,17 @@ if (frontend_path / "founder_database.html").exists():
     def serve_founder_database_html():
         """Serve the founder database management page"""
         return FileResponse(frontend_path / "founder_database.html")
+
+if (frontend_path / "add.html").exists():
+    @app.get("/add", response_class=FileResponse)
+    def serve_add():
+        """Serve the add data page"""
+        return FileResponse(frontend_path / "add.html")
+    
+    @app.get("/add.html", response_class=FileResponse)
+    def serve_add_html():
+        """Serve the add data page"""
+        return FileResponse(frontend_path / "add.html")
 
 @app.get("/api")
 def api_info():
@@ -1815,6 +1834,407 @@ def get_voc_clients(
         )
         for info in client_map.values()
     ]
+
+
+@app.post("/api/voc/upload-csv", response_model=CsvUploadResponse)
+async def upload_csv(
+    file: UploadFile = File(...),
+    project_name: str = Form(...),
+    data_source: str = Form(...),
+    client_uuid: UUID = Form(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Upload and parse a CSV file.
+    
+    Returns column headers, sample rows, row count, and full CSV data.
+    Generates random IDs for project_id and data_source_id.
+    """
+    try:
+        # Validate user has access to client
+        client = db.query(Client).filter(Client.id == client_uuid).first()
+        if not client:
+            raise HTTPException(status_code=404, detail="Client not found")
+        
+        # Check user access (simplified - you may want to add membership check)
+        if not current_user.is_founder:
+            # For non-founders, check if they have access via memberships
+            membership = db.query(Membership).filter(
+                Membership.user_id == current_user.id,
+                Membership.client_id == client_uuid
+            ).first()
+            if not membership:
+                raise HTTPException(status_code=403, detail="Access denied to this client")
+
+        # Read and parse CSV
+        contents = await file.read()
+        
+        # Try UTF-8 first, fallback to latin-1
+        try:
+            text_content = contents.decode('utf-8')
+        except UnicodeDecodeError:
+            text_content = contents.decode('latin-1')
+        
+        # Parse CSV
+        csv_reader = csv.DictReader(io.StringIO(text_content))
+        rows = list(csv_reader)
+        
+        if not rows:
+            raise HTTPException(status_code=400, detail="CSV file is empty or has no data rows")
+        
+        # Get column headers
+        column_headers = list(rows[0].keys())
+        
+        if not column_headers:
+            raise HTTPException(status_code=400, detail="CSV file has no columns")
+        
+        # Count rows
+        row_count = len(rows)
+        
+        # Generate random IDs
+        project_id = str(uuid.uuid4())[:8]  # Short UUID
+        data_source_id = str(uuid.uuid4())[:8]
+        
+        # Get sample rows (first 3)
+        sample_rows = rows[:3]
+        
+        # Convert rows to list of dicts (ensure all values are strings)
+        csv_data = []
+        for row in rows:
+            csv_data.append({k: str(v) if v is not None else '' for k, v in row.items()})
+        
+        return CsvUploadResponse(
+            column_headers=column_headers,
+            sample_rows=sample_rows,
+            row_count=row_count,
+            project_id=project_id,
+            data_source_id=data_source_id,
+            csv_data=csv_data,
+            project_name=project_name,
+            data_source=data_source
+        )
+        
+    except csv.Error as e:
+        raise HTTPException(status_code=400, detail=f"Invalid CSV format: {str(e)}")
+    except Exception as e:
+        logger.error(f"Error uploading CSV: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/debug/trigger-function")
+def get_trigger_function_info(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Debug endpoint to see what the check_process_voc_insert trigger function expects.
+    Only accessible to authenticated users.
+    """
+    try:
+        # Get trigger function definition
+        trigger_func = db.execute(text("""
+            SELECT 
+                pg_get_functiondef(oid) as function_def,
+                pg_get_function_arguments(oid) as function_args,
+                proname as function_name
+            FROM pg_proc
+            WHERE proname = 'check_process_voc_insert'
+            LIMIT 1
+        """)).first()
+        
+        # Get trigger definition
+        trigger_def = db.execute(text("""
+            SELECT 
+                tgname as trigger_name,
+                pg_get_triggerdef(oid) as trigger_definition
+            FROM pg_trigger
+            WHERE tgrelid = 'process_voc'::regclass
+            AND tgname LIKE '%process_voc%'
+            LIMIT 1
+        """)).first()
+        
+        result = {
+            "trigger_function": {
+                "name": trigger_func.function_name if trigger_func else None,
+                "definition": trigger_func.function_def if trigger_func else None,
+                "arguments": trigger_func.function_args if trigger_func else None
+            } if trigger_func else None,
+            "trigger": {
+                "name": trigger_def.trigger_name if trigger_def else None,
+                "definition": trigger_def.trigger_definition if trigger_def else None
+            } if trigger_def else None
+        }
+        
+        return result
+    except Exception as e:
+        logger.error(f"Error querying trigger function: {e}")
+        return {"error": str(e)}
+
+
+@app.post("/api/voc/save-csv-data", response_model=CsvSaveResponse)
+def save_csv_data(
+    request: CsvColumnMappingRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Save CSV data to processVoc table based on column mappings.
+    
+    Creates one processVoc row per CSV row per TTA column.
+    """
+    try:
+        # Validate user has access to client
+        client = db.query(Client).filter(Client.id == request.client_uuid).first()
+        if not client:
+            raise HTTPException(status_code=404, detail="Client not found")
+        
+        # Get client name for populating process_voc rows
+        client_name = client.name
+        
+        # Check user access
+        if not current_user.is_founder:
+            membership = db.query(Membership).filter(
+                Membership.user_id == current_user.id,
+                Membership.client_id == request.client_uuid
+            ).first()
+            if not membership:
+                raise HTTPException(status_code=403, detail="Access denied to this client")
+
+        # Get TTA columns
+        tta_columns = [m for m in request.column_mappings if m.is_tta]
+        if not tta_columns:
+            raise HTTPException(status_code=400, detail="At least one column must be marked as Text To Analyze")
+
+        # Get column mapping lookup
+        column_mapping_dict = {m.column_name: m for m in request.column_mappings}
+        
+        # Try to query the trigger function to understand what it expects
+        # This will help us set the right session variables
+        try:
+            trigger_func_result = db.execute(text("""
+                SELECT pg_get_functiondef(oid) as function_def
+                FROM pg_proc
+                WHERE proname = 'check_process_voc_insert'
+            """)).first()
+            
+            if trigger_func_result and trigger_func_result.function_def:
+                logger.info(f"Trigger function definition: {trigger_func_result.function_def[:500]}")
+        except Exception as e:
+            logger.debug(f"Could not query trigger function: {e}")
+        
+        # Set session variable for database trigger permission check
+        # The trigger function can_insert_process_voc() expects 'app.user_id' to be set
+        # It reads it using: current_setting('app.user_id', true)::UUID
+        # PostgreSQL custom variables with dots need to be set using SET (session-level, not LOCAL)
+        savepoint_name = "before_set_vars"
+        user_id_str = str(current_user.id)
+        
+        try:
+            # Create savepoint before attempting to set variables
+            db.execute(text(f"SAVEPOINT {savepoint_name}"))
+            
+            # Set app.user_id as session variable (not LOCAL, as triggers need session-level vars)
+            # PostgreSQL allows custom variables with dots when set at session level
+            # The function expects: current_setting('app.user_id', true)::UUID
+            # Try both quoted and unquoted versions
+            try:
+                # Try unquoted first (PostgreSQL should handle this)
+                db.execute(text(f"SET app.user_id = '{user_id_str}'"))
+            except Exception:
+                # If that fails, try with quotes around the variable name
+                db.execute(text(f'SET "app.user_id" = \'{user_id_str}\''))
+            
+            # Release savepoint if we got here
+            db.execute(text(f"RELEASE SAVEPOINT {savepoint_name}"))
+            db.flush()
+            logger.info(f"Set app.user_id session variable for trigger: {user_id_str}")
+            
+        except Exception as e:
+            # If setting variables failed, rollback to savepoint
+            logger.warning(f"Error setting app.user_id (rolling back to savepoint): {e}")
+            try:
+                db.execute(text(f"ROLLBACK TO SAVEPOINT {savepoint_name}"))
+                db.execute(text(f"RELEASE SAVEPOINT {savepoint_name}"))
+                db.flush()
+                logger.info("Rolled back to savepoint, transaction state restored")
+            except Exception as rollback_error:
+                logger.error(f"Failed to rollback to savepoint: {rollback_error}")
+                db.rollback()
+                raise HTTPException(status_code=500, detail="Transaction error, please try again")
+        
+        # Create a mapping of column names to short dimension_refs
+        # dimension_ref must be <= 50 chars, so we'll generate short refs
+        column_ref_map = {}
+        for idx, tta_mapping in enumerate(tta_columns):
+            column_name = tta_mapping.column_name
+            # Generate a short ref: use hash of column name (first 8 chars) + index for uniqueness
+            # Format: "csv_" + first 8 chars of hash + "_" + index (max 50 chars total)
+            hash_obj = hashlib.md5(column_name.encode('utf-8'))
+            hash_hex = hash_obj.hexdigest()[:8]
+            # Ensure it fits in 50 chars: "csv_" (4) + hash (8) + "_" (1) + index (max 2 digits) = 15 chars max
+            dimension_ref = f"csv_{hash_hex}_{idx}"[:50]
+            column_ref_map[column_name] = dimension_ref
+        
+        rows_created = 0
+        total_rows = len(request.csv_data)
+        
+        # Batch size for inserts to avoid huge SQL statements
+        BATCH_SIZE = 100
+        
+        # Collect all rows to insert
+        rows_to_insert = []
+        
+        # Process each CSV row
+        for row_index, csv_row in enumerate(request.csv_data):
+            respondent_id = f"csv_row_{row_index + 1}"
+            
+            # For each TTA column, create a processVoc entry
+            for tta_mapping in tta_columns:
+                column_name = tta_mapping.column_name
+                cell_value = csv_row.get(column_name, '')
+                
+                # Skip empty values
+                if not cell_value or not str(cell_value).strip():
+                    continue
+                
+                # Build survey_metadata
+                survey_metadata = {}
+                
+                # Add question purpose if provided
+                if tta_mapping.question_purpose:
+                    survey_metadata['question_purpose'] = tta_mapping.question_purpose
+                
+                # Add all non-TTA columns as metadata
+                for col_name, col_value in csv_row.items():
+                    col_mapping = column_mapping_dict.get(col_name)
+                    if col_mapping and not col_mapping.is_tta:
+                        survey_metadata[col_name] = str(col_value) if col_value is not None else ''
+                
+                # Get short dimension_ref for this column
+                dimension_ref = column_ref_map[column_name]
+                
+                # Prepare row data for bulk insert
+                row_data = {
+                    'respondent_id': respondent_id,
+                    'client_uuid': request.client_uuid,
+                    'client_name': client_name,  # Populate client name
+                    'project_id': request.project_id,
+                    'project_name': request.project_name,
+                    'data_source': request.data_source,
+                    'dimension_ref': dimension_ref,
+                    'dimension_name': column_name,
+                    'value': str(cell_value),
+                    'question_text': tta_mapping.question_text,
+                    'survey_metadata': survey_metadata if survey_metadata else None,
+                    'processed': False,
+                    'total_rows': total_rows
+                }
+                
+                rows_to_insert.append(row_data)
+        
+        # Before inserting, verify what session variables are actually set
+        # This helps debug what the trigger can see
+        try:
+            var_check = db.execute(text("""
+                SELECT 
+                    current_setting('allowed_client_uuid', true) as allowed_client_uuid,
+                    current_setting('allowed_user_id', true) as allowed_user_id,
+                    current_setting('app_client_uuid', true) as app_client_uuid,
+                    current_setting('app_user_id', true) as app_user_id
+            """)).first()
+            if var_check:
+                logger.info(f"Session variables check: {dict(var_check._mapping) if hasattr(var_check, '_mapping') else var_check}")
+        except Exception as e:
+            logger.debug(f"Could not check session variables: {e}")
+        
+        # Insert in batches to avoid huge SQL statements and improve error handling
+        for i in range(0, len(rows_to_insert), BATCH_SIZE):
+            batch = rows_to_insert[i:i + BATCH_SIZE]
+            try:
+                # Use bulk_insert_mappings for better performance
+                db.bulk_insert_mappings(ProcessVoc, batch)
+                db.flush()  # Flush after each batch
+                rows_created += len(batch)
+                logger.info(f"Inserted batch {i//BATCH_SIZE + 1}: {len(batch)} rows (total: {rows_created})")
+            except Exception as batch_error:
+                error_str = str(batch_error)
+                logger.error(f"Error inserting batch {i//BATCH_SIZE + 1}: {batch_error}")
+                
+                # Check if it's a trigger permission error
+                if "does not have permission" in error_str.lower() or "check_process_voc_insert" in error_str.lower():
+                    # The trigger is rejecting the inserts - session variables might not be set correctly
+                    logger.error("Trigger permission check failed. Session variables may not be set correctly.")
+                    # Try to get more info about what the trigger expects
+                    try:
+                        trigger_info = db.execute(text("""
+                            SELECT 
+                                pg_get_functiondef(p.oid) as func_def,
+                                pg_get_function_arguments(p.oid) as func_args
+                            FROM pg_proc p
+                            WHERE p.proname = 'check_process_voc_insert'
+                            LIMIT 1
+                        """)).first()
+                        if trigger_info:
+                            logger.error(f"Trigger function info: {trigger_info.func_def[:1000] if trigger_info.func_def else 'N/A'}")
+                    except:
+                        pass
+                    
+                    db.rollback()
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"Permission denied by database trigger. User may not have permission to insert data for this client. Error: {error_str[:200]}"
+                    )
+                
+                # If batch insert fails for other reasons, try individual inserts for this batch
+                db.rollback()
+                # Retry with individual inserts for this batch
+                for row_data in batch:
+                    try:
+                        process_voc = ProcessVoc(**row_data)
+                        db.add(process_voc)
+                        db.flush()
+                        rows_created += 1
+                    except Exception as row_error:
+                        logger.error(f"Error inserting row: {row_error}")
+                        # Continue with next row
+                        continue
+        
+        try:
+            db.commit()
+        except Exception as commit_error:
+            # Check if this is a transaction abort error
+            error_str = str(commit_error)
+            if "current transaction is aborted" in error_str.lower() or "infailedsqltransaction" in error_str.lower():
+                logger.error(f"Transaction was aborted during commit, rolling back: {str(commit_error)}")
+                db.rollback()
+                raise HTTPException(
+                    status_code=500, 
+                    detail="Database transaction error. The operation was rolled back. This may be due to database trigger permissions. Please try again."
+                )
+            else:
+                raise
+        
+        return CsvSaveResponse(
+            rows_created=rows_created,
+            message=f"Successfully created {rows_created} processVoc rows"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Check if this is a transaction abort error
+        error_str = str(e)
+        if "current transaction is aborted" in error_str.lower() or "infailedsqltransaction" in error_str.lower():
+            db.rollback()
+            logger.error(f"Transaction abort error saving CSV data: {str(e)}")
+            raise HTTPException(
+                status_code=500,
+                detail="Database transaction error. The operation was rolled back. Please try again."
+            )
+        db.rollback()
+        logger.error(f"Error saving CSV data: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # Founder Admin Endpoints

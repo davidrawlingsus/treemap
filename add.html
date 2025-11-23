@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Data - Vizualizd</title>
+    <script src="/config.js"></script>
+    <script src="/auth.js"></script>
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Roboto', sans-serif;
+            background: #fafafa;
+            min-height: 100vh;
+            padding: 0;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .page-header {
+            margin-bottom: 30px;
+        }
+
+        .page-header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .page-header p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="file"] {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-group input[type="file"] {
+            padding: 8px;
+            cursor: pointer;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .error-message {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-top: 8px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .success-message {
+            color: #27ae60;
+            font-size: 14px;
+            margin-top: 8px;
+            display: none;
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        /* Column Mapping Styles */
+        .row-count-display {
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 6px;
+            margin-bottom: 24px;
+            font-size: 16px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .column-mapping-list {
+            margin-top: 20px;
+        }
+
+        .column-item {
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 20px;
+            margin-bottom: 16px;
+            background: #fff;
+        }
+
+        .column-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .column-header h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+            flex: 1;
+        }
+
+        .tta-checkbox {
+            margin-right: 12px;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .column-fields {
+            display: none;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #f0f0f0;
+        }
+
+        .column-fields.show {
+            display: block;
+        }
+
+        .column-fields input[type="text"],
+        .column-fields select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            margin-bottom: 12px;
+        }
+
+        .column-fields select {
+            cursor: pointer;
+        }
+
+        .submit-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .submit-section .row-count {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .back-link {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+            margin-bottom: 20px;
+            display: inline-block;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/index.html" class="back-link">← Back to Visualizations</a>
+        
+        <div class="page-header">
+            <h1>Add New Data</h1>
+            <p>Upload a CSV file to process new feedback data</p>
+        </div>
+
+        <!-- Upload Form -->
+        <div id="uploadSection" class="card">
+            <form id="uploadForm">
+                <div class="form-group">
+                    <label for="projectName">Project Name *</label>
+                    <input type="text" id="projectName" name="projectName" required placeholder="e.g., Q4 2024 Survey">
+                </div>
+
+                <div class="form-group">
+                    <label for="dataSource">Data Source *</label>
+                    <input type="text" id="dataSource" name="dataSource" required placeholder="e.g., Customer Survey">
+                </div>
+
+                <div class="form-group">
+                    <label for="csvFile">CSV File *</label>
+                    <input type="file" id="csvFile" name="csvFile" accept=".csv" required>
+                </div>
+
+                <div class="error-message" id="uploadError"></div>
+                <div class="success-message" id="uploadSuccess"></div>
+
+                <div class="loading" id="uploadLoading">
+                    <p>Uploading and parsing CSV...</p>
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="uploadBtn">Upload CSV</button>
+            </form>
+        </div>
+
+        <!-- Column Mapping Section -->
+        <div id="mappingSection" class="card" style="display: none;">
+            <h2 style="margin-bottom: 20px; font-size: 20px; font-weight: 600;">Configure Columns</h2>
+            
+            <div class="row-count-display" id="rowCountDisplay"></div>
+
+            <div class="column-mapping-list" id="columnMappingList"></div>
+
+            <div class="error-message" id="mappingError"></div>
+
+            <div class="submit-section">
+                <div class="row-count" id="submitRowCount"></div>
+                <div>
+                    <button type="button" class="btn btn-secondary" id="backBtn" style="margin-right: 12px;">Back</button>
+                    <button type="button" class="btn btn-primary" id="submitBtn">Submit</button>
+                </div>
+            </div>
+
+            <div class="loading" id="submitLoading">
+                <p>Saving data...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+        const AUTH_TOKEN_KEY = 'visualizd_auth_token';
+
+        // Get client_uuid from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const clientUuid = urlParams.get('client_uuid');
+
+        if (!clientUuid) {
+            alert('No client specified. Redirecting...');
+            window.location.href = '/index.html';
+        }
+
+        function getAuthHeaders() {
+            const token = localStorage.getItem(AUTH_TOKEN_KEY);
+            return token ? {
+                'Authorization': `Bearer ${token}`,
+            } : {};
+        }
+
+        // Question purpose options
+        const QUESTION_PURPOSES = [
+            'Net Promoter',
+            'Purchase Friction',
+            'Original Desires',
+            'Customer Motives / Goals',
+            'Failed Vehicles',
+            'Favorite Features',
+            'Favorite Benefits',
+            'Perceived Exclusivity',
+            'Competitor Discovery',
+            'Doubts and Hesitations',
+            'Trusted Media Discovery',
+            'Trusted Personality Discovery',
+            'Product Improvement',
+            'NPD',
+            'Website Friction'
+        ];
+
+        let uploadData = null; // Store upload response data
+
+        // Upload form handler
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const projectName = document.getElementById('projectName').value;
+            const dataSource = document.getElementById('dataSource').value;
+            const csvFile = document.getElementById('csvFile').files[0];
+
+            if (!csvFile) {
+                showError('uploadError', 'Please select a CSV file');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('uploadLoading').classList.add('show');
+            document.getElementById('uploadBtn').disabled = true;
+            hideError('uploadError');
+            hideSuccess('uploadSuccess');
+
+            try {
+                const formData = new FormData();
+                formData.append('file', csvFile);
+                formData.append('project_name', projectName);
+                formData.append('data_source', dataSource);
+                formData.append('client_uuid', clientUuid);
+
+                const response = await fetch(`${API_BASE_URL}/api/voc/upload-csv`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ detail: 'Upload failed' }));
+                    throw new Error(errorData.detail || `HTTP ${response.status}: Upload failed`);
+                }
+
+                uploadData = await response.json();
+
+                // Hide upload section, show mapping section
+                document.getElementById('uploadSection').style.display = 'none';
+                document.getElementById('mappingSection').style.display = 'block';
+
+                // Render column mapping UI
+                renderColumnMapping(uploadData);
+
+            } catch (error) {
+                console.error('Upload error:', error);
+                showError('uploadError', error.message || 'Failed to upload CSV file');
+            } finally {
+                document.getElementById('uploadLoading').classList.remove('show');
+                document.getElementById('uploadBtn').disabled = false;
+            }
+        });
+
+        function renderColumnMapping(data) {
+            const { column_headers, row_count } = data;
+
+            // Display row count
+            document.getElementById('rowCountDisplay').textContent = `${row_count} rows will be processed`;
+            document.getElementById('submitRowCount').textContent = `Submit (${row_count} rows)`;
+
+            // Render column items
+            const mappingList = document.getElementById('columnMappingList');
+            mappingList.innerHTML = '';
+
+            column_headers.forEach((columnName) => {
+                const columnItem = document.createElement('div');
+                columnItem.className = 'column-item';
+                columnItem.innerHTML = `
+                    <div class="column-header">
+                        <input type="checkbox" class="tta-checkbox" id="tta_${columnName}" data-column="${columnName}">
+                        <h3>${columnName}</h3>
+                    </div>
+                    <div class="column-fields" id="fields_${columnName}">
+                        <div class="form-group">
+                            <label>Question Text (optional)</label>
+                            <input type="text" id="question_${columnName}" placeholder="Enter the question text for this column">
+                        </div>
+                        <div class="form-group">
+                            <label>Question Purpose (optional)</label>
+                            <select id="purpose_${columnName}">
+                                <option value="">-- Select Purpose --</option>
+                                ${QUESTION_PURPOSES.map(p => `<option value="${p}">${p}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                `;
+                mappingList.appendChild(columnItem);
+
+                // Add checkbox change handler
+                const checkbox = columnItem.querySelector('.tta-checkbox');
+                const fields = columnItem.querySelector('.column-fields');
+                checkbox.addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        fields.classList.add('show');
+                    } else {
+                        fields.classList.remove('show');
+                    }
+                });
+            });
+        }
+
+        // Back button handler
+        document.getElementById('backBtn').addEventListener('click', () => {
+            document.getElementById('uploadSection').style.display = 'block';
+            document.getElementById('mappingSection').style.display = 'none';
+            uploadData = null;
+        });
+
+        // Submit button handler
+        document.getElementById('submitBtn').addEventListener('click', async () => {
+            // Validate at least one TTA column is selected
+            const ttaCheckboxes = document.querySelectorAll('.tta-checkbox:checked');
+            if (ttaCheckboxes.length === 0) {
+                showError('mappingError', 'Please select at least one column as "Text To Analyze"');
+                return;
+            }
+
+            // Build column mappings
+            const columnMappings = [];
+            const columnHeaders = uploadData.column_headers;
+
+            columnHeaders.forEach((columnName) => {
+                const checkbox = document.getElementById(`tta_${columnName}`);
+                const questionText = document.getElementById(`question_${columnName}`)?.value || null;
+                const questionPurpose = document.getElementById(`purpose_${columnName}`)?.value || null;
+
+                columnMappings.push({
+                    column_name: columnName,
+                    is_tta: checkbox?.checked || false,
+                    question_text: checkbox?.checked ? questionText : null,
+                    question_purpose: checkbox?.checked ? questionPurpose : null
+                });
+            });
+
+            // Show loading
+            document.getElementById('submitLoading').classList.add('show');
+            document.getElementById('submitBtn').disabled = true;
+            hideError('mappingError');
+
+            try {
+                const requestData = {
+                    client_uuid: clientUuid,
+                    project_name: uploadData.project_name,
+                    project_id: uploadData.project_id,
+                    data_source: uploadData.data_source,
+                    data_source_id: uploadData.data_source_id,
+                    column_mappings: columnMappings,
+                    csv_data: uploadData.csv_data
+                };
+
+                const response = await fetch(`${API_BASE_URL}/api/voc/save-csv-data`, {
+                    method: 'POST',
+                    headers: {
+                        ...getAuthHeaders(),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ detail: 'Save failed' }));
+                    throw new Error(errorData.detail || `HTTP ${response.status}: Save failed`);
+                }
+
+                const result = await response.json();
+                alert(`Successfully saved ${result.rows_created || 0} rows!`);
+                window.location.href = `/index.html?client_uuid=${clientUuid}`;
+
+            } catch (error) {
+                console.error('Save error:', error);
+                showError('mappingError', error.message || 'Failed to save data');
+            } finally {
+                document.getElementById('submitLoading').classList.remove('show');
+                document.getElementById('submitBtn').disabled = false;
+            }
+        });
+
+        function showError(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.classList.add('show');
+        }
+
+        function hideError(elementId) {
+            const element = document.getElementById(elementId);
+            element.classList.remove('show');
+        }
+
+        function showSuccess(elementId, message) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.classList.add('show');
+        }
+
+        function hideSuccess(elementId) {
+            const element = document.getElementById(elementId);
+            element.classList.remove('show');
+        }
+    </script>
+</body>
+</html>
+

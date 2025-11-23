@@ -29,6 +29,7 @@ class ProcessVoc(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.current_timestamp(), onupdate=func.current_timestamp())
     client_uuid = Column(UUID(as_uuid=True), ForeignKey('clients.id'), nullable=True)
     is_favourite = Column(Boolean, nullable=True, default=False)
+    processed = Column(Boolean, nullable=False, default=False)
 
     # Relationship to client
     client = relationship("Client", foreign_keys=[client_uuid])

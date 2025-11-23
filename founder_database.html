@@ -29,6 +29,7 @@
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
+            overflow-x: hidden;
         }
 
         .login-overlay {
@@ -142,6 +143,7 @@
             max-width: 1800px;
             margin: 0 auto;
             width: 100%;
+            overflow-x: hidden;
         }
 
         .sidebar {
@@ -197,6 +199,8 @@
             border: 1px solid var(--border);
             border-radius: 12px;
             padding: 24px;
+            min-width: 0;
+            overflow-x: hidden;
         }
 
         .content-header {
@@ -215,6 +219,8 @@
             grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
             gap: 16px;
             margin-bottom: 32px;
+            max-width: 100%;
+            overflow-x: hidden;
         }
 
         .column-card {
@@ -255,10 +261,18 @@
             color: var(--danger);
         }
 
+        .table-wrapper {
+            overflow-x: auto;
+            width: 100%;
+            margin-top: 16px;
+            -webkit-overflow-scrolling: touch;
+            max-width: 100%;
+        }
+
         .data-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 16px;
+            min-width: max-content;
         }
 
         .data-table th,
@@ -540,6 +554,65 @@
         </div>
     </div>
 
+    <!-- Modal for adding columns to existing tables -->
+    <div id="addColumnModal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 id="addColumnModalTitle">Add Column</h3>
+                <button class="btn btn-secondary" onclick="closeAddColumnModal()">×</button>
+            </div>
+            <div id="addColumnBody">
+                <form id="addColumnForm">
+                    <div class="form-group">
+                        <label>Column Name *</label>
+                        <input type="text" id="addColumnNameInput" required pattern="[a-zA-Z0-9_]+" 
+                               placeholder="column_name" style="font-family: monospace;">
+                        <small style="color: var(--muted); font-size: 12px; margin-top: 4px; display: block;">
+                            Only letters, numbers, and underscores allowed
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Data Type *</label>
+                        <select id="addColumnTypeSelect" required>
+                            <option value="TEXT">TEXT</option>
+                            <option value="INTEGER">INTEGER</option>
+                            <option value="BIGINT">BIGINT</option>
+                            <option value="BOOLEAN">BOOLEAN</option>
+                            <option value="NUMERIC">NUMERIC</option>
+                            <option value="TIMESTAMP">TIMESTAMP</option>
+                            <option value="DATE">DATE</option>
+                            <option value="UUID">UUID</option>
+                            <option value="JSONB">JSONB</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="addColumnNullable" checked style="margin-right: 8px;">
+                            Nullable
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Default Value (optional)</label>
+                        <input type="text" id="addColumnDefault" placeholder="Leave empty for no default">
+                        <small style="color: var(--muted); font-size: 12px; margin-top: 4px; display: block;">
+                            For numeric types, enter a number. For boolean, enter "true" or "false".
+                        </small>
+                    </div>
+
+                    <div id="addColumnError" class="alert alert-danger" style="display: none;"></div>
+
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-secondary" onclick="closeAddColumnModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Add Column</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
         const AUTH_TOKEN_KEY = 'visualizd_auth_token';
@@ -638,23 +711,54 @@
 
         async function loadTableDetail(tableName) {
             try {
+                const tableNameEncoded = encodeURIComponent(tableName);
                 const [columnsRes, dataRes] = await Promise.all([
-                    fetch(`${API_BASE_URL}/api/founder/database/tables/${tableName}/columns`, {
+                    fetch(`${API_BASE_URL}/api/founder/database/tables/${tableNameEncoded}/columns`, {
                         headers: authHeaders()
                     }),
-                    fetch(`${API_BASE_URL}/api/founder/database/tables/${tableName}/data?page=${currentPage}&page_size=50`, {
+                    fetch(`${API_BASE_URL}/api/founder/database/tables/${tableNameEncoded}/data?page=${currentPage}&page_size=50`, {
                         headers: authHeaders()
                     })
                 ]);
 
-                if (!columnsRes.ok || !dataRes.ok) throw new Error('Failed to load table data');
+                if (!columnsRes.ok) {
+                    const errorText = await columnsRes.text();
+                    let errorDetail = 'Failed to load columns';
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        errorDetail = errorJson.detail || errorDetail;
+                    } catch {
+                        errorDetail = `HTTP ${columnsRes.status}: ${errorText || columnsRes.statusText}`;
+                    }
+                    throw new Error(errorDetail);
+                }
+
+                if (!dataRes.ok) {
+                    const errorText = await dataRes.text();
+                    let errorDetail = 'Failed to load table data';
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        errorDetail = errorJson.detail || errorDetail;
+                    } catch {
+                        errorDetail = `HTTP ${dataRes.status}: ${errorText || dataRes.statusText}`;
+                    }
+                    throw new Error(errorDetail);
+                }
+
                 const columns = await columnsRes.json();
                 const data = await dataRes.json();
 
                 renderTableDetail(tableName, columns, data);
             } catch (error) {
+                console.error('Error loading table detail:', error);
                 document.getElementById('tableDetail').innerHTML = `
-                    <div class="alert alert-danger">Error: ${error.message}</div>
+                    <div class="alert alert-danger">
+                        <strong>Error loading table:</strong> ${error.message}
+                        <br><br>
+                        <button class="btn btn-secondary" onclick="loadTableDetail('${tableName.replace(/'/g, "\\'")}')" style="margin-top: 8px;">
+                            Retry
+                        </button>
+                    </div>
                 `;
             }
         }
@@ -667,6 +771,9 @@
                 <div class="content-header">
                     <h2>${tableName}</h2>
                     <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary" onclick="showAddColumnModal('${tableName}')">
+                            Add Column
+                        </button>
                         <button class="btn btn-primary" onclick="showAddRowModal('${tableName}', ${JSON.stringify(columns).replace(/"/g, '&quot;')})">
                             Add Row
                         </button>
@@ -693,36 +800,38 @@
                     ${data.rows.length === 0 ? 
                         '<div class="empty-state"><p>No data in this table</p></div>' :
                         `
-                        <table class="data-table">
-                            <thead>
-                                <tr>
-                                    ${columns.map(col => `<th>${col.name}</th>`).join('')}
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${data.rows.map(row => `
+                        <div class="table-wrapper">
+                            <table class="data-table">
+                                <thead>
                                     <tr>
-                                        ${columns.map(col => {
-                                            const value = row[col.name];
-                                            if (value === null) return '<td style="color: var(--muted);"><em>null</em></td>';
-                                            if (typeof value === 'object') return `<td><pre style="font-size: 11px; margin: 0;">${JSON.stringify(value, null, 2)}</pre></td>`;
-                                            return `<td>${String(value).substring(0, 100)}${String(value).length > 100 ? '...' : ''}</td>`;
-                                        }).join('')}
-                                        <td>
-                                            <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" 
-                                                onclick="showEditRowModal('${tableName}', ${JSON.stringify(pkColumns).replace(/"/g, '&quot;')}, ${JSON.stringify(row).replace(/"/g, '&quot;')}, ${JSON.stringify(columns).replace(/"/g, '&quot;')})">
-                                                Edit
-                                            </button>
-                                            <button class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;" 
-                                                onclick="deleteRow('${tableName}', '${pkColumns[0]}', '${row[pkColumns[0]]}')">
-                                                Delete
-                                            </button>
-                                        </td>
+                                        ${columns.map(col => `<th>${col.name}</th>`).join('')}
+                                        <th>Actions</th>
                                     </tr>
-                                `).join('')}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    ${data.rows.map(row => `
+                                        <tr>
+                                            ${columns.map(col => {
+                                                const value = row[col.name];
+                                                if (value === null) return '<td style="color: var(--muted);"><em>null</em></td>';
+                                                if (typeof value === 'object') return `<td><pre style="font-size: 11px; margin: 0;">${JSON.stringify(value, null, 2)}</pre></td>`;
+                                                return `<td>${String(value).substring(0, 100)}${String(value).length > 100 ? '...' : ''}</td>`;
+                                            }).join('')}
+                                            <td>
+                                                <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;" 
+                                                    onclick="showEditRowModal('${tableName}', ${JSON.stringify(pkColumns).replace(/"/g, '&quot;')}, ${JSON.stringify(row).replace(/"/g, '&quot;')}, ${JSON.stringify(columns).replace(/"/g, '&quot;')})">
+                                                    Edit
+                                                </button>
+                                                <button class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;" 
+                                                    onclick="deleteRow('${tableName}', '${pkColumns[0]}', '${row[pkColumns[0]]}')">
+                                                    Delete
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
                         `
                     }
                     ${data.total_pages > 1 ? `
@@ -1004,6 +1113,120 @@
         function closeCreateTableModal() {
             document.getElementById('createTableModal').classList.remove('show');
         }
+
+        let addColumnTableName = null;
+
+        function showAddColumnModal(tableName) {
+            addColumnTableName = tableName;
+            const modal = document.getElementById('addColumnModal');
+            const modalTitle = document.getElementById('addColumnModalTitle');
+            const form = document.getElementById('addColumnForm');
+            const errorEl = document.getElementById('addColumnError');
+            
+            modalTitle.textContent = `Add Column to ${tableName}`;
+            form.reset();
+            document.getElementById('addColumnNullable').checked = true;
+            errorEl.style.display = 'none';
+            
+            modal.classList.add('show');
+        }
+
+        function closeAddColumnModal() {
+            document.getElementById('addColumnModal').classList.remove('show');
+            addColumnTableName = null;
+        }
+
+        // Handle add column form submission
+        document.addEventListener('DOMContentLoaded', () => {
+            const addColumnForm = document.getElementById('addColumnForm');
+            if (addColumnForm) {
+                addColumnForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const errorEl = document.getElementById('addColumnError');
+                    errorEl.style.display = 'none';
+                    
+                    if (!addColumnTableName) {
+                        errorEl.textContent = 'No table selected';
+                        errorEl.style.display = 'block';
+                        return;
+                    }
+                    
+                    const columnName = document.getElementById('addColumnNameInput').value.trim();
+                    const columnType = document.getElementById('addColumnTypeSelect').value;
+                    const nullable = document.getElementById('addColumnNullable').checked;
+                    const defaultVal = document.getElementById('addColumnDefault').value.trim();
+                    
+                    if (!columnName) {
+                        errorEl.textContent = 'Column name is required';
+                        errorEl.style.display = 'block';
+                        return;
+                    }
+                    
+                    // Validate column name
+                    if (!/^[a-zA-Z0-9_]+$/.test(columnName)) {
+                        errorEl.textContent = 'Column name can only contain letters, numbers, and underscores';
+                        errorEl.style.display = 'block';
+                        return;
+                    }
+                    
+                    const requestData = {
+                        column_name: columnName,
+                        column_type: columnType,
+                        nullable: nullable
+                    };
+                    
+                    // Add default value if provided
+                    if (defaultVal) {
+                        // Try to parse numeric/boolean defaults
+                        if (columnType === 'INTEGER' || columnType === 'BIGINT' || columnType === 'NUMERIC') {
+                            const num = Number(defaultVal);
+                            if (!isNaN(num)) {
+                                requestData.default = num;
+                            } else {
+                                requestData.default = defaultVal;
+                            }
+                        } else if (columnType === 'BOOLEAN') {
+                            requestData.default = defaultVal.toLowerCase() === 'true';
+                        } else {
+                            requestData.default = defaultVal;
+                        }
+                    }
+                    
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/api/founder/database/tables/${encodeURIComponent(addColumnTableName)}/columns`, {
+                            method: 'POST',
+                            headers: authHeaders(),
+                            body: JSON.stringify(requestData)
+                        });
+                        
+                        if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.detail || 'Failed to add column');
+                        }
+                        
+                        const result = await response.json();
+                        closeAddColumnModal();
+                        
+                        // Reset to page 1 and reload table detail to show the new column
+                        currentPage = 1;
+                        
+                        try {
+                            await loadTableDetail(addColumnTableName);
+                            // Show success message after successful reload
+                            alert(result.message || `Column "${columnName}" added successfully!`);
+                        } catch (reloadError) {
+                            // If reload fails, show success message but also warn about reload error
+                            alert(`${result.message || `Column "${columnName}" added successfully!`}\n\nNote: Failed to reload table view. Please refresh the page manually.`);
+                            console.error('Error reloading table after adding column:', reloadError);
+                        }
+                    } catch (error) {
+                        errorEl.textContent = `Error: ${error.message}`;
+                        errorEl.style.display = 'block';
+                        console.error('Error adding column:', error);
+                    }
+                });
+            }
+        });
 
         function addColumnRow() {
             const container = document.getElementById('columnsContainer');
