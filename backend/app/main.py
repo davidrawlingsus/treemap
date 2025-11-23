@@ -277,6 +277,17 @@ if (frontend_path / "add.html").exists():
         """Serve the add data page"""
         return FileResponse(frontend_path / "add.html")
 
+if (frontend_path / "choose-data-source.html").exists():
+    @app.get("/choose-data-source", response_class=FileResponse)
+    def serve_choose_data_source():
+        """Serve the choose data source page"""
+        return FileResponse(frontend_path / "choose-data-source.html")
+    
+    @app.get("/choose-data-source.html", response_class=FileResponse)
+    def serve_choose_data_source_html():
+        """Serve the choose data source page"""
+        return FileResponse(frontend_path / "choose-data-source.html")
+
 @app.get("/api")
 def api_info():
     """API information endpoint"""

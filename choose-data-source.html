@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Choose Data Source - Vizualizd</title>
+    <script src="/config.js"></script>
+    <script src="/auth.js"></script>
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Lato', sans-serif;
+            background: #fafafa;
+            min-height: 100vh;
+            padding: 0;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 64px 20px;
+        }
+
+        @media (min-width: 768px) {
+            .container {
+                padding: 96px 20px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .container {
+                padding: 128px 20px;
+            }
+        }
+
+        .back-link {
+            color: #1A2B3C;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 32px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: color 200ms;
+        }
+
+        .back-link:hover {
+            color: #B9F040;
+        }
+
+        .back-link::before {
+            content: '←';
+            font-size: 16px;
+        }
+
+        .page-header {
+            margin-bottom: 48px;
+        }
+
+        .page-header h1 {
+            font-size: 36px;
+            font-weight: 600;
+            color: oklch(0.145 0 0);
+            margin-bottom: 16px;
+            line-height: 1.2;
+        }
+
+        @media (min-width: 768px) {
+            .page-header h1 {
+                font-size: 48px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .page-header h1 {
+                font-size: 60px;
+            }
+        }
+
+        .page-header p {
+            color: oklch(0.556 0 0);
+            font-size: 18px;
+            line-height: 1.5;
+        }
+
+        @media (min-width: 1024px) {
+            .page-header p {
+                font-size: 20px;
+            }
+        }
+
+        .data-sources-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+            margin-top: 48px;
+        }
+
+        .data-source-card.full-width {
+            grid-column: 1 / -1;
+        }
+
+        @media (min-width: 640px) {
+            .data-sources-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .data-sources-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            
+            .data-source-card.full-width {
+                grid-column: 1 / -1;
+            }
+        }
+
+        .data-source-card {
+            background: white;
+            border: 2px solid oklch(0.922 0 0);
+            border-radius: 12px;
+            padding: 32px 24px;
+            cursor: pointer;
+            transition: all 300ms ease;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            min-height: 200px;
+            justify-content: center;
+        }
+
+        .data-source-card:hover:not(.coming-soon) {
+            border-color: #B9F040;
+            transform: scale(0.98);
+            box-shadow: 0 4px 12px rgba(185, 240, 64, 0.2);
+        }
+
+        .data-source-card.coming-soon {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .data-source-card.coming-soon:hover {
+            transform: none;
+        }
+
+        .data-source-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            color: #1A2B3C;
+        }
+
+        .data-source-card.coming-soon .data-source-icon {
+            color: oklch(0.556 0 0);
+        }
+
+        .data-source-card:not(.coming-soon):hover .data-source-icon {
+            color: #B9F040;
+        }
+
+        .data-source-name {
+            font-size: 20px;
+            font-weight: 600;
+            color: oklch(0.145 0 0);
+            margin-bottom: 8px;
+        }
+
+        .data-source-card.coming-soon .data-source-name {
+            color: oklch(0.556 0 0);
+        }
+
+        .data-source-badge {
+            display: inline-block;
+            background: oklch(0.97 0 0);
+            color: oklch(0.556 0 0);
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 4px 12px;
+            border-radius: 9999px;
+            margin-top: 8px;
+        }
+
+        .data-source-card:not(.coming-soon) .data-source-badge {
+            display: none;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .data-source-card {
+                transition: none;
+            }
+            
+            .data-source-card:hover:not(.coming-soon) {
+                transform: none;
+            }
+        }
+
+        /* Focus states for accessibility */
+        .data-source-card:focus-visible {
+            outline: 2px solid #B9F040;
+            outline-offset: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="#" id="backLink" class="back-link">Back to Visualizations</a>
+        
+        <div class="page-header">
+            <h1>Choose Data Source</h1>
+            <p>Select how you'd like to add new data to your visualization</p>
+        </div>
+
+        <div class="data-sources-grid" id="dataSourcesGrid">
+            <!-- Data source cards will be populated by JavaScript -->
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+        const AUTH_TOKEN_KEY = 'visualizd_auth_token';
+
+        // Storage keys
+        const STORAGE_KEY = 'vizualizd_nav_state';
+        
+        // Get client_uuid from URL or storage
+        const urlParams = new URLSearchParams(window.location.search);
+        let clientUuid = urlParams.get('client_uuid');
+        
+        // If no client_uuid in URL, try to load from storage
+        if (!clientUuid) {
+            try {
+                const savedState = localStorage.getItem(STORAGE_KEY);
+                if (savedState) {
+                    const state = JSON.parse(savedState);
+                    clientUuid = state.client_uuid || state.clientId;
+                }
+            } catch (e) {
+                console.error('Error loading state:', e);
+            }
+        }
+        
+        // Save state for navigation back
+        if (clientUuid) {
+            try {
+                const state = {
+                    client_uuid: clientUuid,
+                    clientId: clientUuid,
+                    returnUrl: '/choose-data-source.html',
+                    timestamp: Date.now()
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            } catch (e) {
+                console.error('Error saving state:', e);
+            }
+        }
+        
+        // Set up back link
+        const backLink = document.getElementById('backLink');
+        if (backLink) {
+            backLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (clientUuid) {
+                    // Try to restore full state from navigation state
+                    try {
+                        const navState = localStorage.getItem('vizualizd_nav_state');
+                        if (navState) {
+                            const state = JSON.parse(navState);
+                            // Build URL with all state parameters
+                            const params = new URLSearchParams();
+                            params.set('client_uuid', clientUuid);
+                            if (state.projectName) params.set('project', state.projectName);
+                            if (state.dataSourceId) params.set('source', state.dataSourceId);
+                            if (state.questionRefKey) params.set('dimension', state.questionRefKey);
+                            window.location.href = `/index.html?${params.toString()}`;
+                        } else {
+                            window.location.href = `/index.html?client_uuid=${clientUuid}`;
+                        }
+                    } catch (error) {
+                        console.error('Error restoring navigation state:', error);
+                        window.location.href = `/index.html?client_uuid=${clientUuid}`;
+                    }
+                } else {
+                    window.location.href = '/index.html';
+                }
+            });
+        }
+
+        if (!clientUuid) {
+            alert('No client specified. Redirecting...');
+            window.location.href = '/index.html';
+        }
+
+        // Data source definitions
+        const dataSources = [
+            {
+                id: 'csv',
+                name: 'Upload CSV',
+                icon: '📄',
+                available: true,
+                url: `/add.html?client_uuid=${clientUuid}`
+            },
+            {
+                id: 'intercom',
+                name: 'Intercom',
+                icon: '💬',
+                available: false
+            },
+            {
+                id: 'zendesk',
+                name: 'Zendesk',
+                icon: '🎫',
+                available: false
+            },
+            {
+                id: 'trustpilot',
+                name: 'Trustpilot',
+                icon: '⭐',
+                available: false
+            },
+            {
+                id: 'yotpo',
+                name: 'Yotpo',
+                icon: '📝',
+                available: false
+            },
+            {
+                id: 'reviews-io',
+                name: 'Reviews.io',
+                icon: '✨',
+                available: false
+            },
+            {
+                id: 'custom',
+                name: 'Custom Connector',
+                icon: '🔌',
+                available: false
+            }
+        ];
+
+        function renderDataSources() {
+            const grid = document.getElementById('dataSourcesGrid');
+            grid.innerHTML = '';
+
+            dataSources.forEach((source, index) => {
+                const card = document.createElement('div');
+                // First item (CSV) gets full-width class
+                const isFullWidth = index === 0 && source.available;
+                card.className = `data-source-card ${source.available ? '' : 'coming-soon'} ${isFullWidth ? 'full-width' : ''}`;
+                card.setAttribute('tabindex', '0');
+                card.setAttribute('role', 'button');
+                card.setAttribute('aria-label', source.available ? `Select ${source.name}` : `${source.name} - Coming Soon`);
+
+                if (source.available) {
+                    card.addEventListener('click', () => {
+                        window.location.href = source.url;
+                    });
+                    card.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            window.location.href = source.url;
+                        }
+                    });
+                }
+
+                card.innerHTML = `
+                    <div class="data-source-icon">${source.icon}</div>
+                    <div class="data-source-name">${source.name}</div>
+                    ${!source.available ? '<span class="data-source-badge">Coming Soon</span>' : ''}
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        // Render on page load
+        renderDataSources();
+    </script>
+</body>
+</html>
+

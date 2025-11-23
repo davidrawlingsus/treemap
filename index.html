@@ -2341,9 +2341,18 @@
 
                 <div class="data-source-actions">
                     <!-- Add Data Button -->
-                    <a id="addDataBtn" href="#" style="padding: 6px 12px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500; text-decoration: none; display: inline-block; margin-right: 8px;">
+                    <a id="addDataBtn" href="#" style="padding: 8px 24px; background: #B9F040; color: #000000; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; text-decoration: none; display: inline-block; margin-right: 8px; transition: background 200ms; min-height: 44px; line-height: 28px;">
                         Add
                     </a>
+                    <style>
+                        #addDataBtn:hover {
+                            background: #a0d636;
+                        }
+                        #addDataBtn:focus-visible {
+                            outline: 2px solid #B9F040;
+                            outline-offset: 2px;
+                        }
+                    </style>
                     <!-- Advanced Multi-Filter -->
                     <div class="filter-menu">
                         <button id="filterBtn" class="filter-button" type="button" aria-label="Open filters">
@@ -2808,6 +2817,10 @@
         // State persistence constants
         const STATE_STORAGE_KEY = 'treemap_app_state';
         
+        // Flag to prevent auto-launch loops
+        let hasAutoLaunched = false;
+        let isInitializing = false;
+        
         // Save current state to localStorage
         function saveState() {
             try {
@@ -3182,8 +3195,13 @@
         }
 
         function selectClientAndLaunch(clientId) {
+            // Prevent multiple calls
+            if (hasAutoLaunched && currentClientId === clientId) {
+                return;
+            }
             currentClientId = clientId;
             saveState();
+            hasAutoLaunched = true;
             const loginContainer = document.querySelector('.login-container');
             if (loginContainer) {
                 loginContainer.classList.remove('account-selection-mode');
@@ -3195,7 +3213,41 @@
             if (mainContainer) {
                 mainContainer.style.display = 'flex';
             }
-            init();
+            // Only call init if we haven't already initialized
+            // Check if we're already in the main view - if so, just load the data
+            const isAlreadyInitialized = mainContainer && mainContainer.style.display !== 'none' && 
+                                         document.querySelector('.treemap-svg-container');
+            if (!isAlreadyInitialized) {
+                init();
+            } else {
+                // Already initialized, just load the client's data
+                // But make sure UI handlers are set up
+                setupFilterUI();
+                setupAddButton();
+                
+                // Check if we have URL parameters to restore full state
+                const urlParams = new URLSearchParams(window.location.search);
+                const urlProject = urlParams.get('project');
+                const urlSource = urlParams.get('source');
+                const urlDimension = urlParams.get('dimension');
+                
+                // Create restore state from URL params
+                const restoreState = {
+                    projectName: urlProject || null,
+                    dataSourceId: urlSource || null,
+                    questionRefKey: urlDimension || null
+                };
+                
+                // Restore state variables
+                if (urlProject) currentProjectName = urlProject;
+                if (urlSource) currentDataSourceId = urlSource;
+                if (urlDimension) currentQuestionRefKey = urlDimension;
+                
+                // Load projects with restore state to cascade through to data source and dimension
+                loadClientProjects(clientId, restoreState).then(() => {
+                    renderFavourites();
+                });
+            }
         }
 
         function handleAuthenticatedUser(userInfo) {
@@ -3217,6 +3269,23 @@
                     Auth.showLogin();
                 }
                 return;
+            }
+
+            // Check for client_uuid in URL - if present and accessible, auto-launch
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlClientUuid = urlParams.get('client_uuid');
+            if (urlClientUuid) {
+                // Check if the client_uuid is in the accessible clients list
+                const matchingClient = accessibleClients.find(client => 
+                    client.client_uuid === urlClientUuid || client.id === urlClientUuid
+                );
+                if (matchingClient) {
+                    console.log('Found client_uuid in URL, auto-launching:', urlClientUuid);
+                    selectClientAndLaunch(urlClientUuid);
+                    return;
+                } else {
+                    console.log('Client_uuid in URL not found in accessible clients:', urlClientUuid);
+                }
             }
 
             if (accessibleClients.length === 1) {
@@ -3289,9 +3358,39 @@
                     return;
                 }
                 
+                // Check URL parameters for client_uuid and other state (e.g., when navigating back)
+                const urlParams = new URLSearchParams(window.location.search);
+                const urlClientUuid = urlParams.get('client_uuid');
+                const urlProject = urlParams.get('project');
+                const urlSource = urlParams.get('source');
+                const urlDimension = urlParams.get('dimension');
+                
                 // Try to restore saved state
                 const savedState = loadState();
                 console.log('Saved state:', savedState);
+                console.log('URL params:', { urlClientUuid, urlProject, urlSource, urlDimension });
+                
+                // Priority: URL parameter > saved state > current
+                if (urlClientUuid && accessibleClientIds.has(urlClientUuid)) {
+                    currentClientId = urlClientUuid;
+                    console.log('Restored client from URL:', currentClientId);
+                    // Restore other state from URL if present
+                    if (urlProject) {
+                        currentProjectName = urlProject;
+                        console.log('Restored project from URL:', currentProjectName);
+                    }
+                    if (urlSource) {
+                        currentDataSourceId = urlSource;
+                        console.log('Restored data source from URL:', currentDataSourceId);
+                    }
+                    if (urlDimension) {
+                        currentQuestionRefKey = urlDimension;
+                        console.log('Restored dimension from URL:', currentQuestionRefKey);
+                    }
+                } else if (savedState && savedState.clientId && accessibleClientIds.has(savedState.clientId)) {
+                    currentClientId = savedState.clientId;
+                    console.log('Restored client from saved state:', currentClientId);
+                }
 
                 if (currentClientId && accessibleClientIds.size > 0 && !accessibleClientIds.has(currentClientId)) {
                     console.log('Stored client is not accessible, clearing');
@@ -3305,11 +3404,13 @@
                     option.textContent = client.client_name || `Client ${client.client_uuid}`;
                     select.appendChild(option);
                     
-                    // Restore saved client or select first one by default
-                    if (savedState && savedState.clientId === client.client_uuid) {
-                        currentClientId = client.client_uuid;
-                    } else if (!savedState && index === 0 && !currentClientId) {
-                        currentClientId = client.client_uuid;
+                    // Restore saved client or select first one by default (only if not already set from URL)
+                    if (!currentClientId) {
+                        if (savedState && savedState.clientId === client.client_uuid) {
+                            currentClientId = client.client_uuid;
+                        } else if (!savedState && index === 0) {
+                            currentClientId = client.client_uuid;
+                        }
                     }
                 });
 
@@ -3325,6 +3426,25 @@
                 // Set the select value to match the current client
                 if (currentClientId) {
                     select.value = currentClientId;
+                    // If we restored from URL, trigger the client selection to load data (only once)
+                    // Check if we're in login/selection mode (login container visible or main container hidden)
+                    const loginContainer = document.querySelector('.login-container');
+                    const mainContainer = document.getElementById('mainContainer');
+                    const isLoginVisible = loginContainer && (loginContainer.style.display !== 'none' || loginContainer.classList.contains('account-selection-mode'));
+                    const isMainVisible = mainContainer && mainContainer.style.display !== 'none';
+                    const isInitialized = document.querySelector('.treemap-svg-container') !== null;
+                    
+                    // Auto-launch if we have URL params and we're in login/selection mode
+                    if (urlClientUuid && urlClientUuid === currentClientId && !hasAutoLaunched && (isLoginVisible || !isMainVisible) && !isInitialized) {
+                        console.log('Auto-launching client from URL:', currentClientId);
+                        // Use setTimeout to ensure DOM is ready and avoid calling during loadClients
+                        setTimeout(() => {
+                            // Double-check we haven't launched yet (race condition protection)
+                            if (!hasAutoLaunched && currentClientId === urlClientUuid) {
+                                selectClientAndLaunch(currentClientId);
+                            }
+                        }, 300);
+                    }
                 }
                 
                 // Add change listener
@@ -3334,31 +3454,29 @@
                     currentDataSourceId = null; // Reset data source when client changes
                     currentQuestionRefKey = null; // Reset question when client changes
                     saveState();
+                    updateAddDataButton(); // Update Add button with new client
                     await loadClientProjects(currentClientId);
                     renderFavourites(); // Re-render favourites for new client
                 });
                 
                 // Load projects for the selected client
+                // Create a combined state object with URL params taking precedence
+                const restoreState = {
+                    projectName: urlProject || (savedState && savedState.projectName) || null,
+                    dataSourceId: urlSource || (savedState && savedState.dataSourceId) || null,
+                    questionRefKey: urlDimension || (savedState && savedState.questionRefKey) || null
+                };
+                
                 if (currentClientId) {
-                    console.log(`Loading projects for client: ${currentClientId}`);
-                    await loadClientProjects(currentClientId, savedState);
+                    console.log(`Loading projects for client: ${currentClientId} with state:`, restoreState);
+                    await loadClientProjects(currentClientId, restoreState);
                 } else {
                     console.log('No client selected, skipping project load');
                 }
                 syncFilterTabState();
                 
-                // Add button click handler
-                const addDataBtn = document.getElementById('addDataBtn');
-                if (addDataBtn) {
-                    addDataBtn.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        if (currentClientId) {
-                            window.location.href = `/add.html?client_uuid=${currentClientId}`;
-                        } else {
-                            alert('Please select a client first');
-                        }
-                    });
-                }
+                // Set up Add button handler
+                setupAddButton();
             } catch (error) {
                 console.error('Error loading clients:', error);
                 console.error('Error stack:', error.stack);
@@ -3958,6 +4076,12 @@
         
         // Initialize
         async function init() {
+            // Prevent multiple simultaneous initializations
+            if (isInitializing) {
+                console.log('init() already in progress, skipping...');
+                return;
+            }
+            isInitializing = true;
             console.log('init() called');
             try {
                 console.log('Loading dimension options...');
@@ -3991,6 +4115,8 @@
             } catch (error) {
                 document.getElementById('loading').innerHTML = 
                     '<div class="error">Error initializing: ' + error.message + '</div>';
+            } finally {
+                isInitializing = false;
             }
         }
 
@@ -4335,7 +4461,68 @@
         let currentFilterSelections = new Set();
         let currentFilterSearchTerm = '';
         
+        // Set up Add button handler (extracted to function so it can be called independently)
+        function setupAddButton() {
+            const addDataBtn = document.getElementById('addDataBtn');
+            if (addDataBtn) {
+                // Remove existing listeners to avoid duplicates
+                const newBtn = addDataBtn.cloneNode(true);
+                addDataBtn.parentNode.replaceChild(newBtn, addDataBtn);
+                
+                newBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    if (currentClientId) {
+                        // Save full visualization state before navigating
+                        saveState();
+                        // Also save to a separate key for navigation return
+                        try {
+                            const navState = {
+                                client_uuid: currentClientId,
+                                clientId: currentClientId,
+                                projectName: currentProjectName,
+                                dataSourceId: currentDataSourceId,
+                                questionRefKey: currentQuestionRefKey,
+                                returnUrl: '/choose-data-source.html',
+                                timestamp: Date.now()
+                            };
+                            localStorage.setItem('vizualizd_nav_state', JSON.stringify(navState));
+                        } catch (error) {
+                            console.error('Error saving navigation state:', error);
+                        }
+                        window.location.href = `/choose-data-source.html?client_uuid=${currentClientId}`;
+                    } else {
+                        alert('Please select a client first');
+                    }
+                });
+                
+                // Update button visibility
+                updateAddDataButton();
+            }
+        }
+        
+        // Update Add button visibility and href
+        function updateAddDataButton() {
+            const addDataBtn = document.getElementById('addDataBtn');
+            if (addDataBtn) {
+                if (currentClientId) {
+                    addDataBtn.href = `/choose-data-source.html?client_uuid=${currentClientId}`;
+                    addDataBtn.style.display = 'inline-block';
+                } else {
+                    addDataBtn.style.display = 'none';
+                }
+            }
+        }
+        
+        // Flag to track if filter UI is already set up
+        let filterUISetup = false;
+        
         function setupFilterUI() {
+            // Prevent duplicate setup
+            if (filterUISetup) {
+                return;
+            }
+            filterUISetup = true;
+            
             const filterBtn = document.getElementById('filterBtn');
             const filterDropdown = document.getElementById('filterDropdown');
             const filterTypeView = document.getElementById('filterTypeView');
@@ -4346,6 +4533,12 @@
             const selectAllItems = document.getElementById('selectAllItems');
             const clearAllItems = document.getElementById('clearAllItems');
             const filterSelectionSearch = document.getElementById('filterSelectionSearch');
+            
+            if (!filterBtn || !filterDropdown) {
+                console.warn('Filter UI elements not found');
+                filterUISetup = false; // Reset flag if elements not found
+                return;
+            }
             
             if (filterSelectionSearch) {
                 filterSelectionSearch.addEventListener('input', (event) => {

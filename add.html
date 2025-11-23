@@ -7,9 +7,10 @@
     <script src="/config.js"></script>
     <script src="/auth.js"></script>
     <link rel="stylesheet" href="/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
         * {
             margin: 0;
             padding: 0;
@@ -17,7 +18,7 @@
         }
 
         body {
-            font-family: 'Inter', 'Roboto', sans-serif;
+            font-family: 'Lato', sans-serif;
             background: #fafafa;
             min-height: 100vh;
             padding: 0;
@@ -25,55 +26,112 @@
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1280px;
             margin: 0 auto;
-            padding: 40px 20px;
+            padding: 64px 20px;
+        }
+
+        @media (min-width: 768px) {
+            .container {
+                padding: 96px 20px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .container {
+                padding: 128px 20px;
+            }
+        }
+
+        .back-link {
+            color: #1A2B3C;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 32px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: color 200ms;
+        }
+
+        .back-link:hover {
+            color: #B9F040;
+        }
+
+        .back-link::before {
+            content: '←';
+            font-size: 16px;
         }
 
         .page-header {
-            margin-bottom: 30px;
+            margin-bottom: 48px;
         }
 
         .page-header h1 {
-            font-size: 28px;
+            font-size: 36px;
             font-weight: 600;
-            color: #333;
-            margin-bottom: 8px;
+            color: oklch(0.145 0 0);
+            margin-bottom: 16px;
+            line-height: 1.2;
+        }
+
+        @media (min-width: 768px) {
+            .page-header h1 {
+                font-size: 48px;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .page-header h1 {
+                font-size: 60px;
+            }
         }
 
         .page-header p {
-            color: #666;
-            font-size: 14px;
+            color: oklch(0.556 0 0);
+            font-size: 18px;
+            line-height: 1.5;
+        }
+
+        @media (min-width: 1024px) {
+            .page-header p {
+                font-size: 20px;
+            }
         }
 
         .card {
             background: white;
-            border-radius: 8px;
-            padding: 30px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            margin-bottom: 20px;
+            border: 1px solid oklch(0.922 0 0);
+            border-radius: 12px;
+            padding: 32px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
 
         .form-group {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
         }
 
         .form-group label {
             display: block;
             margin-bottom: 8px;
             font-weight: 500;
-            color: #333;
+            color: oklch(0.145 0 0);
             font-size: 14px;
         }
 
         .form-group input[type="text"],
         .form-group input[type="file"] {
             width: 100%;
-            padding: 10px 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-            font-family: inherit;
+            padding: 12px 16px;
+            border: 2px solid rgb(212, 212, 212);
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: 'Lato', sans-serif;
+            transition: border-color 200ms;
         }
 
         .form-group input[type="file"] {
@@ -83,45 +141,51 @@
 
         .form-group input:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border-color: #B9F040;
+            box-shadow: 0 0 0 3px rgba(185, 240, 64, 0.1);
         }
 
         .btn {
-            padding: 12px 24px;
+            padding: 8px 24px;
             border: none;
-            border-radius: 6px;
+            border-radius: 8px;
             font-size: 14px;
-            font-weight: 500;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 200ms;
+            min-height: 44px;
         }
 
         .btn-primary {
-            background: #667eea;
-            color: white;
+            background: #B9F040;
+            color: #000000;
         }
 
         .btn-primary:hover {
-            background: #5568d3;
+            background: #a0d636;
         }
 
         .btn-primary:disabled {
             background: #ccc;
             cursor: not-allowed;
+            opacity: 0.6;
         }
 
         .btn-secondary {
-            background: #f0f0f0;
-            color: #333;
+            background: white;
+            color: oklch(0.145 0 0);
+            border: 2px solid oklch(0.922 0 0);
         }
 
         .btn-secondary:hover {
-            background: #e0e0e0;
+            background: oklch(0.97 0 0);
+            border-color: oklch(0.9 0 0);
         }
 
         .error-message {
-            color: #e74c3c;
+            color: oklch(0.577 0.245 27.325);
             font-size: 14px;
             margin-top: 8px;
             display: none;
@@ -132,7 +196,7 @@
         }
 
         .success-message {
-            color: #27ae60;
+            color: oklch(0.6 0.118 184.704);
             font-size: 14px;
             margin-top: 8px;
             display: none;
@@ -145,7 +209,8 @@
         .loading {
             display: none;
             text-align: center;
-            padding: 20px;
+            padding: 24px;
+            color: oklch(0.556 0 0);
         }
 
         .loading.show {
@@ -154,25 +219,31 @@
 
         /* Column Mapping Styles */
         .row-count-display {
-            background: #f8f9fa;
-            padding: 16px;
-            border-radius: 6px;
-            margin-bottom: 24px;
-            font-size: 16px;
-            font-weight: 500;
-            color: #333;
+            background: oklch(0.97 0 0);
+            padding: 16px 24px;
+            border-radius: 8px;
+            margin-bottom: 32px;
+            font-size: 18px;
+            font-weight: 600;
+            color: oklch(0.145 0 0);
+            border: 1px solid oklch(0.922 0 0);
         }
 
         .column-mapping-list {
-            margin-top: 20px;
+            margin-top: 24px;
         }
 
         .column-item {
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            padding: 20px;
+            border: 2px solid oklch(0.922 0 0);
+            border-radius: 12px;
+            padding: 24px;
             margin-bottom: 16px;
-            background: #fff;
+            background: white;
+            transition: border-color 200ms;
+        }
+
+        .column-item:hover {
+            border-color: rgba(185, 240, 64, 0.3);
         }
 
         .column-header {
@@ -182,25 +253,26 @@
         }
 
         .column-header h3 {
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 600;
-            color: #333;
+            color: oklch(0.145 0 0);
             margin: 0;
             flex: 1;
         }
 
         .tta-checkbox {
-            margin-right: 12px;
+            margin-right: 16px;
             width: 20px;
             height: 20px;
             cursor: pointer;
+            accent-color: #B9F040;
         }
 
         .column-fields {
             display: none;
-            margin-top: 16px;
-            padding-top: 16px;
-            border-top: 1px solid #f0f0f0;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid oklch(0.922 0 0);
         }
 
         .column-fields.show {
@@ -210,51 +282,64 @@
         .column-fields input[type="text"],
         .column-fields select {
             width: 100%;
-            padding: 8px 12px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 14px;
-            font-family: inherit;
-            margin-bottom: 12px;
+            padding: 12px 16px;
+            border: 2px solid rgb(212, 212, 212);
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: 'Lato', sans-serif;
+            margin-bottom: 16px;
+            transition: border-color 200ms;
+        }
+
+        .column-fields input[type="text"]:focus,
+        .column-fields select:focus {
+            outline: none;
+            border-color: #B9F040;
+            box-shadow: 0 0 0 3px rgba(185, 240, 64, 0.1);
         }
 
         .column-fields select {
             cursor: pointer;
         }
 
+        .column-fields label {
+            font-size: 14px;
+            font-weight: 500;
+            color: oklch(0.145 0 0);
+            margin-bottom: 8px;
+        }
+
         .submit-section {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #e0e0e0;
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid oklch(0.922 0 0);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
         }
 
         .submit-section .row-count {
             font-size: 14px;
-            color: #666;
+            color: oklch(0.556 0 0);
+            font-weight: 500;
         }
 
-        .back-link {
-            color: #667eea;
-            text-decoration: none;
-            font-size: 14px;
-            margin-bottom: 20px;
-            display: inline-block;
-        }
-
-        .back-link:hover {
-            text-decoration: underline;
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                transition: none !important;
+                animation-duration: 0.01ms !important;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <a href="/index.html" class="back-link">← Back to Visualizations</a>
+        <a href="#" id="backLink" class="back-link">Back to Data Sources</a>
         
         <div class="page-header">
-            <h1>Add New Data</h1>
+            <h1>Upload CSV</h1>
             <p>Upload a CSV file to process new feedback data</p>
         </div>
 
@@ -289,7 +374,7 @@
 
         <!-- Column Mapping Section -->
         <div id="mappingSection" class="card" style="display: none;">
-            <h2 style="margin-bottom: 20px; font-size: 20px; font-weight: 600;">Configure Columns</h2>
+            <h2 style="margin-bottom: 24px; font-size: 30px; font-weight: 600; color: oklch(0.145 0 0);">Configure Columns</h2>
             
             <div class="row-count-display" id="rowCountDisplay"></div>
 
@@ -315,9 +400,53 @@
         const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
         const AUTH_TOKEN_KEY = 'visualizd_auth_token';
 
-        // Get client_uuid from URL
+        // Storage keys
+        const STORAGE_KEY = 'vizualizd_nav_state';
+        
+        // Get client_uuid from URL or storage
         const urlParams = new URLSearchParams(window.location.search);
-        const clientUuid = urlParams.get('client_uuid');
+        let clientUuid = urlParams.get('client_uuid');
+        
+        // If no client_uuid in URL, try to load from storage
+        if (!clientUuid) {
+            try {
+                const savedState = localStorage.getItem(STORAGE_KEY);
+                if (savedState) {
+                    const state = JSON.parse(savedState);
+                    clientUuid = state.client_uuid || state.clientId;
+                }
+            } catch (e) {
+                console.error('Error loading state:', e);
+            }
+        }
+        
+        // Save state for navigation back
+        if (clientUuid) {
+            try {
+                const state = {
+                    client_uuid: clientUuid,
+                    clientId: clientUuid,
+                    returnUrl: '/add.html',
+                    timestamp: Date.now()
+                };
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            } catch (e) {
+                console.error('Error saving state:', e);
+            }
+        }
+        
+        // Set up back link
+        const backLink = document.getElementById('backLink');
+        if (backLink) {
+            backLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                if (clientUuid) {
+                    window.location.href = `/choose-data-source.html?client_uuid=${clientUuid}`;
+                } else {
+                    window.location.href = '/choose-data-source.html';
+                }
+            });
+        }
 
         if (!clientUuid) {
             alert('No client specified. Redirecting...');
@@ -520,6 +649,7 @@
 
                 const result = await response.json();
                 alert(`Successfully saved ${result.rows_created || 0} rows!`);
+                // Navigate back to visualizations with client_uuid
                 window.location.href = `/index.html?client_uuid=${clientUuid}`;
 
             } catch (error) {
