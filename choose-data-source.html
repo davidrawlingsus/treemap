@@ -162,8 +162,25 @@
 
         .data-source-icon {
             font-size: 48px;
-            margin-bottom: 16px;
             color: #1A2B3C;
+        }
+
+        .data-source-icon img {
+            width: 96px;
+            height: 96px;
+            object-fit: contain;
+            display: block;
+        }
+
+        .data-source-icon.intercom img,
+        .data-source-icon.trustpilot img {
+            width: 125px;
+            height: 125px;
+        }
+
+        .data-source-icon.reviews-io img {
+            width: 138px;
+            height: 138px;
         }
 
         .data-source-card.coming-soon .data-source-icon {
@@ -308,49 +325,59 @@
             window.location.href = '/index.html';
         }
 
+        // Base URL for Vercel Blob Storage
+        const BLOB_STORAGE_BASE = 'https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com';
+
         // Data source definitions
         const dataSources = [
             {
                 id: 'csv',
                 name: 'Upload CSV',
                 icon: '📄',
+                iconUrl: null,
                 available: true,
                 url: `/add.html?client_uuid=${clientUuid}`
             },
             {
                 id: 'intercom',
                 name: 'Intercom',
-                icon: '💬',
+                icon: null,
+                iconUrl: `${BLOB_STORAGE_BASE}/logos/intercom_logo.png`,
                 available: false
             },
             {
                 id: 'zendesk',
                 name: 'Zendesk',
-                icon: '🎫',
+                icon: null,
+                iconUrl: `${BLOB_STORAGE_BASE}/logos/zendesk_logo.svg`,
                 available: false
             },
             {
                 id: 'trustpilot',
                 name: 'Trustpilot',
-                icon: '⭐',
+                icon: null,
+                iconUrl: `${BLOB_STORAGE_BASE}/logos/trustpilot_logo.png`,
                 available: false
             },
             {
                 id: 'yotpo',
                 name: 'Yotpo',
-                icon: '📝',
+                icon: null,
+                iconUrl: `${BLOB_STORAGE_BASE}/logos/yotpo_logo.png`,
                 available: false
             },
             {
                 id: 'reviews-io',
                 name: 'Reviews.io',
-                icon: '✨',
+                icon: null,
+                iconUrl: `${BLOB_STORAGE_BASE}/logos/reviews_io_logo.png`,
                 available: false
             },
             {
                 id: 'custom',
                 name: 'Custom Connector',
                 icon: '🔌',
+                iconUrl: null,
                 available: false
             }
         ];
@@ -380,9 +407,15 @@
                     });
                 }
 
+                const iconContent = source.iconUrl 
+                    ? `<img src="${source.iconUrl}" alt="${source.name} logo" />`
+                    : source.icon || '';
+                
+                const iconClass = `data-source-icon ${source.id}`;
+                
                 card.innerHTML = `
-                    <div class="data-source-icon">${source.icon}</div>
-                    <div class="data-source-name">${source.name}</div>
+                    <div class="${iconClass}">${iconContent}</div>
+                    ${source.id === 'csv' || source.id === 'custom' ? `<div class="data-source-name">${source.name}</div>` : ''}
                     ${!source.available ? '<span class="data-source-badge">Coming Soon</span>' : ''}
                 `;
 
