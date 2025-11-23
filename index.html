@@ -3225,28 +3225,45 @@
                 setupFilterUI();
                 setupAddButton();
                 
-                // Check if we have URL parameters to restore full state
+                // Ensure client dropdown is populated (loadClients might not have been called)
+                const select = document.getElementById('clientSelect');
                 const urlParams = new URLSearchParams(window.location.search);
                 const urlProject = urlParams.get('project');
                 const urlSource = urlParams.get('source');
                 const urlDimension = urlParams.get('dimension');
                 
-                // Create restore state from URL params
                 const restoreState = {
                     projectName: urlProject || null,
                     dataSourceId: urlSource || null,
                     questionRefKey: urlDimension || null
                 };
                 
-                // Restore state variables
                 if (urlProject) currentProjectName = urlProject;
                 if (urlSource) currentDataSourceId = urlSource;
                 if (urlDimension) currentQuestionRefKey = urlDimension;
                 
-                // Load projects with restore state to cascade through to data source and dimension
-                loadClientProjects(clientId, restoreState).then(() => {
-                    renderFavourites();
-                });
+                if (select && (select.innerHTML === '' || select.innerHTML.includes('Loading'))) {
+                    console.log('Client dropdown not populated, loading clients...');
+                    // Temporarily set hasAutoLaunched to prevent loadClients from triggering another launch
+                    const wasAutoLaunched = hasAutoLaunched;
+                    hasAutoLaunched = true;
+                    loadClients().then(() => {
+                        // Restore the flag
+                        hasAutoLaunched = wasAutoLaunched;
+                        // After clients are loaded, load the specific client's data
+                        return loadClientProjects(clientId, restoreState);
+                    }).then(() => {
+                        renderFavourites();
+                    }).catch((error) => {
+                        console.error('Error loading clients or projects:', error);
+                        hasAutoLaunched = wasAutoLaunched;
+                    });
+                } else {
+                    // Dropdown already populated, just load the client's data
+                    loadClientProjects(clientId, restoreState).then(() => {
+                        renderFavourites();
+                    });
+                }
             }
         }
 
@@ -3336,7 +3353,9 @@
 
                 if (accessibleClientIds.size > 0) {
                     allClients = allClients.filter(client => {
-                        return client.client_uuid && accessibleClientIds.has(client.client_uuid);
+                        // Check both client.id and client.client_uuid since accessibleClientIds uses client.id
+                        return (client.client_uuid && accessibleClientIds.has(client.client_uuid)) ||
+                               (client.id && accessibleClientIds.has(client.id));
                     });
                     console.log(`Filtered to ${allClients.length} authorized clients`);
                 }
@@ -3350,13 +3369,19 @@
 
                 const select = document.getElementById('clientSelect');
                 console.log('Client select element:', select);
+                if (!select) {
+                    console.error('Client select element not found!');
+                    return;
+                }
                 select.innerHTML = '';
                 
                 if (allClients.length === 0) {
                     console.log('No clients available');
                     select.innerHTML = '<option value="">No clients available</option>';
+                    select.disabled = true;
                     return;
                 }
+                select.disabled = false;
                 
                 // Check URL parameters for client_uuid and other state (e.g., when navigating back)
                 const urlParams = new URLSearchParams(window.location.search);
@@ -3371,30 +3396,48 @@
                 console.log('URL params:', { urlClientUuid, urlProject, urlSource, urlDimension });
                 
                 // Priority: URL parameter > saved state > current
-                if (urlClientUuid && accessibleClientIds.has(urlClientUuid)) {
-                    currentClientId = urlClientUuid;
-                    console.log('Restored client from URL:', currentClientId);
-                    // Restore other state from URL if present
-                    if (urlProject) {
-                        currentProjectName = urlProject;
-                        console.log('Restored project from URL:', currentProjectName);
+                // Check if URL client_uuid matches any accessible client (by id or client_uuid)
+                if (urlClientUuid) {
+                    const matchingClient = allClients.find(client => 
+                        client.client_uuid === urlClientUuid || client.id === urlClientUuid
+                    );
+                    if (matchingClient) {
+                        currentClientId = urlClientUuid;
+                        console.log('Restored client from URL:', currentClientId);
+                        // Restore other state from URL if present
+                        if (urlProject) {
+                            currentProjectName = urlProject;
+                            console.log('Restored project from URL:', currentProjectName);
+                        }
+                        if (urlSource) {
+                            currentDataSourceId = urlSource;
+                            console.log('Restored data source from URL:', currentDataSourceId);
+                        }
+                        if (urlDimension) {
+                            currentQuestionRefKey = urlDimension;
+                            console.log('Restored dimension from URL:', currentQuestionRefKey);
+                        }
                     }
-                    if (urlSource) {
-                        currentDataSourceId = urlSource;
-                        console.log('Restored data source from URL:', currentDataSourceId);
+                } else if (savedState && savedState.clientId) {
+                    // Check if saved client exists in accessible clients
+                    const matchingClient = allClients.find(client => 
+                        client.client_uuid === savedState.clientId || client.id === savedState.clientId
+                    );
+                    if (matchingClient) {
+                        currentClientId = savedState.clientId;
+                        console.log('Restored client from saved state:', currentClientId);
                     }
-                    if (urlDimension) {
-                        currentQuestionRefKey = urlDimension;
-                        console.log('Restored dimension from URL:', currentQuestionRefKey);
-                    }
-                } else if (savedState && savedState.clientId && accessibleClientIds.has(savedState.clientId)) {
-                    currentClientId = savedState.clientId;
-                    console.log('Restored client from saved state:', currentClientId);
                 }
 
-                if (currentClientId && accessibleClientIds.size > 0 && !accessibleClientIds.has(currentClientId)) {
-                    console.log('Stored client is not accessible, clearing');
-                    currentClientId = null;
+                // Validate current client is in accessible list
+                if (currentClientId) {
+                    const matchingClient = allClients.find(client => 
+                        client.client_uuid === currentClientId || client.id === currentClientId
+                    );
+                    if (!matchingClient) {
+                        console.log('Stored client is not accessible, clearing');
+                        currentClientId = null;
+                    }
                 }
 
                 console.log('Populating client dropdown...');
@@ -3428,6 +3471,7 @@
                     select.value = currentClientId;
                     // If we restored from URL, trigger the client selection to load data (only once)
                     // Check if we're in login/selection mode (login container visible or main container hidden)
+                    // Only auto-launch if we're NOT already in the process of launching (to prevent double loads)
                     const loginContainer = document.querySelector('.login-container');
                     const mainContainer = document.getElementById('mainContainer');
                     const isLoginVisible = loginContainer && (loginContainer.style.display !== 'none' || loginContainer.classList.contains('account-selection-mode'));
@@ -3435,7 +3479,8 @@
                     const isInitialized = document.querySelector('.treemap-svg-container') !== null;
                     
                     // Auto-launch if we have URL params and we're in login/selection mode
-                    if (urlClientUuid && urlClientUuid === currentClientId && !hasAutoLaunched && (isLoginVisible || !isMainVisible) && !isInitialized) {
+                    // But NOT if we're already initialized and main container is visible (prevents double load)
+                    if (urlClientUuid && urlClientUuid === currentClientId && !hasAutoLaunched && (isLoginVisible || !isMainVisible) && !isInitialized && !isMainVisible) {
                         console.log('Auto-launching client from URL:', currentClientId);
                         // Use setTimeout to ensure DOM is ready and avoid calling during loadClients
                         setTimeout(() => {
@@ -3447,9 +3492,13 @@
                     }
                 }
                 
-                // Add change listener
-                select.addEventListener('change', async (e) => {
-                    currentClientId = e.target.value;
+                // Add change listener (remove existing one first to avoid duplicates)
+                const handleClientChange = async (e) => {
+                    const newClientId = e.target.value;
+                    if (!newClientId || newClientId === currentClientId) {
+                        return; // No change or same client
+                    }
+                    currentClientId = newClientId;
                     currentProjectName = null; // Reset project when client changes
                     currentDataSourceId = null; // Reset data source when client changes
                     currentQuestionRefKey = null; // Reset question when client changes
@@ -3457,9 +3506,12 @@
                     updateAddDataButton(); // Update Add button with new client
                     await loadClientProjects(currentClientId);
                     renderFavourites(); // Re-render favourites for new client
-                });
+                };
+                // Remove any existing listener
+                select.removeEventListener('change', handleClientChange);
+                select.addEventListener('change', handleClientChange);
                 
-                // Load projects for the selected client
+                // Load projects for the selected client (only if not already loading from selectClientAndLaunch)
                 // Create a combined state object with URL params taking precedence
                 const restoreState = {
                     projectName: urlProject || (savedState && savedState.projectName) || null,
@@ -3467,9 +3519,17 @@
                     questionRefKey: urlDimension || (savedState && savedState.questionRefKey) || null
                 };
                 
-                if (currentClientId) {
+                // Only auto-load projects if we're not already in the process of launching a client
+                // (to prevent double loading when called from selectClientAndLaunch)
+                const mainContainer = document.getElementById('mainContainer');
+                const isMainVisible = mainContainer && mainContainer.style.display !== 'none';
+                const shouldAutoLoad = !hasAutoLaunched || !isMainVisible;
+                
+                if (currentClientId && shouldAutoLoad) {
                     console.log(`Loading projects for client: ${currentClientId} with state:`, restoreState);
                     await loadClientProjects(currentClientId, restoreState);
+                } else if (currentClientId) {
+                    console.log('Skipping auto-load of projects (already loading from selectClientAndLaunch)');
                 } else {
                     console.log('No client selected, skipping project load');
                 }
