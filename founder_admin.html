@@ -404,11 +404,7 @@
         function logout() {
             clearAuth();
             founderInfo = null;
-            elements.appShell.style.display = 'none';
-            elements.loginOverlay.classList.remove('hidden');
-            elements.loginEmail.value = '';
-            elements.loginPassword.value = '';
-            showLoginError();
+            window.location.href = 'https://marketably.ai';
         }
 
         async function attemptExistingSession() {

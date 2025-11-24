@@ -397,6 +397,7 @@
     setUserInfo(null);
     showLogin();
     global.dispatchEvent(new Event('auth:logout'));
+    global.location.href = 'https://marketably.ai';
   };
 
   const initLoginForm = () => {

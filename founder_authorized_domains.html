@@ -637,12 +637,7 @@
             state.founder = null;
             state.domains = [];
             state.clients = [];
-            elements.appShell.style.display = 'none';
-            elements.loginOverlay.classList.remove('hidden');
-            elements.loginEmail.value = '';
-            elements.loginPassword.value = '';
-            showLoginError();
-            showStatus();
+            window.location.href = 'https://marketably.ai';
         }
 
         async function attemptExistingSession() {
