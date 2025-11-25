@@ -51,7 +51,7 @@ class EmailService:
             )
             raise RuntimeError("Email service is not configured")
 
-        subject = "Sign in to Visualizd"
+        subject = "Sign in to Marketably.ai"
         client_list = ", ".join(params.client_names) if params.client_names else "your account"
         
         # Format expiration time in a more readable format
@@ -65,7 +65,7 @@ class EmailService:
             f"This link will expire on {expires_at_formatted}.\n\n"
             f"If you didn't request this email, you can safely ignore it.\n\n"
             f"Best regards,\n"
-            f"The Visualizd Team"
+            f"The Marketably.ai Team"
         )
 
         html_body = f"""<!DOCTYPE html>
@@ -76,7 +76,7 @@ class EmailService:
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333333; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5;">
     <div style="background-color: #ffffff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 30px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-        <h1 style="color: #1a1a1a; font-size: 24px; margin-top: 0; margin-bottom: 20px;">Sign in to Visualizd</h1>
+        <h1 style="color: #1a1a1a; font-size: 24px; margin-top: 0; margin-bottom: 20px;">Sign in to Marketably.ai</h1>
         
         <p style="font-size: 16px; color: #555555; margin-bottom: 16px;">Hi,</p>
         
@@ -87,7 +87,7 @@ class EmailService:
         <div style="text-align: center; margin: 30px 0;">
             <a href="{params.magic_link}" 
                style="display: inline-block; background-color: #007bff; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 6px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">
-                Sign in to Visualizd
+                Sign in to Marketably.ai
             </a>
         </div>
         
@@ -109,7 +109,7 @@ class EmailService:
     
     <p style="font-size: 12px; color: #999999; text-align: center; margin-top: 20px;">
         Best regards,<br>
-        The Visualizd Team
+        The Marketably.ai Team
     </p>
 </body>
 </html>"""
