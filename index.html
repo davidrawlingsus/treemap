@@ -423,12 +423,13 @@
             justify-content: center;
             min-height: 0;
             overflow: hidden;
+            width: 100%;
         }
         
         .treemap-svg-container svg {
-            max-width: 100%;
-            max-height: 100%;
             display: block;
+            /* SVG dimensions are set via attributes in JavaScript */
+            /* SVG will be centered by parent flex container */
         }
 
         .visualizations-grid {
@@ -2868,15 +2869,6 @@
             'Service Ideas'
         ];
 
-        // Handle window resize
-        function handleResize() {
-            const container = document.querySelector('.treemap-svg-container');
-            width = container.clientWidth;
-            height = container.clientHeight;
-            if (hierarchyData) {
-                renderTreemap(hierarchyData);
-            }
-        }
 
         // Authentication helpers provided by auth.js
         let accessibleClients = [];
@@ -4231,15 +4223,6 @@
                 
                 // Initialize favourites section
                 renderFavourites();
-                
-                // Add resize listener with debounce
-                window.addEventListener('resize', debounce(handleResize, 250));
-                
-                // Handle orientation changes on mobile devices
-                window.addEventListener('orientationchange', () => {
-                    // Delay slightly to ensure new dimensions are available
-                    setTimeout(handleResize, 100);
-                });
             } catch (error) {
                 document.getElementById('loading').innerHTML = 
                     '<div class="error">Error initializing: ' + error.message + '</div>';
@@ -5218,13 +5201,39 @@
             // Recalculate container dimensions to ensure accurate sizing
             const container = document.querySelector('.treemap-svg-container');
             if (container) {
-                width = container.clientWidth;
-                height = container.clientHeight;
+                // Force a layout recalculation by reading offsetWidth/offsetHeight
+                width = container.clientWidth || container.offsetWidth;
+                height = container.clientHeight || container.offsetHeight;
             }
+            
+            // Ensure minimum dimensions
+            if (!width || width < 100) width = 800;
+            if (!height || height < 100) height = 600;
             
             const svg = d3.select('#treemap');
             svg.selectAll('*').remove();
+            // Set explicit dimensions - these will be updated on resize
             svg.attr('width', width).attr('height', height);
+            
+            // Set up resize handler directly when treemap is rendered (if not already set up)
+            if (!window._treemapResizeHandlerAttached) {
+                const treemapResizeHandler = debounce(() => {
+                    if (hierarchyData) {
+                        const container = document.querySelector('.treemap-svg-container');
+                        if (container) {
+                            const newWidth = container.clientWidth;
+                            const newHeight = container.clientHeight;
+                            if (newWidth && newHeight && (Math.abs(newWidth - width) > 2 || Math.abs(newHeight - height) > 2)) {
+                                width = newWidth;
+                                height = newHeight;
+                                renderTreemap(hierarchyData);
+                            }
+                        }
+                    }
+                }, 250);
+                window.addEventListener('resize', treemapResizeHandler);
+                window._treemapResizeHandlerAttached = true;
+            }
 
             document.getElementById('verbatims').style.display = 'none';
 
