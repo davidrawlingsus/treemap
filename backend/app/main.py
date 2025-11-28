@@ -2362,6 +2362,8 @@ def bulk_update_voc_data(
             row.data_source = update_item.data_source
         if update_item.client_name is not None:
             row.client_name = update_item.client_name
+        if hasattr(update_item, 'question_text') and update_item.question_text is not None:
+            row.question_text = update_item.question_text
         
         updated_count += 1
     
@@ -2398,6 +2400,7 @@ def get_field_metadata(
         FieldMetadata(name="overall_sentiment", type="string", nullable=True, category="response", editable=True),
         FieldMetadata(name="response_type", type="string", nullable=True, category="response", editable=True),
         FieldMetadata(name="user_type", type="string", nullable=True, category="response", editable=True),
+        FieldMetadata(name="question_text", type="text", nullable=True, category="response", editable=True),
         # Metadata fields
         FieldMetadata(name="region", type="string", nullable=True, category="metadata", editable=True),
         FieldMetadata(name="total_rows", type="integer", nullable=True, category="metadata", editable=True),
@@ -2494,7 +2497,7 @@ def bulk_update_filtered_voc_data(
         'dimension_name', 'dimension_ref', 'data_source', 'value',
         'overall_sentiment', 'response_type', 'user_type', 'region',
         'total_rows', 'respondent_id', 'created', 'last_modified',
-        'start_date', 'submit_date', 'topics'
+        'start_date', 'submit_date', 'topics', 'question_text'
     }
     
     for row in rows:

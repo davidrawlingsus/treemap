@@ -698,12 +698,13 @@
                                 <th>Dimension Ref</th>
                                 <th class="editable-cell">Data Source</th>
                                 <th class="editable-cell">Dimension Name</th>
+                                <th class="editable-cell">Question Text</th>
                                 <th class="text-cell">Value</th>
                             </tr>
                         </thead>
                         <tbody id="tableBody">
                             <tr>
-                                <td colspan="9" class="loading">Loading data...</td>
+                                <td colspan="10" class="loading">Loading data...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -874,7 +875,7 @@
         // Data Loading
         async function loadData() {
             const tbody = document.getElementById('tableBody');
-            tbody.innerHTML = '<tr><td colspan="9" class="loading">Loading data...</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="10" class="loading">Loading data...</td></tr>';
             
             try {
                 const params = new URLSearchParams();
@@ -919,7 +920,7 @@
                 updateBulkEditSection();
                 
             } catch (error) {
-                tbody.innerHTML = `<tr><td colspan="9" style="color: #e74c3c;">Error: ${error.message}</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="10" style="color: #e74c3c;">Error: ${error.message}</td></tr>`;
                 showStatus('Error loading data: ' + error.message, 'error');
             }
         }
@@ -928,7 +929,7 @@
             const tbody = document.getElementById('tableBody');
             
             if (items.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" class="loading">No data found</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="10" class="loading">No data found</td></tr>';
                 return;
             }
             
@@ -938,6 +939,7 @@
                 const dimensionName = edited.dimension_name !== undefined ? edited.dimension_name : (row.dimension_name || '');
                 const dataSource = edited.data_source !== undefined ? edited.data_source : (row.data_source || '');
                 const clientName = edited.client_name !== undefined ? edited.client_name : (row.client_name || '');
+                const questionText = edited.question_text !== undefined ? edited.question_text : (row.question_text || '');
                 
                 return `
                     <tr data-row-id="${row.id}">
@@ -975,6 +977,13 @@
                                    data-row-id="${row.id}"
                                    value="${escapeHtml(dimensionName)}"
                                    onchange="markRowEdited(${row.id}, 'dimension_name', this.value)">
+                        </td>
+                        <td class="editable-cell">
+                            <input type="text" 
+                                   class="editable-input question-text-input" 
+                                   data-row-id="${row.id}"
+                                   value="${escapeHtml(questionText)}"
+                                   onchange="markRowEdited(${row.id}, 'question_text', this.value)">
                         </td>
                         <td class="text-cell" title="${escapeHtml(row.value || '')}">${escapeHtml((row.value || '').substring(0, 50))}</td>
                     </tr>
@@ -1072,7 +1081,8 @@
                         project_name: edited.project_name !== undefined ? edited.project_name : null,
                         dimension_name: edited.dimension_name !== undefined ? edited.dimension_name : null,
                         data_source: edited.data_source !== undefined ? edited.data_source : null,
-                        client_name: edited.client_name !== undefined ? edited.client_name : null
+                        client_name: edited.client_name !== undefined ? edited.client_name : null,
+                        question_text: edited.question_text !== undefined ? edited.question_text : null
                     });
                 }
             });
