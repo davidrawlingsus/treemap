@@ -622,6 +622,10 @@
                             <input type="text" id="filterDimensionName" placeholder="Search dimension_name (partial match)">
                         </div>
                         <div class="filter-group">
+                            <label>Data Source</label>
+                            <input type="text" id="filterDataSource" placeholder="Search data_source (partial match)">
+                        </div>
+                        <div class="filter-group">
                             <button class="btn btn-primary" onclick="applyFilters()">Apply Filters</button>
                         </div>
                         <div class="filter-group">
@@ -744,7 +748,8 @@
             project_name: '',
             dimension_ref: '',
             dimension_name: '',
-            client_name: ''
+            client_name: '',
+            data_source: ''
         };
         let editedRows = new Map(); // Track edited values: rowId -> {project_name, dimension_name}
         let fieldMetadata = []; // Store field metadata from API
@@ -894,6 +899,9 @@
                 if (currentFilters.client_name) {
                     params.append('filter_client_name', currentFilters.client_name);
                 }
+                if (currentFilters.data_source) {
+                    params.append('filter_data_source', currentFilters.data_source);
+                }
                 params.append('page', currentPage.toString());
                 params.append('page_size', pageSize.toString());
                 
@@ -1018,6 +1026,7 @@
             currentFilters.dimension_ref = document.getElementById('filterDimensionRef').value.trim();
             currentFilters.dimension_name = document.getElementById('filterDimensionName').value.trim();
             currentFilters.client_name = document.getElementById('filterClientName').value.trim();
+            currentFilters.data_source = document.getElementById('filterDataSource').value.trim();
             currentPage = 1;
             editedRows.clear();
             loadData();
@@ -1029,11 +1038,13 @@
             document.getElementById('filterDimensionRef').value = '';
             document.getElementById('filterDimensionName').value = '';
             document.getElementById('filterClientName').value = '';
+            document.getElementById('filterDataSource').value = '';
             currentFilters.project_id = '';
             currentFilters.project_name = '';
             currentFilters.dimension_ref = '';
             currentFilters.dimension_name = '';
             currentFilters.client_name = '';
+            currentFilters.data_source = '';
             currentPage = 1;
             editedRows.clear();
             clearBulkEdit();
@@ -1174,7 +1185,7 @@
 
         // Bulk Edit Functions
         function updateBulkEditSection() {
-            const hasFilters = currentFilters.project_id || currentFilters.project_name || currentFilters.dimension_ref || currentFilters.dimension_name || currentFilters.client_name;
+            const hasFilters = currentFilters.project_id || currentFilters.project_name || currentFilters.dimension_ref || currentFilters.dimension_name || currentFilters.client_name || currentFilters.data_source;
             const bulkSection = document.getElementById('bulkEditSection');
             const bulkInfo = document.getElementById('bulkEditInfo');
             
@@ -1196,6 +1207,9 @@
                 if (currentFilters.client_name) {
                     filterText.push(`Client Name: ${currentFilters.client_name}`);
                 }
+                if (currentFilters.data_source) {
+                    filterText.push(`Data Source: ${currentFilters.data_source}`);
+                }
                 bulkInfo.textContent = `Will update all rows matching: ${filterText.join(', ')} (${totalRows} rows)`;
             } else {
                 bulkSection.style.display = 'none';
@@ -1203,7 +1217,7 @@
         }
 
         async function applyBulkEdit() {
-            if (!currentFilters.project_id && !currentFilters.project_name && !currentFilters.dimension_ref && !currentFilters.dimension_name && !currentFilters.client_name) {
+            if (!currentFilters.project_id && !currentFilters.project_name && !currentFilters.dimension_ref && !currentFilters.dimension_name && !currentFilters.client_name && !currentFilters.data_source) {
                 showStatus('Please apply filters before bulk editing', 'error');
                 return;
             }
@@ -1260,6 +1274,9 @@
                 if (currentFilters.client_name) {
                     params.append('filter_client_name', currentFilters.client_name);
                 }
+                if (currentFilters.data_source) {
+                    params.append('filter_data_source', currentFilters.data_source);
+                }
                 
                 const response = await fetch(`${API_BASE_URL}/api/founder-admin/voc-data/bulk-update-filtered?${params.toString()}`, {
                     method: 'POST',
@@ -1299,7 +1316,7 @@
         }
 
         async function deleteBulkRows() {
-            if (!currentFilters.project_id && !currentFilters.project_name && !currentFilters.dimension_ref && !currentFilters.dimension_name && !currentFilters.client_name) {
+            if (!currentFilters.project_id && !currentFilters.project_name && !currentFilters.dimension_ref && !currentFilters.dimension_name && !currentFilters.client_name && !currentFilters.data_source) {
                 showStatus('Please apply filters before deleting rows', 'error');
                 return;
             }
@@ -1334,6 +1351,9 @@
                 }
                 if (currentFilters.client_name) {
                     params.append('filter_client_name', currentFilters.client_name);
+                }
+                if (currentFilters.data_source) {
+                    params.append('filter_data_source', currentFilters.data_source);
                 }
                 
                 const response = await fetch(`${API_BASE_URL}/api/founder-admin/voc-data/bulk-delete?${params.toString()}`, {

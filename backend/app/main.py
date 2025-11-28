@@ -2276,6 +2276,7 @@ def get_founder_admin_voc_data(
     filter_dimension_ref: Optional[str] = None,
     filter_dimension_name: Optional[str] = None,
     filter_client_name: Optional[str] = None,
+    filter_data_source: Optional[str] = None,
     # Legacy parameter names for backward compatibility
     project_id: Optional[str] = None,
     project_name: Optional[str] = None,
@@ -2314,6 +2315,8 @@ def get_founder_admin_voc_data(
         query = query.filter(ProcessVoc.dimension_name.ilike(f"%{filter_dname}%"))
     if filter_cname:
         query = query.filter(ProcessVoc.client_name.ilike(f"%{filter_cname}%"))
+    if filter_data_source:
+        query = query.filter(ProcessVoc.data_source.ilike(f"%{filter_data_source}%"))
     
     # Get total count
     total = query.count()
@@ -2424,6 +2427,7 @@ def bulk_update_filtered_voc_data(
     filter_dimension_ref: Optional[str] = None,
     filter_dimension_name: Optional[str] = None,
     filter_client_name: Optional[str] = None,
+    filter_data_source: Optional[str] = None,
     update_request: Optional[DynamicBulkUpdateRequest] = None,
     # Legacy parameters for backward compatibility
     project_name: Optional[str] = None,
@@ -2443,7 +2447,7 @@ def bulk_update_filtered_voc_data(
     2. New: Use update_request with dynamic field map
     """
     # Require at least one filter to prevent accidental updates to all rows
-    if not filter_project_id and not filter_project_name and not filter_dimension_ref and not filter_dimension_name and not filter_client_name:
+    if not filter_project_id and not filter_project_name and not filter_dimension_ref and not filter_dimension_name and not filter_client_name and not filter_data_source:
         raise HTTPException(
             status_code=400,
             detail="At least one filter must be provided"
@@ -2486,6 +2490,8 @@ def bulk_update_filtered_voc_data(
         query = query.filter(ProcessVoc.dimension_name.ilike(f"%{filter_dimension_name}%"))
     if filter_client_name:
         query = query.filter(ProcessVoc.client_name.ilike(f"%{filter_client_name}%"))
+    if filter_data_source:
+        query = query.filter(ProcessVoc.data_source.ilike(f"%{filter_data_source}%"))
     
     # Get all matching rows
     rows = query.all()
@@ -2552,6 +2558,7 @@ def bulk_delete_voc_data(
     filter_dimension_ref: Optional[str] = None,
     filter_dimension_name: Optional[str] = None,
     filter_client_name: Optional[str] = None,
+    filter_data_source: Optional[str] = None,
     # Legacy parameters
     project_id: Optional[str] = None,
     dimension_ref: Optional[str] = None,
@@ -2571,7 +2578,7 @@ def bulk_delete_voc_data(
     filter_cname = filter_client_name
     
     # Require at least one filter to prevent accidental deletion of all rows
-    if not filter_pid and not filter_pname and not filter_dref and not filter_dname and not filter_cname:
+    if not filter_pid and not filter_pname and not filter_dref and not filter_dname and not filter_cname and not filter_data_source:
         raise HTTPException(
             status_code=400,
             detail="At least one filter must be provided"
@@ -2590,6 +2597,8 @@ def bulk_delete_voc_data(
         query = query.filter(ProcessVoc.dimension_name.ilike(f"%{filter_dname}%"))
     if filter_cname:
         query = query.filter(ProcessVoc.client_name.ilike(f"%{filter_cname}%"))
+    if filter_data_source:
+        query = query.filter(ProcessVoc.data_source.ilike(f"%{filter_data_source}%"))
     
     # Get all matching rows
     rows = query.all()
