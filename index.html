@@ -3732,6 +3732,36 @@
             await loadDataSource(currentClientId, currentDataSourceId);
         }
         
+        // Update treemap title with question text if available
+        function updateTreemapTitle() {
+            const treemapTitleEl = document.querySelector('.treemap-title');
+            if (!treemapTitleEl || !fullRawData || fullRawData.length === 0) {
+                return;
+            }
+            
+            let questionText = null;
+            
+            // Only show question_text when a specific dimension is selected
+            // This avoids confusion when "All Dimensions" is selected (multiple questions possible)
+            if (currentQuestionRefKey) {
+                const dimensionRow = fullRawData.find(row => 
+                    row.dimension_ref === currentQuestionRefKey && 
+                    row.question_text && 
+                    row.question_text.trim() !== ''
+                );
+                if (dimensionRow) {
+                    questionText = dimensionRow.question_text;
+                }
+            }
+            
+            // Update the title
+            if (questionText) {
+                treemapTitleEl.textContent = questionText;
+            } else {
+                treemapTitleEl.textContent = 'Topic Distribution';
+            }
+        }
+        
         // Update breadcrumb display
         function updateBreadcrumb(questionRefKey) {
             const client = allClients.find(c => c.client_uuid === currentClientId);
@@ -3950,6 +3980,9 @@
                 
                 // Store raw process_voc rows
                 fullRawData = processVocRows;
+                
+                // Update treemap title with question text if available
+                updateTreemapTitle();
                 
                 // Update breadcrumb
                 updateBreadcrumb();
@@ -4189,6 +4222,9 @@
             
             // Update breadcrumb to show question selection
             updateBreadcrumb(refKey);
+            
+            // Update treemap title with question text if available
+            updateTreemapTitle();
             
             // Re-render visualizations (this will apply preserved metadata filters)
             applyFiltersAndRender();
