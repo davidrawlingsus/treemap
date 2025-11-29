@@ -5222,16 +5222,19 @@
                         });
                     }
 
-                    // Add verbatim
+                    // Add verbatim - include all metadata fields dynamically
                     const topicData = category.children.get(topic.label);
                     topicData.verbatims.push({
                         text: row.text || '',
                         sentiment: row.sentiment || 'neutral',
                         index: row.row_id,
+                        // Preserve commonly used fields for backward compatibility
                         country: row.metadata?.country || '',
                         city: row.metadata?.city || '',
                         date: row.metadata?.created_at || '',
-                        source_type: row.metadata?.source_type || 'unknown'
+                        source_type: row.metadata?.source_type || 'unknown',
+                        // Include all other metadata fields
+                        ...(row.metadata || {})
                     });
                 });
             });
@@ -6287,14 +6290,17 @@
                      const topicData = category.topics.get(topic.label);
                      topicData.count++;
                      
-                     // Add verbatim data
+                     // Add verbatim data - include all metadata fields dynamically
                      topicData.verbatims.push({
                          text: row.text || '',
                          sentiment: row.sentiment || 'neutral',
                          index: row.row_id,
+                         // Preserve commonly used fields for backward compatibility
                          country: row.metadata?.country || '',
                          city: row.metadata?.city || '',
-                         date: row.metadata?.created_at || ''
+                         date: row.metadata?.created_at || '',
+                         // Include all other metadata fields
+                         ...(row.metadata || {})
                      });
                  });
              });
@@ -6654,14 +6660,17 @@
                      const topicData = topicsMap.get(topic.label);
                      topicData.count++;
                      
-                     // Add verbatim data
+                     // Add verbatim data - include all metadata fields dynamically
                      topicData.verbatims.push({
                          text: row.text || '',
                          sentiment: row.sentiment || 'neutral',
                          index: row.row_id,
+                         // Preserve commonly used fields for backward compatibility
                          country: row.metadata?.country || '',
                          city: row.metadata?.city || '',
-                         date: row.metadata?.created_at || ''
+                         date: row.metadata?.created_at || '',
+                         // Include all other metadata fields
+                         ...(row.metadata || {})
                      });
                  });
              });
@@ -7338,6 +7347,113 @@
                 this.currentMode = null;
             },
             
+            // Extract all available metadata fields from verbatims
+            extractAvailableMetadataFields(verbatims) {
+                const fields = new Set();
+                
+                verbatims.forEach(v => {
+                    if (!v) return;
+                    
+                    // Add special composite fields
+                    if (v.sentiment) fields.add('sentiment');
+                    if (v.city || v.country) fields.add('location');
+                    if (v.index !== undefined || v.row_id !== undefined) fields.add('index');
+                    
+                    // Add all other fields from the verbatim object
+                    Object.keys(v).forEach(key => {
+                        // Skip internal/metadata fields that are handled as special cases
+                        if (key !== 'text' && 
+                            key !== 'sentiment' && 
+                            key !== 'city' &&  // Handled as part of 'location'
+                            key !== 'country' &&  // Handled as part of 'location'
+                            key !== 'index' && 
+                            key !== 'row_id' &&
+                            key !== 'category' &&
+                            key !== 'topic') {
+                            const value = v[key];
+                            // Only add fields that have non-empty values
+                            if (value !== null && value !== undefined && value !== '') {
+                                fields.add(key);
+                            }
+                        }
+                    });
+                });
+                
+                return Array.from(fields).sort();
+            },
+            
+            // Generate metadata settings panel with dynamic checkboxes
+            generateMetadataSettingsPanel(availableFields, preserveState = false) {
+                const panel = document.getElementById('slideoutSettingsPanel');
+                if (!panel) return;
+                
+                // Preserve existing checkbox states if requested
+                const savedStates = {};
+                if (preserveState) {
+                    availableFields.forEach(field => {
+                        const checkbox = document.getElementById(`showMetadata_${field}`);
+                        if (checkbox) {
+                            savedStates[field] = checkbox.checked;
+                        }
+                    });
+                }
+                
+                // Clear existing content
+                panel.innerHTML = '';
+                
+                // Add header
+                const header = document.createElement('h3');
+                header.style.cssText = 'font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #333;';
+                header.textContent = 'Display Metadata';
+                panel.appendChild(header);
+                
+                // Helper to create a checkbox option
+                const createCheckboxOption = (fieldName, label, defaultValue = true) => {
+                    const option = document.createElement('div');
+                    option.className = 'settings-option';
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.id = `showMetadata_${fieldName}`;
+                    // Use saved state if available, otherwise use default
+                    checkbox.checked = preserveState && savedStates.hasOwnProperty(fieldName) 
+                        ? savedStates[fieldName] 
+                        : defaultValue;
+                    checkbox.onchange = () => updateSlideoutSettings();
+                    
+                    const labelEl = document.createElement('label');
+                    labelEl.htmlFor = `showMetadata_${fieldName}`;
+                    labelEl.textContent = label;
+                    
+                    option.appendChild(checkbox);
+                    option.appendChild(labelEl);
+                    return option;
+                };
+                
+                // Add standard fields first (if available)
+                if (availableFields.includes('sentiment')) {
+                    panel.appendChild(createCheckboxOption('sentiment', 'Sentiment', true));
+                }
+                if (availableFields.includes('location')) {
+                    panel.appendChild(createCheckboxOption('location', 'Location', true));
+                }
+                if (availableFields.includes('index')) {
+                    panel.appendChild(createCheckboxOption('index', 'Index', true));
+                }
+                
+                // Add other metadata fields
+                availableFields.forEach(field => {
+                    if (field !== 'sentiment' && field !== 'location' && field !== 'index') {
+                        // Format field name for display (convert snake_case to Title Case)
+                        const displayName = field
+                            .split('_')
+                            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                            .join(' ');
+                        panel.appendChild(createCheckboxOption(field, displayName, true));
+                    }
+                });
+            },
+            
             renderVerbatims(verbatims, topicName, categoryName) {
                 console.log('SlideoutPanel.renderVerbatims called with:', { 
                     verbatimsCount: verbatims?.length, 
@@ -7362,6 +7478,12 @@
                 // Show settings button
                 const settingsBtn = document.getElementById('slideoutSettingsBtn');
                 if (settingsBtn) settingsBtn.style.display = 'flex';
+                
+                // Extract available metadata fields and generate settings panel
+                this.availableMetadataFields = this.extractAvailableMetadataFields(verbatims);
+                // Preserve checkbox states if they already exist (when re-rendering)
+                const hasExistingCheckboxes = document.getElementById('slideoutSettingsPanel')?.querySelector('input[type="checkbox"]') !== null;
+                this.generateMetadataSettingsPanel(this.availableMetadataFields, hasExistingCheckboxes);
                 
                 // Filter verbatims by search term
                 let displayVerbatims = verbatims;
@@ -7391,28 +7513,85 @@
                     // Build metadata HTML based on settings
                     const metaItems = [];
                     
-                    // Check user's settings
-                    const showSentiment = document.getElementById('showSentiment')?.checked !== false;
-                    const showLocation = document.getElementById('showLocation')?.checked !== false;
-                    const showIndex = document.getElementById('showIndex')?.checked !== false;
+                    // Helper function to check if a metadata field should be shown
+                    const shouldShowField = (fieldName) => {
+                        const checkbox = document.getElementById(`showMetadata_${fieldName}`);
+                        return checkbox?.checked !== false; // Default to true if checkbox doesn't exist
+                    };
                     
-                    if (showSentiment && v.sentiment) {
+                    // Check and render sentiment
+                    if (shouldShowField('sentiment') && v.sentiment) {
                         const sentimentClass = `sentiment-${v.sentiment}`;
                         const sentimentLabel = v.sentiment.charAt(0).toUpperCase() + v.sentiment.slice(1);
                         metaItems.push(`<span class="verbatim-metadata-item ${sentimentClass}">${sentimentLabel}</span>`);
                     }
                     
-                    if (showLocation) {
+                    // Check and render location (combines city and country)
+                    if (shouldShowField('location')) {
                         if (v.city && v.country) {
                             metaItems.push(`<span class="verbatim-metadata-item">📍 ${escapeHtml(v.city)}, ${escapeHtml(v.country)}</span>`);
                         } else if (v.country) {
                             metaItems.push(`<span class="verbatim-metadata-item">📍 ${escapeHtml(v.country)}</span>`);
+                        } else if (v.city) {
+                            metaItems.push(`<span class="verbatim-metadata-item">📍 ${escapeHtml(v.city)}</span>`);
                         }
                     }
                     
-                    if (showIndex) {
-                        metaItems.push(`<span class="verbatim-metadata-item">#${index + 1}</span>`);
+                    // Check and render index
+                    if (shouldShowField('index')) {
+                        const indexValue = v.index !== undefined ? v.index : (v.row_id !== undefined ? v.row_id : index + 1);
+                        metaItems.push(`<span class="verbatim-metadata-item">#${indexValue}</span>`);
                     }
+                    
+                    // Render all other metadata fields dynamically
+                    (this.availableMetadataFields || []).forEach(field => {
+                        if (field === 'sentiment' || field === 'location' || field === 'index') {
+                            return; // Already handled above
+                        }
+                        
+                        if (!shouldShowField(field)) {
+                            return; // Skip if checkbox is unchecked
+                        }
+                        
+                        const value = v[field];
+                        if (value !== null && value !== undefined && value !== '') {
+                            // Format field name for display
+                            const displayName = field
+                                .split('_')
+                                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                                .join(' ');
+                            
+                            // Format value based on type
+                            let displayValue = value;
+                            if (typeof value === 'object') {
+                                displayValue = JSON.stringify(value);
+                            } else if (typeof value === 'string' && value.match(/^\d{4}-\d{2}-\d{2}/)) {
+                                // Looks like a date, try to format it nicely
+                                try {
+                                    const date = new Date(value);
+                                    if (!isNaN(date.getTime())) {
+                                        displayValue = date.toLocaleDateString();
+                                    }
+                                } catch (e) {
+                                    // Keep original value if parsing fails
+                                }
+                            }
+                            
+                            // Add appropriate icon/prefix based on field name
+                            let prefix = '';
+                            if (field.toLowerCase().includes('date') || field.toLowerCase().includes('time') || field.toLowerCase().includes('created') || field.toLowerCase().includes('updated')) {
+                                prefix = '📅 ';
+                            } else if (field.toLowerCase().includes('source') || field.toLowerCase().includes('type')) {
+                                prefix = '🔗 ';
+                            } else if (field.toLowerCase().includes('email')) {
+                                prefix = '📧 ';
+                            } else if (field.toLowerCase().includes('phone')) {
+                                prefix = '📞 ';
+                            }
+                            
+                            metaItems.push(`<span class="verbatim-metadata-item">${prefix}${escapeHtml(String(displayValue))}</span>`);
+                        }
+                    });
                     
                     const metaHTML = metaItems.length > 0 
                         ? `<div class="verbatim-metadata">${metaItems.join('')}</div>` 
@@ -7669,19 +7848,7 @@
             
             <!-- Settings panel for verbatims -->
             <div id="slideoutSettingsPanel" class="settings-panel" style="display: none; margin-top: 12px;">
-                <h3 style="font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #333;">Display Metadata</h3>
-                <div class="settings-option">
-                    <input type="checkbox" id="showSentiment" checked onchange="updateSlideoutSettings()">
-                    <label for="showSentiment">Sentiment</label>
-                </div>
-                <div class="settings-option">
-                    <input type="checkbox" id="showLocation" checked onchange="updateSlideoutSettings()">
-                    <label for="showLocation">Location</label>
-                </div>
-                <div class="settings-option">
-                    <input type="checkbox" id="showIndex" checked onchange="updateSlideoutSettings()">
-                    <label for="showIndex">Index</label>
-                </div>
+                <!-- Metadata checkboxes will be dynamically generated here -->
             </div>
         </div>
         
