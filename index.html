@@ -728,6 +728,12 @@
             padding: 0;
         }
 
+        .settings-button img {
+            opacity: 1;
+            filter: none;
+            transition: filter 0.2s ease-in-out, opacity 0.2s ease-in-out;
+        }
+
         .settings-button:hover {
             background: rgba(185, 240, 64, 0.2);
             border-color: #B9F040;
@@ -735,10 +741,18 @@
             transform: scale(1.1);
         }
 
+        .settings-button:hover img {
+            filter: brightness(0) saturate(100%) invert(72%) sepia(98%) saturate(1352%) hue-rotate(50deg) brightness(1.05);
+        }
+
         .settings-button.active {
             background: rgba(185, 240, 64, 0.2);
             border-color: #B9F040;
             color: #B9F040;
+        }
+
+        .settings-button.active img {
+            filter: brightness(0) saturate(100%) invert(72%) sepia(98%) saturate(1352%) hue-rotate(50deg) brightness(1.05);
         }
 
         .settings-panel {
@@ -3224,15 +3238,21 @@
                 const urlSource = urlParams.get('source');
                 const urlDimension = urlParams.get('dimension');
                 
+                // Check saved state for restoration
+                const savedState = loadState();
+                
+                // Priority: URL params > current globals > saved state
+                // This ensures values restored in handleAuthenticatedUser() are used
                 const restoreState = {
-                    projectName: urlProject || null,
-                    dataSourceId: urlSource || null,
-                    questionRefKey: urlDimension || null
+                    projectName: urlProject || currentProjectName || (savedState && savedState.projectName) || null,
+                    dataSourceId: urlSource || currentDataSourceId || (savedState && savedState.dataSourceId) || null,
+                    questionRefKey: urlDimension || currentQuestionRefKey || (savedState && savedState.questionRefKey) || null
                 };
                 
-                if (urlProject) currentProjectName = urlProject;
-                if (urlSource) currentDataSourceId = urlSource;
-                if (urlDimension) currentQuestionRefKey = urlDimension;
+                // Update globals if we have values from URL or saved state (but not if already set from handleAuthenticatedUser)
+                if (restoreState.projectName && !currentProjectName) currentProjectName = restoreState.projectName;
+                if (restoreState.dataSourceId && !currentDataSourceId) currentDataSourceId = restoreState.dataSourceId;
+                if (restoreState.questionRefKey && !currentQuestionRefKey) currentQuestionRefKey = restoreState.questionRefKey;
                 
                 if (select && (select.innerHTML === '' || select.innerHTML.includes('Loading'))) {
                     console.log('Client dropdown not populated, loading clients...');
@@ -3294,6 +3314,35 @@
                     return;
                 } else {
                     console.log('Client_uuid in URL not found in accessible clients:', urlClientUuid);
+                }
+            }
+
+            // Check saved state - if there's a saved client that's accessible, auto-launch it
+            const savedState = loadState();
+            if (savedState && savedState.clientId) {
+                const matchingClient = accessibleClients.find(client => 
+                    client.client_uuid === savedState.clientId || client.id === savedState.clientId
+                );
+                if (matchingClient) {
+                    console.log('Found saved client in state, auto-launching:', savedState.clientId);
+                    // Restore the full state (project, source, dimension) before launching
+                    // so it's available throughout the loading chain
+                    if (savedState.projectName) {
+                        currentProjectName = savedState.projectName;
+                        console.log('Restored saved project:', currentProjectName);
+                    }
+                    if (savedState.dataSourceId) {
+                        currentDataSourceId = savedState.dataSourceId;
+                        console.log('Restored saved data source:', currentDataSourceId);
+                    }
+                    if (savedState.questionRefKey) {
+                        currentQuestionRefKey = savedState.questionRefKey;
+                        console.log('Restored saved dimension:', currentQuestionRefKey);
+                    }
+                    selectClientAndLaunch(savedState.clientId);
+                    return;
+                } else {
+                    console.log('Saved client not found in accessible clients:', savedState.clientId);
                 }
             }
 
@@ -3504,18 +3553,22 @@
                 select.addEventListener('change', handleClientChange);
                 
                 // Load projects for the selected client (only if not already loading from selectClientAndLaunch)
-                // Create a combined state object with URL params taking precedence
+                // Create a combined state object with priority: URL params > current globals > saved state
+                // This ensures values restored in handleAuthenticatedUser() are used
                 const restoreState = {
-                    projectName: urlProject || (savedState && savedState.projectName) || null,
-                    dataSourceId: urlSource || (savedState && savedState.dataSourceId) || null,
-                    questionRefKey: urlDimension || (savedState && savedState.questionRefKey) || null
+                    projectName: urlProject || currentProjectName || (savedState && savedState.projectName) || null,
+                    dataSourceId: urlSource || currentDataSourceId || (savedState && savedState.dataSourceId) || null,
+                    questionRefKey: urlDimension || currentQuestionRefKey || (savedState && savedState.questionRefKey) || null
                 };
                 
                 // Only auto-load projects if we're not already in the process of launching a client
                 // (to prevent double loading when called from selectClientAndLaunch)
+                // But allow loading if we're in the main view and not already initialized (page refresh scenario)
                 const mainContainer = document.getElementById('mainContainer');
                 const isMainVisible = mainContainer && mainContainer.style.display !== 'none';
-                const shouldAutoLoad = !hasAutoLaunched || !isMainVisible;
+                const isInitialized = document.querySelector('.treemap-svg-container') !== null;
+                // Load if: not auto-launched yet, OR main is not visible, OR (main is visible but not initialized - refresh scenario)
+                const shouldAutoLoad = !hasAutoLaunched || !isMainVisible || (isMainVisible && !isInitialized);
                 
                 if (currentClientId && shouldAutoLoad) {
                     console.log(`Loading projects for client: ${currentClientId} with state:`, restoreState);
@@ -7590,10 +7643,7 @@
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
                 <button id="slideoutSettingsBtn" class="settings-button" onclick="toggleSlideoutSettings()" title="Card Settings" style="display: none;">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="3"></circle>
-                        <path d="M12 1v6m0 6v6M5.64 5.64l4.24 4.24m4.24 4.24l4.24 4.24M1 12h6m6 0h6M5.64 18.36l4.24-4.24m4.24-4.24l4.24-4.24"></path>
-                    </svg>
+                    <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/settings.svg" alt="Settings" width="18" height="18">
                 </button>
                 <button id="closeSlideoutPanel" class="ai-close-btn">&times;</button>
             </div>
