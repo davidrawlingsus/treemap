@@ -386,7 +386,22 @@
             const grid = document.getElementById('dataSourcesGrid');
             grid.innerHTML = '';
 
-            dataSources.forEach((source, index) => {
+            // Get current user email to check if CSV upload should be shown
+            const userInfo = typeof Auth !== 'undefined' && typeof Auth.getStoredUserInfo === 'function'
+                ? Auth.getStoredUserInfo()
+                : null;
+            const userEmail = userInfo?.email || '';
+            const isDavid = userEmail.toLowerCase() === 'david@rawlings.us';
+
+            // Filter out CSV source if user is not david@rawlings.us
+            const filteredSources = dataSources.filter(source => {
+                if (source.id === 'csv' && !isDavid) {
+                    return false;
+                }
+                return true;
+            });
+
+            filteredSources.forEach((source, index) => {
                 const card = document.createElement('div');
                 // First item (CSV) gets full-width class
                 const isFullWidth = index === 0 && source.available;
@@ -425,6 +440,11 @@
 
         // Render on page load
         renderDataSources();
+
+        // Re-render when auth state changes (in case user info loads after initial render)
+        window.addEventListener('auth:authenticated', () => {
+            renderDataSources();
+        });
     </script>
 </body>
 </html>
