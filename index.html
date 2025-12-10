@@ -377,6 +377,13 @@
              flex-direction: column;
              position: relative;
              overflow: hidden;
+             transition: height 0.3s ease-out, min-height 0.3s ease-out, max-height 0.3s ease-out;
+         }
+
+         .treemap-container.collapsed {
+             height: auto;
+             min-height: auto;
+             max-height: none;
          }
 
          @media (max-width: 768px) {
@@ -384,6 +391,12 @@
                  height: 70vh;
                  min-height: 500px;
                  max-height: 700px;
+             }
+
+             .treemap-container.collapsed {
+                 height: auto;
+                 min-height: auto;
+                 max-height: none;
              }
          }
 
@@ -393,11 +406,24 @@
                  min-height: 550px;
                  max-height: none;
              }
+
+             .treemap-container.collapsed {
+                 height: auto;
+                 min-height: auto;
+                 max-height: none;
+             }
          }
 
         .treemap-header {
             padding: 20px 24px 16px 24px;
             border-bottom: 1px solid #E6EBF3;
+        }
+
+        .treemap-header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
         }
 
         .treemap-title {
@@ -406,6 +432,7 @@
             font-weight: 600;
             color: #333;
             margin: 0;
+            flex: 1;
         }
 
         .treemap-subtitle {
@@ -413,6 +440,11 @@
             font-size: 13px;
             color: #8B93A7;
             margin: 4px 0 0 0;
+            transition: margin 0.3s ease-out, opacity 0.3s ease-out;
+        }
+
+        .treemap-container.collapsed .treemap-subtitle {
+            opacity: 0.7;
         }
 
         .treemap-svg-container {
@@ -424,6 +456,22 @@
             min-height: 0;
             overflow: hidden;
             width: 100%;
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out, margin 0.3s ease-out, padding 0.3s ease-out;
+            max-height: 2000px;
+            opacity: 1;
+        }
+
+        .treemap-container.collapsed .treemap-svg-container {
+            max-height: 0;
+            opacity: 0;
+            margin: 0;
+            padding: 0;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        .treemap-container.collapsed .chart__toggle-icon {
+            transform: rotate(-90deg);
         }
         
         .treemap-svg-container svg {
@@ -2129,6 +2177,15 @@
             color: #333;
         }
 
+        #slideoutSearchClear {
+            transition: all 0.2s;
+        }
+
+        #slideoutSearchClear:hover {
+            background: #f5f5f5;
+            color: #333;
+        }
+
         .ai-insights-content {
             flex: 1;
             overflow-y: auto;
@@ -2515,7 +2572,14 @@
         <div class="treemap-section">
             <div class="treemap-container">
                 <div class="treemap-header">
-                    <h2 class="treemap-title">Topic Distribution</h2>
+                    <div class="treemap-header-top">
+                        <h2 class="treemap-title">Topic Distribution</h2>
+                        <button class="chart__toggle" onclick="toggleTreemap(this)" aria-label="Toggle treemap visibility">
+                            <svg class="chart__toggle-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 6 L8 10 L12 6" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                    </div>
                     <p class="treemap-subtitle">Hierarchical view of conversation categories and topics</p>
                 </div>
                 <div class="treemap-svg-container">
@@ -5818,6 +5882,14 @@
             const chart = button.closest('.chart');
             if (chart) {
                 chart.classList.toggle('collapsed');
+            }
+        }
+
+        // Toggle treemap visibility
+        function toggleTreemap(button) {
+            const container = button.closest('.treemap-container');
+            if (container) {
+                container.classList.toggle('collapsed');
             }
         }
 
