@@ -5276,6 +5276,9 @@
                     saveState();
                     filterByQuestion(selectedRefKey);
                     
+                    // Update navigation links to include the new dimension
+                    updateNavLinks();
+                    
                     // Update AI Insights panel with current dimension (will show/hide tab)
                     if (window.AIInsightsPanel) {
                         window.AIInsightsPanel.setCurrentDimension(selectedRefKey);
