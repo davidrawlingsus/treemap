@@ -8421,7 +8421,8 @@
             }
             
             if (navInsights) {
-                let insightsUrl = `${API_BASE_URL}/client-insights`;
+                // Use frontend domain, not backend API URL
+                let insightsUrl = '/client-insights';
                 if (clientUuid) {
                     insightsUrl += `?client_uuid=${clientUuid}`;
                     if (authToken) {
