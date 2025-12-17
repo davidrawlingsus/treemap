@@ -27,3 +27,6 @@ def downgrade():
     # Remove processed column from process_voc table
     op.drop_column('process_voc', 'processed')
 
+
+
+

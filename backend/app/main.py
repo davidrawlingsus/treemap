@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -33,6 +33,7 @@ from app.models import (
     ProcessVoc,
     AuthorizedDomain,
     AuthorizedDomainClient,
+    Insight,
 )
 from app.schemas import (
     ClientCreate,
@@ -49,6 +50,11 @@ from app.schemas import (
     FounderUserMembership,
     FounderUserSummary,
     ImpersonateRequest,
+    InsightCreate,
+    InsightUpdate,
+    InsightResponse,
+    InsightListResponse,
+    InsightOrigin,
     MagicLinkRequest,
     MagicLinkVerifyRequest,
     ProcessVocAdminListResponse,
@@ -191,10 +197,25 @@ if (frontend_path / "index.html").exists():
     
     # Serve config.js dynamically
     @app.get("/config.js")
-    def serve_config():
-        """Serve dynamic config.js with API URL"""
+    def serve_config(request: Request):
+        """Serve dynamic config.js with API URL based on request origin"""
         from fastapi.responses import Response
-        api_url = "http://localhost:8000"
+        import os
+        
+        # Get API URL from environment variable if set (for Railway/production)
+        api_url = os.getenv("API_BASE_URL")
+        
+        # If not set, use the request URL (where the backend is running)
+        # This ensures the API_BASE_URL points to the backend server
+        if not api_url:
+            scheme = request.url.scheme
+            host = request.headers.get("host", "localhost:8000")
+            api_url = f"{scheme}://{host}"
+        
+        # Default fallback for local development
+        if not api_url or api_url == "http://" or api_url == "https://":
+            api_url = "http://localhost:8000"
+        
         config_content = f"window.APP_CONFIG = {{ API_BASE_URL: '{api_url}' }};"
         return Response(content=config_content, media_type="application/javascript")
     
@@ -287,6 +308,17 @@ if (frontend_path / "choose-data-source.html").exists():
     def serve_choose_data_source_html():
         """Serve the choose data source page"""
         return FileResponse(frontend_path / "choose-data-source.html")
+
+if (frontend_path / "client-insights.html").exists():
+    @app.get("/client-insights", response_class=FileResponse)
+    def serve_client_insights():
+        """Serve the client insights page"""
+        return FileResponse(frontend_path / "client-insights.html")
+    
+    @app.get("/client-insights.html", response_class=FileResponse)
+    def serve_client_insights_html():
+        """Serve the client insights page"""
+        return FileResponse(frontend_path / "client-insights.html")
 
 @app.get("/api")
 def api_info():
@@ -1295,6 +1327,307 @@ def list_client_sources(client_id: UUID, db: Session = Depends(get_db)):
         result.append(ds_dict)
     
     return result
+
+
+def verify_client_access(client_id: UUID, current_user: User, db: Session) -> Client:
+    """Verify that the current user has access to the specified client."""
+    client = db.query(Client).filter(Client.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    # Check if user has access via memberships
+    membership = db.query(Membership).filter(
+        Membership.user_id == current_user.id,
+        Membership.client_id == client_id,
+        Membership.status == 'active'
+    ).first()
+    
+    if membership:
+        return client
+    
+    # If user is founder, check if they founded this client
+    if current_user.is_founder and client.founder_user_id == current_user.id:
+        return client
+    
+    raise HTTPException(
+        status_code=403,
+        detail="You do not have access to this client"
+    )
+
+
+# Insight Endpoints
+@app.get("/api/clients/{client_id}/insights", response_model=InsightListResponse)
+def list_insights(
+    client_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    origin_type: Optional[str] = None,
+    type: Optional[str] = None,
+    project_name: Optional[str] = None,
+    data_source: Optional[str] = None,
+    dimension_ref: Optional[str] = None,
+    category: Optional[str] = None,
+    topic_label: Optional[str] = None,
+    process_voc_id: Optional[int] = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    page: int = 1,
+    page_size: int = 50,
+):
+    """List insights for a client with filtering and sorting"""
+    # Verify client access
+    verify_client_access(client_id, current_user, db)
+    
+    # Build base query
+    query = db.query(Insight).filter(Insight.client_id == client_id)
+    
+    # Apply filters using JSONB operators
+    # For array filtering, we check if any element in the origins array matches
+    if origin_type:
+        query = query.filter(
+            text(f"EXISTS (SELECT 1 FROM jsonb_array_elements(insights.origins) AS origin WHERE (origin->>'origin_type') = '{origin_type}')")
+        )
+    
+    if type:
+        query = query.filter(Insight.type == type)
+    
+    if project_name:
+        query = query.filter(
+            text(f"EXISTS (SELECT 1 FROM jsonb_array_elements(insights.origins) AS origin WHERE (origin->>'project_name') = '{project_name}')")
+        )
+    
+    if data_source:
+        query = query.filter(
+            text(f"EXISTS (SELECT 1 FROM jsonb_array_elements(insights.origins) AS origin WHERE (origin->>'data_source') = '{data_source}')")
+        )
+    
+    if dimension_ref:
+        query = query.filter(
+            text(f"EXISTS (SELECT 1 FROM jsonb_array_elements(insights.origins) AS origin WHERE (origin->>'dimension_ref') = '{dimension_ref}')")
+        )
+    
+    if category:
+        query = query.filter(
+            text(f"EXISTS (SELECT 1 FROM jsonb_array_elements(insights.origins) AS origin WHERE (origin->>'category') = '{category}')")
+        )
+    
+    if topic_label:
+        query = query.filter(
+            text(f"EXISTS (SELECT 1 FROM jsonb_array_elements(insights.origins) AS origin WHERE (origin->>'topic_label') = '{topic_label}')")
+        )
+    
+    if process_voc_id is not None:
+        query = query.filter(
+            text(f"EXISTS (SELECT 1 FROM jsonb_array_elements(insights.origins) AS origin WHERE (origin->>'process_voc_id')::int = {process_voc_id})")
+        )
+    
+    # Get total count
+    total = query.count()
+    
+    # Apply sorting
+    if sort_order.lower() == "asc":
+        if sort_by == "name":
+            query = query.order_by(Insight.name.asc())
+        elif sort_by == "type":
+            query = query.order_by(Insight.type.asc())
+        elif sort_by == "created_at":
+            query = query.order_by(Insight.created_at.asc())
+        elif sort_by == "updated_at":
+            query = query.order_by(Insight.updated_at.asc())
+        else:
+            query = query.order_by(Insight.created_at.asc())
+    else:
+        if sort_by == "name":
+            query = query.order_by(Insight.name.desc())
+        elif sort_by == "type":
+            query = query.order_by(Insight.type.desc())
+        elif sort_by == "created_at":
+            query = query.order_by(Insight.created_at.desc())
+        elif sort_by == "updated_at":
+            query = query.order_by(Insight.updated_at.desc())
+        else:
+            query = query.order_by(Insight.created_at.desc())
+    
+    # Apply pagination
+    offset = (page - 1) * page_size
+    insights = query.offset(offset).limit(page_size).all()
+    
+    # Calculate total pages
+    total_pages = (total + page_size - 1) // page_size
+    
+    return InsightListResponse(
+        items=[InsightResponse.from_orm(insight) for insight in insights],
+        total=total,
+        page=page,
+        page_size=page_size,
+        total_pages=total_pages,
+    )
+
+
+@app.post("/api/clients/{client_id}/insights", response_model=InsightResponse)
+def create_insight(
+    client_id: UUID,
+    insight_data: InsightCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Create a new insight"""
+    try:
+        # Verify client access
+        verify_client_access(client_id, current_user, db)
+        
+        # Convert origins to JSONB format
+        origins_json = [origin.model_dump() for origin in insight_data.origins]
+        
+        insight = Insight(
+            client_id=client_id,
+            name=insight_data.name,
+            type=insight_data.type,
+            application=insight_data.application,
+            description=insight_data.description,
+            notes=insight_data.notes,
+            origins=origins_json,
+            meta_data=insight_data.metadata or {},
+            created_by=current_user.id,
+        )
+        
+        db.add(insight)
+        db.commit()
+        db.refresh(insight)
+        
+        return InsightResponse.from_orm(insight)
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error creating insight: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to create insight: {str(e)}")
+
+
+@app.get("/api/clients/{client_id}/insights/{insight_id}", response_model=InsightResponse)
+def get_insight(
+    client_id: UUID,
+    insight_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get a specific insight"""
+    # Verify client access
+    verify_client_access(client_id, current_user, db)
+    
+    insight = db.query(Insight).filter(
+        Insight.id == insight_id,
+        Insight.client_id == client_id
+    ).first()
+    
+    if not insight:
+        raise HTTPException(status_code=404, detail="Insight not found")
+    
+    return InsightResponse.from_orm(insight)
+
+
+@app.put("/api/clients/{client_id}/insights/{insight_id}", response_model=InsightResponse)
+def update_insight(
+    client_id: UUID,
+    insight_id: UUID,
+    insight_data: InsightUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update an existing insight"""
+    # Verify client access
+    verify_client_access(client_id, current_user, db)
+    
+    insight = db.query(Insight).filter(
+        Insight.id == insight_id,
+        Insight.client_id == client_id
+    ).first()
+    
+    if not insight:
+        raise HTTPException(status_code=404, detail="Insight not found")
+    
+    # Update fields
+    if insight_data.name is not None:
+        insight.name = insight_data.name
+    if insight_data.type is not None:
+        insight.type = insight_data.type
+    if insight_data.application is not None:
+        insight.application = insight_data.application
+    if insight_data.description is not None:
+        insight.description = insight_data.description
+    if insight_data.notes is not None:
+        insight.notes = insight_data.notes
+    if insight_data.metadata is not None:
+        insight.meta_data = insight_data.metadata
+    
+    # Handle origins - if add_origin is provided, append; if origins is provided, replace
+    if insight_data.add_origin is not None:
+        current_origins = insight.origins if insight.origins else []
+        current_origins.append(insight_data.add_origin.model_dump())
+        insight.origins = current_origins
+    elif insight_data.origins is not None:
+        insight.origins = [origin.model_dump() for origin in insight_data.origins]
+    
+    db.commit()
+    db.refresh(insight)
+    
+    return InsightResponse.from_orm(insight)
+
+
+@app.delete("/api/clients/{client_id}/insights/{insight_id}")
+def delete_insight(
+    client_id: UUID,
+    insight_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete an insight"""
+    # Verify client access
+    verify_client_access(client_id, current_user, db)
+    
+    insight = db.query(Insight).filter(
+        Insight.id == insight_id,
+        Insight.client_id == client_id
+    ).first()
+    
+    if not insight:
+        raise HTTPException(status_code=404, detail="Insight not found")
+    
+    db.delete(insight)
+    db.commit()
+    
+    return {"message": "Insight deleted successfully"}
+
+
+@app.post("/api/clients/{client_id}/insights/{insight_id}/origins", response_model=InsightResponse)
+def add_insight_origin(
+    client_id: UUID,
+    insight_id: UUID,
+    origin: InsightOrigin,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Add a new origin to an existing insight"""
+    # Verify client access
+    verify_client_access(client_id, current_user, db)
+    
+    insight = db.query(Insight).filter(
+        Insight.id == insight_id,
+        Insight.client_id == client_id
+    ).first()
+    
+    if not insight:
+        raise HTTPException(status_code=404, detail="Insight not found")
+    
+    # Append new origin
+    current_origins = insight.origins if insight.origins else []
+    current_origins.append(origin.model_dump())
+    insight.origins = current_origins
+    
+    db.commit()
+    db.refresh(insight)
+    
+    return InsightResponse.from_orm(insight)
 
 
 @app.get("/api/data-sources/{data_source_id}/questions", response_model=DataSourceWithQuestions)

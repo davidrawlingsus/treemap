@@ -6,6 +6,7 @@ from app.models.user import User
 from app.models.membership import Membership
 from app.models.process_voc import ProcessVoc
 from app.models.authorized_domain import AuthorizedDomain, AuthorizedDomainClient
+from app.models.insight import Insight
 
 __all__ = [
     "Client",
@@ -17,6 +18,7 @@ __all__ = [
     "ProcessVoc",
     "AuthorizedDomain",
     "AuthorizedDomainClient",
+    "Insight",
 ]
 
 

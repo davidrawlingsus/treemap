@@ -17,6 +17,7 @@
     <script src="/config.js"></script>
     <script src="/auth.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- Tiptap WYSIWYG Editor - will be loaded as ES module when needed -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
@@ -79,6 +80,59 @@
             display: none !important;
         }
 
+        /* App Navigation */
+        .app-navigation {
+            background: oklch(1 0 0); /* White */
+            border-bottom: 1px solid oklch(0.922 0 0); /* Border color */
+            padding: 0.75rem 1.5rem; /* 12px 24px */
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            position: sticky;
+            top: 0;
+            z-index: 101;
+            font-family: 'Lato', sans-serif;
+        }
+
+        .nav-menu {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-menu-item {
+            padding: 0.5rem 1rem; /* 8px 16px */
+            color: oklch(0.556 0 0); /* Muted foreground */
+            text-decoration: none;
+            font-size: 0.875rem; /* 14px */
+            font-weight: 500;
+            font-family: 'Lato', sans-serif;
+            border-radius: 0.375rem; /* 6px */
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .nav-menu-item:hover {
+            color: oklch(0.145 0 0); /* Near black */
+            background: oklch(0.97 0 0); /* Light gray */
+        }
+
+        .nav-menu-item.active {
+            color: oklch(0.145 0 0); /* Near black */
+            font-weight: 600;
+        }
+
+        .nav-menu-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 1rem;
+            right: 1rem;
+            height: 2px;
+            background: #B9F040; /* Lime green underline */
+            border-radius: 1px;
+        }
+
         .data-source-selector {
             padding: 18px 28px 22px;
             background: white;
@@ -88,7 +142,7 @@
             align-items: stretch;
             gap: 18px;
             position: sticky;
-            top: 0;
+            top: 48px; /* Below navigation */
             z-index: 100;
         }
         
@@ -718,6 +772,176 @@
             to { opacity: 1; }
         }
 
+        /* Context Menu Styles */
+        .context-menu {
+            position: fixed;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 10002;
+            min-width: 180px;
+            padding: 4px 0;
+            display: none;
+        }
+
+        .context-menu-item {
+            padding: 10px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #333;
+            transition: background-color 0.2s;
+        }
+
+        .context-menu-item:hover {
+            background-color: #f5f5f5;
+        }
+
+        .context-menu-item:active {
+            background-color: #e8e8e8;
+        }
+
+        /* Insight Modal Styles */
+        .insight-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10003;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .insight-modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        }
+
+        .insight-modal-header {
+            padding: 24px;
+            border-bottom: 1px solid #EBEBEB;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .insight-modal-header h2 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 600;
+            color: #1A2B3C;
+        }
+
+        .insight-modal-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            color: #666;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .insight-modal-close:hover {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .insight-form-group {
+            padding: 0 24px;
+            margin-bottom: 20px;
+        }
+
+        .insight-form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+        }
+
+        .insight-form-group input,
+        .insight-form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #EBEBEB;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+
+        .insight-form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+
+        .insight-origin-preview {
+            padding: 12px;
+            background: #f8f9fa;
+            border: 1px solid #EBEBEB;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .insight-origin-preview strong {
+            color: #333;
+        }
+
+        .insight-modal-actions {
+            padding: 24px;
+            border-top: 1px solid #EBEBEB;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .insight-modal-cancel,
+        .insight-modal-submit {
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .insight-modal-cancel {
+            background: white;
+            color: #1A2B3C;
+            border: 1px solid #EBEBEB;
+        }
+
+        .insight-modal-cancel:hover {
+            background: #f5f5f5;
+        }
+
+        .insight-modal-submit {
+            background: #B9F040;
+            color: #1A2B3C;
+        }
+
+        .insight-modal-submit:hover {
+            background: #A5D837;
+        }
+
         .overlay-content {
             background: white;
             border-radius: 12px;
@@ -1093,6 +1317,427 @@
             background: white;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        .insights-panel-container {
+            margin: 30px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            border: 2px solid #EBEBEB;
+        }
+
+        .insights-panel-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #EBEBEB;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .insights-panel-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .insights-panel-header-left h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+
+        .insights-filter-badge {
+            background: #B9F040;
+            color: #1A2B3C;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .insights-panel-header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-primary-small {
+            background: #B9F040;
+            color: #1A2B3C;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .btn-link {
+            background: none;
+            border: none;
+            color: #667eea;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: underline;
+        }
+
+        .insights-panel-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            color: #666;
+            font-size: 16px;
+        }
+
+        .insights-panel-body {
+            max-height: 400px;
+            overflow-y: auto;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .insights-panel-body.collapsed {
+            max-height: 0;
+            overflow: hidden;
+        }
+
+        /* Insights Table Section */
+        .insights-table-section {
+            padding: 0;
+        }
+
+        /* Control Bar */
+        .control-bar {
+            padding: 0.5rem 1.5rem;
+            border-bottom: 1px solid oklch(0.922 0 0);
+            background: oklch(1 0 0);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            min-height: 40px;
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: oklch(0.97 0 0);
+            border-radius: 0.375rem;
+            padding: 0.25rem 0.5rem;
+            min-width: 200px;
+            flex: 0 0 auto;
+        }
+
+        .search-box input {
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 0.875rem;
+            font-family: 'Lato', sans-serif;
+            padding: 0.125rem 0.25rem;
+            flex: 1;
+            color: oklch(0.145 0 0);
+        }
+
+        .search-box input::placeholder {
+            color: oklch(0.556 0 0);
+        }
+
+        .filter-chips {
+            display: flex;
+            gap: 0.375rem;
+            flex-wrap: wrap;
+            flex: 1;
+        }
+
+        .filter-chip {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.25rem 0.5rem;
+            background: oklch(0.97 0 0);
+            border-radius: 0.375rem;
+            font-size: 0.8125rem;
+            font-family: 'Lato', sans-serif;
+            color: oklch(0.145 0 0);
+        }
+
+        .filter-chip .remove {
+            cursor: pointer;
+            opacity: 0.6;
+            padding: 0 0.125rem;
+        }
+
+        .filter-chip .remove:hover {
+            opacity: 1;
+        }
+
+        .btn-filter {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            background: transparent;
+            border: none;
+            color: oklch(0.556 0 0);
+            cursor: pointer;
+            font-size: 0.8125rem;
+            font-family: 'Lato', sans-serif;
+            border-radius: 0.375rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-filter:hover {
+            background: oklch(0.97 0 0);
+            color: oklch(0.145 0 0);
+        }
+
+        .btn-reset {
+            padding: 0.25rem 0.5rem;
+            background: transparent;
+            border: none;
+            color: oklch(0.556 0 0);
+            cursor: pointer;
+            font-size: 0.8125rem;
+            font-family: 'Lato', sans-serif;
+            border-radius: 0.375rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-reset:hover {
+            background: oklch(0.97 0 0);
+            color: oklch(0.145 0 0);
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+            background: oklch(1 0 0);
+        }
+
+        .notion-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1200px;
+        }
+
+        .notion-table thead {
+            background: oklch(0.98 0 0);
+            border-bottom: 1px solid oklch(0.922 0 0);
+        }
+
+        .notion-table th {
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.8125rem;
+            font-family: 'Lato', sans-serif;
+            color: oklch(0.556 0 0);
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+        }
+
+        .notion-table th:hover {
+            background: oklch(0.97 0 0);
+        }
+
+        .notion-table th .sort-indicator {
+            margin-left: 0.25rem;
+            opacity: 0.4;
+        }
+
+        .notion-table th.sorted .sort-indicator {
+            opacity: 1;
+        }
+
+        .notion-table th .column-icon {
+            margin-right: 0.375rem;
+            opacity: 0.4;
+        }
+
+        .notion-table tbody tr {
+            border-bottom: 1px solid oklch(0.97 0 0);
+            transition: background 0.1s;
+        }
+
+        .notion-table tbody tr:hover {
+            background: oklch(0.98 0 0);
+        }
+
+        .notion-table tbody tr:hover .insight-open-btn-table {
+            display: flex !important;
+        }
+
+        .insight-open-btn-table {
+            display: none;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            background: oklch(0.97 0 0);
+            border: none;
+            border-radius: 0.375rem;
+            color: oklch(0.556 0 0);
+            font-size: 0.75rem;
+            font-weight: 500;
+            font-family: 'Lato', sans-serif;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-left: 0.5rem;
+            position: absolute;
+            right: 0;
+        }
+
+        .insight-open-btn-table:hover {
+            background: oklch(0.95 0 0);
+            color: oklch(0.145 0 0);
+        }
+
+        .notion-table td {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            font-family: 'Lato', sans-serif;
+            vertical-align: middle;
+        }
+
+        .notion-table .checkbox-cell {
+            width: 32px;
+            padding: 0.5rem;
+            text-align: center;
+        }
+
+        .notion-table .checkbox {
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid oklch(0.85 0 0);
+            border-radius: 0.375rem;
+            cursor: pointer;
+            display: inline-block;
+            transition: all 0.2s ease;
+        }
+
+        .notion-table .checkbox:hover {
+            border-color: oklch(0.7 0 0);
+        }
+
+        .notion-table .name-cell {
+            min-width: 250px;
+            font-weight: 500;
+        }
+
+        .notion-table .name-cell .name-content {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            position: relative;
+            padding-right: 80px;
+        }
+
+        .notion-table .name-cell .doc-icon {
+            width: 16px;
+            height: 16px;
+            opacity: 0.4;
+            flex-shrink: 0;
+        }
+
+        /* Tags/Pills */
+        .tag {
+            display: inline-block;
+            padding: 0.125rem 0.5rem;
+            border-radius: 0.375rem;
+            font-size: 0.8125rem;
+            font-weight: 400;
+            font-family: 'Lato', sans-serif;
+            margin-right: 0.25rem;
+            margin-bottom: 0.125rem;
+        }
+
+        .tag-type {
+            background: rgba(46, 170, 220, 0.15);
+            color: #2eaadc;
+        }
+
+        .tag-project {
+            background: rgba(255, 171, 0, 0.15);
+            color: #ffab00;
+        }
+
+        .tag-data-source {
+            background: rgba(99, 71, 169, 0.15);
+            color: #6347a9;
+        }
+
+        /* Status */
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .status-dot.not-started {
+            background: #d1d1d1;
+        }
+
+        .status-dot.in-progress {
+            background: #0b85ff;
+        }
+
+        .status-dot.done {
+            background: #0f7b0f;
+        }
+
+        /* Actions */
+        .actions-cell {
+            width: 80px;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            color: oklch(0.7 0 0);
+            font-size: 0.875rem;
+            border-radius: 0.375rem;
+            transition: all 0.2s ease;
+        }
+
+        .action-btn:hover {
+            background: oklch(0.97 0 0);
+            color: oklch(0.145 0 0);
+        }
+
+        /* Empty State */
+        .empty-state {
+            padding: 3.75rem 1.5rem;
+            text-align: center;
+            color: oklch(0.556 0 0);
+        }
+
+        .empty-state h3 {
+            font-size: 1rem;
+            font-family: 'Lato', sans-serif;
+            margin-bottom: 0.5rem;
+            color: oklch(0.556 0 0);
+        }
+
+        .loading {
+            padding: 2.5rem;
+            text-align: center;
+            color: oklch(0.556 0 0);
+            font-family: 'Lato', sans-serif;
         }
 
         .favourites-section h2 {
@@ -2121,6 +2766,11 @@
             transition: all 0.3s ease;
             display: none; /* Hidden by default until dimension is selected */
         }
+        
+        /* TEMPORARILY HIDDEN: AI Insights tab hidden until further notice */
+        #slideoutTab {
+            display: none !important;
+        }
 
         .ai-insights-tab:hover {
             background: linear-gradient(135deg, #c7ff4d 0%, #b9f040 100%);
@@ -2133,13 +2783,13 @@
             top: 0;
             width: 500px;
             height: 100vh;
-            background: white;
+            background: oklch(1 0 0); /* White from style guide */
             box-shadow: -4px 0 20px rgba(0,0,0,0.15);
             z-index: 10000;
             transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             flex-direction: column;
-            border-top: 3px solid #b9f040;
+            border-top: 3px solid #B9F040; /* Brand lime green */
         }
 
         .ai-insights-panel.open {
@@ -2147,26 +2797,160 @@
         }
 
         .ai-insights-header {
-            padding: 20px 24px 16px 24px;
-            border-bottom: 1px solid #e4e6eb;
+            padding: 1.25rem 1.5rem 1rem 1.5rem; /* 20px 24px 16px 24px */
+            border-bottom: 1px solid oklch(0.922 0 0); /* Border color from style guide */
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: white;
+            background: oklch(1 0 0); /* White */
         }
 
-        .ai-insights-header h2 {
-            font-size: 18px;
+        .ai-insights-header h2,
+        #slideoutTitle {
+            font-size: 1.5rem; /* 24px */
             font-weight: 600;
             margin: 0;
-            color: #333;
+            color: oklch(0.145 0 0);
+            font-family: 'Lato', sans-serif;
+        }
+
+        #slideoutTitle[contenteditable="true"]:focus {
+            outline: none;
+        }
+
+        #slideoutTitle[contenteditable="true"]:empty:before {
+            content: attr(data-placeholder);
+            color: oklch(0.556 0 0);
+        }
+
+        /* Remove focus outline from Tiptap editor */
+        .tiptap:focus,
+        .ProseMirror:focus,
+        .ProseMirror-focused {
+            outline: none !important;
+            border: none !important;
+        }
+
+        #insightNotesEditor .tiptap:focus,
+        #insightNotesEditor .ProseMirror:focus,
+        #insightNotesEditor .ProseMirror-focused {
+            outline: none !important;
+            border: none !important;
+        }
+
+        /* Blockquote styling */
+        #insightNotesEditor blockquote,
+        .ProseMirror blockquote,
+        .tiptap blockquote {
+            border-left: 3px solid oklch(0.556 0 0) !important;
+            padding-left: 1rem !important;
+            margin: 1rem 0 !important;
+            font-style: italic !important;
+            color: oklch(0.556 0 0) !important;
+            background: oklch(0.98 0 0) !important;
+            padding: 0.75rem 1rem !important;
+            border-radius: 0.375rem !important;
+        }
+        
+        #insightNotesEditor blockquote p,
+        .ProseMirror blockquote p,
+        .tiptap blockquote p {
+            margin: 0 !important;
+        }
+
+        /* Task List (Checklist) styling */
+        #insightNotesEditor ul[data-type="taskList"],
+        .ProseMirror ul[data-type="taskList"],
+        .tiptap ul[data-type="taskList"] {
+            list-style: none !important;
+            padding-left: 0 !important;
+        }
+
+        #insightNotesEditor ul[data-type="taskList"] li,
+        .ProseMirror ul[data-type="taskList"] li,
+        .tiptap ul[data-type="taskList"] li {
+            list-style: none !important;
+            display: flex !important;
+            align-items: flex-start !important;
+            margin: 0.5rem 0 !important;
+        }
+
+        #insightNotesEditor ul[data-type="taskList"] li label,
+        .ProseMirror ul[data-type="taskList"] li label,
+        .tiptap ul[data-type="taskList"] li label {
+            display: flex !important;
+            align-items: center !important;
+            cursor: pointer !important;
+            margin-right: 0.5rem !important;
+            flex-shrink: 0 !important;
+        }
+
+        #insightNotesEditor ul[data-type="taskList"] li label input[type="checkbox"],
+        .ProseMirror ul[data-type="taskList"] li label input[type="checkbox"],
+        .tiptap ul[data-type="taskList"] li label input[type="checkbox"] {
+            margin: 0 !important;
+            cursor: pointer !important;
+            width: 1.125rem !important;
+            height: 1.125rem !important;
+        }
+
+        #insightNotesEditor ul[data-type="taskList"] li > div,
+        .ProseMirror ul[data-type="taskList"] li > div,
+        .tiptap ul[data-type="taskList"] li > div {
+            flex: 1 !important;
+            margin: 0 !important;
+        }
+
+        #insightNotesEditor ul[data-type="taskList"] li > div p,
+        .ProseMirror ul[data-type="taskList"] li > div p,
+        .tiptap ul[data-type="taskList"] li > div p {
+            margin: 0 !important;
+            display: inline !important;
+        }
+
+        /* Editor Context Menu */
+        .editor-context-menu {
+            position: absolute;
+            background: oklch(1 0 0); /* White */
+            border: 1px solid oklch(0.922 0 0); /* Border color from style guide */
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 0.25rem;
+            z-index: 10000;
+            min-width: 140px;
+            font-family: 'Lato', sans-serif;
+        }
+
+        .context-menu-item {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            color: oklch(0.145 0 0); /* Near black */
+            cursor: pointer;
+            border-radius: 0.375rem;
+            transition: background 0.2s ease;
+        }
+
+        .context-menu-item:hover {
+            background: oklch(0.97 0 0); /* Light grey */
+        }
+
+        .context-menu-item.active {
+            background: oklch(0.97 0 0);
+            color: oklch(0.145 0 0);
+            font-weight: 600;
+        }
+
+        .context-menu-divider {
+            height: 1px;
+            background: oklch(0.922 0 0);
+            margin: 0.25rem 0;
         }
 
         .ai-close-btn {
             background: none;
             border: none;
-            color: #666;
-            font-size: 28px;
+            color: oklch(0.556 0 0); /* Muted foreground */
+            font-size: 1.75rem; /* 28px */
             line-height: 1;
             cursor: pointer;
             padding: 0;
@@ -2175,13 +2959,63 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 4px;
-            transition: all 0.2s;
+            border-radius: 0.375rem; /* 6px - radius-sm */
+            transition: all 0.2s ease;
+            font-family: 'Lato', sans-serif;
         }
 
         .ai-close-btn:hover {
-            background: #f5f5f5;
-            color: #333;
+            background: oklch(0.97 0 0); /* Light gray */
+            color: oklch(0.145 0 0); /* Near black */
+        }
+
+        .ai-close-btn:focus-visible {
+            outline: 2px solid #B9F040;
+            outline-offset: 2px;
+        }
+
+        /* Insight Attributes Styling - Matching Style Guide */
+        .insight-attribute-row {
+            display: flex;
+            align-items: center;
+            min-height: 32px;
+            padding: 0.25rem 0; /* 4px */
+        }
+
+        .insight-attribute-chip {
+            background: oklch(0.97 0 0); /* Light gray from style guide */
+            border-radius: 0.375rem; /* 6px - radius-sm */
+            padding: 0.375rem 0.75rem; /* 6px 12px */
+            font-size: 0.875rem; /* 14px */
+            font-family: 'Lato', sans-serif;
+            font-weight: 400;
+            color: oklch(0.145 0 0); /* Near black foreground */
+            cursor: text;
+            outline: none;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .insight-attribute-chip:hover {
+            background: oklch(0.95 0 0); /* Slightly darker gray */
+        }
+
+        .insight-attribute-chip:focus {
+            background: oklch(1 0 0); /* White */
+            border-color: #B9F040; /* Brand lime green */
+            outline: none;
+        }
+
+        .insight-attribute-chip[contenteditable="true"]:empty:before {
+            content: attr(data-placeholder);
+            color: oklch(0.556 0 0); /* Muted foreground */
+        }
+
+        /* Editable Title Focus Styles */
+        #insightTitleEditable:focus {
+            outline: 2px solid #B9F040;
+            outline-offset: 2px;
+            border-radius: 0.375rem; /* 6px */
         }
 
         #slideoutSearchClear {
@@ -2410,6 +3244,18 @@
     </div>
 
     <div class="container" id="mainContainer" style="display: none;">
+        <!-- Navigation Menu -->
+        <nav class="app-navigation">
+            <div class="nav-menu" id="navMenu">
+                <a href="/" class="nav-menu-item" id="navVisualizations">
+                    <span>Visualizations</span>
+                </a>
+                <a href="/client-insights" class="nav-menu-item" id="navInsights">
+                    <span>Insights</span>
+                </a>
+            </div>
+        </nav>
+        
         <!-- Data Source Selector -->
         <div class="data-source-selector">
             <div class="filter-tabs" role="tablist" aria-label="Data filters">
@@ -2657,6 +3503,84 @@
                 <div class="chart__footer" id="topicsChartFooter">Frequency (n=<span id="topicsCount">0</span>)</div>
             </div>
         </div>
+
+        <!-- Insights Panel -->
+        <div class="insights-panel-container">
+            <div class="insights-panel-header">
+                <div class="insights-panel-header-left">
+                    <h2>Insights</h2>
+                    <span id="insightsFilterBadge" class="insights-filter-badge" style="display: none;"></span>
+                </div>
+                <div class="insights-panel-header-right">
+                    <button class="btn-link" id="showAllInsightsBtn" onclick="toggleInsightsFilter()" style="display: none;">Show All Insights</button>
+                    <button class="insights-panel-toggle" onclick="toggleInsightsPanel()" id="insightsPanelToggle">
+                        <span id="insightsPanelToggleIcon">▼</span>
+                    </button>
+                </div>
+            </div>
+            <div class="insights-panel-body" id="insightsPanelBody">
+                <div class="insights-table-section">
+                    <div class="control-bar">
+                        <div class="search-box">
+                            <input type="text" id="insightsSearchInput" placeholder="Search insights..." oninput="handleInsightsSearch()">
+                        </div>
+                        <div class="filter-chips" id="insightsFilterChips"></div>
+                        <button class="btn-filter" onclick="openInsightsFilterMenu()">
+                            <span>+</span>
+                            <span>Filter</span>
+                        </button>
+                        <button class="btn-reset" onclick="resetInsightsFilters()" id="insightsResetBtn" style="display: none;">Reset</button>
+                    </div>
+                    <div class="table-container">
+                        <table class="notion-table">
+                            <thead>
+                                <tr>
+                                    <th class="checkbox-cell"></th>
+                                    <th class="name-cell sorted" onclick="sortInsightsBy('name')">
+                                        <span class="column-icon">Aa</span>
+                                        <span>Name</span>
+                                        <span class="sort-indicator">↓</span>
+                                    </th>
+                                    <th onclick="sortInsightsBy('type')">
+                                        <span class="column-icon">≡</span>
+                                        <span>Type</span>
+                                        <span class="sort-indicator"></span>
+                                    </th>
+                                    <th onclick="sortInsightsBy('status')">
+                                        <span class="column-icon">⁂</span>
+                                        <span>Status</span>
+                                        <span class="sort-indicator"></span>
+                                    </th>
+                                    <th onclick="sortInsightsBy('project')">
+                                        <span class="column-icon">≡</span>
+                                        <span>Project</span>
+                                        <span class="sort-indicator"></span>
+                                    </th>
+                                    <th onclick="sortInsightsBy('data_source')">
+                                        <span class="column-icon">≡</span>
+                                        <span>Data Source</span>
+                                        <span class="sort-indicator"></span>
+                                    </th>
+                                    <th onclick="sortInsightsBy('dimension')">
+                                        <span class="column-icon">≡</span>
+                                        <span>Dimension</span>
+                                        <span class="sort-indicator"></span>
+                                    </th>
+                                    <th onclick="sortInsightsBy('created_at')">
+                                        <span class="column-icon">📅</span>
+                                        <span>Created</span>
+                                        <span class="sort-indicator"></span>
+                                    </th>
+                                    <th class="actions-cell">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="insightsTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Overlay Modal for Verbatims -->
@@ -2741,6 +3665,49 @@
                 <button class="close-button" onclick="closeDimensionEditor()">&times;</button>
             </div>
             <div id="dimensionEditorContent" class="dimension-editor-container"></div>
+        </div>
+    </div>
+
+    <!-- Context Menu for Right-Click -->
+    <div id="contextMenu" class="context-menu" style="display: none;">
+        <div class="context-menu-item" data-action="create-insight" style="cursor: pointer; user-select: none;">
+            Create Insight
+        </div>
+    </div>
+
+    <!-- Create Insight Modal -->
+    <div id="createInsightModal" class="insight-modal-overlay" style="display: none;">
+        <div class="insight-modal-content">
+            <div class="insight-modal-header">
+                <h2>Create Insight</h2>
+                <button class="insight-modal-close" onclick="closeCreateInsightModal()">&times;</button>
+            </div>
+            <form id="createInsightForm" onsubmit="handleCreateInsightSubmit(event)">
+                <div class="insight-form-group">
+                    <label for="insightModalName">Insight Name *</label>
+                    <input type="text" id="insightModalName" required>
+                </div>
+                <div class="insight-form-group">
+                    <label for="insightModalType">Type *</label>
+                    <input type="text" id="insightModalType" required placeholder="e.g., improvement, feature, bug">
+                </div>
+                <div class="insight-form-group">
+                    <label for="insightModalApplication">Application</label>
+                    <textarea id="insightModalApplication" placeholder="Where/how to apply this insight"></textarea>
+                </div>
+                <div class="insight-form-group">
+                    <label for="insightModalDescription">Description</label>
+                    <textarea id="insightModalDescription" placeholder="Detailed description"></textarea>
+                </div>
+                <div class="insight-form-group">
+                    <label>Origin</label>
+                    <div id="insightModalOriginPreview" class="insight-origin-preview"></div>
+                </div>
+                <div class="insight-modal-actions">
+                    <button type="button" class="insight-modal-cancel" onclick="closeCreateInsightModal()">Cancel</button>
+                    <button type="submit" class="insight-modal-submit">Create</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -3378,6 +4345,7 @@
                         return loadClientProjects(clientId, restoreState);
                     }).then(() => {
                         renderFavourites();
+                        updateNavLinks(); // Update nav links after client loads
                     }).catch((error) => {
                         console.error('Error loading clients or projects:', error);
                         hasAutoLaunched = wasAutoLaunched;
@@ -3386,6 +4354,7 @@
                     // Dropdown already populated, just load the client's data
                     loadClientProjects(clientId, restoreState).then(() => {
                         renderFavourites();
+                        updateNavLinks(); // Update nav links after client loads
                     });
                 }
             }
@@ -5493,6 +6462,21 @@
                         } catch (error) {
                             console.error('Error handling category click:', error);
                         }
+                    })
+                    .on('contextmenu', (event, d) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (d && d.data) {
+                            const contextData = {
+                                type: 'category',
+                                category: d.data.name,
+                                project_name: currentProjectName,
+                                data_source: currentDataSourceId,
+                                dimension_ref: currentQuestionRefKey,
+                                dimension_name: currentQuestionRefKey ? getDimensionDisplayName(currentQuestionRefKey) : null,
+                            };
+                            showContextMenu(event, contextData);
+                        }
                     });
 
                 // Category background rectangles with rounded corners
@@ -5569,7 +6553,24 @@
                     const brightnessAdjust = -10 + (index % 3) * 10; // -10, 0, +10
                     return adjustBrightness(baseColor, brightnessAdjust);
                 })
-                .on('click', (event, d) => handleNodeClick(d));
+                .on('click', (event, d) => handleNodeClick(d))
+                .on('contextmenu', (event, d) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (d && d.data) {
+                        const categoryName = d.parent?.data?.name || 'Unknown Category';
+                        const contextData = {
+                            type: 'topic',
+                            category: categoryName,
+                            topic_label: d.data.name,
+                            project_name: currentProjectName,
+                            data_source: currentDataSourceId,
+                            dimension_ref: currentQuestionRefKey,
+                            dimension_name: currentQuestionRefKey ? getDimensionDisplayName(currentQuestionRefKey) : null,
+                        };
+                        showContextMenu(event, contextData);
+                    }
+                });
 
             // Add centered text labels
             nodes.each(function(d) {
@@ -6534,6 +7535,20 @@
                         showVerbatims(allVerbatims, category.name, category.name);
                     }
                 };
+                // Add right-click handler for context menu
+                headerRow.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const contextData = {
+                        type: 'category',
+                        category: category.name,
+                        project_name: currentProjectName,
+                        data_source: currentDataSourceId,
+                        dimension_ref: currentQuestionRefKey,
+                        dimension_name: currentQuestionRefKey ? getDimensionDisplayName(currentQuestionRefKey) : null,
+                    };
+                    showContextMenu(e, contextData);
+                };
                 headerRow.setAttribute('role', 'button');
                 headerRow.setAttribute('tabindex', '0');
                 headerRow.setAttribute('aria-label', `View all conversations in ${category.name}`);
@@ -6575,6 +7590,21 @@
                      // Add click handler for drilldown to verbatims
                      topicRow.onclick = () => {
                          showVerbatims(topic.verbatims, topic.name, category.name);
+                     };
+                     // Add right-click handler for context menu
+                     topicRow.oncontextmenu = (e) => {
+                         e.preventDefault();
+                         e.stopPropagation();
+                         const contextData = {
+                             type: 'topic',
+                             category: category.name,
+                             topic_label: topic.name,
+                             project_name: currentProjectName,
+                             data_source: currentDataSourceId,
+                             dimension_ref: currentQuestionRefKey,
+                             dimension_name: currentQuestionRefKey ? getDimensionDisplayName(currentQuestionRefKey) : null,
+                         };
+                         showContextMenu(e, contextData);
                      };
                      topicRow.setAttribute('role', 'button');
                      topicRow.setAttribute('tabindex', '0');
@@ -6625,6 +7655,20 @@
                     if (allVerbatims.length > 0) {
                         showVerbatims(allVerbatims, category.name, category.name);
                     }
+                };
+                // Add right-click handler for context menu
+                barHeaderRow.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const contextData = {
+                        type: 'category',
+                        category: category.name,
+                        project_name: currentProjectName,
+                        data_source: currentDataSourceId,
+                        dimension_ref: currentQuestionRefKey,
+                        dimension_name: currentQuestionRefKey ? getDimensionDisplayName(currentQuestionRefKey) : null,
+                    };
+                    showContextMenu(e, contextData);
                 };
                 barHeaderRow.setAttribute('role', 'button');
                 barHeaderRow.setAttribute('tabindex', '0');
@@ -6692,6 +7736,21 @@
                      // Add click handler for drilldown to verbatims
                      topicBarRow.onclick = () => {
                          showVerbatims(topic.verbatims, topic.name, category.name);
+                     };
+                     // Add right-click handler for context menu
+                     topicBarRow.oncontextmenu = (e) => {
+                         e.preventDefault();
+                         e.stopPropagation();
+                         const contextData = {
+                             type: 'topic',
+                             category: category.name,
+                             topic_label: topic.name,
+                             project_name: currentProjectName,
+                             data_source: currentDataSourceId,
+                             dimension_ref: currentQuestionRefKey,
+                             dimension_name: currentQuestionRefKey ? getDimensionDisplayName(currentQuestionRefKey) : null,
+                         };
+                         showContextMenu(e, contextData);
                      };
 
                      const topicTrack = document.createElement('div');
@@ -6867,6 +7926,21 @@
                  labelRow.onclick = () => {
                      showVerbatims(topic.verbatims, topic.name, topic.category);
                  };
+                 // Add right-click handler for context menu
+                 labelRow.oncontextmenu = (e) => {
+                     e.preventDefault();
+                     e.stopPropagation();
+                     const contextData = {
+                         type: 'topic',
+                         category: topic.category,
+                         topic_label: topic.name,
+                         project_name: currentProjectName,
+                         data_source: currentDataSourceId,
+                         dimension_ref: currentQuestionRefKey,
+                         dimension_name: currentQuestionRefKey ? getDimensionDisplayName(currentQuestionRefKey) : null,
+                     };
+                     showContextMenu(e, contextData);
+                 };
                  labelRow.setAttribute('role', 'button');
                  labelRow.setAttribute('tabindex', '0');
                  labelRow.setAttribute('aria-label', `View ${topic.count} conversations about ${topic.name}`);
@@ -6907,6 +7981,21 @@
                 // Add click handler for drilldown to verbatims
                 barRow.onclick = () => {
                     showVerbatims(topic.verbatims, topic.name, topic.category);
+                };
+                // Add right-click handler for context menu
+                barRow.oncontextmenu = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const contextData = {
+                        type: 'topic',
+                        category: topic.category,
+                        topic_label: topic.name,
+                        project_name: currentProjectName,
+                        data_source: currentDataSourceId,
+                        dimension_ref: currentQuestionRefKey,
+                        dimension_name: currentQuestionRefKey ? getDimensionDisplayName(currentQuestionRefKey) : null,
+                    };
+                    showContextMenu(e, contextData);
                 };
 
                 const track = document.createElement('div');
@@ -7292,6 +8381,58 @@
             });
         });
 
+        // Set active navigation item based on current page
+        function setActiveNavItem() {
+            const path = window.location.pathname;
+            const navVisualizations = document.getElementById('navVisualizations');
+            const navInsights = document.getElementById('navInsights');
+            
+            // Remove active class from all items
+            if (navVisualizations) navVisualizations.classList.remove('active');
+            if (navInsights) navInsights.classList.remove('active');
+            
+            // Set active based on path
+            if (path.includes('client-insights') || path.includes('/insights')) {
+                if (navInsights) navInsights.classList.add('active');
+            } else {
+                // Default to visualizations for index.html
+                if (navVisualizations) navVisualizations.classList.add('active');
+            }
+        }
+
+        // Update navigation links to include current context
+        function updateNavLinks() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const clientUuid = urlParams.get('client_uuid') || currentClientId;
+            const authToken = getAuthToken() || localStorage.getItem('visualizd_auth_token');
+            
+            const navVisualizations = document.getElementById('navVisualizations');
+            const navInsights = document.getElementById('navInsights');
+            
+            if (navVisualizations) {
+                let vizUrl = '/';
+                if (clientUuid) {
+                    vizUrl += `?client_uuid=${clientUuid}`;
+                    if (authToken) {
+                        vizUrl += `&auth_token=${authToken}`;
+                    }
+                }
+                navVisualizations.href = vizUrl;
+            }
+            
+            if (navInsights) {
+                let insightsUrl = `${API_BASE_URL}/client-insights`;
+                if (clientUuid) {
+                    insightsUrl += `?client_uuid=${clientUuid}`;
+                    if (authToken) {
+                        insightsUrl += `&auth_token=${authToken}`;
+                    }
+                }
+                navInsights.href = insightsUrl;
+            }
+        }
+
+
         // Start the application - check auth first
         console.log('Starting application...');
         
@@ -7308,6 +8449,17 @@
         // If token exists, keep login hidden (it's already hidden by default)
         // and let async checkAuth() verify it
         
+        // Initialize navigation when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                setActiveNavItem();
+                updateNavLinks();
+            });
+        } else {
+            setActiveNavItem();
+            updateNavLinks();
+        }
+        
         const authCheck = typeof Auth !== 'undefined' ? Auth.checkAuth() : Promise.resolve(false);
         authCheck.then(authenticated => {
             console.log('Auth check result:', authenticated);
@@ -7321,12 +8473,16 @@
             console.error('Error in checkAuth:', error);
         });
         
-        // Slideout Panel - handles both AI Insights and Verbatims
+        // Slideout Panel - handles AI Insights, Verbatims, Insight Notes, and Create Insight
         const SlideoutPanel = {
             isOpen: false,
-            currentMode: null, // 'ai-insights' or 'verbatims'
+            currentMode: null, // 'ai-insights', 'verbatims', 'insight-notes', or 'create-insight'
             currentContext: null,
             currentDimensionRef: null,  // Track current dimension
+            currentInsightEditor: null,  // Tiptap editor instance for insight notes
+            currentInsightId: null,  // Currently open insight ID
+            currentInsightData: null,  // Full insight data for editing
+            createInsightContext: null,  // Context data for creating new insight
             
             init() {
                 const tab = document.getElementById('slideoutTab');
@@ -7361,15 +8517,13 @@
                 console.log('Current dimension set to:', dimensionRef);
                 
                 // Show/hide the AI Insights tab based on whether a dimension is selected
+                // TEMPORARILY DISABLED: Tab hidden until further notice
                 const tab = document.getElementById('slideoutTab');
                 if (tab) {
-                    if (dimensionRef && dimensionRef !== '') {
-                        tab.style.display = 'block';
-                    } else {
-                        tab.style.display = 'none';
-                        // Also close the panel if it's open
-                        this.close();
-                    }
+                    // Always keep tab hidden
+                    tab.style.display = 'none';
+                    // Close the panel if it's open
+                    this.close();
                 }
             },
             
@@ -7400,7 +8554,13 @@
                 const overlay = document.getElementById('slideoutOverlay');
                 const title = document.getElementById('slideoutTitle');
                 
-                if (title) title.textContent = 'AI-Generated Insights';
+                // For AI insights mode, keep title as h2 (not editable)
+                if (title) {
+                    title.textContent = 'AI-Generated Insights';
+                    // Remove contenteditable if it was set
+                    title.removeAttribute('contenteditable');
+                    title.setAttribute('data-placeholder', '');
+                }
                 if (panel) panel.classList.add('open');
                 if (overlay) overlay.classList.add('visible');
                 this.isOpen = true;
@@ -7432,8 +8592,12 @@
                 const title = document.getElementById('slideoutTitle');
                 const subtitle = document.getElementById('slideoutSubtitle');
                 
+                // For verbatims mode, keep title as h2 (not editable)
                 if (title) {
                     title.textContent = topicName;
+                    // Remove contenteditable if it was set
+                    title.removeAttribute('contenteditable');
+                    title.setAttribute('data-placeholder', '');
                 }
                 if (subtitle) {
                     subtitle.textContent = `${categoryName} • ${verbatims.length} verbatim${verbatims.length !== 1 ? 's' : ''}`;
@@ -7451,10 +8615,818 @@
                 this.renderVerbatims(verbatims, topicName, categoryName);
             },
             
+            async openCreateInsight(contextData) {
+                if (!currentClientId) {
+                    console.error('No client selected');
+                    return;
+                }
+                
+                this.currentMode = 'create-insight';
+                this.createInsightContext = contextData;
+                this.currentInsightId = null; // No existing insight
+                
+                // Open UI
+                const panel = document.getElementById('slideoutPanel');
+                const overlay = document.getElementById('slideoutOverlay');
+                const title = document.getElementById('slideoutTitle');
+                const subtitle = document.getElementById('slideoutSubtitle');
+                const content = document.getElementById('slideoutContent');
+                const searchBox = document.getElementById('slideoutSearch');
+                const settingsBtn = document.getElementById('slideoutSettingsBtn');
+                
+                // Hide search and settings (only for verbatims)
+                if (searchBox) searchBox.style.display = 'none';
+                if (settingsBtn) settingsBtn.style.display = 'none';
+                if (subtitle) subtitle.style.display = 'none';
+                
+                // Set editable title in header (empty for new insight)
+                if (title) {
+                    title.textContent = '';
+                    title.setAttribute('data-placeholder', 'Insight Title');
+                    title.setAttribute('contenteditable', 'true');
+                }
+                
+                if (panel) panel.classList.add('open');
+                if (overlay) overlay.classList.add('visible');
+                this.isOpen = true;
+                
+                // Prevent body scroll
+                document.body.classList.add('slideout-open');
+                
+                // Initialize panel with empty form, pre-populated with context
+                await this.initializeCreateInsightPanel(content, contextData);
+            },
+            
+            async openInsightNotes(insightId) {
+                if (!currentClientId) {
+                    console.error('No client selected');
+                    return;
+                }
+                
+                this.currentMode = 'insight-notes';
+                this.currentInsightId = insightId;
+                
+                // Open UI
+                const panel = document.getElementById('slideoutPanel');
+                const overlay = document.getElementById('slideoutOverlay');
+                const title = document.getElementById('slideoutTitle');
+                const subtitle = document.getElementById('slideoutSubtitle');
+                const content = document.getElementById('slideoutContent');
+                const searchBox = document.getElementById('slideoutSearch');
+                const settingsBtn = document.getElementById('slideoutSettingsBtn');
+                
+                // Hide search and settings (only for verbatims)
+                if (searchBox) searchBox.style.display = 'none';
+                if (settingsBtn) settingsBtn.style.display = 'none';
+                if (subtitle) subtitle.style.display = 'none';
+                
+                if (panel) panel.classList.add('open');
+                if (overlay) overlay.classList.add('visible');
+                this.isOpen = true;
+                
+                // Prevent body scroll
+                document.body.classList.add('slideout-open');
+                
+                // Load insight data
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights/${insightId}`, {
+                        headers: getAuthHeaders()
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to load insight');
+                    }
+                    
+                    const insight = await response.json();
+                    this.currentInsightData = insight; // Store full insight data
+                    
+                    // Hide title in header, we'll show it in content
+                    if (title) title.textContent = '';
+                    
+                    // Initialize panel with attributes and editor
+                    await this.initializeInsightPanel(content, insight);
+                } catch (error) {
+                    console.error('Error loading insight:', error);
+                    if (content) {
+                        content.innerHTML = `<div style="padding: 24px; color: #666;">Error loading insight: ${error.message}</div>`;
+                    }
+                }
+            },
+            
+            async initializeCreateInsightPanel(container, contextData) {
+                if (!container) return;
+                
+                // Build origin object from context data
+                // Map 'type' field to 'origin_type' (contextData.type is 'category' or 'topic')
+                const origin = {
+                    origin_type: contextData.type || contextData.origin_type || 'category',
+                    process_voc_id: contextData.process_voc_id || null,
+                    project_name: contextData.project_name || null,
+                    data_source: contextData.data_source || null,
+                    dimension_ref: contextData.dimension_ref || null,
+                    dimension_name: contextData.dimension_name || null,
+                    category: contextData.category || null,
+                    topic_label: contextData.topic_label || null,
+                };
+                
+                // Extract category and topic from context data
+                const categoryName = contextData.category || null;
+                const topicName = contextData.topic_label || null;
+                
+                // Create panel structure with attributes (title is now in header)
+                container.innerHTML = `
+                    <div style="padding: 0;">
+                        <!-- Attributes Section -->
+                        <div style="padding: 1rem 1.5rem; border-bottom: 1px solid oklch(0.922 0 0);">
+                            <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <!-- Category Attribute -->
+                                ${categoryName ? `
+                                <div class="insight-attribute-row">
+                                    <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Category</div>
+                                    <div style="flex: 1;">
+                                        <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
+                                            ${escapeHtml(categoryName)}
+                                        </div>
+                                    </div>
+                                </div>
+                                ` : ''}
+                                
+                                <!-- Topic Attribute -->
+                                ${topicName ? `
+                                <div class="insight-attribute-row">
+                                    <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Topic</div>
+                                    <div style="flex: 1;">
+                                        <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
+                                            ${escapeHtml(topicName)}
+                                        </div>
+                                    </div>
+                                </div>
+                                ` : ''}
+                                
+                                <!-- Type Attribute -->
+                                <div class="insight-attribute-row">
+                                    <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Type</div>
+                                    <div style="flex: 1;">
+                                        <div id="insightTypeChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
+                                            Empty
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Application Attribute -->
+                                <div class="insight-attribute-row">
+                                    <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Application</div>
+                                    <div style="flex: 1;">
+                                        <div id="insightApplicationChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
+                                            Empty
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Notes Section -->
+                        <div style="padding: 1.5rem;">
+                            <div id="insightNotesSaveStatus" style="font-size: 0.75rem; font-family: 'Lato', sans-serif; color: oklch(0.556 0 0); margin-bottom: 0.5rem; min-height: 1rem;"></div>
+                            <div id="insightNotesEditor" style="min-height: 400px; outline: none; font-size: 0.875rem; font-family: 'Lato', sans-serif; line-height: 1.5; color: oklch(0.145 0 0);"></div>
+                        </div>
+                        
+                        <!-- Save Button -->
+                        <div style="padding: 1rem 1.5rem; border-top: 1px solid oklch(0.922 0 0); background: oklch(0.98 0 0); display: flex; justify-content: flex-end;">
+                            <button id="saveNewInsightBtn" style="background: #B9F040; color: #000; border: none; padding: 0.5rem 1.5rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.875rem; font-family: 'Lato', sans-serif; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='#a0d636'" onmouseout="this.style.background='#B9F040'">
+                                Create Insight
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                // Store origin for saving
+                this.createInsightOrigin = origin;
+                
+                // Set up editable title in header (no auto-save in create mode)
+                const titleEl = document.getElementById('slideoutTitle');
+                if (titleEl) {
+                    titleEl.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            titleEl.blur();
+                        }
+                    });
+                }
+                
+                // Set up editable type chip (no auto-save in create mode)
+                const typeChip = document.getElementById('insightTypeChip');
+                if (typeChip) {
+                    typeChip.addEventListener('focus', () => {
+                        if (typeChip.textContent.trim() === 'Empty') {
+                            typeChip.textContent = '';
+                        }
+                    });
+                    typeChip.addEventListener('blur', () => {
+                        if (!typeChip.textContent.trim()) {
+                            typeChip.textContent = 'Empty';
+                        }
+                    });
+                    typeChip.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            typeChip.blur();
+                        }
+                    });
+                }
+                
+                // Set up editable application chip (no auto-save in create mode)
+                const appChip = document.getElementById('insightApplicationChip');
+                if (appChip) {
+                    appChip.addEventListener('focus', () => {
+                        if (appChip.textContent.trim() === 'Empty') {
+                            appChip.textContent = '';
+                        }
+                    });
+                    appChip.addEventListener('blur', () => {
+                        if (!appChip.textContent.trim()) {
+                            appChip.textContent = 'Empty';
+                        }
+                    });
+                    appChip.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            appChip.blur();
+                        }
+                    });
+                }
+                
+                // Set up save button
+                const saveBtn = document.getElementById('saveNewInsightBtn');
+                if (saveBtn) {
+                    saveBtn.addEventListener('click', () => {
+                        this.saveNewInsight();
+                    });
+                }
+                
+                // Initialize editor with empty notes
+                await this.initializeInsightEditor(document.getElementById('insightNotesEditor'), '');
+            },
+            
+            async saveNewInsight() {
+                if (!currentClientId) {
+                    alert('No client selected');
+                    return;
+                }
+                
+                const titleEl = document.getElementById('slideoutTitle');
+                const typeChip = document.getElementById('insightTypeChip');
+                const appChip = document.getElementById('insightApplicationChip');
+                
+                const name = titleEl?.textContent.trim() || '';
+                const type = typeChip?.textContent.trim() || '';
+                const application = appChip?.textContent.trim() || '';
+                const notes = this.currentInsightEditor ? this.currentInsightEditor.getHTML() : '';
+                
+                if (!name || name === 'AI-Generated Insights') {
+                    alert('Please enter an insight name');
+                    return;
+                }
+                
+                if (!type || type === 'Empty') {
+                    alert('Please enter an insight type');
+                    return;
+                }
+                
+                const statusEl = document.getElementById('insightNotesSaveStatus');
+                if (statusEl) statusEl.textContent = 'Creating...';
+                
+                try {
+                    const insightData = {
+                        name: name,
+                        type: type === 'Empty' ? '' : type,
+                        application: application === 'Empty' ? '' : application,
+                        notes: notes || null,
+                        origins: [this.createInsightOrigin],
+                    };
+                    
+                    const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights`, {
+                        method: 'POST',
+                        headers: {
+                            ...getAuthHeaders(),
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(insightData)
+                    });
+                    
+                    if (!response.ok) {
+                        const error = await response.json().catch(() => ({ detail: 'Failed to create insight' }));
+                        throw new Error(error.detail || 'Failed to create insight');
+                    }
+                    
+                    const newInsight = await response.json();
+                    
+                    if (statusEl) {
+                        statusEl.textContent = 'Created!';
+                        statusEl.style.color = '#B9F040';
+                    }
+                    
+                    // Refresh insights list
+                    if (typeof loadInsights === 'function') {
+                        loadInsights();
+                    }
+                    
+                    // Close panel after a brief delay
+                    setTimeout(() => {
+                        this.close();
+                        // Optionally open the newly created insight
+                        // this.openInsightNotes(newInsight.id);
+                    }, 1000);
+                    
+                } catch (error) {
+                    console.error('Error creating insight:', error);
+                    if (statusEl) {
+                        statusEl.textContent = 'Error creating';
+                        statusEl.style.color = 'oklch(0.577 0.245 27.325)';
+                    }
+                    alert('Error creating insight: ' + error.message);
+                }
+            },
+            
+            async initializeInsightPanel(container, insight) {
+                if (!container) return;
+                
+                // Extract category and topic from origins JSONB
+                const firstOrigin = insight.origins?.[0] || {};
+                const categoryName = firstOrigin.category || null;
+                const topicName = firstOrigin.topic_label || null;
+                
+                // Set editable title in header
+                const insightTitleEl = document.getElementById('slideoutTitle');
+                if (insightTitleEl) {
+                    insightTitleEl.textContent = insight.name || '';
+                    insightTitleEl.setAttribute('data-placeholder', 'Insight Title');
+                    insightTitleEl.setAttribute('contenteditable', 'true');
+                }
+                
+                // Create panel structure with attributes (title is now in header)
+                container.innerHTML = `
+                    <div style="padding: 0;">
+                    <!-- Attributes Section -->
+                    <div style="padding: 1rem 1.5rem; border-bottom: 1px solid oklch(0.922 0 0);">
+                        <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <!-- Category Attribute -->
+                            ${categoryName ? `
+                            <div class="insight-attribute-row">
+                                <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Category</div>
+                                <div style="flex: 1;">
+                                    <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
+                                        ${escapeHtml(categoryName)}
+                                    </div>
+                                </div>
+                            </div>
+                            ` : ''}
+                            
+                            <!-- Topic Attribute -->
+                            ${topicName ? `
+                            <div class="insight-attribute-row">
+                                <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Topic</div>
+                                <div style="flex: 1;">
+                                    <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
+                                        ${escapeHtml(topicName)}
+                                    </div>
+                                </div>
+                            </div>
+                            ` : ''}
+                            
+                            <!-- Type Attribute -->
+                            <div class="insight-attribute-row">
+                                <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Type</div>
+                                <div style="flex: 1;">
+                                    <div id="insightTypeChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
+                                        ${escapeHtml(insight.type || 'Empty')}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Application Attribute -->
+                            <div class="insight-attribute-row">
+                                <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Application</div>
+                                <div style="flex: 1;">
+                                    <div id="insightApplicationChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
+                                        ${escapeHtml(insight.application || 'Empty')}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Notes Section -->
+                    <div style="padding: 1.5rem;">
+                        <div id="insightNotesSaveStatus" style="font-size: 0.75rem; font-family: 'Lato', sans-serif; color: oklch(0.556 0 0); margin-bottom: 0.5rem; min-height: 1rem;"></div>
+                        <div id="insightNotesEditor" style="min-height: 400px; outline: none; font-size: 0.875rem; font-family: 'Lato', sans-serif; line-height: 1.5; color: oklch(0.145 0 0);"></div>
+                    </div>
+                    </div>
+                `;
+                
+                // Set up editable title in header (with auto-save for edit mode)
+                const headerTitleEl = document.getElementById('slideoutTitle');
+                if (headerTitleEl) {
+                    headerTitleEl.addEventListener('blur', () => {
+                        // Only auto-save if we're in edit mode, not create mode
+                        if (this.currentMode === 'insight-notes' && this.currentInsightId) {
+                            const newName = headerTitleEl.textContent.trim() || '';
+                            if (newName) {
+                                this.debouncedSaveInsightField('name', newName);
+                            }
+                        }
+                    });
+                    headerTitleEl.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            headerTitleEl.blur();
+                        }
+                    });
+                }
+                
+                // Set up editable type chip (with auto-save for edit mode)
+                const editTypeChip = document.getElementById('insightTypeChip');
+                if (editTypeChip) {
+                    editTypeChip.addEventListener('focus', () => {
+                        if (editTypeChip.textContent.trim() === 'Empty') {
+                            editTypeChip.textContent = '';
+                        }
+                    });
+                    editTypeChip.addEventListener('blur', () => {
+                        // Restore "Empty" if field is left blank
+                        if (!editTypeChip.textContent.trim()) {
+                            editTypeChip.textContent = 'Empty';
+                        }
+                        // Only auto-save if we're in edit mode, not create mode
+                        if (this.currentMode === 'insight-notes' && this.currentInsightId) {
+                            const newType = editTypeChip.textContent.trim() || 'Empty';
+                            this.debouncedSaveInsightField('type', newType === 'Empty' ? '' : newType);
+                        }
+                    });
+                    editTypeChip.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            editTypeChip.blur();
+                        }
+                    });
+                }
+                
+                // Set up editable application chip (with auto-save for edit mode)
+                const editAppChip = document.getElementById('insightApplicationChip');
+                if (editAppChip) {
+                    editAppChip.addEventListener('focus', () => {
+                        if (editAppChip.textContent.trim() === 'Empty') {
+                            editAppChip.textContent = '';
+                        }
+                    });
+                    editAppChip.addEventListener('blur', () => {
+                        // Restore "Empty" if field is left blank
+                        if (!editAppChip.textContent.trim()) {
+                            editAppChip.textContent = 'Empty';
+                        }
+                        // Only auto-save if we're in edit mode, not create mode
+                        if (this.currentMode === 'insight-notes' && this.currentInsightId) {
+                            const newApp = editAppChip.textContent.trim() || 'Empty';
+                            this.debouncedSaveInsightField('application', newApp === 'Empty' ? '' : newApp);
+                        }
+                    });
+                    editAppChip.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            editAppChip.blur();
+                        }
+                    });
+                }
+                
+                // Initialize editor with notes
+                await this.initializeInsightEditor(document.getElementById('insightNotesEditor'), insight.notes || '');
+            },
+            
+            async initializeInsightEditor(editorElement, initialContent) {
+                // Clean up existing editor if any
+                if (this.currentInsightEditor) {
+                    this.currentInsightEditor.destroy();
+                    this.currentInsightEditor = null;
+                }
+                
+                if (!editorElement) return;
+                
+                // Initialize Tiptap editor using ES modules
+                try {
+                    // Dynamically import Tiptap modules
+                    const { Editor } = await import('https://esm.sh/@tiptap/core@2.1.13');
+                    const StarterKitModule = await import('https://esm.sh/@tiptap/starter-kit@2.1.13');
+                    const StarterKit = StarterKitModule.default || StarterKitModule;
+                    const { TaskList } = await import('https://esm.sh/@tiptap/extension-task-list@2.1.13');
+                    const { TaskItem } = await import('https://esm.sh/@tiptap/extension-task-item@2.1.13');
+                    
+                    this.currentInsightEditor = new Editor({
+                        element: editorElement,
+                        extensions: [
+                            StarterKit,
+                            TaskList,
+                            TaskItem.configure({
+                                nested: true,
+                            })
+                        ],
+                        content: initialContent || '',
+                        editorProps: {
+                            attributes: {
+                                class: 'prose prose-sm max-w-none focus:outline-none',
+                                style: 'min-height: 400px;'
+                            }
+                        },
+                        onUpdate: ({ editor }) => {
+                            // Only auto-save if we're in edit mode, not create mode
+                            if (this.currentMode === 'insight-notes' && this.currentInsightId) {
+                                const html = editor.getHTML();
+                                this.debouncedSaveInsightNotes(this.currentInsightId, html);
+                            }
+                        }
+                    });
+                    
+                    // Set up context menu for formatting
+                    this.setupEditorContextMenu(editorElement);
+                } catch (error) {
+                    console.error('Error initializing editor:', error);
+                    if (editorElement.parentElement) {
+                        editorElement.parentElement.innerHTML = `<div style="padding: 24px; color: #666;">Error initializing editor: ${error.message}</div>`;
+                    }
+                }
+            },
+            
+            setupEditorContextMenu(editorElement) {
+                const contextMenu = document.createElement('div');
+                contextMenu.id = 'editorContextMenu';
+                contextMenu.className = 'editor-context-menu';
+                contextMenu.style.display = 'none';
+                contextMenu.innerHTML = `
+                    <div class="context-menu-item" data-action="heading-1">H1</div>
+                    <div class="context-menu-item" data-action="heading-2">H2</div>
+                    <div class="context-menu-item" data-action="heading-3">H3</div>
+                    <div class="context-menu-divider"></div>
+                    <div class="context-menu-item" data-action="bold">Bold</div>
+                    <div class="context-menu-item" data-action="bulletList">Bullets</div>
+                    <div class="context-menu-item" data-action="taskList">Checklist</div>
+                    <div class="context-menu-item" data-action="blockquote">Callout</div>
+                `;
+                document.body.appendChild(contextMenu);
+                
+                // Handle right-click on editor
+                editorElement.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    
+                    if (!this.currentInsightEditor) return;
+                    
+                    const editor = this.currentInsightEditor;
+                    
+                    // Position menu at the right-click cursor position
+                    contextMenu.style.display = 'block';
+                    contextMenu.style.left = `${e.clientX}px`;
+                    contextMenu.style.top = `${e.clientY}px`;
+                    
+                    // Ensure menu stays within viewport
+                    setTimeout(() => {
+                        const menuRect = contextMenu.getBoundingClientRect();
+                        if (menuRect.right > window.innerWidth) {
+                            contextMenu.style.left = `${window.innerWidth - menuRect.width - 10}px`;
+                        }
+                        if (menuRect.bottom > window.innerHeight) {
+                            contextMenu.style.top = `${window.innerHeight - menuRect.height - 10}px`;
+                        }
+                        if (menuRect.left < 0) {
+                            contextMenu.style.left = '10px';
+                        }
+                        if (menuRect.top < 0) {
+                            contextMenu.style.top = '10px';
+                        }
+                    }, 0);
+                    
+                    // Update active states
+                    this.updateContextMenuStates(contextMenu, editor);
+                });
+                
+                // Handle menu item clicks
+                contextMenu.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent event from bubbling to document
+                    e.preventDefault();
+                    
+                    const action = e.target.getAttribute('data-action');
+                    if (!action || !this.currentInsightEditor) {
+                        contextMenu.style.display = 'none';
+                        return;
+                    }
+                    
+                    const editor = this.currentInsightEditor;
+                    
+                    // Hide menu first to prevent conflicts
+                    contextMenu.style.display = 'none';
+                    
+                    // Small delay to ensure menu is hidden before applying command
+                    setTimeout(() => {
+                        switch (action) {
+                            case 'heading-1':
+                                editor.chain().focus().toggleHeading({ level: 1 }).run();
+                                break;
+                            case 'heading-2':
+                                editor.chain().focus().toggleHeading({ level: 2 }).run();
+                                break;
+                            case 'heading-3':
+                                editor.chain().focus().toggleHeading({ level: 3 }).run();
+                                break;
+                            case 'bold':
+                                editor.chain().focus().toggleBold().run();
+                                break;
+                            case 'bulletList':
+                                editor.chain().focus().toggleBulletList().run();
+                                break;
+                            case 'taskList':
+                                editor.chain().focus().toggleTaskList().run();
+                                break;
+                            case 'blockquote':
+                                // Toggle blockquote
+                                if (editor.isActive('blockquote')) {
+                                    // If already in blockquote, lift it
+                                    editor.chain().focus().lift('blockquote').run();
+                                } else {
+                                    // Wrap the current block in blockquote
+                                    // This works for both selections and empty cursor positions
+                                    editor.chain().focus().wrapIn('blockquote').run();
+                                }
+                                break;
+                        }
+                    }, 10);
+                });
+                
+                // Hide menu on click outside, scroll, or escape key
+                const hideMenu = (e) => {
+                    if (contextMenu.style.display !== 'none') {
+                        // Don't hide if clicking inside the menu itself
+                        if (!contextMenu.contains(e.target) && !editorElement.contains(e.target)) {
+                            contextMenu.style.display = 'none';
+                        }
+                    }
+                };
+                
+                // Use capture phase to handle clicks before they bubble
+                document.addEventListener('click', hideMenu, true);
+                document.addEventListener('scroll', () => {
+                    contextMenu.style.display = 'none';
+                }, true);
+                
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && contextMenu.style.display !== 'none') {
+                        contextMenu.style.display = 'none';
+                    }
+                });
+            },
+            
+            updateContextMenuStates(menu, editor) {
+                const items = menu.querySelectorAll('.context-menu-item');
+                items.forEach(item => {
+                    const action = item.getAttribute('data-action');
+                    let isActive = false;
+                    
+                    switch (action) {
+                        case 'heading-1':
+                            isActive = editor.isActive('heading', { level: 1 });
+                            break;
+                        case 'heading-2':
+                            isActive = editor.isActive('heading', { level: 2 });
+                            break;
+                        case 'heading-3':
+                            isActive = editor.isActive('heading', { level: 3 });
+                            break;
+                        case 'bold':
+                            isActive = editor.isActive('bold');
+                            break;
+                        case 'bulletList':
+                            isActive = editor.isActive('bulletList');
+                            break;
+                        case 'taskList':
+                            isActive = editor.isActive('taskList');
+                            break;
+                        case 'blockquote':
+                            isActive = editor.isActive('blockquote');
+                            break;
+                    }
+                    
+                    if (isActive) {
+                        item.classList.add('active');
+                    } else {
+                        item.classList.remove('active');
+                    }
+                });
+            },
+            
+            saveTimeout: null,
+            fieldSaveTimeout: null,
+            
+            debouncedSaveInsightNotes(insightId, content) {
+                clearTimeout(this.saveTimeout);
+                
+                const statusEl = document.getElementById('insightNotesSaveStatus');
+                if (statusEl) statusEl.textContent = 'Saving...';
+                
+                this.saveTimeout = setTimeout(async () => {
+                    await this.saveInsightNotes(insightId, content);
+                }, 500);
+            },
+            
+            debouncedSaveInsightField(fieldName, value) {
+                clearTimeout(this.fieldSaveTimeout);
+                
+                this.fieldSaveTimeout = setTimeout(async () => {
+                    await this.saveInsightField(fieldName, value);
+                }, 500);
+            },
+            
+            async saveInsightField(fieldName, value) {
+                if (!currentClientId || !this.currentInsightId) return;
+                
+                try {
+                    const updateData = {};
+                    updateData[fieldName] = value;
+                    
+                    const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights/${this.currentInsightId}`, {
+                        method: 'PUT',
+                        headers: {
+                            ...getAuthHeaders(),
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(updateData)
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to save field');
+                    }
+                    
+                    // Update local data
+                    if (this.currentInsightData) {
+                        this.currentInsightData[fieldName] = value;
+                    }
+                } catch (error) {
+                    console.error('Error saving field:', error);
+                }
+            },
+            
+            async saveInsightNotes(insightId, content) {
+                if (!currentClientId || !insightId) return;
+                
+                const statusEl = document.getElementById('insightNotesSaveStatus');
+                
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights/${insightId}`, {
+                        method: 'PUT',
+                        headers: {
+                            ...getAuthHeaders(),
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ notes: content })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to save notes');
+                    }
+                    
+                    if (statusEl) {
+                        statusEl.textContent = 'Saved';
+                        statusEl.style.color = '#B9F040'; /* Brand lime green */
+                        setTimeout(() => {
+                            if (statusEl) {
+                                statusEl.textContent = '';
+                            }
+                        }, 2000);
+                    }
+                } catch (error) {
+                    console.error('Error saving notes:', error);
+                    if (statusEl) {
+                        statusEl.textContent = 'Error saving';
+                        statusEl.style.color = 'oklch(0.577 0.245 27.325)'; /* Destructive red from style guide */
+                    }
+                }
+            },
+            
             close() {
                 const panel = document.getElementById('slideoutPanel');
                 const overlay = document.getElementById('slideoutOverlay');
                 const subtitle = document.getElementById('slideoutSubtitle');
+                const searchBox = document.getElementById('slideoutSearch');
+                const settingsBtn = document.getElementById('slideoutSettingsBtn');
+                const title = document.getElementById('slideoutTitle');
+                
+                // Clean up editor
+                if (this.currentInsightEditor) {
+                    this.currentInsightEditor.destroy();
+                    this.currentInsightEditor = null;
+                }
+                
+                // Reset title to default (remove contenteditable for non-insight modes)
+                if (title) {
+                    title.removeAttribute('contenteditable');
+                    title.setAttribute('data-placeholder', '');
+                    title.textContent = 'AI-Generated Insights';
+                }
                 
                 if (panel) panel.classList.remove('open');
                 if (overlay) overlay.classList.remove('visible');
@@ -7465,6 +9437,20 @@
                 
                 this.isOpen = false;
                 this.currentMode = null;
+                this.currentInsightId = null;
+                this.currentInsightData = null;
+                this.createInsightContext = null;
+                this.createInsightOrigin = null;
+                
+                // Clear save timeouts
+                if (this.saveTimeout) {
+                    clearTimeout(this.saveTimeout);
+                    this.saveTimeout = null;
+                }
+                if (this.fieldSaveTimeout) {
+                    clearTimeout(this.fieldSaveTimeout);
+                    this.fieldSaveTimeout = null;
+                }
             },
             
             // Extract all available metadata fields from verbatims
@@ -7910,20 +9896,663 @@
         window.SlideoutPanel = SlideoutPanel;
         // Keep backward compatibility
         window.AIInsightsPanel = SlideoutPanel;
+
+        // Insights Panel Management
+        let insightsAutoFilter = true;
+        let insightsCurrentFilters = {};
+        let allInsights = [];
+        let insightsSearchTerm = '';
+        let insightsFilters = {};
+        let insightsSortBy = 'name';
+        let insightsSortOrder = 'asc';
+
+        function toggleInsightsPanel() {
+            const body = document.getElementById('insightsPanelBody');
+            const icon = document.getElementById('insightsPanelToggleIcon');
+            if (body.classList.contains('collapsed')) {
+                body.classList.remove('collapsed');
+                icon.textContent = '▼';
+            } else {
+                body.classList.add('collapsed');
+                icon.textContent = '▲';
+            }
+        }
+
+        function toggleInsightsFilter() {
+            insightsAutoFilter = !insightsAutoFilter;
+            const btn = document.getElementById('showAllInsightsBtn');
+            if (insightsAutoFilter) {
+                btn.textContent = 'Show All Insights';
+                updateInsightsAutoFilter();
+            } else {
+                btn.textContent = 'Show Filtered Insights';
+                loadInsights({});
+            }
+        }
+
+        function updateInsightsAutoFilter() {
+            if (!insightsAutoFilter || !currentClientId) return;
+            
+            const filters = {};
+            const badge = document.getElementById('insightsFilterBadge');
+            const showAllBtn = document.getElementById('showAllInsightsBtn');
+            
+            // Determine current view context
+            if (currentQuestionRefKey) {
+                filters.dimension_ref = currentQuestionRefKey;
+                badge.textContent = `Filtered: ${currentQuestionRefKey}`;
+                badge.style.display = 'inline-block';
+                showAllBtn.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+                showAllBtn.style.display = 'none';
+            }
+            
+            insightsCurrentFilters = filters;
+            loadInsights(filters);
+        }
+
+        async function loadInsights(filters = {}) {
+            if (!currentClientId) return;
+            
+            const tbody = document.getElementById('insightsTableBody');
+            if (!tbody) return;
+            
+            try {
+                const params = new URLSearchParams({
+                    page: '1',
+                    page_size: '1000',
+                    sort_by: insightsSortBy === 'name' ? 'name' : insightsSortBy === 'created_at' ? 'created_at' : 'created_at',
+                    sort_order: insightsSortOrder,
+                });
+                
+                // Merge auto-filters with manual filters
+                const allFilters = { ...insightsCurrentFilters, ...filters };
+                Object.entries(allFilters).forEach(([key, value]) => {
+                    if (value) params.append(key, value);
+                });
+                
+                const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights?${params.toString()}`, {
+                    headers: getAuthHeaders()
+                });
+                
+                if (!response.ok) throw new Error('Failed to load insights');
+                
+                const data = await response.json();
+                allInsights = data.items || [];
+                renderInsights();
+            } catch (error) {
+                console.error('Error loading insights:', error);
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>Error loading insights</h3><p>' + escapeHtml(error.message) + '</p></td></tr>';
+                }
+            }
+        }
+
+        function renderInsights(insights) {
+            const tbody = document.getElementById('insightsTableBody');
+            if (!tbody) return;
+
+            let filtered = [...(insights || allInsights)];
+
+            // Apply search
+            if (insightsSearchTerm) {
+                const term = insightsSearchTerm.toLowerCase();
+                filtered = filtered.filter(insight =>
+                    insight.name?.toLowerCase().includes(term) ||
+                    insight.type?.toLowerCase().includes(term) ||
+                    insight.description?.toLowerCase().includes(term)
+                );
+            }
+
+            // Apply filters
+            Object.entries(insightsFilters).forEach(([key, value]) => {
+                if (value) {
+                    filtered = filtered.filter(insight => {
+                        if (key === 'type') return insight.type?.toLowerCase().includes(value.toLowerCase());
+                        return true;
+                    });
+                }
+            });
+
+            // Apply sorting
+            filtered.sort((a, b) => {
+                let aVal, bVal;
+                if (insightsSortBy === 'name') {
+                    aVal = a.name || '';
+                    bVal = b.name || '';
+                } else if (insightsSortBy === 'type') {
+                    aVal = a.type || '';
+                    bVal = b.type || '';
+                } else if (insightsSortBy === 'created_at') {
+                    aVal = new Date(a.created_at).getTime();
+                    bVal = new Date(b.created_at).getTime();
+                } else {
+                    return 0;
+                }
+
+                if (typeof aVal === 'string') {
+                    return insightsSortOrder === 'asc' 
+                        ? aVal.localeCompare(bVal)
+                        : bVal.localeCompare(aVal);
+                } else {
+                    return insightsSortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+                }
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>No insights found</h3><p>Create your first insight to get started</p></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(insight => {
+                const createdDate = new Date(insight.created_at).toLocaleDateString();
+                const firstOrigin = insight.origins?.[0] || {};
+                const projectName = firstOrigin.project_name || '-';
+                const dataSource = firstOrigin.data_source || '-';
+                const dimension = firstOrigin.dimension_name || firstOrigin.dimension_ref || '-';
+
+                return `
+                    <tr>
+                        <td class="checkbox-cell">
+                            <div class="checkbox"></div>
+                        </td>
+                        <td class="name-cell">
+                            <div class="name-content" style="position: relative;">
+                                <svg class="doc-icon" viewBox="0 0 16 16" fill="currentColor">
+                                    <path d="M2.5 2.5h11l.5.5v10l-.5.5h-11l-.5-.5V3l.5-.5zM3 4v8h10V4H3zm2 1h6v1H5V5zm0 2h6v1H5V7zm0 2h4v1H5V9z"/>
+                                </svg>
+                                <span>${escapeHtml(insight.name)}</span>
+                                <button class="insight-open-btn-table" onclick="SlideoutPanel.openInsightNotes('${insight.id}')" title="Open in side peek" style="display: none;">
+                                    <span style="font-size: 12px; margin-right: 4px;">OPEN</span>
+                                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="opacity: 0.6;">
+                                        <rect x="4" y="4" width="8" height="8" stroke="currentColor" stroke-width="1.5" fill="none" rx="1"/>
+                                        <path d="M6 2 L6 6 M10 2 L10 6 M2 6 L2 10 M2 6 L6 6 M10 6 L14 6 M14 6 L14 10" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="tag tag-type">${escapeHtml(insight.type)}</span>
+                        </td>
+                        <td>
+                            <div class="status">
+                                <div class="status-dot not-started"></div>
+                                <span>Not started</span>
+                            </div>
+                        </td>
+                        <td>
+                            ${projectName !== '-' ? `<span class="tag tag-project">${escapeHtml(projectName)}</span>` : '-'}
+                        </td>
+                        <td>
+                            ${dataSource !== '-' ? `<span class="tag tag-data-source">${escapeHtml(dataSource)}</span>` : '-'}
+                        </td>
+                        <td>${escapeHtml(dimension)}</td>
+                        <td>${createdDate}</td>
+                        <td class="actions-cell">
+                            <button class="action-btn" onclick="editInsightFromView('${insight.id}')" title="Edit">✏️</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function handleInsightsSearch() {
+            insightsSearchTerm = document.getElementById('insightsSearchInput')?.value.trim() || '';
+            renderInsights();
+        }
+
+        function sortInsightsBy(column) {
+            // Update sort indicators
+            document.querySelectorAll('.notion-table th').forEach(th => {
+                th.classList.remove('sorted');
+                const indicator = th.querySelector('.sort-indicator');
+                if (indicator) indicator.textContent = '';
+            });
+
+            const clickedTh = event.currentTarget;
+            clickedTh.classList.add('sorted');
+            const indicator = clickedTh.querySelector('.sort-indicator');
+
+            if (insightsSortBy === column) {
+                insightsSortOrder = insightsSortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                insightsSortBy = column;
+                insightsSortOrder = 'asc';
+            }
+
+            if (indicator) {
+                indicator.textContent = insightsSortOrder === 'asc' ? '↑' : '↓';
+            }
+
+            renderInsights();
+        }
+
+        function updateInsightsFilterChips() {
+            const chipsContainer = document.getElementById('insightsFilterChips');
+            const resetBtn = document.getElementById('insightsResetBtn');
+            const hasFilters = Object.keys(insightsFilters).length > 0;
+
+            if (resetBtn) resetBtn.style.display = hasFilters ? 'block' : 'none';
+
+            if (!chipsContainer) return;
+
+            if (!hasFilters) {
+                chipsContainer.innerHTML = '';
+                return;
+            }
+
+            chipsContainer.innerHTML = Object.entries(insightsFilters).map(([key, value]) => {
+                if (!value) return '';
+                const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                return `
+                    <div class="filter-chip">
+                        <span>${label}: ${escapeHtml(String(value))}</span>
+                        <span class="remove" onclick="removeInsightsFilter('${key}')">×</span>
+                    </div>
+                `;
+            }).filter(html => html).join('');
+        }
+
+        function removeInsightsFilter(key) {
+            delete insightsFilters[key];
+            updateInsightsFilterChips();
+            renderInsights();
+        }
+
+        function resetInsightsFilters() {
+            insightsFilters = {};
+            insightsSearchTerm = '';
+            const searchInput = document.getElementById('insightsSearchInput');
+            if (searchInput) searchInput.value = '';
+            updateInsightsFilterChips();
+            renderInsights();
+        }
+
+        function openInsightsFilterMenu() {
+            const type = prompt('Filter by type (leave empty to cancel):');
+            if (type && type.trim()) {
+                insightsFilters.type = type.trim();
+                updateInsightsFilterChips();
+                renderInsights();
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function openCreateInsightModal() {
+            // Build origin from current view context
+            const origin = {
+                origin_type: 'category', // Default
+                project_name: currentProjectName || null,
+                data_source: currentDataSourceId || null,
+                dimension_ref: currentQuestionRefKey || null,
+                dimension_name: null,
+                category: null,
+                topic_label: null,
+                process_voc_id: null,
+            };
+            
+            // Open create modal - for now, redirect to standalone page with context
+            const params = new URLSearchParams({ client_uuid: currentClientId });
+            if (currentQuestionRefKey) params.append('dimension_ref', currentQuestionRefKey);
+            if (currentProjectName) params.append('project_name', currentProjectName);
+            if (currentDataSourceId) params.append('data_source', currentDataSourceId);
+            
+            // Pass auth token via URL parameter (will be stored in localStorage on the new page)
+            const token = getAuthToken();
+            if (token) {
+                params.append('auth_token', token);
+            }
+            
+            // Use API_BASE_URL to ensure we hit the backend server where the route is registered
+            window.open(`${API_BASE_URL}/client-insights?${params.toString()}`, '_blank');
+        }
+
+        function editInsightFromView(insightId) {
+            const params = new URLSearchParams({ client_uuid: currentClientId, insight_id: insightId });
+            
+            // Pass auth token via URL parameter
+            const token = getAuthToken();
+            if (token) {
+                params.append('auth_token', token);
+            }
+            
+            // Use API_BASE_URL to ensure we hit the backend server where the route is registered
+            window.open(`${API_BASE_URL}/client-insights?${params.toString()}`, '_blank');
+        }
+
+        // Update insights when view context changes
+        const originalLoadDataSource = window.loadDataSource;
+        if (typeof loadDataSource === 'function') {
+            // Wrap to update insights after data loads
+            const wrapper = async function(...args) {
+                await originalLoadDataSource.apply(this, args);
+                updateInsightsAutoFilter();
+            };
+            window.loadDataSource = wrapper;
+        }
+
+        // Context Menu Management
+        let currentContextData = null;
+        let contextMenuJustClicked = false;
+
+        function showContextMenu(event, contextData) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            const contextMenu = document.getElementById('contextMenu');
+            if (!contextMenu) return;
+            
+            currentContextData = contextData;
+            contextMenuJustClicked = false;
+            
+            // Position menu at cursor
+            contextMenu.style.display = 'block';
+            contextMenu.style.left = `${event.clientX}px`;
+            contextMenu.style.top = `${event.clientY}px`;
+            
+            // Ensure menu stays within viewport
+            const rect = contextMenu.getBoundingClientRect();
+            if (rect.right > window.innerWidth) {
+                contextMenu.style.left = `${window.innerWidth - rect.width - 10}px`;
+            }
+            if (rect.bottom > window.innerHeight) {
+                contextMenu.style.top = `${window.innerHeight - rect.height - 10}px`;
+            }
+        }
+
+        function hideContextMenu() {
+            const contextMenu = document.getElementById('contextMenu');
+            if (contextMenu) {
+                contextMenu.style.display = 'none';
+            }
+            currentContextData = null;
+            contextMenuJustClicked = false;
+        }
+
+        // Handle context menu item clicks and closing menu on click outside
+        document.addEventListener('click', (e) => {
+            const contextMenu = document.getElementById('contextMenu');
+            const isMenuVisible = contextMenu && contextMenu.style.display !== 'none';
+            
+            // Check if click is on a context menu item
+            const item = e.target.closest('.context-menu-item');
+            const clickedInMenu = contextMenu && contextMenu.contains(e.target);
+            
+            console.log('Click detected:', {
+                isMenuVisible,
+                clickedInMenu,
+                item: !!item,
+                target: e.target,
+                targetClass: e.target.className,
+                targetTag: e.target.tagName
+            });
+            
+            if (item && isMenuVisible) {
+                e.preventDefault();
+                e.stopPropagation();
+                contextMenuJustClicked = true;
+                
+                const action = item.getAttribute('data-action');
+                console.log('=== CONTEXT MENU CLICK ===');
+                console.log('Action:', action);
+                console.log('Current context data:', currentContextData);
+                console.log('Event target:', e.target);
+                console.log('Closest item:', item);
+                
+                    if (action === 'create-insight') {
+                        console.log('Create insight action triggered');
+                        if (currentContextData) {
+                            console.log('Context data exists:', currentContextData);
+                            // Save context data before hiding menu (which clears it)
+                            // Use JSON parse/stringify to ensure deep copy
+                            const savedContextData = JSON.parse(JSON.stringify(currentContextData));
+                            console.log('Saved context data:', savedContextData);
+                            // Use setTimeout to ensure click event completes
+                            setTimeout(() => {
+                                console.log('About to open slideout panel with saved data:', savedContextData);
+                                hideContextMenu();
+                                SlideoutPanel.openCreateInsight(savedContextData);
+                            }, 10);
+                        } else {
+                            console.error('No context data available when clicking create insight');
+                            alert('Error: No context data available. Please try right-clicking again.');
+                        }
+                    } else {
+                        console.warn('Unknown action:', action);
+                    }
+                return; // Don't close menu when clicking menu item
+            }
+            
+            // Close context menu on click outside
+            if (isMenuVisible && !contextMenuJustClicked && !contextMenu.contains(e.target)) {
+                hideContextMenu();
+            }
+            
+            // Reset flag after processing
+            if (contextMenuJustClicked) {
+                contextMenuJustClicked = false;
+            }
+        });
+        
+        // Close context menu on ESC key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                hideContextMenu();
+                const modal = document.getElementById('createInsightModal');
+                if (modal && modal.style.display !== 'none') {
+                    closeCreateInsightModal();
+                }
+            }
+        });
+
+        // Open create insight modal from context menu
+        function openCreateInsightModalFromContext(contextData) {
+            console.log('=== OPENING CREATE INSIGHT MODAL ===');
+            console.log('Context data:', contextData);
+            const modal = document.getElementById('createInsightModal');
+            const form = document.getElementById('createInsightForm');
+            console.log('Modal element:', modal);
+            console.log('Form element:', form);
+            
+            if (!modal) {
+                console.error('Modal element not found!');
+                alert('Error: Modal element not found. Please check the console.');
+                return;
+            }
+            if (!form) {
+                console.error('Form element not found!');
+                alert('Error: Form element not found. Please check the console.');
+                return;
+            }
+            
+            // Reset form
+            form.reset();
+            
+            // Validate contextData
+            if (!contextData) {
+                console.error('contextData is null or undefined');
+                alert('Error: Context data is missing. Please try right-clicking again.');
+                return;
+            }
+            
+            console.log('Creating origin from contextData:', contextData);
+            
+            // Pre-populate origin data
+            const origin = {
+                origin_type: contextData.type, // 'category' or 'topic'
+                project_name: contextData.project_name || null,
+                data_source: contextData.data_source || null,
+                dimension_ref: contextData.dimension_ref || null,
+                dimension_name: contextData.dimension_name || null,
+                category: contextData.category || null,
+                topic_label: contextData.topic_label || null,
+                process_voc_id: null,
+            };
+            
+            console.log('Created origin object:', origin);
+            
+            // Store origin for form submission
+            window.currentInsightOrigin = origin;
+            
+            // Display origin preview
+            const originPreview = document.getElementById('insightModalOriginPreview');
+            if (originPreview) {
+                const originText = [];
+                if (origin.origin_type === 'category') {
+                    originText.push(`<strong>Type:</strong> Category`);
+                    if (origin.category) originText.push(`<strong>Category:</strong> ${escapeHtml(origin.category)}`);
+                } else if (origin.origin_type === 'topic') {
+                    originText.push(`<strong>Type:</strong> Topic`);
+                    if (origin.category) originText.push(`<strong>Category:</strong> ${escapeHtml(origin.category)}`);
+                    if (origin.topic_label) originText.push(`<strong>Topic:</strong> ${escapeHtml(origin.topic_label)}`);
+                }
+                if (origin.project_name) originText.push(`<strong>Project:</strong> ${escapeHtml(origin.project_name)}`);
+                if (origin.data_source) originText.push(`<strong>Data Source:</strong> ${escapeHtml(origin.data_source)}`);
+                if (origin.dimension_ref) {
+                    const dimensionDisplay = origin.dimension_name || origin.dimension_ref;
+                    originText.push(`<strong>Dimension:</strong> ${escapeHtml(dimensionDisplay)}`);
+                }
+                
+                originPreview.innerHTML = originText.join('<br>') || 'No origin information';
+            }
+            
+            // Show modal
+            modal.style.display = 'flex';
+            console.log('Modal should now be visible');
+        }
+
+        function closeCreateInsightModal() {
+            console.log('Closing create insight modal');
+            const modal = document.getElementById('createInsightModal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            const form = document.getElementById('createInsightForm');
+            if (form) {
+                form.reset();
+            }
+            window.currentInsightOrigin = null;
+        }
+        
+        // Make functions globally accessible
+        window.closeCreateInsightModal = closeCreateInsightModal;
+        window.openCreateInsightModalFromContext = openCreateInsightModalFromContext;
+
+        async function handleCreateInsightSubmit(event) {
+            event.preventDefault();
+            
+            if (!currentClientId) {
+                alert('No client selected');
+                return;
+            }
+            
+            const name = document.getElementById('insightModalName').value.trim();
+            const type = document.getElementById('insightModalType').value.trim();
+            const application = document.getElementById('insightModalApplication').value.trim() || null;
+            const description = document.getElementById('insightModalDescription').value.trim() || null;
+            
+            if (!name || !type) {
+                alert('Please fill in required fields (Name and Type)');
+                return;
+            }
+            
+            const origin = window.currentInsightOrigin;
+            if (!origin) {
+                alert('Origin information is missing');
+                return;
+            }
+            
+            const insightData = {
+                name,
+                type,
+                application,
+                description,
+                origins: [origin],
+            };
+            
+            try {
+                const token = getAuthToken() || localStorage.getItem('visualizd_auth_token');
+                if (!token) {
+                    alert('You are not logged in. Please log in and try again.');
+                    return;
+                }
+                
+                const headers = {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                };
+                
+                const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights`, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(insightData),
+                });
+                
+                if (!response.ok) {
+                    let errorData;
+                    try {
+                        errorData = await response.json();
+                    } catch (e) {
+                        errorData = { detail: response.statusText };
+                    }
+                    throw new Error(errorData.detail || `HTTP ${response.status}: Failed to create insight`);
+                }
+                
+                // Success - close modal and refresh insights panel
+                closeCreateInsightModal();
+                
+                // Refresh insights panel if visible
+                if (typeof loadInsights === 'function') {
+                    loadInsights();
+                }
+                
+                // Show success message
+                const successMsg = document.createElement('div');
+                successMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #4CAF50; color: white; padding: 12px 24px; border-radius: 6px; z-index: 10004; box-shadow: 0 4px 12px rgba(0,0,0,0.2);';
+                successMsg.textContent = 'Insight created successfully!';
+                document.body.appendChild(successMsg);
+                setTimeout(() => successMsg.remove(), 3000);
+                
+            } catch (error) {
+                console.error('Error creating insight:', error);
+                alert('Error creating insight: ' + error.message);
+            }
+        }
+
+        // Close modal on backdrop click
+        document.addEventListener('DOMContentLoaded', () => {
+            const modal = document.getElementById('createInsightModal');
+            if (modal) {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        closeCreateInsightModal();
+                    }
+                });
+            }
+        });
     </script>
     
     <!-- Marketing site header -->
     <script src="/header.js"></script>
     
     <!-- Slideout Panel (AI Insights / Verbatims) -->
-    <div id="slideoutTab" class="ai-insights-tab">
+    <div id="slideoutTab" class="ai-insights-tab" style="display: none !important;">
         <span>💡 AI Insights</span>
     </div>
     
     <div id="slideoutPanel" class="ai-insights-panel">
         <div class="ai-insights-header">
             <div style="flex: 1;">
-                <h2 id="slideoutTitle">AI-Generated Insights</h2>
+                <div id="slideoutTitle" 
+                     contenteditable="true" 
+                     style="font-size: 1.5rem; font-weight: 600; font-family: 'Lato', sans-serif; color: oklch(0.145 0 0); outline: none; min-height: 1.75rem; line-height: 1.2;"
+                     data-placeholder="Insight Title">AI-Generated Insights</div>
                 <p id="slideoutSubtitle" class="overlay-subtitle" style="display: none; margin-top: 4px; font-size: 13px; color: #666;"></p>
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
