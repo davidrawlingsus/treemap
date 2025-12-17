@@ -80,6 +80,59 @@
             display: none !important;
         }
 
+        /* App Navigation */
+        .app-navigation {
+            background: oklch(1 0 0); /* White */
+            border-bottom: 1px solid oklch(0.922 0 0); /* Border color */
+            padding: 0.75rem 1.5rem; /* 12px 24px */
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            position: sticky;
+            top: 0;
+            z-index: 101;
+            font-family: 'Lato', sans-serif;
+        }
+
+        .nav-menu {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-menu-item {
+            padding: 0.5rem 1rem; /* 8px 16px */
+            color: oklch(0.556 0 0); /* Muted foreground */
+            text-decoration: none;
+            font-size: 0.875rem; /* 14px */
+            font-weight: 500;
+            font-family: 'Lato', sans-serif;
+            border-radius: 0.375rem; /* 6px */
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .nav-menu-item:hover {
+            color: oklch(0.145 0 0); /* Near black */
+            background: oklch(0.97 0 0); /* Light gray */
+        }
+
+        .nav-menu-item.active {
+            color: oklch(0.145 0 0); /* Near black */
+            font-weight: 600;
+        }
+
+        .nav-menu-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 1rem;
+            right: 1rem;
+            height: 2px;
+            background: #B9F040; /* Lime green underline */
+            border-radius: 1px;
+        }
+
         .data-source-selector {
             padding: 18px 28px 22px;
             background: white;
@@ -89,7 +142,7 @@
             align-items: stretch;
             gap: 18px;
             position: sticky;
-            top: 0;
+            top: 48px; /* Below navigation */
             z-index: 100;
         }
         
@@ -2747,11 +2800,37 @@
             background: oklch(1 0 0); /* White */
         }
 
-        .ai-insights-header h2 {
-            font-size: 18px;
+        .ai-insights-header h2,
+        #slideoutTitle {
+            font-size: 1.5rem; /* 24px */
             font-weight: 600;
             margin: 0;
-            color: #333;
+            color: oklch(0.145 0 0);
+            font-family: 'Lato', sans-serif;
+        }
+
+        #slideoutTitle[contenteditable="true"]:focus {
+            outline: none;
+        }
+
+        #slideoutTitle[contenteditable="true"]:empty:before {
+            content: attr(data-placeholder);
+            color: oklch(0.556 0 0);
+        }
+
+        /* Remove focus outline from Tiptap editor */
+        .tiptap:focus,
+        .ProseMirror:focus,
+        .ProseMirror-focused {
+            outline: none !important;
+            border: none !important;
+        }
+
+        #insightNotesEditor .tiptap:focus,
+        #insightNotesEditor .ProseMirror:focus,
+        #insightNotesEditor .ProseMirror-focused {
+            outline: none !important;
+            border: none !important;
         }
 
         .ai-close-btn {
@@ -3052,6 +3131,18 @@
     </div>
 
     <div class="container" id="mainContainer" style="display: none;">
+        <!-- Navigation Menu -->
+        <nav class="app-navigation">
+            <div class="nav-menu" id="navMenu">
+                <a href="/" class="nav-menu-item" id="navVisualizations">
+                    <span>Visualizations</span>
+                </a>
+                <a href="/client-insights" class="nav-menu-item" id="navInsights">
+                    <span>Insights</span>
+                </a>
+            </div>
+        </nav>
+        
         <!-- Data Source Selector -->
         <div class="data-source-selector">
             <div class="filter-tabs" role="tablist" aria-label="Data filters">
@@ -3309,7 +3400,6 @@
                 </div>
                 <div class="insights-panel-header-right">
                     <button class="btn-link" id="showAllInsightsBtn" onclick="toggleInsightsFilter()" style="display: none;">Show All Insights</button>
-                    <button class="btn-primary-small" onclick="openCreateInsightModal()">+ Create Insight</button>
                     <button class="insights-panel-toggle" onclick="toggleInsightsPanel()" id="insightsPanelToggle">
                         <span id="insightsPanelToggleIcon">▼</span>
                     </button>
@@ -4142,6 +4232,7 @@
                         return loadClientProjects(clientId, restoreState);
                     }).then(() => {
                         renderFavourites();
+                        updateNavLinks(); // Update nav links after client loads
                     }).catch((error) => {
                         console.error('Error loading clients or projects:', error);
                         hasAutoLaunched = wasAutoLaunched;
@@ -4150,6 +4241,7 @@
                     // Dropdown already populated, just load the client's data
                     loadClientProjects(clientId, restoreState).then(() => {
                         renderFavourites();
+                        updateNavLinks(); // Update nav links after client loads
                     });
                 }
             }
@@ -8176,6 +8268,58 @@
             });
         });
 
+        // Set active navigation item based on current page
+        function setActiveNavItem() {
+            const path = window.location.pathname;
+            const navVisualizations = document.getElementById('navVisualizations');
+            const navInsights = document.getElementById('navInsights');
+            
+            // Remove active class from all items
+            if (navVisualizations) navVisualizations.classList.remove('active');
+            if (navInsights) navInsights.classList.remove('active');
+            
+            // Set active based on path
+            if (path.includes('client-insights') || path.includes('/insights')) {
+                if (navInsights) navInsights.classList.add('active');
+            } else {
+                // Default to visualizations for index.html
+                if (navVisualizations) navVisualizations.classList.add('active');
+            }
+        }
+
+        // Update navigation links to include current context
+        function updateNavLinks() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const clientUuid = urlParams.get('client_uuid') || currentClientId;
+            const authToken = getAuthToken() || localStorage.getItem('visualizd_auth_token');
+            
+            const navVisualizations = document.getElementById('navVisualizations');
+            const navInsights = document.getElementById('navInsights');
+            
+            if (navVisualizations) {
+                let vizUrl = '/';
+                if (clientUuid) {
+                    vizUrl += `?client_uuid=${clientUuid}`;
+                    if (authToken) {
+                        vizUrl += `&auth_token=${authToken}`;
+                    }
+                }
+                navVisualizations.href = vizUrl;
+            }
+            
+            if (navInsights) {
+                let insightsUrl = `${API_BASE_URL}/client-insights`;
+                if (clientUuid) {
+                    insightsUrl += `?client_uuid=${clientUuid}`;
+                    if (authToken) {
+                        insightsUrl += `&auth_token=${authToken}`;
+                    }
+                }
+                navInsights.href = insightsUrl;
+            }
+        }
+
+
         // Start the application - check auth first
         console.log('Starting application...');
         
@@ -8192,6 +8336,17 @@
         // If token exists, keep login hidden (it's already hidden by default)
         // and let async checkAuth() verify it
         
+        // Initialize navigation when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                setActiveNavItem();
+                updateNavLinks();
+            });
+        } else {
+            setActiveNavItem();
+            updateNavLinks();
+        }
+        
         const authCheck = typeof Auth !== 'undefined' ? Auth.checkAuth() : Promise.resolve(false);
         authCheck.then(authenticated => {
             console.log('Auth check result:', authenticated);
@@ -8205,15 +8360,16 @@
             console.error('Error in checkAuth:', error);
         });
         
-        // Slideout Panel - handles AI Insights, Verbatims, and Insight Notes
+        // Slideout Panel - handles AI Insights, Verbatims, Insight Notes, and Create Insight
         const SlideoutPanel = {
             isOpen: false,
-            currentMode: null, // 'ai-insights', 'verbatims', or 'insight-notes'
+            currentMode: null, // 'ai-insights', 'verbatims', 'insight-notes', or 'create-insight'
             currentContext: null,
             currentDimensionRef: null,  // Track current dimension
             currentInsightEditor: null,  // Tiptap editor instance for insight notes
             currentInsightId: null,  // Currently open insight ID
             currentInsightData: null,  // Full insight data for editing
+            createInsightContext: null,  // Context data for creating new insight
             
             init() {
                 const tab = document.getElementById('slideoutTab');
@@ -8287,7 +8443,13 @@
                 const overlay = document.getElementById('slideoutOverlay');
                 const title = document.getElementById('slideoutTitle');
                 
-                if (title) title.textContent = 'AI-Generated Insights';
+                // For AI insights mode, keep title as h2 (not editable)
+                if (title) {
+                    title.textContent = 'AI-Generated Insights';
+                    // Remove contenteditable if it was set
+                    title.removeAttribute('contenteditable');
+                    title.setAttribute('data-placeholder', '');
+                }
                 if (panel) panel.classList.add('open');
                 if (overlay) overlay.classList.add('visible');
                 this.isOpen = true;
@@ -8319,8 +8481,12 @@
                 const title = document.getElementById('slideoutTitle');
                 const subtitle = document.getElementById('slideoutSubtitle');
                 
+                // For verbatims mode, keep title as h2 (not editable)
                 if (title) {
                     title.textContent = topicName;
+                    // Remove contenteditable if it was set
+                    title.removeAttribute('contenteditable');
+                    title.setAttribute('data-placeholder', '');
                 }
                 if (subtitle) {
                     subtitle.textContent = `${categoryName} • ${verbatims.length} verbatim${verbatims.length !== 1 ? 's' : ''}`;
@@ -8336,6 +8502,48 @@
                 
                 // Render verbatims
                 this.renderVerbatims(verbatims, topicName, categoryName);
+            },
+            
+            async openCreateInsight(contextData) {
+                if (!currentClientId) {
+                    console.error('No client selected');
+                    return;
+                }
+                
+                this.currentMode = 'create-insight';
+                this.createInsightContext = contextData;
+                this.currentInsightId = null; // No existing insight
+                
+                // Open UI
+                const panel = document.getElementById('slideoutPanel');
+                const overlay = document.getElementById('slideoutOverlay');
+                const title = document.getElementById('slideoutTitle');
+                const subtitle = document.getElementById('slideoutSubtitle');
+                const content = document.getElementById('slideoutContent');
+                const searchBox = document.getElementById('slideoutSearch');
+                const settingsBtn = document.getElementById('slideoutSettingsBtn');
+                
+                // Hide search and settings (only for verbatims)
+                if (searchBox) searchBox.style.display = 'none';
+                if (settingsBtn) settingsBtn.style.display = 'none';
+                if (subtitle) subtitle.style.display = 'none';
+                
+                // Set editable title in header (empty for new insight)
+                if (title) {
+                    title.textContent = '';
+                    title.setAttribute('data-placeholder', 'Insight Title');
+                    title.setAttribute('contenteditable', 'true');
+                }
+                
+                if (panel) panel.classList.add('open');
+                if (overlay) overlay.classList.add('visible');
+                this.isOpen = true;
+                
+                // Prevent body scroll
+                document.body.classList.add('slideout-open');
+                
+                // Initialize panel with empty form, pre-populated with context
+                await this.initializeCreateInsightPanel(content, contextData);
             },
             
             async openInsightNotes(insightId) {
@@ -8394,23 +8602,287 @@
                 }
             },
             
+            async initializeCreateInsightPanel(container, contextData) {
+                if (!container) return;
+                
+                // Build origin object from context data
+                // Map 'type' field to 'origin_type' (contextData.type is 'category' or 'topic')
+                const origin = {
+                    origin_type: contextData.type || contextData.origin_type || 'category',
+                    process_voc_id: contextData.process_voc_id || null,
+                    project_name: contextData.project_name || null,
+                    data_source: contextData.data_source || null,
+                    dimension_ref: contextData.dimension_ref || null,
+                    dimension_name: contextData.dimension_name || null,
+                    category: contextData.category || null,
+                    topic_label: contextData.topic_label || null,
+                };
+                
+                // Extract category and topic from context data
+                const categoryName = contextData.category || null;
+                const topicName = contextData.topic_label || null;
+                
+                // Create panel structure with attributes (title is now in header)
+                container.innerHTML = `
+                    <div style="padding: 0;">
+                        <!-- Attributes Section -->
+                        <div style="padding: 1rem 1.5rem; border-bottom: 1px solid oklch(0.922 0 0);">
+                            <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <!-- Category Attribute -->
+                                ${categoryName ? `
+                                <div class="insight-attribute-row">
+                                    <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Category</div>
+                                    <div style="flex: 1;">
+                                        <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
+                                            ${escapeHtml(categoryName)}
+                                        </div>
+                                    </div>
+                                </div>
+                                ` : ''}
+                                
+                                <!-- Topic Attribute -->
+                                ${topicName ? `
+                                <div class="insight-attribute-row">
+                                    <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Topic</div>
+                                    <div style="flex: 1;">
+                                        <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
+                                            ${escapeHtml(topicName)}
+                                        </div>
+                                    </div>
+                                </div>
+                                ` : ''}
+                                
+                                <!-- Type Attribute -->
+                                <div class="insight-attribute-row">
+                                    <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Type</div>
+                                    <div style="flex: 1;">
+                                        <div id="insightTypeChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
+                                            Empty
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Application Attribute -->
+                                <div class="insight-attribute-row">
+                                    <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Application</div>
+                                    <div style="flex: 1;">
+                                        <div id="insightApplicationChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
+                                            Empty
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Notes Section -->
+                        <div style="padding: 1.5rem;">
+                            <div id="insightNotesSaveStatus" style="font-size: 0.75rem; font-family: 'Lato', sans-serif; color: oklch(0.556 0 0); margin-bottom: 0.5rem; min-height: 1rem;"></div>
+                            <div id="insightNotesEditor" style="min-height: 400px; outline: none; font-size: 0.875rem; font-family: 'Lato', sans-serif; line-height: 1.5; color: oklch(0.145 0 0);"></div>
+                        </div>
+                        
+                        <!-- Save Button -->
+                        <div style="padding: 1rem 1.5rem; border-top: 1px solid oklch(0.922 0 0); background: oklch(0.98 0 0); display: flex; justify-content: flex-end;">
+                            <button id="saveNewInsightBtn" style="background: #B9F040; color: #000; border: none; padding: 0.5rem 1.5rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.875rem; font-family: 'Lato', sans-serif; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='#a0d636'" onmouseout="this.style.background='#B9F040'">
+                                Create Insight
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                // Store origin for saving
+                this.createInsightOrigin = origin;
+                
+                // Set up editable title in header (no auto-save in create mode)
+                const titleEl = document.getElementById('slideoutTitle');
+                if (titleEl) {
+                    titleEl.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            titleEl.blur();
+                        }
+                    });
+                }
+                
+                // Set up editable type chip (no auto-save in create mode)
+                const typeChip = document.getElementById('insightTypeChip');
+                if (typeChip) {
+                    typeChip.addEventListener('focus', () => {
+                        if (typeChip.textContent.trim() === 'Empty') {
+                            typeChip.textContent = '';
+                        }
+                    });
+                    typeChip.addEventListener('blur', () => {
+                        if (!typeChip.textContent.trim()) {
+                            typeChip.textContent = 'Empty';
+                        }
+                    });
+                    typeChip.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            typeChip.blur();
+                        }
+                    });
+                }
+                
+                // Set up editable application chip (no auto-save in create mode)
+                const appChip = document.getElementById('insightApplicationChip');
+                if (appChip) {
+                    appChip.addEventListener('focus', () => {
+                        if (appChip.textContent.trim() === 'Empty') {
+                            appChip.textContent = '';
+                        }
+                    });
+                    appChip.addEventListener('blur', () => {
+                        if (!appChip.textContent.trim()) {
+                            appChip.textContent = 'Empty';
+                        }
+                    });
+                    appChip.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            appChip.blur();
+                        }
+                    });
+                }
+                
+                // Set up save button
+                const saveBtn = document.getElementById('saveNewInsightBtn');
+                if (saveBtn) {
+                    saveBtn.addEventListener('click', () => {
+                        this.saveNewInsight();
+                    });
+                }
+                
+                // Initialize editor with empty notes
+                await this.initializeInsightEditor(document.getElementById('insightNotesEditor'), '');
+            },
+            
+            async saveNewInsight() {
+                if (!currentClientId) {
+                    alert('No client selected');
+                    return;
+                }
+                
+                const titleEl = document.getElementById('slideoutTitle');
+                const typeChip = document.getElementById('insightTypeChip');
+                const appChip = document.getElementById('insightApplicationChip');
+                
+                const name = titleEl?.textContent.trim() || '';
+                const type = typeChip?.textContent.trim() || '';
+                const application = appChip?.textContent.trim() || '';
+                const notes = this.currentInsightEditor ? this.currentInsightEditor.getHTML() : '';
+                
+                if (!name || name === 'AI-Generated Insights') {
+                    alert('Please enter an insight name');
+                    return;
+                }
+                
+                if (!type || type === 'Empty') {
+                    alert('Please enter an insight type');
+                    return;
+                }
+                
+                const statusEl = document.getElementById('insightNotesSaveStatus');
+                if (statusEl) statusEl.textContent = 'Creating...';
+                
+                try {
+                    const insightData = {
+                        name: name,
+                        type: type === 'Empty' ? '' : type,
+                        application: application === 'Empty' ? '' : application,
+                        notes: notes || null,
+                        origins: [this.createInsightOrigin],
+                    };
+                    
+                    const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights`, {
+                        method: 'POST',
+                        headers: {
+                            ...getAuthHeaders(),
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(insightData)
+                    });
+                    
+                    if (!response.ok) {
+                        const error = await response.json().catch(() => ({ detail: 'Failed to create insight' }));
+                        throw new Error(error.detail || 'Failed to create insight');
+                    }
+                    
+                    const newInsight = await response.json();
+                    
+                    if (statusEl) {
+                        statusEl.textContent = 'Created!';
+                        statusEl.style.color = '#B9F040';
+                    }
+                    
+                    // Refresh insights list
+                    if (typeof loadInsights === 'function') {
+                        loadInsights();
+                    }
+                    
+                    // Close panel after a brief delay
+                    setTimeout(() => {
+                        this.close();
+                        // Optionally open the newly created insight
+                        // this.openInsightNotes(newInsight.id);
+                    }, 1000);
+                    
+                } catch (error) {
+                    console.error('Error creating insight:', error);
+                    if (statusEl) {
+                        statusEl.textContent = 'Error creating';
+                        statusEl.style.color = 'oklch(0.577 0.245 27.325)';
+                    }
+                    alert('Error creating insight: ' + error.message);
+                }
+            },
+            
             async initializeInsightPanel(container, insight) {
                 if (!container) return;
                 
-                // Create panel structure with editable title and attributes
+                // Extract category and topic from origins JSONB
+                const firstOrigin = insight.origins?.[0] || {};
+                const categoryName = firstOrigin.category || null;
+                const topicName = firstOrigin.topic_label || null;
+                
+                // Set editable title in header
+                const insightTitleEl = document.getElementById('slideoutTitle');
+                if (insightTitleEl) {
+                    insightTitleEl.textContent = insight.name || '';
+                    insightTitleEl.setAttribute('data-placeholder', 'Insight Title');
+                    insightTitleEl.setAttribute('contenteditable', 'true');
+                }
+                
+                // Create panel structure with attributes (title is now in header)
                 container.innerHTML = `
                     <div style="padding: 0;">
-                    <!-- Editable Title -->
-                    <div style="padding: 1.5rem; border-bottom: 1px solid oklch(0.922 0 0);">
-                        <div id="insightTitleEditable" 
-                             contenteditable="true" 
-                             style="font-size: 1.875rem; font-weight: 700; font-family: 'Lato', sans-serif; color: oklch(0.145 0 0); outline: none; min-height: 2.5rem; line-height: 1.2;"
-                             data-placeholder="Untitled">${escapeHtml(insight.name || 'Untitled')}</div>
-                    </div>
-                    
                     <!-- Attributes Section -->
                     <div style="padding: 1rem 1.5rem; border-bottom: 1px solid oklch(0.922 0 0);">
                         <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <!-- Category Attribute -->
+                            ${categoryName ? `
+                            <div class="insight-attribute-row">
+                                <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Category</div>
+                                <div style="flex: 1;">
+                                    <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
+                                        ${escapeHtml(categoryName)}
+                                    </div>
+                                </div>
+                            </div>
+                            ` : ''}
+                            
+                            <!-- Topic Attribute -->
+                            ${topicName ? `
+                            <div class="insight-attribute-row">
+                                <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Topic</div>
+                                <div style="flex: 1;">
+                                    <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
+                                        ${escapeHtml(topicName)}
+                                    </div>
+                                </div>
+                            </div>
+                            ` : ''}
+                            
                             <!-- Type Attribute -->
                             <div class="insight-attribute-row">
                                 <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Type</div>
@@ -8441,47 +8913,76 @@
                     </div>
                 `;
                 
-                // Set up editable title
-                const titleEl = document.getElementById('insightTitleEditable');
-                if (titleEl) {
-                    titleEl.addEventListener('blur', () => {
-                        const newName = titleEl.textContent.trim() || 'Untitled';
-                        this.debouncedSaveInsightField('name', newName);
+                // Set up editable title in header (with auto-save for edit mode)
+                const headerTitleEl = document.getElementById('slideoutTitle');
+                if (headerTitleEl) {
+                    headerTitleEl.addEventListener('blur', () => {
+                        // Only auto-save if we're in edit mode, not create mode
+                        if (this.currentMode === 'insight-notes' && this.currentInsightId) {
+                            const newName = headerTitleEl.textContent.trim() || '';
+                            if (newName) {
+                                this.debouncedSaveInsightField('name', newName);
+                            }
+                        }
                     });
-                    titleEl.addEventListener('keydown', (e) => {
+                    headerTitleEl.addEventListener('keydown', (e) => {
                         if (e.key === 'Enter') {
                             e.preventDefault();
-                            titleEl.blur();
+                            headerTitleEl.blur();
                         }
                     });
                 }
                 
-                // Set up editable type chip
-                const typeChip = document.getElementById('insightTypeChip');
-                if (typeChip) {
-                    typeChip.addEventListener('blur', () => {
-                        const newType = typeChip.textContent.trim() || 'Empty';
-                        this.debouncedSaveInsightField('type', newType === 'Empty' ? '' : newType);
+                // Set up editable type chip (with auto-save for edit mode)
+                const editTypeChip = document.getElementById('insightTypeChip');
+                if (editTypeChip) {
+                    editTypeChip.addEventListener('focus', () => {
+                        if (editTypeChip.textContent.trim() === 'Empty') {
+                            editTypeChip.textContent = '';
+                        }
                     });
-                    typeChip.addEventListener('keydown', (e) => {
+                    editTypeChip.addEventListener('blur', () => {
+                        // Restore "Empty" if field is left blank
+                        if (!editTypeChip.textContent.trim()) {
+                            editTypeChip.textContent = 'Empty';
+                        }
+                        // Only auto-save if we're in edit mode, not create mode
+                        if (this.currentMode === 'insight-notes' && this.currentInsightId) {
+                            const newType = editTypeChip.textContent.trim() || 'Empty';
+                            this.debouncedSaveInsightField('type', newType === 'Empty' ? '' : newType);
+                        }
+                    });
+                    editTypeChip.addEventListener('keydown', (e) => {
                         if (e.key === 'Enter') {
                             e.preventDefault();
-                            typeChip.blur();
+                            editTypeChip.blur();
                         }
                     });
                 }
                 
-                // Set up editable application chip
-                const appChip = document.getElementById('insightApplicationChip');
-                if (appChip) {
-                    appChip.addEventListener('blur', () => {
-                        const newApp = appChip.textContent.trim() || 'Empty';
-                        this.debouncedSaveInsightField('application', newApp === 'Empty' ? '' : newApp);
+                // Set up editable application chip (with auto-save for edit mode)
+                const editAppChip = document.getElementById('insightApplicationChip');
+                if (editAppChip) {
+                    editAppChip.addEventListener('focus', () => {
+                        if (editAppChip.textContent.trim() === 'Empty') {
+                            editAppChip.textContent = '';
+                        }
                     });
-                    appChip.addEventListener('keydown', (e) => {
+                    editAppChip.addEventListener('blur', () => {
+                        // Restore "Empty" if field is left blank
+                        if (!editAppChip.textContent.trim()) {
+                            editAppChip.textContent = 'Empty';
+                        }
+                        // Only auto-save if we're in edit mode, not create mode
+                        if (this.currentMode === 'insight-notes' && this.currentInsightId) {
+                            const newApp = editAppChip.textContent.trim() || 'Empty';
+                            this.debouncedSaveInsightField('application', newApp === 'Empty' ? '' : newApp);
+                        }
+                    });
+                    editAppChip.addEventListener('keydown', (e) => {
                         if (e.key === 'Enter') {
                             e.preventDefault();
-                            appChip.blur();
+                            editAppChip.blur();
                         }
                     });
                 }
@@ -8517,8 +9018,11 @@
                             }
                         },
                         onUpdate: ({ editor }) => {
-                            const html = editor.getHTML();
-                            this.debouncedSaveInsightNotes(this.currentInsightId, html);
+                            // Only auto-save if we're in edit mode, not create mode
+                            if (this.currentMode === 'insight-notes' && this.currentInsightId) {
+                                const html = editor.getHTML();
+                                this.debouncedSaveInsightNotes(this.currentInsightId, html);
+                            }
                         }
                     });
                 } catch (error) {
@@ -8621,11 +9125,19 @@
                 const subtitle = document.getElementById('slideoutSubtitle');
                 const searchBox = document.getElementById('slideoutSearch');
                 const settingsBtn = document.getElementById('slideoutSettingsBtn');
+                const title = document.getElementById('slideoutTitle');
                 
                 // Clean up editor
                 if (this.currentInsightEditor) {
                     this.currentInsightEditor.destroy();
                     this.currentInsightEditor = null;
+                }
+                
+                // Reset title to default (remove contenteditable for non-insight modes)
+                if (title) {
+                    title.removeAttribute('contenteditable');
+                    title.setAttribute('data-placeholder', '');
+                    title.textContent = 'AI-Generated Insights';
                 }
                 
                 if (panel) panel.classList.remove('open');
@@ -8639,6 +9151,8 @@
                 this.currentMode = null;
                 this.currentInsightId = null;
                 this.currentInsightData = null;
+                this.createInsightContext = null;
+                this.createInsightOrigin = null;
                 
                 // Clear save timeouts
                 if (this.saveTimeout) {
@@ -9503,27 +10017,27 @@
                 console.log('Event target:', e.target);
                 console.log('Closest item:', item);
                 
-                if (action === 'create-insight') {
-                    console.log('Create insight action triggered');
-                    if (currentContextData) {
-                        console.log('Context data exists:', currentContextData);
-                        // Save context data before hiding menu (which clears it)
-                        // Use JSON parse/stringify to ensure deep copy
-                        const savedContextData = JSON.parse(JSON.stringify(currentContextData));
-                        console.log('Saved context data:', savedContextData);
-                        // Use setTimeout to ensure click event completes
-                        setTimeout(() => {
-                            console.log('About to open modal with saved data:', savedContextData);
-                            hideContextMenu();
-                            openCreateInsightModalFromContext(savedContextData);
-                        }, 10);
+                    if (action === 'create-insight') {
+                        console.log('Create insight action triggered');
+                        if (currentContextData) {
+                            console.log('Context data exists:', currentContextData);
+                            // Save context data before hiding menu (which clears it)
+                            // Use JSON parse/stringify to ensure deep copy
+                            const savedContextData = JSON.parse(JSON.stringify(currentContextData));
+                            console.log('Saved context data:', savedContextData);
+                            // Use setTimeout to ensure click event completes
+                            setTimeout(() => {
+                                console.log('About to open slideout panel with saved data:', savedContextData);
+                                hideContextMenu();
+                                SlideoutPanel.openCreateInsight(savedContextData);
+                            }, 10);
+                        } else {
+                            console.error('No context data available when clicking create insight');
+                            alert('Error: No context data available. Please try right-clicking again.');
+                        }
                     } else {
-                        console.error('No context data available when clicking create insight');
-                        alert('Error: No context data available. Please try right-clicking again.');
+                        console.warn('Unknown action:', action);
                     }
-                } else {
-                    console.warn('Unknown action:', action);
-                }
                 return; // Don't close menu when clicking menu item
             }
             
@@ -9740,14 +10254,17 @@
     <script src="/header.js"></script>
     
     <!-- Slideout Panel (AI Insights / Verbatims) -->
-    <div id="slideoutTab" class="ai-insights-tab">
+    <div id="slideoutTab" class="ai-insights-tab" style="display: none !important;">
         <span>💡 AI Insights</span>
     </div>
     
     <div id="slideoutPanel" class="ai-insights-panel">
         <div class="ai-insights-header">
             <div style="flex: 1;">
-                <h2 id="slideoutTitle">AI-Generated Insights</h2>
+                <div id="slideoutTitle" 
+                     contenteditable="true" 
+                     style="font-size: 1.5rem; font-weight: 600; font-family: 'Lato', sans-serif; color: oklch(0.145 0 0); outline: none; min-height: 1.75rem; line-height: 1.2;"
+                     data-placeholder="Insight Title">AI-Generated Insights</div>
                 <p id="slideoutSubtitle" class="overlay-subtitle" style="display: none; margin-top: 4px; font-size: 13px; color: #666;"></p>
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
