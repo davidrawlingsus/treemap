@@ -2533,6 +2533,40 @@
             color: #333;
         }
 
+        /* Insight Attributes Styling */
+        .insight-attribute-row {
+            display: flex;
+            align-items: center;
+            min-height: 32px;
+            padding: 4px 0;
+        }
+
+        .insight-attribute-chip {
+            background: rgba(55, 53, 47, 0.08);
+            border-radius: 3px;
+            padding: 4px 10px;
+            font-size: 14px;
+            color: #37352f;
+            cursor: text;
+            outline: none;
+            border: 1px solid transparent;
+            transition: all 0.1s;
+        }
+
+        .insight-attribute-chip:hover {
+            background: rgba(55, 53, 47, 0.12);
+        }
+
+        .insight-attribute-chip:focus {
+            background: rgba(55, 53, 47, 0.15);
+            border-color: rgba(55, 53, 47, 0.2);
+        }
+
+        .insight-attribute-chip[contenteditable="true"]:empty:before {
+            content: attr(data-placeholder);
+            color: rgba(55, 53, 47, 0.4);
+        }
+
         #slideoutSearchClear {
             transition: all 0.2s;
         }
@@ -7862,6 +7896,7 @@
             currentDimensionRef: null,  // Track current dimension
             currentInsightEditor: null,  // Tiptap editor instance for insight notes
             currentInsightId: null,  // Currently open insight ID
+            currentInsightData: null,  // Full insight data for editing
             
             init() {
                 const tab = document.getElementById('slideoutTab');
@@ -8027,12 +8062,13 @@
                     }
                     
                     const insight = await response.json();
+                    this.currentInsightData = insight; // Store full insight data
                     
-                    // Update title
-                    if (title) title.textContent = insight.name || 'Insight Notes';
+                    // Hide title in header, we'll show it in content
+                    if (title) title.textContent = '';
                     
-                // Initialize editor with notes
-                await this.initializeInsightEditor(content, insight.notes || '');
+                    // Initialize panel with attributes and editor
+                    await this.initializeInsightPanel(content, insight);
                 } catch (error) {
                     console.error('Error loading insight:', error);
                     if (content) {
@@ -8041,24 +8077,109 @@
                 }
             },
             
-            async initializeInsightEditor(container, initialContent) {
+            async initializeInsightPanel(container, insight) {
+                if (!container) return;
+                
+                // Create panel structure with editable title and attributes
+                container.innerHTML = `
+                    <div style="padding: 0;">
+                        <!-- Editable Title -->
+                        <div style="padding: 24px 24px 16px 24px; border-bottom: 1px solid rgba(55, 53, 47, 0.09);">
+                            <div id="insightTitleEditable" 
+                                 contenteditable="true" 
+                                 style="font-size: 32px; font-weight: 700; color: #37352f; outline: none; min-height: 40px; line-height: 1.2;"
+                                 data-placeholder="Untitled">${escapeHtml(insight.name || 'Untitled')}</div>
+                        </div>
+                        
+                        <!-- Attributes Section -->
+                        <div style="padding: 16px 24px; border-bottom: 1px solid rgba(55, 53, 47, 0.09);">
+                            <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 12px;">
+                                <!-- Type Attribute -->
+                                <div class="insight-attribute-row">
+                                    <div style="width: 140px; font-size: 14px; color: rgba(55, 53, 47, 0.65); flex-shrink: 0;">Type</div>
+                                    <div style="flex: 1;">
+                                        <div id="insightTypeChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
+                                            ${escapeHtml(insight.type || 'Empty')}
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Application Attribute -->
+                                <div class="insight-attribute-row">
+                                    <div style="width: 140px; font-size: 14px; color: rgba(55, 53, 47, 0.65); flex-shrink: 0;">Application</div>
+                                    <div style="flex: 1;">
+                                        <div id="insightApplicationChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
+                                            ${escapeHtml(insight.application || 'Empty')}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Notes Section -->
+                        <div style="padding: 24px;">
+                            <div id="insightNotesSaveStatus" style="font-size: 12px; color: #999; margin-bottom: 8px; min-height: 16px;"></div>
+                            <div id="insightNotesEditor" style="min-height: 400px; outline: none; font-size: 14px; line-height: 1.6; color: #37352f;"></div>
+                        </div>
+                    </div>
+                `;
+                
+                // Set up editable title
+                const titleEl = document.getElementById('insightTitleEditable');
+                if (titleEl) {
+                    titleEl.addEventListener('blur', () => {
+                        const newName = titleEl.textContent.trim() || 'Untitled';
+                        this.debouncedSaveInsightField('name', newName);
+                    });
+                    titleEl.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            titleEl.blur();
+                        }
+                    });
+                }
+                
+                // Set up editable type chip
+                const typeChip = document.getElementById('insightTypeChip');
+                if (typeChip) {
+                    typeChip.addEventListener('blur', () => {
+                        const newType = typeChip.textContent.trim() || 'Empty';
+                        this.debouncedSaveInsightField('type', newType === 'Empty' ? '' : newType);
+                    });
+                    typeChip.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            typeChip.blur();
+                        }
+                    });
+                }
+                
+                // Set up editable application chip
+                const appChip = document.getElementById('insightApplicationChip');
+                if (appChip) {
+                    appChip.addEventListener('blur', () => {
+                        const newApp = appChip.textContent.trim() || 'Empty';
+                        this.debouncedSaveInsightField('application', newApp === 'Empty' ? '' : newApp);
+                    });
+                    appChip.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            appChip.blur();
+                        }
+                    });
+                }
+                
+                // Initialize editor with notes
+                await this.initializeInsightEditor(document.getElementById('insightNotesEditor'), insight.notes || '');
+            },
+            
+            async initializeInsightEditor(editorElement, initialContent) {
                 // Clean up existing editor if any
                 if (this.currentInsightEditor) {
                     this.currentInsightEditor.destroy();
                     this.currentInsightEditor = null;
                 }
                 
-                if (!container) return;
-                
-                // Create editor container
-                container.innerHTML = `
-                    <div style="padding: 24px;">
-                        <div id="insightNotesSaveStatus" style="font-size: 12px; color: #999; margin-bottom: 8px; min-height: 16px;"></div>
-                        <div id="insightNotesEditor" style="min-height: 400px; outline: none; font-size: 14px; line-height: 1.6; color: #37352f;"></div>
-                    </div>
-                `;
-                
-                const editorElement = document.getElementById('insightNotesEditor');
                 if (!editorElement) return;
                 
                 // Initialize Tiptap editor using ES modules
@@ -8090,6 +8211,7 @@
             },
             
             saveTimeout: null,
+            fieldSaveTimeout: null,
             
             debouncedSaveInsightNotes(insightId, content) {
                 clearTimeout(this.saveTimeout);
@@ -8100,6 +8222,43 @@
                 this.saveTimeout = setTimeout(async () => {
                     await this.saveInsightNotes(insightId, content);
                 }, 500);
+            },
+            
+            debouncedSaveInsightField(fieldName, value) {
+                clearTimeout(this.fieldSaveTimeout);
+                
+                this.fieldSaveTimeout = setTimeout(async () => {
+                    await this.saveInsightField(fieldName, value);
+                }, 500);
+            },
+            
+            async saveInsightField(fieldName, value) {
+                if (!currentClientId || !this.currentInsightId) return;
+                
+                try {
+                    const updateData = {};
+                    updateData[fieldName] = value;
+                    
+                    const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights/${this.currentInsightId}`, {
+                        method: 'PUT',
+                        headers: {
+                            ...getAuthHeaders(),
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(updateData)
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to save field');
+                    }
+                    
+                    // Update local data
+                    if (this.currentInsightData) {
+                        this.currentInsightData[fieldName] = value;
+                    }
+                } catch (error) {
+                    console.error('Error saving field:', error);
+                }
             },
             
             async saveInsightNotes(insightId, content) {
@@ -8162,11 +8321,16 @@
                 this.isOpen = false;
                 this.currentMode = null;
                 this.currentInsightId = null;
+                this.currentInsightData = null;
                 
-                // Clear save timeout
+                // Clear save timeouts
                 if (this.saveTimeout) {
                     clearTimeout(this.saveTimeout);
                     this.saveTimeout = null;
+                }
+                if (this.fieldSaveTimeout) {
+                    clearTimeout(this.fieldSaveTimeout);
+                    this.fieldSaveTimeout = null;
                 }
             },
             
