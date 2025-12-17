@@ -17,6 +17,7 @@
     <script src="/config.js"></script>
     <script src="/auth.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- Tiptap WYSIWYG Editor - will be loaded as ES module when needed -->
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
@@ -1368,6 +1369,34 @@
         .insight-item-compact:hover {
             border-color: #B9F040;
             background: #f9f9f9;
+        }
+
+        .insight-item-hoverable {
+            position: relative;
+        }
+
+        .insight-open-btn {
+            display: none;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            background: rgba(55, 53, 47, 0.08);
+            border: none;
+            border-radius: 3px;
+            color: rgba(55, 53, 47, 0.6);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+
+        .insight-open-btn:hover {
+            background: rgba(55, 53, 47, 0.12);
+            color: #37352f;
+        }
+
+        .insight-item-hoverable:hover .insight-open-btn {
+            display: flex;
         }
 
         .insight-item-header {
@@ -2995,7 +3024,6 @@
             </div>
             <div class="insights-panel-body" id="insightsPanelBody">
                 <div id="insightsListContainer" class="insights-list-compact">
-                    <div class="loading">Loading insights...</div>
                 </div>
             </div>
         </div>
@@ -7826,12 +7854,14 @@
             console.error('Error in checkAuth:', error);
         });
         
-        // Slideout Panel - handles both AI Insights and Verbatims
+        // Slideout Panel - handles AI Insights, Verbatims, and Insight Notes
         const SlideoutPanel = {
             isOpen: false,
-            currentMode: null, // 'ai-insights' or 'verbatims'
+            currentMode: null, // 'ai-insights', 'verbatims', or 'insight-notes'
             currentContext: null,
             currentDimensionRef: null,  // Track current dimension
+            currentInsightEditor: null,  // Tiptap editor instance for insight notes
+            currentInsightId: null,  // Currently open insight ID
             
             init() {
                 const tab = document.getElementById('slideoutTab');
@@ -7956,10 +7986,171 @@
                 this.renderVerbatims(verbatims, topicName, categoryName);
             },
             
+            async openInsightNotes(insightId) {
+                if (!currentClientId) {
+                    console.error('No client selected');
+                    return;
+                }
+                
+                this.currentMode = 'insight-notes';
+                this.currentInsightId = insightId;
+                
+                // Open UI
+                const panel = document.getElementById('slideoutPanel');
+                const overlay = document.getElementById('slideoutOverlay');
+                const title = document.getElementById('slideoutTitle');
+                const subtitle = document.getElementById('slideoutSubtitle');
+                const content = document.getElementById('slideoutContent');
+                const searchBox = document.getElementById('slideoutSearch');
+                const settingsBtn = document.getElementById('slideoutSettingsBtn');
+                
+                // Hide search and settings (only for verbatims)
+                if (searchBox) searchBox.style.display = 'none';
+                if (settingsBtn) settingsBtn.style.display = 'none';
+                if (subtitle) subtitle.style.display = 'none';
+                
+                if (panel) panel.classList.add('open');
+                if (overlay) overlay.classList.add('visible');
+                this.isOpen = true;
+                
+                // Prevent body scroll
+                document.body.classList.add('slideout-open');
+                
+                // Load insight data
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights/${insightId}`, {
+                        headers: getAuthHeaders()
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to load insight');
+                    }
+                    
+                    const insight = await response.json();
+                    
+                    // Update title
+                    if (title) title.textContent = insight.name || 'Insight Notes';
+                    
+                // Initialize editor with notes
+                await this.initializeInsightEditor(content, insight.notes || '');
+                } catch (error) {
+                    console.error('Error loading insight:', error);
+                    if (content) {
+                        content.innerHTML = `<div style="padding: 24px; color: #666;">Error loading insight: ${error.message}</div>`;
+                    }
+                }
+            },
+            
+            async initializeInsightEditor(container, initialContent) {
+                // Clean up existing editor if any
+                if (this.currentInsightEditor) {
+                    this.currentInsightEditor.destroy();
+                    this.currentInsightEditor = null;
+                }
+                
+                if (!container) return;
+                
+                // Create editor container
+                container.innerHTML = `
+                    <div style="padding: 24px;">
+                        <div id="insightNotesSaveStatus" style="font-size: 12px; color: #999; margin-bottom: 8px; min-height: 16px;"></div>
+                        <div id="insightNotesEditor" style="min-height: 400px; outline: none; font-size: 14px; line-height: 1.6; color: #37352f;"></div>
+                    </div>
+                `;
+                
+                const editorElement = document.getElementById('insightNotesEditor');
+                if (!editorElement) return;
+                
+                // Initialize Tiptap editor using ES modules
+                try {
+                    // Dynamically import Tiptap modules
+                    const { Editor } = await import('https://esm.sh/@tiptap/core@2.1.13');
+                    const StarterKitModule = await import('https://esm.sh/@tiptap/starter-kit@2.1.13');
+                    const StarterKit = StarterKitModule.default || StarterKitModule;
+                    
+                    this.currentInsightEditor = new Editor({
+                        element: editorElement,
+                        extensions: [StarterKit],
+                        content: initialContent || '',
+                        editorProps: {
+                            attributes: {
+                                class: 'prose prose-sm max-w-none focus:outline-none',
+                                style: 'min-height: 400px;'
+                            }
+                        },
+                        onUpdate: ({ editor }) => {
+                            const html = editor.getHTML();
+                            this.debouncedSaveInsightNotes(this.currentInsightId, html);
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error initializing editor:', error);
+                    container.innerHTML = `<div style="padding: 24px; color: #666;">Error initializing editor: ${error.message}</div>`;
+                }
+            },
+            
+            saveTimeout: null,
+            
+            debouncedSaveInsightNotes(insightId, content) {
+                clearTimeout(this.saveTimeout);
+                
+                const statusEl = document.getElementById('insightNotesSaveStatus');
+                if (statusEl) statusEl.textContent = 'Saving...';
+                
+                this.saveTimeout = setTimeout(async () => {
+                    await this.saveInsightNotes(insightId, content);
+                }, 500);
+            },
+            
+            async saveInsightNotes(insightId, content) {
+                if (!currentClientId || !insightId) return;
+                
+                const statusEl = document.getElementById('insightNotesSaveStatus');
+                
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights/${insightId}`, {
+                        method: 'PUT',
+                        headers: {
+                            ...getAuthHeaders(),
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ notes: content })
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to save notes');
+                    }
+                    
+                    if (statusEl) {
+                        statusEl.textContent = 'Saved';
+                        statusEl.style.color = '#0f7b0f';
+                        setTimeout(() => {
+                            if (statusEl) {
+                                statusEl.textContent = '';
+                            }
+                        }, 2000);
+                    }
+                } catch (error) {
+                    console.error('Error saving notes:', error);
+                    if (statusEl) {
+                        statusEl.textContent = 'Error saving';
+                        statusEl.style.color = '#d32f2f';
+                    }
+                }
+            },
+            
             close() {
                 const panel = document.getElementById('slideoutPanel');
                 const overlay = document.getElementById('slideoutOverlay');
                 const subtitle = document.getElementById('slideoutSubtitle');
+                const searchBox = document.getElementById('slideoutSearch');
+                const settingsBtn = document.getElementById('slideoutSettingsBtn');
+                
+                // Clean up editor
+                if (this.currentInsightEditor) {
+                    this.currentInsightEditor.destroy();
+                    this.currentInsightEditor = null;
+                }
                 
                 if (panel) panel.classList.remove('open');
                 if (overlay) overlay.classList.remove('visible');
@@ -7970,6 +8161,13 @@
                 
                 this.isOpen = false;
                 this.currentMode = null;
+                this.currentInsightId = null;
+                
+                // Clear save timeout
+                if (this.saveTimeout) {
+                    clearTimeout(this.saveTimeout);
+                    this.saveTimeout = null;
+                }
             },
             
             // Extract all available metadata fields from verbatims
@@ -8472,8 +8670,6 @@
             const container = document.getElementById('insightsListContainer');
             if (!container) return;
             
-            container.innerHTML = '<div class="loading">Loading insights...</div>';
-            
             try {
                 const params = new URLSearchParams({
                     page: '1',
@@ -8512,15 +8708,24 @@
             container.innerHTML = insights.map(insight => {
                 const createdDate = new Date(insight.created_at).toLocaleDateString();
                 return `
-                    <div class="insight-item-compact">
+                    <div class="insight-item-compact insight-item-hoverable">
                         <div class="insight-item-header">
-                            <div>
-                                <div class="insight-item-title">${escapeHtml(insight.name)}</div>
-                                <div class="insight-item-meta">
-                                    <span>${escapeHtml(insight.type)}</span>
-                                    <span>${createdDate}</span>
-                                    <span>${insight.origins?.length || 0} origins</span>
+                            <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
+                                <div style="flex: 1;">
+                                    <div class="insight-item-title">${escapeHtml(insight.name)}</div>
+                                    <div class="insight-item-meta">
+                                        <span>${escapeHtml(insight.type)}</span>
+                                        <span>${createdDate}</span>
+                                        <span>${insight.origins?.length || 0} origins</span>
+                                    </div>
                                 </div>
+                                <button class="insight-open-btn" onclick="SlideoutPanel.openInsightNotes('${insight.id}')" title="Open in side peek" style="display: none;">
+                                    <span style="font-size: 12px; margin-right: 4px;">OPEN</span>
+                                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="opacity: 0.6;">
+                                        <rect x="4" y="4" width="8" height="8" stroke="currentColor" stroke-width="1.5" fill="none" rx="1"/>
+                                        <path d="M6 2 L6 6 M10 2 L10 6 M2 6 L2 10 M2 6 L6 6 M10 6 L14 6 M14 6 L14 10" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                                    </svg>
+                                </button>
                             </div>
                             <div class="insight-item-actions">
                                 <button class="btn-icon-small" onclick="editInsightFromView('${insight.id}')" title="Edit">✏️</button>

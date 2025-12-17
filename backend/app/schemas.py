@@ -474,6 +474,7 @@ class InsightCreate(BaseModel):
     type: str
     application: Optional[str] = None
     description: Optional[str] = None
+    notes: Optional[str] = None  # Formatted notes (HTML from WYSIWYG editor)
     origins: List[InsightOrigin] = Field(..., min_length=1)  # At least one origin required
     metadata: Optional[Dict[str, Any]] = None
 
@@ -484,6 +485,7 @@ class InsightUpdate(BaseModel):
     type: Optional[str] = None
     application: Optional[str] = None
     description: Optional[str] = None
+    notes: Optional[str] = None  # Formatted notes (HTML from WYSIWYG editor)
     origins: Optional[List[InsightOrigin]] = None  # Replace entire origins array
     add_origin: Optional[InsightOrigin] = None  # Append a new origin
     metadata: Optional[Dict[str, Any]] = None
@@ -497,6 +499,7 @@ class InsightResponse(BaseModel):
     type: str
     application: Optional[str] = None
     description: Optional[str] = None
+    notes: Optional[str] = None  # Formatted notes (HTML from WYSIWYG editor)
     origins: List[InsightOrigin] = Field(default_factory=list)
     metadata: Optional[Dict[str, Any]] = None
     created_at: datetime
@@ -513,6 +516,7 @@ class InsightResponse(BaseModel):
             'type': obj.type,
             'application': obj.application,
             'description': obj.description,
+            'notes': obj.notes,
             'metadata': obj.meta_data or {},
             'created_at': obj.created_at,
             'updated_at': obj.updated_at,

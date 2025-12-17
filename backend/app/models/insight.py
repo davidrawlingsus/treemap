@@ -15,6 +15,7 @@ class Insight(Base):
     type = Column(String(100), nullable=False)  # e.g., "improvement", "feature", "bug", etc.
     application = Column(Text, nullable=True)  # Where/how to apply this insight
     description = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)  # Formatted notes (HTML from WYSIWYG editor)
     origins = Column(JSONB, nullable=False, default=[])  # Array of origin objects
     meta_data = Column('metadata', JSONB, nullable=True, default={})  # For future extensibility
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -27,4 +28,5 @@ class Insight(Base):
 
     def __repr__(self):
         return f"<Insight(id={self.id}, name={self.name}, client_id={self.client_id})>"
+
 

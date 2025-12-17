@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -197,10 +197,25 @@ if (frontend_path / "index.html").exists():
     
     # Serve config.js dynamically
     @app.get("/config.js")
-    def serve_config():
-        """Serve dynamic config.js with API URL"""
+    def serve_config(request: Request):
+        """Serve dynamic config.js with API URL based on request origin"""
         from fastapi.responses import Response
-        api_url = "http://localhost:8000"
+        import os
+        
+        # Get API URL from environment variable if set (for Railway/production)
+        api_url = os.getenv("API_BASE_URL")
+        
+        # If not set, use the request URL (where the backend is running)
+        # This ensures the API_BASE_URL points to the backend server
+        if not api_url:
+            scheme = request.url.scheme
+            host = request.headers.get("host", "localhost:8000")
+            api_url = f"{scheme}://{host}"
+        
+        # Default fallback for local development
+        if not api_url or api_url == "http://" or api_url == "https://":
+            api_url = "http://localhost:8000"
+        
         config_content = f"window.APP_CONFIG = {{ API_BASE_URL: '{api_url}' }};"
         return Response(content=config_content, media_type="application/javascript")
     
@@ -1470,6 +1485,7 @@ def create_insight(
             type=insight_data.type,
             application=insight_data.application,
             description=insight_data.description,
+            notes=insight_data.notes,
             origins=origins_json,
             meta_data=insight_data.metadata or {},
             created_by=current_user.id,
@@ -1539,6 +1555,8 @@ def update_insight(
         insight.application = insight_data.application
     if insight_data.description is not None:
         insight.description = insight_data.description
+    if insight_data.notes is not None:
+        insight.notes = insight_data.notes
     if insight_data.metadata is not None:
         insight.meta_data = insight_data.metadata
     
