@@ -2766,6 +2766,11 @@
             transition: all 0.3s ease;
             display: none; /* Hidden by default until dimension is selected */
         }
+        
+        /* TEMPORARILY HIDDEN: AI Insights tab hidden until further notice */
+        #slideoutTab {
+            display: none !important;
+        }
 
         .ai-insights-tab:hover {
             background: linear-gradient(135deg, #c7ff4d 0%, #b9f040 100%);
@@ -2831,6 +2836,114 @@
         #insightNotesEditor .ProseMirror-focused {
             outline: none !important;
             border: none !important;
+        }
+
+        /* Blockquote styling */
+        #insightNotesEditor blockquote,
+        .ProseMirror blockquote,
+        .tiptap blockquote {
+            border-left: 3px solid oklch(0.556 0 0) !important;
+            padding-left: 1rem !important;
+            margin: 1rem 0 !important;
+            font-style: italic !important;
+            color: oklch(0.556 0 0) !important;
+            background: oklch(0.98 0 0) !important;
+            padding: 0.75rem 1rem !important;
+            border-radius: 0.375rem !important;
+        }
+        
+        #insightNotesEditor blockquote p,
+        .ProseMirror blockquote p,
+        .tiptap blockquote p {
+            margin: 0 !important;
+        }
+
+        /* Task List (Checklist) styling */
+        #insightNotesEditor ul[data-type="taskList"],
+        .ProseMirror ul[data-type="taskList"],
+        .tiptap ul[data-type="taskList"] {
+            list-style: none !important;
+            padding-left: 0 !important;
+        }
+
+        #insightNotesEditor ul[data-type="taskList"] li,
+        .ProseMirror ul[data-type="taskList"] li,
+        .tiptap ul[data-type="taskList"] li {
+            list-style: none !important;
+            display: flex !important;
+            align-items: flex-start !important;
+            margin: 0.5rem 0 !important;
+        }
+
+        #insightNotesEditor ul[data-type="taskList"] li label,
+        .ProseMirror ul[data-type="taskList"] li label,
+        .tiptap ul[data-type="taskList"] li label {
+            display: flex !important;
+            align-items: center !important;
+            cursor: pointer !important;
+            margin-right: 0.5rem !important;
+            flex-shrink: 0 !important;
+        }
+
+        #insightNotesEditor ul[data-type="taskList"] li label input[type="checkbox"],
+        .ProseMirror ul[data-type="taskList"] li label input[type="checkbox"],
+        .tiptap ul[data-type="taskList"] li label input[type="checkbox"] {
+            margin: 0 !important;
+            cursor: pointer !important;
+            width: 1.125rem !important;
+            height: 1.125rem !important;
+        }
+
+        #insightNotesEditor ul[data-type="taskList"] li > div,
+        .ProseMirror ul[data-type="taskList"] li > div,
+        .tiptap ul[data-type="taskList"] li > div {
+            flex: 1 !important;
+            margin: 0 !important;
+        }
+
+        #insightNotesEditor ul[data-type="taskList"] li > div p,
+        .ProseMirror ul[data-type="taskList"] li > div p,
+        .tiptap ul[data-type="taskList"] li > div p {
+            margin: 0 !important;
+            display: inline !important;
+        }
+
+        /* Editor Context Menu */
+        .editor-context-menu {
+            position: absolute;
+            background: oklch(1 0 0); /* White */
+            border: 1px solid oklch(0.922 0 0); /* Border color from style guide */
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 0.25rem;
+            z-index: 10000;
+            min-width: 140px;
+            font-family: 'Lato', sans-serif;
+        }
+
+        .context-menu-item {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            color: oklch(0.145 0 0); /* Near black */
+            cursor: pointer;
+            border-radius: 0.375rem;
+            transition: background 0.2s ease;
+        }
+
+        .context-menu-item:hover {
+            background: oklch(0.97 0 0); /* Light grey */
+        }
+
+        .context-menu-item.active {
+            background: oklch(0.97 0 0);
+            color: oklch(0.145 0 0);
+            font-weight: 600;
+        }
+
+        .context-menu-divider {
+            height: 1px;
+            background: oklch(0.922 0 0);
+            margin: 0.25rem 0;
         }
 
         .ai-close-btn {
@@ -8404,15 +8517,13 @@
                 console.log('Current dimension set to:', dimensionRef);
                 
                 // Show/hide the AI Insights tab based on whether a dimension is selected
+                // TEMPORARILY DISABLED: Tab hidden until further notice
                 const tab = document.getElementById('slideoutTab');
                 if (tab) {
-                    if (dimensionRef && dimensionRef !== '') {
-                        tab.style.display = 'block';
-                    } else {
-                        tab.style.display = 'none';
-                        // Also close the panel if it's open
-                        this.close();
-                    }
+                    // Always keep tab hidden
+                    tab.style.display = 'none';
+                    // Close the panel if it's open
+                    this.close();
                 }
             },
             
@@ -9006,10 +9117,18 @@
                     const { Editor } = await import('https://esm.sh/@tiptap/core@2.1.13');
                     const StarterKitModule = await import('https://esm.sh/@tiptap/starter-kit@2.1.13');
                     const StarterKit = StarterKitModule.default || StarterKitModule;
+                    const { TaskList } = await import('https://esm.sh/@tiptap/extension-task-list@2.1.13');
+                    const { TaskItem } = await import('https://esm.sh/@tiptap/extension-task-item@2.1.13');
                     
                     this.currentInsightEditor = new Editor({
                         element: editorElement,
-                        extensions: [StarterKit],
+                        extensions: [
+                            StarterKit,
+                            TaskList,
+                            TaskItem.configure({
+                                nested: true,
+                            })
+                        ],
                         content: initialContent || '',
                         editorProps: {
                             attributes: {
@@ -9025,10 +9144,179 @@
                             }
                         }
                     });
+                    
+                    // Set up context menu for formatting
+                    this.setupEditorContextMenu(editorElement);
                 } catch (error) {
                     console.error('Error initializing editor:', error);
-                    container.innerHTML = `<div style="padding: 24px; color: #666;">Error initializing editor: ${error.message}</div>`;
+                    if (editorElement.parentElement) {
+                        editorElement.parentElement.innerHTML = `<div style="padding: 24px; color: #666;">Error initializing editor: ${error.message}</div>`;
+                    }
                 }
+            },
+            
+            setupEditorContextMenu(editorElement) {
+                const contextMenu = document.createElement('div');
+                contextMenu.id = 'editorContextMenu';
+                contextMenu.className = 'editor-context-menu';
+                contextMenu.style.display = 'none';
+                contextMenu.innerHTML = `
+                    <div class="context-menu-item" data-action="heading-1">H1</div>
+                    <div class="context-menu-item" data-action="heading-2">H2</div>
+                    <div class="context-menu-item" data-action="heading-3">H3</div>
+                    <div class="context-menu-divider"></div>
+                    <div class="context-menu-item" data-action="bold">Bold</div>
+                    <div class="context-menu-item" data-action="bulletList">Bullets</div>
+                    <div class="context-menu-item" data-action="taskList">Checklist</div>
+                    <div class="context-menu-item" data-action="blockquote">Callout</div>
+                `;
+                document.body.appendChild(contextMenu);
+                
+                // Handle right-click on editor
+                editorElement.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    
+                    if (!this.currentInsightEditor) return;
+                    
+                    const editor = this.currentInsightEditor;
+                    
+                    // Position menu at the right-click cursor position
+                    contextMenu.style.display = 'block';
+                    contextMenu.style.left = `${e.clientX}px`;
+                    contextMenu.style.top = `${e.clientY}px`;
+                    
+                    // Ensure menu stays within viewport
+                    setTimeout(() => {
+                        const menuRect = contextMenu.getBoundingClientRect();
+                        if (menuRect.right > window.innerWidth) {
+                            contextMenu.style.left = `${window.innerWidth - menuRect.width - 10}px`;
+                        }
+                        if (menuRect.bottom > window.innerHeight) {
+                            contextMenu.style.top = `${window.innerHeight - menuRect.height - 10}px`;
+                        }
+                        if (menuRect.left < 0) {
+                            contextMenu.style.left = '10px';
+                        }
+                        if (menuRect.top < 0) {
+                            contextMenu.style.top = '10px';
+                        }
+                    }, 0);
+                    
+                    // Update active states
+                    this.updateContextMenuStates(contextMenu, editor);
+                });
+                
+                // Handle menu item clicks
+                contextMenu.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent event from bubbling to document
+                    e.preventDefault();
+                    
+                    const action = e.target.getAttribute('data-action');
+                    if (!action || !this.currentInsightEditor) {
+                        contextMenu.style.display = 'none';
+                        return;
+                    }
+                    
+                    const editor = this.currentInsightEditor;
+                    
+                    // Hide menu first to prevent conflicts
+                    contextMenu.style.display = 'none';
+                    
+                    // Small delay to ensure menu is hidden before applying command
+                    setTimeout(() => {
+                        switch (action) {
+                            case 'heading-1':
+                                editor.chain().focus().toggleHeading({ level: 1 }).run();
+                                break;
+                            case 'heading-2':
+                                editor.chain().focus().toggleHeading({ level: 2 }).run();
+                                break;
+                            case 'heading-3':
+                                editor.chain().focus().toggleHeading({ level: 3 }).run();
+                                break;
+                            case 'bold':
+                                editor.chain().focus().toggleBold().run();
+                                break;
+                            case 'bulletList':
+                                editor.chain().focus().toggleBulletList().run();
+                                break;
+                            case 'taskList':
+                                editor.chain().focus().toggleTaskList().run();
+                                break;
+                            case 'blockquote':
+                                // Toggle blockquote
+                                if (editor.isActive('blockquote')) {
+                                    // If already in blockquote, lift it
+                                    editor.chain().focus().lift('blockquote').run();
+                                } else {
+                                    // Wrap the current block in blockquote
+                                    // This works for both selections and empty cursor positions
+                                    editor.chain().focus().wrapIn('blockquote').run();
+                                }
+                                break;
+                        }
+                    }, 10);
+                });
+                
+                // Hide menu on click outside, scroll, or escape key
+                const hideMenu = (e) => {
+                    if (contextMenu.style.display !== 'none') {
+                        // Don't hide if clicking inside the menu itself
+                        if (!contextMenu.contains(e.target) && !editorElement.contains(e.target)) {
+                            contextMenu.style.display = 'none';
+                        }
+                    }
+                };
+                
+                // Use capture phase to handle clicks before they bubble
+                document.addEventListener('click', hideMenu, true);
+                document.addEventListener('scroll', () => {
+                    contextMenu.style.display = 'none';
+                }, true);
+                
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape' && contextMenu.style.display !== 'none') {
+                        contextMenu.style.display = 'none';
+                    }
+                });
+            },
+            
+            updateContextMenuStates(menu, editor) {
+                const items = menu.querySelectorAll('.context-menu-item');
+                items.forEach(item => {
+                    const action = item.getAttribute('data-action');
+                    let isActive = false;
+                    
+                    switch (action) {
+                        case 'heading-1':
+                            isActive = editor.isActive('heading', { level: 1 });
+                            break;
+                        case 'heading-2':
+                            isActive = editor.isActive('heading', { level: 2 });
+                            break;
+                        case 'heading-3':
+                            isActive = editor.isActive('heading', { level: 3 });
+                            break;
+                        case 'bold':
+                            isActive = editor.isActive('bold');
+                            break;
+                        case 'bulletList':
+                            isActive = editor.isActive('bulletList');
+                            break;
+                        case 'taskList':
+                            isActive = editor.isActive('taskList');
+                            break;
+                        case 'blockquote':
+                            isActive = editor.isActive('blockquote');
+                            break;
+                    }
+                    
+                    if (isActive) {
+                        item.classList.add('active');
+                    } else {
+                        item.classList.remove('active');
+                    }
+                });
             },
             
             saveTimeout: null,
