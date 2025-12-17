@@ -309,16 +309,22 @@ if (frontend_path / "choose-data-source.html").exists():
         """Serve the choose data source page"""
         return FileResponse(frontend_path / "choose-data-source.html")
 
-if (frontend_path / "client-insights.html").exists():
-    @app.get("/client-insights", response_class=FileResponse)
-    def serve_client_insights():
-        """Serve the client insights page"""
-        return FileResponse(frontend_path / "client-insights.html")
-    
-    @app.get("/client-insights.html", response_class=FileResponse)
-    def serve_client_insights_html():
-        """Serve the client insights page"""
-        return FileResponse(frontend_path / "client-insights.html")
+# Serve client-insights.html - always register route, return 404 if file doesn't exist
+@app.get("/client-insights", response_class=FileResponse)
+def serve_client_insights():
+    """Serve the client insights page"""
+    file_path = frontend_path / "client-insights.html"
+    if file_path.exists():
+        return FileResponse(file_path)
+    raise HTTPException(status_code=404, detail="File not found")
+
+@app.get("/client-insights.html", response_class=FileResponse)
+def serve_client_insights_html():
+    """Serve the client insights page"""
+    file_path = frontend_path / "client-insights.html"
+    if file_path.exists():
+        return FileResponse(file_path)
+    raise HTTPException(status_code=404, detail="File not found")
 
 @app.get("/api")
 def api_info():
