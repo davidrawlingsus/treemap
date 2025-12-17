@@ -37,6 +37,15 @@ const sendIndex = (req, res) => {
 app.get('/', sendIndex);
 app.get('/magic-login', sendIndex);
 
+// Serve client-insights.html
+app.get('/client-insights', (req, res) => {
+  res.sendFile(path.join(__dirname, 'client-insights.html'));
+});
+
+app.get('/client-insights.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'client-insights.html'));
+});
+
 app.listen(PORT, () => {
   console.log(`✅ Frontend server running on http://localhost:${PORT}`);
   console.log(`📡 API URL: ${API_BASE_URL}`);
