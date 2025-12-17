@@ -486,6 +486,7 @@
             gap: 30px;
             padding: 30px;
             margin: 0;
+            align-items: start;
         }
 
         .chart-column {
@@ -2054,7 +2055,13 @@
         }
 
         .chart.collapsed {
-            padding-bottom: 16px;
+            padding: 16px 24px;
+            align-self: start;
+            height: auto;
+        }
+
+        .chart.collapsed .chart__header {
+            margin-bottom: 0;
         }
 
         .chart__header {
@@ -5882,6 +5889,7 @@
                                 project_name: currentProjectName,
                                 data_source: currentDataSourceId,
                                 dimension_ref: currentQuestionRefKey,
+                                dimension_name: currentQuestionRefKey ? getDimensionDisplayName(currentQuestionRefKey) : null,
                             };
                             showContextMenu(event, contextData);
                         }
@@ -5974,6 +5982,7 @@
                             project_name: currentProjectName,
                             data_source: currentDataSourceId,
                             dimension_ref: currentQuestionRefKey,
+                            dimension_name: currentQuestionRefKey ? getDimensionDisplayName(currentQuestionRefKey) : null,
                         };
                         showContextMenu(event, contextData);
                     }
@@ -6952,6 +6961,7 @@
                         project_name: currentProjectName,
                         data_source: currentDataSourceId,
                         dimension_ref: currentQuestionRefKey,
+                        dimension_name: currentQuestionRefKey ? getDimensionDisplayName(currentQuestionRefKey) : null,
                     };
                     showContextMenu(e, contextData);
                 };
@@ -7008,6 +7018,7 @@
                              project_name: currentProjectName,
                              data_source: currentDataSourceId,
                              dimension_ref: currentQuestionRefKey,
+                             dimension_name: currentQuestionRefKey ? getDimensionDisplayName(currentQuestionRefKey) : null,
                          };
                          showContextMenu(e, contextData);
                      };
@@ -7071,6 +7082,7 @@
                         project_name: currentProjectName,
                         data_source: currentDataSourceId,
                         dimension_ref: currentQuestionRefKey,
+                        dimension_name: currentQuestionRefKey ? getDimensionDisplayName(currentQuestionRefKey) : null,
                     };
                     showContextMenu(e, contextData);
                 };
@@ -7152,6 +7164,7 @@
                              project_name: currentProjectName,
                              data_source: currentDataSourceId,
                              dimension_ref: currentQuestionRefKey,
+                             dimension_name: currentQuestionRefKey ? getDimensionDisplayName(currentQuestionRefKey) : null,
                          };
                          showContextMenu(e, contextData);
                      };
@@ -7340,6 +7353,7 @@
                          project_name: currentProjectName,
                          data_source: currentDataSourceId,
                          dimension_ref: currentQuestionRefKey,
+                         dimension_name: currentQuestionRefKey ? getDimensionDisplayName(currentQuestionRefKey) : null,
                      };
                      showContextMenu(e, contextData);
                  };
@@ -7395,6 +7409,7 @@
                         project_name: currentProjectName,
                         data_source: currentDataSourceId,
                         dimension_ref: currentQuestionRefKey,
+                        dimension_name: currentQuestionRefKey ? getDimensionDisplayName(currentQuestionRefKey) : null,
                     };
                     showContextMenu(e, contextData);
                 };
@@ -8728,7 +8743,7 @@
                 project_name: contextData.project_name || null,
                 data_source: contextData.data_source || null,
                 dimension_ref: contextData.dimension_ref || null,
-                dimension_name: null,
+                dimension_name: contextData.dimension_name || null,
                 category: contextData.category || null,
                 topic_label: contextData.topic_label || null,
                 process_voc_id: null,
@@ -8753,7 +8768,10 @@
                 }
                 if (origin.project_name) originText.push(`<strong>Project:</strong> ${escapeHtml(origin.project_name)}`);
                 if (origin.data_source) originText.push(`<strong>Data Source:</strong> ${escapeHtml(origin.data_source)}`);
-                if (origin.dimension_ref) originText.push(`<strong>Dimension:</strong> ${escapeHtml(origin.dimension_ref)}`);
+                if (origin.dimension_ref) {
+                    const dimensionDisplay = origin.dimension_name || origin.dimension_ref;
+                    originText.push(`<strong>Dimension:</strong> ${escapeHtml(dimensionDisplay)}`);
+                }
                 
                 originPreview.innerHTML = originText.join('<br>') || 'No origin information';
             }
