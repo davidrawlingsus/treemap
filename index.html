@@ -1094,6 +1094,156 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
         }
 
+        .insights-panel-container {
+            margin: 30px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            border: 2px solid #EBEBEB;
+        }
+
+        .insights-panel-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid #EBEBEB;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .insights-panel-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .insights-panel-header-left h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin: 0;
+        }
+
+        .insights-filter-badge {
+            background: #B9F040;
+            color: #1A2B3C;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .insights-panel-header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-primary-small {
+            background: #B9F040;
+            color: #1A2B3C;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 13px;
+        }
+
+        .btn-link {
+            background: none;
+            border: none;
+            color: #667eea;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: underline;
+        }
+
+        .insights-panel-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            color: #666;
+            font-size: 16px;
+        }
+
+        .insights-panel-body {
+            max-height: 400px;
+            overflow-y: auto;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .insights-panel-body.collapsed {
+            max-height: 0;
+            overflow: hidden;
+        }
+
+        .insights-list-compact {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .insight-item-compact {
+            padding: 16px;
+            border: 1px solid #EBEBEB;
+            border-radius: 6px;
+            transition: all 200ms;
+        }
+
+        .insight-item-compact:hover {
+            border-color: #B9F040;
+            background: #f9f9f9;
+        }
+
+        .insight-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 8px;
+        }
+
+        .insight-item-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .insight-item-meta {
+            font-size: 12px;
+            color: #999;
+            display: flex;
+            gap: 12px;
+        }
+
+        .insight-item-description {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.5;
+            margin-top: 8px;
+        }
+
+        .insight-item-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-icon-small {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            color: #999;
+            font-size: 14px;
+        }
+
+        .btn-icon-small:hover {
+            color: #333;
+        }
+
         .favourites-section h2 {
             font-size: 24px;
             font-weight: 600;
@@ -2648,6 +2798,28 @@
                     <div class="chart__bars" id="topicsChartBars"></div>
                 </div>
                 <div class="chart__footer" id="topicsChartFooter">Frequency (n=<span id="topicsCount">0</span>)</div>
+            </div>
+        </div>
+
+        <!-- Insights Panel -->
+        <div class="insights-panel-container">
+            <div class="insights-panel-header">
+                <div class="insights-panel-header-left">
+                    <h2>Insights</h2>
+                    <span id="insightsFilterBadge" class="insights-filter-badge" style="display: none;"></span>
+                </div>
+                <div class="insights-panel-header-right">
+                    <button class="btn-link" id="showAllInsightsBtn" onclick="toggleInsightsFilter()" style="display: none;">Show All Insights</button>
+                    <button class="btn-primary-small" onclick="openCreateInsightModal()">+ Create Insight</button>
+                    <button class="insights-panel-toggle" onclick="toggleInsightsPanel()" id="insightsPanelToggle">
+                        <span id="insightsPanelToggleIcon">▼</span>
+                    </button>
+                </div>
+            </div>
+            <div class="insights-panel-body" id="insightsPanelBody">
+                <div id="insightsListContainer" class="insights-list-compact">
+                    <div class="loading">Loading insights...</div>
+                </div>
             </div>
         </div>
     </div>
@@ -7903,6 +8075,181 @@
         window.SlideoutPanel = SlideoutPanel;
         // Keep backward compatibility
         window.AIInsightsPanel = SlideoutPanel;
+
+        // Insights Panel Management
+        let insightsAutoFilter = true;
+        let insightsCurrentFilters = {};
+
+        function toggleInsightsPanel() {
+            const body = document.getElementById('insightsPanelBody');
+            const icon = document.getElementById('insightsPanelToggleIcon');
+            if (body.classList.contains('collapsed')) {
+                body.classList.remove('collapsed');
+                icon.textContent = '▼';
+            } else {
+                body.classList.add('collapsed');
+                icon.textContent = '▲';
+            }
+        }
+
+        function toggleInsightsFilter() {
+            insightsAutoFilter = !insightsAutoFilter;
+            const btn = document.getElementById('showAllInsightsBtn');
+            if (insightsAutoFilter) {
+                btn.textContent = 'Show All Insights';
+                updateInsightsAutoFilter();
+            } else {
+                btn.textContent = 'Show Filtered Insights';
+                loadInsights({});
+            }
+        }
+
+        function updateInsightsAutoFilter() {
+            if (!insightsAutoFilter || !currentClientId) return;
+            
+            const filters = {};
+            const badge = document.getElementById('insightsFilterBadge');
+            const showAllBtn = document.getElementById('showAllInsightsBtn');
+            
+            // Determine current view context
+            if (currentQuestionRefKey) {
+                filters.dimension_ref = currentQuestionRefKey;
+                badge.textContent = `Filtered: ${currentQuestionRefKey}`;
+                badge.style.display = 'inline-block';
+                showAllBtn.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+                showAllBtn.style.display = 'none';
+            }
+            
+            insightsCurrentFilters = filters;
+            loadInsights(filters);
+        }
+
+        async function loadInsights(filters = {}) {
+            if (!currentClientId) return;
+            
+            const container = document.getElementById('insightsListContainer');
+            if (!container) return;
+            
+            container.innerHTML = '<div class="loading">Loading insights...</div>';
+            
+            try {
+                const params = new URLSearchParams({
+                    page: '1',
+                    page_size: '20',
+                    sort_by: 'created_at',
+                    sort_order: 'desc',
+                });
+                
+                Object.entries(filters).forEach(([key, value]) => {
+                    if (value) params.append(key, value);
+                });
+                
+                const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights?${params.toString()}`, {
+                    headers: getAuthHeaders()
+                });
+                
+                if (!response.ok) throw new Error('Failed to load insights');
+                
+                const data = await response.json();
+                renderInsightsCompact(data.items);
+            } catch (error) {
+                console.error('Error loading insights:', error);
+                container.innerHTML = '<div class="empty-state">Error loading insights</div>';
+            }
+        }
+
+        function renderInsightsCompact(insights) {
+            const container = document.getElementById('insightsListContainer');
+            if (!container) return;
+            
+            if (insights.length === 0) {
+                container.innerHTML = '<div class="empty-state">No insights found</div>';
+                return;
+            }
+            
+            container.innerHTML = insights.map(insight => {
+                const createdDate = new Date(insight.created_at).toLocaleDateString();
+                return `
+                    <div class="insight-item-compact">
+                        <div class="insight-item-header">
+                            <div>
+                                <div class="insight-item-title">${escapeHtml(insight.name)}</div>
+                                <div class="insight-item-meta">
+                                    <span>${escapeHtml(insight.type)}</span>
+                                    <span>${createdDate}</span>
+                                    <span>${insight.origins?.length || 0} origins</span>
+                                </div>
+                            </div>
+                            <div class="insight-item-actions">
+                                <button class="btn-icon-small" onclick="editInsightFromView('${insight.id}')" title="Edit">✏️</button>
+                            </div>
+                        </div>
+                        ${insight.description ? `<div class="insight-item-description">${escapeHtml(insight.description.substring(0, 150))}${insight.description.length > 150 ? '...' : ''}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function openCreateInsightModal() {
+            // Build origin from current view context
+            const origin = {
+                origin_type: 'category', // Default
+                project_name: currentProjectName || null,
+                data_source: currentDataSourceId || null,
+                dimension_ref: currentQuestionRefKey || null,
+                dimension_name: null,
+                category: null,
+                topic_label: null,
+                process_voc_id: null,
+            };
+            
+            // Open create modal - for now, redirect to standalone page with context
+            const params = new URLSearchParams({ client_uuid: currentClientId });
+            if (currentQuestionRefKey) params.append('dimension_ref', currentQuestionRefKey);
+            if (currentProjectName) params.append('project_name', currentProjectName);
+            if (currentDataSourceId) params.append('data_source', currentDataSourceId);
+            
+            // Pass auth token via URL parameter (will be stored in localStorage on the new page)
+            const token = getAuthToken();
+            if (token) {
+                params.append('auth_token', token);
+            }
+            
+            // Use API_BASE_URL to ensure we hit the backend server where the route is registered
+            window.open(`${API_BASE_URL}/client-insights?${params.toString()}`, '_blank');
+        }
+
+        function editInsightFromView(insightId) {
+            const params = new URLSearchParams({ client_uuid: currentClientId, insight_id: insightId });
+            
+            // Pass auth token via URL parameter
+            const token = getAuthToken();
+            if (token) {
+                params.append('auth_token', token);
+            }
+            
+            // Use API_BASE_URL to ensure we hit the backend server where the route is registered
+            window.open(`${API_BASE_URL}/client-insights?${params.toString()}`, '_blank');
+        }
+
+        // Update insights when view context changes
+        const originalLoadDataSource = window.loadDataSource;
+        if (typeof loadDataSource === 'function') {
+            // Wrap to update insights after data loads
+            const wrapper = async function(...args) {
+                await originalLoadDataSource.apply(this, args);
+                updateInsightsAutoFilter();
+            };
+            window.loadDataSource = wrapper;
+        }
     </script>
     
     <!-- Marketing site header -->
