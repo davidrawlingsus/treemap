@@ -4768,6 +4768,7 @@
             currentDataSourceId = null; // Reset data source when project changes
             currentQuestionRefKey = null; // Reset question when project changes
             saveState();
+            updateNavLinks(); // Update nav links after project changes
             await loadClientSources(currentClientId);
             renderFavourites(); // Re-render favourites for new project
         }
@@ -4863,6 +4864,7 @@
             currentDataSourceId = e.target.value || null; // Empty string becomes null
             currentQuestionRefKey = null; // Reset question when source changes
             saveState();
+            updateNavLinks(); // Update nav links after source changes
             await loadDataSource(currentClientId, currentDataSourceId);
         }
         
