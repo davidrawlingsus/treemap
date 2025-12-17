@@ -176,22 +176,32 @@ app.add_middleware(
 # Serve static files from the parent directory (where index.html is)
 # This allows accessing the frontend at http://localhost:8000/index.html
 # Try multiple possible paths for Railway deployment
+# Prioritize current working directory (Railway uses /app)
 possible_paths = [
+    Path.cwd(),  # Current working directory (Railway uses /app) - check this first
     Path(__file__).parent.parent.parent,  # Standard: backend/app/main.py -> project root
-    Path(__file__).parent.parent.parent.parent,  # Railway might have different structure
-    Path.cwd(),  # Current working directory
     Path("/app"),  # Railway default app directory
+    Path(__file__).parent.parent.parent.parent,  # Railway might have different structure
 ]
 
 frontend_path = None
 for path in possible_paths:
-    if (path / "index.html").exists():
+    test_path = path / "index.html"
+    if test_path.exists():
         frontend_path = path
+        # Log which path was found for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Found frontend files at: {frontend_path}")
+        logger.info(f"index.html exists at: {test_path}")
         break
 
-# Fallback to standard path if none found
+# Fallback to current working directory if none found (Railway default)
 if frontend_path is None:
-    frontend_path = Path(__file__).parent.parent.parent
+    frontend_path = Path.cwd()
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.warning(f"Frontend path not found, using current working directory: {frontend_path}")
 if (frontend_path / "index.html").exists():
     # Mount static files directory to serve CSS, JS, and other assets
     app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
