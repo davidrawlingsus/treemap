@@ -175,7 +175,23 @@ app.add_middleware(
 
 # Serve static files from the parent directory (where index.html is)
 # This allows accessing the frontend at http://localhost:8000/index.html
-frontend_path = Path(__file__).parent.parent.parent
+# Try multiple possible paths for Railway deployment
+possible_paths = [
+    Path(__file__).parent.parent.parent,  # Standard: backend/app/main.py -> project root
+    Path(__file__).parent.parent.parent.parent,  # Railway might have different structure
+    Path.cwd(),  # Current working directory
+    Path("/app"),  # Railway default app directory
+]
+
+frontend_path = None
+for path in possible_paths:
+    if (path / "index.html").exists():
+        frontend_path = path
+        break
+
+# Fallback to standard path if none found
+if frontend_path is None:
+    frontend_path = Path(__file__).parent.parent.parent
 if (frontend_path / "index.html").exists():
     # Mount static files directory to serve CSS, JS, and other assets
     app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
@@ -309,16 +325,27 @@ if (frontend_path / "choose-data-source.html").exists():
         """Serve the choose data source page"""
         return FileResponse(frontend_path / "choose-data-source.html")
 
-if (frontend_path / "client-insights.html").exists():
-    @app.get("/client-insights", response_class=FileResponse)
-    def serve_client_insights():
-        """Serve the client insights page"""
-        return FileResponse(frontend_path / "client-insights.html")
-    
-    @app.get("/client-insights.html", response_class=FileResponse)
-    def serve_client_insights_html():
-        """Serve the client insights page"""
-        return FileResponse(frontend_path / "client-insights.html")
+# Serve client-insights.html - always register route, check file existence in handler
+@app.get("/client-insights", response_class=FileResponse)
+def serve_client_insights():
+    """Serve the client insights page"""
+    file_path = frontend_path / "client-insights.html"
+    if not file_path.exists():
+        # Log the path for debugging in production
+        logger = logging.getLogger(__name__)
+        logger.error(f"client-insights.html not found at: {file_path}")
+        logger.error(f"frontend_path: {frontend_path}")
+        logger.error(f"Current working directory: {os.getcwd()}")
+        raise HTTPException(status_code=404, detail=f"File not found at {file_path}")
+    return FileResponse(file_path)
+
+@app.get("/client-insights.html", response_class=FileResponse)
+def serve_client_insights_html():
+    """Serve the client insights page"""
+    file_path = frontend_path / "client-insights.html"
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail=f"File not found at {file_path}")
+    return FileResponse(file_path)
 
 @app.get("/api")
 def api_info():
