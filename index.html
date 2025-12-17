@@ -8406,16 +8406,35 @@
             const clientUuid = urlParams.get('client_uuid') || currentClientId;
             const authToken = getAuthToken() || localStorage.getItem('visualizd_auth_token');
             
+            // Get current visualization state to preserve it in navigation
+            const currentProject = urlParams.get('project') || currentProjectName;
+            const currentSource = urlParams.get('source') || currentDataSourceId;
+            const currentDimension = urlParams.get('dimension') || currentQuestionRefKey;
+            
             const navVisualizations = document.getElementById('navVisualizations');
             const navInsights = document.getElementById('navInsights');
             
             if (navVisualizations) {
                 let vizUrl = '/';
+                const vizParams = new URLSearchParams();
                 if (clientUuid) {
-                    vizUrl += `?client_uuid=${clientUuid}`;
-                    if (authToken) {
-                        vizUrl += `&auth_token=${authToken}`;
-                    }
+                    vizParams.set('client_uuid', clientUuid);
+                }
+                if (authToken) {
+                    vizParams.set('auth_token', authToken);
+                }
+                // Preserve visualization state when navigating back
+                if (currentProject) {
+                    vizParams.set('project', currentProject);
+                }
+                if (currentSource) {
+                    vizParams.set('source', currentSource);
+                }
+                if (currentDimension) {
+                    vizParams.set('dimension', currentDimension);
+                }
+                if (vizParams.toString()) {
+                    vizUrl += `?${vizParams.toString()}`;
                 }
                 navVisualizations.href = vizUrl;
             }
@@ -8423,11 +8442,25 @@
             if (navInsights) {
                 // Use frontend domain, not backend API URL
                 let insightsUrl = '/client-insights';
+                const insightsParams = new URLSearchParams();
                 if (clientUuid) {
-                    insightsUrl += `?client_uuid=${clientUuid}`;
-                    if (authToken) {
-                        insightsUrl += `&auth_token=${authToken}`;
-                    }
+                    insightsParams.set('client_uuid', clientUuid);
+                }
+                if (authToken) {
+                    insightsParams.set('auth_token', authToken);
+                }
+                // Preserve visualization state when navigating to insights
+                if (currentProject) {
+                    insightsParams.set('project', currentProject);
+                }
+                if (currentSource) {
+                    insightsParams.set('source', currentSource);
+                }
+                if (currentDimension) {
+                    insightsParams.set('dimension', currentDimension);
+                }
+                if (insightsParams.toString()) {
+                    insightsUrl += `?${insightsParams.toString()}`;
                 }
                 navInsights.href = insightsUrl;
             }
