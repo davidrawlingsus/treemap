@@ -1352,96 +1352,339 @@
             overflow: hidden;
         }
 
-        .insights-list-compact {
-            padding: 24px;
+        /* Insights Table Section */
+        .insights-table-section {
+            padding: 0;
+        }
+
+        /* Control Bar */
+        .control-bar {
+            padding: 0.5rem 1.5rem;
+            border-bottom: 1px solid oklch(0.922 0 0);
+            background: oklch(1 0 0);
             display: flex;
-            flex-direction: column;
-            gap: 12px;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            min-height: 40px;
         }
 
-        .insight-item-compact {
-            padding: 16px;
-            border: 1px solid #EBEBEB;
-            border-radius: 6px;
-            transition: all 200ms;
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: oklch(0.97 0 0);
+            border-radius: 0.375rem;
+            padding: 0.25rem 0.5rem;
+            min-width: 200px;
+            flex: 0 0 auto;
         }
 
-        .insight-item-compact:hover {
-            border-color: #B9F040;
-            background: #f9f9f9;
+        .search-box input {
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 0.875rem;
+            font-family: 'Lato', sans-serif;
+            padding: 0.125rem 0.25rem;
+            flex: 1;
+            color: oklch(0.145 0 0);
         }
 
-        .insight-item-hoverable {
+        .search-box input::placeholder {
+            color: oklch(0.556 0 0);
+        }
+
+        .filter-chips {
+            display: flex;
+            gap: 0.375rem;
+            flex-wrap: wrap;
+            flex: 1;
+        }
+
+        .filter-chip {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.25rem 0.5rem;
+            background: oklch(0.97 0 0);
+            border-radius: 0.375rem;
+            font-size: 0.8125rem;
+            font-family: 'Lato', sans-serif;
+            color: oklch(0.145 0 0);
+        }
+
+        .filter-chip .remove {
+            cursor: pointer;
+            opacity: 0.6;
+            padding: 0 0.125rem;
+        }
+
+        .filter-chip .remove:hover {
+            opacity: 1;
+        }
+
+        .btn-filter {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            background: transparent;
+            border: none;
+            color: oklch(0.556 0 0);
+            cursor: pointer;
+            font-size: 0.8125rem;
+            font-family: 'Lato', sans-serif;
+            border-radius: 0.375rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-filter:hover {
+            background: oklch(0.97 0 0);
+            color: oklch(0.145 0 0);
+        }
+
+        .btn-reset {
+            padding: 0.25rem 0.5rem;
+            background: transparent;
+            border: none;
+            color: oklch(0.556 0 0);
+            cursor: pointer;
+            font-size: 0.8125rem;
+            font-family: 'Lato', sans-serif;
+            border-radius: 0.375rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-reset:hover {
+            background: oklch(0.97 0 0);
+            color: oklch(0.145 0 0);
+        }
+
+        /* Table */
+        .table-container {
+            overflow-x: auto;
+            background: oklch(1 0 0);
+        }
+
+        .notion-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1200px;
+        }
+
+        .notion-table thead {
+            background: oklch(0.98 0 0);
+            border-bottom: 1px solid oklch(0.922 0 0);
+        }
+
+        .notion-table th {
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 0.8125rem;
+            font-family: 'Lato', sans-serif;
+            color: oklch(0.556 0 0);
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
             position: relative;
         }
 
-        .insight-open-btn {
+        .notion-table th:hover {
+            background: oklch(0.97 0 0);
+        }
+
+        .notion-table th .sort-indicator {
+            margin-left: 0.25rem;
+            opacity: 0.4;
+        }
+
+        .notion-table th.sorted .sort-indicator {
+            opacity: 1;
+        }
+
+        .notion-table th .column-icon {
+            margin-right: 0.375rem;
+            opacity: 0.4;
+        }
+
+        .notion-table tbody tr {
+            border-bottom: 1px solid oklch(0.97 0 0);
+            transition: background 0.1s;
+        }
+
+        .notion-table tbody tr:hover {
+            background: oklch(0.98 0 0);
+        }
+
+        .notion-table tbody tr:hover .insight-open-btn-table {
+            display: flex !important;
+        }
+
+        .insight-open-btn-table {
             display: none;
             align-items: center;
-            gap: 4px;
-            padding: 4px 8px;
-            background: rgba(55, 53, 47, 0.08);
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            background: oklch(0.97 0 0);
             border: none;
-            border-radius: 3px;
-            color: rgba(55, 53, 47, 0.6);
-            font-size: 12px;
+            border-radius: 0.375rem;
+            color: oklch(0.556 0 0);
+            font-size: 0.75rem;
             font-weight: 500;
+            font-family: 'Lato', sans-serif;
             cursor: pointer;
-            transition: all 0.1s;
+            transition: all 0.2s ease;
+            margin-left: 0.5rem;
+            position: absolute;
+            right: 0;
         }
 
-        .insight-open-btn:hover {
-            background: rgba(55, 53, 47, 0.12);
-            color: #37352f;
+        .insight-open-btn-table:hover {
+            background: oklch(0.95 0 0);
+            color: oklch(0.145 0 0);
         }
 
-        .insight-item-hoverable:hover .insight-open-btn {
+        .notion-table td {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            font-family: 'Lato', sans-serif;
+            vertical-align: middle;
+        }
+
+        .notion-table .checkbox-cell {
+            width: 32px;
+            padding: 0.5rem;
+            text-align: center;
+        }
+
+        .notion-table .checkbox {
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid oklch(0.85 0 0);
+            border-radius: 0.375rem;
+            cursor: pointer;
+            display: inline-block;
+            transition: all 0.2s ease;
+        }
+
+        .notion-table .checkbox:hover {
+            border-color: oklch(0.7 0 0);
+        }
+
+        .notion-table .name-cell {
+            min-width: 250px;
+            font-weight: 500;
+        }
+
+        .notion-table .name-cell .name-content {
             display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            position: relative;
+            padding-right: 80px;
         }
 
-        .insight-item-header {
+        .notion-table .name-cell .doc-icon {
+            width: 16px;
+            height: 16px;
+            opacity: 0.4;
+            flex-shrink: 0;
+        }
+
+        /* Tags/Pills */
+        .tag {
+            display: inline-block;
+            padding: 0.125rem 0.5rem;
+            border-radius: 0.375rem;
+            font-size: 0.8125rem;
+            font-weight: 400;
+            font-family: 'Lato', sans-serif;
+            margin-right: 0.25rem;
+            margin-bottom: 0.125rem;
+        }
+
+        .tag-type {
+            background: rgba(46, 170, 220, 0.15);
+            color: #2eaadc;
+        }
+
+        .tag-project {
+            background: rgba(255, 171, 0, 0.15);
+            color: #ffab00;
+        }
+
+        .tag-data-source {
+            background: rgba(99, 71, 169, 0.15);
+            color: #6347a9;
+        }
+
+        /* Status */
+        .status {
             display: flex;
-            justify-content: space-between;
-            align-items: start;
-            margin-bottom: 8px;
+            align-items: center;
+            gap: 0.375rem;
         }
 
-        .insight-item-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: #333;
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
         }
 
-        .insight-item-meta {
-            font-size: 12px;
-            color: #999;
-            display: flex;
-            gap: 12px;
+        .status-dot.not-started {
+            background: #d1d1d1;
         }
 
-        .insight-item-description {
-            font-size: 14px;
-            color: #666;
-            line-height: 1.5;
-            margin-top: 8px;
+        .status-dot.in-progress {
+            background: #0b85ff;
         }
 
-        .insight-item-actions {
-            display: flex;
-            gap: 8px;
+        .status-dot.done {
+            background: #0f7b0f;
         }
 
-        .btn-icon-small {
+        /* Actions */
+        .actions-cell {
+            width: 80px;
+        }
+
+        .action-btn {
             background: none;
             border: none;
             cursor: pointer;
-            padding: 4px;
-            color: #999;
-            font-size: 14px;
+            padding: 0.25rem 0.5rem;
+            color: oklch(0.7 0 0);
+            font-size: 0.875rem;
+            border-radius: 0.375rem;
+            transition: all 0.2s ease;
         }
 
-        .btn-icon-small:hover {
-            color: #333;
+        .action-btn:hover {
+            background: oklch(0.97 0 0);
+            color: oklch(0.145 0 0);
+        }
+
+        /* Empty State */
+        .empty-state {
+            padding: 3.75rem 1.5rem;
+            text-align: center;
+            color: oklch(0.556 0 0);
+        }
+
+        .empty-state h3 {
+            font-size: 1rem;
+            font-family: 'Lato', sans-serif;
+            margin-bottom: 0.5rem;
+            color: oklch(0.556 0 0);
+        }
+
+        .loading {
+            padding: 2.5rem;
+            text-align: center;
+            color: oklch(0.556 0 0);
+            font-family: 'Lato', sans-serif;
         }
 
         .favourites-section h2 {
@@ -2482,13 +2725,13 @@
             top: 0;
             width: 500px;
             height: 100vh;
-            background: white;
+            background: oklch(1 0 0); /* White from style guide */
             box-shadow: -4px 0 20px rgba(0,0,0,0.15);
             z-index: 10000;
             transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             flex-direction: column;
-            border-top: 3px solid #b9f040;
+            border-top: 3px solid #B9F040; /* Brand lime green */
         }
 
         .ai-insights-panel.open {
@@ -2496,12 +2739,12 @@
         }
 
         .ai-insights-header {
-            padding: 20px 24px 16px 24px;
-            border-bottom: 1px solid #e4e6eb;
+            padding: 1.25rem 1.5rem 1rem 1.5rem; /* 20px 24px 16px 24px */
+            border-bottom: 1px solid oklch(0.922 0 0); /* Border color from style guide */
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: white;
+            background: oklch(1 0 0); /* White */
         }
 
         .ai-insights-header h2 {
@@ -2514,8 +2757,8 @@
         .ai-close-btn {
             background: none;
             border: none;
-            color: #666;
-            font-size: 28px;
+            color: oklch(0.556 0 0); /* Muted foreground */
+            font-size: 1.75rem; /* 28px */
             line-height: 1;
             cursor: pointer;
             padding: 0;
@@ -2524,47 +2767,63 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 4px;
-            transition: all 0.2s;
+            border-radius: 0.375rem; /* 6px - radius-sm */
+            transition: all 0.2s ease;
+            font-family: 'Lato', sans-serif;
         }
 
         .ai-close-btn:hover {
-            background: #f5f5f5;
-            color: #333;
+            background: oklch(0.97 0 0); /* Light gray */
+            color: oklch(0.145 0 0); /* Near black */
         }
 
-        /* Insight Attributes Styling */
+        .ai-close-btn:focus-visible {
+            outline: 2px solid #B9F040;
+            outline-offset: 2px;
+        }
+
+        /* Insight Attributes Styling - Matching Style Guide */
         .insight-attribute-row {
             display: flex;
             align-items: center;
             min-height: 32px;
-            padding: 4px 0;
+            padding: 0.25rem 0; /* 4px */
         }
 
         .insight-attribute-chip {
-            background: rgba(55, 53, 47, 0.08);
-            border-radius: 3px;
-            padding: 4px 10px;
-            font-size: 14px;
-            color: #37352f;
+            background: oklch(0.97 0 0); /* Light gray from style guide */
+            border-radius: 0.375rem; /* 6px - radius-sm */
+            padding: 0.375rem 0.75rem; /* 6px 12px */
+            font-size: 0.875rem; /* 14px */
+            font-family: 'Lato', sans-serif;
+            font-weight: 400;
+            color: oklch(0.145 0 0); /* Near black foreground */
             cursor: text;
             outline: none;
-            border: 1px solid transparent;
-            transition: all 0.1s;
+            border: 2px solid transparent;
+            transition: all 0.2s ease;
         }
 
         .insight-attribute-chip:hover {
-            background: rgba(55, 53, 47, 0.12);
+            background: oklch(0.95 0 0); /* Slightly darker gray */
         }
 
         .insight-attribute-chip:focus {
-            background: rgba(55, 53, 47, 0.15);
-            border-color: rgba(55, 53, 47, 0.2);
+            background: oklch(1 0 0); /* White */
+            border-color: #B9F040; /* Brand lime green */
+            outline: none;
         }
 
         .insight-attribute-chip[contenteditable="true"]:empty:before {
             content: attr(data-placeholder);
-            color: rgba(55, 53, 47, 0.4);
+            color: oklch(0.556 0 0); /* Muted foreground */
+        }
+
+        /* Editable Title Focus Styles */
+        #insightTitleEditable:focus {
+            outline: 2px solid #B9F040;
+            outline-offset: 2px;
+            border-radius: 0.375rem; /* 6px */
         }
 
         #slideoutSearchClear {
@@ -3057,7 +3316,65 @@
                 </div>
             </div>
             <div class="insights-panel-body" id="insightsPanelBody">
-                <div id="insightsListContainer" class="insights-list-compact">
+                <div class="insights-table-section">
+                    <div class="control-bar">
+                        <div class="search-box">
+                            <input type="text" id="insightsSearchInput" placeholder="Search insights..." oninput="handleInsightsSearch()">
+                        </div>
+                        <div class="filter-chips" id="insightsFilterChips"></div>
+                        <button class="btn-filter" onclick="openInsightsFilterMenu()">
+                            <span>+</span>
+                            <span>Filter</span>
+                        </button>
+                        <button class="btn-reset" onclick="resetInsightsFilters()" id="insightsResetBtn" style="display: none;">Reset</button>
+                    </div>
+                    <div class="table-container">
+                        <table class="notion-table">
+                            <thead>
+                                <tr>
+                                    <th class="checkbox-cell"></th>
+                                    <th class="name-cell sorted" onclick="sortInsightsBy('name')">
+                                        <span class="column-icon">Aa</span>
+                                        <span>Name</span>
+                                        <span class="sort-indicator">↓</span>
+                                    </th>
+                                    <th onclick="sortInsightsBy('type')">
+                                        <span class="column-icon">≡</span>
+                                        <span>Type</span>
+                                        <span class="sort-indicator"></span>
+                                    </th>
+                                    <th onclick="sortInsightsBy('status')">
+                                        <span class="column-icon">⁂</span>
+                                        <span>Status</span>
+                                        <span class="sort-indicator"></span>
+                                    </th>
+                                    <th onclick="sortInsightsBy('project')">
+                                        <span class="column-icon">≡</span>
+                                        <span>Project</span>
+                                        <span class="sort-indicator"></span>
+                                    </th>
+                                    <th onclick="sortInsightsBy('data_source')">
+                                        <span class="column-icon">≡</span>
+                                        <span>Data Source</span>
+                                        <span class="sort-indicator"></span>
+                                    </th>
+                                    <th onclick="sortInsightsBy('dimension')">
+                                        <span class="column-icon">≡</span>
+                                        <span>Dimension</span>
+                                        <span class="sort-indicator"></span>
+                                    </th>
+                                    <th onclick="sortInsightsBy('created_at')">
+                                        <span class="column-icon">📅</span>
+                                        <span>Created</span>
+                                        <span class="sort-indicator"></span>
+                                    </th>
+                                    <th class="actions-cell">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="insightsTableBody">
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -8083,44 +8400,44 @@
                 // Create panel structure with editable title and attributes
                 container.innerHTML = `
                     <div style="padding: 0;">
-                        <!-- Editable Title -->
-                        <div style="padding: 24px 24px 16px 24px; border-bottom: 1px solid rgba(55, 53, 47, 0.09);">
-                            <div id="insightTitleEditable" 
-                                 contenteditable="true" 
-                                 style="font-size: 32px; font-weight: 700; color: #37352f; outline: none; min-height: 40px; line-height: 1.2;"
-                                 data-placeholder="Untitled">${escapeHtml(insight.name || 'Untitled')}</div>
-                        </div>
-                        
-                        <!-- Attributes Section -->
-                        <div style="padding: 16px 24px; border-bottom: 1px solid rgba(55, 53, 47, 0.09);">
-                            <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 12px;">
-                                <!-- Type Attribute -->
-                                <div class="insight-attribute-row">
-                                    <div style="width: 140px; font-size: 14px; color: rgba(55, 53, 47, 0.65); flex-shrink: 0;">Type</div>
-                                    <div style="flex: 1;">
-                                        <div id="insightTypeChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
-                                            ${escapeHtml(insight.type || 'Empty')}
-                                        </div>
+                    <!-- Editable Title -->
+                    <div style="padding: 1.5rem; border-bottom: 1px solid oklch(0.922 0 0);">
+                        <div id="insightTitleEditable" 
+                             contenteditable="true" 
+                             style="font-size: 1.875rem; font-weight: 700; font-family: 'Lato', sans-serif; color: oklch(0.145 0 0); outline: none; min-height: 2.5rem; line-height: 1.2;"
+                             data-placeholder="Untitled">${escapeHtml(insight.name || 'Untitled')}</div>
+                    </div>
+                    
+                    <!-- Attributes Section -->
+                    <div style="padding: 1rem 1.5rem; border-bottom: 1px solid oklch(0.922 0 0);">
+                        <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <!-- Type Attribute -->
+                            <div class="insight-attribute-row">
+                                <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Type</div>
+                                <div style="flex: 1;">
+                                    <div id="insightTypeChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
+                                        ${escapeHtml(insight.type || 'Empty')}
                                     </div>
                                 </div>
-                                
-                                <!-- Application Attribute -->
-                                <div class="insight-attribute-row">
-                                    <div style="width: 140px; font-size: 14px; color: rgba(55, 53, 47, 0.65); flex-shrink: 0;">Application</div>
-                                    <div style="flex: 1;">
-                                        <div id="insightApplicationChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
-                                            ${escapeHtml(insight.application || 'Empty')}
-                                        </div>
+                            </div>
+                            
+                            <!-- Application Attribute -->
+                            <div class="insight-attribute-row">
+                                <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Application</div>
+                                <div style="flex: 1;">
+                                    <div id="insightApplicationChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
+                                        ${escapeHtml(insight.application || 'Empty')}
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        
-                        <!-- Notes Section -->
-                        <div style="padding: 24px;">
-                            <div id="insightNotesSaveStatus" style="font-size: 12px; color: #999; margin-bottom: 8px; min-height: 16px;"></div>
-                            <div id="insightNotesEditor" style="min-height: 400px; outline: none; font-size: 14px; line-height: 1.6; color: #37352f;"></div>
-                        </div>
+                    </div>
+                    
+                    <!-- Notes Section -->
+                    <div style="padding: 1.5rem;">
+                        <div id="insightNotesSaveStatus" style="font-size: 0.75rem; font-family: 'Lato', sans-serif; color: oklch(0.556 0 0); margin-bottom: 0.5rem; min-height: 1rem;"></div>
+                        <div id="insightNotesEditor" style="min-height: 400px; outline: none; font-size: 0.875rem; font-family: 'Lato', sans-serif; line-height: 1.5; color: oklch(0.145 0 0);"></div>
+                    </div>
                     </div>
                 `;
                 
@@ -8282,7 +8599,7 @@
                     
                     if (statusEl) {
                         statusEl.textContent = 'Saved';
-                        statusEl.style.color = '#0f7b0f';
+                        statusEl.style.color = '#B9F040'; /* Brand lime green */
                         setTimeout(() => {
                             if (statusEl) {
                                 statusEl.textContent = '';
@@ -8293,7 +8610,7 @@
                     console.error('Error saving notes:', error);
                     if (statusEl) {
                         statusEl.textContent = 'Error saving';
-                        statusEl.style.color = '#d32f2f';
+                        statusEl.style.color = 'oklch(0.577 0.245 27.325)'; /* Destructive red from style guide */
                     }
                 }
             },
@@ -8781,6 +9098,11 @@
         // Insights Panel Management
         let insightsAutoFilter = true;
         let insightsCurrentFilters = {};
+        let allInsights = [];
+        let insightsSearchTerm = '';
+        let insightsFilters = {};
+        let insightsSortBy = 'name';
+        let insightsSortOrder = 'asc';
 
         function toggleInsightsPanel() {
             const body = document.getElementById('insightsPanelBody');
@@ -8831,18 +9153,20 @@
         async function loadInsights(filters = {}) {
             if (!currentClientId) return;
             
-            const container = document.getElementById('insightsListContainer');
-            if (!container) return;
+            const tbody = document.getElementById('insightsTableBody');
+            if (!tbody) return;
             
             try {
                 const params = new URLSearchParams({
                     page: '1',
-                    page_size: '20',
-                    sort_by: 'created_at',
-                    sort_order: 'desc',
+                    page_size: '1000',
+                    sort_by: insightsSortBy === 'name' ? 'name' : insightsSortBy === 'created_at' ? 'created_at' : 'created_at',
+                    sort_order: insightsSortOrder,
                 });
                 
-                Object.entries(filters).forEach(([key, value]) => {
+                // Merge auto-filters with manual filters
+                const allFilters = { ...insightsCurrentFilters, ...filters };
+                Object.entries(allFilters).forEach(([key, value]) => {
                     if (value) params.append(key, value);
                 });
                 
@@ -8853,37 +9177,91 @@
                 if (!response.ok) throw new Error('Failed to load insights');
                 
                 const data = await response.json();
-                renderInsightsCompact(data.items);
+                allInsights = data.items || [];
+                renderInsights();
             } catch (error) {
                 console.error('Error loading insights:', error);
-                container.innerHTML = '<div class="empty-state">Error loading insights</div>';
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>Error loading insights</h3><p>' + escapeHtml(error.message) + '</p></td></tr>';
+                }
             }
         }
 
-        function renderInsightsCompact(insights) {
-            const container = document.getElementById('insightsListContainer');
-            if (!container) return;
-            
-            if (insights.length === 0) {
-                container.innerHTML = '<div class="empty-state">No insights found</div>';
+        function renderInsights(insights) {
+            const tbody = document.getElementById('insightsTableBody');
+            if (!tbody) return;
+
+            let filtered = [...(insights || allInsights)];
+
+            // Apply search
+            if (insightsSearchTerm) {
+                const term = insightsSearchTerm.toLowerCase();
+                filtered = filtered.filter(insight =>
+                    insight.name?.toLowerCase().includes(term) ||
+                    insight.type?.toLowerCase().includes(term) ||
+                    insight.description?.toLowerCase().includes(term)
+                );
+            }
+
+            // Apply filters
+            Object.entries(insightsFilters).forEach(([key, value]) => {
+                if (value) {
+                    filtered = filtered.filter(insight => {
+                        if (key === 'type') return insight.type?.toLowerCase().includes(value.toLowerCase());
+                        return true;
+                    });
+                }
+            });
+
+            // Apply sorting
+            filtered.sort((a, b) => {
+                let aVal, bVal;
+                if (insightsSortBy === 'name') {
+                    aVal = a.name || '';
+                    bVal = b.name || '';
+                } else if (insightsSortBy === 'type') {
+                    aVal = a.type || '';
+                    bVal = b.type || '';
+                } else if (insightsSortBy === 'created_at') {
+                    aVal = new Date(a.created_at).getTime();
+                    bVal = new Date(b.created_at).getTime();
+                } else {
+                    return 0;
+                }
+
+                if (typeof aVal === 'string') {
+                    return insightsSortOrder === 'asc' 
+                        ? aVal.localeCompare(bVal)
+                        : bVal.localeCompare(aVal);
+                } else {
+                    return insightsSortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+                }
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>No insights found</h3><p>Create your first insight to get started</p></td></tr>';
                 return;
             }
-            
-            container.innerHTML = insights.map(insight => {
+
+            tbody.innerHTML = filtered.map(insight => {
                 const createdDate = new Date(insight.created_at).toLocaleDateString();
+                const firstOrigin = insight.origins?.[0] || {};
+                const projectName = firstOrigin.project_name || '-';
+                const dataSource = firstOrigin.data_source || '-';
+                const dimension = firstOrigin.dimension_name || firstOrigin.dimension_ref || '-';
+
                 return `
-                    <div class="insight-item-compact insight-item-hoverable">
-                        <div class="insight-item-header">
-                            <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
-                                <div style="flex: 1;">
-                                    <div class="insight-item-title">${escapeHtml(insight.name)}</div>
-                                    <div class="insight-item-meta">
-                                        <span>${escapeHtml(insight.type)}</span>
-                                        <span>${createdDate}</span>
-                                        <span>${insight.origins?.length || 0} origins</span>
-                                    </div>
-                                </div>
-                                <button class="insight-open-btn" onclick="SlideoutPanel.openInsightNotes('${insight.id}')" title="Open in side peek" style="display: none;">
+                    <tr>
+                        <td class="checkbox-cell">
+                            <div class="checkbox"></div>
+                        </td>
+                        <td class="name-cell">
+                            <div class="name-content" style="position: relative;">
+                                <svg class="doc-icon" viewBox="0 0 16 16" fill="currentColor">
+                                    <path d="M2.5 2.5h11l.5.5v10l-.5.5h-11l-.5-.5V3l.5-.5zM3 4v8h10V4H3zm2 1h6v1H5V5zm0 2h6v1H5V7zm0 2h4v1H5V9z"/>
+                                </svg>
+                                <span>${escapeHtml(insight.name)}</span>
+                                <button class="insight-open-btn-table" onclick="SlideoutPanel.openInsightNotes('${insight.id}')" title="Open in side peek" style="display: none;">
                                     <span style="font-size: 12px; margin-right: 4px;">OPEN</span>
                                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="opacity: 0.6;">
                                         <rect x="4" y="4" width="8" height="8" stroke="currentColor" stroke-width="1.5" fill="none" rx="1"/>
@@ -8891,14 +9269,111 @@
                                     </svg>
                                 </button>
                             </div>
-                            <div class="insight-item-actions">
-                                <button class="btn-icon-small" onclick="editInsightFromView('${insight.id}')" title="Edit">✏️</button>
+                        </td>
+                        <td>
+                            <span class="tag tag-type">${escapeHtml(insight.type)}</span>
+                        </td>
+                        <td>
+                            <div class="status">
+                                <div class="status-dot not-started"></div>
+                                <span>Not started</span>
                             </div>
-                        </div>
-                        ${insight.description ? `<div class="insight-item-description">${escapeHtml(insight.description.substring(0, 150))}${insight.description.length > 150 ? '...' : ''}</div>` : ''}
-                    </div>
+                        </td>
+                        <td>
+                            ${projectName !== '-' ? `<span class="tag tag-project">${escapeHtml(projectName)}</span>` : '-'}
+                        </td>
+                        <td>
+                            ${dataSource !== '-' ? `<span class="tag tag-data-source">${escapeHtml(dataSource)}</span>` : '-'}
+                        </td>
+                        <td>${escapeHtml(dimension)}</td>
+                        <td>${createdDate}</td>
+                        <td class="actions-cell">
+                            <button class="action-btn" onclick="editInsightFromView('${insight.id}')" title="Edit">✏️</button>
+                        </td>
+                    </tr>
                 `;
             }).join('');
+        }
+
+        function handleInsightsSearch() {
+            insightsSearchTerm = document.getElementById('insightsSearchInput')?.value.trim() || '';
+            renderInsights();
+        }
+
+        function sortInsightsBy(column) {
+            // Update sort indicators
+            document.querySelectorAll('.notion-table th').forEach(th => {
+                th.classList.remove('sorted');
+                const indicator = th.querySelector('.sort-indicator');
+                if (indicator) indicator.textContent = '';
+            });
+
+            const clickedTh = event.currentTarget;
+            clickedTh.classList.add('sorted');
+            const indicator = clickedTh.querySelector('.sort-indicator');
+
+            if (insightsSortBy === column) {
+                insightsSortOrder = insightsSortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                insightsSortBy = column;
+                insightsSortOrder = 'asc';
+            }
+
+            if (indicator) {
+                indicator.textContent = insightsSortOrder === 'asc' ? '↑' : '↓';
+            }
+
+            renderInsights();
+        }
+
+        function updateInsightsFilterChips() {
+            const chipsContainer = document.getElementById('insightsFilterChips');
+            const resetBtn = document.getElementById('insightsResetBtn');
+            const hasFilters = Object.keys(insightsFilters).length > 0;
+
+            if (resetBtn) resetBtn.style.display = hasFilters ? 'block' : 'none';
+
+            if (!chipsContainer) return;
+
+            if (!hasFilters) {
+                chipsContainer.innerHTML = '';
+                return;
+            }
+
+            chipsContainer.innerHTML = Object.entries(insightsFilters).map(([key, value]) => {
+                if (!value) return '';
+                const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                return `
+                    <div class="filter-chip">
+                        <span>${label}: ${escapeHtml(String(value))}</span>
+                        <span class="remove" onclick="removeInsightsFilter('${key}')">×</span>
+                    </div>
+                `;
+            }).filter(html => html).join('');
+        }
+
+        function removeInsightsFilter(key) {
+            delete insightsFilters[key];
+            updateInsightsFilterChips();
+            renderInsights();
+        }
+
+        function resetInsightsFilters() {
+            insightsFilters = {};
+            insightsSearchTerm = '';
+            const searchInput = document.getElementById('insightsSearchInput');
+            if (searchInput) searchInput.value = '';
+            updateInsightsFilterChips();
+            renderInsights();
+        }
+
+        function openInsightsFilterMenu() {
+            const type = prompt('Filter by type (leave empty to cancel):');
+            if (type && type.trim()) {
+                insightsFilters.type = type.trim();
+                updateInsightsFilterChips();
+                renderInsights();
+            }
         }
 
         function escapeHtml(text) {
