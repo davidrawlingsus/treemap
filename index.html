@@ -3814,6 +3814,8 @@
         
         // Filter rules: array of {type: 'category'|'topic'|'location'|'metadata', mode: 'include'|'exclude', values: Set, metadataField?: string}
         let filterRules = [];
+        // Store filters per dimension: key is dimension ref key (or 'all' for null), value is array of filter rules
+        let dimensionFilters = {}; // Map of dimensionRef -> filterRules array
         let availableMetadataFields = {}; // Map of fieldName -> array of values
         let currentMetadataField = null; // Currently selected metadata field
         let currentClientId = null;
@@ -4632,6 +4634,7 @@
                     currentProjectName = null; // Reset project when client changes
                     currentDataSourceId = null; // Reset data source when client changes
                     currentQuestionRefKey = null; // Reset question when client changes
+                    dimensionFilters = {}; // Clear dimension filters when client changes
                     saveState();
                     updateAddDataButton(); // Update Add button with new client
                     await loadClientProjects(currentClientId);
@@ -4775,6 +4778,7 @@
             currentProjectName = e.target.value || null; // Empty string becomes null
             currentDataSourceId = null; // Reset data source when project changes
             currentQuestionRefKey = null; // Reset question when project changes
+            dimensionFilters = {}; // Clear dimension filters when project changes
             saveState();
             updateNavLinks(); // Update nav links after project changes
             await loadClientSources(currentClientId);
@@ -4871,6 +4875,7 @@
         async function handleSourceChange(e) {
             currentDataSourceId = e.target.value || null; // Empty string becomes null
             currentQuestionRefKey = null; // Reset question when source changes
+            dimensionFilters = {}; // Clear dimension filters when data source changes
             saveState();
             updateNavLinks(); // Update nav links after source changes
             await loadDataSource(currentClientId, currentDataSourceId);
@@ -5282,9 +5287,10 @@
                 // Add change listener
                 questionSelect.onchange = function() {
                     const selectedRefKey = this.value;
+                    const previousRefKey = currentQuestionRefKey; // Save old value before updating
                     currentQuestionRefKey = selectedRefKey;
                     saveState();
-                    filterByQuestion(selectedRefKey);
+                    filterByQuestion(selectedRefKey, previousRefKey);
                     
                     // Update navigation links to include the new dimension
                     updateNavLinks();
@@ -5312,9 +5318,10 @@
                 }
                 
                 if (questionToSelect) {
+                    const previousRefKey = currentQuestionRefKey; // Save old value before updating
                     currentQuestionRefKey = questionToSelect;
                     questionSelect.value = questionToSelect;
-                    filterByQuestion(questionToSelect);
+                    filterByQuestion(questionToSelect, previousRefKey);
                     dimensionNameEditor.style.display = 'none';
                     // Update AI Insights panel with restored dimension
                     if (window.AIInsightsPanel) {
@@ -5322,9 +5329,10 @@
                     }
                 } else {
                     // Default to "All Dimensions" view
+                    const previousRefKey = currentQuestionRefKey; // Save old value before updating
                     currentQuestionRefKey = null;
                     questionSelect.value = '';
-                    filterByQuestion(''); // Show all dimensions
+                    filterByQuestion('', previousRefKey); // Show all dimensions
                     dimensionNameEditor.style.display = 'none';
                     // Hide AI Insights tab when no specific dimension selected
                     if (window.AIInsightsPanel) {
@@ -5348,7 +5356,57 @@
         }
         
         // Filter data by selected question
-        function filterByQuestion(refKey) {
+        // Helper functions to serialize/deserialize filter rules (Sets need special handling)
+        function serializeFilterRules(rules) {
+            return rules.map(rule => ({
+                type: rule.type,
+                mode: rule.mode,
+                values: Array.from(rule.values), // Convert Set to Array
+                metadataField: rule.metadataField
+            }));
+        }
+        
+        function deserializeFilterRules(serializedRules) {
+            if (!serializedRules) return [];
+            return serializedRules.map(rule => ({
+                type: rule.type,
+                mode: rule.mode,
+                values: new Set(rule.values), // Convert Array back to Set
+                metadataField: rule.metadataField
+            }));
+        }
+        
+        function saveFiltersForDimension(dimensionRef) {
+            // Save current filters for the given dimension
+            const key = dimensionRef || 'all';
+            dimensionFilters[key] = serializeFilterRules(filterRules);
+            console.log(`Saved filters for dimension ${key}:`, dimensionFilters[key]);
+        }
+        
+        function loadFiltersForDimension(dimensionRef) {
+            // Load saved filters for the given dimension, or return empty array
+            const key = dimensionRef || 'all';
+            const savedFilters = dimensionFilters[key];
+            if (savedFilters) {
+                filterRules = deserializeFilterRules(savedFilters);
+                console.log(`Loaded filters for dimension ${key}:`, filterRules);
+            } else {
+                filterRules = [];
+                console.log(`No saved filters for dimension ${key}, using empty filters`);
+            }
+        }
+        
+        function filterByQuestion(refKey, previousRefKey = null) {
+            // Save current filters for the previous dimension before switching
+            // Use previousRefKey if provided (from onchange handler), otherwise use currentQuestionRefKey
+            const oldRefKey = previousRefKey !== null ? previousRefKey : currentQuestionRefKey;
+            if (oldRefKey !== null) {
+                saveFiltersForDimension(oldRefKey);
+            } else if (oldRefKey === null && refKey !== null && refKey !== '') {
+                // Switching from "all dimensions" to a specific dimension
+                saveFiltersForDimension(null);
+            }
+            
             // Group process_voc rows with optional dimension filter
             const groupedData = groupProcessVocRows(fullRawData, refKey || null);
             
@@ -5361,9 +5419,8 @@
             // Extract available filter options from the filtered data (dimension-specific)
             extractAvailableFilterOptions(rawData);
             
-            // Preserve metadata filters when changing dimensions, but reset category and topic filters
-            // (since categories and topics are dimension-specific, but metadata is not)
-            filterRules = filterRules.filter(rule => rule.type === 'metadata');
+            // Load saved filters for the new dimension (or empty if none)
+            loadFiltersForDimension(refKey || null);
             
             updateFilterUI();
             
@@ -5373,7 +5430,7 @@
             // Update treemap title with question text if available
             updateTreemapTitle();
             
-            // Re-render visualizations (this will apply preserved metadata filters)
+            // Re-render visualizations (this will apply the restored filters)
             applyFiltersAndRender();
         }
         
@@ -5882,6 +5939,8 @@
             // Clear all filters
             clearAllFilters.onclick = () => {
                 filterRules = [];
+                // Save cleared filters for current dimension
+                saveFiltersForDimension(currentQuestionRefKey);
                 applyFiltersAndRender();
                 updateFilterUI();
             };
@@ -5936,6 +5995,9 @@
                         });
                     }
                 }
+                
+                // Save filters for current dimension after applying
+                saveFiltersForDimension(currentQuestionRefKey);
                 
                 // Stay in the filter selection view instead of going back to top level
                 // Refresh the view to show updated selections
@@ -6245,6 +6307,8 @@
                     const removeBtn = filterItem.querySelector('.remove-filter-btn');
                     removeBtn.onclick = () => {
                         filterRules.splice(index, 1);
+                        // Save updated filters for current dimension
+                        saveFiltersForDimension(currentQuestionRefKey);
                         applyFiltersAndRender();
                     };
                     
