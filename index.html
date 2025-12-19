@@ -57,9 +57,23 @@
             flex-direction: column;
         }
         
-        /* When showing insights, allow container to size naturally */
-        #mainContainer[data-view="insights"] {
-            min-height: auto;
+        /* Ensure insights section is visible when active in flex container */
+        #mainContainer #insights-section.active {
+            display: block !important;
+            flex: 1 1 auto;
+            overflow-y: auto;
+            visibility: visible !important;
+            opacity: 1 !important;
+            position: relative !important;
+            z-index: 1 !important;
+            background: white !important;
+        }
+        
+        /* Ensure insights section is visible when active in flex container */
+        #mainContainer #insights-section.active {
+            display: block !important;
+            flex: 1 1 auto;
+            overflow-y: auto;
         }
 
         .header {
@@ -149,39 +163,42 @@
 
         /* SPA Section Visibility */
         .spa-section {
-            display: none !important;
-            height: 0 !important;
-            min-height: 0 !important;
-            max-height: 0 !important;
-            overflow: hidden !important;
-            margin: 0 !important;
-            padding: 0 !important;
+            display: none;
         }
 
         .spa-section.active {
             display: block !important;
-            height: auto !important;
-            min-height: auto !important;
-            max-height: none !important;
-            overflow: visible !important;
-            margin: initial !important;
-            padding: initial !important;
         }
 
         /* Ensure sections are visible when active, even with inline styles */
         #mainContainer .spa-section.active {
             display: block !important;
         }
-        
+
         /* Fallback for when container is visible */
         #mainContainer[style*="flex"] .spa-section.active,
         #mainContainer:not([style*="none"]) .spa-section.active {
             display: block !important;
         }
+
+        /* Ensure insights section content is visible */
+        #insights-section.active {
+            display: block !important;
+            min-height: 100px;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+
+        #insights-section.active .table-container {
+            display: block !important;
+            visibility: visible !important;
+        }
         
-        /* When showing insights, allow container to size naturally */
-        #mainContainer[data-view="insights"] {
-            min-height: auto;
+        #insights-section.active .page-header,
+        #insights-section.active .control-bar,
+        #insights-section.active .table-container {
+            display: block !important;
+            visibility: visible !important;
         }
 
         .data-source-selector {
@@ -4119,83 +4136,6 @@
                     <div class="chart__bars" id="topicsChartBars"></div>
                 </div>
                 <div class="chart__footer" id="topicsChartFooter">Frequency (n=<span id="topicsCount">0</span>)</div>
-            </div>
-        </div>
-
-        <!-- Insights Panel -->
-        <div class="insights-panel-container">
-            <div class="insights-panel-header">
-                <div class="insights-panel-header-left">
-                    <h2>Insights</h2>
-                    <span id="insightsFilterBadge" class="insights-filter-badge" style="display: none;"></span>
-                </div>
-                <div class="insights-panel-header-right">
-                    <button class="insights-panel-toggle" onclick="toggleInsightsPanel()" id="insightsPanelToggle">
-                        <span id="insightsPanelToggleIcon">▼</span>
-                    </button>
-                </div>
-            </div>
-            <div class="insights-panel-body" id="insightsPanelBody">
-                <div class="insights-table-section">
-                    <div class="control-bar">
-                        <div class="search-box">
-                            <input type="text" id="insightsSearchInput" placeholder="Search insights..." oninput="handleInsightsSearch()">
-                        </div>
-                        <div class="filter-chips" id="insightsFilterChips"></div>
-                        <button class="btn-filter" onclick="openInsightsFilterMenu()">
-                            <span>+</span>
-                            <span>Filter</span>
-                        </button>
-                        <button class="btn-reset" onclick="resetInsightsFilters()" id="insightsResetBtn" style="display: none;">Reset</button>
-                    </div>
-                    <div class="table-container">
-                        <table class="notion-table">
-                            <thead>
-                                <tr>
-                                    <th class="checkbox-cell"></th>
-                                    <th class="name-cell sorted" onclick="sortInsightsBy('name')">
-                                        <span class="column-icon">Aa</span>
-                                        <span>Name</span>
-                                        <span class="sort-indicator">↓</span>
-                                    </th>
-                                    <th onclick="sortInsightsBy('type')">
-                                        <span class="column-icon">≡</span>
-                                        <span>Type</span>
-                                        <span class="sort-indicator"></span>
-                                    </th>
-                                    <th onclick="sortInsightsBy('status')">
-                                        <span class="column-icon">⁂</span>
-                                        <span>Status</span>
-                                        <span class="sort-indicator"></span>
-                                    </th>
-                                    <th onclick="sortInsightsBy('project')">
-                                        <span class="column-icon">≡</span>
-                                        <span>Project</span>
-                                        <span class="sort-indicator"></span>
-                                    </th>
-                                    <th onclick="sortInsightsBy('data_source')">
-                                        <span class="column-icon">≡</span>
-                                        <span>Data Source</span>
-                                        <span class="sort-indicator"></span>
-                                    </th>
-                                    <th onclick="sortInsightsBy('dimension')">
-                                        <span class="column-icon">≡</span>
-                                        <span>Dimension</span>
-                                        <span class="sort-indicator"></span>
-                                    </th>
-                                    <th onclick="sortInsightsBy('created_at')">
-                                        <span class="column-icon">📅</span>
-                                        <span>Created</span>
-                                        <span class="sort-indicator"></span>
-                                    </th>
-                                    <th class="actions-cell">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="insightsTableBody">
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -9087,6 +9027,46 @@
             });
         });
 
+        // Debug function for insights page issues
+        window.debugInsightsPage = function() {
+            const tbody = document.getElementById('insightsPageTableBody');
+            const report = {
+                timestamp: new Date().toISOString(),
+                insightsSection: {
+                    exists: !!document.getElementById('insights-section'),
+                    display: document.getElementById('insights-section') ? window.getComputedStyle(document.getElementById('insights-section')).display : 'N/A',
+                    hasActiveClass: document.getElementById('insights-section')?.classList.contains('active') || false,
+                    visible: document.getElementById('insights-section')?.offsetParent !== null || false
+                },
+                tableBody: {
+                    exists: !!tbody,
+                    innerHTML: tbody?.innerHTML?.substring(0, 200) || 'N/A',
+                    rowCount: tbody?.querySelectorAll('tr').length || 0
+                },
+                data: {
+                    insightsAllInsights: typeof insightsAllInsights !== 'undefined' ? insightsAllInsights.length : 'undefined',
+                    insightsSearchTerm: typeof insightsSearchTerm !== 'undefined' ? insightsSearchTerm : 'undefined',
+                    insightsFilters: typeof insightsFilters !== 'undefined' ? Object.keys(insightsFilters).length : 'undefined'
+                },
+                clientId: {
+                    insightsCurrentClientId: typeof insightsCurrentClientId !== 'undefined' ? insightsCurrentClientId : 'undefined',
+                    globalCurrentClientId: typeof currentClientId !== 'undefined' ? currentClientId : 'undefined',
+                    urlClientId: new URLSearchParams(window.location.search).get('client_uuid')
+                },
+                initialization: {
+                    insightsInitialized: window.insightsInitialized || false,
+                    initInsightsPageExists: typeof initInsightsPage === 'function',
+                    navigateToViewExists: typeof window.navigateToView === 'function'
+                },
+                mainContainer: {
+                    exists: !!document.getElementById('mainContainer'),
+                    display: document.getElementById('mainContainer') ? window.getComputedStyle(document.getElementById('mainContainer')).display : 'N/A'
+                }
+            };
+            console.log('=== Insights Page Debug Report ===');
+            console.log(JSON.stringify(report, null, 2));
+            return report;
+        };
 
         // SPA Routing Functions
         window.navigateToView = function(viewName) {
@@ -9103,87 +9083,109 @@
                 }
                 
                 if (!vizSection || !insightsSection) {
-                    console.warn('SPA sections not found');
+                    console.error('SPA sections not found:', { vizSection: !!vizSection, insightsSection: !!insightsSection });
                     return;
                 }
                 
-                // Hide all sections - CSS class will handle the hiding
-                // Also ensure they're completely removed from layout flow
+                // Hide all sections
                 vizSection.classList.remove('active');
                 insightsSection.classList.remove('active');
-                
-                // Force remove from layout flow for hidden sections
-                if (!vizSection.classList.contains('active')) {
-                    vizSection.style.display = 'none';
-                    vizSection.style.height = '0';
-                    vizSection.style.minHeight = '0';
-                    vizSection.style.maxHeight = '0';
-                    vizSection.style.overflow = 'hidden';
-                }
-                if (!insightsSection.classList.contains('active')) {
-                    insightsSection.style.display = 'none';
-                    insightsSection.style.height = '0';
-                    insightsSection.style.minHeight = '0';
-                    insightsSection.style.maxHeight = '0';
-                    insightsSection.style.overflow = 'hidden';
-                }
+                vizSection.style.display = 'none';
+                insightsSection.style.display = 'none';
                 
                 // Remove active class from all nav items
                 if (navVisualizations) navVisualizations.classList.remove('active');
                 if (navInsights) navInsights.classList.remove('active');
                 
-                // Show selected section and update nav - CSS class will handle the showing
+                // Show selected section and update nav
                 if (viewName === 'visualizations') {
                     vizSection.classList.add('active');
-                    // Reset styles for active section
-                    vizSection.style.display = '';
-                    vizSection.style.height = '';
-                    vizSection.style.minHeight = '';
-                    vizSection.style.maxHeight = '';
-                    vizSection.style.overflow = '';
+                    vizSection.style.display = 'block';
                     if (navVisualizations) navVisualizations.classList.add('active');
-                    // Reset container min-height for visualizations (which may need full height)
-                    if (mainContainer) {
-                        mainContainer.style.minHeight = '100vh';
-                        mainContainer.removeAttribute('data-view');
-                    }
                 } else if (viewName === 'insights') {
+                    console.log('=== NAVIGATING TO INSIGHTS ===');
+                    console.log('insightsSection element:', insightsSection);
+                    console.log('Before: display =', window.getComputedStyle(insightsSection).display);
+                    
                     insightsSection.classList.add('active');
-                    // Reset styles for active section
-                    insightsSection.style.display = '';
-                    insightsSection.style.height = '';
-                    insightsSection.style.minHeight = '';
-                    insightsSection.style.maxHeight = '';
-                    insightsSection.style.overflow = '';
+                    insightsSection.style.display = 'block';
+                    insightsSection.style.visibility = 'visible';
+                    insightsSection.style.opacity = '1';
+                    insightsSection.style.height = 'auto';
+                    insightsSection.style.minHeight = '100px';
+                    
+                    console.log('After setting styles: display =', window.getComputedStyle(insightsSection).display);
+                    console.log('Has active class:', insightsSection.classList.contains('active'));
+                    console.log('offsetParent:', insightsSection.offsetParent);
+                    console.log('offsetHeight:', insightsSection.offsetHeight);
+                    console.log('offsetWidth:', insightsSection.offsetWidth);
+                    const rect = insightsSection.getBoundingClientRect();
+                    console.log('getBoundingClientRect:', {
+                        x: rect.x,
+                        y: rect.y,
+                        width: rect.width,
+                        height: rect.height,
+                        top: rect.top,
+                        left: rect.left,
+                        bottom: rect.bottom,
+                        right: rect.right
+                    });
+                    
+                    // Check if it's on screen
+                    const isOnScreen = rect.top >= 0 && rect.left >= 0 && 
+                                      rect.bottom <= window.innerHeight && 
+                                      rect.right <= window.innerWidth;
+                    console.log('Is on screen:', isOnScreen);
+                    console.log('Window dimensions:', { width: window.innerWidth, height: window.innerHeight });
+                    
+                    // Check if visualizations section is covering it
+                    const vizSection = document.getElementById('visualizations-section');
+                    if (vizSection) {
+                        const vizRect = vizSection.getBoundingClientRect();
+                        const vizStyle = window.getComputedStyle(vizSection);
+                        console.log('Visualizations section:', {
+                            display: vizStyle.display,
+                            visibility: vizStyle.visibility,
+                            zIndex: vizStyle.zIndex,
+                            position: vizStyle.position,
+                            rect: {
+                                x: vizRect.x,
+                                y: vizRect.y,
+                                width: vizRect.width,
+                                height: vizRect.height
+                            }
+                        });
+                    }
+                    
                     if (navInsights) navInsights.classList.add('active');
-                    // Remove min-height constraint for insights to allow natural sizing
-                    if (mainContainer) {
-                        mainContainer.style.minHeight = 'auto';
-                        mainContainer.setAttribute('data-view', 'insights');
-                    }
-                    // Scroll to top to ensure insights section is visible
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                    // Also scroll the container if it's scrollable
-                    if (mainContainer.scrollTop > 0) {
-                        mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
-                    }
                     
                     // Sync client ID from global variable if available
                     if (typeof currentClientId !== 'undefined' && currentClientId && !insightsCurrentClientId) {
                         insightsCurrentClientId = currentClientId;
                     }
                     
+                    // Check if table body exists before initializing
+                    const tbody = document.getElementById('insightsPageTableBody');
+                    console.log('Table body exists:', !!tbody);
+                    if (tbody) {
+                        console.log('Table body parent:', tbody.parentElement);
+                        console.log('Table body in insights section:', insightsSection.contains(tbody));
+                    }
+                    
                     // Initialize insights page if not already loaded
                     if (typeof initInsightsPage === 'function') {
+                        console.log('Calling initInsightsPage...');
                         setTimeout(() => {
                             initInsightsPage().catch(error => {
                                 console.error('Error initializing insights page:', error);
-                                const tbody = document.getElementById('insightsPageTableBody');
-                                if (tbody) {
-                                    tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>Error loading insights</h3><p>' + escapeHtml(error.message) + '</p></td></tr>';
+                                const errorTbody = document.getElementById('insightsPageTableBody');
+                                if (errorTbody) {
+                                    errorTbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>Error loading insights</h3><p>' + escapeHtml(error.message) + '</p></td></tr>';
                                 }
                             });
                         }, 100);
+                    } else {
+                        console.error('initInsightsPage function not found!');
                     }
                 }
                 
@@ -9359,7 +9361,6 @@
             const mainContainer = document.getElementById('mainContainer');
             // Only initialize routing if mainContainer is visible
             if (mainContainer && mainContainer.style.display !== 'none' && mainContainer.style.display !== '') {
-                console.log('Initializing routing, mainContainer is visible');
                 setActiveNavItem();
                 updateNavLinks();
                 // Check hash on page load for routing
@@ -9370,7 +9371,6 @@
                     if (window.navigateToView) window.navigateToView('visualizations');
                 }
             } else {
-                console.log('mainContainer not visible yet, will retry routing initialization');
                 // Retry after a delay if container becomes visible
                 setTimeout(initializeRouting, 500);
             }
@@ -9444,11 +9444,9 @@
 
         async function initInsightsPage() {
             if (window.insightsInitialized) {
-                console.log('Insights page already initialized');
                 return;
             }
             
-            console.log('initInsightsPage called');
             let attempts = 0;
             while (typeof getAuthHeaders === 'undefined' && attempts < 10) {
                 await new Promise(resolve => setTimeout(resolve, 100));
@@ -9456,15 +9454,10 @@
             }
 
             const urlParams = new URLSearchParams(window.location.search);
-            // Try multiple sources for client ID - check URL first, then global variable
             const urlClientId = urlParams.get('client_uuid');
             const globalClientId = (typeof currentClientId !== 'undefined' && currentClientId) ? currentClientId : null;
             
             insightsCurrentClientId = urlClientId || globalClientId;
-            
-            console.log('Insights init - URL client_uuid:', urlClientId);
-            console.log('Insights init - Global currentClientId:', globalClientId);
-            console.log('Insights init - Final insightsCurrentClientId:', insightsCurrentClientId);
             
             const authTokenFromUrl = urlParams.get('auth_token');
             if (authTokenFromUrl) {
@@ -9472,7 +9465,6 @@
             }
 
             if (!insightsCurrentClientId) {
-                console.warn('No client ID found for insights page - showing empty state');
                 const tbody = document.getElementById('insightsPageTableBody');
                 if (tbody) {
                     tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>No client specified</h3><p>Please select a client from the Visualizations page first, or add client_uuid to the URL.</p></td></tr>';
@@ -9483,16 +9475,12 @@
                 return;
             }
 
-            console.log('Loading insights for client:', insightsCurrentClientId);
             await loadInsights();
             window.insightsInitialized = true;
-            console.log('Insights page initialized successfully');
         }
 
         async function loadInsights() {
-            console.log('loadInsights called, insightsCurrentClientId:', insightsCurrentClientId);
             if (!insightsCurrentClientId) {
-                console.warn('No client ID, cannot load insights');
                 const tbody = document.getElementById('insightsPageTableBody');
                 if (tbody) {
                     tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>No client specified</h3><p>Please select a client from the Visualizations page first.</p></td></tr>';
@@ -9502,7 +9490,7 @@
 
             const tbody = document.getElementById('insightsPageTableBody');
             if (!tbody) {
-                console.error('insightsPageTableBody element not found - insights section may not be visible');
+                console.error('insightsPageTableBody element not found. Run window.debugInsightsPage() for details.');
                 return;
             }
             
@@ -9522,13 +9510,15 @@
                 });
 
                 const headers = getAuthHeadersSafe();
-                console.log('Fetching insights from:', `${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights?${params.toString()}`);
+                const url = `${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights?${params.toString()}`;
+                console.log('Fetching insights from:', url);
+                console.log('Request headers:', Object.keys(headers));
                 
-                const response = await fetch(`${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights?${params.toString()}`, {
+                const response = await fetch(url, {
                     headers: headers
                 });
 
-                console.log('Response status:', response.status);
+                console.log('Response status:', response.status, response.statusText);
 
                 if (!response.ok) {
                     if (response.status === 401) {
@@ -9540,8 +9530,12 @@
                 }
 
                 const data = await response.json();
-                console.log('Insights loaded:', data.items?.length || 0, 'items');
                 insightsAllInsights = data.items || [];
+                console.log('Insights data loaded:', {
+                    totalItems: insightsAllInsights.length,
+                    hasItems: insightsAllInsights.length > 0,
+                    firstItem: insightsAllInsights[0] || null
+                });
                 renderInsights();
             } catch (error) {
                 console.error('Error loading insights:', error);
@@ -9555,11 +9549,36 @@
         }
 
         function renderInsights() {
+            console.log('=== RENDER INSIGHTS CALLED ===');
             const tbody = document.getElementById('insightsPageTableBody');
             if (!tbody) {
-                console.error('insightsPageTableBody not found in renderInsights');
+                console.error('insightsPageTableBody not found in renderInsights. Run window.debugInsightsPage() for details.');
+                // Try to find it
+                const insightsSection = document.getElementById('insights-section');
+                console.log('Insights section:', insightsSection);
+                if (insightsSection) {
+                    const allTbodies = insightsSection.querySelectorAll('tbody');
+                    console.log('All tbody elements in insights section:', allTbodies.length);
+                    allTbodies.forEach((tb, i) => {
+                        console.log(`tbody ${i}: id = ${tb.id}, parent = ${tb.parentElement?.tagName}`);
+                    });
+                }
                 return;
             }
+            
+            console.log('Table body found:', {
+                id: tbody.id,
+                parent: tbody.parentElement?.tagName,
+                parentId: tbody.parentElement?.id,
+                inInsightsSection: document.getElementById('insights-section')?.contains(tbody),
+                currentInnerHTML: tbody.innerHTML.substring(0, 100)
+            });
+            
+            console.log('renderInsights called:', {
+                totalInsights: insightsAllInsights.length,
+                searchTerm: insightsSearchTerm,
+                filters: insightsFilters
+            });
             
             let filtered = [...insightsAllInsights];
             
@@ -9573,12 +9592,16 @@
                 );
             }
 
+            console.log('After filtering:', { filteredCount: filtered.length });
+
             if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>No insights found</h3><p>Create your first insight to get started</p></td></tr>';
+                const emptyHTML = '<tr><td colspan="9" class="empty-state"><h3>No insights found</h3><p>Create your first insight to get started</p></td></tr>';
+                tbody.innerHTML = emptyHTML;
+                console.log('Rendered empty state');
                 return;
             }
 
-            tbody.innerHTML = filtered.map(insight => {
+            const html = filtered.map(insight => {
                 const createdDate = new Date(insight.created_at).toLocaleDateString();
                 const firstOrigin = insight.origins?.[0] || {};
                 const projectName = firstOrigin.project_name || '-';
@@ -9629,6 +9652,110 @@
                     </tr>
                 `;
             }).join('');
+            
+            console.log('Setting innerHTML, length:', html.length);
+            tbody.innerHTML = html;
+            
+            // Immediately verify it was set
+            const verifyHTML = tbody.innerHTML;
+            console.log('After setting innerHTML, length:', verifyHTML.length);
+            console.log('First 300 chars:', verifyHTML.substring(0, 300));
+            
+            // Force a reflow
+            void tbody.offsetHeight;
+            
+            // Debug: Verify table is actually in DOM
+            const renderedRows = tbody.querySelectorAll('tr');
+            console.log('Actual rows in DOM:', renderedRows.length);
+            if (renderedRows.length > 0) {
+                console.log('First row exists, checking visibility...');
+                const firstRow = renderedRows[0];
+                const rowStyle = window.getComputedStyle(firstRow);
+                console.log('First row styles:', {
+                    display: rowStyle.display,
+                    visibility: rowStyle.visibility,
+                    opacity: rowStyle.opacity,
+                    height: rowStyle.height
+                });
+            } else {
+                console.error('NO ROWS FOUND IN DOM AFTER RENDERING!');
+                console.log('tbody.innerHTML length:', tbody.innerHTML.length);
+                console.log('html variable length:', html.length);
+                console.log('html first 500 chars:', html.substring(0, 500));
+            }
+            
+            // Debug: Check table container visibility
+            const tableContainer = tbody.closest('.table-container');
+            const table = tbody.closest('table');
+            const insightsSection = document.getElementById('insights-section');
+            
+            console.log('=== ELEMENT CHAIN ===');
+            console.log('insights-section:', {
+                exists: !!insightsSection,
+                display: insightsSection ? window.getComputedStyle(insightsSection).display : 'N/A',
+                hasActive: insightsSection?.classList.contains('active'),
+                height: insightsSection?.offsetHeight
+            });
+            console.log('table-container:', {
+                exists: !!tableContainer,
+                display: tableContainer ? window.getComputedStyle(tableContainer).display : 'N/A',
+                height: tableContainer?.offsetHeight,
+                width: tableContainer?.offsetWidth
+            });
+            console.log('table:', {
+                exists: !!table,
+                display: table ? window.getComputedStyle(table).display : 'N/A',
+                height: table?.offsetHeight,
+                width: table?.offsetWidth
+            });
+            console.log('tbody:', {
+                exists: !!tbody,
+                display: tbody ? window.getComputedStyle(tbody).display : 'N/A',
+                height: tbody?.offsetHeight
+            });
+            
+            // Force visibility as a test
+            if (insightsSection) {
+                insightsSection.style.setProperty('display', 'block', 'important');
+                insightsSection.style.setProperty('visibility', 'visible', 'important');
+                insightsSection.style.setProperty('opacity', '1', 'important');
+                insightsSection.style.setProperty('position', 'relative', 'important');
+                insightsSection.style.setProperty('z-index', '10', 'important');
+                insightsSection.style.setProperty('background', 'white', 'important');
+                insightsSection.style.setProperty('min-height', '500px', 'important');
+            }
+            if (tableContainer) {
+                tableContainer.style.setProperty('display', 'block', 'important');
+                tableContainer.style.setProperty('visibility', 'visible', 'important');
+                tableContainer.style.setProperty('opacity', '1', 'important');
+                tableContainer.style.setProperty('min-height', '200px', 'important');
+                tableContainer.style.setProperty('background-color', '#ff0000', 'important'); // Bright red for debugging
+            }
+            if (table) {
+                table.style.setProperty('display', 'table', 'important');
+                table.style.setProperty('visibility', 'visible', 'important');
+                table.style.setProperty('width', '100%', 'important');
+                table.style.setProperty('background-color', '#00ff00', 'important'); // Bright green for debugging
+            }
+            if (tbody) {
+                tbody.style.setProperty('display', 'table-row-group', 'important');
+                tbody.style.setProperty('visibility', 'visible', 'important');
+            }
+            
+            // Check final computed styles
+            if (insightsSection) {
+                const finalStyle = window.getComputedStyle(insightsSection);
+                console.log('Final insights-section computed style:', {
+                    display: finalStyle.display,
+                    visibility: finalStyle.visibility,
+                    opacity: finalStyle.opacity,
+                    position: finalStyle.position,
+                    zIndex: finalStyle.zIndex,
+                    backgroundColor: finalStyle.backgroundColor
+                });
+            }
+            
+            console.log('=== FORCED VISIBILITY APPLIED ===');
         }
 
         function sortBy(column) {
@@ -9665,7 +9792,7 @@
         function updateFilterChips() {
             const chipsContainer = document.getElementById('filterChips');
             const resetBtn = document.getElementById('resetBtn');
-            const hasFilters = Object.keys(insightsPanelFilters).length > 0;
+            const hasFilters = Object.keys(insightsFilters).length > 0;
             
             resetBtn.style.display = hasFilters ? 'block' : 'none';
             
