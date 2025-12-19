@@ -3521,7 +3521,6 @@
                     <span id="insightsFilterBadge" class="insights-filter-badge" style="display: none;"></span>
                 </div>
                 <div class="insights-panel-header-right">
-                    <button class="btn-link" id="showAllInsightsBtn" onclick="toggleInsightsFilter()" style="display: none;">Show All Insights</button>
                     <button class="insights-panel-toggle" onclick="toggleInsightsPanel()" id="insightsPanelToggle">
                         <span id="insightsPanelToggleIcon">▼</span>
                     </button>
@@ -9966,38 +9965,17 @@
             }
         }
 
-        function toggleInsightsFilter() {
-            insightsAutoFilter = !insightsAutoFilter;
-            const btn = document.getElementById('showAllInsightsBtn');
-            if (insightsAutoFilter) {
-                btn.textContent = 'Show All Insights';
-                updateInsightsAutoFilter();
-            } else {
-                btn.textContent = 'Show Filtered Insights';
-                loadInsights({});
-            }
-        }
-
         function updateInsightsAutoFilter() {
-            if (!insightsAutoFilter || !currentClientId) return;
+            if (!currentClientId) return;
             
-            const filters = {};
+            // Always show all insights (no filtering)
             const badge = document.getElementById('insightsFilterBadge');
-            const showAllBtn = document.getElementById('showAllInsightsBtn');
-            
-            // Determine current view context
-            if (currentQuestionRefKey) {
-                filters.dimension_ref = currentQuestionRefKey;
-                badge.textContent = `Filtered: ${currentQuestionRefKey}`;
-                badge.style.display = 'inline-block';
-                showAllBtn.style.display = 'inline-block';
-            } else {
+            if (badge) {
                 badge.style.display = 'none';
-                showAllBtn.style.display = 'none';
             }
             
-            insightsCurrentFilters = filters;
-            loadInsights(filters);
+            insightsCurrentFilters = {};
+            loadInsights({});
         }
 
         async function loadInsights(filters = {}) {
