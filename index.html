@@ -246,6 +246,12 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+
+        #questionSelect {
+            width: 300px;
+            min-width: 300px;
+            max-width: 300px;
+        }
         
         .filter-panel select option {
             overflow: hidden;
@@ -4006,7 +4012,7 @@
 
                 <div class="data-source-actions">
                     <!-- Add Data Button -->
-                    <a id="addDataBtn" href="#" style="padding: 8px 24px; background: #B9F040; color: #000000; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; text-decoration: none; display: inline-block; margin-right: 8px; transition: background 200ms; min-height: 44px; line-height: 28px;">
+                    <a id="addDataBtn" href="#" style="padding: 8px 24px; background: #B9F040; color: #000000; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; text-decoration: none; display: none; margin-right: 8px; transition: background 200ms; min-height: 44px; line-height: 28px;">
                         Add
                     </a>
                     <style>
@@ -6518,10 +6524,10 @@
             if (addDataBtn) {
                 if (currentClientId) {
                     addDataBtn.href = `/choose-data-source.html?client_uuid=${currentClientId}`;
-                    addDataBtn.style.display = 'inline-block';
-                } else {
-                    addDataBtn.style.display = 'none';
+                    // addDataBtn.style.display = 'inline-block'; // Hidden for now
                 }
+                // Always hide the button for now
+                addDataBtn.style.display = 'none';
             }
         }
         
@@ -9366,6 +9372,11 @@
             const navInsights = document.getElementById('navInsights');
             const mainContainer = document.getElementById('mainContainer');
             
+            // Store scroll position when leaving visualizations view
+            if (vizSection && vizSection.classList.contains('active') && viewName !== 'visualizations') {
+                window.visualizationsScrollPosition = window.scrollY;
+            }
+            
             // Hide all sections - CSS class will handle the hiding
             // Also ensure they're completely removed from layout flow
             if (vizSection) {
@@ -9409,6 +9420,12 @@
                 if (mainContainer) {
                     mainContainer.style.minHeight = '100vh';
                     mainContainer.removeAttribute('data-view');
+                }
+                // Restore scroll position if it was previously saved
+                if (window.visualizationsScrollPosition !== undefined) {
+                    requestAnimationFrame(() => {
+                        window.scrollTo({ top: window.visualizationsScrollPosition, behavior: 'auto' });
+                    });
                 }
             } else if (viewName === 'insights') {
                 if (insightsSection) {
