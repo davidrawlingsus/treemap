@@ -162,21 +162,11 @@
             margin: initial !important;
             padding: initial !important;
         }
-
-        /* Ensure sections are visible when active, even with inline styles */
-        #mainContainer .spa-section.active {
-            display: block !important;
-        }
-
-        /* Fallback for when container is visible */
-        #mainContainer[style*="flex"] .spa-section.active,
-        #mainContainer:not([style*="none"]) .spa-section.active {
-            display: block !important;
-        }
         
         /* When showing insights, allow container to size naturally */
         #mainContainer[data-view="insights"] {
-            min-height: auto;
+            min-height: auto !important;
+            height: auto !important;
         }
 
         .data-source-selector {
@@ -3854,14 +3844,14 @@
         </div>
     </div>
 
-    <div class="container" id="mainContainer" style="display: none;" data-initial-display="none">
+    <div class="container" id="mainContainer" style="display: none;">
         <!-- Navigation Menu -->
         <nav class="app-navigation">
             <div class="nav-menu" id="navMenu">
-                <a href="#" class="nav-menu-item active" id="navVisualizations" onclick="if(window.navigateToView) { window.navigateToView('visualizations'); } return false;">
+                <a href="#" class="nav-menu-item" id="navVisualizations" onclick="navigateToView('visualizations'); return false;">
                     <span>Visualizations</span>
                 </a>
-                <a href="#" class="nav-menu-item" id="navInsights" onclick="if(window.navigateToView) { window.navigateToView('insights'); } return false;">
+                <a href="#" class="nav-menu-item" id="navInsights" onclick="navigateToView('insights'); return false;">
                     <span>Insights</span>
                 </a>
             </div>
@@ -4114,6 +4104,83 @@
                     <div class="chart__bars" id="topicsChartBars"></div>
                 </div>
                 <div class="chart__footer" id="topicsChartFooter">Frequency (n=<span id="topicsCount">0</span>)</div>
+            </div>
+        </div>
+
+        <!-- Insights Panel -->
+        <div class="insights-panel-container">
+            <div class="insights-panel-header">
+                <div class="insights-panel-header-left">
+                    <h2>Insights</h2>
+                    <span id="insightsFilterBadge" class="insights-filter-badge" style="display: none;"></span>
+                </div>
+                <div class="insights-panel-header-right">
+                    <button class="insights-panel-toggle" onclick="toggleInsightsPanel()" id="insightsPanelToggle">
+                        <span id="insightsPanelToggleIcon">▼</span>
+                    </button>
+                </div>
+            </div>
+            <div class="insights-panel-body" id="insightsPanelBody">
+                <div class="insights-table-section">
+                    <div class="control-bar">
+                        <div class="search-box">
+                            <input type="text" id="insightsSearchInput" placeholder="Search insights..." oninput="handleInsightsSearch()">
+                        </div>
+                        <div class="filter-chips" id="insightsFilterChips"></div>
+                        <button class="btn-filter" onclick="openInsightsFilterMenu()">
+                            <span>+</span>
+                            <span>Filter</span>
+                        </button>
+                        <button class="btn-reset" onclick="resetInsightsFilters()" id="insightsResetBtn" style="display: none;">Reset</button>
+                    </div>
+                    <div class="table-container">
+                        <table class="notion-table">
+                            <thead>
+                                <tr>
+                                    <th class="checkbox-cell"></th>
+                                    <th class="name-cell sorted" onclick="sortInsightsBy('name')">
+                                        <span class="column-icon">Aa</span>
+                                        <span>Name</span>
+                                        <span class="sort-indicator">↓</span>
+                                    </th>
+                                    <th onclick="sortInsightsBy('type')">
+                                        <span class="column-icon">≡</span>
+                                        <span>Type</span>
+                                        <span class="sort-indicator"></span>
+                                    </th>
+                                    <th onclick="sortInsightsBy('status')">
+                                        <span class="column-icon">⁂</span>
+                                        <span>Status</span>
+                                        <span class="sort-indicator"></span>
+                                    </th>
+                                    <th onclick="sortInsightsBy('project')">
+                                        <span class="column-icon">≡</span>
+                                        <span>Project</span>
+                                        <span class="sort-indicator"></span>
+                                    </th>
+                                    <th onclick="sortInsightsBy('data_source')">
+                                        <span class="column-icon">≡</span>
+                                        <span>Data Source</span>
+                                        <span class="sort-indicator"></span>
+                                    </th>
+                                    <th onclick="sortInsightsBy('dimension')">
+                                        <span class="column-icon">≡</span>
+                                        <span>Dimension</span>
+                                        <span class="sort-indicator"></span>
+                                    </th>
+                                    <th onclick="sortInsightsBy('created_at')">
+                                        <span class="column-icon">📅</span>
+                                        <span>Created</span>
+                                        <span class="sort-indicator"></span>
+                                    </th>
+                                    <th class="actions-cell">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="insightsTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -4834,26 +4901,6 @@
             const mainContainer = document.getElementById('mainContainer');
             if (mainContainer) {
                 mainContainer.style.display = 'flex';
-                // Initialize routing after container is shown
-                // Use a small delay to ensure DOM is ready
-                setTimeout(() => {
-                    try {
-                        const hash = window.location.hash;
-                        if (hash === '#/insights') {
-                            navigateToView('insights');
-                        } else {
-                            // Default to visualizations
-                            navigateToView('visualizations');
-                        }
-                    } catch (error) {
-                        console.error('Error initializing routing:', error);
-                        // Fallback: ensure visualizations section is visible
-                        const vizSection = document.getElementById('visualizations-section');
-                        if (vizSection) {
-                            vizSection.classList.add('active');
-                        }
-                    }
-                }, 50);
             }
             // Only call init if we haven't already initialized
             // Check if we're already in the main view - if so, just load the data
@@ -9005,72 +9052,18 @@
             });
         });
 
-        // Debug function for insights page issues
-        window.debugInsightsPage = function() {
-            const tbody = document.getElementById('insightsPageTableBody');
-            const report = {
-                timestamp: new Date().toISOString(),
-                insightsSection: {
-                    exists: !!document.getElementById('insights-section'),
-                    display: document.getElementById('insights-section') ? window.getComputedStyle(document.getElementById('insights-section')).display : 'N/A',
-                    hasActiveClass: document.getElementById('insights-section')?.classList.contains('active') || false,
-                    visible: document.getElementById('insights-section')?.offsetParent !== null || false
-                },
-                tableBody: {
-                    exists: !!tbody,
-                    innerHTML: tbody?.innerHTML?.substring(0, 200) || 'N/A',
-                    rowCount: tbody?.querySelectorAll('tr').length || 0
-                },
-                data: {
-                    insightsAllInsights: typeof insightsAllInsights !== 'undefined' ? insightsAllInsights.length : 'undefined',
-                    insightsSearchTerm: typeof insightsSearchTerm !== 'undefined' ? insightsSearchTerm : 'undefined',
-                    insightsFilters: typeof insightsFilters !== 'undefined' ? Object.keys(insightsFilters).length : 'undefined'
-                },
-                clientId: {
-                    insightsCurrentClientId: typeof insightsCurrentClientId !== 'undefined' ? insightsCurrentClientId : 'undefined',
-                    globalCurrentClientId: typeof currentClientId !== 'undefined' ? currentClientId : 'undefined',
-                    urlClientId: new URLSearchParams(window.location.search).get('client_uuid')
-                },
-                initialization: {
-                    insightsInitialized: window.insightsInitialized || false,
-                    initInsightsPageExists: typeof initInsightsPage === 'function',
-                    navigateToViewExists: typeof window.navigateToView === 'function'
-                },
-                mainContainer: {
-                    exists: !!document.getElementById('mainContainer'),
-                    display: document.getElementById('mainContainer') ? window.getComputedStyle(document.getElementById('mainContainer')).display : 'N/A'
-                }
-            };
-            console.log('=== Insights Page Debug Report ===');
-            console.log(JSON.stringify(report, null, 2));
-            return report;
-        };
-
         // SPA Routing Functions
-        window.navigateToView = function(viewName) {
-            try {
-                const vizSection = document.getElementById('visualizations-section');
-                const insightsSection = document.getElementById('insights-section');
-                const navVisualizations = document.getElementById('navVisualizations');
-                const navInsights = document.getElementById('navInsights');
-                const mainContainer = document.getElementById('mainContainer');
-                
-                // Ensure mainContainer is visible
-                if (mainContainer && mainContainer.style.display === 'none') {
-                    mainContainer.style.display = 'flex';
-                }
-                
-                if (!vizSection || !insightsSection) {
-                    console.error('SPA sections not found:', { vizSection: !!vizSection, insightsSection: !!insightsSection });
-                    return;
-                }
-                
-                // Hide all sections - CSS class will handle the hiding
-                // Also ensure they're completely removed from layout flow
+        function navigateToView(viewName) {
+            const vizSection = document.getElementById('visualizations-section');
+            const insightsSection = document.getElementById('insights-section');
+            const navVisualizations = document.getElementById('navVisualizations');
+            const navInsights = document.getElementById('navInsights');
+            const mainContainer = document.getElementById('mainContainer');
+            
+            // Hide all sections - CSS class will handle the hiding
+            // Also ensure they're completely removed from layout flow
+            if (vizSection) {
                 vizSection.classList.remove('active');
-                insightsSection.classList.remove('active');
-                
-                // Force remove from layout flow for hidden sections
                 if (!vizSection.classList.contains('active')) {
                     vizSection.style.display = 'none';
                     vizSection.style.height = '0';
@@ -9078,6 +9071,9 @@
                     vizSection.style.maxHeight = '0';
                     vizSection.style.overflow = 'hidden';
                 }
+            }
+            if (insightsSection) {
+                insightsSection.classList.remove('active');
                 if (!insightsSection.classList.contains('active')) {
                     insightsSection.style.display = 'none';
                     insightsSection.style.height = '0';
@@ -9085,13 +9081,15 @@
                     insightsSection.style.maxHeight = '0';
                     insightsSection.style.overflow = 'hidden';
                 }
-                
-                // Remove active class from all nav items
-                if (navVisualizations) navVisualizations.classList.remove('active');
-                if (navInsights) navInsights.classList.remove('active');
-                
-                // Show selected section and update nav - CSS class will handle the showing
-                if (viewName === 'visualizations') {
+            }
+            
+            // Remove active class from all nav items
+            if (navVisualizations) navVisualizations.classList.remove('active');
+            if (navInsights) navInsights.classList.remove('active');
+            
+            // Show selected section and update nav - CSS class will handle the showing
+            if (viewName === 'visualizations') {
+                if (vizSection) {
                     vizSection.classList.add('active');
                     // Reset styles for active section
                     vizSection.style.display = '';
@@ -9099,13 +9097,15 @@
                     vizSection.style.minHeight = '';
                     vizSection.style.maxHeight = '';
                     vizSection.style.overflow = '';
-                    if (navVisualizations) navVisualizations.classList.add('active');
-                    // Reset container min-height for visualizations (which may need full height)
-                    if (mainContainer) {
-                        mainContainer.style.minHeight = '100vh';
-                        mainContainer.removeAttribute('data-view');
-                    }
-                } else if (viewName === 'insights') {
+                }
+                if (navVisualizations) navVisualizations.classList.add('active');
+                // Reset container min-height for visualizations (which may need full height)
+                if (mainContainer) {
+                    mainContainer.style.minHeight = '100vh';
+                    mainContainer.removeAttribute('data-view');
+                }
+            } else if (viewName === 'insights') {
+                if (insightsSection) {
                     insightsSection.classList.add('active');
                     // Reset styles for active section
                     insightsSection.style.display = '';
@@ -9113,57 +9113,31 @@
                     insightsSection.style.minHeight = '';
                     insightsSection.style.maxHeight = '';
                     insightsSection.style.overflow = '';
-                    if (navInsights) navInsights.classList.add('active');
-                    // Remove min-height constraint for insights to allow natural sizing
-                    if (mainContainer) {
-                        mainContainer.style.minHeight = 'auto';
-                        mainContainer.setAttribute('data-view', 'insights');
-                    }
-                    // Scroll to top to ensure insights section is visible
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                    // Also scroll the container if it's scrollable
-                    if (mainContainer.scrollTop > 0) {
-                        mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
-                    }
-                    
-                    // Sync client ID from global variable if available
-                    if (typeof currentClientId !== 'undefined' && currentClientId && !insightsCurrentClientId) {
-                        insightsCurrentClientId = currentClientId;
-                    }
-                    
-                    // Check if table body exists before initializing
-                    const tbody = document.getElementById('insightsPageTableBody');
-                    console.log('Table body exists:', !!tbody);
-                    if (tbody) {
-                        console.log('Table body parent:', tbody.parentElement);
-                        console.log('Table body in insights section:', insightsSection.contains(tbody));
-                    }
-                    
-                    // Initialize insights page if not already loaded
-                    if (typeof initInsightsPage === 'function') {
-                        console.log('Calling initInsightsPage...');
-                        setTimeout(() => {
-                            initInsightsPage().catch(error => {
-                                console.error('Error initializing insights page:', error);
-                                const errorTbody = document.getElementById('insightsPageTableBody');
-                                if (errorTbody) {
-                                    errorTbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>Error loading insights</h3><p>' + escapeHtml(error.message) + '</p></td></tr>';
-                                }
-                            });
-                        }, 100);
-                    } else {
-                        console.error('initInsightsPage function not found!');
-                    }
                 }
-                
-                // Update URL hash without reload
-                const urlParams = new URLSearchParams(window.location.search);
-                const hash = viewName === 'visualizations' ? '#/' : '#/insights';
-                const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + hash;
-                window.history.pushState({ view: viewName }, '', newUrl);
-            } catch (error) {
-                console.error('Error in navigateToView:', error);
+                if (navInsights) navInsights.classList.add('active');
+                // Remove min-height constraint for insights to allow natural sizing
+                if (mainContainer) {
+                    mainContainer.style.minHeight = 'auto';
+                    mainContainer.style.height = 'auto';
+                    mainContainer.setAttribute('data-view', 'insights');
+                }
+                // Scroll to top to ensure insights section is visible
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                // Also scroll the container if it's scrollable
+                if (mainContainer && mainContainer.scrollTop > 0) {
+                    mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+                // Initialize insights page if not already loaded
+                if (typeof initInsightsPage === 'function' && !window.insightsInitialized) {
+                    initInsightsPage();
+                }
             }
+            
+            // Update URL hash without reload
+            const urlParams = new URLSearchParams(window.location.search);
+            const hash = viewName === 'visualizations' ? '#/' : '#/insights';
+            const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + hash;
+            window.history.pushState({ view: viewName }, '', newUrl);
         }
         
         // Handle browser back/forward buttons
@@ -9275,13 +9249,8 @@
         // Start the application - check auth first
         console.log('Starting application...');
         
-        // Check if we have URL params that suggest we should show the container
-        const urlParams = new URLSearchParams(window.location.search);
-        const urlClientUuid = urlParams.get('client_uuid');
-        const urlAuthToken = urlParams.get('auth_token') || localStorage.getItem('visualizd_auth_token');
-        
         // Quick synchronous check - if no token, show login immediately to avoid flash
-        const token = typeof Auth !== 'undefined' ? Auth.getAuthToken() : urlAuthToken;
+        const token = typeof Auth !== 'undefined' ? Auth.getAuthToken() : null;
         if (!token) {
             console.log('No token found, showing login immediately');
             if (typeof Auth !== 'undefined') {
@@ -9289,89 +9258,34 @@
             } else {
                 document.getElementById('loginOverlay').classList.remove('hidden');
             }
-        } else if (urlClientUuid && urlAuthToken) {
-            // If we have both client_uuid and auth_token in URL, show container immediately
-            // This allows the page to load even if auth verification is still pending
-            console.log('Found client_uuid and auth_token in URL, showing container');
-            setTimeout(() => {
-                const mainContainer = document.getElementById('mainContainer');
-                if (mainContainer) {
-                    mainContainer.style.display = 'flex';
-                    mainContainer.removeAttribute('style'); // Remove inline style
-                    mainContainer.style.display = 'flex'; // Set it again to ensure it's visible
-                    console.log('mainContainer display set to flex');
-                    // Initialize routing immediately
-                    setTimeout(() => {
-                        const hash = window.location.hash;
-                        if (hash === '#/insights') {
-                            if (window.navigateToView) {
-                                console.log('Navigating to insights');
-                                window.navigateToView('insights');
-                            }
-                        } else {
-                            if (window.navigateToView) {
-                                console.log('Navigating to visualizations');
-                                window.navigateToView('visualizations');
-                            }
-                        }
-                    }, 100);
-                } else {
-                    console.error('mainContainer element not found!');
-                }
-            }, 100);
         }
         // If token exists, keep login hidden (it's already hidden by default)
         // and let async checkAuth() verify it
         
         // Initialize navigation when DOM is ready
-        function initializeRouting() {
-            const mainContainer = document.getElementById('mainContainer');
-            // Only initialize routing if mainContainer is visible
-            if (mainContainer && mainContainer.style.display !== 'none' && mainContainer.style.display !== '') {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
                 setActiveNavItem();
                 updateNavLinks();
                 // Check hash on page load for routing
                 const hash = window.location.hash;
-                if (hash === '#/insights') {
-                    if (window.navigateToView) window.navigateToView('insights');
+                if (hash === '#/insights' || hash === '#/insights') {
+                    navigateToView('insights');
                 } else {
-                    if (window.navigateToView) window.navigateToView('visualizations');
+                    navigateToView('visualizations');
                 }
-            } else {
-                // Retry after a delay if container becomes visible
-                setTimeout(initializeRouting, 500);
-            }
-        }
-        
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-                setTimeout(initializeRouting, 200);
             });
         } else {
-            // Try to initialize, but it might be too early if auth hasn't completed
-            setTimeout(initializeRouting, 200);
-        }
-        
-        // Safety check: If we have URL params but container is still hidden after 1 second, show it
-        setTimeout(() => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const urlClientUuid = urlParams.get('client_uuid');
-            const urlAuthToken = urlParams.get('auth_token') || localStorage.getItem('visualizd_auth_token');
-            const mainContainer = document.getElementById('mainContainer');
-            
-            if (urlClientUuid && urlAuthToken && mainContainer && mainContainer.style.display === 'none') {
-                console.log('Safety check: Showing mainContainer after delay');
-                mainContainer.style.display = 'flex';
-                if (window.navigateToView) {
-                    const hash = window.location.hash;
-                    if (hash === '#/insights') {
-                        window.navigateToView('insights');
-                    } else {
-                        window.navigateToView('visualizations');
-                    }
-                }
+            setActiveNavItem();
+            updateNavLinks();
+            // Check hash on page load for routing
+            const hash = window.location.hash;
+            if (hash === '#/insights') {
+                navigateToView('insights');
+            } else {
+                navigateToView('visualizations');
             }
-        }, 1000);
+        }
 
         // Insights Page JavaScript
         let insightsCurrentClientId = null;
@@ -9410,10 +9324,9 @@
         }
 
         async function initInsightsPage() {
-            if (window.insightsInitialized) {
-                return;
-            }
+            if (window.insightsInitialized) return;
             
+            console.log('initInsightsPage called');
             let attempts = 0;
             while (typeof getAuthHeaders === 'undefined' && attempts < 10) {
                 await new Promise(resolve => setTimeout(resolve, 100));
@@ -9421,10 +9334,8 @@
             }
 
             const urlParams = new URLSearchParams(window.location.search);
-            const urlClientId = urlParams.get('client_uuid');
-            const globalClientId = (typeof currentClientId !== 'undefined' && currentClientId) ? currentClientId : null;
-            
-            insightsCurrentClientId = urlClientId || globalClientId;
+            insightsCurrentClientId = urlParams.get('client_uuid') || currentClientId;
+            console.log('Current client ID for insights:', insightsCurrentClientId);
             
             const authTokenFromUrl = urlParams.get('auth_token');
             if (authTokenFromUrl) {
@@ -9432,37 +9343,31 @@
             }
 
             if (!insightsCurrentClientId) {
-                const tbody = document.getElementById('insightsPageTableBody');
+                const tbody = document.getElementById('insightsTableBody');
                 if (tbody) {
-                    tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>No client specified</h3><p>Please select a client from the Visualizations page first, or add client_uuid to the URL.</p></td></tr>';
-                } else {
-                    console.error('insightsPageTableBody element not found!');
+                    tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>No client specified</h3></td></tr>';
                 }
                 window.insightsInitialized = true;
                 return;
             }
 
-            await loadInsights();
+            console.log('Loading insights...');
+            await loadInsightsPage();
             window.insightsInitialized = true;
         }
 
-        async function loadInsights() {
+        async function loadInsightsPage() {
+            console.log('loadInsightsPage called, insightsCurrentClientId:', insightsCurrentClientId);
             if (!insightsCurrentClientId) {
-                const tbody = document.getElementById('insightsPageTableBody');
-                if (tbody) {
-                    tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>No client specified</h3><p>Please select a client from the Visualizations page first.</p></td></tr>';
-                }
+                console.warn('No client ID, cannot load insights');
                 return;
             }
 
             const tbody = document.getElementById('insightsPageTableBody');
             if (!tbody) {
-                console.error('insightsPageTableBody element not found. Run window.debugInsightsPage() for details.');
+                console.error('insightsPageTableBody element not found');
                 return;
             }
-            
-            // Show loading state
-            tbody.innerHTML = '<tr><td colspan="9" class="loading">Loading insights...</td></tr>';
 
             try {
                 const params = new URLSearchParams({
@@ -9477,15 +9382,13 @@
                 });
 
                 const headers = getAuthHeadersSafe();
-                const url = `${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights?${params.toString()}`;
-                console.log('Fetching insights from:', url);
-                console.log('Request headers:', Object.keys(headers));
+                console.log('Fetching insights from:', `${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights?${params.toString()}`);
                 
-                const response = await fetch(url, {
+                const response = await fetch(`${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights?${params.toString()}`, {
                     headers: headers
                 });
 
-                console.log('Response status:', response.status, response.statusText);
+                console.log('Response status:', response.status);
 
                 if (!response.ok) {
                     if (response.status === 401) {
@@ -9497,55 +9400,24 @@
                 }
 
                 const data = await response.json();
+                console.log('Insights loaded:', data.items?.length || 0, 'items');
                 insightsAllInsights = data.items || [];
-                console.log('Insights data loaded:', {
-                    totalItems: insightsAllInsights.length,
-                    hasItems: insightsAllInsights.length > 0,
-                    firstItem: insightsAllInsights[0] || null
-                });
-                renderInsights();
+                renderInsightsPage();
             } catch (error) {
                 console.error('Error loading insights:', error);
                 const errorTbody = document.getElementById('insightsPageTableBody');
                 if (errorTbody) {
                     errorTbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>Error loading insights</h3><p>' + escapeHtml(error.message) + '</p></td></tr>';
-                } else {
-                    console.error('Could not find insightsPageTableBody to show error');
                 }
             }
         }
 
-        function renderInsights() {
-            console.log('=== RENDER INSIGHTS CALLED ===');
+        function renderInsightsPage() {
             const tbody = document.getElementById('insightsPageTableBody');
             if (!tbody) {
-                console.error('insightsPageTableBody not found in renderInsights. Run window.debugInsightsPage() for details.');
-                // Try to find it
-                const insightsSection = document.getElementById('insights-section');
-                console.log('Insights section:', insightsSection);
-                if (insightsSection) {
-                    const allTbodies = insightsSection.querySelectorAll('tbody');
-                    console.log('All tbody elements in insights section:', allTbodies.length);
-                    allTbodies.forEach((tb, i) => {
-                        console.log(`tbody ${i}: id = ${tb.id}, parent = ${tb.parentElement?.tagName}`);
-                    });
-                }
+                console.error('insightsPageTableBody not found in renderInsightsPage');
                 return;
             }
-            
-            console.log('Table body found:', {
-                id: tbody.id,
-                parent: tbody.parentElement?.tagName,
-                parentId: tbody.parentElement?.id,
-                inInsightsSection: document.getElementById('insights-section')?.contains(tbody),
-                currentInnerHTML: tbody.innerHTML.substring(0, 100)
-            });
-            
-            console.log('renderInsights called:', {
-                totalInsights: insightsAllInsights.length,
-                searchTerm: insightsSearchTerm,
-                filters: insightsFilters
-            });
             
             let filtered = [...insightsAllInsights];
             
@@ -9559,16 +9431,12 @@
                 );
             }
 
-            console.log('After filtering:', { filteredCount: filtered.length });
-
             if (filtered.length === 0) {
-                const emptyHTML = '<tr><td colspan="9" class="empty-state"><h3>No insights found</h3><p>Create your first insight to get started</p></td></tr>';
-                tbody.innerHTML = emptyHTML;
-                console.log('Rendered empty state');
+                tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>No insights found</h3><p>Create your first insight to get started</p></td></tr>';
                 return;
             }
 
-            const html = filtered.map(insight => {
+            tbody.innerHTML = filtered.map(insight => {
                 const createdDate = new Date(insight.created_at).toLocaleDateString();
                 const firstOrigin = insight.origins?.[0] || {};
                 const projectName = firstOrigin.project_name || '-';
@@ -9619,68 +9487,6 @@
                     </tr>
                 `;
             }).join('');
-            
-            console.log('Setting innerHTML, length:', html.length);
-            tbody.innerHTML = html;
-            
-            // Immediately verify it was set
-            const verifyHTML = tbody.innerHTML;
-            console.log('After setting innerHTML, length:', verifyHTML.length);
-            console.log('First 300 chars:', verifyHTML.substring(0, 300));
-            
-            // Force a reflow
-            void tbody.offsetHeight;
-            
-            // Debug: Verify table is actually in DOM
-            const renderedRows = tbody.querySelectorAll('tr');
-            console.log('Actual rows in DOM:', renderedRows.length);
-            if (renderedRows.length > 0) {
-                console.log('First row exists, checking visibility...');
-                const firstRow = renderedRows[0];
-                const rowStyle = window.getComputedStyle(firstRow);
-                console.log('First row styles:', {
-                    display: rowStyle.display,
-                    visibility: rowStyle.visibility,
-                    opacity: rowStyle.opacity,
-                    height: rowStyle.height
-                });
-            } else {
-                console.error('NO ROWS FOUND IN DOM AFTER RENDERING!');
-                console.log('tbody.innerHTML length:', tbody.innerHTML.length);
-                console.log('html variable length:', html.length);
-                console.log('html first 500 chars:', html.substring(0, 500));
-            }
-            
-            // Debug: Check table container visibility
-            const tableContainer = tbody.closest('.table-container');
-            const table = tbody.closest('table');
-            const insightsSection = document.getElementById('insights-section');
-            
-            console.log('=== ELEMENT CHAIN ===');
-            console.log('insights-section:', {
-                exists: !!insightsSection,
-                display: insightsSection ? window.getComputedStyle(insightsSection).display : 'N/A',
-                hasActive: insightsSection?.classList.contains('active'),
-                height: insightsSection?.offsetHeight
-            });
-            console.log('table-container:', {
-                exists: !!tableContainer,
-                display: tableContainer ? window.getComputedStyle(tableContainer).display : 'N/A',
-                height: tableContainer?.offsetHeight,
-                width: tableContainer?.offsetWidth
-            });
-            console.log('table:', {
-                exists: !!table,
-                display: table ? window.getComputedStyle(table).display : 'N/A',
-                height: table?.offsetHeight,
-                width: table?.offsetWidth
-            });
-            console.log('tbody:', {
-                exists: !!tbody,
-                display: tbody ? window.getComputedStyle(tbody).display : 'N/A',
-                height: tbody?.offsetHeight
-            });
-            
         }
 
         function sortBy(column) {
@@ -9706,12 +9512,12 @@
                 indicator.textContent = insightsSortOrder === 'asc' ? '↑' : '↓';
             }
             
-            loadInsights();
+            loadInsightsPage();
         }
 
         function handleSearch() {
             insightsSearchTerm = document.getElementById('searchInput').value.trim();
-            renderInsights();
+            renderInsightsPage();
         }
 
         function updateFilterChips() {
@@ -9741,7 +9547,7 @@
         function removeFilter(key) {
             delete insightsFilters[key];
             updateFilterChips();
-            loadInsights();
+            loadInsightsPage();
         }
 
         function resetFilters() {
@@ -9749,7 +9555,7 @@
             insightsSearchTerm = '';
             document.getElementById('searchInput').value = '';
             updateFilterChips();
-            renderInsights();
+            renderInsightsPage();
         }
 
         function openFilterMenu() {
@@ -9757,7 +9563,7 @@
             if (type && type.trim()) {
                 insightsFilters.type = type.trim();
                 updateFilterChips();
-                loadInsights();
+                loadInsightsPage();
             }
         }
 
@@ -9864,7 +9670,7 @@
                 }
                 
                 closeModal();
-                loadInsights();
+                loadInsightsPage();
             } catch (error) {
                 console.error('Error saving insight:', error);
                 alert('Error saving insight: ' + error.message);
@@ -9904,7 +9710,7 @@
                     headers: getAuthHeadersSafe()
                 });
                 if (!response.ok) throw new Error('Failed to delete insight');
-                loadInsights();
+                loadInsightsPage();
             } catch (error) {
                 console.error('Error deleting insight:', error);
                 alert('Error deleting insight: ' + error.message);
@@ -10140,8 +9946,8 @@
                     insightsCurrentInsightData[fieldName] = value;
                 }
                 
-                if (typeof loadInsights === 'function') {
-                    loadInsights();
+                if (typeof loadInsightsPage === 'function') {
+                    loadInsightsPage();
                 }
             } catch (error) {
                 console.error('Error saving field:', error);
@@ -11676,14 +11482,12 @@
         // Keep backward compatibility
         window.AIInsightsPanel = SlideoutPanel;
 
-        // Insights Panel Management (Slideout Panel - different from Insights Page)
-        let insightsPanelAutoFilter = true;
-        let insightsPanelCurrentFilters = {};
-        let insightsPanelAllInsights = [];
-        let insightsPanelSearchTerm = '';
-        let insightsPanelFilters = {};
-        let insightsPanelSortBy = 'name';
-        let insightsPanelSortOrder = 'asc';
+        // Insights Panel Management
+        let insightsAutoFilter = true;
+        let insightsCurrentFilters = {};
+        let allInsights = [];
+        // insightsSearchTerm, insightsFilters, and insightsSortOrder are already declared above (lines 9225, 9222, 9224)
+        let insightsSortBy = 'name';
 
         function toggleInsightsPanel() {
             const body = document.getElementById('insightsPanelBody');
@@ -11706,26 +11510,26 @@
                 badge.style.display = 'none';
             }
             
-            insightsPanelCurrentFilters = {};
-            loadInsightsPanel({});
+            insightsCurrentFilters = {};
+            loadInsights({});
         }
 
-        async function loadInsightsPanel(filters = {}) {
+        async function loadInsights(filters = {}) {
             if (!currentClientId) return;
             
-            const tbody = document.getElementById('insightsPanelBody')?.querySelector('tbody');
+            const tbody = document.getElementById('insightsTableBody');
             if (!tbody) return;
             
             try {
                 const params = new URLSearchParams({
                     page: '1',
                     page_size: '1000',
-                    sort_by: insightsPanelSortBy === 'name' ? 'name' : insightsPanelSortBy === 'created_at' ? 'created_at' : 'created_at',
-                    sort_order: insightsPanelSortOrder,
+                    sort_by: insightsSortBy === 'name' ? 'name' : insightsSortBy === 'created_at' ? 'created_at' : 'created_at',
+                    sort_order: insightsSortOrder,
                 });
                 
                 // Merge auto-filters with manual filters
-                const allFilters = { ...insightsPanelCurrentFilters, ...filters };
+                const allFilters = { ...insightsCurrentFilters, ...filters };
                 Object.entries(allFilters).forEach(([key, value]) => {
                     if (value) params.append(key, value);
                 });
@@ -11737,25 +11541,25 @@
                 if (!response.ok) throw new Error('Failed to load insights');
                 
                 const data = await response.json();
-                insightsPanelAllInsights = data.items || [];
-                renderInsightsPanel();
+                allInsights = data.items || [];
+                renderInsights();
             } catch (error) {
-                console.error('Error loading insights panel:', error);
+                console.error('Error loading insights:', error);
                 if (tbody) {
                     tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>Error loading insights</h3><p>' + escapeHtml(error.message) + '</p></td></tr>';
                 }
             }
         }
 
-        function renderInsightsPanel(insights) {
-            const tbody = document.getElementById('insightsPanelBody')?.querySelector('tbody');
+        function renderInsights(insights) {
+            const tbody = document.getElementById('insightsTableBody');
             if (!tbody) return;
 
-            let filtered = [...(insights || insightsPanelAllInsights)];
+            let filtered = [...(insights || allInsights)];
 
             // Apply search
-            if (insightsPanelSearchTerm) {
-                const term = insightsPanelSearchTerm.toLowerCase();
+            if (insightsSearchTerm) {
+                const term = insightsSearchTerm.toLowerCase();
                 filtered = filtered.filter(insight =>
                     insight.name?.toLowerCase().includes(term) ||
                     insight.type?.toLowerCase().includes(term) ||
@@ -11764,7 +11568,7 @@
             }
 
             // Apply filters
-            Object.entries(insightsPanelFilters).forEach(([key, value]) => {
+            Object.entries(insightsFilters).forEach(([key, value]) => {
                 if (value) {
                     filtered = filtered.filter(insight => {
                         if (key === 'type') return insight.type?.toLowerCase().includes(value.toLowerCase());
@@ -11776,13 +11580,13 @@
             // Apply sorting
             filtered.sort((a, b) => {
                 let aVal, bVal;
-                if (insightsPanelSortBy === 'name') {
+                if (insightsSortBy === 'name') {
                     aVal = a.name || '';
                     bVal = b.name || '';
-                } else if (insightsPanelSortBy === 'type') {
+                } else if (insightsSortBy === 'type') {
                     aVal = a.type || '';
                     bVal = b.type || '';
-                } else if (insightsPanelSortBy === 'created_at') {
+                } else if (insightsSortBy === 'created_at') {
                     aVal = new Date(a.created_at).getTime();
                     bVal = new Date(b.created_at).getTime();
                 } else {
@@ -11790,11 +11594,11 @@
                 }
 
                 if (typeof aVal === 'string') {
-                    return insightsPanelSortOrder === 'asc' 
+                    return insightsSortOrder === 'asc' 
                         ? aVal.localeCompare(bVal)
                         : bVal.localeCompare(aVal);
                 } else {
-                    return insightsPanelSortOrder === 'asc' ? aVal - bVal : bVal - aVal;
+                    return insightsSortOrder === 'asc' ? aVal - bVal : bVal - aVal;
                 }
             });
 
@@ -11856,8 +11660,8 @@
         }
 
         function handleInsightsSearch() {
-            insightsPanelSearchTerm = document.getElementById('insightsSearchInput')?.value.trim() || '';
-            renderInsightsPanel();
+            insightsSearchTerm = document.getElementById('insightsSearchInput')?.value.trim() || '';
+            renderInsights();
         }
 
         function sortInsightsBy(column) {
@@ -11872,24 +11676,24 @@
             clickedTh.classList.add('sorted');
             const indicator = clickedTh.querySelector('.sort-indicator');
 
-            if (insightsPanelSortBy === column) {
-                insightsPanelSortOrder = insightsPanelSortOrder === 'asc' ? 'desc' : 'asc';
+            if (insightsSortBy === column) {
+                insightsSortOrder = insightsSortOrder === 'asc' ? 'desc' : 'asc';
             } else {
-                insightsPanelSortBy = column;
-                insightsPanelSortOrder = 'asc';
+                insightsSortBy = column;
+                insightsSortOrder = 'asc';
             }
 
             if (indicator) {
-                indicator.textContent = insightsPanelSortOrder === 'asc' ? '↑' : '↓';
+                indicator.textContent = insightsSortOrder === 'asc' ? '↑' : '↓';
             }
 
-            renderInsightsPanel();
+            renderInsights();
         }
 
         function updateInsightsFilterChips() {
             const chipsContainer = document.getElementById('insightsFilterChips');
             const resetBtn = document.getElementById('insightsResetBtn');
-            const hasFilters = Object.keys(insightsPanelFilters).length > 0;
+            const hasFilters = Object.keys(insightsFilters).length > 0;
 
             if (resetBtn) resetBtn.style.display = hasFilters ? 'block' : 'none';
 
@@ -11900,7 +11704,7 @@
                 return;
             }
 
-            chipsContainer.innerHTML = Object.entries(insightsPanelFilters).map(([key, value]) => {
+            chipsContainer.innerHTML = Object.entries(insightsFilters).map(([key, value]) => {
                 if (!value) return '';
                 const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
                 return `
@@ -11913,26 +11717,26 @@
         }
 
         function removeInsightsFilter(key) {
-            delete insightsPanelFilters[key];
+            delete insightsFilters[key];
             updateInsightsFilterChips();
-            renderInsightsPanel();
+            renderInsights();
         }
 
         function resetInsightsFilters() {
-            insightsPanelFilters = {};
-            insightsPanelSearchTerm = '';
+            insightsFilters = {};
+            insightsSearchTerm = '';
             const searchInput = document.getElementById('insightsSearchInput');
             if (searchInput) searchInput.value = '';
             updateInsightsFilterChips();
-            renderInsightsPanel();
+            renderInsights();
         }
 
         function openInsightsFilterMenu() {
             const type = prompt('Filter by type (leave empty to cancel):');
             if (type && type.trim()) {
-                insightsPanelFilters.type = type.trim();
+                insightsFilters.type = type.trim();
                 updateInsightsFilterChips();
-                renderInsightsPanel();
+                renderInsights();
             }
         }
 
