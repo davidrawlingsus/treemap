@@ -4347,6 +4347,9 @@
         <div class="context-menu-item" data-action="create-insight" style="cursor: pointer; user-select: none;">
             Create Insight
         </div>
+        <div class="context-menu-item" data-action="exclude-category" style="display: none; cursor: pointer; user-select: none;">
+            Exclude Category
+        </div>
     </div>
 
     <!-- Create Insight Modal -->
@@ -9742,14 +9745,45 @@
         }
 
         function openCreateModal() {
-            console.log('openCreateModal called');
+            console.log('[openCreateModal] Function called');
+            console.log('[openCreateModal] Current file:', window.location.pathname);
+            console.log('[openCreateModal] SlideoutPanel available:', typeof SlideoutPanel !== 'undefined');
+            
             insightsCurrentInsightId = null;
+            
+            // Check if we should use slideout panel
+            if (typeof SlideoutPanel !== 'undefined' && SlideoutPanel.openCreateInsight) {
+                console.log('[openCreateModal] Using slideout panel method');
+                
+                const urlParams = new URLSearchParams(window.location.search);
+                const contextData = {
+                    dimension_ref: urlParams.get('dimension_ref') || null,
+                    project_name: urlParams.get('project_name') || null,
+                    data_source: urlParams.get('data_source') || null,
+                    dimension_name: urlParams.get('dimension_name') || null,
+                };
+                
+                console.log('[openCreateModal] Context data:', contextData);
+                console.log('[openCreateModal] Calling SlideoutPanel.openCreateInsight');
+                
+                SlideoutPanel.openCreateInsight(contextData);
+                return;
+            }
+            
+            // Fallback to modal (for debugging)
+            console.warn('[openCreateModal] SlideoutPanel not available, falling back to modal');
             const modal = document.getElementById('insightModal');
             const modalTitle = document.getElementById('modalTitle');
             const form = document.getElementById('insightForm');
             
+            console.log('[openCreateModal] Modal elements:', { 
+                modal: !!modal, 
+                modalTitle: !!modalTitle, 
+                form: !!form 
+            });
+            
             if (!modal || !modalTitle || !form) {
-                console.error('Modal elements not found:', { modal, modalTitle, form });
+                console.error('[openCreateModal] Modal elements not found:', { modal, modalTitle, form });
                 return;
             }
             
@@ -9764,6 +9798,7 @@
                 dimension_name: urlParams.get('dimension_name') || null,
             };
             
+            console.log('[openCreateModal] Opening modal');
             modal.classList.add('active');
         }
 
@@ -9852,26 +9887,17 @@
         }
 
         async function editInsight(insightId) {
-            if (!insightsCurrentClientId) return;
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights/${insightId}`, {
-                    headers: getAuthHeadersSafe()
-                });
-                if (!response.ok) throw new Error('Failed to load insight');
-
-                const insight = await response.json();
-                insightsCurrentInsightId = insightId;
-                document.getElementById('modalTitle').textContent = 'Edit Insight';
-                document.getElementById('insightName').value = insight.name;
-                document.getElementById('insightType').value = insight.type;
-                document.getElementById('insightApplication').value = insight.application || '';
-                document.getElementById('insightDescription').value = insight.description || '';
-                document.getElementById('insightModal').classList.add('active');
-            } catch (error) {
-                console.error('Error loading insight:', error);
-                alert('Error loading insight: ' + error.message);
+            console.log('[editInsight] Function called with insightId:', insightId);
+            console.log('[editInsight] insightsCurrentClientId:', insightsCurrentClientId);
+            
+            if (!insightsCurrentClientId) {
+                console.error('[editInsight] No client selected');
+                return;
             }
+
+            // Use the same function as opening insight notes (slideout panel)
+            console.log('[editInsight] Calling openInsightNotes');
+            openInsightNotes(insightId);
         }
 
         async function deleteInsight(insightId) {
@@ -9892,8 +9918,11 @@
         }
 
         async function openInsightNotes(insightId) {
+            console.log('[openInsightNotes] Function called with insightId:', insightId);
+            console.log('[openInsightNotes] insightsCurrentClientId:', insightsCurrentClientId);
+            
             if (!insightsCurrentClientId) {
-                console.error('No client selected');
+                console.error('[openInsightNotes] No client selected');
                 return;
             }
             
@@ -9904,11 +9933,33 @@
             const title = document.getElementById('insightNotesTitle');
             const content = document.getElementById('insightNotesContent');
             
-            if (panel) panel.classList.add('open');
-            if (overlay) overlay.classList.add('visible');
+            console.log('[openInsightNotes] UI elements:', {
+                panel: !!panel,
+                overlay: !!overlay,
+                title: !!title,
+                content: !!content
+            });
+            
+            if (panel) {
+                console.log('[openInsightNotes] Adding "open" class to panel');
+                panel.classList.add('open');
+                console.log('[openInsightNotes] Panel classes after adding open:', panel.classList.toString());
+            } else {
+                console.error('[openInsightNotes] Panel element not found!');
+            }
+            
+            if (overlay) {
+                console.log('[openInsightNotes] Adding "visible" class to overlay');
+                overlay.classList.add('visible');
+            } else {
+                console.error('[openInsightNotes] Overlay element not found!');
+            }
+            
             document.body.classList.add('slideout-open');
+            console.log('[openInsightNotes] Body classes:', document.body.classList.toString());
             
             try {
+                console.log('[openInsightNotes] Fetching insight data...');
                 const response = await fetch(`${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights/${insightId}`, {
                     headers: getAuthHeadersSafe()
                 });
@@ -9918,12 +9969,15 @@
                 }
                 
                 const insight = await response.json();
+                console.log('[openInsightNotes] Insight loaded:', insight);
                 insightsCurrentInsightData = insight;
                 
                 if (title) title.textContent = '';
+                console.log('[openInsightNotes] Calling initializeInsightPanel');
                 await initializeInsightPanel(content, insight);
+                console.log('[openInsightNotes] Panel initialization complete');
             } catch (error) {
-                console.error('Error loading insight:', error);
+                console.error('[openInsightNotes] Error loading insight:', error);
                 if (content) {
                     content.innerHTML = `<div style="padding: 24px; color: #666;">Error loading insight: ${error.message}</div>`;
                 }
@@ -10416,8 +10470,11 @@
             },
             
             async openCreateInsight(contextData) {
+                console.log('[SlideoutPanel.openCreateInsight] Called with contextData:', contextData);
+                console.log('[SlideoutPanel.openCreateInsight] currentClientId:', currentClientId);
+                
                 if (!currentClientId) {
-                    console.error('No client selected');
+                    console.error('[SlideoutPanel.openCreateInsight] No client selected');
                     return;
                 }
                 
@@ -10434,6 +10491,16 @@
                 const searchBox = document.getElementById('slideoutSearch');
                 const settingsBtn = document.getElementById('slideoutSettingsBtn');
                 
+                console.log('[SlideoutPanel.openCreateInsight] UI elements:', {
+                    panel: !!panel,
+                    overlay: !!overlay,
+                    title: !!title,
+                    subtitle: !!subtitle,
+                    content: !!content,
+                    searchBox: !!searchBox,
+                    settingsBtn: !!settingsBtn
+                });
+                
                 // Hide search and settings (only for verbatims)
                 if (searchBox) searchBox.style.display = 'none';
                 if (settingsBtn) settingsBtn.style.display = 'none';
@@ -10446,15 +10513,31 @@
                     title.setAttribute('contenteditable', 'true');
                 }
                 
-                if (panel) panel.classList.add('open');
-                if (overlay) overlay.classList.add('visible');
+                if (panel) {
+                    console.log('[SlideoutPanel.openCreateInsight] Adding "open" class to panel');
+                    panel.classList.add('open');
+                    console.log('[SlideoutPanel.openCreateInsight] Panel classes after adding open:', panel.classList.toString());
+                } else {
+                    console.error('[SlideoutPanel.openCreateInsight] Panel element not found!');
+                }
+                
+                if (overlay) {
+                    console.log('[SlideoutPanel.openCreateInsight] Adding "visible" class to overlay');
+                    overlay.classList.add('visible');
+                } else {
+                    console.error('[SlideoutPanel.openCreateInsight] Overlay element not found!');
+                }
+                
                 this.isOpen = true;
                 
                 // Prevent body scroll
                 document.body.classList.add('slideout-open');
+                console.log('[SlideoutPanel.openCreateInsight] Body classes:', document.body.classList.toString());
                 
                 // Initialize panel with empty form, pre-populated with context
+                console.log('[SlideoutPanel.openCreateInsight] Calling initializeCreateInsightPanel');
                 await this.initializeCreateInsightPanel(content, contextData);
+                console.log('[SlideoutPanel.openCreateInsight] Panel initialization complete');
             },
             
             async openInsightNotes(insightId) {
@@ -10544,7 +10627,14 @@
             },
             
             async initializeCreateInsightPanel(container, contextData) {
-                if (!container) return;
+                console.log('[initializeCreateInsightPanel] Called');
+                console.log('[initializeCreateInsightPanel] Container:', container);
+                console.log('[initializeCreateInsightPanel] ContextData:', contextData);
+                
+                if (!container) {
+                    console.error('[initializeCreateInsightPanel] Container is null or undefined!');
+                    return;
+                }
                 
                 // Build origin object from context data
                 // Map 'type' field to 'origin_type' (contextData.type is 'category' or 'topic')
@@ -12210,6 +12300,16 @@
             currentContextData = contextData;
             contextMenuJustClicked = false;
             
+            // Show/hide "Exclude Category" menu item based on context type
+            const excludeCategoryItem = contextMenu.querySelector('[data-action="exclude-category"]');
+            if (excludeCategoryItem) {
+                if (contextData && contextData.type === 'category') {
+                    excludeCategoryItem.style.display = 'block';
+                } else {
+                    excludeCategoryItem.style.display = 'none';
+                }
+            }
+            
             // Position menu at cursor
             contextMenu.style.display = 'block';
             contextMenu.style.left = `${event.clientX}px`;
@@ -12264,27 +12364,72 @@
                 console.log('Event target:', e.target);
                 console.log('Closest item:', item);
                 
-                    if (action === 'create-insight') {
-                        console.log('Create insight action triggered');
-                        if (currentContextData) {
-                            console.log('Context data exists:', currentContextData);
-                            // Save context data before hiding menu (which clears it)
-                            // Use JSON parse/stringify to ensure deep copy
-                            const savedContextData = JSON.parse(JSON.stringify(currentContextData));
-                            console.log('Saved context data:', savedContextData);
-                            // Use setTimeout to ensure click event completes
-                            setTimeout(() => {
-                                console.log('About to open slideout panel with saved data:', savedContextData);
-                                hideContextMenu();
-                                SlideoutPanel.openCreateInsight(savedContextData);
-                            }, 10);
-                        } else {
-                            console.error('No context data available when clicking create insight');
-                            alert('Error: No context data available. Please try right-clicking again.');
-                        }
+                if (action === 'create-insight') {
+                    console.log('Create insight action triggered');
+                    if (currentContextData) {
+                        console.log('Context data exists:', currentContextData);
+                        // Save context data before hiding menu (which clears it)
+                        // Use JSON parse/stringify to ensure deep copy
+                        const savedContextData = JSON.parse(JSON.stringify(currentContextData));
+                        console.log('Saved context data:', savedContextData);
+                        // Use setTimeout to ensure click event completes
+                        setTimeout(() => {
+                            console.log('About to open slideout panel with saved data:', savedContextData);
+                            hideContextMenu();
+                            SlideoutPanel.openCreateInsight(savedContextData);
+                        }, 10);
                     } else {
-                        console.warn('Unknown action:', action);
+                        console.error('No context data available when clicking create insight');
+                        alert('Error: No context data available. Please try right-clicking again.');
                     }
+                } else if (action === 'exclude-category') {
+                    console.log('Exclude category action triggered');
+                    if (currentContextData && currentContextData.type === 'category' && currentContextData.category) {
+                        const categoryName = currentContextData.category;
+                        console.log('Excluding category:', categoryName);
+                        
+                        // Find or create a category filter rule with mode 'exclude'
+                        let existingRuleIndex = filterRules.findIndex(r => r.type === 'category');
+                        
+                        if (existingRuleIndex >= 0) {
+                            // Update existing rule
+                            const existingRule = filterRules[existingRuleIndex];
+                            // If mode is 'include', we need to switch to exclude mode
+                            if (existingRule.mode === 'include') {
+                                // Switch to exclude mode and clear existing selections
+                                existingRule.mode = 'exclude';
+                                existingRule.values = new Set([categoryName]);
+                            } else {
+                                // Already in exclude mode, add the category to the set
+                                existingRule.values.add(categoryName);
+                            }
+                        } else {
+                            // Create new exclude rule
+                            filterRules.push({
+                                type: 'category',
+                                mode: 'exclude',
+                                values: new Set([categoryName])
+                            });
+                        }
+                        
+                        // Save filters for current dimension
+                        saveFiltersForDimension(currentQuestionRefKey);
+                        
+                        // Update filter UI to show the active filter
+                        updateFilterUI();
+                        
+                        // Apply filters and re-render charts
+                        applyFiltersAndRender();
+                        
+                        // Hide the context menu
+                        hideContextMenu();
+                    } else {
+                        console.error('Invalid context data for exclude category action');
+                        alert('Error: Unable to exclude category. Please try right-clicking again.');
+                    }
+                } else {
+                    console.warn('Unknown action:', action);
+                }
                 return; // Don't close menu when clicking menu item
             }
             
