@@ -6616,7 +6616,11 @@
             
             // Apply filter button
             applyFilter.onclick = () => {
-                if (currentFilterSelections.size === 0) {
+                const mode = document.querySelector('input[name="filterMode"]:checked').value;
+                
+                // For include mode, require at least one selection
+                // For exclude mode, 0 selections means "exclude nothing" (remove exclusion filter)
+                if (mode === 'include' && currentFilterSelections.size === 0) {
                     alert('Please select at least one item to filter by.');
                     return;
                 }
@@ -6627,41 +6631,58 @@
                     return;
                 }
                 
-                const mode = document.querySelector('input[name="filterMode"]:checked').value;
-                
-                // Add or update filter rule for this type
-                if (currentFilterType === 'metadata' && currentMetadataField) {
-                    // For metadata filters, check by metadataField
-                    const existingRuleIndex = filterRules.findIndex(r => 
-                        r.type === 'metadata' && r.metadataField === currentMetadataField
-                    );
-                    if (existingRuleIndex >= 0) {
-                        // Update existing rule
-                        filterRules[existingRuleIndex].mode = mode;
-                        filterRules[existingRuleIndex].values = new Set(currentFilterSelections);
+                // If in exclude mode with 0 selections, remove the filter rule entirely
+                if (mode === 'exclude' && currentFilterSelections.size === 0) {
+                    if (currentFilterType === 'metadata' && currentMetadataField) {
+                        // Remove metadata filter rule
+                        const existingRuleIndex = filterRules.findIndex(r => 
+                            r.type === 'metadata' && r.metadataField === currentMetadataField
+                        );
+                        if (existingRuleIndex >= 0) {
+                            filterRules.splice(existingRuleIndex, 1);
+                        }
                     } else {
-                        // Add new rule
-                        filterRules.push({
-                            type: 'metadata',
-                            mode: mode,
-                            values: new Set(currentFilterSelections),
-                            metadataField: currentMetadataField
-                        });
+                        // Remove filter rule for this type
+                        const existingRuleIndex = filterRules.findIndex(r => r.type === currentFilterType);
+                        if (existingRuleIndex >= 0) {
+                            filterRules.splice(existingRuleIndex, 1);
+                        }
                     }
                 } else {
-                    // For other filter types (category, topic, sentiment)
-                    const existingRuleIndex = filterRules.findIndex(r => r.type === currentFilterType);
-                    if (existingRuleIndex >= 0) {
-                        // Update existing rule
-                        filterRules[existingRuleIndex].mode = mode;
-                        filterRules[existingRuleIndex].values = new Set(currentFilterSelections);
+                    // Add or update filter rule for this type
+                    if (currentFilterType === 'metadata' && currentMetadataField) {
+                        // For metadata filters, check by metadataField
+                        const existingRuleIndex = filterRules.findIndex(r => 
+                            r.type === 'metadata' && r.metadataField === currentMetadataField
+                        );
+                        if (existingRuleIndex >= 0) {
+                            // Update existing rule
+                            filterRules[existingRuleIndex].mode = mode;
+                            filterRules[existingRuleIndex].values = new Set(currentFilterSelections);
+                        } else {
+                            // Add new rule
+                            filterRules.push({
+                                type: 'metadata',
+                                mode: mode,
+                                values: new Set(currentFilterSelections),
+                                metadataField: currentMetadataField
+                            });
+                        }
                     } else {
-                        // Add new rule
-                        filterRules.push({
-                            type: currentFilterType,
-                            mode: mode,
-                            values: new Set(currentFilterSelections)
-                        });
+                        // For other filter types (category, topic, sentiment)
+                        const existingRuleIndex = filterRules.findIndex(r => r.type === currentFilterType);
+                        if (existingRuleIndex >= 0) {
+                            // Update existing rule
+                            filterRules[existingRuleIndex].mode = mode;
+                            filterRules[existingRuleIndex].values = new Set(currentFilterSelections);
+                        } else {
+                            // Add new rule
+                            filterRules.push({
+                                type: currentFilterType,
+                                mode: mode,
+                                values: new Set(currentFilterSelections)
+                            });
+                        }
                     }
                 }
                 
@@ -6710,6 +6731,10 @@
         }
         
         function showFilterSelectionView() {
+            console.log('=== showFilterSelectionView() called ===');
+            console.log('currentFilterType:', currentFilterType);
+            console.log('currentMetadataField:', currentMetadataField);
+            
             document.getElementById('filterTypeView').style.display = 'none';
             document.getElementById('metadataFieldView').style.display = 'none';
             document.getElementById('filterSelectionView').style.display = 'block';
@@ -6756,10 +6781,23 @@
             }
             
             if (existingRule) {
+                console.log('Found existing rule:', {
+                    type: existingRule.type,
+                    mode: existingRule.mode,
+                    values: Array.from(existingRule.values)
+                });
                 currentFilterSelections = new Set(existingRule.values);
+                console.log('Set currentFilterSelections to:', Array.from(currentFilterSelections));
                 // Set the mode radio button
-                document.querySelector(`input[name="filterMode"][value="${existingRule.mode}"]`).checked = true;
+                const modeInput = document.querySelector(`input[name="filterMode"][value="${existingRule.mode}"]`);
+                if (modeInput) {
+                    modeInput.checked = true;
+                    console.log('Set mode radio to:', existingRule.mode);
+                } else {
+                    console.warn('Mode radio input not found for value:', existingRule.mode);
+                }
             } else {
+                console.log('No existing rule found for type:', currentFilterType);
                 currentFilterSelections.clear();
                 document.querySelector('input[name="filterMode"][value="include"]').checked = true;
                 // When mode is "include" and no existing rule, select all items by default
@@ -6767,6 +6805,7 @@
                 if (mode === 'include') {
                     const items = getAvailableItemsForType(currentFilterType);
                     currentFilterSelections = new Set(items);
+                    console.log('Set currentFilterSelections to all items:', Array.from(currentFilterSelections));
                 }
             }
             
@@ -6791,19 +6830,36 @@
                 });
             });
             
+            console.log('About to populate filter selection list with currentFilterSelections:', Array.from(currentFilterSelections));
             populateFilterSelectionList();
             updateFilterSelectionSearchClearButton();
+            console.log('=== showFilterSelectionView() completed ===');
         }
         
         function getAvailableItemsForType(type) {
-            if (type === 'category') return availableCategories;
-            if (type === 'topic') return availableTopics;
-            if (type === 'sentiment') return availableMetadataFields['sentiment'] || [];
-            if (type === 'location') return availableLocations; // Kept for backwards compatibility
-            if (type === 'metadata' && currentMetadataField) {
-                return availableMetadataFields[currentMetadataField] || [];
+            console.log('getAvailableItemsForType called with type:', type);
+            let items;
+            if (type === 'category') {
+                items = availableCategories;
+                console.log('availableCategories:', items);
+            } else if (type === 'topic') {
+                items = availableTopics;
+                console.log('availableTopics:', items);
+            } else if (type === 'sentiment') {
+                items = availableMetadataFields['sentiment'] || [];
+                console.log('availableSentiment:', items);
+            } else if (type === 'location') {
+                items = availableLocations; // Kept for backwards compatibility
+                console.log('availableLocations:', items);
+            } else if (type === 'metadata' && currentMetadataField) {
+                items = availableMetadataFields[currentMetadataField] || [];
+                console.log('availableMetadata for', currentMetadataField, ':', items);
+            } else {
+                items = [];
+                console.log('No items found for type:', type);
             }
-            return [];
+            console.log('Returning items:', items);
+            return items;
         }
         
         function populateMetadataFieldList() {
@@ -6868,21 +6924,36 @@
         }
         
         function populateFilterSelectionList() {
+            console.log('=== populateFilterSelectionList() called ===');
+            console.log('currentFilterType:', currentFilterType);
+            console.log('currentFilterSelections:', Array.from(currentFilterSelections || []));
+            
             const filterList = document.getElementById('filterSelectionList');
+            if (!filterList) {
+                console.error('filterSelectionList element not found!');
+                return;
+            }
             filterList.innerHTML = '';
             
             const items = getVisibleFilterItems();
+            console.log('Visible items:', items);
+            console.log('Number of visible items:', items.length);
             
             if (items.length === 0) {
                 const message = currentFilterSearchTerm && currentFilterSearchTerm.trim().length > 0
                     ? 'No items match your search'
                     : 'No items found';
                 filterList.innerHTML = `<div style="padding: 12px; color: #999; text-align: center;">${message}</div>`;
+                console.log('No items to display');
                 return;
             }
             
+            let checkedCount = 0;
             items.forEach(item => {
                 const isChecked = currentFilterSelections.has(item);
+                if (isChecked) checkedCount++;
+                
+                console.log(`Item: "${item}", isChecked: ${isChecked}`);
                 
                 const label = document.createElement('label');
                 label.style.cssText = 'display: flex; align-items: center; padding: 8px 12px; cursor: pointer; border-radius: 4px; transition: background 0.2s;';
@@ -6909,9 +6980,19 @@
                 label.appendChild(text);
                 filterList.appendChild(label);
             });
+            console.log(`Total items: ${items.length}, Checked items: ${checkedCount}`);
+            console.log('=== populateFilterSelectionList() completed ===');
         }
         
         function updateFilterUI() {
+            console.log('=== updateFilterUI() called ===');
+            console.log('Current filterRules:', JSON.parse(JSON.stringify(filterRules.map(r => ({
+                type: r.type,
+                mode: r.mode,
+                values: Array.from(r.values)
+            })))));
+            console.log('filterRules.length:', filterRules.length);
+            
             // Update active filters list
             const activeFiltersList = document.getElementById('activeFiltersList');
             activeFiltersList.innerHTML = '';
@@ -6985,14 +7066,28 @@
                 });
             }
             
-            // Update badge
+            // Update badge - show total count of items across all filter rules
             const badge = document.getElementById('filterBadge');
+            console.log('Badge element:', badge);
             if (filterRules.length === 0) {
-                badge.style.display = 'none';
+                if (badge) {
+                    badge.style.display = 'none';
+                    console.log('Badge hidden (no filters)');
+                }
             } else {
-                badge.style.display = 'flex';
-                badge.textContent = filterRules.length;
+                if (badge) {
+                    // Calculate total number of items across all filter rules
+                    const totalItems = filterRules.reduce((sum, rule) => sum + rule.values.size, 0);
+                    badge.style.display = 'flex';
+                    badge.textContent = totalItems;
+                    console.log('Badge updated to:', totalItems, 'Badge textContent:', badge.textContent, 'filterRules.length:', filterRules.length);
+                    // Force a reflow to ensure the DOM updates
+                    void badge.offsetWidth;
+                } else {
+                    console.error('Badge element not found!');
+                }
             }
+            console.log('=== updateFilterUI() completed ===');
         }
 
         // Process raw data into hierarchy
@@ -12383,28 +12478,48 @@
                         alert('Error: No context data available. Please try right-clicking again.');
                     }
                 } else if (action === 'exclude-category') {
-                    console.log('Exclude category action triggered');
+                    console.log('=== EXCLUDE CATEGORY ACTION ===');
+                    console.log('Current context data:', currentContextData);
                     if (currentContextData && currentContextData.type === 'category' && currentContextData.category) {
                         const categoryName = currentContextData.category;
                         console.log('Excluding category:', categoryName);
+                        console.log('Current filterRules before update:', JSON.parse(JSON.stringify(filterRules.map(r => ({
+                            type: r.type,
+                            mode: r.mode,
+                            values: Array.from(r.values)
+                        })))));
                         
                         // Find or create a category filter rule with mode 'exclude'
                         let existingRuleIndex = filterRules.findIndex(r => r.type === 'category');
+                        console.log('Existing category rule index:', existingRuleIndex);
                         
                         if (existingRuleIndex >= 0) {
                             // Update existing rule
                             const existingRule = filterRules[existingRuleIndex];
+                            console.log('Existing rule before update:', {
+                                type: existingRule.type,
+                                mode: existingRule.mode,
+                                values: Array.from(existingRule.values)
+                            });
                             // If mode is 'include', we need to switch to exclude mode
                             if (existingRule.mode === 'include') {
                                 // Switch to exclude mode and clear existing selections
+                                console.log('Switching from include to exclude mode');
                                 existingRule.mode = 'exclude';
                                 existingRule.values = new Set([categoryName]);
                             } else {
                                 // Already in exclude mode, add the category to the set
+                                console.log('Adding category to existing exclude rule');
                                 existingRule.values.add(categoryName);
                             }
+                            console.log('Existing rule after update:', {
+                                type: existingRule.type,
+                                mode: existingRule.mode,
+                                values: Array.from(existingRule.values)
+                            });
                         } else {
                             // Create new exclude rule
+                            console.log('Creating new exclude rule');
                             filterRules.push({
                                 type: 'category',
                                 mode: 'exclude',
@@ -12412,19 +12527,74 @@
                             });
                         }
                         
+                        console.log('FilterRules after update:', JSON.parse(JSON.stringify(filterRules.map(r => ({
+                            type: r.type,
+                            mode: r.mode,
+                            values: Array.from(r.values)
+                        })))));
+                        console.log('Category rule values after update:', Array.from(filterRules.find(r => r.type === 'category')?.values || []));
+                        console.log('availableCategories:', availableCategories);
+                        
                         // Save filters for current dimension
                         saveFiltersForDimension(currentQuestionRefKey);
+                        console.log('Saved filters for dimension:', currentQuestionRefKey);
                         
-                        // Update filter UI to show the active filter
+                        // Check filter dropdown state before updating
+                        const filterDropdown = document.getElementById('filterDropdown');
+                        const filterSelectionView = document.getElementById('filterSelectionView');
+                        const filterTypeView = document.getElementById('filterTypeView');
+                        const isDropdownVisible = filterDropdown && window.getComputedStyle(filterDropdown).display !== 'none';
+                        const isSelectionViewVisible = filterSelectionView && window.getComputedStyle(filterSelectionView).display !== 'none';
+                        const isTypeViewVisible = filterTypeView && window.getComputedStyle(filterTypeView).display !== 'none';
+                        
+                        console.log('Filter dropdown state:', {
+                            filterDropdownExists: !!filterDropdown,
+                            isDropdownVisible: isDropdownVisible,
+                            filterSelectionViewExists: !!filterSelectionView,
+                            isSelectionViewVisible: isSelectionViewVisible,
+                            filterTypeViewExists: !!filterTypeView,
+                            isTypeViewVisible: isTypeViewVisible,
+                            currentFilterType: currentFilterType,
+                            currentFilterSelections: Array.from(currentFilterSelections || [])
+                        });
+                        
+                        // Update filter UI to show the active filter (this updates the badge)
                         updateFilterUI();
+                        console.log('Called updateFilterUI()');
+                        
+                        // If filter dropdown is open and showing category filter selection view, refresh it
+                        if (isDropdownVisible && isSelectionViewVisible) {
+                            if (currentFilterType === 'category') {
+                                console.log('Filter dropdown is open showing category filter - refreshing view');
+                                // Refresh the filter selection view to show the newly added category as checked
+                                showFilterSelectionView();
+                                console.log('Called showFilterSelectionView()');
+                            } else {
+                                console.log('Filter dropdown is open but showing different filter type:', currentFilterType);
+                                console.log('Setting currentFilterType to category and refreshing view');
+                                // Set currentFilterType to category and refresh the view
+                                currentFilterType = 'category';
+                                showFilterSelectionView();
+                                console.log('Called showFilterSelectionView() with category type');
+                            }
+                        } else if (isDropdownVisible && isTypeViewVisible) {
+                            console.log('Filter dropdown is open but showing type view - just updating active filters list');
+                            // If showing type view, updateFilterUI already refreshed the active filters list
+                        } else {
+                            console.log('Filter dropdown is not open or not showing selection view');
+                            console.log('isDropdownVisible:', isDropdownVisible, 'isSelectionViewVisible:', isSelectionViewVisible);
+                        }
                         
                         // Apply filters and re-render charts
+                        console.log('Applying filters and re-rendering...');
                         applyFiltersAndRender();
+                        console.log('Filters applied and charts re-rendered');
                         
                         // Hide the context menu
                         hideContextMenu();
+                        console.log('Context menu hidden');
                     } else {
-                        console.error('Invalid context data for exclude category action');
+                        console.error('Invalid context data for exclude category action:', currentContextData);
                         alert('Error: Unable to exclude category. Please try right-clicking again.');
                     }
                 } else {
