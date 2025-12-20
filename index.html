@@ -537,6 +537,58 @@
             opacity: 0.7;
         }
 
+        .treemap-search-container {
+            position: relative;
+            padding: 12px 24px;
+            border-bottom: 1px solid #E6EBF3;
+        }
+
+        .treemap-container.collapsed .treemap-search-container {
+            display: none;
+        }
+
+        .treemap-search-input {
+            width: 100%;
+            padding: 10px 40px 10px 14px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: 'Lato', sans-serif;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .treemap-search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .treemap-search-clear {
+            position: absolute;
+            right: 34px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            display: none;
+            color: #999;
+            font-size: 18px;
+            line-height: 1;
+            width: 24px;
+            height: 24px;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        .treemap-search-clear:hover {
+            background-color: #f0f0f0;
+            color: #667eea;
+        }
+
         .treemap-svg-container {
             flex: 1;
             position: relative;
@@ -1196,7 +1248,8 @@
             word-break: break-word;
             break-inside: avoid;
             page-break-inside: avoid;
-            margin-bottom: 20px;
+            margin-top: 10px;
+            margin-bottom: 10px;
         }
 
         .verbatim-card:hover {
@@ -3733,7 +3786,7 @@
         .ai-insights-content {
             flex: 1;
             overflow-y: auto;
-            padding: 0;
+            padding: 0 10px;
         }
 
         .insight-attribute-row {
@@ -4037,6 +4090,21 @@
                         </button>
                     </div>
                     <p class="treemap-subtitle">Hierarchical view of conversation categories and topics</p>
+                </div>
+                <div class="treemap-search-container">
+                    <input
+                        type="text"
+                        id="treemapSearch"
+                        class="treemap-search-input"
+                        placeholder="Search verbatims by keyword..."
+                    />
+                    <button
+                        id="treemapSearchClear"
+                        class="treemap-search-clear"
+                        onclick="clearTreemapSearch()"
+                        title="Clear search"
+                        style="display: none;"
+                    >&times;</button>
                 </div>
                 <div class="treemap-svg-container">
                     <div class="loading" id="loading">Loading data...</div>
@@ -7028,6 +7096,22 @@
             return allVerbatims;
         }
 
+        // Helper function to collect all verbatims from the entire dimension
+        function collectAllDimensionVerbatims() {
+            if (!hierarchyData || !hierarchyData.children) return [];
+            const allVerbatims = [];
+            hierarchyData.children.forEach(category => {
+                if (category && category.children && Array.isArray(category.children)) {
+                    category.children.forEach(topic => {
+                        if (topic && topic.verbatims && Array.isArray(topic.verbatims)) {
+                            allVerbatims.push(...topic.verbatims);
+                        }
+                    });
+                }
+            });
+            return allVerbatims;
+        }
+
         // Helper function to find a category in hierarchyData by name
         function findCategoryInHierarchy(categoryName) {
             if (!hierarchyData || !hierarchyData.children) return null;
@@ -7556,6 +7640,70 @@
             }
         }
 
+        // Treemap search functionality
+        function handleTreemapSearch() {
+            const searchInput = document.getElementById('treemapSearch');
+            const clearBtn = document.getElementById('treemapSearchClear');
+            
+            if (!searchInput) return;
+            
+            const searchTerm = searchInput.value.trim();
+            
+            // Show/hide clear button
+            if (clearBtn) {
+                clearBtn.style.display = searchTerm ? 'flex' : 'none';
+            }
+            
+            // If search is empty, don't do anything (user can continue viewing treemap)
+            if (!searchTerm) {
+                return;
+            }
+            
+            // Collect all verbatims from the dimension
+            const allVerbatims = collectAllDimensionVerbatims();
+            
+            if (allVerbatims.length === 0) {
+                return;
+            }
+            
+            // Filter verbatims based on search (multi-word: all words must match)
+            const searchWords = searchTerm.toLowerCase().split(/\s+/).filter(word => word.length > 0);
+            const filteredVerbatims = allVerbatims.filter(v => {
+                const verbatimText = (v.text || '').toLowerCase();
+                // Check if all search words appear in the verbatim text
+                return searchWords.every(word => verbatimText.includes(word));
+            });
+            
+            // Display filtered verbatims
+            if (filteredVerbatims.length > 0) {
+                showVerbatims(filteredVerbatims, `Search: "${searchTerm}"`, 'All Categories');
+            } else {
+                // Show empty state in verbatims panel
+                showVerbatims([], `Search: "${searchTerm}"`, 'All Categories');
+            }
+        }
+        
+        function clearTreemapSearch() {
+            const searchInput = document.getElementById('treemapSearch');
+            const clearBtn = document.getElementById('treemapSearchClear');
+            
+            if (searchInput) {
+                searchInput.value = '';
+                if (clearBtn) {
+                    clearBtn.style.display = 'none';
+                }
+            }
+            
+            // Close verbatims panel if it was opened by search
+            if (window.SlideoutPanel && window.SlideoutPanel.isOpen) {
+                // Only close if the current view is from search
+                const currentTitle = document.getElementById('slideoutTitle');
+                if (currentTitle && currentTitle.textContent.includes('Search:')) {
+                    window.SlideoutPanel.close();
+                }
+            }
+        }
+
         // Toggle chart visibility
         function toggleChart(button) {
             const chart = button.closest('.chart');
@@ -7995,6 +8143,27 @@
                     favouritesSearchTerm = e.target.value;
                     renderFavourites();
                     updateFavouritesSearchClearButton();
+                });
+            }
+            
+            // Setup treemap search input event listener
+            const treemapSearchInput = document.getElementById('treemapSearch');
+            if (treemapSearchInput) {
+                // Use debounce to avoid too many searches while typing
+                let treemapSearchTimeout;
+                treemapSearchInput.addEventListener('input', (e) => {
+                    clearTimeout(treemapSearchTimeout);
+                    treemapSearchTimeout = setTimeout(() => {
+                        handleTreemapSearch();
+                    }, 300); // Wait 300ms after user stops typing
+                });
+                
+                // Also handle Enter key for immediate search
+                treemapSearchInput.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        clearTimeout(treemapSearchTimeout);
+                        handleTreemapSearch();
+                    }
                 });
             }
             

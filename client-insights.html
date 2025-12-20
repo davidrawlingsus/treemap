@@ -318,6 +318,17 @@
             vertical-align: middle;
         }
 
+        .notion-table td a {
+            color: inherit;
+            text-decoration: underline;
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        .notion-table td a:hover {
+            opacity: 0.8;
+        }
+
         .notion-table .checkbox-cell {
             width: 32px;
             padding: 8px;
@@ -1119,6 +1130,43 @@
                 const dataSource = firstOrigin.data_source || '-';
                 const dimension = firstOrigin.dimension_name || firstOrigin.dimension_ref || '-';
                 
+                // Build URL for dimension link
+                let dimensionLink = '';
+                if (dimension !== '-' && firstOrigin.dimension_ref) {
+                    const urlParams = new URLSearchParams();
+                    urlParams.set('client_uuid', currentClientId);
+                    const authToken = localStorage.getItem('visualizd_auth_token');
+                    if (authToken) {
+                        urlParams.set('auth_token', authToken);
+                    }
+                    if (firstOrigin.project_name) {
+                        urlParams.set('project', firstOrigin.project_name);
+                    }
+                    if (firstOrigin.data_source) {
+                        urlParams.set('source', firstOrigin.data_source);
+                    }
+                    urlParams.set('dimension', firstOrigin.dimension_ref);
+                    if (firstOrigin.category) {
+                        urlParams.set('category', firstOrigin.category);
+                    }
+                    if (firstOrigin.topic_label) {
+                        urlParams.set('topic_label', firstOrigin.topic_label);
+                    }
+                    dimensionLink = `/?${urlParams.toString()}`;
+                }
+                
+                // Debug logging for dimension link generation
+                if (dimension !== '-') {
+                    console.log('Dimension link debug:', {
+                        dimension,
+                        hasDimensionRef: !!firstOrigin.dimension_ref,
+                        dimensionRef: firstOrigin.dimension_ref,
+                        currentClientId,
+                        dimensionLink,
+                        firstOrigin
+                    });
+                }
+                
                 return `
                     <tr>
                         <td class="checkbox-cell">
@@ -1154,7 +1202,7 @@
                         <td>
                             ${dataSource !== '-' ? `<span class="tag tag-data-source">${escapeHtml(dataSource)}</span>` : '-'}
                         </td>
-                        <td>${escapeHtml(dimension)}</td>
+                        <td>${dimensionLink ? `<a href="${dimensionLink}">${escapeHtml(dimension)}</a>` : escapeHtml(dimension)}</td>
                         <td>${createdDate}</td>
                         <td class="actions-cell">
                             <button class="action-btn" onclick="editInsight('${insight.id}')" title="Edit">✏️</button>
