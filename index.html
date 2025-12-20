@@ -4138,25 +4138,6 @@
                     <div class="chart__footer" id="barChartFooter">Frequency (n=<span id="totalCount">0</span>)</div>
                 </div>
 
-                <!-- Favourite Verbatims Section -->
-                <div class="favourites-section">
-                    <h2>Favourite Verbatims</h2>
-                    <div class="favourites-search-container">
-                        <input
-                            type="text"
-                            id="favouritesSearch"
-                            class="favourites-search-input"
-                            placeholder="Search favourites..."
-                        />
-                        <button
-                            id="favouritesSearchClear"
-                            class="favourites-search-clear"
-                            onclick="clearFavouritesSearch()"
-                            title="Clear search"
-                        >&times;</button>
-                    </div>
-                    <div id="favouritesContainer" class="favourites-container"></div>
-                </div>
             </div>
 
             <div class="chart" role="figure" aria-label="All Topics">
@@ -5023,7 +5004,6 @@
                         // After clients are loaded, load the specific client's data
                         return loadClientProjects(clientId, restoreState);
                     }).then(() => {
-                        renderFavourites();
                         updateNavLinks(); // Update nav links after client loads
                     }).catch((error) => {
                         console.error('Error loading clients or projects:', error);
@@ -5032,7 +5012,6 @@
                 } else {
                     // Dropdown already populated, just load the client's data
                     loadClientProjects(clientId, restoreState).then(() => {
-                        renderFavourites();
                         updateNavLinks(); // Update nav links after client loads
                     });
                 }
@@ -5307,7 +5286,6 @@
                     saveState();
                     updateAddDataButton(); // Update Add button with new client
                     await loadClientProjects(currentClientId);
-                    renderFavourites(); // Re-render favourites for new client
                 };
                 // Remove any existing listener
                 select.removeEventListener('change', handleClientChange);
@@ -5451,7 +5429,6 @@
             saveState();
             updateNavLinks(); // Update nav links after project changes
             await loadClientSources(currentClientId);
-            renderFavourites(); // Re-render favourites for new project
         }
         
         // Load sources for a specific client
@@ -6129,9 +6106,6 @@
                 
                 // Setup advanced filter UI
                 setupFilterUI();
-                
-                // Initialize favourites section
-                renderFavourites();
             } catch (error) {
                 document.getElementById('loading').innerHTML = 
                     '<div class="error">Error initializing: ' + error.message + '</div>';
@@ -7603,13 +7577,6 @@
                     </div>
                 ` : '';
                 
-                // Check if this verbatim is a favourite
-                const isFav = isFavourite(v);
-                const favouriteClass = isFav ? 'active' : '';
-                const favouriteIcon = isFav 
-                    ? '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'
-                    : '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="none" stroke="currentColor" stroke-width="2"/>';
-                
                 // Store verbatim data in a data attribute for the onclick handler
                 // Use base64 encoding with Unicode-safe encoding
                 const verbatimJson = JSON.stringify(v);
@@ -7618,9 +7585,9 @@
                 card.innerHTML = `
                     <div class="verbatim-card-header">
                         <div class="verbatim-text" style="flex: 1; margin-bottom: 0; padding-right: 8px;">${escapedText}</div>
-                        <button class="favourite-button ${favouriteClass}" data-verbatim="${verbatimData}" onclick="handleFavouriteClick(this)" title="${isFav ? 'Remove from favourites' : 'Add to favourites'}">
-                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                ${favouriteIcon}
+                        <button class="create-insight-button" data-verbatim="${verbatimData}" onclick="createInsightFromVerbatim(this)" title="Create insight from this verbatim" style="background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; margin-right: 4px; color: oklch(0.556 0 0); transition: all 0.2s ease;" onmouseover="this.style.color='#B9F040'" onmouseout="this.style.color='oklch(0.556 0 0)'">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 5v14M5 12h14"/>
                             </svg>
                         </button>
                     </div>
@@ -7721,27 +7688,6 @@
             }
         }
 
-        function clearFavouritesSearch() {
-            const searchInput = document.getElementById('favouritesSearch');
-            if (searchInput) {
-                searchInput.value = '';
-                favouritesSearchTerm = '';
-                renderFavourites();
-                updateFavouritesSearchClearButton();
-            }
-        }
-
-        function updateFavouritesSearchClearButton() {
-            const searchInput = document.getElementById('favouritesSearch');
-            const clearButton = document.getElementById('favouritesSearchClear');
-            if (searchInput && clearButton) {
-                if (searchInput.value.trim() !== '') {
-                    clearButton.classList.add('active');
-                } else {
-                    clearButton.classList.remove('active');
-                }
-            }
-        }
 
         // Treemap search functionality
         function handleTreemapSearch() {
@@ -7876,75 +7822,56 @@
             localStorage.setItem(storageKey, JSON.stringify(favourites));
         }
 
-        function isFavourite(verbatim) {
-            const favourites = getFavourites();
-            const key = getFavouriteKey(verbatim);
-            return favourites.some(fav => fav.key === key);
-        }
 
-        function handleFavouriteClick(button) {
+        function createInsightFromVerbatim(button) {
             const verbatimData = button.getAttribute('data-verbatim');
-            if (!verbatimData) return;
-            
+            if (!verbatimData) {
+                console.error('No verbatim data found');
+                return;
+            }
+
+            if (!currentClientId) {
+                alert('No client selected');
+                return;
+            }
+
             try {
                 // Decode base64 encoded JSON with Unicode-safe decoding
                 const verbatimJson = decodeURIComponent(escape(atob(verbatimData)));
                 const verbatim = JSON.parse(verbatimJson);
-                toggleFavourite(verbatim);
+
+                // Extract category and topic from verbatim
+                const category = verbatim.category || null;
+                const topic = verbatim.topic || null;
+
+                // Determine type: use 'topic' if both category and topic exist, 'category' if only category
+                const type = (category && topic) ? 'topic' : (category ? 'category' : 'category');
+
+                // Build context data similar to right-click context menu
+                const contextData = {
+                    type: type,
+                    category: category,
+                    topic_label: topic,
+                    project_name: currentProjectName || null,
+                    data_source: currentDataSourceId || null,
+                    dimension_ref: currentQuestionRefKey || null,
+                    dimension_name: currentQuestionRefKey ? getDimensionDisplayName(currentQuestionRefKey) : null,
+                };
+
+                // Store the verbatim to pre-pin in the insight creation panel
+                if (window.SlideoutPanel) {
+                    window.SlideoutPanel.prePinnedVerbatim = verbatim;
+                    window.SlideoutPanel.openCreateInsight(contextData);
+                } else {
+                    console.error('SlideoutPanel not available');
+                    alert('Error: Unable to open insight creation panel');
+                }
             } catch (e) {
                 console.error('Error parsing verbatim data:', e);
+                alert('Error: Failed to create insight from verbatim');
             }
         }
 
-        function toggleFavourite(verbatim) {
-            const favourites = getFavourites();
-            const key = getFavouriteKey(verbatim);
-            const index = favourites.findIndex(fav => fav.key === key);
-            
-            if (index >= 0) {
-                // Remove from favourites
-                favourites.splice(index, 1);
-            } else {
-                // Add to favourites - include category and topic from current context
-                // If verbatim already has category/topic (from favorites section), preserve them
-                // Otherwise use current context
-                const category = verbatim.category || currentCategoryName || null;
-                const topic = verbatim.topic || currentTopicName || null;
-                
-                favourites.push({
-                    key: key,
-                    verbatim: {
-                        text: verbatim.text,
-                        sentiment: verbatim.sentiment,
-                        index: verbatim.index,
-                        country: verbatim.country,
-                        city: verbatim.city,
-                        date: verbatim.date,
-                        source_type: verbatim.source_type,
-                        category: category,
-                        topic: topic
-                    }
-                });
-            }
-            
-            saveFavourites(favourites);
-            renderFavourites();
-            
-            // Re-render verbatims if they're currently displayed to update favorite buttons
-            // Check both old overlay and new slideout panel
-            if (currentVerbatimsData) {
-                renderVerbatims(currentVerbatimsData, currentTopicName, currentCategoryName);
-            }
-            
-            // Also re-render slideout panel if it's showing verbatims
-            if (window.SlideoutPanel && window.SlideoutPanel.currentMode === 'verbatims' && window.SlideoutPanel.currentVerbatimsData) {
-                window.SlideoutPanel.renderVerbatims(
-                    window.SlideoutPanel.currentVerbatimsData,
-                    window.SlideoutPanel.currentTopicName,
-                    window.SlideoutPanel.currentCategoryName
-                );
-            }
-        }
 
         // Handle breadcrumb category click - show all verbatims from category
         function handleBreadcrumbCategoryClick(categoryName) {
@@ -7968,179 +7895,6 @@
             }
         }
 
-        // Render favourites section
-        function renderFavourites() {
-            const container = document.getElementById('favouritesContainer');
-            if (!container) return;
-            
-            const favourites = getFavourites();
-            
-            // Filter favourites based on search term
-            const searchTerm = favouritesSearchTerm.toLowerCase().trim();
-            const filteredFavourites = searchTerm === '' 
-                ? favourites 
-                : favourites.filter(fav => {
-                    const v = fav.verbatim;
-                    const text = (v.text || '').toLowerCase();
-                    const city = (v.city || '').toLowerCase();
-                    const country = (v.country || '').toLowerCase();
-                    const sentiment = (v.sentiment || '').toLowerCase();
-                    const index = String(v.index || '').toLowerCase();
-                    const category = (v.category || '').toLowerCase();
-                    const topic = (v.topic || '').toLowerCase();
-                    
-                    return text.includes(searchTerm) || 
-                           city.includes(searchTerm) || 
-                           country.includes(searchTerm) || 
-                           sentiment.includes(searchTerm) ||
-                           index.includes(searchTerm) ||
-                           category.includes(searchTerm) ||
-                           topic.includes(searchTerm);
-                });
-            
-            if (favourites.length === 0) {
-                const skeletonCards = Array.from({ length: 6 }).map(() => `
-                    <div class="skeleton-card">
-                        <div class="skeleton-line"></div>
-                        <div class="skeleton-line"></div>
-                        <div class="skeleton-line"></div>
-                    </div>
-                `).join('');
-
-                container.innerHTML = `
-                    <div class="favourites-empty">
-                        <div class="favourites-empty-grid">
-                            ${skeletonCards}
-                        </div>
-                    </div>
-                `;
-                return;
-            }
-            
-            // Show message if search returns no results
-            if (filteredFavourites.length === 0 && searchTerm !== '') {
-                container.innerHTML = '<div style="padding: 40px; text-align: center; color: #999; font-size: 14px;">No favourites match your search</div>';
-                return;
-            }
-            
-            // Render favourite verbatims
-            container.innerHTML = '';
-            const settings = loadMetadataSettings();
-            
-            filteredFavourites.forEach(fav => {
-                const v = fav.verbatim;
-                const card = document.createElement('div');
-                card.className = 'verbatim-card';
-                
-                const sentimentClass = v.sentiment ? `sentiment-${v.sentiment}` : 'sentiment-neutral';
-                const escapedText = escapeHtml(v.text || 'No text available');
-                const escapedCity = v.city ? escapeHtml(v.city) : '';
-                const escapedCountry = v.country ? escapeHtml(v.country) : '';
-                
-                // Build breadcrumb HTML if category and topic are available
-                let breadcrumbHTML = '';
-                if (v.category && v.topic) {
-                    const escapedCategory = escapeHtml(v.category);
-                    const escapedTopic = escapeHtml(v.topic);
-                    breadcrumbHTML = `
-                        <div class="verbatim-breadcrumb" style="margin-top: 16px; margin-bottom: 12px; font-size: 13px; color: #666;">
-                            <span class="breadcrumb-link breadcrumb-category" 
-                                  style="color: #0066cc; cursor: pointer; text-decoration: underline;" 
-                                  data-category="${escapedCategory}">
-                                ${escapedCategory}
-                            </span>
-                            <span style="margin: 0 6px; color: #999;">&gt;</span>
-                            <span class="breadcrumb-link breadcrumb-topic" 
-                                  style="color: #0066cc; cursor: pointer; text-decoration: underline;" 
-                                  data-category="${escapedCategory}"
-                                  data-topic="${escapedTopic}">
-                                ${escapedTopic}
-                            </span>
-                        </div>
-                    `;
-                }
-                
-                // Build metadata HTML based on settings
-                const metaItems = [];
-                
-                if (settings.showSentiment) {
-                    metaItems.push(`
-                        <div class="verbatim-meta-item">
-                            <span class="verbatim-meta-label">Sentiment:</span>
-                            <span class="sentiment ${sentimentClass}">${v.sentiment || 'neutral'}</span>
-                        </div>
-                    `);
-                }
-                
-                if (settings.showLocation && v.country) {
-                    metaItems.push(`
-                        <div class="verbatim-meta-item">
-                            <span class="verbatim-meta-label">Location:</span>
-                            <span>${escapedCity ? escapedCity + ', ' : ''}${escapedCountry}</span>
-                        </div>
-                    `);
-                }
-                
-                if (settings.showIndex) {
-                    metaItems.push(`
-                        <div class="verbatim-meta-item">
-                            <span class="verbatim-meta-label">Index:</span>
-                            <span>#${v.index}</span>
-                        </div>
-                    `);
-                }
-                
-                const metaHTML = metaItems.length > 0 ? `
-                    <div class="verbatim-meta">
-                        ${metaItems.join('')}
-                    </div>
-                ` : '';
-                
-                // Use base64 encoding with Unicode-safe encoding
-                const verbatimJson = JSON.stringify(v);
-                const verbatimData = btoa(unescape(encodeURIComponent(verbatimJson)));
-                
-                card.innerHTML = `
-                    <div class="verbatim-card-header">
-                        <div class="verbatim-text" style="flex: 1; margin-bottom: 0; padding-right: 8px;">${escapedText}</div>
-                        <button class="favourite-button active" data-verbatim="${verbatimData}" onclick="handleFavouriteClick(this)" title="Remove from favourites">
-                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-                            </svg>
-                        </button>
-                    </div>
-                    ${breadcrumbHTML}
-                    ${metaHTML ? `<div style="margin-top: 16px;">${metaHTML}</div>` : ''}
-                `;
-                
-                // Add click handlers for breadcrumbs
-                if (v.category && v.topic) {
-                    const categoryLink = card.querySelector('.breadcrumb-category');
-                    const topicLink = card.querySelector('.breadcrumb-topic');
-                    
-                    if (categoryLink) {
-                        categoryLink.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            const categoryName = categoryLink.getAttribute('data-category');
-                            handleBreadcrumbCategoryClick(categoryName);
-                        });
-                    }
-                    
-                    if (topicLink) {
-                        topicLink.addEventListener('click', (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            const categoryName = topicLink.getAttribute('data-category');
-                            const topicName = topicLink.getAttribute('data-topic');
-                            handleBreadcrumbTopicClick(categoryName, topicName);
-                        });
-                    }
-                }
-                
-                container.appendChild(card);
-            });
-        }
 
         // Initialize settings checkboxes on page load
         function initializeMetadataSettings() {
@@ -8239,15 +7993,6 @@
                 });
             }
             
-            // Setup favourites search input event listener
-            const favouritesSearchInput = document.getElementById('favouritesSearch');
-            if (favouritesSearchInput) {
-                favouritesSearchInput.addEventListener('input', (e) => {
-                    favouritesSearchTerm = e.target.value;
-                    renderFavourites();
-                    updateFavouritesSearchClearButton();
-                });
-            }
             
             // Setup treemap search input event listener
             const treemapSearchInput = document.getElementById('treemapSearch');
@@ -10749,7 +10494,30 @@
                 const topicName = contextData.topic_label || null;
                 
                 // Get verbatims for this context
-                const availableVerbatims = this.getVerbatimsFromContext(contextData);
+                let availableVerbatims = this.getVerbatimsFromContext(contextData);
+                
+                // Check if there's a pre-pinned verbatim to add
+                if (this.prePinnedVerbatim) {
+                    // Find the verbatim in availableVerbatims by matching text and index
+                    const prePinnedIndex = availableVerbatims.findIndex(v => {
+                        const textMatch = v.text === this.prePinnedVerbatim.text;
+                        const indexMatch = (v.index !== undefined && this.prePinnedVerbatim.index !== undefined) 
+                            ? v.index === this.prePinnedVerbatim.index 
+                            : true; // If index not available, just match by text
+                        return textMatch && indexMatch;
+                    });
+                    
+                    if (prePinnedIndex >= 0) {
+                        // Found in available verbatims, store index to pin it
+                        this.prePinnedVerbatimIndex = prePinnedIndex;
+                    } else {
+                        // Not found in available verbatims, add it to the list
+                        availableVerbatims.push(this.prePinnedVerbatim);
+                        this.prePinnedVerbatimIndex = availableVerbatims.length - 1;
+                    }
+                } else {
+                    this.prePinnedVerbatimIndex = null;
+                }
                 
                 // Create panel structure with attributes (title is now in header)
                 // Use flexbox layout with scrollable content and fixed footer
@@ -10835,6 +10603,15 @@
                 // Store available verbatims and initialize pinned verbatims set
                 this.availableVerbatims = availableVerbatims;
                 this.pinnedVerbatims = new Set();
+                
+                // Pre-pin the verbatim if it was provided
+                if (this.prePinnedVerbatimIndex !== null && this.prePinnedVerbatimIndex !== undefined) {
+                    this.pinnedVerbatims.add(this.prePinnedVerbatimIndex);
+                }
+                
+                // Clear the pre-pinned verbatim after using it
+                this.prePinnedVerbatim = null;
+                this.prePinnedVerbatimIndex = null;
                 
                 // Store origin for saving
                 this.createInsightOrigin = origin;
@@ -11856,11 +11633,6 @@
                         ? `<div class="verbatim-metadata">${metaItems.join('')}</div>` 
                         : '';
                     
-                    // Check if this verbatim is a favourite using the proper isFavourite function
-                    // This uses getFavouriteKey which compares based on index and text prefix
-                    const isFav = (typeof isFavourite === 'function') ? isFavourite(v) : false;
-                    const favouriteClass = isFav ? 'active' : '';
-                    
                     // Store verbatim data in a data attribute for the onclick handler
                     // Include all fields from v, plus category and topic if not already present
                     const verbatimObj = {
@@ -11868,19 +11640,16 @@
                         category: v.category || categoryName,
                         topic: v.topic || topicName
                     };
-                    // Use base64 encoding with Unicode-safe encoding (matches handleFavouriteClick format)
+                    // Use base64 encoding with Unicode-safe encoding
                     const verbatimJson = JSON.stringify(verbatimObj);
                     const verbatimData = btoa(unescape(encodeURIComponent(verbatimJson)));
-                    const favouriteIcon = isFav 
-                        ? '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>'
-                        : '<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="none" stroke="currentColor" stroke-width="2"/>';
                     
                     card.innerHTML = `
                         <div class="verbatim-card-header">
                             <div class="verbatim-text" style="flex: 1; margin-bottom: 0; padding-right: 8px;">${escapedText}</div>
-                            <button class="favourite-button ${favouriteClass}" data-verbatim="${verbatimData}" onclick="handleFavouriteClick(this)" title="${isFav ? 'Remove from favourites' : 'Add to favourites'}">
-                                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    ${favouriteIcon}
+                            <button class="create-insight-button" data-verbatim="${verbatimData}" onclick="createInsightFromVerbatim(this)" title="Create insight from this verbatim" style="background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; margin-right: 4px; color: oklch(0.556 0 0); transition: all 0.2s ease;" onmouseover="this.style.color='#B9F040'" onmouseout="this.style.color='oklch(0.556 0 0)'">
+                                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M12 5v14M5 12h14"/>
                                 </svg>
                             </button>
                         </div>

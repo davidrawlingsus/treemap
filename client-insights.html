@@ -461,134 +461,6 @@
             color: rgba(55, 53, 47, 0.4);
         }
 
-        /* Modal */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.4);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal.active {
-            display: flex !important;
-        }
-
-        .modal-content {
-            background: white;
-            border-radius: 3px;
-            padding: 32px;
-            max-width: 600px;
-            width: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: rgba(15, 15, 15, 0.05) 0px 0px 0px 1px, rgba(15, 15, 15, 0.1) 0px 3px 6px, rgba(15, 15, 15, 0.2) 0px 9px 24px;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 24px;
-        }
-
-        .modal-header h2 {
-            font-size: 20px;
-            font-weight: 600;
-            color: #37352f;
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            font-size: 14px;
-            font-weight: 500;
-            color: #37352f;
-            margin-bottom: 6px;
-        }
-
-        .form-group input,
-        .form-group textarea,
-        .form-group select {
-            width: 100%;
-            padding: 8px 10px;
-            border: 1px solid rgba(55, 53, 47, 0.16);
-            border-radius: 3px;
-            font-size: 14px;
-            font-family: inherit;
-            color: #37352f;
-            background: white;
-        }
-
-        .form-group input:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: rgba(55, 53, 47, 0.3);
-        }
-
-        .form-group textarea {
-            min-height: 100px;
-            resize: vertical;
-        }
-
-        .form-actions {
-            display: flex;
-            gap: 8px;
-            justify-content: flex-end;
-            margin-top: 24px;
-        }
-
-        .btn-secondary {
-            background: rgba(55, 53, 47, 0.08);
-            color: #37352f;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 3px;
-            font-weight: 500;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .btn-secondary:hover {
-            background: rgba(55, 53, 47, 0.12);
-        }
-
-        .btn-save {
-            background: #37352f;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 3px;
-            font-weight: 500;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .btn-save:hover {
-            background: #2e2a24;
-        }
-
-        .close-btn {
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 4px;
-            color: rgba(55, 53, 47, 0.4);
-            font-size: 20px;
-            line-height: 1;
-        }
-
-        .close-btn:hover {
-            color: #37352f;
-        }
 
         /* Slideout Panel Styles (matching index.html) */
         .ai-insights-panel {
@@ -853,37 +725,6 @@
     
     <div id="insightNotesOverlay" class="ai-insights-overlay"></div>
 
-    <!-- Create/Edit Modal -->
-    <div id="insightModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modalTitle">Create Insight</h2>
-                <button class="close-btn" onclick="closeModal()">×</button>
-            </div>
-            <form id="insightForm" onsubmit="saveInsight(event)">
-                <div class="form-group">
-                    <label>Insight Name *</label>
-                    <input type="text" id="insightName" required>
-                </div>
-                <div class="form-group">
-                    <label>Type *</label>
-                    <input type="text" id="insightType" required placeholder="e.g., improvement, feature, bug">
-                </div>
-                <div class="form-group">
-                    <label>Application</label>
-                    <textarea id="insightApplication" placeholder="Where/how to apply this insight"></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Description</label>
-                    <textarea id="insightDescription" placeholder="Detailed description"></textarea>
-                </div>
-                <div class="form-actions">
-                    <button type="button" class="btn-secondary" onclick="closeModal()">Cancel</button>
-                    <button type="submit" class="btn-save">Save</button>
-                </div>
-            </form>
-        </div>
-    </div>
 
     <script>
         const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
@@ -1295,137 +1136,23 @@
         function openCreateModal() {
             console.log('openCreateModal called');
             currentInsightId = null;
-            const modal = document.getElementById('insightModal');
-            const modalTitle = document.getElementById('modalTitle');
-            const form = document.getElementById('insightForm');
-            
-            if (!modal || !modalTitle || !form) {
-                console.error('Modal elements not found:', { modal, modalTitle, form });
-                return;
-            }
-            
-            modalTitle.textContent = 'Create Insight';
-            form.reset();
             
             const urlParams = new URLSearchParams(window.location.search);
-            window.insightOriginContext = {
+            const contextData = {
                 dimension_ref: urlParams.get('dimension_ref') || null,
                 project_name: urlParams.get('project_name') || null,
                 data_source: urlParams.get('data_source') || null,
                 dimension_name: urlParams.get('dimension_name') || null,
             };
             
-            modal.classList.add('active');
-            console.log('Modal should be visible now, classList:', modal.classList.toString());
+            // Open slideout panel for creating insight
+            openCreateInsightPanel(contextData);
         }
 
-        function closeModal() {
-            console.log('closeModal called');
-            const modal = document.getElementById('insightModal');
-            if (modal) {
-                modal.classList.remove('active');
-                console.log('Modal closed');
-            }
-        }
-
-        async function saveInsight(event) {
-            event.preventDefault();
-            if (!currentClientId) return;
-
-            let token = null;
-            if (typeof getAuthToken !== 'undefined') {
-                token = getAuthToken();
-            }
-            if (!token) {
-                token = localStorage.getItem('visualizd_auth_token');
-            }
-            if (!token && window.opener) {
-                try {
-                    token = window.opener.localStorage.getItem('visualizd_auth_token');
-                    if (token) localStorage.setItem('visualizd_auth_token', token);
-                } catch (e) {}
-            }
-            
-            if (!token) {
-                alert('You are not logged in. Please log in and try again.');
-                return;
-            }
-
-            const originContext = window.insightOriginContext || {};
-            const toNull = (val) => (val && val.trim()) ? val.trim() : null;
-            
-            const insightData = {
-                name: document.getElementById('insightName').value.trim(),
-                type: document.getElementById('insightType').value.trim(),
-                application: toNull(document.getElementById('insightApplication').value),
-                description: toNull(document.getElementById('insightDescription').value),
-                origins: [{
-                    origin_type: originContext.category ? 'category' : (originContext.topic_label ? 'topic' : 'category'),
-                    project_name: toNull(originContext.project_name),
-                    data_source: toNull(originContext.data_source),
-                    dimension_ref: toNull(originContext.dimension_ref),
-                    dimension_name: toNull(originContext.dimension_name),
-                    category: toNull(originContext.category),
-                    topic_label: toNull(originContext.topic_label),
-                    process_voc_id: originContext.process_voc_id || null,
-                }],
-            };
-
-            try {
-                const headers = {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                };
-                
-                let response;
-                if (currentInsightId) {
-                    response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights/${currentInsightId}`, {
-                        method: 'PUT',
-                        headers: headers,
-                        body: JSON.stringify(insightData),
-                    });
-                } else {
-                    response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights`, {
-                        method: 'POST',
-                        headers: headers,
-                        body: JSON.stringify(insightData),
-                    });
-                }
-                
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-                    throw new Error(errorData.detail || `Failed to ${currentInsightId ? 'update' : 'create'} insight`);
-                }
-                
-                closeModal();
-                loadInsights();
-            } catch (error) {
-                console.error('Error saving insight:', error);
-                alert('Error saving insight: ' + error.message);
-            }
-        }
 
         async function editInsight(insightId) {
-            if (!currentClientId) return;
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights/${insightId}`, {
-                    headers: getAuthHeadersSafe()
-                });
-                if (!response.ok) throw new Error('Failed to load insight');
-
-                const insight = await response.json();
-                currentInsightId = insightId;
-                document.getElementById('modalTitle').textContent = 'Edit Insight';
-                document.getElementById('insightName').value = insight.name;
-                document.getElementById('insightType').value = insight.type;
-                document.getElementById('insightApplication').value = insight.application || '';
-                document.getElementById('insightDescription').value = insight.description || '';
-                document.getElementById('insightModal').classList.add('active');
-            } catch (error) {
-                console.error('Error loading insight:', error);
-                alert('Error loading insight: ' + error.message);
-            }
+            // Use the same function as opening insight notes
+            openInsightNotes(insightId);
         }
 
         async function deleteInsight(insightId) {
@@ -1459,6 +1186,34 @@
         let saveNotesTimeout = null;
         let fieldSaveTimeout = null;
 
+        async function openCreateInsightPanel(contextData) {
+            if (!currentClientId) {
+                console.error('No client selected');
+                return;
+            }
+            
+            currentInsightId = null;
+            currentInsightNotesId = null;
+            
+            // Open UI
+            const panel = document.getElementById('insightNotesPanel');
+            const overlay = document.getElementById('insightNotesOverlay');
+            const title = document.getElementById('insightNotesTitle');
+            const content = document.getElementById('insightNotesContent');
+            
+            if (panel) panel.classList.add('open');
+            if (overlay) overlay.classList.add('visible');
+            
+            // Prevent body scroll
+            document.body.classList.add('slideout-open');
+            
+            // Set title
+            if (title) title.textContent = 'Create Insight';
+            
+            // Initialize panel with create form
+            await initializeCreateInsightPanel(content, contextData);
+        }
+
         async function openInsightNotes(insightId) {
             if (!currentClientId) {
                 console.error('No client selected');
@@ -1466,6 +1221,7 @@
             }
             
             currentInsightNotesId = insightId;
+            currentInsightId = insightId;
             
             // Open UI
             const panel = document.getElementById('insightNotesPanel');
@@ -1503,6 +1259,140 @@
                     content.innerHTML = `<div style="padding: 24px; color: #666;">Error loading insight: ${error.message}</div>`;
                 }
             }
+        }
+
+        async function initializeCreateInsightPanel(container, contextData) {
+            if (!container) return;
+            
+            // Build origin object from context data
+            const origin = {
+                origin_type: contextData.type || 'category',
+                process_voc_id: contextData.process_voc_id || null,
+                project_name: contextData.project_name || null,
+                data_source: contextData.data_source || null,
+                dimension_ref: contextData.dimension_ref || null,
+                dimension_name: contextData.dimension_name || null,
+                category: contextData.category || null,
+                topic_label: contextData.topic_label || null,
+            };
+            
+            // Store origin for saving
+            window.createInsightOrigin = origin;
+            
+            // Create panel structure with editable title and attributes
+            container.innerHTML = `
+                <div style="padding: 0;">
+                    <!-- Editable Title -->
+                    <div style="padding: 1.5rem; border-bottom: 1px solid oklch(0.922 0 0);">
+                        <div id="insightTitleEditable" 
+                             contenteditable="true" 
+                             style="font-size: 1.875rem; font-weight: 700; font-family: 'Lato', sans-serif; color: oklch(0.145 0 0); outline: none; min-height: 2.5rem; line-height: 1.2;"
+                             data-placeholder="Untitled">Untitled</div>
+                    </div>
+                    
+                    <!-- Attributes Section -->
+                    <div style="padding: 1rem 1.5rem; border-bottom: 1px solid oklch(0.922 0 0);">
+                        <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <!-- Type Attribute -->
+                            <div class="insight-attribute-row">
+                                <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Type</div>
+                                <div style="flex: 1;">
+                                    <div id="insightTypeChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
+                                        Empty
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Application Attribute -->
+                            <div class="insight-attribute-row">
+                                <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Application</div>
+                                <div style="flex: 1;">
+                                    <div id="insightApplicationChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
+                                        Empty
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Notes Section -->
+                    <div style="padding: 1.5rem;">
+                        <div id="insightNotesSaveStatus" style="font-size: 0.75rem; font-family: 'Lato', sans-serif; color: oklch(0.556 0 0); margin-bottom: 0.5rem; min-height: 1rem;"></div>
+                        <div id="insightNotesEditor" style="min-height: 400px; outline: none; font-size: 0.875rem; font-family: 'Lato', sans-serif; line-height: 1.5; color: oklch(0.145 0 0);"></div>
+                    </div>
+                    
+                    <!-- Save Button -->
+                    <div style="padding: 1rem 1.5rem; border-top: 1px solid oklch(0.922 0 0); background: oklch(0.98 0 0); display: flex; justify-content: flex-end;">
+                        <button id="saveNewInsightBtn" style="background: #B9F040; color: #000; border: none; padding: 0.5rem 1.5rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.875rem; font-family: 'Lato', sans-serif; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='#a0d636'" onmouseout="this.style.background='#B9F040'">
+                            Create Insight
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Set up editable title
+            const titleEl = document.getElementById('insightTitleEditable');
+            if (titleEl) {
+                titleEl.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        titleEl.blur();
+                    }
+                });
+            }
+            
+            // Set up editable type chip
+            const typeChip = document.getElementById('insightTypeChip');
+            if (typeChip) {
+                typeChip.addEventListener('focus', () => {
+                    if (typeChip.textContent.trim() === 'Empty') {
+                        typeChip.textContent = '';
+                    }
+                });
+                typeChip.addEventListener('blur', () => {
+                    if (!typeChip.textContent.trim()) {
+                        typeChip.textContent = 'Empty';
+                    }
+                });
+                typeChip.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        typeChip.blur();
+                    }
+                });
+            }
+            
+            // Set up editable application chip
+            const appChip = document.getElementById('insightApplicationChip');
+            if (appChip) {
+                appChip.addEventListener('focus', () => {
+                    if (appChip.textContent.trim() === 'Empty') {
+                        appChip.textContent = '';
+                    }
+                });
+                appChip.addEventListener('blur', () => {
+                    if (!appChip.textContent.trim()) {
+                        appChip.textContent = 'Empty';
+                    }
+                });
+                appChip.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        appChip.blur();
+                    }
+                });
+            }
+            
+            // Set up save button
+            const saveBtn = document.getElementById('saveNewInsightBtn');
+            if (saveBtn) {
+                saveBtn.addEventListener('click', () => {
+                    saveNewInsight();
+                });
+            }
+            
+            // Initialize editor with empty notes
+            await initializeInsightEditor(document.getElementById('insightNotesEditor'), '');
         }
 
         async function initializeInsightPanel(container, insight) {
@@ -1658,8 +1548,11 @@
                         }
                     },
                     onUpdate: ({ editor }) => {
-                        const html = editor.getHTML();
-                        debouncedSaveInsightNotes(currentInsightNotesId, html);
+                        // Only auto-save when editing an existing insight, not when creating
+                        if (currentInsightNotesId) {
+                            const html = editor.getHTML();
+                            debouncedSaveInsightNotes(currentInsightNotesId, html);
+                        }
                     }
                 });
             } catch (error) {
@@ -1768,9 +1661,87 @@
             }
         }
 
+        async function saveNewInsight() {
+            if (!currentClientId) {
+                alert('No client selected');
+                return;
+            }
+
+            const titleEl = document.getElementById('insightTitleEditable');
+            const typeChip = document.getElementById('insightTypeChip');
+            const appChip = document.getElementById('insightApplicationChip');
+            
+            const name = titleEl?.textContent.trim() || '';
+            const type = typeChip?.textContent.trim() || '';
+            const application = appChip?.textContent.trim() || '';
+            const notes = currentInsightEditor ? currentInsightEditor.getHTML() : '';
+            
+            if (!name || name === 'Untitled') {
+                alert('Please enter an insight name');
+                return;
+            }
+            
+            if (!type || type === 'Empty') {
+                alert('Please enter an insight type');
+                return;
+            }
+            
+            const statusEl = document.getElementById('insightNotesSaveStatus');
+            if (statusEl) statusEl.textContent = 'Creating...';
+            
+            try {
+                const token = getAuthToken() || localStorage.getItem('visualizd_auth_token');
+                if (!token) {
+                    throw new Error('Not authenticated');
+                }
+                
+                const insightData = {
+                    name: name,
+                    type: type === 'Empty' ? '' : type,
+                    application: application === 'Empty' ? '' : application,
+                    notes: notes || null,
+                    origins: [window.createInsightOrigin || {}],
+                };
+                
+                const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(insightData)
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({ detail: 'Failed to create insight' }));
+                    throw new Error(error.detail || 'Failed to create insight');
+                }
+                
+                if (statusEl) {
+                    statusEl.textContent = 'Created!';
+                    statusEl.style.color = '#B9F040';
+                }
+                
+                // Refresh insights list
+                loadInsights();
+                
+                // Close panel after a brief delay
+                setTimeout(() => {
+                    closeInsightNotes();
+                }, 1000);
+                
+            } catch (error) {
+                console.error('Error creating insight:', error);
+                if (statusEl) {
+                    statusEl.textContent = 'Error creating';
+                    statusEl.style.color = 'oklch(0.577 0.245 27.325)';
+                }
+                alert('Error creating insight: ' + error.message);
+            }
+        }
+
         // Make functions globally accessible
         window.openCreateModal = openCreateModal;
-        window.closeModal = closeModal;
         window.handleSearch = handleSearch;
         window.sortBy = sortBy;
         window.removeFilter = removeFilter;
@@ -1778,9 +1749,9 @@
         window.openFilterMenu = openFilterMenu;
         window.editInsight = editInsight;
         window.deleteInsight = deleteInsight;
-        window.saveInsight = saveInsight;
         window.openInsightNotes = openInsightNotes;
         window.closeInsightNotes = closeInsightNotes;
+        window.saveNewInsight = saveNewInsight;
 
         // Header user info management (similar to index.html)
         let headerUserInfoEl = null;
@@ -1855,28 +1826,17 @@
             setTimeout(applyHeaderUserState, 100);
         }
 
-        // Close modal on backdrop click
+        // Close insight notes panel on overlay click
         document.addEventListener('click', (e) => {
-            const modal = document.getElementById('insightModal');
-            if (modal && modal.classList.contains('active') && e.target === modal) {
-                closeModal();
-            }
-            
-            // Close insight notes panel on overlay click
             const overlay = document.getElementById('insightNotesOverlay');
             if (overlay && e.target === overlay) {
                 closeInsightNotes();
             }
         });
 
-        // Close modal/panel on ESC key
+        // Close panel on ESC key
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                const modal = document.getElementById('insightModal');
-                if (modal && modal.classList.contains('active')) {
-                    closeModal();
-                }
-                
                 const panel = document.getElementById('insightNotesPanel');
                 if (panel && panel.classList.contains('open')) {
                     closeInsightNotes();
