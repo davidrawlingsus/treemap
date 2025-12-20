@@ -624,11 +624,16 @@
 
         .visualizations-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr 1fr; /* 50/50 split */
             gap: 30px;
             padding: 30px;
             margin: 0;
             align-items: start;
+        }
+        
+        .visualizations-grid > .chart-column,
+        .visualizations-grid > .chart {
+            min-width: 0; /* Prevent grid items from overflowing */
         }
 
         .chart-column {
@@ -636,6 +641,8 @@
             flex-direction: column;
             gap: 30px;
             transition: all 0.3s ease-out;
+            min-width: 0; /* Prevent flex items from overflowing */
+            width: 100%; /* Ensure it takes full width of grid column */
         }
 
         .favourites-section {
@@ -1409,11 +1416,13 @@
         }
 
         .insights-panel-container {
-            margin: 30px;
+            margin: 0; /* Remove margin since chart-column already has gap */
             background: white;
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
             border: 2px solid #EBEBEB;
+            width: 100%; /* Match width of chart above */
+            min-width: 0; /* Prevent overflow */
         }
 
         .insights-panel-header {
@@ -1480,7 +1489,24 @@
             cursor: pointer;
             padding: 4px;
             color: #666;
-            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: color 0.2s, transform 0.2s;
+            border-radius: 4px;
+        }
+        
+        .insights-panel-toggle:hover {
+            color: #333;
+            background: #f0f0f0;
+        }
+        
+        .insights-panel-toggle-icon {
+            transition: transform 0.2s;
+        }
+        
+        .insights-panel-container.collapsed .insights-panel-toggle-icon {
+            transform: rotate(-90deg);
         }
 
         .insights-panel-body {
@@ -2466,6 +2492,9 @@
             padding: 24px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
             transition: padding 0.3s ease-out;
+            width: 100%; /* Ensure chart takes full width of its container */
+            min-width: 0; /* Prevent overflow */
+            box-sizing: border-box; /* Include padding in width calculation */
         }
 
         .chart.collapsed {
@@ -4138,6 +4167,64 @@
                     <div class="chart__footer" id="barChartFooter">Frequency (n=<span id="totalCount">0</span>)</div>
                 </div>
 
+                <!-- Insights Panel -->
+                <div class="insights-panel-container">
+                    <div class="insights-panel-header">
+                        <div class="insights-panel-header-left">
+                            <h2>Insights</h2>
+                            <span id="insightsFilterBadge" class="insights-filter-badge" style="display: none;"></span>
+                        </div>
+                        <div class="insights-panel-header-right">
+                            <button class="insights-panel-toggle" onclick="toggleInsightsPanel()" id="insightsPanelToggle">
+                                <svg id="insightsPanelToggleIcon" class="insights-panel-toggle-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M4 6 L8 10 L12 6" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="insights-panel-body" id="insightsPanelBody">
+                        <div class="insights-table-section">
+                            <div class="control-bar">
+                                <div class="search-box">
+                                    <input type="text" id="insightsSearchInput" placeholder="Search insights..." oninput="handleInsightsSearch()">
+                                </div>
+                                <div class="filter-chips" id="insightsFilterChips"></div>
+                                <button class="btn-filter" onclick="openInsightsFilterMenu()">
+                                    <span>+</span>
+                                    <span>Filter</span>
+                                </button>
+                                <button class="btn-reset" onclick="resetInsightsFilters()" id="insightsResetBtn" style="display: none;">Reset</button>
+                            </div>
+                            <div class="table-container">
+                                <table class="notion-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="checkbox-cell"></th>
+                                            <th class="name-cell sorted" onclick="sortInsightsBy('name')">
+                                                <span class="column-icon">Aa</span>
+                                                <span>Name</span>
+                                                <span class="sort-indicator">↓</span>
+                                            </th>
+                                            <th onclick="sortInsightsBy('type')">
+                                                <span class="column-icon">≡</span>
+                                                <span>Type</span>
+                                                <span class="sort-indicator"></span>
+                                            </th>
+                                            <th onclick="sortInsightsBy('created_at')">
+                                                <span class="column-icon">📅</span>
+                                                <span>Created</span>
+                                                <span class="sort-indicator"></span>
+                                            </th>
+                                            <th class="actions-cell">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="insightsTableBody">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="chart" role="figure" aria-label="All Topics">
@@ -4157,83 +4244,6 @@
                     <div class="chart__bars" id="topicsChartBars"></div>
                 </div>
                 <div class="chart__footer" id="topicsChartFooter">Frequency (n=<span id="topicsCount">0</span>)</div>
-            </div>
-        </div>
-
-        <!-- Insights Panel -->
-        <div class="insights-panel-container">
-            <div class="insights-panel-header">
-                <div class="insights-panel-header-left">
-                    <h2>Insights</h2>
-                    <span id="insightsFilterBadge" class="insights-filter-badge" style="display: none;"></span>
-                </div>
-                <div class="insights-panel-header-right">
-                    <button class="insights-panel-toggle" onclick="toggleInsightsPanel()" id="insightsPanelToggle">
-                        <span id="insightsPanelToggleIcon">▼</span>
-                    </button>
-                </div>
-            </div>
-            <div class="insights-panel-body" id="insightsPanelBody">
-                <div class="insights-table-section">
-                    <div class="control-bar">
-                        <div class="search-box">
-                            <input type="text" id="insightsSearchInput" placeholder="Search insights..." oninput="handleInsightsSearch()">
-                        </div>
-                        <div class="filter-chips" id="insightsFilterChips"></div>
-                        <button class="btn-filter" onclick="openInsightsFilterMenu()">
-                            <span>+</span>
-                            <span>Filter</span>
-                        </button>
-                        <button class="btn-reset" onclick="resetInsightsFilters()" id="insightsResetBtn" style="display: none;">Reset</button>
-                    </div>
-                    <div class="table-container">
-                        <table class="notion-table">
-                            <thead>
-                                <tr>
-                                    <th class="checkbox-cell"></th>
-                                    <th class="name-cell sorted" onclick="sortInsightsBy('name')">
-                                        <span class="column-icon">Aa</span>
-                                        <span>Name</span>
-                                        <span class="sort-indicator">↓</span>
-                                    </th>
-                                    <th onclick="sortInsightsBy('type')">
-                                        <span class="column-icon">≡</span>
-                                        <span>Type</span>
-                                        <span class="sort-indicator"></span>
-                                    </th>
-                                    <th onclick="sortInsightsBy('status')">
-                                        <span class="column-icon">⁂</span>
-                                        <span>Status</span>
-                                        <span class="sort-indicator"></span>
-                                    </th>
-                                    <th onclick="sortInsightsBy('project')">
-                                        <span class="column-icon">≡</span>
-                                        <span>Project</span>
-                                        <span class="sort-indicator"></span>
-                                    </th>
-                                    <th onclick="sortInsightsBy('data_source')">
-                                        <span class="column-icon">≡</span>
-                                        <span>Data Source</span>
-                                        <span class="sort-indicator"></span>
-                                    </th>
-                                    <th onclick="sortInsightsBy('dimension')">
-                                        <span class="column-icon">≡</span>
-                                        <span>Dimension</span>
-                                        <span class="sort-indicator"></span>
-                                    </th>
-                                    <th onclick="sortInsightsBy('created_at')">
-                                        <span class="column-icon">📅</span>
-                                        <span>Created</span>
-                                        <span class="sort-indicator"></span>
-                                    </th>
-                                    <th class="actions-cell">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="insightsTableBody">
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
@@ -5004,6 +5014,7 @@
                         // After clients are loaded, load the specific client's data
                         return loadClientProjects(clientId, restoreState);
                     }).then(() => {
+                        // renderFavourites(); // Removed - favourites section no longer exists
                         updateNavLinks(); // Update nav links after client loads
                     }).catch((error) => {
                         console.error('Error loading clients or projects:', error);
@@ -5012,6 +5023,7 @@
                 } else {
                     // Dropdown already populated, just load the client's data
                     loadClientProjects(clientId, restoreState).then(() => {
+                        // renderFavourites(); // Removed - favourites section no longer exists
                         updateNavLinks(); // Update nav links after client loads
                     });
                 }
@@ -5286,6 +5298,7 @@
                     saveState();
                     updateAddDataButton(); // Update Add button with new client
                     await loadClientProjects(currentClientId);
+                    renderFavourites(); // Re-render favourites for new client
                 };
                 // Remove any existing listener
                 select.removeEventListener('change', handleClientChange);
@@ -5429,6 +5442,7 @@
             saveState();
             updateNavLinks(); // Update nav links after project changes
             await loadClientSources(currentClientId);
+            renderFavourites(); // Re-render favourites for new project
         }
         
         // Load sources for a specific client
@@ -6106,6 +6120,9 @@
                 
                 // Setup advanced filter UI
                 setupFilterUI();
+                
+                // Initialize favourites section
+                renderFavourites();
             } catch (error) {
                 document.getElementById('loading').innerHTML = 
                     '<div class="error">Error initializing: ' + error.message + '</div>';
@@ -7585,7 +7602,7 @@
                 card.innerHTML = `
                     <div class="verbatim-card-header">
                         <div class="verbatim-text" style="flex: 1; margin-bottom: 0; padding-right: 8px;">${escapedText}</div>
-                        <button class="create-insight-button" data-verbatim="${verbatimData}" onclick="createInsightFromVerbatim(this)" title="Create insight from this verbatim" style="background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; margin-right: 4px; color: oklch(0.556 0 0); transition: all 0.2s ease;" onmouseover="this.style.color='#B9F040'" onmouseout="this.style.color='oklch(0.556 0 0)'">
+                        <button class="create-insight-button" data-verbatim="${verbatimData}" onclick="createInsightFromVerbatim(this)" title="Create insight from this verbatim" style="background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; color: oklch(0.556 0 0); transition: all 0.2s ease;" onmouseover="this.style.color='#B9F040'" onmouseout="this.style.color='oklch(0.556 0 0)'">
                             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M12 5v14M5 12h14"/>
                             </svg>
@@ -7688,6 +7705,27 @@
             }
         }
 
+        function clearFavouritesSearch() {
+            const searchInput = document.getElementById('favouritesSearch');
+            if (searchInput) {
+                searchInput.value = '';
+                favouritesSearchTerm = '';
+                renderFavourites();
+                updateFavouritesSearchClearButton();
+            }
+        }
+
+        function updateFavouritesSearchClearButton() {
+            const searchInput = document.getElementById('favouritesSearch');
+            const clearButton = document.getElementById('favouritesSearchClear');
+            if (searchInput && clearButton) {
+                if (searchInput.value.trim() !== '') {
+                    clearButton.classList.add('active');
+                } else {
+                    clearButton.classList.remove('active');
+                }
+            }
+        }
 
         // Treemap search functionality
         function handleTreemapSearch() {
@@ -7822,6 +7860,25 @@
             localStorage.setItem(storageKey, JSON.stringify(favourites));
         }
 
+        function isFavourite(verbatim) {
+            const favourites = getFavourites();
+            const key = getFavouriteKey(verbatim);
+            return favourites.some(fav => fav.key === key);
+        }
+
+        function handleFavouriteClick(button) {
+            const verbatimData = button.getAttribute('data-verbatim');
+            if (!verbatimData) return;
+            
+            try {
+                // Decode base64 encoded JSON with Unicode-safe decoding
+                const verbatimJson = decodeURIComponent(escape(atob(verbatimData)));
+                const verbatim = JSON.parse(verbatimJson);
+                toggleFavourite(verbatim);
+            } catch (e) {
+                console.error('Error parsing verbatim data:', e);
+            }
+        }
 
         function createInsightFromVerbatim(button) {
             const verbatimData = button.getAttribute('data-verbatim');
@@ -7872,6 +7929,55 @@
             }
         }
 
+        function toggleFavourite(verbatim) {
+            const favourites = getFavourites();
+            const key = getFavouriteKey(verbatim);
+            const index = favourites.findIndex(fav => fav.key === key);
+            
+            if (index >= 0) {
+                // Remove from favourites
+                favourites.splice(index, 1);
+            } else {
+                // Add to favourites - include category and topic from current context
+                // If verbatim already has category/topic (from favorites section), preserve them
+                // Otherwise use current context
+                const category = verbatim.category || currentCategoryName || null;
+                const topic = verbatim.topic || currentTopicName || null;
+                
+                favourites.push({
+                    key: key,
+                    verbatim: {
+                        text: verbatim.text,
+                        sentiment: verbatim.sentiment,
+                        index: verbatim.index,
+                        country: verbatim.country,
+                        city: verbatim.city,
+                        date: verbatim.date,
+                        source_type: verbatim.source_type,
+                        category: category,
+                        topic: topic
+                    }
+                });
+            }
+            
+            saveFavourites(favourites);
+            renderFavourites();
+            
+            // Re-render verbatims if they're currently displayed to update favorite buttons
+            // Check both old overlay and new slideout panel
+            if (currentVerbatimsData) {
+                renderVerbatims(currentVerbatimsData, currentTopicName, currentCategoryName);
+            }
+            
+            // Also re-render slideout panel if it's showing verbatims
+            if (window.SlideoutPanel && window.SlideoutPanel.currentMode === 'verbatims' && window.SlideoutPanel.currentVerbatimsData) {
+                window.SlideoutPanel.renderVerbatims(
+                    window.SlideoutPanel.currentVerbatimsData,
+                    window.SlideoutPanel.currentTopicName,
+                    window.SlideoutPanel.currentCategoryName
+                );
+            }
+        }
 
         // Handle breadcrumb category click - show all verbatims from category
         function handleBreadcrumbCategoryClick(categoryName) {
@@ -7895,6 +8001,179 @@
             }
         }
 
+        // Render favourites section
+        function renderFavourites() {
+            const container = document.getElementById('favouritesContainer');
+            if (!container) return;
+            
+            const favourites = getFavourites();
+            
+            // Filter favourites based on search term
+            const searchTerm = favouritesSearchTerm.toLowerCase().trim();
+            const filteredFavourites = searchTerm === '' 
+                ? favourites 
+                : favourites.filter(fav => {
+                    const v = fav.verbatim;
+                    const text = (v.text || '').toLowerCase();
+                    const city = (v.city || '').toLowerCase();
+                    const country = (v.country || '').toLowerCase();
+                    const sentiment = (v.sentiment || '').toLowerCase();
+                    const index = String(v.index || '').toLowerCase();
+                    const category = (v.category || '').toLowerCase();
+                    const topic = (v.topic || '').toLowerCase();
+                    
+                    return text.includes(searchTerm) || 
+                           city.includes(searchTerm) || 
+                           country.includes(searchTerm) || 
+                           sentiment.includes(searchTerm) ||
+                           index.includes(searchTerm) ||
+                           category.includes(searchTerm) ||
+                           topic.includes(searchTerm);
+                });
+            
+            if (favourites.length === 0) {
+                const skeletonCards = Array.from({ length: 6 }).map(() => `
+                    <div class="skeleton-card">
+                        <div class="skeleton-line"></div>
+                        <div class="skeleton-line"></div>
+                        <div class="skeleton-line"></div>
+                    </div>
+                `).join('');
+
+                container.innerHTML = `
+                    <div class="favourites-empty">
+                        <div class="favourites-empty-grid">
+                            ${skeletonCards}
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Show message if search returns no results
+            if (filteredFavourites.length === 0 && searchTerm !== '') {
+                container.innerHTML = '<div style="padding: 40px; text-align: center; color: #999; font-size: 14px;">No favourites match your search</div>';
+                return;
+            }
+            
+            // Render favourite verbatims
+            container.innerHTML = '';
+            const settings = loadMetadataSettings();
+            
+            filteredFavourites.forEach(fav => {
+                const v = fav.verbatim;
+                const card = document.createElement('div');
+                card.className = 'verbatim-card';
+                
+                const sentimentClass = v.sentiment ? `sentiment-${v.sentiment}` : 'sentiment-neutral';
+                const escapedText = escapeHtml(v.text || 'No text available');
+                const escapedCity = v.city ? escapeHtml(v.city) : '';
+                const escapedCountry = v.country ? escapeHtml(v.country) : '';
+                
+                // Build breadcrumb HTML if category and topic are available
+                let breadcrumbHTML = '';
+                if (v.category && v.topic) {
+                    const escapedCategory = escapeHtml(v.category);
+                    const escapedTopic = escapeHtml(v.topic);
+                    breadcrumbHTML = `
+                        <div class="verbatim-breadcrumb" style="margin-top: 16px; margin-bottom: 12px; font-size: 13px; color: #666;">
+                            <span class="breadcrumb-link breadcrumb-category" 
+                                  style="color: #0066cc; cursor: pointer; text-decoration: underline;" 
+                                  data-category="${escapedCategory}">
+                                ${escapedCategory}
+                            </span>
+                            <span style="margin: 0 6px; color: #999;">&gt;</span>
+                            <span class="breadcrumb-link breadcrumb-topic" 
+                                  style="color: #0066cc; cursor: pointer; text-decoration: underline;" 
+                                  data-category="${escapedCategory}"
+                                  data-topic="${escapedTopic}">
+                                ${escapedTopic}
+                            </span>
+                        </div>
+                    `;
+                }
+                
+                // Build metadata HTML based on settings
+                const metaItems = [];
+                
+                if (settings.showSentiment) {
+                    metaItems.push(`
+                        <div class="verbatim-meta-item">
+                            <span class="verbatim-meta-label">Sentiment:</span>
+                            <span class="sentiment ${sentimentClass}">${v.sentiment || 'neutral'}</span>
+                        </div>
+                    `);
+                }
+                
+                if (settings.showLocation && v.country) {
+                    metaItems.push(`
+                        <div class="verbatim-meta-item">
+                            <span class="verbatim-meta-label">Location:</span>
+                            <span>${escapedCity ? escapedCity + ', ' : ''}${escapedCountry}</span>
+                        </div>
+                    `);
+                }
+                
+                if (settings.showIndex) {
+                    metaItems.push(`
+                        <div class="verbatim-meta-item">
+                            <span class="verbatim-meta-label">Index:</span>
+                            <span>#${v.index}</span>
+                        </div>
+                    `);
+                }
+                
+                const metaHTML = metaItems.length > 0 ? `
+                    <div class="verbatim-meta">
+                        ${metaItems.join('')}
+                    </div>
+                ` : '';
+                
+                // Use base64 encoding with Unicode-safe encoding
+                const verbatimJson = JSON.stringify(v);
+                const verbatimData = btoa(unescape(encodeURIComponent(verbatimJson)));
+                
+                card.innerHTML = `
+                    <div class="verbatim-card-header">
+                        <div class="verbatim-text" style="flex: 1; margin-bottom: 0; padding-right: 8px;">${escapedText}</div>
+                        <button class="create-insight-button" data-verbatim="${verbatimData}" onclick="createInsightFromVerbatim(this)" title="Create insight from this verbatim" style="background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; color: oklch(0.556 0 0); transition: all 0.2s ease;" onmouseover="this.style.color='#B9F040'" onmouseout="this.style.color='oklch(0.556 0 0)'">
+                            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 5v14M5 12h14"/>
+                            </svg>
+                        </button>
+                    </div>
+                    ${breadcrumbHTML}
+                    ${metaHTML ? `<div style="margin-top: 16px;">${metaHTML}</div>` : ''}
+                `;
+                
+                // Add click handlers for breadcrumbs
+                if (v.category && v.topic) {
+                    const categoryLink = card.querySelector('.breadcrumb-category');
+                    const topicLink = card.querySelector('.breadcrumb-topic');
+                    
+                    if (categoryLink) {
+                        categoryLink.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const categoryName = categoryLink.getAttribute('data-category');
+                            handleBreadcrumbCategoryClick(categoryName);
+                        });
+                    }
+                    
+                    if (topicLink) {
+                        topicLink.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            const categoryName = topicLink.getAttribute('data-category');
+                            const topicName = topicLink.getAttribute('data-topic');
+                            handleBreadcrumbTopicClick(categoryName, topicName);
+                        });
+                    }
+                }
+                
+                container.appendChild(card);
+            });
+        }
 
         // Initialize settings checkboxes on page load
         function initializeMetadataSettings() {
@@ -7993,6 +8272,15 @@
                 });
             }
             
+            // Setup favourites search input event listener
+            const favouritesSearchInput = document.getElementById('favouritesSearch');
+            if (favouritesSearchInput) {
+                favouritesSearchInput.addEventListener('input', (e) => {
+                    favouritesSearchTerm = e.target.value;
+                    renderFavourites();
+                    updateFavouritesSearchClearButton();
+                });
+            }
             
             // Setup treemap search input event listener
             const treemapSearchInput = document.getElementById('treemapSearch');
@@ -11640,14 +11928,13 @@
                         category: v.category || categoryName,
                         topic: v.topic || topicName
                     };
-                    // Use base64 encoding with Unicode-safe encoding
+                    // Use base64 encoding with Unicode-safe encoding (matches handleFavouriteClick format)
                     const verbatimJson = JSON.stringify(verbatimObj);
                     const verbatimData = btoa(unescape(encodeURIComponent(verbatimJson)));
-                    
                     card.innerHTML = `
                         <div class="verbatim-card-header">
                             <div class="verbatim-text" style="flex: 1; margin-bottom: 0; padding-right: 8px;">${escapedText}</div>
-                            <button class="create-insight-button" data-verbatim="${verbatimData}" onclick="createInsightFromVerbatim(this)" title="Create insight from this verbatim" style="background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; margin-right: 4px; color: oklch(0.556 0 0); transition: all 0.2s ease;" onmouseover="this.style.color='#B9F040'" onmouseout="this.style.color='oklch(0.556 0 0)'">
+                            <button class="create-insight-button" data-verbatim="${verbatimData}" onclick="createInsightFromVerbatim(this)" title="Create insight from this verbatim" style="background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; color: oklch(0.556 0 0); transition: all 0.2s ease;" onmouseover="this.style.color='#B9F040'" onmouseout="this.style.color='oklch(0.556 0 0)'">
                                 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M12 5v14M5 12h14"/>
                                 </svg>
@@ -11842,13 +12129,13 @@
 
         function toggleInsightsPanel() {
             const body = document.getElementById('insightsPanelBody');
-            const icon = document.getElementById('insightsPanelToggleIcon');
+            const container = document.querySelector('.insights-panel-container');
             if (body.classList.contains('collapsed')) {
                 body.classList.remove('collapsed');
-                icon.textContent = '▼';
+                if (container) container.classList.remove('collapsed');
             } else {
                 body.classList.add('collapsed');
-                icon.textContent = '▲';
+                if (container) container.classList.add('collapsed');
             }
         }
 
@@ -11954,16 +12241,12 @@
             });
 
             if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>No insights found</h3><p>Create your first insight to get started</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><h3>No insights found</h3><p>Create your first insight to get started</p></td></tr>';
                 return;
             }
 
             tbody.innerHTML = filtered.map(insight => {
                 const createdDate = new Date(insight.created_at).toLocaleDateString();
-                const firstOrigin = insight.origins?.[0] || {};
-                const projectName = firstOrigin.project_name || '-';
-                const dataSource = firstOrigin.data_source || '-';
-                const dimension = firstOrigin.dimension_name || firstOrigin.dimension_ref || '-';
 
                 return `
                     <tr>
@@ -11988,19 +12271,6 @@
                         <td>
                             <span class="tag tag-type">${escapeHtml(insight.type)}</span>
                         </td>
-                        <td>
-                            <div class="status">
-                                <div class="status-dot not-started"></div>
-                                <span>Not started</span>
-                            </div>
-                        </td>
-                        <td>
-                            ${projectName !== '-' ? `<span class="tag tag-project">${escapeHtml(projectName)}</span>` : '-'}
-                        </td>
-                        <td>
-                            ${dataSource !== '-' ? `<span class="tag tag-data-source">${escapeHtml(dataSource)}</span>` : '-'}
-                        </td>
-                        <td>${escapeHtml(dimension)}</td>
                         <td>${createdDate}</td>
                         <td class="actions-cell">
                             <button class="action-btn" onclick="editInsightFromView('${insight.id}')" title="Edit">✏️</button>
