@@ -102,7 +102,7 @@
         }
 
         .page-header {
-            padding: 16px 24px;
+            padding: 16px 35px;
             border-bottom: 1px solid rgba(55, 53, 47, 0.09);
             display: flex;
             justify-content: space-between;
@@ -134,7 +134,7 @@
 
         /* Control Bar */
         .control-bar {
-            padding: 8px 24px;
+            padding: 8px 35px;
             border-bottom: 1px solid rgba(55, 53, 47, 0.09);
             background: white;
             display: flex;
@@ -352,6 +352,11 @@
         .notion-table .name-cell {
             min-width: 250px;
             font-weight: 500;
+            padding-left: 35px;
+        }
+
+        .notion-table th.name-cell {
+            padding-left: 35px;
         }
 
         .notion-table .name-cell .name-content {
@@ -665,7 +670,6 @@
             <table class="notion-table">
                 <thead>
                     <tr>
-                        <th class="checkbox-cell"></th>
                         <th class="name-cell sorted" onclick="sortBy('name')">
                             <span class="column-icon">Aa</span>
                             <span>Name</span>
@@ -1010,9 +1014,6 @@
                 
                 return `
                     <tr>
-                        <td class="checkbox-cell">
-                            <div class="checkbox"></div>
-                        </td>
                         <td class="name-cell">
                             <div class="name-content" style="position: relative;">
                                 <svg class="doc-icon" viewBox="0 0 16 16" fill="currentColor">
