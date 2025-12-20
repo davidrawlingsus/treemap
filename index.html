@@ -3999,7 +3999,7 @@
                     <div class="filter-panel" id="dimensionPanel" role="tabpanel" aria-labelledby="dimensionTab">
                         <label for="questionSelect" id="questionLabel" style="display:none;">Dimension:</label>
                         <select id="questionSelect" style="display:none;">
-                            <option value="">All Dimensions</option>
+                            <option value="">Loading...</option>
                         </select>
                     </div>
                 </div>
@@ -5940,7 +5940,7 @@
                 }
                 
                 // Populate question selector
-                questionSelect.innerHTML = '<option value="">All Dimensions</option>';
+                questionSelect.innerHTML = '';
                 availableQuestions.forEach(refKey => {
                     const option = document.createElement('option');
                     option.value = refKey;
@@ -5980,10 +5980,13 @@
                 // Setup inline dimension editor
                 setupInlineDimensionEditor();
                 
-                // Restore saved question or default to "All Dimensions"
+                // Restore saved question or default to first dimension
                 let questionToSelect = null;
                 if (savedState && savedState.questionRefKey && availableQuestions.includes(savedState.questionRefKey)) {
                     questionToSelect = savedState.questionRefKey;
+                } else if (availableQuestions.length > 0) {
+                    // Default to first dimension in the list
+                    questionToSelect = availableQuestions[0];
                 }
                 
                 if (questionToSelect) {
@@ -5995,17 +5998,6 @@
                     // Update AI Insights panel with restored dimension
                     if (window.AIInsightsPanel) {
                         window.AIInsightsPanel.setCurrentDimension(questionToSelect);
-                    }
-                } else {
-                    // Default to "All Dimensions" view
-                    const previousRefKey = currentQuestionRefKey; // Save old value before updating
-                    currentQuestionRefKey = null;
-                    questionSelect.value = '';
-                    filterByQuestion('', previousRefKey); // Show all dimensions
-                    dimensionNameEditor.style.display = 'none';
-                    // Hide AI Insights tab when no specific dimension selected
-                    if (window.AIInsightsPanel) {
-                        window.AIInsightsPanel.setCurrentDimension('');
                     }
                 }
                 syncFilterTabState();
