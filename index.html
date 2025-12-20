@@ -3107,6 +3107,10 @@
             border-radius: 0.375rem; /* 6px */
         }
 
+        #slideoutSearch {
+            color: #333 !important;
+        }
+
         #slideoutSearchClear {
             transition: all 0.2s;
         }
@@ -7543,15 +7547,16 @@
             const clearBtn = document.getElementById('slideoutSearchClear');
             
             if (searchInput && window.SlideoutPanel) {
+                // Store the search term (preserve what user typed)
                 window.SlideoutPanel.verbatimSearchTerm = searchInput.value;
                 
                 // Show/hide clear button
                 if (clearBtn) {
-                    clearBtn.style.display = searchInput.value ? 'flex' : 'none';
+                    clearBtn.style.display = searchInput.value.trim() ? 'flex' : 'none';
                 }
                 
                 // Re-render verbatims with search filter
-                if (window.SlideoutPanel.currentMode === 'verbatims') {
+                if (window.SlideoutPanel.currentMode === 'verbatims' && window.SlideoutPanel.currentVerbatimsData) {
                     window.SlideoutPanel.renderVerbatims(
                         window.SlideoutPanel.currentVerbatimsData,
                         window.SlideoutPanel.currentTopicName,
@@ -11327,12 +11332,24 @@
                     return;
                 }
                 
-                // Clear search
+                // Setup search input (preserve existing value if re-rendering)
                 const searchInput = document.getElementById('slideoutSearch');
+                const clearBtn = document.getElementById('slideoutSearchClear');
                 if (searchInput) {
-                    searchInput.value = '';
+                    // Only clear if this is a fresh render (verbatimSearchTerm is empty)
+                    if (!this.verbatimSearchTerm) {
+                        searchInput.value = '';
+                    } else {
+                        // Preserve the search term
+                        searchInput.value = this.verbatimSearchTerm;
+                    }
                     searchInput.style.display = 'block';
                     searchInput.placeholder = 'Search verbatims...';
+                    
+                    // Show/hide clear button based on search term
+                    if (clearBtn) {
+                        clearBtn.style.display = this.verbatimSearchTerm && this.verbatimSearchTerm.trim() ? 'flex' : 'none';
+                    }
                 }
                 
                 // Show settings button
@@ -11347,8 +11364,9 @@
                 
                 // Filter verbatims by search term
                 let displayVerbatims = verbatims;
-                if (this.verbatimSearchTerm) {
-                    const searchLower = this.verbatimSearchTerm.toLowerCase();
+                const searchTerm = (this.verbatimSearchTerm || '').trim();
+                if (searchTerm) {
+                    const searchLower = searchTerm.toLowerCase();
                     displayVerbatims = verbatims.filter(v => 
                         (v.text || '').toLowerCase().includes(searchLower)
                     );
@@ -12295,7 +12313,7 @@
         </div>
         
         <!-- Search box for verbatims -->
-        <div style="padding: 0 24px 16px 24px;">
+        <div style="padding: 0 10px 10px 10px; margin-top: 16px;">
             <div style="position: relative;">
                 <input
                     type="text"
