@@ -17,6 +17,7 @@ class Insight(Base):
     description = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)  # Formatted notes (HTML from WYSIWYG editor)
     origins = Column(JSONB, nullable=False, default=[])  # Array of origin objects
+    verbatims = Column(JSONB, nullable=True, default=[])  # Array of pinned verbatim objects
     meta_data = Column('metadata', JSONB, nullable=True, default={})  # For future extensibility
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

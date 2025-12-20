@@ -9933,37 +9933,78 @@
         async function initializeInsightPanel(container, insight) {
             if (!container) return;
             
+            // Get verbatims from insight
+            const insightVerbatims = (insight.verbatims && Array.isArray(insight.verbatims)) ? insight.verbatims : [];
+            
             container.innerHTML = `
-                <div style="padding: 0;">
-                    <div style="padding: 1.5rem; border-bottom: 1px solid oklch(0.922 0 0);">
-                        <div id="insightTitleEditable" 
-                             contenteditable="true" 
-                             style="font-size: 1.875rem; font-weight: 700; font-family: 'Lato', sans-serif; color: oklch(0.145 0 0); outline: none; min-height: 2.5rem; line-height: 1.2;"
-                             data-placeholder="Untitled">${escapeHtml(insight.name || 'Untitled')}</div>
-                    </div>
-                    <div style="padding: 1rem 1.5rem; border-bottom: 1px solid oklch(0.922 0 0);">
-                        <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 0.75rem;">
-                            <div class="insight-attribute-row">
-                                <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Type</div>
-                                <div style="flex: 1;">
-                                    <div id="insightTypeChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
-                                        ${escapeHtml(insight.type || 'Empty')}
+                <div style="padding: 0; display: flex; flex-direction: column; height: 100%;">
+                    <!-- Scrollable Content Area -->
+                    <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column;">
+                        <div style="padding: 1.5rem; border-bottom: 1px solid oklch(0.922 0 0); flex-shrink: 0;">
+                            <div id="insightTitleEditable" 
+                                 contenteditable="true" 
+                                 style="font-size: 1.875rem; font-weight: 700; font-family: 'Lato', sans-serif; color: oklch(0.145 0 0); outline: none; min-height: 2.5rem; line-height: 1.2;"
+                                 data-placeholder="Untitled">${escapeHtml(insight.name || 'Untitled')}</div>
+                        </div>
+                        <div style="padding: 1rem 1.5rem; border-bottom: 1px solid oklch(0.922 0 0); flex-shrink: 0;">
+                            <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <div class="insight-attribute-row">
+                                    <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Type</div>
+                                    <div style="flex: 1;">
+                                        <div id="insightTypeChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
+                                            ${escapeHtml(insight.type || 'Empty')}
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="insight-attribute-row">
-                                <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Application</div>
-                                <div style="flex: 1;">
-                                    <div id="insightApplicationChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
-                                        ${escapeHtml(insight.application || 'Empty')}
+                                <div class="insight-attribute-row">
+                                    <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Application</div>
+                                    <div style="flex: 1;">
+                                        <div id="insightApplicationChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
+                                            ${escapeHtml(insight.application || 'Empty')}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                    <div style="padding: 1.5rem;">
-                        <div id="insightNotesSaveStatus" style="font-size: 0.75rem; font-family: 'Lato', sans-serif; color: oklch(0.556 0 0); margin-bottom: 0.5rem; min-height: 1rem;"></div>
-                        <div id="insightNotesEditor" style="min-height: 400px; outline: none; font-size: 0.875rem; font-family: 'Lato', sans-serif; line-height: 1.5; color: oklch(0.145 0 0);"></div>
+                        <div style="padding: 1.5rem; flex-shrink: 0;">
+                            <div id="insightNotesSaveStatus" style="font-size: 0.75rem; font-family: 'Lato', sans-serif; color: oklch(0.556 0 0); margin-bottom: 0.5rem; min-height: 1rem;"></div>
+                            <div id="insightNotesEditor" style="min-height: 200px; outline: none; font-size: 0.875rem; font-family: 'Lato', sans-serif; line-height: 1.5; color: oklch(0.145 0 0);"></div>
+                        </div>
+                        
+                        <!-- Verbatims Section (read-only) -->
+                        ${insightVerbatims.length > 0 ? `
+                        <div style="padding: 1.5rem; border-top: 1px solid oklch(0.922 0 0); flex-shrink: 0;">
+                            <div style="font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 600; color: oklch(0.145 0 0); margin-bottom: 0.75rem;">
+                                Pinned Verbatims (${insightVerbatims.length})
+                            </div>
+                            <div id="insightVerbatimsList" style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem;">
+                                ${insightVerbatims.map(verbatim => {
+                                    const verbatimText = escapeHtml((verbatim.text || '').substring(0, 200)) + (verbatim.text && verbatim.text.length > 200 ? '...' : '');
+                                    return `
+                                        <div class="insight-verbatim-item" style="
+                                            display: flex;
+                                            align-items: flex-start;
+                                            gap: 0.75rem;
+                                            padding: 0.75rem;
+                                            border: 1px solid oklch(0.922 0 0);
+                                            border-radius: 0.5rem;
+                                            background: oklch(0.98 0.02 120);
+                                        ">
+                                            <div style="flex: 1; font-size: 0.875rem; font-family: 'Lato', sans-serif; color: oklch(0.145 0 0); line-height: 1.5;">
+                                                ${verbatimText}
+                                            </div>
+                                            <div style="flex-shrink: 0; color: #B9F040; display: flex; align-items: center; justify-content: center; padding: 0.25rem;">
+                                                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                                    <path d="M8 2v12M5 6l3-4 3 4"/>
+                                                    <circle cx="8" cy="6" r="1.5" fill="currentColor"/>
+                                                </svg>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
                     </div>
                 </div>
             `;
@@ -10472,6 +10513,36 @@
                 }
             },
             
+            // Helper function to get verbatims from context data
+            getVerbatimsFromContext(contextData) {
+                if (!contextData || !hierarchyData) return [];
+                
+                const categoryName = contextData.category;
+                const topicName = contextData.topic_label;
+                const type = contextData.type;
+                
+                if (!categoryName) return [];
+                
+                // Find the category in hierarchy
+                const categoryData = findCategoryInHierarchy(categoryName);
+                if (!categoryData) return [];
+                
+                // If it's a topic, get verbatims from that specific topic
+                if (type === 'topic' && topicName) {
+                    const topicData = findTopicInCategory(categoryData, topicName);
+                    if (topicData && topicData.verbatims) {
+                        return topicData.verbatims;
+                    }
+                }
+                
+                // If it's a category, get all verbatims from that category
+                if (type === 'category') {
+                    return collectCategoryVerbatims(categoryData);
+                }
+                
+                return [];
+            },
+            
             async initializeCreateInsightPanel(container, contextData) {
                 if (!container) return;
                 
@@ -10492,72 +10563,93 @@
                 const categoryName = contextData.category || null;
                 const topicName = contextData.topic_label || null;
                 
+                // Get verbatims for this context
+                const availableVerbatims = this.getVerbatimsFromContext(contextData);
+                
                 // Create panel structure with attributes (title is now in header)
+                // Use flexbox layout with scrollable content and fixed footer
                 container.innerHTML = `
-                    <div style="padding: 0;">
-                        <!-- Attributes Section -->
-                        <div style="padding: 1rem 1.5rem; border-bottom: 1px solid oklch(0.922 0 0);">
-                            <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 0.75rem;">
-                                <!-- Category Attribute -->
-                                ${categoryName ? `
-                                <div class="insight-attribute-row">
-                                    <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Category</div>
-                                    <div style="flex: 1;">
-                                        <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
-                                            ${escapeHtml(categoryName)}
+                    <div style="padding: 0; display: flex; flex-direction: column; height: 100%;">
+                        <!-- Scrollable Content Area -->
+                        <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column;">
+                            <!-- Attributes Section -->
+                            <div style="padding: 1rem 1.5rem; border-bottom: 1px solid oklch(0.922 0 0); flex-shrink: 0;">
+                                <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                    <!-- Category Attribute -->
+                                    ${categoryName ? `
+                                    <div class="insight-attribute-row">
+                                        <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Category</div>
+                                        <div style="flex: 1;">
+                                            <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
+                                                ${escapeHtml(categoryName)}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                ` : ''}
-                                
-                                <!-- Topic Attribute -->
-                                ${topicName ? `
-                                <div class="insight-attribute-row">
-                                    <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Topic</div>
-                                    <div style="flex: 1;">
-                                        <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
-                                            ${escapeHtml(topicName)}
+                                    ` : ''}
+                                    
+                                    <!-- Topic Attribute -->
+                                    ${topicName ? `
+                                    <div class="insight-attribute-row">
+                                        <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Topic</div>
+                                        <div style="flex: 1;">
+                                            <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
+                                                ${escapeHtml(topicName)}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                ` : ''}
-                                
-                                <!-- Type Attribute -->
-                                <div class="insight-attribute-row">
-                                    <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Type</div>
-                                    <div style="flex: 1;">
-                                        <div id="insightTypeChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
-                                            Empty
+                                    ` : ''}
+                                    
+                                    <!-- Type Attribute -->
+                                    <div class="insight-attribute-row">
+                                        <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Type</div>
+                                        <div style="flex: 1;">
+                                            <div id="insightTypeChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
+                                                Empty
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                
-                                <!-- Application Attribute -->
-                                <div class="insight-attribute-row">
-                                    <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Application</div>
-                                    <div style="flex: 1;">
-                                        <div id="insightApplicationChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
-                                            Empty
+                                    
+                                    <!-- Application Attribute -->
+                                    <div class="insight-attribute-row">
+                                        <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Application</div>
+                                        <div style="flex: 1;">
+                                            <div id="insightApplicationChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
+                                                Empty
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
+                            
+                            <!-- Notes Section -->
+                            <div style="padding: 1.5rem; flex-shrink: 0;">
+                                <div id="insightNotesSaveStatus" style="font-size: 0.75rem; font-family: 'Lato', sans-serif; color: oklch(0.556 0 0); margin-bottom: 0.5rem; min-height: 1rem;"></div>
+                                <div id="insightNotesEditor" style="min-height: 200px; outline: none; font-size: 0.875rem; font-family: 'Lato', sans-serif; line-height: 1.5; color: oklch(0.145 0 0);"></div>
+                            </div>
+                            
+                            <!-- Verbatims Section -->
+                            <div style="padding: 1.5rem; border-top: 1px solid oklch(0.922 0 0); flex-shrink: 0;">
+                                <div style="font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 600; color: oklch(0.145 0 0); margin-bottom: 0.75rem;">
+                                    Verbatims (${availableVerbatims.length})
+                                </div>
+                                <div id="insightVerbatimsList" style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem;">
+                                    <!-- Verbatims will be rendered here -->
+                                </div>
+                            </div>
                         </div>
                         
-                        <!-- Notes Section -->
-                        <div style="padding: 1.5rem;">
-                            <div id="insightNotesSaveStatus" style="font-size: 0.75rem; font-family: 'Lato', sans-serif; color: oklch(0.556 0 0); margin-bottom: 0.5rem; min-height: 1rem;"></div>
-                            <div id="insightNotesEditor" style="min-height: 400px; outline: none; font-size: 0.875rem; font-family: 'Lato', sans-serif; line-height: 1.5; color: oklch(0.145 0 0);"></div>
-                        </div>
-                        
-                        <!-- Save Button -->
-                        <div style="padding: 1rem 1.5rem; border-top: 1px solid oklch(0.922 0 0); background: oklch(0.98 0 0); display: flex; justify-content: flex-end;">
+                        <!-- Fixed Footer with Save Button -->
+                        <div style="padding: 1rem 1.5rem; border-top: 1px solid oklch(0.922 0 0); background: oklch(0.98 0 0); display: flex; justify-content: flex-end; flex-shrink: 0; position: sticky; bottom: 0;">
                             <button id="saveNewInsightBtn" style="background: #B9F040; color: #000; border: none; padding: 0.5rem 1.5rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.875rem; font-family: 'Lato', sans-serif; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='#a0d636'" onmouseout="this.style.background='#B9F040'">
                                 Create Insight
                             </button>
                         </div>
                     </div>
                 `;
+                
+                // Store available verbatims and initialize pinned verbatims set
+                this.availableVerbatims = availableVerbatims;
+                this.pinnedVerbatims = new Set();
                 
                 // Store origin for saving
                 this.createInsightOrigin = origin;
@@ -10625,6 +10717,71 @@
                 
                 // Initialize editor with empty notes
                 await this.initializeInsightEditor(document.getElementById('insightNotesEditor'), '');
+                
+                // Render verbatims list
+                this.renderVerbatimsList();
+            },
+            
+            // Render verbatims list with pin icons
+            renderVerbatimsList() {
+                const container = document.getElementById('insightVerbatimsList');
+                if (!container) return;
+                
+                if (!this.availableVerbatims || this.availableVerbatims.length === 0) {
+                    container.innerHTML = '<div style="padding: 1rem; text-align: center; color: oklch(0.556 0 0); font-size: 0.875rem; font-family: \'Lato\', sans-serif;">No verbatims available</div>';
+                    return;
+                }
+                
+                container.innerHTML = this.availableVerbatims.map((verbatim, index) => {
+                    const isPinned = this.pinnedVerbatims.has(index);
+                    const verbatimText = escapeHtml((verbatim.text || '').substring(0, 200)) + (verbatim.text && verbatim.text.length > 200 ? '...' : '');
+                    
+                    return `
+                        <div class="insight-verbatim-item" data-index="${index}" style="
+                            display: flex;
+                            align-items: flex-start;
+                            gap: 0.75rem;
+                            padding: 0.75rem;
+                            border: 1px solid oklch(0.922 0 0);
+                            border-radius: 0.5rem;
+                            background: ${isPinned ? 'oklch(0.98 0.02 120)' : 'oklch(1 0 0)'};
+                            transition: all 0.2s ease;
+                            cursor: pointer;
+                        " onmouseover="this.style.borderColor='oklch(0.8 0 0)'" onmouseout="this.style.borderColor='oklch(0.922 0 0)'">
+                            <div style="flex: 1; font-size: 0.875rem; font-family: 'Lato', sans-serif; color: oklch(0.145 0 0); line-height: 1.5;">
+                                ${verbatimText}
+                            </div>
+                            <button class="verbatim-pin-btn" data-index="${index}" style="
+                                background: none;
+                                border: none;
+                                cursor: pointer;
+                                padding: 0.25rem;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                flex-shrink: 0;
+                                color: ${isPinned ? '#B9F040' : 'oklch(0.556 0 0)'};
+                                transition: all 0.2s ease;
+                            " onclick="event.stopPropagation(); SlideoutPanel.togglePinVerbatim(${index})" title="${isPinned ? 'Unpin verbatim' : 'Pin verbatim'}">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="${isPinned ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M8 2v12M5 6l3-4 3 4"/>
+                                    ${isPinned ? '<circle cx="8" cy="6" r="1.5" fill="currentColor"/>' : ''}
+                                </svg>
+                            </button>
+                        </div>
+                    `;
+                }).join('');
+            },
+            
+            // Toggle pin state for a verbatim
+            togglePinVerbatim(index) {
+                if (this.pinnedVerbatims.has(index)) {
+                    this.pinnedVerbatims.delete(index);
+                } else {
+                    this.pinnedVerbatims.add(index);
+                }
+                // Re-render to update visual state
+                this.renderVerbatimsList();
             },
             
             async saveNewInsight() {
@@ -10655,6 +10812,16 @@
                 const statusEl = document.getElementById('insightNotesSaveStatus');
                 if (statusEl) statusEl.textContent = 'Creating...';
                 
+                // Collect pinned verbatims
+                const pinnedVerbatimsArray = [];
+                if (this.pinnedVerbatims && this.availableVerbatims) {
+                    this.pinnedVerbatims.forEach(index => {
+                        if (this.availableVerbatims[index]) {
+                            pinnedVerbatimsArray.push(this.availableVerbatims[index]);
+                        }
+                    });
+                }
+                
                 try {
                     const insightData = {
                         name: name,
@@ -10662,6 +10829,7 @@
                         application: application === 'Empty' ? '' : application,
                         notes: notes || null,
                         origins: [this.createInsightOrigin],
+                        verbatims: pinnedVerbatimsArray.length > 0 ? pinnedVerbatimsArray : null,
                     };
                     
                     const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights`, {
@@ -10723,62 +10891,104 @@
                     insightTitleEl.setAttribute('contenteditable', 'true');
                 }
                 
+                // Get verbatims from insight
+                const insightVerbatims = insight.verbatims || [];
+                
                 // Create panel structure with attributes (title is now in header)
                 container.innerHTML = `
-                    <div style="padding: 0;">
-                    <!-- Attributes Section -->
-                    <div style="padding: 1rem 1.5rem; border-bottom: 1px solid oklch(0.922 0 0);">
-                        <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 0.75rem;">
-                            <!-- Category Attribute -->
-                            ${categoryName ? `
-                            <div class="insight-attribute-row">
-                                <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Category</div>
-                                <div style="flex: 1;">
-                                    <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
-                                        ${escapeHtml(categoryName)}
+                    <div style="padding: 0; display: flex; flex-direction: column; height: 100%;">
+                        <!-- Scrollable Content Area -->
+                        <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column;">
+                            <!-- Attributes Section -->
+                            <div style="padding: 1rem 1.5rem; border-bottom: 1px solid oklch(0.922 0 0); flex-shrink: 0;">
+                                <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                    <!-- Category Attribute -->
+                                    ${categoryName ? `
+                                    <div class="insight-attribute-row">
+                                        <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Category</div>
+                                        <div style="flex: 1;">
+                                            <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
+                                                ${escapeHtml(categoryName)}
+                                            </div>
+                                        </div>
                                     </div>
+                                    ` : ''}
+                                    
+                                    <!-- Topic Attribute -->
+                                    ${topicName ? `
+                                    <div class="insight-attribute-row">
+                                        <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Topic</div>
+                                        <div style="flex: 1;">
+                                            <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
+                                                ${escapeHtml(topicName)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    ` : ''}
+                                    
+                                    <!-- Type Attribute -->
+                                    <div class="insight-attribute-row">
+                                        <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Type</div>
+                                        <div style="flex: 1;">
+                                            <div id="insightTypeChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
+                                                ${escapeHtml(insight.type || 'Empty')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Application Attribute -->
+                                    <div class="insight-attribute-row">
+                                        <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Application</div>
+                                        <div style="flex: 1;">
+                                            <div id="insightApplicationChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
+                                                ${escapeHtml(insight.application || 'Empty')}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Notes Section -->
+                            <div style="padding: 1.5rem; flex-shrink: 0;">
+                                <div id="insightNotesSaveStatus" style="font-size: 0.75rem; font-family: 'Lato', sans-serif; color: oklch(0.556 0 0); margin-bottom: 0.5rem; min-height: 1rem;"></div>
+                                <div id="insightNotesEditor" style="min-height: 200px; outline: none; font-size: 0.875rem; font-family: 'Lato', sans-serif; line-height: 1.5; color: oklch(0.145 0 0);"></div>
+                            </div>
+                            
+                            <!-- Verbatims Section (read-only) -->
+                            ${insightVerbatims.length > 0 ? `
+                            <div style="padding: 1.5rem; border-top: 1px solid oklch(0.922 0 0); flex-shrink: 0;">
+                                <div style="font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 600; color: oklch(0.145 0 0); margin-bottom: 0.75rem;">
+                                    Pinned Verbatims (${insightVerbatims.length})
+                                </div>
+                                <div id="insightVerbatimsList" style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem;">
+                                    ${insightVerbatims.map(verbatim => {
+                                        const verbatimText = escapeHtml((verbatim.text || '').substring(0, 200)) + (verbatim.text && verbatim.text.length > 200 ? '...' : '');
+                                        return `
+                                            <div class="insight-verbatim-item" style="
+                                                display: flex;
+                                                align-items: flex-start;
+                                                gap: 0.75rem;
+                                                padding: 0.75rem;
+                                                border: 1px solid oklch(0.922 0 0);
+                                                border-radius: 0.5rem;
+                                                background: oklch(0.98 0.02 120);
+                                            ">
+                                                <div style="flex: 1; font-size: 0.875rem; font-family: 'Lato', sans-serif; color: oklch(0.145 0 0); line-height: 1.5;">
+                                                    ${verbatimText}
+                                                </div>
+                                                <div style="flex-shrink: 0; color: #B9F040; display: flex; align-items: center; justify-content: center; padding: 0.25rem;">
+                                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                                        <path d="M8 2v12M5 6l3-4 3 4"/>
+                                                        <circle cx="8" cy="6" r="2" fill="currentColor"/>
+                                                    </svg>
+                                                </div>
+                                            </div>
+                                        `;
+                                    }).join('')}
                                 </div>
                             </div>
                             ` : ''}
-                            
-                            <!-- Topic Attribute -->
-                            ${topicName ? `
-                            <div class="insight-attribute-row">
-                                <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Topic</div>
-                                <div style="flex: 1;">
-                                    <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
-                                        ${escapeHtml(topicName)}
-                                    </div>
-                                </div>
-                            </div>
-                            ` : ''}
-                            
-                            <!-- Type Attribute -->
-                            <div class="insight-attribute-row">
-                                <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Type</div>
-                                <div style="flex: 1;">
-                                    <div id="insightTypeChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
-                                        ${escapeHtml(insight.type || 'Empty')}
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Application Attribute -->
-                            <div class="insight-attribute-row">
-                                <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Application</div>
-                                <div style="flex: 1;">
-                                    <div id="insightApplicationChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
-                                        ${escapeHtml(insight.application || 'Empty')}
-                                    </div>
-                                </div>
-                            </div>
                         </div>
-                    </div>
-                    
-                    <!-- Notes Section -->
-                    <div style="padding: 1.5rem;">
-                        <div id="insightNotesSaveStatus" style="font-size: 0.75rem; font-family: 'Lato', sans-serif; color: oklch(0.556 0 0); margin-bottom: 0.5rem; min-height: 1rem;"></div>
-                        <div id="insightNotesEditor" style="min-height: 400px; outline: none; font-size: 0.875rem; font-family: 'Lato', sans-serif; line-height: 1.5; color: oklch(0.145 0 0);"></div>
                     </div>
                     </div>
                 `;

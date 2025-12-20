@@ -1524,6 +1524,7 @@ def create_insight(
             description=insight_data.description,
             notes=insight_data.notes,
             origins=origins_json,
+            verbatims=insight_data.verbatims or [],
             meta_data=insight_data.metadata or {},
             created_by=current_user.id,
         )
@@ -1594,6 +1595,8 @@ def update_insight(
         insight.description = insight_data.description
     if insight_data.notes is not None:
         insight.notes = insight_data.notes
+    if insight_data.verbatims is not None:
+        insight.verbatims = insight_data.verbatims
     if insight_data.metadata is not None:
         insight.meta_data = insight_data.metadata
     

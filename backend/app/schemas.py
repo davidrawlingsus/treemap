@@ -476,6 +476,7 @@ class InsightCreate(BaseModel):
     description: Optional[str] = None
     notes: Optional[str] = None  # Formatted notes (HTML from WYSIWYG editor)
     origins: List[InsightOrigin] = Field(..., min_length=1)  # At least one origin required
+    verbatims: Optional[List[Dict[str, Any]]] = None  # Array of pinned verbatim objects
     metadata: Optional[Dict[str, Any]] = None
 
 
@@ -488,6 +489,7 @@ class InsightUpdate(BaseModel):
     notes: Optional[str] = None  # Formatted notes (HTML from WYSIWYG editor)
     origins: Optional[List[InsightOrigin]] = None  # Replace entire origins array
     add_origin: Optional[InsightOrigin] = None  # Append a new origin
+    verbatims: Optional[List[Dict[str, Any]]] = None  # Array of pinned verbatim objects
     metadata: Optional[Dict[str, Any]] = None
 
 
@@ -501,6 +503,7 @@ class InsightResponse(BaseModel):
     description: Optional[str] = None
     notes: Optional[str] = None  # Formatted notes (HTML from WYSIWYG editor)
     origins: List[InsightOrigin] = Field(default_factory=list)
+    verbatims: Optional[List[Dict[str, Any]]] = Field(default_factory=list)  # Array of pinned verbatim objects
     metadata: Optional[Dict[str, Any]] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -518,6 +521,7 @@ class InsightResponse(BaseModel):
             'description': obj.description,
             'notes': obj.notes,
             'metadata': obj.meta_data or {},
+            'verbatims': obj.verbatims or [],
             'created_at': obj.created_at,
             'updated_at': obj.updated_at,
             'created_by': obj.created_by,
