@@ -6164,9 +6164,21 @@
                 
                 console.log('Setting up container dimensions...');
                 // Set dimensions based on container
+                // Only set dimensions if container is visible, otherwise wait for view switch
                 const container = document.querySelector('.treemap-svg-container');
-                width = container.clientWidth;
-                height = container.clientHeight;
+                const vizSection = document.getElementById('visualizations-section');
+                const isVizSectionVisible = vizSection && (vizSection.classList.contains('active') || vizSection.style.display !== 'none');
+                
+                if (container && isVizSectionVisible) {
+                    width = container.clientWidth;
+                    height = container.clientHeight;
+                    console.log('Container dimensions set:', { width, height });
+                } else {
+                    // Container is hidden, use defaults but they'll be recalculated when section becomes visible
+                    console.log('Container is hidden, using default dimensions (will recalculate when visible)');
+                    width = 800;
+                    height = 600;
+                }
                 
                 console.log('Loading clients...');
                 // Load clients from API (which will cascade to sources and data)
@@ -9468,6 +9480,41 @@
                     mainContainer.style.minHeight = '100vh';
                     mainContainer.removeAttribute('data-view');
                 }
+                
+                // Recalculate treemap dimensions when switching to visualizations
+                // This fixes the issue where treemap is initialized with wrong size when page loads on insights tab
+                if (typeof hierarchyData !== 'undefined' && hierarchyData) {
+                    // Wait for DOM to update so container is visible before measuring
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            // Double RAF ensures layout has completed
+                            const container = document.querySelector('.treemap-svg-container');
+                            if (container) {
+                                const newWidth = container.clientWidth;
+                                const newHeight = container.clientHeight;
+                                // Only re-render if dimensions are significantly different
+                                if (newWidth && newHeight && newWidth > 100 && newHeight > 100) {
+                                    const svg = document.getElementById('treemap');
+                                    if (svg) {
+                                        const currentWidth = parseInt(svg.getAttribute('width')) || 0;
+                                        const currentHeight = parseInt(svg.getAttribute('height')) || 0;
+                                        // Re-render if dimensions don't match (with some tolerance)
+                                        if (Math.abs(newWidth - currentWidth) > 10 || Math.abs(newHeight - currentHeight) > 10) {
+                                            console.log('[navigateToView] Re-rendering treemap with correct dimensions:', {
+                                                old: { width: currentWidth, height: currentHeight },
+                                                new: { width: newWidth, height: newHeight }
+                                            });
+                                            if (typeof renderTreemap === 'function') {
+                                                renderTreemap(hierarchyData);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    });
+                }
+                
                 // Restore scroll position if it was previously saved
                 if (window.visualizationsScrollPosition !== undefined) {
                     requestAnimationFrame(() => {
