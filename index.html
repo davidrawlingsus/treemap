@@ -10215,7 +10215,11 @@
         let insightsSearchTerm = '';
         let insightsAllInsights = [];
         let insightsCurrentInsightEditor = null;
-        const FILTER_STORAGE_KEY = 'insights_filters';
+        // Get storage key scoped by client ID for filter persistence
+        function getFilterStorageKey() {
+            const clientId = insightsCurrentClientId || currentClientId || 'global';
+            return `insights_filters_${clientId}`;
+        }
         
         // Available filter fields
         const FILTER_FIELDS = [
@@ -10334,6 +10338,10 @@
             
             // Load filters from storage on initialization
             loadFiltersFromStorage();
+            
+            // Update filter UI to reflect loaded filters
+            updateFilterChips();
+            updateActiveFiltersDisplay();
             
             await loadInsightsPage();
             window.insightsInitialized = true;
@@ -10462,6 +10470,9 @@
                 
                 insightsAllInsights = data.items || [];
                 console.log('[DEBUG] Stored', insightsAllInsights.length, 'insights in insightsAllInsights array');
+                
+                // Restore visible filter dropdowns after loading insights (so we have data for dropdown options)
+                restoreFilterDropdowns();
                 
                 renderInsightsPage();
                 console.log('[DEBUG] ========== loadInsightsPage completed successfully ==========');
@@ -10719,9 +10730,10 @@
             renderInsightsPage();
         }
 
-        // Load filters from localStorage
+        // Load filters from localStorage (scoped by client ID)
         function loadFiltersFromStorage() {
-            const saved = localStorage.getItem(FILTER_STORAGE_KEY);
+            const storageKey = getFilterStorageKey();
+            const saved = localStorage.getItem(storageKey);
             if (saved) {
                 try {
                     insightsFilters = JSON.parse(saved);
@@ -10729,12 +10741,108 @@
                     console.warn('Failed to parse saved filters:', e);
                     insightsFilters = [];
                 }
+            } else {
+                insightsFilters = [];
             }
         }
         
-        // Save filters to localStorage
+        // Save filters to localStorage (scoped by client ID)
         function saveFiltersToStorage() {
-            localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(insightsFilters));
+            const storageKey = getFilterStorageKey();
+            localStorage.setItem(storageKey, JSON.stringify(insightsFilters));
+        }
+        
+        // Restore visible filter dropdowns for active filters
+        function restoreFilterDropdowns() {
+            if (!insightsFilters || insightsFilters.length === 0) {
+                return;
+            }
+            
+            // Get unique field IDs from active filters
+            const activeFieldIds = new Set(insightsFilters.map(f => f.field));
+            
+            // Create dropdown UI for each active filter field
+            activeFieldIds.forEach(fieldId => {
+                // Check if dropdown already exists
+                const existingDropdown = document.getElementById(`inline-filter-${fieldId}`);
+                if (!existingDropdown) {
+                    // Create the dropdown UI - but start with it closed
+                    const field = FILTER_FIELDS.find(f => f.id === fieldId);
+                    if (!field) return;
+                    
+                    // Get unique values for this field from insights
+                    const values = field.type === 'select' ? getUniqueFieldValues(fieldId) : [];
+                    
+                    // Create inline filter dropdown
+                    const filterChipsContainer = document.getElementById('filterChips');
+                    if (!filterChipsContainer) return;
+                    
+                    const inlineFilter = document.createElement('div');
+                    inlineFilter.className = 'inline-filter-dropdown';
+                    inlineFilter.id = `inline-filter-${fieldId}`;
+                    
+                    let optionsHTML = '';
+                    if (field.type === 'select') {
+                        optionsHTML = values.map(value => {
+                            const isSelected = insightsFilters.some(f => f.field === fieldId && f.value === value);
+                            const escapedValue = escapeHtml(value);
+                            return `
+                                <div class="inline-filter-option ${isSelected ? 'selected' : ''}" 
+                                     data-filter-value="${escapedValue}"
+                                     onclick="event.stopPropagation(); toggleInlineFilterValue('${fieldId}', '${escapedValue}')">
+                                    <input type="checkbox" class="inline-filter-checkbox" ${isSelected ? 'checked' : ''} 
+                                           data-filter-value="${escapedValue}"
+                                           onclick="event.stopPropagation()" 
+                                           onchange="event.stopPropagation(); toggleInlineFilterValue('${fieldId}', '${escapedValue}')">
+                                    <span>${escapedValue || '(empty)'}</span>
+                                </div>
+                            `;
+                        }).join('');
+                    } else if (field.type === 'date') {
+                        const dateOptions = [
+                            { value: 'today', label: 'Today' },
+                            { value: 'yesterday', label: 'Yesterday' },
+                            { value: 'this_week', label: 'This week' },
+                            { value: 'this_month', label: 'This month' },
+                            { value: 'last_month', label: 'Last month' }
+                        ];
+                        optionsHTML = dateOptions.map(opt => {
+                            const isSelected = insightsFilters.some(f => f.field === fieldId && f.value === opt.value);
+                            return `
+                                <div class="inline-filter-option ${isSelected ? 'selected' : ''}" 
+                                     onclick="event.stopPropagation(); addDateFilter('${fieldId}', '${opt.value}')">
+                                    <input type="checkbox" class="inline-filter-checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()" onchange="event.stopPropagation(); addDateFilter('${fieldId}', '${opt.value}')">
+                                    <span>${opt.label}</span>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                    
+                    // Create dropdown with closed state initially
+                    inlineFilter.innerHTML = `
+                        <div class="inline-filter-header" onclick="toggleInlineFilterDropdown('${fieldId}', event)">
+                            <span class="inline-filter-icon">${field.icon}</span>
+                            <span class="inline-filter-label">${field.label}</span>
+                            <span class="inline-filter-chevron">▼</span>
+                        </div>
+                        <div class="inline-filter-options" style="display: none;">
+                            ${optionsHTML}
+                        </div>
+                        <div class="inline-filter-remove" onclick="event.stopPropagation(); removeInlineFilter('${fieldId}')" title="Remove filter">×</div>
+                    `;
+                    
+                    // Insert before the filter button container
+                    const filterButtonContainer = filterChipsContainer.nextElementSibling;
+                    if (filterButtonContainer && filterButtonContainer.parentNode) {
+                        filterButtonContainer.parentNode.insertBefore(inlineFilter, filterButtonContainer);
+                    } else {
+                        filterChipsContainer.parentNode.appendChild(inlineFilter);
+                    }
+                } else {
+                    // Update existing dropdown checkboxes to reflect current filter state
+                    updateInlineFilterOptions(fieldId);
+                }
+            });
         }
         
         // Toggle filter menu
@@ -10840,6 +10948,8 @@
                     header.classList.toggle('open');
                     options.classList.toggle('open');
                     console.log('[DEBUG openFilterValueDialog] Toggled classes. Header open:', header.classList.contains('open'), 'Options open:', options.classList.contains('open'));
+                    // Update checkbox states to reflect current filter state (in case filters were loaded from storage)
+                    updateInlineFilterOptions(fieldId);
                 }
                 return;
             }
@@ -10866,11 +10976,16 @@
             if (field.type === 'select') {
                 optionsHTML = values.map(value => {
                     const isSelected = insightsFilters.some(f => f.field === fieldId && f.value === value);
+                    const escapedValue = escapeHtml(value);
                     return `
                         <div class="inline-filter-option ${isSelected ? 'selected' : ''}" 
-                             onclick="event.stopPropagation(); toggleInlineFilterValue('${fieldId}', '${escapeHtml(value)}')">
-                            <input type="checkbox" class="inline-filter-checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()" onchange="event.stopPropagation(); toggleInlineFilterValue('${fieldId}', '${escapeHtml(value)}')">
-                            <span>${escapeHtml(value || '(empty)')}</span>
+                             data-filter-value="${escapedValue}"
+                             onclick="event.stopPropagation(); toggleInlineFilterValue('${fieldId}', '${escapedValue}')">
+                            <input type="checkbox" class="inline-filter-checkbox" ${isSelected ? 'checked' : ''} 
+                                   data-filter-value="${escapedValue}"
+                                   onclick="event.stopPropagation()" 
+                                   onchange="event.stopPropagation(); toggleInlineFilterValue('${fieldId}', '${escapedValue}')">
+                            <span>${escapedValue || '(empty)'}</span>
                         </div>
                     `;
                 }).join('');
@@ -11002,23 +11117,17 @@
         
         // Toggle inline filter value
         function toggleInlineFilterValue(fieldId, value) {
-            console.log('[DEBUG toggleInlineFilterValue] Called with fieldId:', fieldId, 'value:', value);
             const existingIndex = insightsFilters.findIndex(f => f.field === fieldId && f.value === value);
-            console.log('[DEBUG toggleInlineFilterValue] Existing index:', existingIndex);
-            console.log('[DEBUG toggleInlineFilterValue] Current filters:', JSON.stringify(insightsFilters));
             
             if (existingIndex >= 0) {
                 // Remove filter
-                console.log('[DEBUG toggleInlineFilterValue] Removing filter');
                 insightsFilters.splice(existingIndex, 1);
             } else {
                 // Add filter
-                console.log('[DEBUG toggleInlineFilterValue] Adding filter');
                 insightsFilters.push({ field: fieldId, operator: 'equals', value: value });
             }
-            console.log('[DEBUG toggleInlineFilterValue] Updated filters:', JSON.stringify(insightsFilters));
             
-            // Update the inline dropdown options
+            // Update the inline dropdown options to reflect current filter state
             updateInlineFilterOptions(fieldId);
             updateFilterChips();
             updateActiveFiltersDisplay();
@@ -11026,80 +11135,53 @@
             renderInsightsPage();
         }
         
-        // Update inline filter options display
+        // Update inline filter options display to sync checkbox states with filter state
         function updateInlineFilterOptions(fieldId) {
-            console.log('[DEBUG updateInlineFilterOptions] Called with fieldId:', fieldId);
             const dropdown = document.getElementById(`inline-filter-${fieldId}`);
-            console.log('[DEBUG updateInlineFilterOptions] Dropdown element:', dropdown);
             if (!dropdown) {
-                console.warn('[DEBUG updateInlineFilterOptions] Dropdown not found!');
                 return;
             }
             
             const options = dropdown.querySelectorAll('.inline-filter-option');
-            console.log('[DEBUG updateInlineFilterOptions] Found', options.length, 'options');
-            console.log('[DEBUG updateInlineFilterOptions] Current filters:', JSON.stringify(insightsFilters));
             
-            options.forEach((option, index) => {
+            options.forEach((option) => {
                 const checkbox = option.querySelector('.inline-filter-checkbox');
-                console.log(`[DEBUG updateInlineFilterOptions] Option ${index}:`, {
-                    hasCheckbox: !!checkbox,
-                    checkboxElement: checkbox,
-                    checkboxChecked: checkbox ? checkbox.checked : 'N/A',
-                    checkboxValue: checkbox ? checkbox.value : 'N/A'
-                });
-                
                 if (!checkbox) {
-                    console.warn(`[DEBUG updateInlineFilterOptions] Option ${index} has no checkbox!`);
                     return;
                 }
                 
-                // Extract value from the checkbox's onchange attribute
-                const onchangeAttr = checkbox.getAttribute('onchange');
-                console.log(`[DEBUG updateInlineFilterOptions] Option ${index} onchange attr:`, onchangeAttr);
-                const valueMatch = onchangeAttr ? onchangeAttr.match(/'([^']+)'/) : null;
+                // Get the filter value from data attribute (most reliable)
+                let value = checkbox.getAttribute('data-filter-value') || option.getAttribute('data-filter-value');
                 
-                let value = null;
-                if (!valueMatch) {
-                    // Fallback: try to get from onclick on the parent div
-                    const onclickAttr = option.getAttribute('onclick');
-                    console.log(`[DEBUG updateInlineFilterOptions] Option ${index} onclick attr:`, onclickAttr);
-                    const onclickMatch = onclickAttr ? onclickAttr.match(/'([^']+)'/) : null;
-                    if (!onclickMatch) {
-                        console.warn(`[DEBUG updateInlineFilterOptions] Option ${index} - could not extract value from attributes`);
-                        return;
+                // Fallback: extract from function call in onchange attribute if data attribute not found
+                if (!value) {
+                    const onchangeAttr = checkbox.getAttribute('onchange');
+                    const valueMatch = onchangeAttr ? onchangeAttr.match(/toggleInlineFilterValue\(['"]([^'"]+)['"],\s*['"]([^'"]+)['"]\)/) : null;
+                    if (valueMatch && valueMatch[2]) {
+                        value = valueMatch[2];
+                    } else {
+                        // Last resort: try onclick on parent
+                        const onclickAttr = option.getAttribute('onclick');
+                        const onclickMatch = onclickAttr ? onclickAttr.match(/toggleInlineFilterValue\(['"]([^'"]+)['"],\s*['"]([^'"]+)['"]\)/) : null;
+                        if (onclickMatch && onclickMatch[2]) {
+                            value = onclickMatch[2];
+                        } else {
+                            return; // Cannot determine value, skip this option
+                        }
                     }
-                    value = onclickMatch[1];
-                } else {
-                    value = valueMatch[1];
                 }
                 
-                console.log(`[DEBUG updateInlineFilterOptions] Option ${index} extracted value:`, value);
+                // Check if this value is currently in the filters
                 const isSelected = insightsFilters.some(f => f.field === fieldId && f.value === value);
-                console.log(`[DEBUG updateInlineFilterOptions] Option ${index} isSelected:`, isSelected);
                 
-                const wasChecked = checkbox.checked;
+                // Update checkbox state
                 checkbox.checked = isSelected;
-                console.log(`[DEBUG updateInlineFilterOptions] Option ${index} checkbox checked state - was: ${wasChecked}, now: ${checkbox.checked}`);
                 
-                // Check computed styles
-                const computedStyle = window.getComputedStyle(checkbox);
-                console.log(`[DEBUG updateInlineFilterOptions] Option ${index} checkbox computed styles:`, {
-                    display: computedStyle.display,
-                    visibility: computedStyle.visibility,
-                    opacity: computedStyle.opacity,
-                    width: computedStyle.width,
-                    height: computedStyle.height,
-                    accentColor: computedStyle.accentColor || computedStyle.getPropertyValue('accent-color'),
-                    appearance: computedStyle.appearance || computedStyle.getPropertyValue('-webkit-appearance')
-                });
-                
+                // Update option selected class for styling
                 if (isSelected) {
                     option.classList.add('selected');
-                    console.log(`[DEBUG updateInlineFilterOptions] Option ${index} - added 'selected' class`);
                 } else {
                     option.classList.remove('selected');
-                    console.log(`[DEBUG updateInlineFilterOptions] Option ${index} - removed 'selected' class`);
                 }
             });
         }
