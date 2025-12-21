@@ -3553,6 +3553,49 @@
             position: relative;
         }
 
+        .notion-table th.draggable {
+            cursor: grab;
+        }
+
+        .notion-table th.draggable:active {
+            cursor: grabbing;
+        }
+
+        .notion-table th.dragging {
+            opacity: 0.5;
+            background: rgba(185, 240, 64, 0.1);
+        }
+
+        .notion-table th.drag-over {
+            border-left: 3px solid #B9F040;
+            background: rgba(185, 240, 64, 0.05);
+        }
+
+        .notion-table th .drag-handle {
+            display: inline-block;
+            margin-right: 6px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            cursor: grab;
+            vertical-align: middle;
+            font-size: 14px;
+            line-height: 1;
+            color: rgba(55, 53, 47, 0.4);
+            user-select: none;
+        }
+
+        .notion-table th:hover .drag-handle {
+            opacity: 0.4;
+        }
+
+        .notion-table th.draggable:hover .drag-handle {
+            opacity: 0.6;
+        }
+
+        .notion-table th.draggable:active .drag-handle {
+            opacity: 0.8;
+        }
+
         .notion-table th:hover {
             background: rgba(55, 53, 47, 0.06);
         }
@@ -4306,17 +4349,20 @@
                                 <table class="notion-table">
                                     <thead>
                                         <tr>
-                                            <th class="name-cell sorted" onclick="sortInsightsBy('name')">
+                                            <th class="name-cell sorted draggable" data-column="name" draggable="true" onclick="sortInsightsBy('name')">
+                                                <span class="drag-handle">⋮⋮</span>
                                                 <span class="column-icon">Aa</span>
                                                 <span>Name</span>
                                                 <span class="sort-indicator">↓</span>
                                             </th>
-                                            <th onclick="sortInsightsBy('type')">
+                                            <th class="draggable" data-column="type" draggable="true" onclick="sortInsightsBy('type')">
+                                                <span class="drag-handle">⋮⋮</span>
                                                 <span class="column-icon">≡</span>
                                                 <span>Type</span>
                                                 <span class="sort-indicator"></span>
                                             </th>
-                                            <th onclick="sortInsightsBy('created_at')">
+                                            <th class="draggable" data-column="created_at" draggable="true" onclick="sortInsightsBy('created_at')">
+                                                <span class="drag-handle">⋮⋮</span>
                                                 <span class="column-icon">📅</span>
                                                 <span>Created</span>
                                                 <span class="sort-indicator"></span>
@@ -10003,59 +10049,77 @@
                 const dataSource = firstOrigin.data_source || '-';
                 const dimension = firstOrigin.dimension_name || firstOrigin.dimension_ref || '-';
                 
-                return `
-                    <tr>
-                        <td class="name-cell">
-                            <div class="name-content" style="position: relative;">
-                                <svg class="doc-icon" viewBox="0 0 16 16" fill="currentColor">
-                                    <path d="M2.5 2.5h11l.5.5v10l-.5.5h-11l-.5-.5V3l.5-.5zM3 4v8h10V4H3zm2 1h6v1H5V5zm0 2h6v1H5V7zm0 2h4v1H5V9z"/>
+                // Build cells in default order, we'll reorder them after rendering
+                const cells = {
+                    name: `<td class="name-cell" data-column="name">
+                        <div class="name-content" style="position: relative;">
+                            <svg class="doc-icon" viewBox="0 0 16 16" fill="currentColor">
+                                <path d="M2.5 2.5h11l.5.5v10l-.5.5h-11l-.5-.5V3l.5-.5zM3 4v8h10V4H3zm2 1h6v1H5V5zm0 2h6v1H5V7zm0 2h4v1H5V9z"/>
+                            </svg>
+                            <span>${escapeHtml(insight.name)}</span>
+                            <button class="insight-open-btn-table" onclick="openInsightNotes('${insight.id}')" title="Open in side peek" style="display: none;">
+                                <span style="font-size: 12px; margin-right: 4px;">OPEN</span>
+                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="opacity: 0.6;">
+                                    <rect x="4" y="4" width="8" height="8" stroke="currentColor" stroke-width="1.5" fill="none" rx="1"/>
+                                    <path d="M6 2 L6 6 M10 2 L10 6 M2 6 L2 10 M2 6 L6 6 M10 6 L14 6 M14 6 L14 10" stroke="currentColor" stroke-width="1.5" fill="none"/>
                                 </svg>
-                                <span>${escapeHtml(insight.name)}</span>
-                                <button class="insight-open-btn-table" onclick="openInsightNotes('${insight.id}')" title="Open in side peek" style="display: none;">
-                                    <span style="font-size: 12px; margin-right: 4px;">OPEN</span>
-                                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="opacity: 0.6;">
-                                        <rect x="4" y="4" width="8" height="8" stroke="currentColor" stroke-width="1.5" fill="none" rx="1"/>
-                                        <path d="M6 2 L6 6 M10 2 L10 6 M2 6 L2 10 M2 6 L6 6 M10 6 L14 6 M14 6 L14 10" stroke="currentColor" stroke-width="1.5" fill="none"/>
-                                    </svg>
-                                </button>
-                            </div>
-                        </td>
-                        <td>
-                            <span class="tag tag-type">${escapeHtml(insight.type)}</span>
-                        </td>
-                        <td>
-                            <select class="status-select" 
-                                    onchange="console.log('[DEBUG status-select onchange] Triggered for insight:', '${insight.id}', 'new value:', this.value); updateInsightStatus('${insight.id}', this.value)" 
-                                    data-insight-id="${insight.id}"
-                                    data-current-status="${insight.status || 'Not Started'}">
-                                <option value="Not Started" ${(insight.status || 'Not Started') === 'Not Started' ? 'selected' : ''}>Not Started</option>
-                                <option value="Queued" ${(insight.status || 'Not Started') === 'Queued' ? 'selected' : ''}>Queued</option>
-                                <option value="Design" ${(insight.status || 'Not Started') === 'Design' ? 'selected' : ''}>Design</option>
-                                <option value="Development" ${(insight.status || 'Not Started') === 'Development' ? 'selected' : ''}>Development</option>
-                                <option value="QA" ${(insight.status || 'Not Started') === 'QA' ? 'selected' : ''}>QA</option>
-                                <option value="Testing" ${(insight.status || 'Not Started') === 'Testing' ? 'selected' : ''}>Testing</option>
-                                <option value="Win" ${(insight.status || 'Not Started') === 'Win' ? 'selected' : ''}>Win</option>
-                                <option value="Disproved" ${(insight.status || 'Not Started') === 'Disproved' ? 'selected' : ''}>Disproved</option>
-                            </select>
-                        </td>
-                        <td>
-                            ${projectName !== '-' ? `<span class="tag tag-project">${escapeHtml(projectName)}</span>` : '-'}
-                        </td>
-                        <td>
-                            ${dataSource !== '-' ? `<span class="tag tag-data-source">${escapeHtml(dataSource)}</span>` : '-'}
-                        </td>
-                        <td>${escapeHtml(dimension)}</td>
-                        <td>${createdDate}</td>
-                        <td class="actions-cell">
-                            <button class="action-btn" onclick="editInsight('${insight.id}')" title="Edit">✏️</button>
-                            <button class="action-btn" onclick="deleteInsight('${insight.id}')" title="Delete">🗑️</button>
-                        </td>
-                    </tr>
-                `;
+                            </button>
+                        </div>
+                    </td>`,
+                    type: `<td data-column="type">
+                        <span class="tag tag-type">${escapeHtml(insight.type)}</span>
+                    </td>`,
+                    status: `<td data-column="status">
+                        <select class="status-select" 
+                                onchange="console.log('[DEBUG status-select onchange] Triggered for insight:', '${insight.id}', 'new value:', this.value); updateInsightStatus('${insight.id}', this.value)" 
+                                data-insight-id="${insight.id}"
+                                data-current-status="${insight.status || 'Not Started'}">
+                            <option value="Not Started" ${(insight.status || 'Not Started') === 'Not Started' ? 'selected' : ''}>Not Started</option>
+                            <option value="Queued" ${(insight.status || 'Not Started') === 'Queued' ? 'selected' : ''}>Queued</option>
+                            <option value="Design" ${(insight.status || 'Not Started') === 'Design' ? 'selected' : ''}>Design</option>
+                            <option value="Development" ${(insight.status || 'Not Started') === 'Development' ? 'selected' : ''}>Development</option>
+                            <option value="QA" ${(insight.status || 'Not Started') === 'QA' ? 'selected' : ''}>QA</option>
+                            <option value="Testing" ${(insight.status || 'Not Started') === 'Testing' ? 'selected' : ''}>Testing</option>
+                            <option value="Win" ${(insight.status || 'Not Started') === 'Win' ? 'selected' : ''}>Win</option>
+                            <option value="Disproved" ${(insight.status || 'Not Started') === 'Disproved' ? 'selected' : ''}>Disproved</option>
+                        </select>
+                    </td>`,
+                    project: `<td data-column="project">
+                        ${projectName !== '-' ? `<span class="tag tag-project">${escapeHtml(projectName)}</span>` : '-'}
+                    </td>`,
+                    data_source: `<td data-column="data_source">
+                        ${dataSource !== '-' ? `<span class="tag tag-data-source">${escapeHtml(dataSource)}</span>` : '-'}
+                    </td>`,
+                    dimension: `<td data-column="dimension">${escapeHtml(dimension)}</td>`,
+                    created_at: `<td data-column="created_at">${createdDate}</td>`
+                };
+                
+                // Get column order
+                const columnOrder = getColumnOrder();
+                
+                // Build row HTML in the correct order
+                const orderedCells = columnOrder.map(col => cells[col] || '').filter(cell => cell);
+                const actionsCell = `<td class="actions-cell">
+                    <button class="action-btn" onclick="editInsight('${insight.id}')" title="Edit">✏️</button>
+                    <button class="action-btn" onclick="deleteInsight('${insight.id}')" title="Delete">🗑️</button>
+                </td>`;
+                
+                return `<tr>${orderedCells.join('')}${actionsCell}</tr>`;
             }).join('');
             
             tbody.innerHTML = renderedHTML;
             console.log('[DEBUG] Table body updated with', filtered.length, 'rows');
+            
+            // Apply saved column order and initialize drag and drop
+            setTimeout(() => {
+                if (typeof applyColumnOrder === 'function') {
+                    applyColumnOrder();
+                }
+                if (typeof initializeColumnDragAndDrop === 'function') {
+                    initializeColumnDragAndDrop();
+                }
+            }, 0);
+            
             console.log('[DEBUG] ========== renderInsightsPage completed ==========');
         }
 
@@ -11061,6 +11125,263 @@
             }
         }
 
+        // Column order management
+        const COLUMN_ORDER_KEY = 'insights_column_order';
+        
+        function getDefaultColumnOrder() {
+            return ['name', 'type', 'status', 'project', 'data_source', 'dimension', 'created_at'];
+        }
+        
+        function getColumnOrder() {
+            const saved = localStorage.getItem(COLUMN_ORDER_KEY);
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    // Validate that all default columns are present
+                    const defaultOrder = getDefaultColumnOrder();
+                    const hasAllColumns = defaultOrder.every(col => parsed.includes(col));
+                    if (hasAllColumns && parsed.length === defaultOrder.length) {
+                        return parsed;
+                    }
+                } catch (e) {
+                    console.warn('Failed to parse saved column order:', e);
+                }
+            }
+            return getDefaultColumnOrder();
+        }
+        
+        function saveColumnOrder(order) {
+            localStorage.setItem(COLUMN_ORDER_KEY, JSON.stringify(order));
+        }
+        
+        function initializeColumnDragAndDrop() {
+            const tables = document.querySelectorAll('.notion-table');
+            tables.forEach(table => {
+                const thead = table.querySelector('thead tr');
+                if (!thead) return;
+                
+                const headers = Array.from(thead.querySelectorAll('th.draggable'));
+                headers.forEach(header => {
+                    header.addEventListener('dragstart', handleDragStart);
+                    header.addEventListener('dragend', handleDragEnd);
+                    header.addEventListener('dragover', handleDragOver);
+                    header.addEventListener('drop', handleDrop);
+                    header.addEventListener('dragleave', handleDragLeave);
+                });
+            });
+        }
+        
+        let draggedColumn = null;
+        
+        function handleDragStart(e) {
+            draggedColumn = e.target;
+            e.target.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', e.target.outerHTML);
+        }
+        
+        function handleDragEnd(e) {
+            e.target.classList.remove('dragging');
+            document.querySelectorAll('.notion-table th').forEach(th => {
+                th.classList.remove('drag-over');
+            });
+            draggedColumn = null;
+        }
+        
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            
+            const target = e.target.closest('th.draggable');
+            if (target && target !== draggedColumn) {
+                target.classList.add('drag-over');
+            }
+            return false;
+        }
+        
+        function handleDragLeave(e) {
+            const target = e.target.closest('th.draggable');
+            if (target) {
+                target.classList.remove('drag-over');
+            }
+        }
+        
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            
+            const target = e.target.closest('th.draggable');
+            if (!target || !draggedColumn || target === draggedColumn) {
+                return false;
+            }
+            
+            const table = target.closest('table');
+            if (!table) return false;
+            
+            const thead = table.querySelector('thead tr');
+            const tbody = table.querySelector('tbody');
+            
+            if (!thead || !tbody) return false;
+            
+            // Get column names
+            const draggedCol = draggedColumn.getAttribute('data-column');
+            const targetCol = target.getAttribute('data-column');
+            
+            if (!draggedCol || !targetCol) return false;
+            
+            // Get current order
+            const currentOrder = Array.from(thead.querySelectorAll('th.draggable'))
+                .map(th => th.getAttribute('data-column'))
+                .filter(col => col);
+            
+            // Calculate new order
+            const draggedIndex = currentOrder.indexOf(draggedCol);
+            const targetIndex = currentOrder.indexOf(targetCol);
+            
+            if (draggedIndex === -1 || targetIndex === -1) return false;
+            
+            // Remove dragged column from its current position
+            const newOrder = [...currentOrder];
+            newOrder.splice(draggedIndex, 1);
+            
+            // Insert at target position
+            const insertIndex = draggedIndex < targetIndex ? targetIndex : targetIndex;
+            newOrder.splice(insertIndex, 0, draggedCol);
+            
+            // Save new order
+            saveColumnOrder(newOrder);
+            
+            // Reorder headers
+            const headerMap = new Map();
+            const nonDraggableHeaders = [];
+            
+            Array.from(thead.querySelectorAll('th')).forEach(th => {
+                if (th.classList.contains('draggable')) {
+                    const col = th.getAttribute('data-column');
+                    if (col) {
+                        headerMap.set(col, th);
+                    }
+                } else {
+                    nonDraggableHeaders.push(th);
+                }
+            });
+            
+            thead.innerHTML = '';
+            newOrder.forEach(col => {
+                const header = headerMap.get(col);
+                if (header) thead.appendChild(header);
+            });
+            nonDraggableHeaders.forEach(header => {
+                thead.appendChild(header);
+            });
+            
+            // Reorder body cells
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.forEach(row => {
+                const cellMap = new Map();
+                const nonDraggableCells = [];
+                
+                Array.from(row.querySelectorAll('td')).forEach(cell => {
+                    const col = cell.getAttribute('data-column');
+                    if (col) {
+                        cellMap.set(col, cell);
+                    } else {
+                        nonDraggableCells.push(cell);
+                    }
+                });
+                
+                row.innerHTML = '';
+                newOrder.forEach(col => {
+                    const cell = cellMap.get(col);
+                    if (cell) row.appendChild(cell);
+                });
+                nonDraggableCells.forEach(cell => {
+                    row.appendChild(cell);
+                });
+            });
+            
+            // Re-initialize drag and drop
+            initializeColumnDragAndDrop();
+            
+            target.classList.remove('drag-over');
+            return false;
+        }
+        
+        function applyColumnOrder() {
+            const order = getColumnOrder();
+            const tables = document.querySelectorAll('.notion-table');
+            
+            tables.forEach(table => {
+                const thead = table.querySelector('thead tr');
+                const tbody = table.querySelector('tbody');
+                
+                if (!thead || !tbody) return;
+                
+                // Get all headers and map them by column
+                const allHeaders = Array.from(thead.querySelectorAll('th'));
+                const headerMap = new Map();
+                const nonDraggableHeaders = [];
+                
+                allHeaders.forEach(header => {
+                    if (header.classList.contains('draggable')) {
+                        const col = header.getAttribute('data-column');
+                        if (col) {
+                            headerMap.set(col, header);
+                        }
+                    } else {
+                        nonDraggableHeaders.push(header);
+                    }
+                });
+                
+                // Reorder headers based on saved order
+                const orderedHeaders = order.map(col => headerMap.get(col)).filter(h => h);
+                
+                // Clear and rebuild header row
+                thead.innerHTML = '';
+                orderedHeaders.forEach(header => {
+                    thead.appendChild(header);
+                });
+                nonDraggableHeaders.forEach(header => {
+                    thead.appendChild(header);
+                });
+                
+                // Reorder body cells
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                rows.forEach(row => {
+                    const allCells = Array.from(row.querySelectorAll('td'));
+                    const cellMap = new Map();
+                    const nonDraggableCells = [];
+                    
+                    // Map cells by data-column attribute
+                    allCells.forEach(cell => {
+                        const col = cell.getAttribute('data-column');
+                        if (col) {
+                            cellMap.set(col, cell);
+                        } else {
+                            // Cells without data-column (like Actions) are non-draggable
+                            nonDraggableCells.push(cell);
+                        }
+                    });
+                    
+                    // Clear and rebuild row in correct order
+                    row.innerHTML = '';
+                    order.forEach(col => {
+                        const cell = cellMap.get(col);
+                        if (cell) row.appendChild(cell);
+                    });
+                    nonDraggableCells.forEach(cell => {
+                        row.appendChild(cell);
+                    });
+                });
+            });
+            
+            // Re-initialize drag and drop after reordering
+            initializeColumnDragAndDrop();
+        }
+
         // Make insights functions globally accessible
         window.openCreateModal = openCreateModal;
         window.closeModal = closeModal;
@@ -11076,6 +11397,8 @@
         window.openInsightNotes = openInsightNotes;
         window.closeInsightNotes = closeInsightNotes;
         window.initInsightsPage = initInsightsPage;
+        window.applyColumnOrder = applyColumnOrder;
+        window.initializeColumnDragAndDrop = initializeColumnDragAndDrop;
         
         // Debug: Verify function is accessible
         console.log('[DEBUG] ========== Function Exposure Check ==========');
@@ -13922,37 +14245,44 @@
                 <table class="notion-table">
                     <thead>
                         <tr>
-                            <th class="name-cell sorted" onclick="sortBy('name')">
+                            <th class="name-cell sorted draggable" data-column="name" draggable="true" onclick="sortBy('name')">
+                                <span class="drag-handle">⋮⋮</span>
                                 <span class="column-icon">Aa</span>
                                 <span>Name</span>
                                 <span class="sort-indicator">↓</span>
                             </th>
-                            <th onclick="sortBy('type')">
+                            <th class="draggable" data-column="type" draggable="true" onclick="sortBy('type')">
+                                <span class="drag-handle">⋮⋮</span>
                                 <span class="column-icon">≡</span>
                                 <span>Type</span>
                                 <span class="sort-indicator"></span>
                             </th>
-                            <th onclick="sortBy('status')">
+                            <th class="draggable" data-column="status" draggable="true" onclick="sortBy('status')">
+                                <span class="drag-handle">⋮⋮</span>
                                 <span class="column-icon">⁂</span>
                                 <span>Status</span>
                                 <span class="sort-indicator"></span>
                             </th>
-                            <th onclick="sortBy('project')">
+                            <th class="draggable" data-column="project" draggable="true" onclick="sortBy('project')">
+                                <span class="drag-handle">⋮⋮</span>
                                 <span class="column-icon">≡</span>
                                 <span>Project</span>
                                 <span class="sort-indicator"></span>
                             </th>
-                            <th onclick="sortBy('data_source')">
+                            <th class="draggable" data-column="data_source" draggable="true" onclick="sortBy('data_source')">
+                                <span class="drag-handle">⋮⋮</span>
                                 <span class="column-icon">≡</span>
                                 <span>Data Source</span>
                                 <span class="sort-indicator"></span>
                             </th>
-                            <th onclick="sortBy('dimension')">
+                            <th class="draggable" data-column="dimension" draggable="true" onclick="sortBy('dimension')">
+                                <span class="drag-handle">⋮⋮</span>
                                 <span class="column-icon">≡</span>
                                 <span>Dimension</span>
                                 <span class="sort-indicator"></span>
                             </th>
-                            <th onclick="sortBy('created_at')">
+                            <th class="draggable" data-column="created_at" draggable="true" onclick="sortBy('created_at')">
+                                <span class="drag-handle">⋮⋮</span>
                                 <span class="column-icon">📅</span>
                                 <span>Created</span>
                                 <span class="sort-indicator"></span>
