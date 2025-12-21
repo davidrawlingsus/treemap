@@ -1823,6 +1823,27 @@
             background: #0f7b0f;
         }
 
+        .status-select {
+            border: 1px solid rgba(55, 53, 47, 0.16);
+            border-radius: 3px;
+            padding: 4px 8px;
+            font-size: 13px;
+            background: white;
+            color: #37352f;
+            cursor: pointer;
+            min-width: 120px;
+            font-family: inherit;
+        }
+
+        .status-select:hover {
+            border-color: rgba(55, 53, 47, 0.3);
+        }
+
+        .status-select:focus {
+            outline: 2px solid #B9F040;
+            outline-offset: 2px;
+        }
+
         /* Actions */
         .actions-cell {
             width: 80px;
@@ -9958,9 +9979,16 @@
                         id: insight.id,
                         name: insight.name,
                         type: insight.type,
+                        status: insight.status,
                         hasOrigins: !!insight.origins,
                         originsLength: insight.origins?.length || 0
                     });
+                }
+                
+                // Debug status value
+                const currentStatus = insight.status || 'Not Started';
+                if (index < 3) { // Only log first 3 to avoid spam
+                    console.log(`[DEBUG renderInsightsPage] Insight ${insight.id} (${insight.name}) status:`, currentStatus, 'raw status:', insight.status);
                 }
                 const createdDate = new Date(insight.created_at).toLocaleDateString();
                 const firstOrigin = insight.origins?.[0] || {};
@@ -9989,10 +10017,19 @@
                             <span class="tag tag-type">${escapeHtml(insight.type)}</span>
                         </td>
                         <td>
-                            <div class="status">
-                                <div class="status-dot not-started"></div>
-                                <span>Not started</span>
-                            </div>
+                            <select class="status-select" 
+                                    onchange="console.log('[DEBUG status-select onchange] Triggered for insight:', '${insight.id}', 'new value:', this.value); updateInsightStatus('${insight.id}', this.value)" 
+                                    data-insight-id="${insight.id}"
+                                    data-current-status="${insight.status || 'Not Started'}">
+                                <option value="Not Started" ${(insight.status || 'Not Started') === 'Not Started' ? 'selected' : ''}>Not Started</option>
+                                <option value="Queued" ${(insight.status || 'Not Started') === 'Queued' ? 'selected' : ''}>Queued</option>
+                                <option value="Design" ${(insight.status || 'Not Started') === 'Design' ? 'selected' : ''}>Design</option>
+                                <option value="Development" ${(insight.status || 'Not Started') === 'Development' ? 'selected' : ''}>Development</option>
+                                <option value="QA" ${(insight.status || 'Not Started') === 'QA' ? 'selected' : ''}>QA</option>
+                                <option value="Testing" ${(insight.status || 'Not Started') === 'Testing' ? 'selected' : ''}>Testing</option>
+                                <option value="Win" ${(insight.status || 'Not Started') === 'Win' ? 'selected' : ''}>Win</option>
+                                <option value="Disproved" ${(insight.status || 'Not Started') === 'Disproved' ? 'selected' : ''}>Disproved</option>
+                            </select>
                         </td>
                         <td>
                             ${projectName !== '-' ? `<span class="tag tag-project">${escapeHtml(projectName)}</span>` : '-'}
@@ -10263,6 +10300,102 @@
             } catch (error) {
                 console.error('Error deleting insight:', error);
                 alert('Error deleting insight: ' + error.message);
+            }
+        }
+
+        async function updateInsightStatus(insightId, status) {
+            console.log('[DEBUG updateInsightStatus] Function called');
+            console.log('[DEBUG updateInsightStatus] Parameters:', { insightId, status, insightsCurrentClientId });
+            
+            if (!insightsCurrentClientId) {
+                console.error('[DEBUG updateInsightStatus] No insightsCurrentClientId:', insightsCurrentClientId);
+                alert('Error: No client selected. Please refresh the page.');
+                return;
+            }
+            
+            if (!insightId) {
+                console.error('[DEBUG updateInsightStatus] No insightId provided:', insightId);
+                alert('Error: No insight ID provided.');
+                return;
+            }
+            
+            if (!status) {
+                console.error('[DEBUG updateInsightStatus] No status provided:', status);
+                alert('Error: No status value provided.');
+                return;
+            }
+            
+            console.log('[DEBUG updateInsightStatus] Starting status update...');
+            console.log('[DEBUG updateInsightStatus] API_BASE_URL:', API_BASE_URL);
+            console.log('[DEBUG updateInsightStatus] Full URL will be:', `${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights/${insightId}`);
+            
+            try {
+                const headers = getAuthHeadersSafe();
+                console.log('[DEBUG updateInsightStatus] Headers retrieved:', headers ? Object.keys(headers) : 'No headers');
+                
+                const token = headers?.Authorization || headers?.authorization || localStorage.getItem('visualizd_auth_token');
+                console.log('[DEBUG updateInsightStatus] Token retrieved:', token ? `Token exists (${token.substring(0, 20)}...)` : 'No token found');
+                
+                if (!token) {
+                    console.error('[DEBUG updateInsightStatus] Authentication failed - no token');
+                    throw new Error('Not authenticated');
+                }
+                
+                const requestBody = { status: status };
+                console.log('[DEBUG updateInsightStatus] Request body:', requestBody);
+                
+                const requestHeaders = {
+                    'Authorization': token.startsWith('Bearer') ? token : `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                };
+                console.log('[DEBUG updateInsightStatus] Request headers:', { ...requestHeaders, 'Authorization': 'Bearer [REDACTED]' });
+                
+                const url = `${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights/${insightId}`;
+                console.log('[DEBUG updateInsightStatus] Making PUT request to:', url);
+                
+                const fetchStartTime = Date.now();
+                const response = await fetch(url, {
+                    method: 'PUT',
+                    headers: requestHeaders,
+                    body: JSON.stringify(requestBody)
+                });
+                const fetchDuration = Date.now() - fetchStartTime;
+                
+                console.log('[DEBUG updateInsightStatus] Response received in', fetchDuration, 'ms');
+                console.log('[DEBUG updateInsightStatus] Response status:', response.status);
+                console.log('[DEBUG updateInsightStatus] Response statusText:', response.statusText);
+                console.log('[DEBUG updateInsightStatus] Response ok:', response.ok);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('[DEBUG updateInsightStatus] Response not OK. Error text:', errorText);
+                    try {
+                        const errorJson = JSON.parse(errorText);
+                        console.error('[DEBUG updateInsightStatus] Error JSON:', errorJson);
+                        throw new Error(errorJson.detail || `Failed to update status: ${response.status} ${response.statusText}`);
+                    } catch (parseError) {
+                        throw new Error(`Failed to update status: ${response.status} ${response.statusText}. ${errorText}`);
+                    }
+                }
+                
+                const responseData = await response.json();
+                console.log('[DEBUG updateInsightStatus] Response data:', responseData);
+                console.log('[DEBUG updateInsightStatus] Status update successful!');
+                
+                // Refresh insights list
+                if (typeof loadInsightsPage === 'function') {
+                    console.log('[DEBUG updateInsightStatus] Refreshing insights list...');
+                    await loadInsightsPage();
+                    console.log('[DEBUG updateInsightStatus] Insights list refreshed');
+                } else {
+                    console.warn('[DEBUG updateInsightStatus] loadInsightsPage function not found');
+                }
+            } catch (error) {
+                console.error('[DEBUG updateInsightStatus] ERROR caught:', error);
+                console.error('[DEBUG updateInsightStatus] Error name:', error.name);
+                console.error('[DEBUG updateInsightStatus] Error message:', error.message);
+                console.error('[DEBUG updateInsightStatus] Error stack:', error.stack);
+                alert('Error updating status: ' + error.message);
             }
         }
 
@@ -10931,10 +11064,20 @@
         window.openFilterMenu = openFilterMenu;
         window.editInsight = editInsight;
         window.deleteInsight = deleteInsight;
+        window.updateInsightStatus = updateInsightStatus;
         window.saveInsight = saveInsight;
         window.openInsightNotes = openInsightNotes;
         window.closeInsightNotes = closeInsightNotes;
         window.initInsightsPage = initInsightsPage;
+        
+        // Debug: Verify function is accessible
+        console.log('[DEBUG] ========== Function Exposure Check ==========');
+        console.log('[DEBUG] updateInsightStatus function exposed to window:', typeof window.updateInsightStatus);
+        console.log('[DEBUG] updateInsightStatus function:', window.updateInsightStatus);
+        console.log('[DEBUG] insightsCurrentClientId:', insightsCurrentClientId);
+        console.log('[DEBUG] API_BASE_URL:', API_BASE_URL);
+        console.log('[DEBUG] getAuthHeadersSafe function exists:', typeof getAuthHeadersSafe !== 'undefined');
+        console.log('[DEBUG] ============================================');
 
         // Close modal/panel handlers
         document.addEventListener('click', (e) => {

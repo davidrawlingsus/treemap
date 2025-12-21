@@ -475,6 +475,7 @@ class InsightCreate(BaseModel):
     application: Optional[str] = None
     description: Optional[str] = None
     notes: Optional[str] = None  # Formatted notes (HTML from WYSIWYG editor)
+    status: Optional[str] = None  # Status: Not Started, Queued, Design, Development, QA, Testing, Win, Disproved
     origins: List[InsightOrigin] = Field(..., min_length=1)  # At least one origin required
     verbatims: Optional[List[Dict[str, Any]]] = None  # Array of pinned verbatim objects
     metadata: Optional[Dict[str, Any]] = None
@@ -487,6 +488,7 @@ class InsightUpdate(BaseModel):
     application: Optional[str] = None
     description: Optional[str] = None
     notes: Optional[str] = None  # Formatted notes (HTML from WYSIWYG editor)
+    status: Optional[str] = None  # Status: Not Started, Queued, Design, Development, QA, Testing, Win, Disproved
     origins: Optional[List[InsightOrigin]] = None  # Replace entire origins array
     add_origin: Optional[InsightOrigin] = None  # Append a new origin
     verbatims: Optional[List[Dict[str, Any]]] = None  # Array of pinned verbatim objects
@@ -502,6 +504,7 @@ class InsightResponse(BaseModel):
     application: Optional[str] = None
     description: Optional[str] = None
     notes: Optional[str] = None  # Formatted notes (HTML from WYSIWYG editor)
+    status: Optional[str] = None  # Status: Not Started, Queued, Design, Development, QA, Testing, Win, Disproved
     origins: List[InsightOrigin] = Field(default_factory=list)
     verbatims: Optional[List[Dict[str, Any]]] = Field(default_factory=list)  # Array of pinned verbatim objects
     metadata: Optional[Dict[str, Any]] = None
@@ -512,6 +515,8 @@ class InsightResponse(BaseModel):
     @classmethod
     def from_orm(cls, obj):
         """Custom from_orm to handle JSONB origins array"""
+        # Use getattr to handle cases where status column might not exist yet (before migration)
+        status = getattr(obj, 'status', None) or 'Not Started'
         data = {
             'id': obj.id,
             'client_id': obj.client_id,
@@ -520,6 +525,7 @@ class InsightResponse(BaseModel):
             'application': obj.application,
             'description': obj.description,
             'notes': obj.notes,
+            'status': status,
             'metadata': obj.meta_data or {},
             'verbatims': obj.verbatims or [],
             'created_at': obj.created_at,

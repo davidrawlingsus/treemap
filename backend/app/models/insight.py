@@ -16,6 +16,7 @@ class Insight(Base):
     application = Column(Text, nullable=True)  # Where/how to apply this insight
     description = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)  # Formatted notes (HTML from WYSIWYG editor)
+    status = Column(String(50), nullable=True, default='Not Started')  # Status: Not Started, Queued, Design, Development, QA, Testing, Win, Disproved
     origins = Column(JSONB, nullable=False, default=[])  # Array of origin objects
     verbatims = Column(JSONB, nullable=True, default=[])  # Array of pinned verbatim objects
     meta_data = Column('metadata', JSONB, nullable=True, default={})  # For future extensibility

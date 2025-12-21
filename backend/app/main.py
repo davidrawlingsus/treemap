@@ -1523,6 +1523,7 @@ def create_insight(
             application=insight_data.application,
             description=insight_data.description,
             notes=insight_data.notes,
+            status=insight_data.status or 'Not Started',
             origins=origins_json,
             verbatims=insight_data.verbatims or [],
             meta_data=insight_data.metadata or {},
@@ -1608,6 +1609,8 @@ def update_insight(
                 if not img_src.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
                     logger.warning(f"Image {i+1} src does not end with image extension - may be truncated!")
         insight.notes = insight_data.notes
+    if insight_data.status is not None:
+        insight.status = insight_data.status
     if insight_data.verbatims is not None:
         insight.verbatims = insight_data.verbatims
     if insight_data.metadata is not None:
