@@ -1709,19 +1709,33 @@
             font-weight: 500;
         }
 
-        .inline-filter-option-check {
+        .inline-filter-checkbox {
             width: 16px;
             height: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            font-size: 14px;
-            color: oklch(0.145 0 0);
+            cursor: pointer;
+            margin: 0;
+            flex-shrink: 0;
+            accent-color: #B9F040;
+            appearance: checkbox;
+            -webkit-appearance: checkbox;
+            -moz-appearance: checkbox;
+        }
+        
+        /* Debug: Force checkbox visibility */
+        .inline-filter-checkbox:checked {
+            accent-color: #B9F040 !important;
+        }
+        
+        /* Additional debug styling */
+        .inline-filter-checkbox::before {
+            content: '';
+            display: none;
         }
 
-        .inline-filter-option.selected .inline-filter-option-check {
-            opacity: 1;
+        .inline-filter-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .inline-filter-remove {
@@ -4738,7 +4752,7 @@
                 <div class="insights-panel-container">
                     <div class="insights-panel-header">
                         <div class="insights-panel-header-left">
-                            <h2>Insights</h2>
+                            <h2>Recent Insights</h2>
                             <span id="insightsFilterBadge" class="insights-filter-badge" style="display: none;"></span>
                         </div>
                         <div class="insights-panel-header-right">
@@ -4768,19 +4782,13 @@
                                     <thead>
                                         <tr>
                                             <th class="checkbox-cell">
-                                                <input type="checkbox" id="insightsSelectAll" onchange="console.log('[DEBUG] Select all checkbox changed to:', this.checked); toggleSelectAllInsights(this.checked)" title="Select all">
+                                                <input type="checkbox" id="insightsSelectAll" onchange="toggleSelectAllInsights(this.checked)" title="Select all">
                                             </th>
                                             <th class="name-cell sorted draggable" data-column="name" draggable="true" onclick="sortInsightsBy('name')">
                                                 <span class="drag-handle">⋮⋮</span>
                                                 <span class="column-icon">Aa</span>
                                                 <span>Name</span>
                                                 <span class="sort-indicator">↓</span>
-                                            </th>
-                                            <th class="draggable" data-column="type" draggable="true" onclick="sortInsightsBy('type')">
-                                                <span class="drag-handle">⋮⋮</span>
-                                                <span class="column-icon">≡</span>
-                                                <span>Type</span>
-                                                <span class="sort-indicator"></span>
                                             </th>
                                             <th class="draggable" data-column="created_at" draggable="true" onclick="sortInsightsBy('created_at')">
                                                 <span class="drag-handle">⋮⋮</span>
@@ -10472,29 +10480,19 @@
         }
 
         function renderInsightsPage() {
-            console.log('[DEBUG] ========== renderInsightsPage called ==========');
-            console.log('[DEBUG] insightsAllInsights array length:', insightsAllInsights.length);
-            console.log('[DEBUG] insightsSearchTerm:', insightsSearchTerm);
-            
             const tbody = document.getElementById('insightsPageTableBody');
-            if (!tbody) {
-                console.error('[DEBUG] insightsPageTableBody not found in renderInsightsPage');
-                return;
-            }
+            if (!tbody) return;
             
             let filtered = [...insightsAllInsights];
-            console.log('[DEBUG] Starting with', filtered.length, 'insights before filtering');
             
             // Apply search
             if (insightsSearchTerm) {
                 const term = insightsSearchTerm.toLowerCase();
-                console.log('[DEBUG] Applying search filter for term:', term);
                 filtered = filtered.filter(insight => 
                     insight.name?.toLowerCase().includes(term) ||
                     insight.type?.toLowerCase().includes(term) ||
                     insight.description?.toLowerCase().includes(term)
                 );
-                console.log('[DEBUG] After search filter:', filtered.length, 'insights remain');
             }
             
             // Apply filters
@@ -10561,26 +10559,9 @@
                 tbody.innerHTML = `<tr><td colspan="${columnCount + 1}" class="empty-state"><h3>No insights found</h3><p>Create your first insight to get started</p></td></tr>`;
                 return;
             }
-            
-            console.log('[DEBUG] Rendering', filtered.length, 'insights');
 
             const renderedHTML = filtered.map((insight, index) => {
-                if (index === 0) {
-                    console.log('[DEBUG] Sample insight being rendered:', {
-                        id: insight.id,
-                        name: insight.name,
-                        type: insight.type,
-                        status: insight.status,
-                        hasOrigins: !!insight.origins,
-                        originsLength: insight.origins?.length || 0
-                    });
-                }
-                
-                // Debug status value
                 const currentStatus = insight.status || 'Not Started';
-                if (index < 3) { // Only log first 3 to avoid spam
-                    console.log(`[DEBUG renderInsightsPage] Insight ${insight.id} (${insight.name}) status:`, currentStatus, 'raw status:', insight.status);
-                }
                 const createdDate = new Date(insight.created_at).toLocaleDateString();
                 const firstOrigin = insight.origins?.[0] || {};
                 const projectName = firstOrigin.project_name || '-';
@@ -10637,27 +10618,16 @@
                 // Build row HTML in the correct order
                 const orderedCells = columnOrder.map(col => cells[col] || '').filter(cell => cell);
                 const checkboxCell = `<td class="checkbox-cell">
-                    <input type="checkbox" class="insight-checkbox" data-insight-id="${insight.id}" onchange="console.log('[DEBUG] Checkbox onchange triggered for insight:', '${insight.id}'); handleInsightCheckboxChange()" onclick="event.stopPropagation(); console.log('[DEBUG] Checkbox onclick triggered for insight:', '${insight.id}')">
+                    <input type="checkbox" class="insight-checkbox" data-insight-id="${insight.id}" onchange="handleInsightCheckboxChange()" onclick="event.stopPropagation()">
                 </td>`;
-                
-                if (index < 3) {
-                    console.log('[DEBUG renderInsightsPage] Creating checkbox for insight:', insight.id, 'Checkbox cell HTML:', checkboxCell.substring(0, 100));
-                }
                 
                 return `<tr data-insight-id="${insight.id}" onclick="openInsightNotes('${insight.id}')" style="cursor: pointer;">${checkboxCell}${orderedCells.join('')}</tr>`;
             }).join('');
             
             tbody.innerHTML = renderedHTML;
-            console.log('[DEBUG] Table body updated with', filtered.length, 'rows');
             
-            // Clear and restore checkbox selections
-            console.log('[DEBUG renderInsightsPage] Clearing selectedInsightIds');
+            // Clear checkbox selections when table is re-rendered
             selectedInsightIds.clear();
-            const checkboxesAfterRender = document.querySelectorAll('.insight-checkbox');
-            console.log('[DEBUG renderInsightsPage] Found', checkboxesAfterRender.length, 'checkboxes after render');
-            checkboxesAfterRender.forEach((cb, idx) => {
-                console.log('[DEBUG renderInsightsPage] Checkbox', idx, 'insightId:', cb.getAttribute('data-insight-id'), 'checked:', cb.checked);
-            });
             updateInsightsDeleteButton();
             updateSelectAllCheckbox();
             
@@ -10670,8 +10640,6 @@
                     initializeColumnDragAndDrop();
                 }
             }, 0);
-            
-            console.log('[DEBUG] ========== renderInsightsPage completed ==========');
         }
 
         function sortBy(column) {
@@ -10725,37 +10693,10 @@
                 }
             }
             
-            if (!chipsContainer) return;
-            
-            if (!hasFilters) {
+            // Don't render filter chips - filters are shown as checkboxes in the dropdown
+            if (chipsContainer) {
                 chipsContainer.innerHTML = '';
-                return;
             }
-            
-            chipsContainer.innerHTML = insightsFilters.map((filter, index) => {
-                const field = FILTER_FIELDS.find(f => f.id === filter.field);
-                const label = field ? field.label : filter.field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                let valueLabel = String(filter.value);
-                
-                // Format date filter values
-                if (filter.field === 'created_at') {
-                    const dateLabels = {
-                        'today': 'Today',
-                        'yesterday': 'Yesterday',
-                        'this_week': 'This week',
-                        'this_month': 'This month',
-                        'last_month': 'Last month'
-                    };
-                    valueLabel = dateLabels[filter.value] || valueLabel;
-                }
-                
-                return `
-                    <div class="filter-chip">
-                        <span>${label}: ${escapeHtml(valueLabel)}</span>
-                        <span class="remove" onclick="removeFilterByIndex(${index})">×</span>
-                    </div>
-                `;
-            }).join('');
         }
 
         function removeFilter(key) {
@@ -10928,7 +10869,7 @@
                     return `
                         <div class="inline-filter-option ${isSelected ? 'selected' : ''}" 
                              onclick="event.stopPropagation(); toggleInlineFilterValue('${fieldId}', '${escapeHtml(value)}')">
-                            <span class="inline-filter-option-check">✓</span>
+                            <input type="checkbox" class="inline-filter-checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()" onchange="event.stopPropagation(); toggleInlineFilterValue('${fieldId}', '${escapeHtml(value)}')">
                             <span>${escapeHtml(value || '(empty)')}</span>
                         </div>
                     `;
@@ -10945,8 +10886,8 @@
                     const isSelected = insightsFilters.some(f => f.field === fieldId && f.value === opt.value);
                     return `
                         <div class="inline-filter-option ${isSelected ? 'selected' : ''}" 
-                             onclick="addDateFilter('${fieldId}', '${opt.value}')">
-                            <span class="inline-filter-option-check">✓</span>
+                             onclick="event.stopPropagation(); addDateFilter('${fieldId}', '${opt.value}')">
+                            <input type="checkbox" class="inline-filter-checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation()" onchange="event.stopPropagation(); addDateFilter('${fieldId}', '${opt.value}')">
                             <span>${opt.label}</span>
                         </div>
                     `;
@@ -10965,6 +10906,27 @@
                 <div class="inline-filter-remove" onclick="event.stopPropagation(); removeInlineFilter('${fieldId}')" title="Remove filter">×</div>
             `;
             console.log('[DEBUG openFilterValueDialog] Set innerHTML, optionsHTML length:', optionsHTML.length);
+            
+            // Debug: Check checkboxes after rendering
+            setTimeout(() => {
+                const checkboxes = inlineFilter.querySelectorAll('.inline-filter-checkbox');
+                console.log('[DEBUG openFilterValueDialog] After rendering, found', checkboxes.length, 'checkboxes');
+                checkboxes.forEach((cb, idx) => {
+                    const computedStyle = window.getComputedStyle(cb);
+                    console.log(`[DEBUG openFilterValueDialog] Checkbox ${idx}:`, {
+                        checked: cb.checked,
+                        value: cb.value,
+                        type: cb.type,
+                        computedDisplay: computedStyle.display,
+                        computedWidth: computedStyle.width,
+                        computedHeight: computedStyle.height,
+                        accentColor: computedStyle.accentColor || computedStyle.getPropertyValue('accent-color'),
+                        appearance: computedStyle.appearance || computedStyle.getPropertyValue('-webkit-appearance'),
+                        opacity: computedStyle.opacity,
+                        visibility: computedStyle.visibility
+                    });
+                });
+            }, 100);
             
             // Insert before the filter button container
             const filterButtonContainer = filterChipsContainer.nextElementSibling;
@@ -11040,15 +11002,21 @@
         
         // Toggle inline filter value
         function toggleInlineFilterValue(fieldId, value) {
+            console.log('[DEBUG toggleInlineFilterValue] Called with fieldId:', fieldId, 'value:', value);
             const existingIndex = insightsFilters.findIndex(f => f.field === fieldId && f.value === value);
+            console.log('[DEBUG toggleInlineFilterValue] Existing index:', existingIndex);
+            console.log('[DEBUG toggleInlineFilterValue] Current filters:', JSON.stringify(insightsFilters));
             
             if (existingIndex >= 0) {
                 // Remove filter
+                console.log('[DEBUG toggleInlineFilterValue] Removing filter');
                 insightsFilters.splice(existingIndex, 1);
             } else {
                 // Add filter
+                console.log('[DEBUG toggleInlineFilterValue] Adding filter');
                 insightsFilters.push({ field: fieldId, operator: 'equals', value: value });
             }
+            console.log('[DEBUG toggleInlineFilterValue] Updated filters:', JSON.stringify(insightsFilters));
             
             // Update the inline dropdown options
             updateInlineFilterOptions(fieldId);
@@ -11060,18 +11028,78 @@
         
         // Update inline filter options display
         function updateInlineFilterOptions(fieldId) {
+            console.log('[DEBUG updateInlineFilterOptions] Called with fieldId:', fieldId);
             const dropdown = document.getElementById(`inline-filter-${fieldId}`);
-            if (!dropdown) return;
+            console.log('[DEBUG updateInlineFilterOptions] Dropdown element:', dropdown);
+            if (!dropdown) {
+                console.warn('[DEBUG updateInlineFilterOptions] Dropdown not found!');
+                return;
+            }
             
             const options = dropdown.querySelectorAll('.inline-filter-option');
-            options.forEach(option => {
-                const value = option.getAttribute('onclick').match(/'([^']+)'/)[1];
+            console.log('[DEBUG updateInlineFilterOptions] Found', options.length, 'options');
+            console.log('[DEBUG updateInlineFilterOptions] Current filters:', JSON.stringify(insightsFilters));
+            
+            options.forEach((option, index) => {
+                const checkbox = option.querySelector('.inline-filter-checkbox');
+                console.log(`[DEBUG updateInlineFilterOptions] Option ${index}:`, {
+                    hasCheckbox: !!checkbox,
+                    checkboxElement: checkbox,
+                    checkboxChecked: checkbox ? checkbox.checked : 'N/A',
+                    checkboxValue: checkbox ? checkbox.value : 'N/A'
+                });
+                
+                if (!checkbox) {
+                    console.warn(`[DEBUG updateInlineFilterOptions] Option ${index} has no checkbox!`);
+                    return;
+                }
+                
+                // Extract value from the checkbox's onchange attribute
+                const onchangeAttr = checkbox.getAttribute('onchange');
+                console.log(`[DEBUG updateInlineFilterOptions] Option ${index} onchange attr:`, onchangeAttr);
+                const valueMatch = onchangeAttr ? onchangeAttr.match(/'([^']+)'/) : null;
+                
+                let value = null;
+                if (!valueMatch) {
+                    // Fallback: try to get from onclick on the parent div
+                    const onclickAttr = option.getAttribute('onclick');
+                    console.log(`[DEBUG updateInlineFilterOptions] Option ${index} onclick attr:`, onclickAttr);
+                    const onclickMatch = onclickAttr ? onclickAttr.match(/'([^']+)'/) : null;
+                    if (!onclickMatch) {
+                        console.warn(`[DEBUG updateInlineFilterOptions] Option ${index} - could not extract value from attributes`);
+                        return;
+                    }
+                    value = onclickMatch[1];
+                } else {
+                    value = valueMatch[1];
+                }
+                
+                console.log(`[DEBUG updateInlineFilterOptions] Option ${index} extracted value:`, value);
                 const isSelected = insightsFilters.some(f => f.field === fieldId && f.value === value);
+                console.log(`[DEBUG updateInlineFilterOptions] Option ${index} isSelected:`, isSelected);
+                
+                const wasChecked = checkbox.checked;
+                checkbox.checked = isSelected;
+                console.log(`[DEBUG updateInlineFilterOptions] Option ${index} checkbox checked state - was: ${wasChecked}, now: ${checkbox.checked}`);
+                
+                // Check computed styles
+                const computedStyle = window.getComputedStyle(checkbox);
+                console.log(`[DEBUG updateInlineFilterOptions] Option ${index} checkbox computed styles:`, {
+                    display: computedStyle.display,
+                    visibility: computedStyle.visibility,
+                    opacity: computedStyle.opacity,
+                    width: computedStyle.width,
+                    height: computedStyle.height,
+                    accentColor: computedStyle.accentColor || computedStyle.getPropertyValue('accent-color'),
+                    appearance: computedStyle.appearance || computedStyle.getPropertyValue('-webkit-appearance')
+                });
                 
                 if (isSelected) {
                     option.classList.add('selected');
+                    console.log(`[DEBUG updateInlineFilterOptions] Option ${index} - added 'selected' class`);
                 } else {
                     option.classList.remove('selected');
+                    console.log(`[DEBUG updateInlineFilterOptions] Option ${index} - removed 'selected' class`);
                 }
             });
         }
@@ -11381,182 +11409,85 @@
         }
 
         function handleInsightCheckboxChange() {
-            console.log('[DEBUG handleInsightCheckboxChange] Function called');
             selectedInsightIds.clear();
             const checkboxes = document.querySelectorAll('.insight-checkbox:checked');
-            console.log('[DEBUG handleInsightCheckboxChange] Found', checkboxes.length, 'checked checkboxes');
             checkboxes.forEach(checkbox => {
                 const insightId = checkbox.getAttribute('data-insight-id');
-                console.log('[DEBUG handleInsightCheckboxChange] Processing checkbox with insightId:', insightId);
                 if (insightId) {
                     selectedInsightIds.add(insightId);
                 }
             });
-            console.log('[DEBUG handleInsightCheckboxChange] Selected insight IDs:', Array.from(selectedInsightIds));
             updateInsightsDeleteButton();
             updateSelectAllCheckbox();
         }
 
         function toggleSelectAllInsights(checked) {
-            console.log('[DEBUG toggleSelectAllInsights] Function called with checked:', checked);
             const checkboxes = document.querySelectorAll('.insight-checkbox');
-            console.log('[DEBUG toggleSelectAllInsights] Found', checkboxes.length, 'checkboxes');
             checkboxes.forEach(checkbox => {
                 checkbox.checked = checked;
                 const insightId = checkbox.getAttribute('data-insight-id');
-                console.log('[DEBUG toggleSelectAllInsights] Setting checkbox', insightId, 'to', checked);
                 if (checked && insightId) {
                     selectedInsightIds.add(insightId);
                 } else if (insightId) {
                     selectedInsightIds.delete(insightId);
                 }
             });
-            console.log('[DEBUG toggleSelectAllInsights] Selected insight IDs:', Array.from(selectedInsightIds));
             updateInsightsDeleteButton();
         }
 
         function updateSelectAllCheckbox() {
-            console.log('[DEBUG updateSelectAllCheckbox] Function called');
             const selectAllCheckbox = document.getElementById('insightsSelectAll');
-            console.log('[DEBUG updateSelectAllCheckbox] Select all checkbox found:', !!selectAllCheckbox);
-            if (!selectAllCheckbox) {
-                console.warn('[DEBUG updateSelectAllCheckbox] Select all checkbox not found!');
-                return;
-            }
+            if (!selectAllCheckbox) return;
+            
             const checkboxes = document.querySelectorAll('.insight-checkbox');
             const checkedCount = document.querySelectorAll('.insight-checkbox:checked').length;
-            console.log('[DEBUG updateSelectAllCheckbox] Total checkboxes:', checkboxes.length, 'Checked:', checkedCount);
             selectAllCheckbox.checked = checkboxes.length > 0 && checkedCount === checkboxes.length;
             selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
-            console.log('[DEBUG updateSelectAllCheckbox] Select all checkbox state - checked:', selectAllCheckbox.checked, 'indeterminate:', selectAllCheckbox.indeterminate);
         }
 
         function updateInsightsDeleteButton() {
-            console.log('[DEBUG updateInsightsDeleteButton] Function called');
-            console.log('[DEBUG updateInsightsDeleteButton] Selected insight IDs count:', selectedInsightIds.size);
-            const deleteBtn = document.getElementById('insightsDeleteBtn');
-            console.log('[DEBUG updateInsightsDeleteButton] Delete button found:', !!deleteBtn);
-            if (!deleteBtn) {
-                console.error('[DEBUG updateInsightsDeleteButton] Delete button element not found in DOM!');
-                return;
-            }
-            
-            // Check if button's parents are visible
-            let parent = deleteBtn.parentElement;
-            let parentLevel = 0;
-            while (parent && parentLevel < 5) {
-                const parentComputed = window.getComputedStyle(parent);
-                console.log(`[DEBUG updateInsightsDeleteButton] Parent level ${parentLevel} (${parent.tagName}.${parent.className}): display=${parentComputed.display}, visibility=${parentComputed.visibility}`);
-                if (parentComputed.display === 'none') {
-                    console.error(`[DEBUG updateInsightsDeleteButton] WARNING: Parent at level ${parentLevel} has display:none!`);
-                }
-                parent = parent.parentElement;
-                parentLevel++;
-            }
+            // Try both button locations - insights section (main) and insights panel (in visualizations)
+            const deleteBtn = document.getElementById('insightsSectionDeleteBtn') || document.getElementById('insightsDeleteBtn');
+            if (!deleteBtn) return;
             
             const shouldShow = selectedInsightIds.size > 0;
-            console.log('[DEBUG updateInsightsDeleteButton] Should show button:', shouldShow);
-            
-            // Check reset button for comparison
-            const resetBtn = document.getElementById('insightsResetBtn');
-            console.log('[DEBUG updateInsightsDeleteButton] Reset button found:', !!resetBtn);
-            if (resetBtn) {
-                console.log('[DEBUG updateInsightsDeleteButton] Reset button display:', resetBtn.style.display, 'computed:', window.getComputedStyle(resetBtn).display);
-                const resetRect = resetBtn.getBoundingClientRect();
-                console.log('[DEBUG updateInsightsDeleteButton] Reset button bounding rect:', JSON.stringify({
-                    x: resetRect.x, y: resetRect.y, width: resetRect.width, height: resetRect.height
-                }));
-            }
             
             if (shouldShow) {
-                console.log('✅ [DEBUG updateInsightsDeleteButton] Making button visible...');
-                
-                // CRITICAL: Remove the inline style attribute completely first!
-                // The HTML has style="display: none;" which needs to be removed
-                const currentStyle = deleteBtn.getAttribute('style');
-                console.log('[DEBUG updateInsightsDeleteButton] Current style attribute:', currentStyle);
+                // Remove the inline style attribute to clear the initial display:none
                 deleteBtn.removeAttribute('style');
-                console.log('[DEBUG updateInsightsDeleteButton] Removed style attribute');
-                
-                // Now set fresh styles
                 deleteBtn.style.display = 'block';
-                deleteBtn.style.visibility = 'visible';
-                deleteBtn.style.opacity = '1';
-                
-                // Add temporary bright red background for debugging
-                deleteBtn.style.backgroundColor = '#ff0000';
-                deleteBtn.style.color = '#ffffff';
-                deleteBtn.style.padding = '8px 16px';
-                deleteBtn.style.border = '2px solid #ff0000';
-                deleteBtn.style.borderRadius = '4px';
-                deleteBtn.style.fontWeight = 'bold';
-                
-                // Check computed styles after setting
-                const computedAfter = window.getComputedStyle(deleteBtn);
-                console.log('[DEBUG updateInsightsDeleteButton] AFTER update - inline display:', deleteBtn.style.display);
-                console.log('[DEBUG updateInsightsDeleteButton] AFTER update - computed display:', computedAfter.display);
-                const rect = deleteBtn.getBoundingClientRect();
-                console.log('[DEBUG updateInsightsDeleteButton] Button bounding rect:', JSON.stringify({
-                    x: rect.x, y: rect.y, width: rect.width, height: rect.height
-                }));
-                
-                if (computedAfter.display === 'none') {
-                    console.error('[DEBUG updateInsightsDeleteButton] WARNING: Computed display is still "none"!');
-                    deleteBtn.style.setProperty('display', 'block', 'important');
-                    const computedAfterImportant = window.getComputedStyle(deleteBtn);
-                    console.log('[DEBUG updateInsightsDeleteButton] After !important - computed display:', computedAfterImportant.display);
-                }
             } else {
                 deleteBtn.style.display = 'none';
             }
         }
 
         async function deleteSelectedInsights() {
-            console.log('[DEBUG deleteSelectedInsights] Function called');
-            console.log('[DEBUG deleteSelectedInsights] insightsCurrentClientId:', insightsCurrentClientId);
-            console.log('[DEBUG deleteSelectedInsights] selectedInsightIds size:', selectedInsightIds.size);
-            console.log('[DEBUG deleteSelectedInsights] selectedInsightIds:', Array.from(selectedInsightIds));
-            
-            if (!insightsCurrentClientId) {
-                console.warn('[DEBUG deleteSelectedInsights] No client ID, returning');
-                return;
-            }
-            if (selectedInsightIds.size === 0) {
-                console.warn('[DEBUG deleteSelectedInsights] No insights selected, returning');
-                return;
-            }
+            if (!insightsCurrentClientId) return;
+            if (selectedInsightIds.size === 0) return;
 
             const count = selectedInsightIds.size;
             const message = count === 1 
                 ? 'Are you sure you want to delete this insight?'
                 : `Are you sure you want to delete ${count} insights?`;
             
-            console.log('[DEBUG deleteSelectedInsights] Showing confirm dialog');
-            if (!confirm(message)) {
-                console.log('[DEBUG deleteSelectedInsights] User cancelled deletion');
-                return;
-            }
+            if (!confirm(message)) return;
 
-            console.log('[DEBUG deleteSelectedInsights] User confirmed, proceeding with deletion');
             try {
-                const deletePromises = Array.from(selectedInsightIds).map(insightId => {
-                    console.log('[DEBUG deleteSelectedInsights] Deleting insight:', insightId);
-                    return fetch(`${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights/${insightId}`, {
+                const deletePromises = Array.from(selectedInsightIds).map(insightId =>
+                    fetch(`${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights/${insightId}`, {
                         method: 'DELETE',
                         headers: getAuthHeadersSafe()
                     }).then(response => {
-                        console.log('[DEBUG deleteSelectedInsights] Delete response for', insightId, ':', response.status, response.ok);
                         if (!response.ok) throw new Error(`Failed to delete insight ${insightId}`);
                         return insightId;
-                    });
-                });
+                    })
+                );
 
                 await Promise.all(deletePromises);
-                console.log('[DEBUG deleteSelectedInsights] All deletions completed successfully');
                 selectedInsightIds.clear();
                 loadInsightsPage();
             } catch (error) {
-                console.error('[DEBUG deleteSelectedInsights] Error deleting insights:', error);
+                console.error('Error deleting insights:', error);
                 alert('Error deleting insights: ' + error.message);
                 // Reload page to sync state even if some deletes failed
                 loadInsightsPage();
@@ -11775,6 +11706,11 @@
         async function initializeInsightPanel(container, insight) {
             if (!container) return;
             
+            // Extract category and topic from origins JSONB (matching SlideoutPanel implementation)
+            const firstOrigin = insight.origins?.[0] || {};
+            const categoryName = firstOrigin.category || null;
+            const topicName = firstOrigin.topic_label || null;
+            
             // Get verbatims from insight
             const insightVerbatims = (insight.verbatims && Array.isArray(insight.verbatims)) ? insight.verbatims : [];
             
@@ -11784,6 +11720,30 @@
                     <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column;">
                         <div style="padding: 1rem 1.5rem; border-bottom: 1px solid oklch(0.922 0 0); flex-shrink: 0;">
                             <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                                <!-- Category Attribute -->
+                                ${categoryName ? `
+                                <div class="insight-attribute-row">
+                                    <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Category</div>
+                                    <div style="flex: 1;">
+                                        <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
+                                            ${escapeHtml(categoryName)}
+                                        </div>
+                                    </div>
+                                </div>
+                                ` : ''}
+                                
+                                <!-- Topic Attribute -->
+                                ${topicName ? `
+                                <div class="insight-attribute-row">
+                                    <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Topic</div>
+                                    <div style="flex: 1;">
+                                        <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
+                                            ${escapeHtml(topicName)}
+                                        </div>
+                                    </div>
+                                </div>
+                                ` : ''}
+                                
                                 <div class="insight-attribute-row">
                                     <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Type</div>
                                     <div style="flex: 1;">
@@ -12619,14 +12579,6 @@
         window.handleInsightCheckboxChange = handleInsightCheckboxChange;
         window.toggleSelectAllInsights = toggleSelectAllInsights;
         window.deleteSelectedInsights = deleteSelectedInsights;
-        
-        // Debug: Verify checkbox functions are accessible
-        console.log('[DEBUG] ========== Checkbox Functions Exposure Check ==========');
-        console.log('[DEBUG] handleInsightCheckboxChange function exposed:', typeof window.handleInsightCheckboxChange);
-        console.log('[DEBUG] toggleSelectAllInsights function exposed:', typeof window.toggleSelectAllInsights);
-        console.log('[DEBUG] deleteSelectedInsights function exposed:', typeof window.deleteSelectedInsights);
-        console.log('[DEBUG] selectedInsightIds Set initialized:', selectedInsightIds instanceof Set);
-        console.log('[DEBUG] ========================================================');
         window.updateInsightStatus = updateInsightStatus;
         window.saveInsight = saveInsight;
         window.openInsightNotes = openInsightNotes;
@@ -14767,7 +14719,7 @@
             });
 
             if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><h3>No insights found</h3><p>Create your first insight to get started</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="3" class="empty-state"><h3>No insights found</h3><p>Create your first insight to get started</p></td></tr>';
                 return;
             }
 
@@ -14793,9 +14745,6 @@
                                     </svg>
                                 </button>
                             </div>
-                        </td>
-                        <td>
-                            <span class="tag tag-type">${escapeHtml(insight.type)}</span>
                         </td>
                         <td>${createdDate}</td>
                     </tr>
@@ -14841,23 +14790,10 @@
 
             if (resetBtn) resetBtn.style.display = hasFilters ? 'block' : 'none';
 
-            if (!chipsContainer) return;
-
-            if (!hasFilters) {
+            // Don't render filter chips - filters are shown as checkboxes in the dropdown
+            if (chipsContainer) {
                 chipsContainer.innerHTML = '';
-                return;
             }
-
-            chipsContainer.innerHTML = Object.entries(insightsFilters).map(([key, value]) => {
-                if (!value) return '';
-                const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                return `
-                    <div class="filter-chip">
-                        <span>${label}: ${escapeHtml(String(value))}</span>
-                        <span class="remove" onclick="removeInsightsFilter('${key}')">×</span>
-                    </div>
-                `;
-            }).filter(html => html).join('');
         }
 
         function removeInsightsFilter(key) {
@@ -15485,6 +15421,7 @@
                         </div>
                     </div>
                 </div>
+                <button class="btn-delete" onclick="deleteSelectedInsights()" id="insightsSectionDeleteBtn" style="display: none;">Delete Selected</button>
                 <button class="btn-new" onclick="openCreateModal()">+ New</button>
                 <button class="btn-reset" onclick="resetFilters()" id="resetBtn" style="display: none;">Reset</button>
             </div>
