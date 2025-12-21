@@ -248,9 +248,9 @@
         }
 
         #questionSelect {
-            width: 300px;
-            min-width: 300px;
-            max-width: 300px;
+            width: 225px;
+            min-width: 225px;
+            max-width: 225px;
         }
         
         .filter-panel select option {
@@ -357,6 +357,7 @@
             background: #fff;
             color: #111;
             cursor: pointer;
+            outline: none;
             transition: border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
         }
 
@@ -365,6 +366,7 @@
             color: #111;
         }
 
+        .filter-button:focus,
         .filter-button:focus-visible {
             outline: none;
             border-color: #111;
@@ -408,6 +410,20 @@
             display: none;
             align-items: center;
             justify-content: center;
+        }
+
+        #insights-section .filter-button {
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
+        }
+
+        #insights-section .filter-button:hover,
+        #insights-section .filter-button:focus,
+        #insights-section .filter-button:focus-visible {
+            border: none !important;
+            outline: none !important;
+            box-shadow: none !important;
         }
 
         .breadcrumbs {
@@ -1532,6 +1548,7 @@
 
         /* Control Bar */
         .control-bar {
+            position: relative;
             padding: 0.5rem 1.5rem;
             border-bottom: 1px solid oklch(0.922 0 0);
             background: oklch(1 0 0);
@@ -1596,6 +1613,143 @@
             opacity: 1;
         }
 
+        /* Inline Filter Dropdown */
+        .inline-filter-dropdown {
+            position: relative;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+
+        .inline-filter-header {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.25rem 0.5rem;
+            background: oklch(0.97 0 0);
+            border: 1px solid rgba(55, 53, 47, 0.16);
+            border-radius: 0.375rem;
+            font-size: 0.8125rem;
+            font-family: 'Lato', sans-serif;
+            color: oklch(0.145 0 0);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-width: 120px;
+        }
+
+        .inline-filter-header:hover {
+            background: oklch(0.95 0 0);
+            border-color: rgba(55, 53, 47, 0.24);
+        }
+
+        .inline-filter-header.open {
+            background: white;
+            border-color: #B9F040;
+            box-shadow: 0 0 0 2px rgba(185, 240, 64, 0.2);
+        }
+
+        .inline-filter-icon {
+            opacity: 0.6;
+            font-size: 0.875rem;
+        }
+
+        .inline-filter-label {
+            flex: 1;
+            font-weight: 500;
+        }
+
+        .inline-filter-chevron {
+            opacity: 0.4;
+            font-size: 0.75rem;
+            transition: transform 0.2s;
+        }
+
+        .inline-filter-header.open .inline-filter-chevron {
+            transform: rotate(180deg);
+        }
+
+        .inline-filter-options {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            background: white;
+            border: 1px solid rgba(55, 53, 47, 0.16);
+            border-radius: 0.375rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 200px;
+            max-width: 300px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1001;
+            display: none;
+            padding: 4px 0;
+        }
+
+        .inline-filter-options.open {
+            display: block;
+        }
+
+        .inline-filter-option {
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 0.8125rem;
+            font-family: 'Lato', sans-serif;
+            color: oklch(0.145 0 0);
+            transition: background 0.1s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .inline-filter-option:hover {
+            background: rgba(55, 53, 47, 0.06);
+        }
+
+        .inline-filter-option.selected {
+            background: rgba(185, 240, 64, 0.2);
+            font-weight: 500;
+        }
+
+        .inline-filter-option-check {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            font-size: 14px;
+            color: oklch(0.145 0 0);
+        }
+
+        .inline-filter-option.selected .inline-filter-option-check {
+            opacity: 1;
+        }
+
+        .inline-filter-remove {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            width: 18px;
+            height: 18px;
+            background: white;
+            border: 1px solid rgba(55, 53, 47, 0.16);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 12px;
+            color: rgba(55, 53, 47, 0.6);
+            z-index: 10;
+            transition: all 0.2s;
+            line-height: 1;
+        }
+
+        .inline-filter-remove:hover {
+            background: rgba(220, 38, 38, 0.1);
+            border-color: rgba(220, 38, 38, 0.3);
+            color: rgba(220, 38, 38, 0.8);
+        }
+
         .btn-filter {
             display: flex;
             align-items: center;
@@ -1631,6 +1785,218 @@
         .btn-reset:hover {
             background: oklch(0.97 0 0);
             color: oklch(0.145 0 0);
+        }
+
+        /* Filter Dropdown Menu */
+        .filter-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            right: 0;
+            background: white;
+            border: 1px solid rgba(55, 53, 47, 0.16);
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 280px;
+            max-width: 320px;
+            max-height: 500px;
+            z-index: 1000;
+            display: none;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        .filter-dropdown.active {
+            display: block;
+        }
+
+        .filter-dropdown-search {
+            padding: 12px;
+            border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+        }
+
+        .filter-dropdown-search input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 2px solid #4285f4;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: 'Lato', sans-serif;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .filter-dropdown-search input::placeholder {
+            color: rgba(55, 53, 47, 0.4);
+        }
+
+        .filter-dropdown-list {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 4px 0;
+        }
+
+        .filter-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-family: 'Lato', sans-serif;
+            color: rgba(55, 53, 47, 0.8);
+            transition: background 0.1s;
+        }
+
+        .filter-option:hover {
+            background: rgba(55, 53, 47, 0.06);
+        }
+
+        .filter-option-icon {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.6;
+            font-size: 14px;
+        }
+
+        .filter-option-text {
+            flex: 1;
+        }
+
+        .filter-active-filters {
+            padding: 8px 12px;
+            border-top: 1px solid rgba(55, 53, 47, 0.09);
+            background: rgba(55, 53, 47, 0.03);
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .filter-active-filters-title {
+            font-size: 12px;
+            font-weight: 500;
+            color: rgba(55, 53, 47, 0.6);
+            margin-bottom: 6px;
+        }
+
+        .filter-active-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 4px 8px;
+            margin-bottom: 4px;
+            background: white;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+
+        .filter-active-item-remove {
+            cursor: pointer;
+            opacity: 0.6;
+            padding: 0 4px;
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .filter-active-item-remove:hover {
+            opacity: 1;
+        }
+
+        .filter-value-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            border: 1px solid rgba(55, 53, 47, 0.16);
+            border-radius: 6px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            min-width: 300px;
+            max-width: 400px;
+            max-height: 500px;
+            z-index: 2000;
+            display: none;
+        }
+
+        .filter-value-dialog.active {
+            display: block;
+        }
+
+        .filter-value-dialog-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .filter-value-dialog-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: rgba(55, 53, 47, 0.8);
+            font-family: 'Lato', sans-serif;
+        }
+
+        .filter-value-dialog-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            color: rgba(55, 53, 47, 0.6);
+            padding: 0;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 3px;
+            transition: background 0.1s;
+        }
+
+        .filter-value-dialog-close:hover {
+            background: rgba(55, 53, 47, 0.06);
+        }
+
+        .filter-value-dialog-body {
+            padding: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .filter-value-option {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-radius: 3px;
+            margin-bottom: 4px;
+            font-size: 14px;
+            font-family: 'Lato', sans-serif;
+            color: rgba(55, 53, 47, 0.8);
+            transition: background 0.1s;
+        }
+
+        .filter-value-option:hover {
+            background: rgba(55, 53, 47, 0.06);
+        }
+
+        .filter-value-option.selected {
+            background: rgba(185, 240, 64, 0.2);
+            font-weight: 500;
+        }
+
+        .filter-dialog-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 1999;
+            display: none;
+        }
+
+        .filter-dialog-overlay.active {
+            display: block;
         }
 
         /* Table */
@@ -3430,6 +3796,7 @@
         }
 
         .control-bar {
+            position: relative;
             padding: 8px 35px;
             border-bottom: 1px solid rgba(55, 53, 47, 0.09);
             background: white;
@@ -9781,12 +10148,23 @@
         // Insights Page JavaScript
         let insightsCurrentClientId = null;
         let insightsCurrentInsightId = null;
-        let insightsFilters = {};
+        let insightsFilters = []; // Changed to array to support multiple filters
         let insightsCurrentSortBy = 'name';
         let insightsSortOrder = 'asc';
         let insightsSearchTerm = '';
         let insightsAllInsights = [];
         let insightsCurrentInsightEditor = null;
+        const FILTER_STORAGE_KEY = 'insights_filters';
+        
+        // Available filter fields
+        const FILTER_FIELDS = [
+            { id: 'status', label: 'Status', icon: '⁂', type: 'select' },
+            { id: 'type', label: 'Type', icon: '≡', type: 'select' },
+            { id: 'project', label: 'Project', icon: '≡', type: 'select' },
+            { id: 'data_source', label: 'Data Source', icon: '≡', type: 'select' },
+            { id: 'dimension', label: 'Dimension', icon: '≡', type: 'select' },
+            { id: 'created_at', label: 'Created', icon: '📅', type: 'date' }
+        ];
         let insightsCurrentInsightNotesId = null;
         let insightsCurrentInsightData = null;
         let insightsSaveNotesTimeout = null;
@@ -9892,10 +10270,58 @@
             }
 
             console.log('[DEBUG] Client ID is valid, proceeding to load insights...');
+            
+            // Load filters from storage on initialization
+            loadFiltersFromStorage();
+            
             await loadInsightsPage();
             window.insightsInitialized = true;
             console.log('[DEBUG] ========== initInsightsPage completed ==========');
         }
+        
+        // Close filter dropdown when clicking outside
+        // Use a small delay to allow button click to process first
+        document.addEventListener('click', (e) => {
+            setTimeout(() => {
+                const dropdown = document.getElementById('filterDropdown');
+                const btn = document.getElementById('filterMenuBtn');
+                if (dropdown && btn) {
+                    // Check if click is outside both dropdown and button
+                    const clickedInsideDropdown = dropdown.contains(e.target);
+                    const clickedInsideButton = btn.contains(e.target);
+                    
+                    if (!clickedInsideDropdown && !clickedInsideButton && dropdown.classList.contains('active')) {
+                        dropdown.classList.remove('active');
+                        dropdown.style.display = 'none';
+                    }
+                }
+                
+                // Close inline filter dropdowns when clicking outside
+                // But don't close if we just created one (give it a moment)
+                document.querySelectorAll('.inline-filter-dropdown').forEach(inlineDropdown => {
+                    // Check if this dropdown was just created (has a data-just-created attribute)
+                    const justCreated = inlineDropdown.getAttribute('data-just-created') === 'true';
+                    if (justCreated) {
+                        // Remove the flag after a short delay
+                        setTimeout(() => {
+                            inlineDropdown.removeAttribute('data-just-created');
+                        }, 100);
+                        return; // Don't close it if it was just created
+                    }
+                    
+                    if (!inlineDropdown.contains(e.target)) {
+                        const header = inlineDropdown.querySelector('.inline-filter-header');
+                        const options = inlineDropdown.querySelector('.inline-filter-options');
+                        if (header && options && options.classList.contains('open')) {
+                            console.log('[DEBUG click-outside] Closing inline filter dropdown');
+                            header.classList.remove('open');
+                            options.classList.remove('open');
+                            options.style.display = 'none';
+                        }
+                    }
+                });
+            }, 10);
+        });
 
         async function loadInsightsPage() {
             console.log('[DEBUG] ========== loadInsightsPage called ==========');
@@ -10016,6 +10442,65 @@
                     insight.description?.toLowerCase().includes(term)
                 );
                 console.log('[DEBUG] After search filter:', filtered.length, 'insights remain');
+            }
+            
+            // Apply filters
+            if (insightsFilters && insightsFilters.length > 0) {
+                console.log('[DEBUG] Applying', insightsFilters.length, 'filters');
+                filtered = filtered.filter(insight => {
+                    return insightsFilters.every(filter => {
+                        let insightValue = null;
+                        
+                        if (filter.field === 'status') {
+                            insightValue = insight.status || 'Not Started';
+                        } else if (filter.field === 'type') {
+                            insightValue = insight.type;
+                        } else if (filter.field === 'project' || filter.field === 'data_source' || filter.field === 'dimension') {
+                            const firstOrigin = insight.origins?.[0] || {};
+                            if (filter.field === 'project') {
+                                insightValue = firstOrigin.project_name || '-';
+                            } else if (filter.field === 'data_source') {
+                                insightValue = firstOrigin.data_source || '-';
+                            } else if (filter.field === 'dimension') {
+                                insightValue = firstOrigin.dimension_name || firstOrigin.dimension_ref || '-';
+                            }
+                        } else if (filter.field === 'created_at') {
+                            const createdDate = new Date(insight.created_at);
+                            const now = new Date();
+                            let periodStart = null;
+                            let periodEnd = null;
+                            
+                            if (filter.value === 'today') {
+                                periodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                                periodEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+                            } else if (filter.value === 'yesterday') {
+                                periodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+                                periodEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                            } else if (filter.value === 'this_week') {
+                                const dayOfWeek = now.getDay();
+                                periodStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek);
+                                periodEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek + 7);
+                            } else if (filter.value === 'this_month') {
+                                periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+                                periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+                            } else if (filter.value === 'last_month') {
+                                periodStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+                                periodEnd = new Date(now.getFullYear(), now.getMonth(), 1);
+                            }
+                            
+                            if (periodStart && periodEnd) {
+                                return createdDate >= periodStart && createdDate < periodEnd;
+                            }
+                            return false;
+                        }
+                        
+                        if (filter.operator === 'equals') {
+                            return String(insightValue) === String(filter.value);
+                        }
+                        return false;
+                    });
+                });
+                console.log('[DEBUG] After filters:', filtered.length, 'insights remain');
             }
 
             if (filtered.length === 0) {
@@ -10157,48 +10642,503 @@
         function updateFilterChips() {
             const chipsContainer = document.getElementById('filterChips');
             const resetBtn = document.getElementById('resetBtn');
-            const hasFilters = Object.keys(insightsFilters).length > 0;
+            const badge = document.getElementById('insightsListFilterBadge');
+            const hasFilters = insightsFilters && insightsFilters.length > 0;
             
-            resetBtn.style.display = hasFilters ? 'block' : 'none';
+            if (resetBtn) {
+                resetBtn.style.display = hasFilters ? 'block' : 'none';
+            }
+            
+            // Update filter badge
+            if (badge) {
+                if (hasFilters) {
+                    badge.style.display = 'flex';
+                    badge.textContent = insightsFilters.length;
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+            
+            if (!chipsContainer) return;
             
             if (!hasFilters) {
                 chipsContainer.innerHTML = '';
                 return;
             }
             
-            chipsContainer.innerHTML = Object.entries(insightsFilters).map(([key, value]) => {
-                if (!value) return '';
-                const label = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+            chipsContainer.innerHTML = insightsFilters.map((filter, index) => {
+                const field = FILTER_FIELDS.find(f => f.id === filter.field);
+                const label = field ? field.label : filter.field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                let valueLabel = String(filter.value);
+                
+                // Format date filter values
+                if (filter.field === 'created_at') {
+                    const dateLabels = {
+                        'today': 'Today',
+                        'yesterday': 'Yesterday',
+                        'this_week': 'This week',
+                        'this_month': 'This month',
+                        'last_month': 'Last month'
+                    };
+                    valueLabel = dateLabels[filter.value] || valueLabel;
+                }
+                
                 return `
                     <div class="filter-chip">
-                        <span>${label}: ${escapeHtml(String(value))}</span>
-                        <span class="remove" onclick="removeFilter('${key}')">×</span>
+                        <span>${label}: ${escapeHtml(valueLabel)}</span>
+                        <span class="remove" onclick="removeFilterByIndex(${index})">×</span>
                     </div>
                 `;
-            }).filter(html => html).join('');
+            }).join('');
         }
 
         function removeFilter(key) {
-            delete insightsFilters[key];
+            // Legacy support - remove by field key
+            insightsFilters = insightsFilters.filter(f => f.field !== key);
             updateFilterChips();
-            loadInsightsPage();
-        }
-
-        function resetFilters() {
-            insightsFilters = {};
-            insightsSearchTerm = '';
-            document.getElementById('searchInput').value = '';
-            updateFilterChips();
+            updateActiveFiltersDisplay();
+            saveFiltersToStorage();
             renderInsightsPage();
         }
 
-        function openFilterMenu() {
-            const type = prompt('Filter by type (leave empty to cancel):');
-            if (type && type.trim()) {
-                insightsFilters.type = type.trim();
-                updateFilterChips();
-                loadInsightsPage();
+        function resetFilters() {
+            insightsFilters = [];
+            insightsSearchTerm = '';
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) searchInput.value = '';
+            updateFilterChips();
+            updateActiveFiltersDisplay();
+            saveFiltersToStorage();
+            renderInsightsPage();
+        }
+
+        // Load filters from localStorage
+        function loadFiltersFromStorage() {
+            const saved = localStorage.getItem(FILTER_STORAGE_KEY);
+            if (saved) {
+                try {
+                    insightsFilters = JSON.parse(saved);
+                } catch (e) {
+                    console.warn('Failed to parse saved filters:', e);
+                    insightsFilters = [];
+                }
             }
+        }
+        
+        // Save filters to localStorage
+        function saveFiltersToStorage() {
+            localStorage.setItem(FILTER_STORAGE_KEY, JSON.stringify(insightsFilters));
+        }
+        
+        // Toggle filter menu
+        function toggleFilterMenu(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            // Find the dropdown in the insights section (not the insights panel)
+            const insightsSection = document.getElementById('insights-section');
+            const dropdown = insightsSection ? insightsSection.querySelector('#filterDropdown') : document.getElementById('filterDropdown');
+            console.log('[DEBUG] toggleFilterMenu called, dropdown:', dropdown);
+            if (dropdown) {
+                const wasActive = dropdown.classList.contains('active');
+                // Close all other dropdowns first
+                document.querySelectorAll('.filter-dropdown.active').forEach(d => {
+                    if (d !== dropdown) {
+                        d.classList.remove('active');
+                        d.style.display = 'none';
+                    }
+                });
+                
+                // Toggle this dropdown
+                if (wasActive) {
+                    dropdown.classList.remove('active');
+                    dropdown.style.display = 'none';
+                } else {
+                    dropdown.classList.add('active');
+                    dropdown.style.display = 'block';
+                    populateFilterOptions();
+                    updateActiveFiltersDisplay();
+                    // Focus search input
+                    setTimeout(() => {
+                        const searchInput = document.getElementById('filterSearchInput');
+                        if (searchInput) searchInput.focus();
+                    }, 100);
+                }
+                console.log('[DEBUG] Dropdown active state:', dropdown.classList.contains('active'), 'display:', dropdown.style.display);
+            } else {
+                console.error('[DEBUG] filterDropdown element not found!');
+            }
+        }
+        
+        // Populate filter options list
+        function populateFilterOptions() {
+            const list = document.getElementById('filterOptionsList');
+            if (!list) return;
+            
+            list.innerHTML = FILTER_FIELDS.map(field => {
+                return `
+                    <div class="filter-option" onclick="event.stopPropagation(); event.preventDefault(); openFilterValueDialog('${field.id}')">
+                        <div class="filter-option-icon">${field.icon}</div>
+                        <div class="filter-option-text">${field.label}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Filter filter options based on search
+        function filterFilterOptions() {
+            const searchInput = document.getElementById('filterSearchInput');
+            const list = document.getElementById('filterOptionsList');
+            if (!searchInput || !list) return;
+            
+            const searchTerm = searchInput.value.toLowerCase();
+            const options = list.querySelectorAll('.filter-option');
+            
+            options.forEach(option => {
+                const text = option.textContent.toLowerCase();
+                option.style.display = text.includes(searchTerm) ? 'flex' : 'none';
+            });
+        }
+        
+        // Open filter value dialog - now creates inline dropdown
+        function openFilterValueDialog(fieldId) {
+            console.log('[DEBUG openFilterValueDialog] Called with fieldId:', fieldId);
+            const field = FILTER_FIELDS.find(f => f.id === fieldId);
+            if (!field) {
+                console.error('[DEBUG openFilterValueDialog] Field not found:', fieldId);
+                return;
+            }
+            console.log('[DEBUG openFilterValueDialog] Found field:', field);
+            
+            // Close the main filter menu first
+            const insightsSection = document.getElementById('insights-section');
+            const mainDropdown = insightsSection ? insightsSection.querySelector('#filterDropdown') : document.getElementById('filterDropdown');
+            console.log('[DEBUG openFilterValueDialog] Main dropdown:', mainDropdown);
+            if (mainDropdown) {
+                mainDropdown.classList.remove('active');
+                mainDropdown.style.display = 'none';
+                console.log('[DEBUG openFilterValueDialog] Closed main dropdown');
+            }
+            
+            // Check if this filter dropdown already exists
+            const existingDropdown = document.getElementById(`inline-filter-${fieldId}`);
+            console.log('[DEBUG openFilterValueDialog] Existing dropdown:', existingDropdown);
+            if (existingDropdown) {
+                // Toggle it if it already exists
+                const header = existingDropdown.querySelector('.inline-filter-header');
+                const options = existingDropdown.querySelector('.inline-filter-options');
+                console.log('[DEBUG openFilterValueDialog] Toggling existing dropdown, header:', header, 'options:', options);
+                if (header && options) {
+                    header.classList.toggle('open');
+                    options.classList.toggle('open');
+                    console.log('[DEBUG openFilterValueDialog] Toggled classes. Header open:', header.classList.contains('open'), 'Options open:', options.classList.contains('open'));
+                }
+                return;
+            }
+            
+            // Get unique values for this field from insights
+            const values = field.type === 'select' ? getUniqueFieldValues(fieldId) : [];
+            console.log('[DEBUG openFilterValueDialog] Got values:', values);
+            
+            // Create inline filter dropdown
+            const filterChipsContainer = document.getElementById('filterChips');
+            console.log('[DEBUG openFilterValueDialog] Filter chips container:', filterChipsContainer);
+            if (!filterChipsContainer) {
+                console.error('[DEBUG openFilterValueDialog] Filter chips container not found!');
+                return;
+            }
+            
+            const inlineFilter = document.createElement('div');
+            inlineFilter.className = 'inline-filter-dropdown';
+            inlineFilter.id = `inline-filter-${fieldId}`;
+            inlineFilter.setAttribute('data-just-created', 'true'); // Flag to prevent immediate closing
+            console.log('[DEBUG openFilterValueDialog] Created inline filter element:', inlineFilter);
+            
+            let optionsHTML = '';
+            if (field.type === 'select') {
+                optionsHTML = values.map(value => {
+                    const isSelected = insightsFilters.some(f => f.field === fieldId && f.value === value);
+                    return `
+                        <div class="inline-filter-option ${isSelected ? 'selected' : ''}" 
+                             onclick="event.stopPropagation(); toggleInlineFilterValue('${fieldId}', '${escapeHtml(value)}')">
+                            <span class="inline-filter-option-check">✓</span>
+                            <span>${escapeHtml(value || '(empty)')}</span>
+                        </div>
+                    `;
+                }).join('');
+            } else if (field.type === 'date') {
+                const dateOptions = [
+                    { value: 'today', label: 'Today' },
+                    { value: 'yesterday', label: 'Yesterday' },
+                    { value: 'this_week', label: 'This week' },
+                    { value: 'this_month', label: 'This month' },
+                    { value: 'last_month', label: 'Last month' }
+                ];
+                optionsHTML = dateOptions.map(opt => {
+                    const isSelected = insightsFilters.some(f => f.field === fieldId && f.value === opt.value);
+                    return `
+                        <div class="inline-filter-option ${isSelected ? 'selected' : ''}" 
+                             onclick="addDateFilter('${fieldId}', '${opt.value}')">
+                            <span class="inline-filter-option-check">✓</span>
+                            <span>${opt.label}</span>
+                        </div>
+                    `;
+                }).join('');
+            }
+            
+            inlineFilter.innerHTML = `
+                <div class="inline-filter-header open" onclick="toggleInlineFilterDropdown('${fieldId}', event)">
+                    <span class="inline-filter-icon">${field.icon}</span>
+                    <span class="inline-filter-label">${field.label}</span>
+                    <span class="inline-filter-chevron">▼</span>
+                </div>
+                <div class="inline-filter-options open">
+                    ${optionsHTML}
+                </div>
+                <div class="inline-filter-remove" onclick="event.stopPropagation(); removeInlineFilter('${fieldId}')" title="Remove filter">×</div>
+            `;
+            console.log('[DEBUG openFilterValueDialog] Set innerHTML, optionsHTML length:', optionsHTML.length);
+            
+            // Insert before the filter button container
+            const filterButtonContainer = filterChipsContainer.nextElementSibling;
+            console.log('[DEBUG openFilterValueDialog] Filter button container:', filterButtonContainer);
+            if (filterButtonContainer) {
+                filterChipsContainer.parentNode.insertBefore(inlineFilter, filterButtonContainer);
+                console.log('[DEBUG openFilterValueDialog] Inserted before button container');
+            } else {
+                filterChipsContainer.parentNode.appendChild(inlineFilter);
+                console.log('[DEBUG openFilterValueDialog] Appended to parent');
+            }
+            
+            // Ensure the dropdown is open after insertion
+            // Use a longer delay to ensure click events have processed
+            setTimeout(() => {
+                console.log('[DEBUG openFilterValueDialog] Checking dropdown state after insertion');
+                const header = inlineFilter.querySelector('.inline-filter-header');
+                const options = inlineFilter.querySelector('.inline-filter-options');
+                console.log('[DEBUG openFilterValueDialog] Header element:', header);
+                console.log('[DEBUG openFilterValueDialog] Options element:', options);
+                console.log('[DEBUG openFilterValueDialog] Header classes:', header ? header.className : 'null');
+                console.log('[DEBUG openFilterValueDialog] Options classes:', options ? options.className : 'null');
+                console.log('[DEBUG openFilterValueDialog] Options computed display:', options ? window.getComputedStyle(options).display : 'null');
+                
+                if (header && options) {
+                    // Force the classes to be set
+                    header.classList.add('open');
+                    options.classList.add('open');
+                    // Also set style directly as backup
+                    options.style.display = 'block';
+                    console.log('[DEBUG openFilterValueDialog] Added open classes and set display');
+                    console.log('[DEBUG openFilterValueDialog] Header has open:', header.classList.contains('open'));
+                    console.log('[DEBUG openFilterValueDialog] Options has open:', options.classList.contains('open'));
+                    console.log('[DEBUG openFilterValueDialog] Options style.display:', options.style.display);
+                    console.log('[DEBUG openFilterValueDialog] Options computed display after:', window.getComputedStyle(options).display);
+                } else {
+                    console.error('[DEBUG openFilterValueDialog] Header or options not found!');
+                }
+            }, 50);
+        }
+        
+        // Toggle inline filter dropdown
+        function toggleInlineFilterDropdown(fieldId, e) {
+            if (e) {
+                e.stopPropagation();
+            }
+            console.log('[DEBUG toggleInlineFilterDropdown] Called with fieldId:', fieldId);
+            const dropdown = document.getElementById(`inline-filter-${fieldId}`);
+            console.log('[DEBUG toggleInlineFilterDropdown] Dropdown:', dropdown);
+            if (!dropdown) return;
+            
+            const header = dropdown.querySelector('.inline-filter-header');
+            const options = dropdown.querySelector('.inline-filter-options');
+            console.log('[DEBUG toggleInlineFilterDropdown] Header:', header, 'Options:', options);
+            
+            if (header && options) {
+                const isOpen = options.classList.contains('open');
+                console.log('[DEBUG toggleInlineFilterDropdown] Currently open:', isOpen);
+                
+                if (isOpen) {
+                    header.classList.remove('open');
+                    options.classList.remove('open');
+                    options.style.display = 'none';
+                    console.log('[DEBUG toggleInlineFilterDropdown] Closed dropdown');
+                } else {
+                    header.classList.add('open');
+                    options.classList.add('open');
+                    options.style.display = 'block';
+                    console.log('[DEBUG toggleInlineFilterDropdown] Opened dropdown');
+                }
+            }
+        }
+        
+        // Toggle inline filter value
+        function toggleInlineFilterValue(fieldId, value) {
+            const existingIndex = insightsFilters.findIndex(f => f.field === fieldId && f.value === value);
+            
+            if (existingIndex >= 0) {
+                // Remove filter
+                insightsFilters.splice(existingIndex, 1);
+            } else {
+                // Add filter
+                insightsFilters.push({ field: fieldId, operator: 'equals', value: value });
+            }
+            
+            // Update the inline dropdown options
+            updateInlineFilterOptions(fieldId);
+            updateFilterChips();
+            updateActiveFiltersDisplay();
+            saveFiltersToStorage();
+            renderInsightsPage();
+        }
+        
+        // Update inline filter options display
+        function updateInlineFilterOptions(fieldId) {
+            const dropdown = document.getElementById(`inline-filter-${fieldId}`);
+            if (!dropdown) return;
+            
+            const options = dropdown.querySelectorAll('.inline-filter-option');
+            options.forEach(option => {
+                const value = option.getAttribute('onclick').match(/'([^']+)'/)[1];
+                const isSelected = insightsFilters.some(f => f.field === fieldId && f.value === value);
+                
+                if (isSelected) {
+                    option.classList.add('selected');
+                } else {
+                    option.classList.remove('selected');
+                }
+            });
+        }
+        
+        // Remove inline filter
+        function removeInlineFilter(fieldId) {
+            // Remove all filters for this field
+            insightsFilters = insightsFilters.filter(f => f.field !== fieldId);
+            
+            // Remove the dropdown element
+            const dropdown = document.getElementById(`inline-filter-${fieldId}`);
+            if (dropdown) {
+                dropdown.remove();
+            }
+            
+            updateFilterChips();
+            updateActiveFiltersDisplay();
+            saveFiltersToStorage();
+            renderInsightsPage();
+        }
+        
+        // Get unique values for a field
+        function getUniqueFieldValues(fieldId) {
+            const values = new Set();
+            
+            insightsAllInsights.forEach(insight => {
+                let value = null;
+                
+                if (fieldId === 'status') {
+                    value = insight.status || 'Not Started';
+                } else if (fieldId === 'type') {
+                    value = insight.type;
+                } else if (fieldId === 'project' || fieldId === 'data_source' || fieldId === 'dimension') {
+                    const firstOrigin = insight.origins?.[0] || {};
+                    if (fieldId === 'project') {
+                        value = firstOrigin.project_name;
+                    } else if (fieldId === 'data_source') {
+                        value = firstOrigin.data_source;
+                    } else if (fieldId === 'dimension') {
+                        value = firstOrigin.dimension_name || firstOrigin.dimension_ref;
+                    }
+                }
+                
+                if (value && value !== '-') {
+                    values.add(value);
+                }
+            });
+            
+            return Array.from(values).sort();
+        }
+        
+        // Toggle filter value
+        function toggleFilterValue(fieldId, value) {
+            const existingIndex = insightsFilters.findIndex(f => f.field === fieldId && f.value === value);
+            
+            if (existingIndex >= 0) {
+                // Remove filter
+                insightsFilters.splice(existingIndex, 1);
+            } else {
+                // Add filter
+                insightsFilters.push({ field: fieldId, operator: 'equals', value: value });
+            }
+            
+            // Update dialog
+            openFilterValueDialog(fieldId);
+            updateFilterChips();
+            updateActiveFiltersDisplay();
+            saveFiltersToStorage();
+            renderInsightsPage();
+        }
+        
+        // Add date filter
+        function addDateFilter(fieldId, period) {
+            // Remove existing date filters for this field
+            insightsFilters = insightsFilters.filter(f => f.field !== fieldId);
+            
+            // Add new filter
+            insightsFilters.push({ field: fieldId, operator: 'equals', value: period });
+            
+            // Update the inline dropdown if it exists
+            updateInlineFilterOptions(fieldId);
+            
+            updateFilterChips();
+            updateActiveFiltersDisplay();
+            saveFiltersToStorage();
+            renderInsightsPage();
+        }
+        
+        // Close filter value dialog
+        function closeFilterValueDialog() {
+            const dialog = document.getElementById('filterValueDialog');
+            const overlay = document.getElementById('filterDialogOverlay');
+            if (dialog) dialog.classList.remove('active');
+            if (overlay) overlay.classList.remove('active');
+        }
+        
+        // Update active filters display in dropdown
+        function updateActiveFiltersDisplay() {
+            const section = document.getElementById('activeFiltersSection');
+            const list = document.getElementById('activeFiltersList');
+            
+            if (!section || !list) return;
+            
+            if (insightsFilters.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+            
+            section.style.display = 'block';
+            list.innerHTML = insightsFilters.map((filter, index) => {
+                const field = FILTER_FIELDS.find(f => f.id === filter.field);
+                const label = field ? field.label : filter.field;
+                return `
+                    <div class="filter-active-item">
+                        <span>${label}: ${escapeHtml(String(filter.value))}</span>
+                        <span class="filter-active-item-remove" onclick="removeFilterByIndex(${index})">×</span>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Remove filter by index
+        function removeFilterByIndex(index) {
+            insightsFilters.splice(index, 1);
+            updateFilterChips();
+            updateActiveFiltersDisplay();
+            saveFiltersToStorage();
+            renderInsightsPage();
+        }
+        
+        // Legacy function name for compatibility
+        function openFilterMenu() {
+            toggleFilterMenu();
         }
 
         function openCreateModal() {
@@ -11390,6 +12330,16 @@
         window.removeFilter = removeFilter;
         window.resetFilters = resetFilters;
         window.openFilterMenu = openFilterMenu;
+        window.toggleFilterMenu = toggleFilterMenu;
+        window.filterFilterOptions = filterFilterOptions;
+        window.openFilterValueDialog = openFilterValueDialog;
+        window.toggleFilterValue = toggleFilterValue;
+        window.toggleInlineFilterValue = toggleInlineFilterValue;
+        window.toggleInlineFilterDropdown = toggleInlineFilterDropdown;
+        window.removeInlineFilter = removeInlineFilter;
+        window.addDateFilter = addDateFilter;
+        window.closeFilterValueDialog = closeFilterValueDialog;
+        window.removeFilterByIndex = removeFilterByIndex;
         window.editInsight = editInsight;
         window.deleteInsight = deleteInsight;
         window.updateInsightStatus = updateInsightStatus;
@@ -14224,21 +15174,46 @@
 
         <!-- Insights Section -->
         <div id="insights-section" class="spa-section">
-            <div class="page-header">
-                <h1>Insights</h1>
-                <button class="btn-new" onclick="openCreateModal()">+ New</button>
-            </div>
-
-            <div class="control-bar">
+            <div class="control-bar" style="position: relative;">
+                <h1 style="margin: 0; font-size: 20px; font-weight: 600; color: #37352f; margin-right: 0.5rem;">Insights</h1>
                 <div class="search-box">
                     <input type="text" id="searchInput" placeholder="Search insights..." oninput="handleSearch()">
                 </div>
                 <div class="filter-chips" id="filterChips"></div>
-                <button class="btn-filter" onclick="openFilterMenu()">
-                    <span>+</span>
-                    <span>Filter</span>
-                </button>
+                <div style="position: relative;">
+                    <button class="filter-button" onclick="toggleFilterMenu(event)" id="filterMenuBtn" type="button" aria-label="Open filters">
+                        <img src="/images/filter_list.svg" alt="" aria-hidden="true">
+                        <span id="insightsListFilterBadge" class="filter-badge" aria-hidden="true"></span>
+                    </button>
+                    
+                    <!-- Filter Dropdown Menu -->
+                    <div class="filter-dropdown" id="filterDropdown">
+                        <div class="filter-dropdown-search">
+                            <input type="text" id="filterSearchInput" placeholder="Filter by..." oninput="filterFilterOptions()">
+                        </div>
+                        <div class="filter-dropdown-list" id="filterOptionsList">
+                            <!-- Filter options will be populated here -->
+                        </div>
+                        <div class="filter-active-filters" id="activeFiltersSection" style="display: none;">
+                            <div class="filter-active-filters-title">Active filters</div>
+                            <div id="activeFiltersList"></div>
+                        </div>
+                    </div>
+                </div>
+                <button class="btn-new" onclick="openCreateModal()">+ New</button>
                 <button class="btn-reset" onclick="resetFilters()" id="resetBtn" style="display: none;">Reset</button>
+            </div>
+            
+            <!-- Filter Value Selection Dialog -->
+            <div class="filter-dialog-overlay" id="filterDialogOverlay" onclick="closeFilterValueDialog()"></div>
+            <div class="filter-value-dialog" id="filterValueDialog">
+                <div class="filter-value-dialog-header">
+                    <div class="filter-value-dialog-title" id="filterValueDialogTitle">Select value</div>
+                    <button class="filter-value-dialog-close" onclick="closeFilterValueDialog()">&times;</button>
+                </div>
+                <div class="filter-value-dialog-body" id="filterValueDialogBody">
+                    <!-- Filter value options will be populated here -->
+                </div>
             </div>
 
             <div class="table-container">
