@@ -742,48 +742,74 @@
 
         // Helper to get auth headers with fallback
         function getAuthHeadersSafe() {
+            console.log('[DEBUG] getAuthHeadersSafe called');
             let headers = {};
             
             if (typeof getAuthHeaders !== 'undefined') {
+                console.log('[DEBUG] getAuthHeaders function exists, calling it');
                 headers = getAuthHeaders();
+                console.log('[DEBUG] getAuthHeaders returned:', Object.keys(headers));
                 if (headers.Authorization || headers.authorization) {
+                    console.log('[DEBUG] Using headers from getAuthHeaders');
                     return headers;
                 }
+            } else {
+                console.log('[DEBUG] getAuthHeaders function is undefined');
             }
             
             const token = localStorage.getItem('visualizd_auth_token');
+            console.log('[DEBUG] Token from localStorage:', token ? 'exists (' + token.substring(0, 20) + '...)' : 'not found');
             if (token) {
-                return {
+                const headers = {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 };
+                console.log('[DEBUG] Using token from localStorage');
+                return headers;
             }
             
+            console.warn('[DEBUG] No auth token found, returning headers without Authorization');
             return { 'Content-Type': 'application/json' };
         }
 
         // Initialize page
         async function initPage() {
-            console.log('initPage called');
+            console.log('[DEBUG] ========== initPage called ==========');
+            console.log('[DEBUG] Page readyState:', document.readyState);
+            console.log('[DEBUG] Current URL:', window.location.href);
+            console.log('[DEBUG] Current URL search:', window.location.search);
+            
             let attempts = 0;
             while (typeof getAuthHeaders === 'undefined' && attempts < 10) {
+                console.log(`[DEBUG] Waiting for getAuthHeaders (attempt ${attempts + 1}/10)`);
                 await new Promise(resolve => setTimeout(resolve, 100));
                 attempts++;
             }
+            
+            if (typeof getAuthHeaders === 'undefined') {
+                console.warn('[DEBUG] getAuthHeaders still undefined after waiting');
+            } else {
+                console.log('[DEBUG] getAuthHeaders is now available');
+            }
 
             const urlParams = new URLSearchParams(window.location.search);
+            console.log('[DEBUG] URL params:', Array.from(urlParams.entries()));
+            
             currentClientId = urlParams.get('client_uuid');
-            console.log('Current client ID:', currentClientId);
+            console.log('[DEBUG] Current client ID from URL:', currentClientId);
             
             const authTokenFromUrl = urlParams.get('auth_token');
             if (authTokenFromUrl) {
+                console.log('[DEBUG] Found auth_token in URL, storing in localStorage');
                 localStorage.setItem('visualizd_auth_token', authTokenFromUrl);
                 urlParams.delete('auth_token');
                 const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
                 window.history.replaceState({}, '', newUrl);
+                console.log('[DEBUG] Updated URL (removed auth_token):', newUrl);
             }
 
             if (!currentClientId) {
+                console.error('[DEBUG] No client ID found in URL');
                 const tbody = document.getElementById('insightsTableBody');
                 if (tbody) {
                     tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>No client specified</h3></td></tr>';
@@ -791,7 +817,7 @@
                 return;
             }
 
-            console.log('Loading insights...');
+            console.log('[DEBUG] Client ID is valid, proceeding to load insights...');
             await loadInsights();
             
             // Set active navigation item
@@ -799,6 +825,8 @@
             
             // Update navigation links with current context
             updateNavLinks();
+            
+            console.log('[DEBUG] ========== initPage completed ==========');
         }
 
         // Set active navigation item based on current page
@@ -886,24 +914,57 @@
             }
         }
 
+        // Page load/refresh detection and initialization
+        console.log('[DEBUG] Script loaded, document.readyState:', document.readyState);
+        console.log('[DEBUG] Window location:', window.location.href);
+        
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initPage);
+            console.log('[DEBUG] Document still loading, waiting for DOMContentLoaded');
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('[DEBUG] DOMContentLoaded fired, calling initPage');
+                initPage();
+            });
         } else {
+            console.log('[DEBUG] Document already loaded, calling initPage immediately');
             initPage();
         }
+        
+        // Also listen for page visibility changes (handles refresh)
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') {
+                console.log('[DEBUG] Page became visible, checking if refresh is needed');
+                // Check if we need to reload insights
+                const urlParams = new URLSearchParams(window.location.search);
+                const clientId = urlParams.get('client_uuid');
+                if (clientId && clientId !== currentClientId) {
+                    console.log('[DEBUG] Client ID changed, reloading insights');
+                    currentClientId = clientId;
+                    loadInsights();
+                }
+            }
+        });
 
         async function loadInsights() {
-            console.log('loadInsights called, currentClientId:', currentClientId);
+            console.log('[DEBUG] ========== loadInsights called ==========');
+            console.log('[DEBUG] currentClientId:', currentClientId);
+            console.log('[DEBUG] API_BASE_URL:', API_BASE_URL);
+            console.log('[DEBUG] currentSortBy:', currentSortBy);
+            console.log('[DEBUG] sortOrder:', sortOrder);
+            console.log('[DEBUG] filters:', filters);
+            
             if (!currentClientId) {
-                console.warn('No client ID, cannot load insights');
+                console.error('[DEBUG] No client ID, cannot load insights');
                 return;
             }
 
             const tbody = document.getElementById('insightsTableBody');
             if (!tbody) {
-                console.error('Table body element not found');
+                console.error('[DEBUG] Table body element not found');
                 return;
             }
+            
+            console.log('[DEBUG] Table body element found, showing loading state');
+            tbody.innerHTML = '<tr><td colspan="9" class="loading">Loading insights...</td></tr>';
 
             try {
                 const params = new URLSearchParams({
@@ -914,61 +975,113 @@
                 });
 
                 Object.entries(filters).forEach(([key, value]) => {
-                    if (value) params.append(key, value);
+                    if (value) {
+                        params.append(key, value);
+                        console.log(`[DEBUG] Added filter: ${key} = ${value}`);
+                    }
                 });
 
                 const headers = getAuthHeadersSafe();
-                console.log('Fetching insights from:', `${API_BASE_URL}/api/clients/${currentClientId}/insights?${params.toString()}`);
-                console.log('Headers:', Object.keys(headers));
+                const url = `${API_BASE_URL}/api/clients/${currentClientId}/insights?${params.toString()}`;
+                console.log('[DEBUG] Fetching insights from:', url);
+                console.log('[DEBUG] Request headers:', headers);
+                console.log('[DEBUG] Request method: GET');
                 
-                const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights?${params.toString()}`, {
+                const fetchStartTime = Date.now();
+                const response = await fetch(url, {
                     headers: headers
                 });
-
-                console.log('Response status:', response.status);
+                const fetchDuration = Date.now() - fetchStartTime;
+                
+                console.log('[DEBUG] Fetch completed in', fetchDuration, 'ms');
+                console.log('[DEBUG] Response status:', response.status);
+                console.log('[DEBUG] Response statusText:', response.statusText);
+                console.log('[DEBUG] Response headers:', Array.from(response.headers.entries()));
 
                 if (!response.ok) {
+                    console.error('[DEBUG] Response not OK');
                     if (response.status === 401) {
+                        console.error('[DEBUG] 401 Unauthorized - authentication required');
                         throw new Error('Authentication required. Please log in.');
                     }
                     const errorText = await response.text();
-                    console.error('Error response:', errorText);
-                    throw new Error('Failed to load insights');
+                    console.error('[DEBUG] Error response body:', errorText);
+                    throw new Error(`Failed to load insights: ${response.status} ${response.statusText}`);
                 }
 
                 const data = await response.json();
-                console.log('Insights loaded:', data.items?.length || 0, 'items');
+                console.log('[DEBUG] Response JSON parsed successfully');
+                console.log('[DEBUG] Response data keys:', Object.keys(data));
+                console.log('[DEBUG] Insights count:', data.items?.length || 0);
+                console.log('[DEBUG] Total insights (if available):', data.total);
+                console.log('[DEBUG] Sample insight (first item):', data.items?.[0] ? {
+                    id: data.items[0].id,
+                    name: data.items[0].name,
+                    type: data.items[0].type
+                } : 'none');
+                
                 allInsights = data.items || [];
+                console.log('[DEBUG] Stored', allInsights.length, 'insights in allInsights array');
+                
                 renderInsights();
+                console.log('[DEBUG] ========== loadInsights completed successfully ==========');
             } catch (error) {
-                console.error('Error loading insights:', error);
+                console.error('[DEBUG] ========== ERROR in loadInsights ==========');
+                console.error('[DEBUG] Error type:', error.constructor.name);
+                console.error('[DEBUG] Error message:', error.message);
+                console.error('[DEBUG] Error stack:', error.stack);
+                
                 if (tbody) {
-                    tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>Error loading insights</h3><p>' + escapeHtml(error.message) + '</p></td></tr>';
+                    const errorMessage = error.message || 'Unknown error occurred';
+                    tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>Error loading insights</h3><p>' + escapeHtml(errorMessage) + '</p><p style="font-size: 12px; color: #999; margin-top: 8px;">Check console for details</p></td></tr>';
                 }
             }
         }
 
         function renderInsights() {
+            console.log('[DEBUG] ========== renderInsights called ==========');
+            console.log('[DEBUG] allInsights array length:', allInsights.length);
+            console.log('[DEBUG] searchTerm:', searchTerm);
+            
             const tbody = document.getElementById('insightsTableBody');
+            if (!tbody) {
+                console.error('[DEBUG] Table body element not found in renderInsights');
+                return;
+            }
             
             let filtered = [...allInsights];
+            console.log('[DEBUG] Starting with', filtered.length, 'insights before filtering');
             
             // Apply search
             if (searchTerm) {
                 const term = searchTerm.toLowerCase();
+                console.log('[DEBUG] Applying search filter for term:', term);
                 filtered = filtered.filter(insight => 
                     insight.name?.toLowerCase().includes(term) ||
                     insight.type?.toLowerCase().includes(term) ||
                     insight.description?.toLowerCase().includes(term)
                 );
+                console.log('[DEBUG] After search filter:', filtered.length, 'insights remain');
             }
 
             if (filtered.length === 0) {
+                console.log('[DEBUG] No insights to render, showing empty state');
                 tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>No insights found</h3><p>Create your first insight to get started</p></td></tr>';
                 return;
             }
+            
+            console.log('[DEBUG] Rendering', filtered.length, 'insights');
 
-            tbody.innerHTML = filtered.map(insight => {
+            const renderedHTML = filtered.map((insight, index) => {
+                if (index === 0) {
+                    console.log('[DEBUG] Sample insight being rendered:', {
+                        id: insight.id,
+                        name: insight.name,
+                        type: insight.type,
+                        hasOrigins: !!insight.origins,
+                        originsLength: insight.origins?.length || 0
+                    });
+                }
                 const createdDate = new Date(insight.created_at).toLocaleDateString();
                 const firstOrigin = insight.origins?.[0] || {};
                 const projectName = firstOrigin.project_name || '-';
@@ -1053,6 +1166,10 @@
                     </tr>
                 `;
             }).join('');
+            
+            tbody.innerHTML = renderedHTML;
+            console.log('[DEBUG] Table body updated with', filtered.length, 'rows');
+            console.log('[DEBUG] ========== renderInsights completed ==========');
         }
 
         function sortBy(column) {
@@ -1723,7 +1840,8 @@
                     statusEl.style.color = '#B9F040';
                 }
                 
-                // Refresh insights list
+                // Refresh insights list immediately
+                console.log('[saveNewInsight] Refreshing insights list after creation');
                 loadInsights();
                 
                 // Close panel after a brief delay
