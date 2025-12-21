@@ -1787,6 +1787,23 @@
             color: oklch(0.145 0 0);
         }
 
+        .btn-delete {
+            padding: 0.25rem 0.5rem;
+            background: transparent;
+            border: none;
+            color: oklch(0.556 0 0);
+            cursor: pointer;
+            font-size: 0.8125rem;
+            font-family: 'Lato', sans-serif;
+            border-radius: 0.375rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-delete:hover {
+            background: oklch(0.97 0 0);
+            color: oklch(0.8 0.15 25);
+        }
+
         /* Filter Dropdown Menu */
         .filter-dropdown {
             position: absolute;
@@ -2248,6 +2265,23 @@
         .action-btn:hover {
             background: oklch(0.97 0 0);
             color: oklch(0.145 0 0);
+        }
+
+        /* Checkbox Column */
+        .checkbox-cell {
+            width: 40px;
+            text-align: center;
+            padding: 0.5rem;
+        }
+
+        .checkbox-cell input[type="checkbox"] {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+        }
+
+        .notion-table tbody tr:hover .checkbox-cell {
+            background: oklch(0.98 0 0);
         }
 
         /* Empty State */
@@ -4126,6 +4160,22 @@
             width: 80px;
         }
 
+        .checkbox-cell {
+            width: 40px;
+            text-align: center;
+            padding: 0.5rem;
+        }
+
+        .checkbox-cell input[type="checkbox"] {
+            cursor: pointer;
+            width: 16px;
+            height: 16px;
+        }
+
+        .notion-table tbody tr:hover .checkbox-cell {
+            background: rgba(55, 53, 47, 0.03);
+        }
+
         .action-btn {
             background: none;
             border: none;
@@ -4711,11 +4761,15 @@
                                     <span>Filter</span>
                                 </button>
                                 <button class="btn-reset" onclick="resetInsightsFilters()" id="insightsResetBtn" style="display: none;">Reset</button>
+                                <button class="btn-delete" onclick="deleteSelectedInsights()" id="insightsDeleteBtn" style="display: none;">Delete Selected</button>
                             </div>
                             <div class="table-container">
                                 <table class="notion-table">
                                     <thead>
                                         <tr>
+                                            <th class="checkbox-cell">
+                                                <input type="checkbox" id="insightsSelectAll" onchange="console.log('[DEBUG] Select all checkbox changed to:', this.checked); toggleSelectAllInsights(this.checked)" title="Select all">
+                                            </th>
                                             <th class="name-cell sorted draggable" data-column="name" draggable="true" onclick="sortInsightsBy('name')">
                                                 <span class="drag-handle">⋮⋮</span>
                                                 <span class="column-icon">Aa</span>
@@ -4734,7 +4788,6 @@
                                                 <span>Created</span>
                                                 <span class="sort-indicator"></span>
                                             </th>
-                                            <th class="actions-cell">Actions</th>
                                         </tr>
                                     </thead>
                                     <tbody id="insightsTableBody">
@@ -10162,13 +10215,13 @@
             { id: 'type', label: 'Type', icon: '≡', type: 'select' },
             { id: 'project', label: 'Project', icon: '≡', type: 'select' },
             { id: 'data_source', label: 'Data Source', icon: '≡', type: 'select' },
-            { id: 'dimension', label: 'Dimension', icon: '≡', type: 'select' },
             { id: 'created_at', label: 'Created', icon: '📅', type: 'date' }
         ];
         let insightsCurrentInsightNotesId = null;
         let insightsCurrentInsightData = null;
         let insightsSaveNotesTimeout = null;
         let insightsFieldSaveTimeout = null;
+        let selectedInsightIds = new Set();
         window.insightsInitialized = false;
 
         function getAuthHeadersSafe() {
@@ -10455,14 +10508,12 @@
                             insightValue = insight.status || 'Not Started';
                         } else if (filter.field === 'type') {
                             insightValue = insight.type;
-                        } else if (filter.field === 'project' || filter.field === 'data_source' || filter.field === 'dimension') {
+                        } else if (filter.field === 'project' || filter.field === 'data_source') {
                             const firstOrigin = insight.origins?.[0] || {};
                             if (filter.field === 'project') {
                                 insightValue = firstOrigin.project_name || '-';
                             } else if (filter.field === 'data_source') {
                                 insightValue = firstOrigin.data_source || '-';
-                            } else if (filter.field === 'dimension') {
-                                insightValue = firstOrigin.dimension_name || firstOrigin.dimension_ref || '-';
                             }
                         } else if (filter.field === 'created_at') {
                             const createdDate = new Date(insight.created_at);
@@ -10505,7 +10556,9 @@
 
             if (filtered.length === 0) {
                 console.log('[DEBUG] No insights to render, showing empty state');
-                tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>No insights found</h3><p>Create your first insight to get started</p></td></tr>';
+                // Calculate colspan: 1 for checkbox + number of columns
+                const columnCount = getColumnOrder().length;
+                tbody.innerHTML = `<tr><td colspan="${columnCount + 1}" class="empty-state"><h3>No insights found</h3><p>Create your first insight to get started</p></td></tr>`;
                 return;
             }
             
@@ -10575,7 +10628,6 @@
                     data_source: `<td data-column="data_source">
                         ${dataSource !== '-' ? `<span class="tag tag-data-source">${escapeHtml(dataSource)}</span>` : '-'}
                     </td>`,
-                    dimension: `<td data-column="dimension">${escapeHtml(dimension)}</td>`,
                     created_at: `<td data-column="created_at">${createdDate}</td>`
                 };
                 
@@ -10584,16 +10636,30 @@
                 
                 // Build row HTML in the correct order
                 const orderedCells = columnOrder.map(col => cells[col] || '').filter(cell => cell);
-                const actionsCell = `<td class="actions-cell">
-                    <button class="action-btn" onclick="editInsight('${insight.id}')" title="Edit">✏️</button>
-                    <button class="action-btn" onclick="deleteInsight('${insight.id}')" title="Delete">🗑️</button>
+                const checkboxCell = `<td class="checkbox-cell">
+                    <input type="checkbox" class="insight-checkbox" data-insight-id="${insight.id}" onchange="console.log('[DEBUG] Checkbox onchange triggered for insight:', '${insight.id}'); handleInsightCheckboxChange()" onclick="event.stopPropagation(); console.log('[DEBUG] Checkbox onclick triggered for insight:', '${insight.id}')">
                 </td>`;
                 
-                return `<tr>${orderedCells.join('')}${actionsCell}</tr>`;
+                if (index < 3) {
+                    console.log('[DEBUG renderInsightsPage] Creating checkbox for insight:', insight.id, 'Checkbox cell HTML:', checkboxCell.substring(0, 100));
+                }
+                
+                return `<tr data-insight-id="${insight.id}" onclick="openInsightNotes('${insight.id}')" style="cursor: pointer;">${checkboxCell}${orderedCells.join('')}</tr>`;
             }).join('');
             
             tbody.innerHTML = renderedHTML;
             console.log('[DEBUG] Table body updated with', filtered.length, 'rows');
+            
+            // Clear and restore checkbox selections
+            console.log('[DEBUG renderInsightsPage] Clearing selectedInsightIds');
+            selectedInsightIds.clear();
+            const checkboxesAfterRender = document.querySelectorAll('.insight-checkbox');
+            console.log('[DEBUG renderInsightsPage] Found', checkboxesAfterRender.length, 'checkboxes after render');
+            checkboxesAfterRender.forEach((cb, idx) => {
+                console.log('[DEBUG renderInsightsPage] Checkbox', idx, 'insightId:', cb.getAttribute('data-insight-id'), 'checked:', cb.checked);
+            });
+            updateInsightsDeleteButton();
+            updateSelectAllCheckbox();
             
             // Apply saved column order and initialize drag and drop
             setTimeout(() => {
@@ -11314,6 +11380,189 @@
             }
         }
 
+        function handleInsightCheckboxChange() {
+            console.log('[DEBUG handleInsightCheckboxChange] Function called');
+            selectedInsightIds.clear();
+            const checkboxes = document.querySelectorAll('.insight-checkbox:checked');
+            console.log('[DEBUG handleInsightCheckboxChange] Found', checkboxes.length, 'checked checkboxes');
+            checkboxes.forEach(checkbox => {
+                const insightId = checkbox.getAttribute('data-insight-id');
+                console.log('[DEBUG handleInsightCheckboxChange] Processing checkbox with insightId:', insightId);
+                if (insightId) {
+                    selectedInsightIds.add(insightId);
+                }
+            });
+            console.log('[DEBUG handleInsightCheckboxChange] Selected insight IDs:', Array.from(selectedInsightIds));
+            updateInsightsDeleteButton();
+            updateSelectAllCheckbox();
+        }
+
+        function toggleSelectAllInsights(checked) {
+            console.log('[DEBUG toggleSelectAllInsights] Function called with checked:', checked);
+            const checkboxes = document.querySelectorAll('.insight-checkbox');
+            console.log('[DEBUG toggleSelectAllInsights] Found', checkboxes.length, 'checkboxes');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = checked;
+                const insightId = checkbox.getAttribute('data-insight-id');
+                console.log('[DEBUG toggleSelectAllInsights] Setting checkbox', insightId, 'to', checked);
+                if (checked && insightId) {
+                    selectedInsightIds.add(insightId);
+                } else if (insightId) {
+                    selectedInsightIds.delete(insightId);
+                }
+            });
+            console.log('[DEBUG toggleSelectAllInsights] Selected insight IDs:', Array.from(selectedInsightIds));
+            updateInsightsDeleteButton();
+        }
+
+        function updateSelectAllCheckbox() {
+            console.log('[DEBUG updateSelectAllCheckbox] Function called');
+            const selectAllCheckbox = document.getElementById('insightsSelectAll');
+            console.log('[DEBUG updateSelectAllCheckbox] Select all checkbox found:', !!selectAllCheckbox);
+            if (!selectAllCheckbox) {
+                console.warn('[DEBUG updateSelectAllCheckbox] Select all checkbox not found!');
+                return;
+            }
+            const checkboxes = document.querySelectorAll('.insight-checkbox');
+            const checkedCount = document.querySelectorAll('.insight-checkbox:checked').length;
+            console.log('[DEBUG updateSelectAllCheckbox] Total checkboxes:', checkboxes.length, 'Checked:', checkedCount);
+            selectAllCheckbox.checked = checkboxes.length > 0 && checkedCount === checkboxes.length;
+            selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+            console.log('[DEBUG updateSelectAllCheckbox] Select all checkbox state - checked:', selectAllCheckbox.checked, 'indeterminate:', selectAllCheckbox.indeterminate);
+        }
+
+        function updateInsightsDeleteButton() {
+            console.log('[DEBUG updateInsightsDeleteButton] Function called');
+            console.log('[DEBUG updateInsightsDeleteButton] Selected insight IDs count:', selectedInsightIds.size);
+            const deleteBtn = document.getElementById('insightsDeleteBtn');
+            console.log('[DEBUG updateInsightsDeleteButton] Delete button found:', !!deleteBtn);
+            if (!deleteBtn) {
+                console.error('[DEBUG updateInsightsDeleteButton] Delete button element not found in DOM!');
+                return;
+            }
+            
+            // Check if button's parents are visible
+            let parent = deleteBtn.parentElement;
+            let parentLevel = 0;
+            while (parent && parentLevel < 5) {
+                const parentComputed = window.getComputedStyle(parent);
+                console.log(`[DEBUG updateInsightsDeleteButton] Parent level ${parentLevel} (${parent.tagName}.${parent.className}): display=${parentComputed.display}, visibility=${parentComputed.visibility}`);
+                if (parentComputed.display === 'none') {
+                    console.error(`[DEBUG updateInsightsDeleteButton] WARNING: Parent at level ${parentLevel} has display:none!`);
+                }
+                parent = parent.parentElement;
+                parentLevel++;
+            }
+            
+            const shouldShow = selectedInsightIds.size > 0;
+            console.log('[DEBUG updateInsightsDeleteButton] Should show button:', shouldShow);
+            
+            // Check reset button for comparison
+            const resetBtn = document.getElementById('insightsResetBtn');
+            console.log('[DEBUG updateInsightsDeleteButton] Reset button found:', !!resetBtn);
+            if (resetBtn) {
+                console.log('[DEBUG updateInsightsDeleteButton] Reset button display:', resetBtn.style.display, 'computed:', window.getComputedStyle(resetBtn).display);
+                const resetRect = resetBtn.getBoundingClientRect();
+                console.log('[DEBUG updateInsightsDeleteButton] Reset button bounding rect:', JSON.stringify({
+                    x: resetRect.x, y: resetRect.y, width: resetRect.width, height: resetRect.height
+                }));
+            }
+            
+            if (shouldShow) {
+                console.log('✅ [DEBUG updateInsightsDeleteButton] Making button visible...');
+                
+                // CRITICAL: Remove the inline style attribute completely first!
+                // The HTML has style="display: none;" which needs to be removed
+                const currentStyle = deleteBtn.getAttribute('style');
+                console.log('[DEBUG updateInsightsDeleteButton] Current style attribute:', currentStyle);
+                deleteBtn.removeAttribute('style');
+                console.log('[DEBUG updateInsightsDeleteButton] Removed style attribute');
+                
+                // Now set fresh styles
+                deleteBtn.style.display = 'block';
+                deleteBtn.style.visibility = 'visible';
+                deleteBtn.style.opacity = '1';
+                
+                // Add temporary bright red background for debugging
+                deleteBtn.style.backgroundColor = '#ff0000';
+                deleteBtn.style.color = '#ffffff';
+                deleteBtn.style.padding = '8px 16px';
+                deleteBtn.style.border = '2px solid #ff0000';
+                deleteBtn.style.borderRadius = '4px';
+                deleteBtn.style.fontWeight = 'bold';
+                
+                // Check computed styles after setting
+                const computedAfter = window.getComputedStyle(deleteBtn);
+                console.log('[DEBUG updateInsightsDeleteButton] AFTER update - inline display:', deleteBtn.style.display);
+                console.log('[DEBUG updateInsightsDeleteButton] AFTER update - computed display:', computedAfter.display);
+                const rect = deleteBtn.getBoundingClientRect();
+                console.log('[DEBUG updateInsightsDeleteButton] Button bounding rect:', JSON.stringify({
+                    x: rect.x, y: rect.y, width: rect.width, height: rect.height
+                }));
+                
+                if (computedAfter.display === 'none') {
+                    console.error('[DEBUG updateInsightsDeleteButton] WARNING: Computed display is still "none"!');
+                    deleteBtn.style.setProperty('display', 'block', 'important');
+                    const computedAfterImportant = window.getComputedStyle(deleteBtn);
+                    console.log('[DEBUG updateInsightsDeleteButton] After !important - computed display:', computedAfterImportant.display);
+                }
+            } else {
+                deleteBtn.style.display = 'none';
+            }
+        }
+
+        async function deleteSelectedInsights() {
+            console.log('[DEBUG deleteSelectedInsights] Function called');
+            console.log('[DEBUG deleteSelectedInsights] insightsCurrentClientId:', insightsCurrentClientId);
+            console.log('[DEBUG deleteSelectedInsights] selectedInsightIds size:', selectedInsightIds.size);
+            console.log('[DEBUG deleteSelectedInsights] selectedInsightIds:', Array.from(selectedInsightIds));
+            
+            if (!insightsCurrentClientId) {
+                console.warn('[DEBUG deleteSelectedInsights] No client ID, returning');
+                return;
+            }
+            if (selectedInsightIds.size === 0) {
+                console.warn('[DEBUG deleteSelectedInsights] No insights selected, returning');
+                return;
+            }
+
+            const count = selectedInsightIds.size;
+            const message = count === 1 
+                ? 'Are you sure you want to delete this insight?'
+                : `Are you sure you want to delete ${count} insights?`;
+            
+            console.log('[DEBUG deleteSelectedInsights] Showing confirm dialog');
+            if (!confirm(message)) {
+                console.log('[DEBUG deleteSelectedInsights] User cancelled deletion');
+                return;
+            }
+
+            console.log('[DEBUG deleteSelectedInsights] User confirmed, proceeding with deletion');
+            try {
+                const deletePromises = Array.from(selectedInsightIds).map(insightId => {
+                    console.log('[DEBUG deleteSelectedInsights] Deleting insight:', insightId);
+                    return fetch(`${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights/${insightId}`, {
+                        method: 'DELETE',
+                        headers: getAuthHeadersSafe()
+                    }).then(response => {
+                        console.log('[DEBUG deleteSelectedInsights] Delete response for', insightId, ':', response.status, response.ok);
+                        if (!response.ok) throw new Error(`Failed to delete insight ${insightId}`);
+                        return insightId;
+                    });
+                });
+
+                await Promise.all(deletePromises);
+                console.log('[DEBUG deleteSelectedInsights] All deletions completed successfully');
+                selectedInsightIds.clear();
+                loadInsightsPage();
+            } catch (error) {
+                console.error('[DEBUG deleteSelectedInsights] Error deleting insights:', error);
+                alert('Error deleting insights: ' + error.message);
+                // Reload page to sync state even if some deletes failed
+                loadInsightsPage();
+            }
+        }
+
         async function updateInsightStatus(insightId, status) {
             console.log('[DEBUG updateInsightStatus] Function called');
             console.log('[DEBUG updateInsightStatus] Parameters:', { insightId, status, insightsCurrentClientId });
@@ -11468,7 +11717,50 @@
                 console.log('[openInsightNotes] Insight notes contains img:', insight.notes?.includes('<img'));
                 insightsCurrentInsightData = insight;
                 
-                if (title) title.textContent = '';
+                // Set up editable title in header
+                if (title && title.parentNode) {
+                    // Clone to remove old event listeners, then replace
+                    const newTitle = title.cloneNode(false);
+                    title.parentNode.replaceChild(newTitle, title);
+                    
+                    // Update the new element properties
+                    newTitle.id = 'insightTitleEditable';
+                    newTitle.contentEditable = 'true';
+                    newTitle.style.cssText = 'font-size: 1.875rem; font-weight: 700; font-family: \'Lato\', sans-serif; color: oklch(0.145 0 0); outline: none; min-height: 2.5rem; line-height: 1.2; margin: 0;';
+                    newTitle.setAttribute('data-placeholder', 'Untitled');
+                    newTitle.textContent = insight.name || 'Untitled';
+                    
+                    // Set up event listeners for the title
+                    newTitle.addEventListener('blur', () => {
+                        const newName = newTitle.textContent.trim() || 'Untitled';
+                        debouncedSaveInsightField('name', newName);
+                    });
+                    newTitle.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            newTitle.blur();
+                        }
+                    });
+                } else if (title) {
+                    // Fallback: just update the element if parent doesn't exist
+                    title.id = 'insightTitleEditable';
+                    title.contentEditable = 'true';
+                    title.style.cssText = 'font-size: 1.875rem; font-weight: 700; font-family: \'Lato\', sans-serif; color: oklch(0.145 0 0); outline: none; min-height: 2.5rem; line-height: 1.2; margin: 0;';
+                    title.setAttribute('data-placeholder', 'Untitled');
+                    title.textContent = insight.name || 'Untitled';
+                    
+                    // Set up event listeners for the title
+                    title.addEventListener('blur', () => {
+                        const newName = title.textContent.trim() || 'Untitled';
+                        debouncedSaveInsightField('name', newName);
+                    });
+                    title.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            title.blur();
+                        }
+                    });
+                }
                 console.log('[openInsightNotes] Calling initializeInsightPanel');
                 await initializeInsightPanel(content, insight);
                 console.log('[openInsightNotes] Panel initialization complete');
@@ -11490,12 +11782,6 @@
                 <div style="padding: 0; display: flex; flex-direction: column; height: 100%;">
                     <!-- Scrollable Content Area -->
                     <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column;">
-                        <div style="padding: 1.5rem; border-bottom: 1px solid oklch(0.922 0 0); flex-shrink: 0;">
-                            <div id="insightTitleEditable" 
-                                 contenteditable="true" 
-                                 style="font-size: 1.875rem; font-weight: 700; font-family: 'Lato', sans-serif; color: oklch(0.145 0 0); outline: none; min-height: 2.5rem; line-height: 1.2;"
-                                 data-placeholder="Untitled">${escapeHtml(insight.name || 'Untitled')}</div>
-                        </div>
                         <div style="padding: 1rem 1.5rem; border-bottom: 1px solid oklch(0.922 0 0); flex-shrink: 0;">
                             <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 0.75rem;">
                                 <div class="insight-attribute-row">
@@ -11559,19 +11845,7 @@
                 </div>
             `;
             
-            const titleEl = document.getElementById('insightTitleEditable');
-            if (titleEl) {
-                titleEl.addEventListener('blur', () => {
-                    const newName = titleEl.textContent.trim() || 'Untitled';
-                    debouncedSaveInsightField('name', newName);
-                });
-                titleEl.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        titleEl.blur();
-                    }
-                });
-            }
+            // Title is now set up in header in openInsightNotes function, so no need to set it up here
             
             const typeChip = document.getElementById('insightTypeChip');
             if (typeChip) {
@@ -12069,7 +12343,7 @@
         const COLUMN_ORDER_KEY = 'insights_column_order';
         
         function getDefaultColumnOrder() {
-            return ['name', 'type', 'status', 'project', 'data_source', 'dimension', 'created_at'];
+            return ['name', 'type', 'status', 'project', 'data_source', 'created_at'];
         }
         
         function getColumnOrder() {
@@ -12342,6 +12616,17 @@
         window.removeFilterByIndex = removeFilterByIndex;
         window.editInsight = editInsight;
         window.deleteInsight = deleteInsight;
+        window.handleInsightCheckboxChange = handleInsightCheckboxChange;
+        window.toggleSelectAllInsights = toggleSelectAllInsights;
+        window.deleteSelectedInsights = deleteSelectedInsights;
+        
+        // Debug: Verify checkbox functions are accessible
+        console.log('[DEBUG] ========== Checkbox Functions Exposure Check ==========');
+        console.log('[DEBUG] handleInsightCheckboxChange function exposed:', typeof window.handleInsightCheckboxChange);
+        console.log('[DEBUG] toggleSelectAllInsights function exposed:', typeof window.toggleSelectAllInsights);
+        console.log('[DEBUG] deleteSelectedInsights function exposed:', typeof window.deleteSelectedInsights);
+        console.log('[DEBUG] selectedInsightIds Set initialized:', selectedInsightIds instanceof Set);
+        console.log('[DEBUG] ========================================================');
         window.updateInsightStatus = updateInsightStatus;
         window.saveInsight = saveInsight;
         window.openInsightNotes = openInsightNotes;
@@ -14482,7 +14767,7 @@
             });
 
             if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><h3>No insights found</h3><p>Create your first insight to get started</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><h3>No insights found</h3><p>Create your first insight to get started</p></td></tr>';
                 return;
             }
 
@@ -14490,7 +14775,10 @@
                 const createdDate = new Date(insight.created_at).toLocaleDateString();
 
                 return `
-                    <tr>
+                    <tr data-insight-id="${insight.id}" onclick="SlideoutPanel.openInsightNotes('${insight.id}')" style="cursor: pointer;">
+                        <td class="checkbox-cell">
+                            <input type="checkbox" class="insight-checkbox" data-insight-id="${insight.id}" onchange="handleInsightCheckboxChange()" onclick="event.stopPropagation()">
+                        </td>
                         <td class="name-cell">
                             <div class="name-content" style="position: relative;">
                                 <svg class="doc-icon" viewBox="0 0 16 16" fill="currentColor">
@@ -14510,9 +14798,6 @@
                             <span class="tag tag-type">${escapeHtml(insight.type)}</span>
                         </td>
                         <td>${createdDate}</td>
-                        <td class="actions-cell">
-                            <button class="action-btn" onclick="editInsightFromView('${insight.id}')" title="Edit">✏️</button>
-                        </td>
                     </tr>
                 `;
             }).join('');
@@ -15250,12 +15535,6 @@
                                 <span>Data Source</span>
                                 <span class="sort-indicator"></span>
                             </th>
-                            <th class="draggable" data-column="dimension" draggable="true" onclick="sortBy('dimension')">
-                                <span class="drag-handle">⋮⋮</span>
-                                <span class="column-icon">≡</span>
-                                <span>Dimension</span>
-                                <span class="sort-indicator"></span>
-                            </th>
                             <th class="draggable" data-column="created_at" draggable="true" onclick="sortBy('created_at')">
                                 <span class="drag-handle">⋮⋮</span>
                                 <span class="column-icon">📅</span>
@@ -15275,7 +15554,7 @@
         <div id="insightNotesPanel" class="ai-insights-panel">
             <div class="ai-insights-header">
                 <div style="flex: 1;">
-                    <h2 id="insightNotesTitle" style="margin: 0; font-size: 20px; font-weight: 600; color: #37352f;">Insight Notes</h2>
+                    <div id="insightNotesTitle" style="margin: 0; font-size: 20px; font-weight: 600; color: #37352f;">Insight Notes</div>
                 </div>
                 <button id="closeInsightNotesPanel" class="ai-close-btn">&times;</button>
             </div>
