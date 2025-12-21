@@ -10610,7 +10610,7 @@
                             <option value="Development" ${(insight.status || 'Not Started') === 'Development' ? 'selected' : ''}>Development</option>
                             <option value="QA" ${(insight.status || 'Not Started') === 'QA' ? 'selected' : ''}>QA</option>
                             <option value="Testing" ${(insight.status || 'Not Started') === 'Testing' ? 'selected' : ''}>Testing</option>
-                            <option value="Win" ${(insight.status || 'Not Started') === 'Win' ? 'selected' : ''}>Win</option>
+                            <option value="Win" ${(insight.status || 'Not Started') === 'Win' ? 'selected' : ''}>🏆 Win</option>
                             <option value="Disproved" ${(insight.status || 'Not Started') === 'Disproved' ? 'selected' : ''}>Disproved</option>
                         </select>
                     </td>`,
@@ -10838,6 +10838,9 @@
                     } else {
                         filterChipsContainer.parentNode.appendChild(inlineFilter);
                     }
+                    
+                    // Update header to show selected filter values
+                    updateInlineFilterHeader(fieldId);
                 } else {
                     // Update existing dropdown checkboxes to reflect current filter state
                     updateInlineFilterOptions(fieldId);
@@ -11020,6 +11023,11 @@
                 </div>
                 <div class="inline-filter-remove" onclick="event.stopPropagation(); removeInlineFilter('${fieldId}')" title="Remove filter">×</div>
             `;
+            
+            // Update header to show selected filter values after creating dropdown
+            setTimeout(() => {
+                updateInlineFilterHeader(fieldId);
+            }, 0);
             console.log('[DEBUG openFilterValueDialog] Set innerHTML, optionsHTML length:', optionsHTML.length);
             
             // Debug: Check checkboxes after rendering
@@ -11135,6 +11143,79 @@
             renderInsightsPage();
         }
         
+        // Update inline filter header label to show selected filter values
+        function updateInlineFilterHeader(fieldId) {
+            const dropdown = document.getElementById(`inline-filter-${fieldId}`);
+            if (!dropdown) {
+                return;
+            }
+            
+            const header = dropdown.querySelector('.inline-filter-header');
+            const labelElement = header ? header.querySelector('.inline-filter-label') : null;
+            if (!labelElement) {
+                return;
+            }
+            
+            // Get all active filters for this field
+            const activeFilters = insightsFilters.filter(f => f.field === fieldId);
+            
+            if (activeFilters.length === 0) {
+                // No filters active, show default label
+                const field = FILTER_FIELDS.find(f => f.id === fieldId);
+                labelElement.textContent = field ? field.label : fieldId;
+            } else if (activeFilters.length === 1) {
+                // Single filter, show the value (or label for date filters)
+                const field = FILTER_FIELDS.find(f => f.id === fieldId);
+                let displayValue = activeFilters[0].value;
+                
+                // Special case: status filter with "Win" should display as "🏆 Wins"
+                if (fieldId === 'status' && displayValue === 'Win') {
+                    displayValue = '🏆 Wins';
+                }
+                // For date filters, convert value to label
+                else if (field && field.type === 'date') {
+                    const dateOptions = [
+                        { value: 'today', label: 'Today' },
+                        { value: 'yesterday', label: 'Yesterday' },
+                        { value: 'this_week', label: 'This week' },
+                        { value: 'this_month', label: 'This month' },
+                        { value: 'last_month', label: 'Last month' }
+                    ];
+                    const dateOption = dateOptions.find(opt => opt.value === displayValue);
+                    if (dateOption) {
+                        displayValue = dateOption.label;
+                    }
+                }
+                
+                labelElement.textContent = displayValue;
+            } else {
+                // Multiple filters, show first value + count
+                const field = FILTER_FIELDS.find(f => f.id === fieldId);
+                let firstValue = activeFilters[0].value;
+                
+                // Special case: status filter with "Win" should display as "🏆 Wins"
+                if (fieldId === 'status' && firstValue === 'Win') {
+                    firstValue = '🏆 Wins';
+                }
+                // For date filters, convert value to label
+                else if (field && field.type === 'date') {
+                    const dateOptions = [
+                        { value: 'today', label: 'Today' },
+                        { value: 'yesterday', label: 'Yesterday' },
+                        { value: 'this_week', label: 'This week' },
+                        { value: 'this_month', label: 'This month' },
+                        { value: 'last_month', label: 'Last month' }
+                    ];
+                    const dateOption = dateOptions.find(opt => opt.value === firstValue);
+                    if (dateOption) {
+                        firstValue = dateOption.label;
+                    }
+                }
+                
+                labelElement.textContent = `${firstValue} + ${activeFilters.length - 1} more`;
+            }
+        }
+        
         // Update inline filter options display to sync checkbox states with filter state
         function updateInlineFilterOptions(fieldId) {
             const dropdown = document.getElementById(`inline-filter-${fieldId}`);
@@ -11184,6 +11265,9 @@
                     option.classList.remove('selected');
                 }
             });
+            
+            // Update header label to show selected values
+            updateInlineFilterHeader(fieldId);
         }
         
         // Remove inline filter
