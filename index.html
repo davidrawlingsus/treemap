@@ -9657,29 +9657,13 @@
             }
             
             if (navInsights) {
-                // Use frontend domain, not backend API URL
-                let insightsUrl = '/client-insights';
-                const insightsParams = new URLSearchParams();
-                if (clientUuid) {
-                    insightsParams.set('client_uuid', clientUuid);
-                }
-                if (authToken) {
-                    insightsParams.set('auth_token', authToken);
-                }
-                // Preserve visualization state when navigating to insights
-                if (currentProject) {
-                    insightsParams.set('project', currentProject);
-                }
-                if (currentSource) {
-                    insightsParams.set('source', currentSource);
-                }
-                if (currentDimension) {
-                    insightsParams.set('dimension', currentDimension);
-                }
-                if (insightsParams.toString()) {
-                    insightsUrl += `?${insightsParams.toString()}`;
-                }
-                navInsights.href = insightsUrl;
+                // Use SPA hash routing instead of separate page
+                navInsights.href = '#';
+                navInsights.onclick = (e) => {
+                    e.preventDefault();
+                    navigateToView('insights');
+                    return false;
+                };
             }
         }
 
@@ -13350,8 +13334,9 @@
                 params.append('auth_token', token);
             }
             
-            // Use API_BASE_URL to ensure we hit the backend server where the route is registered
-            window.open(`${API_BASE_URL}/client-insights?${params.toString()}`, '_blank');
+            // Use SPA navigation with hash routing
+            const url = `${window.location.origin}${window.location.pathname}?${params.toString()}#/insights`;
+            window.open(url, '_blank');
         }
 
         function editInsightFromView(insightId) {
@@ -13363,8 +13348,9 @@
                 params.append('auth_token', token);
             }
             
-            // Use API_BASE_URL to ensure we hit the backend server where the route is registered
-            window.open(`${API_BASE_URL}/client-insights?${params.toString()}`, '_blank');
+            // Use SPA navigation with hash routing
+            const url = `${window.location.origin}${window.location.pathname}?${params.toString()}#/insights`;
+            window.open(url, '_blank');
         }
 
         // Update insights when view context changes

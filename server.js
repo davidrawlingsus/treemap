@@ -64,14 +64,7 @@ const sendIndex = (req, res) => {
 app.get('/', sendIndex);
 app.get('/magic-login', sendIndex);
 
-// Serve client-insights.html
-app.get('/client-insights', (req, res) => {
-  res.sendFile(path.join(__dirname, 'client-insights.html'));
-});
-
-app.get('/client-insights.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'client-insights.html'));
-});
+// client-insights.html removed - using SPA approach in index.html with hash routing
 
 // Media upload endpoint using Vercel Blob SDK
 app.post('/api/upload-media', upload.single('file'), async (req, res) => {
