@@ -10348,7 +10348,10 @@
         }
         
         function convertLoomUrl(url) {
-            const loomMatch = url.match(/loom\.com\/share\/([a-zA-Z0-9]+)/);
+            if (!url) return null;
+            // Match various Loom URL formats: loom.com/share/ID, www.loom.com/share/ID, etc.
+            // Also handle URLs with or without protocol
+            const loomMatch = url.match(/(?:https?:\/\/)?(?:www\.)?loom\.com\/share\/([a-zA-Z0-9]+)/);
             if (loomMatch) {
                 const videoId = loomMatch[1];
                 return `https://www.loom.com/embed/${videoId}`;
@@ -10356,13 +10359,28 @@
             return null;
         }
         
-        function createMediaPasteHandler(editor, insertAndUploadMedia) {
+        function createMediaPasteHandler(getEditor, insertAndUploadMedia) {
             return (view, event, slice) => {
+                console.log('[Paste Handler] Paste event triggered', { view, event, slice });
+                console.log('[Paste Handler] Clipboard data available:', !!event.clipboardData);
+                
+                // Get editor reference at execution time (getEditor can be a function or the editor itself)
+                const editor = typeof getEditor === 'function' ? getEditor() : getEditor;
+                console.log('[Paste Handler] Editor available:', !!editor, editor);
+                if (!editor) {
+                    console.log('[Paste Handler] No editor available, allowing default paste');
+                    return false; // Editor not available, allow default paste
+                }
+                
                 const items = Array.from(event.clipboardData?.items || []);
+                console.log('[Paste Handler] Clipboard items:', items.length, items.map(item => ({ type: item.type, kind: item.kind })));
+                
                 const imageItem = items.find(item => item.type.startsWith('image/'));
                 const videoItem = items.find(item => item.type.startsWith('video/'));
+                console.log('[Paste Handler] Image item:', !!imageItem, 'Video item:', !!videoItem);
                 
                 if (imageItem) {
+                    console.log('[Paste Handler] Processing image paste');
                     event.preventDefault();
                     const file = imageItem.getAsFile();
                     if (file) {
@@ -10372,6 +10390,7 @@
                 }
                 
                 if (videoItem) {
+                    console.log('[Paste Handler] Processing video paste');
                     event.preventDefault();
                     const file = videoItem.getAsFile();
                     if (file) {
@@ -10380,16 +10399,64 @@
                     }
                 }
                 
+                // Check for Loom URLs in both plain text and HTML clipboard data
                 const pastedText = event.clipboardData?.getData('text/plain');
-                if (pastedText) {
-                    const loomEmbedUrl = convertLoomUrl(pastedText);
-                    if (loomEmbedUrl) {
-                        event.preventDefault();
-                        editor.chain().focus().insertContent(`<iframe src="${loomEmbedUrl}" width="100%" height="500px" frameborder="0" allowfullscreen style="width: 100%; border-radius: 0.5rem; aspect-ratio: 16/9; margin: 1rem 0; border: none;"></iframe>`).run();
-                        return true;
+                const pastedHtml = event.clipboardData?.getData('text/html');
+                console.log('[Paste Handler] Pasted text:', pastedText);
+                console.log('[Paste Handler] Pasted HTML:', pastedHtml ? pastedHtml.substring(0, 200) + '...' : null);
+                
+                // Extract URL from pasted content (check plain text first, then HTML)
+                let textToCheck = pastedText?.trim();
+                if (!textToCheck && pastedHtml) {
+                    console.log('[Paste Handler] Extracting URL from HTML');
+                    // Try to extract URL from HTML (look for href attributes first, then text content)
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = pastedHtml;
+                    const linkElement = tempDiv.querySelector('a[href]');
+                    if (linkElement) {
+                        textToCheck = linkElement.href;
+                        console.log('[Paste Handler] Found URL in link href:', textToCheck);
+                    } else {
+                        // Fall back to text content if no link element found
+                        textToCheck = tempDiv.textContent?.trim();
+                        console.log('[Paste Handler] Using HTML text content:', textToCheck);
                     }
                 }
                 
+                console.log('[Paste Handler] Text to check for Loom URL:', textToCheck);
+                
+                // Check if the pasted content contains a Loom URL (even if embedded in other text)
+                if (textToCheck) {
+                    const loomEmbedUrl = convertLoomUrl(textToCheck);
+                    console.log('[Paste Handler] Loom embed URL:', loomEmbedUrl);
+                    if (loomEmbedUrl) {
+                        console.log('[Paste Handler] Inserting Loom iframe');
+                        event.preventDefault();
+                        // Use TipTap's iframe node instead of raw HTML
+                        editor.chain().focus().insertContent({
+                            type: 'iframe',
+                            attrs: {
+                                src: loomEmbedUrl,
+                                width: '100%',
+                                height: '500px',
+                                frameborder: '0',
+                                allowfullscreen: true,
+                                style: 'width: 100%; border-radius: 0.5rem; aspect-ratio: 16/9; margin: 1rem 0; border: none;',
+                            },
+                        }).run();
+                        const editorHtml = editor.getHTML();
+                        console.log('[Paste Handler] Editor HTML after insertion:', editorHtml);
+                        console.log('[Paste Handler] Editor HTML contains iframe:', editorHtml.includes('iframe'));
+                        console.log('[Paste Handler] Editor HTML contains embed URL:', editorHtml.includes(loomEmbedUrl));
+                        return true;
+                    } else {
+                        console.log('[Paste Handler] Not a Loom URL, allowing default paste');
+                    }
+                } else {
+                    console.log('[Paste Handler] No text to check, allowing default paste');
+                }
+                
+                console.log('[Paste Handler] Returning false, allowing default paste behavior');
                 return false;
             };
         }
@@ -10423,7 +10490,7 @@
             if (!editorElement) return;
             
             try {
-                const { Editor } = await import('https://esm.sh/@tiptap/core@2.1.13');
+                const { Editor, Node, mergeAttributes } = await import('https://esm.sh/@tiptap/core@2.1.13');
                 const StarterKitModule = await import('https://esm.sh/@tiptap/starter-kit@2.1.13');
                 const StarterKit = StarterKitModule.default || StarterKitModule;
                 const { Image } = await import('https://esm.sh/@tiptap/extension-image@2.1.13');
@@ -10481,6 +10548,55 @@
                     }
                 };
                 
+                // Create a custom iframe extension for Loom embeds
+                const Iframe = Node.create({
+                    name: 'iframe',
+                    group: 'block',
+                    atom: true,
+                    addAttributes() {
+                        return {
+                            src: {
+                                default: null,
+                            },
+                            width: {
+                                default: '100%',
+                            },
+                            height: {
+                                default: '500px',
+                            },
+                            frameborder: {
+                                default: '0',
+                            },
+                            allowfullscreen: {
+                                default: true,
+                            },
+                            style: {
+                                default: 'width: 100%; border-radius: 0.5rem; aspect-ratio: 16/9; margin: 1rem 0; border: none;',
+                            },
+                        };
+                    },
+                    parseHTML() {
+                        return [{
+                            tag: 'iframe',
+                            getAttrs: (node) => {
+                                console.log('[Iframe Extension] Parsing iframe node:', node);
+                                return {
+                                    src: node.getAttribute('src'),
+                                    width: node.getAttribute('width') || '100%',
+                                    height: node.getAttribute('height') || '500px',
+                                    frameborder: node.getAttribute('frameborder') || '0',
+                                    allowfullscreen: node.hasAttribute('allowfullscreen'),
+                                    style: node.getAttribute('style') || 'width: 100%; border-radius: 0.5rem; aspect-ratio: 16/9; margin: 1rem 0; border: none;',
+                                };
+                            },
+                        }];
+                    },
+                    renderHTML({ HTMLAttributes }) {
+                        console.log('[Iframe Extension] Rendering iframe with attributes:', HTMLAttributes);
+                        return ['iframe', mergeAttributes(HTMLAttributes)];
+                    },
+                });
+                
                 insightsCurrentInsightEditor = new Editor({
                     element: editorElement,
                     extensions: [
@@ -10492,6 +10608,7 @@
                                 class: 'insight-image',
                             },
                         }),
+                        Iframe,
                     ],
                     content: '', // Set empty initially, then set content explicitly
                     editorProps: {
@@ -10500,9 +10617,12 @@
                             style: 'min-height: 400px;'
                         },
                         handlePaste: (view, event, slice) => {
-                            // Get editor reference at call time
-                            const editor = insightsCurrentInsightEditor;
-                            return createMediaPasteHandler(editor, insertAndUploadMedia)(view, event, slice);
+                            console.log('[Editor Setup] Paste handler called for insightsCurrentInsightEditor');
+                            const handler = createMediaPasteHandler(() => {
+                                console.log('[Editor Setup] Getting editor, current value:', insightsCurrentInsightEditor);
+                                return insightsCurrentInsightEditor;
+                            }, insertAndUploadMedia);
+                            return handler(view, event, slice);
                         },
                         handleDrop: createMediaDropHandler(insertAndUploadMedia)
                     },
@@ -10514,6 +10634,8 @@
                 
                 // Set content explicitly after editor is created (helps with parsing)
                 if (initialContent) {
+                    console.log('[initializeInsightEditor GLOBAL] Setting initial content:', initialContent);
+                    console.log('[initializeInsightEditor GLOBAL] Initial content contains iframe:', initialContent.includes('<iframe'));
                     insightsCurrentInsightEditor.commands.setContent(initialContent, false);
                 }
                 
@@ -10522,10 +10644,18 @@
                     const html = insightsCurrentInsightEditor.getHTML();
                     console.log('[initializeInsightEditor GLOBAL] Editor HTML after creation:', html);
                     console.log('[initializeInsightEditor GLOBAL] Contains img tag:', html.includes('<img'));
+                    console.log('[initializeInsightEditor GLOBAL] Contains iframe tag:', html.includes('<iframe'));
                     const images = editorElement.querySelectorAll('img');
+                    const iframes = editorElement.querySelectorAll('iframe');
                     console.log('[initializeInsightEditor GLOBAL] Images in DOM:', images.length);
+                    console.log('[initializeInsightEditor GLOBAL] Iframes in DOM:', iframes.length);
                     if (images.length === 0 && initialContent?.includes('<img')) {
                         console.warn('[initializeInsightEditor GLOBAL] ⚠️ Image in content but not in DOM!');
+                    }
+                    if (iframes.length === 0 && initialContent?.includes('<iframe')) {
+                        console.warn('[initializeInsightEditor GLOBAL] ⚠️ Iframe in content but not in DOM!');
+                        console.warn('[initializeInsightEditor GLOBAL] Initial content:', initialContent);
+                        console.warn('[initializeInsightEditor GLOBAL] Parsed HTML:', html);
                     }
                 }, 300);
             } catch (error) {
@@ -11619,6 +11749,7 @@
             async initializeInsightEditor(editorElement, initialContent) {
                 console.log('[initializeInsightEditor] Called with initialContent:', initialContent);
                 console.log('[initializeInsightEditor] InitialContent contains img:', initialContent?.includes('<img'));
+                console.log('[initializeInsightEditor] InitialContent contains iframe:', initialContent?.includes('<iframe'));
                 
                 // Clean up existing editor if any
                 if (this.currentInsightEditor) {
@@ -11631,12 +11762,49 @@
                 // Initialize Tiptap editor using ES modules
                 try {
                     // Dynamically import Tiptap modules
-                    const { Editor, Extension } = await import('https://esm.sh/@tiptap/core@2.1.13');
+                    const { Editor, Extension, Node, mergeAttributes } = await import('https://esm.sh/@tiptap/core@2.1.13');
                     const StarterKitModule = await import('https://esm.sh/@tiptap/starter-kit@2.1.13');
                     const StarterKit = StarterKitModule.default || StarterKitModule;
                     const { TaskList } = await import('https://esm.sh/@tiptap/extension-task-list@2.1.13');
                     const { TaskItem } = await import('https://esm.sh/@tiptap/extension-task-item@2.1.13');
                     const { Image } = await import('https://esm.sh/@tiptap/extension-image@2.1.13');
+                    
+                    // Create a custom iframe extension for Loom embeds
+                    const Iframe = Node.create({
+                        name: 'iframe',
+                        group: 'block',
+                        atom: true,
+                        addAttributes() {
+                            return {
+                                src: {
+                                    default: null,
+                                },
+                                width: {
+                                    default: '100%',
+                                },
+                                height: {
+                                    default: '500px',
+                                },
+                                frameborder: {
+                                    default: '0',
+                                },
+                                allowfullscreen: {
+                                    default: true,
+                                },
+                                style: {
+                                    default: 'width: 100%; border-radius: 0.5rem; aspect-ratio: 16/9; margin: 1rem 0; border: none;',
+                                },
+                            };
+                        },
+                        parseHTML() {
+                            return [{
+                                tag: 'iframe',
+                            }];
+                        },
+                        renderHTML({ HTMLAttributes }) {
+                            return ['iframe', mergeAttributes(HTMLAttributes)];
+                        },
+                    });
                     
                     // Store reference to this for use in handlers
                     const self = this;
@@ -11714,6 +11882,7 @@
                                     class: 'insight-image',
                                 },
                             }),
+                            Iframe,
                         ],
                         content: initialContent || '', // Set content directly in constructor
                         editorProps: {
@@ -11721,7 +11890,14 @@
                                 class: 'prose prose-sm max-w-none focus:outline-none',
                                 style: 'min-height: 400px;'
                             },
-                            handlePaste: createMediaPasteHandler(self.currentInsightEditor, insertAndUploadMedia),
+                            handlePaste: (view, event, slice) => {
+                                console.log('[Editor Setup] Paste handler called for self.currentInsightEditor');
+                                const handler = createMediaPasteHandler(() => {
+                                    console.log('[Editor Setup] Getting editor, current value:', self.currentInsightEditor);
+                                    return self.currentInsightEditor;
+                                }, insertAndUploadMedia);
+                                return handler(view, event, slice);
+                            },
                             handleDrop: createMediaDropHandler(insertAndUploadMedia)
                         },
                         onUpdate: ({ editor }) => {
@@ -11753,8 +11929,11 @@
                     setTimeout(() => {
                         const html = this.currentInsightEditor.getHTML();
                         console.log('[initializeInsightEditor] Editor HTML after delay:', html);
+                        console.log('[initializeInsightEditor] Editor HTML contains iframe:', html.includes('<iframe'));
                         const images = editorElement.querySelectorAll('img');
+                        const iframes = editorElement.querySelectorAll('iframe');
                         console.log('[initializeInsightEditor] Found', images.length, 'img elements in DOM');
+                        console.log('[initializeInsightEditor] Found', iframes.length, 'iframe elements in DOM');
                         if (images.length > 0) {
                             images.forEach((img, idx) => {
                                 console.log(`[initializeInsightEditor] Image ${idx}:`, {
@@ -11774,6 +11953,11 @@
                             console.warn('[initializeInsightEditor] ⚠️ No images found in DOM!');
                             console.warn('[initializeInsightEditor] Editor HTML:', html);
                             console.warn('[initializeInsightEditor] Editor element innerHTML:', editorElement.innerHTML.substring(0, 500));
+                        }
+                        if (iframes.length === 0 && initialContent?.includes('<iframe')) {
+                            console.warn('[initializeInsightEditor] ⚠️ Iframe in content but not in DOM!');
+                            console.warn('[initializeInsightEditor] Initial content:', initialContent);
+                            console.warn('[initializeInsightEditor] Parsed HTML:', html);
                         }
                     }, 300);
                     
