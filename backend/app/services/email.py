@@ -86,7 +86,7 @@ class EmailService:
         
         <div style="text-align: center; margin: 30px 0;">
             <a href="{params.magic_link}" 
-               style="display: inline-block; background-color: #007bff; color: #ffffff; text-decoration: none; padding: 14px 28px; border-radius: 6px; font-weight: 600; font-size: 16px; transition: background-color 0.2s;">
+               style="display: inline-block; color: #007bff; text-decoration: none; font-weight: 600; font-size: 16px;">
                 Sign in to Marketably.ai
             </a>
         </div>
