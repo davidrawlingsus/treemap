@@ -12,5 +12,5 @@ python-dotenv==1.0.0
 requests==2.32.3
 pytest==8.3.2
 openai==1.54.0
-vercel-blob==0.8.0
+vercel-blob==0.4.2
 
