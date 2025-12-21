@@ -1516,9 +1516,8 @@
         }
 
         .insights-panel-body {
-            max-height: 400px;
-            overflow-y: auto;
             transition: max-height 0.3s ease-out;
+            padding: 0 24px calc(24px + 0.5rem) 24px;
         }
 
         .insights-panel-body.collapsed {
@@ -3035,6 +3034,54 @@
         .tiptap ul[data-type="taskList"] li > div p {
             margin: 0 !important;
             display: inline !important;
+        }
+
+        /* Image styling */
+        #insightNotesEditor img,
+        .ProseMirror img,
+        .tiptap img,
+        .insight-image {
+            max-width: 100% !important;
+            height: auto !important;
+            border-radius: 0.5rem !important;
+            margin: 1rem 0 !important;
+            display: block !important;
+            min-height: 50px !important; /* Ensure images take up space while loading */
+        }
+        
+        /* Add error styling for broken images */
+        #insightNotesEditor img[src=""],
+        .ProseMirror img[src=""],
+        .tiptap img[src=""] {
+            border: 2px dashed #ccc;
+            background: #f5f5f5;
+        }
+
+        /* Video styling */
+        #insightNotesEditor video,
+        .ProseMirror video,
+        .tiptap video,
+        .video-embed {
+            max-width: 100% !important;
+            height: auto !important;
+            border-radius: 0.5rem !important;
+            margin: 1rem 0 !important;
+            display: block !important;
+        }
+
+        /* Iframe styling (for Loom and other embeds) */
+        #insightNotesEditor .embed-iframe,
+        .ProseMirror .embed-iframe,
+        .tiptap .embed-iframe,
+        #insightNotesEditor iframe,
+        .ProseMirror iframe,
+        .tiptap iframe {
+            width: 100% !important;
+            border-radius: 0.5rem !important;
+            aspect-ratio: 16/9 !important;
+            margin: 1rem 0 !important;
+            display: block !important;
+            border: none !important;
         }
 
         /* Editor Context Menu */
@@ -10113,6 +10160,9 @@
                 
                 const insight = await response.json();
                 console.log('[openInsightNotes] Insight loaded:', insight);
+                console.log('[openInsightNotes] Insight notes content:', insight.notes);
+                console.log('[openInsightNotes] Insight notes length:', insight.notes?.length);
+                console.log('[openInsightNotes] Insight notes contains img:', insight.notes?.includes('<img'));
                 insightsCurrentInsightData = insight;
                 
                 if (title) title.textContent = '';
@@ -10277,7 +10327,94 @@
             }
         }
 
+        // Shared media upload utilities for insight editors
+        async function uploadMediaToBlob(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+            
+            const frontendUrl = window.location.origin;
+            const response = await fetch(`${frontendUrl}/api/upload-media`, {
+                method: 'POST',
+                body: formData
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ error: 'Upload failed' }));
+                throw new Error(errorData.error || errorData.detail || 'Upload failed');
+            }
+            
+            const data = await response.json();
+            return data.url;
+        }
+        
+        function convertLoomUrl(url) {
+            const loomMatch = url.match(/loom\.com\/share\/([a-zA-Z0-9]+)/);
+            if (loomMatch) {
+                const videoId = loomMatch[1];
+                return `https://www.loom.com/embed/${videoId}`;
+            }
+            return null;
+        }
+        
+        function createMediaPasteHandler(editor, insertAndUploadMedia) {
+            return (view, event, slice) => {
+                const items = Array.from(event.clipboardData?.items || []);
+                const imageItem = items.find(item => item.type.startsWith('image/'));
+                const videoItem = items.find(item => item.type.startsWith('video/'));
+                
+                if (imageItem) {
+                    event.preventDefault();
+                    const file = imageItem.getAsFile();
+                    if (file) {
+                        insertAndUploadMedia(file, false);
+                        return true;
+                    }
+                }
+                
+                if (videoItem) {
+                    event.preventDefault();
+                    const file = videoItem.getAsFile();
+                    if (file) {
+                        insertAndUploadMedia(file, true);
+                        return true;
+                    }
+                }
+                
+                const pastedText = event.clipboardData?.getData('text/plain');
+                if (pastedText) {
+                    const loomEmbedUrl = convertLoomUrl(pastedText);
+                    if (loomEmbedUrl) {
+                        event.preventDefault();
+                        editor.chain().focus().insertContent(`<iframe src="${loomEmbedUrl}" width="100%" height="500px" frameborder="0" allowfullscreen style="width: 100%; border-radius: 0.5rem; aspect-ratio: 16/9; margin: 1rem 0; border: none;"></iframe>`).run();
+                        return true;
+                    }
+                }
+                
+                return false;
+            };
+        }
+        
+        function createMediaDropHandler(insertAndUploadMedia) {
+            return (view, event, slice, moved) => {
+                if (!moved && event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files.length) {
+                    const file = event.dataTransfer.files[0];
+                    const isImage = file.type.startsWith('image/');
+                    const isVideo = file.type.startsWith('video/');
+                    
+                    if (isImage || isVideo) {
+                        event.preventDefault();
+                        insertAndUploadMedia(file, isVideo);
+                        return true;
+                    }
+                }
+                return false;
+            };
+        }
+        
         async function initializeInsightEditor(editorElement, initialContent) {
+            console.log('[initializeInsightEditor GLOBAL] Called with initialContent:', initialContent);
+            console.log('[initializeInsightEditor GLOBAL] InitialContent contains img:', initialContent?.includes('<img'));
+            
             if (insightsCurrentInsightEditor) {
                 insightsCurrentInsightEditor.destroy();
                 insightsCurrentInsightEditor = null;
@@ -10289,24 +10426,111 @@
                 const { Editor } = await import('https://esm.sh/@tiptap/core@2.1.13');
                 const StarterKitModule = await import('https://esm.sh/@tiptap/starter-kit@2.1.13');
                 const StarterKit = StarterKitModule.default || StarterKitModule;
+                const { Image } = await import('https://esm.sh/@tiptap/extension-image@2.1.13');
+                
+                // Function to insert image/video immediately and upload in background
+                const insertAndUploadMedia = async (file, isVideo = false) => {
+                    const objectURL = URL.createObjectURL(file);
+                    const editor = insightsCurrentInsightEditor;
+                    
+                    // Insert immediately with object URL
+                    if (isVideo) {
+                        editor.chain().focus().insertContent(`<video src="${objectURL}" controls width="100%" style="max-width: 100%; height: auto; border-radius: 0.5rem; margin: 1rem 0;"></video>`).run();
+                    } else {
+                        editor.chain().focus().setImage({ src: objectURL }).run();
+                    }
+                    
+                    // Upload in background and replace URL when done
+                    try {
+                        const permanentURL = await uploadMediaToBlob(file);
+                        
+                        // Use Tiptap's transaction API to find and update the image node
+                        const { state } = editor.view;
+                        const { tr } = state;
+                        let foundImage = false;
+                        
+                        tr.doc.descendants((node, pos) => {
+                            if (node.type.name === 'image' && node.attrs.src === objectURL) {
+                                tr.setNodeMarkup(pos, undefined, { ...node.attrs, src: permanentURL });
+                                foundImage = true;
+                            }
+                        });
+                        
+                        // Handle videos (which are raw HTML)
+                        if (isVideo) {
+                            const currentHTML = editor.getHTML();
+                            const escapedObjectURL = objectURL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            const updatedHTML = currentHTML.replace(new RegExp(escapedObjectURL, 'g'), permanentURL);
+                            editor.commands.setContent(updatedHTML, false);
+                        } else {
+                            // For images, use the transaction
+                            if (foundImage) {
+                                editor.view.dispatch(tr);
+                            } else {
+                                // Fallback: try HTML replacement
+                                const currentHTML = editor.getHTML();
+                                const escapedObjectURL = objectURL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                const updatedHTML = currentHTML.replace(new RegExp(escapedObjectURL, 'g'), permanentURL);
+                                editor.commands.setContent(updatedHTML, false);
+                            }
+                        }
+                        
+                        URL.revokeObjectURL(objectURL);
+                    } catch (error) {
+                        console.error('Error uploading media:', error);
+                    }
+                };
                 
                 insightsCurrentInsightEditor = new Editor({
                     element: editorElement,
-                    extensions: [StarterKit],
-                    content: initialContent || '',
+                    extensions: [
+                        StarterKit,
+                        Image.configure({
+                            inline: true,
+                            allowBase64: false,
+                            HTMLAttributes: {
+                                class: 'insight-image',
+                            },
+                        }),
+                    ],
+                    content: '', // Set empty initially, then set content explicitly
                     editorProps: {
                         attributes: {
                             class: 'prose prose-sm max-w-none focus:outline-none',
                             style: 'min-height: 400px;'
-                        }
+                        },
+                        handlePaste: (view, event, slice) => {
+                            // Get editor reference at call time
+                            const editor = insightsCurrentInsightEditor;
+                            return createMediaPasteHandler(editor, insertAndUploadMedia)(view, event, slice);
+                        },
+                        handleDrop: createMediaDropHandler(insertAndUploadMedia)
                     },
                     onUpdate: ({ editor }) => {
                         const html = editor.getHTML();
                         debouncedSaveInsightNotes(insightsCurrentInsightNotesId, html);
                     }
                 });
+                
+                // Set content explicitly after editor is created (helps with parsing)
+                if (initialContent) {
+                    insightsCurrentInsightEditor.commands.setContent(initialContent, false);
+                }
+                
+                // Debug: Check what was actually parsed
+                setTimeout(() => {
+                    const html = insightsCurrentInsightEditor.getHTML();
+                    console.log('[initializeInsightEditor GLOBAL] Editor HTML after creation:', html);
+                    console.log('[initializeInsightEditor GLOBAL] Contains img tag:', html.includes('<img'));
+                    const images = editorElement.querySelectorAll('img');
+                    console.log('[initializeInsightEditor GLOBAL] Images in DOM:', images.length);
+                    if (images.length === 0 && initialContent?.includes('<img')) {
+                        console.warn('[initializeInsightEditor GLOBAL] ⚠️ Image in content but not in DOM!');
+                    }
+                }, 300);
             } catch (error) {
                 console.error('Error initializing editor:', error);
+                throw error;
             }
         }
 
@@ -11064,6 +11288,22 @@
                 const application = appChip?.textContent.trim() || '';
                 const notes = this.currentInsightEditor ? this.currentInsightEditor.getHTML() : '';
                 
+                console.log('[saveNewInsight] Notes content:', notes);
+                console.log('[saveNewInsight] Notes contains blob URL:', notes.includes('blob:'));
+                
+                // Check for blob URLs and warn user
+                if (notes.includes('blob:')) {
+                    console.warn('[saveNewInsight] WARNING: Notes contain blob URLs - images may not persist!');
+                    const blobUrlMatch = notes.match(/blob:[^"'\s]+/);
+                    if (blobUrlMatch) {
+                        console.warn('[saveNewInsight] Blob URL found:', blobUrlMatch[0]);
+                    }
+                    // Still allow save, but warn user
+                    if (!confirm('Warning: Some images are still uploading. They may not appear after saving. Continue anyway?')) {
+                        return;
+                    }
+                }
+                
                 if (!name || name === 'AI-Generated Insights') {
                     alert('Please enter an insight name');
                     return;
@@ -11333,10 +11573,53 @@
                 }
                 
                 // Initialize editor with notes
-                await this.initializeInsightEditor(document.getElementById('insightNotesEditor'), insight.notes || '');
+                console.log('[initializeInsightPanel] Initializing editor with notes:', insight.notes);
+                console.log('[initializeInsightPanel] Notes length:', insight.notes?.length);
+                console.log('[initializeInsightPanel] Notes contains img:', insight.notes?.includes('<img'));
+                try {
+                    await this.initializeInsightEditor(document.getElementById('insightNotesEditor'), insight.notes || '');
+                    console.log('[initializeInsightPanel] Editor initialization completed');
+                } catch (error) {
+                    console.error('[initializeInsightPanel] Error initializing editor:', error);
+                }
+                
+                // After editor initialization, check what was parsed
+                if (this.currentInsightEditor) {
+                    setTimeout(() => {
+                        const html = this.currentInsightEditor.getHTML();
+                        console.log('[initializeInsightPanel] Editor HTML after initialization:', html);
+                        console.log('[initializeInsightPanel] Editor HTML contains img:', html.includes('<img'));
+                        const editorElement = document.getElementById('insightNotesEditor');
+                        if (editorElement) {
+                            const images = editorElement.querySelectorAll('img');
+                            console.log('[initializeInsightPanel] Found', images.length, 'img elements in DOM');
+                            if (images.length === 0) {
+                                console.warn('[initializeInsightPanel] ⚠️ No images found in DOM!');
+                                console.warn('[initializeInsightPanel] Editor element:', editorElement);
+                                console.warn('[initializeInsightPanel] Editor element innerHTML:', editorElement.innerHTML.substring(0, 1000));
+                            }
+                            images.forEach((img, idx) => {
+                                console.log(`[initializeInsightPanel] Image ${idx}:`, {
+                                    src: img.src,
+                                    complete: img.complete,
+                                    naturalWidth: img.naturalWidth,
+                                    naturalHeight: img.naturalHeight,
+                                    onerror: img.onerror
+                                });
+                            });
+                        } else {
+                            console.error('[initializeInsightPanel] Editor element not found!');
+                        }
+                    }, 500);
+                } else {
+                    console.error('[initializeInsightPanel] Editor not created - currentInsightEditor is null!');
+                }
             },
             
             async initializeInsightEditor(editorElement, initialContent) {
+                console.log('[initializeInsightEditor] Called with initialContent:', initialContent);
+                console.log('[initializeInsightEditor] InitialContent contains img:', initialContent?.includes('<img'));
+                
                 // Clean up existing editor if any
                 if (this.currentInsightEditor) {
                     this.currentInsightEditor.destroy();
@@ -11348,11 +11631,73 @@
                 // Initialize Tiptap editor using ES modules
                 try {
                     // Dynamically import Tiptap modules
-                    const { Editor } = await import('https://esm.sh/@tiptap/core@2.1.13');
+                    const { Editor, Extension } = await import('https://esm.sh/@tiptap/core@2.1.13');
                     const StarterKitModule = await import('https://esm.sh/@tiptap/starter-kit@2.1.13');
                     const StarterKit = StarterKitModule.default || StarterKitModule;
                     const { TaskList } = await import('https://esm.sh/@tiptap/extension-task-list@2.1.13');
                     const { TaskItem } = await import('https://esm.sh/@tiptap/extension-task-item@2.1.13');
+                    const { Image } = await import('https://esm.sh/@tiptap/extension-image@2.1.13');
+                    
+                    // Store reference to this for use in handlers
+                    const self = this;
+                    
+                    // Function to insert image/video immediately and upload in background
+                    const insertAndUploadMedia = async (file, isVideo = false) => {
+                        const objectURL = URL.createObjectURL(file);
+                        const editor = self.currentInsightEditor;
+                        
+                        // Insert immediately with object URL
+                        if (isVideo) {
+                            console.log('[insertAndUploadMedia] Inserting video with object URL');
+                            editor.chain().focus().insertContent(`<video src="${objectURL}" controls width="100%" style="max-width: 100%; height: auto; border-radius: 0.5rem; margin: 1rem 0;"></video>`).run();
+                        } else {
+                            console.log('[insertAndUploadMedia] Inserting image with object URL');
+                            editor.chain().focus().setImage({ src: objectURL }).run();
+                            console.log('[insertAndUploadMedia] Image inserted, current HTML:', editor.getHTML());
+                        }
+                        
+                        // Upload in background and replace URL when done
+                        try {
+                            const permanentURL = await uploadMediaToBlob(file);
+                            
+                            // Use Tiptap's transaction API to find and update the image node
+                            const { state } = editor.view;
+                            const { tr } = state;
+                            
+                            let foundImage = false;
+                            
+                            // Find the image node with the object URL and update it
+                            tr.doc.descendants((node, pos) => {
+                                if (node.type.name === 'image' && node.attrs.src === objectURL) {
+                                    tr.setNodeMarkup(pos, undefined, { ...node.attrs, src: permanentURL });
+                                    foundImage = true;
+                                }
+                            });
+                            
+                            // Handle videos (which are raw HTML)
+                            if (isVideo) {
+                                const currentHTML = editor.getHTML();
+                                const escapedObjectURL = objectURL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                const updatedHTML = currentHTML.replace(new RegExp(escapedObjectURL, 'g'), permanentURL);
+                                editor.commands.setContent(updatedHTML, false);
+                            } else {
+                                // For images, use the transaction
+                                if (foundImage) {
+                                    editor.view.dispatch(tr);
+                                } else {
+                                    // Fallback: try HTML replacement
+                                    const currentHTML = editor.getHTML();
+                                    const escapedObjectURL = objectURL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                                    const updatedHTML = currentHTML.replace(new RegExp(escapedObjectURL, 'g'), permanentURL);
+                                    editor.commands.setContent(updatedHTML, false);
+                                }
+                            }
+                            
+                            URL.revokeObjectURL(objectURL);
+                        } catch (error) {
+                            console.error('Error uploading media:', error);
+                        }
+                    };
                     
                     this.currentInsightEditor = new Editor({
                         element: editorElement,
@@ -11361,31 +11706,87 @@
                             TaskList,
                             TaskItem.configure({
                                 nested: true,
-                            })
+                            }),
+                            Image.configure({
+                                inline: true,
+                                allowBase64: false,
+                                HTMLAttributes: {
+                                    class: 'insight-image',
+                                },
+                            }),
                         ],
-                        content: initialContent || '',
+                        content: initialContent || '', // Set content directly in constructor
                         editorProps: {
                             attributes: {
                                 class: 'prose prose-sm max-w-none focus:outline-none',
                                 style: 'min-height: 400px;'
-                            }
+                            },
+                            handlePaste: createMediaPasteHandler(self.currentInsightEditor, insertAndUploadMedia),
+                            handleDrop: createMediaDropHandler(insertAndUploadMedia)
                         },
                         onUpdate: ({ editor }) => {
                             // Only auto-save if we're in edit mode, not create mode
                             if (this.currentMode === 'insight-notes' && this.currentInsightId) {
                                 const html = editor.getHTML();
+                                console.log('[onUpdate] Editor updated, mode:', this.currentMode, 'insightId:', this.currentInsightId);
+                                console.log('[onUpdate] HTML content:', html);
+                                console.log('[onUpdate] HTML contains img tags:', html.includes('<img'));
+                                
+                                // Check for blob URLs - warn if found
+                                if (html.includes('blob:')) {
+                                    console.warn('[onUpdate] WARNING: HTML contains blob URLs - these will not persist!', html);
+                                }
+                                
                                 this.debouncedSaveInsightNotes(this.currentInsightId, html);
+                            } else {
+                                console.log('[onUpdate] Not saving - mode:', this.currentMode, 'insightId:', this.currentInsightId);
                             }
                         }
                     });
                     
+                    // Log immediately after editor creation
+                    console.log('[initializeInsightEditor] Editor created successfully');
+                    console.log('[initializeInsightEditor] Editor HTML immediately after creation:', this.currentInsightEditor.getHTML());
+                    console.log('[initializeInsightEditor] Editor HTML contains img:', this.currentInsightEditor.getHTML().includes('<img'));
+                    
+                    // Check DOM directly after editor is ready
+                    setTimeout(() => {
+                        const html = this.currentInsightEditor.getHTML();
+                        console.log('[initializeInsightEditor] Editor HTML after delay:', html);
+                        const images = editorElement.querySelectorAll('img');
+                        console.log('[initializeInsightEditor] Found', images.length, 'img elements in DOM');
+                        if (images.length > 0) {
+                            images.forEach((img, idx) => {
+                                console.log(`[initializeInsightEditor] Image ${idx}:`, {
+                                    src: img.src,
+                                    complete: img.complete,
+                                    naturalWidth: img.naturalWidth,
+                                    naturalHeight: img.naturalHeight,
+                                    width: img.width,
+                                    height: img.height,
+                                    style: img.style.cssText
+                                });
+                                // Test if image loads
+                                img.onload = () => console.log(`[initializeInsightEditor] Image ${idx} loaded successfully`);
+                                img.onerror = (e) => console.error(`[initializeInsightEditor] Image ${idx} failed to load:`, e);
+                            });
+                        } else {
+                            console.warn('[initializeInsightEditor] ⚠️ No images found in DOM!');
+                            console.warn('[initializeInsightEditor] Editor HTML:', html);
+                            console.warn('[initializeInsightEditor] Editor element innerHTML:', editorElement.innerHTML.substring(0, 500));
+                        }
+                    }, 300);
+                    
                     // Set up context menu for formatting
                     this.setupEditorContextMenu(editorElement);
+                    console.log('[initializeInsightEditor] Editor initialization complete');
                 } catch (error) {
-                    console.error('Error initializing editor:', error);
-                    if (editorElement.parentElement) {
+                    console.error('[initializeInsightEditor] Error initializing editor:', error);
+                    console.error('[initializeInsightEditor] Error stack:', error.stack);
+                    if (editorElement && editorElement.parentElement) {
                         editorElement.parentElement.innerHTML = `<div style="padding: 24px; color: #666;">Error initializing editor: ${error.message}</div>`;
                     }
+                    throw error; // Re-throw so caller knows it failed
                 }
             },
             
@@ -11605,22 +12006,57 @@
             },
             
             async saveInsightNotes(insightId, content) {
-                if (!currentClientId || !insightId) return;
+                console.log('[saveInsightNotes] Called with insightId:', insightId, 'currentClientId:', currentClientId);
+                console.log('[saveInsightNotes] Content length:', content?.length);
+                console.log('[saveInsightNotes] Content preview:', content?.substring(0, 200));
+                console.log('[saveInsightNotes] Content contains img:', content?.includes('<img'));
+                console.log('[saveInsightNotes] Full content:', content);
+                
+                if (!currentClientId || !insightId) {
+                    console.warn('[saveInsightNotes] Missing clientId or insightId, aborting');
+                    return;
+                }
                 
                 const statusEl = document.getElementById('insightNotesSaveStatus');
                 
                 try {
+                    const payload = { notes: content };
+                    console.log('[saveInsightNotes] Sending payload:', JSON.stringify(payload).substring(0, 300));
+                    
                     const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights/${insightId}`, {
                         method: 'PUT',
                         headers: {
                             ...getAuthHeaders(),
                             'Content-Type': 'application/json'
                         },
-                        body: JSON.stringify({ notes: content })
+                        body: JSON.stringify(payload)
                     });
                     
+                    console.log('[saveInsightNotes] Response status:', response.status);
+                    
                     if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('[saveInsightNotes] Error response:', errorText);
                         throw new Error('Failed to save notes');
+                    }
+                    
+                    const responseData = await response.json();
+                    console.log('[saveInsightNotes] Save successful, response:', responseData);
+                    console.log('[saveInsightNotes] Saved notes content (first 500 chars):', responseData.notes?.substring(0, 500));
+                    console.log('[saveInsightNotes] Saved notes contains img:', responseData.notes?.includes('<img'));
+                    
+                    // Check if image URL is complete
+                    if (responseData.notes?.includes('<img')) {
+                        const imgMatch = responseData.notes.match(/<img[^>]+src="([^"]+)"/);
+                        if (imgMatch) {
+                            const imgSrc = imgMatch[1];
+                            console.log('[saveInsightNotes] Image src found:', imgSrc);
+                            console.log('[saveInsightNotes] Image src length:', imgSrc.length);
+                            console.log('[saveInsightNotes] Image src ends with .png:', imgSrc.endsWith('.png'));
+                            if (!imgSrc.endsWith('.png') && !imgSrc.endsWith('.jpg') && !imgSrc.endsWith('.gif')) {
+                                console.warn('[saveInsightNotes] ⚠️ Image URL appears truncated!');
+                            }
+                        }
                     }
                     
                     if (statusEl) {
@@ -11633,7 +12069,7 @@
                         }, 2000);
                     }
                 } catch (error) {
-                    console.error('Error saving notes:', error);
+                    console.error('[saveInsightNotes] Error saving notes:', error);
                     if (statusEl) {
                         statusEl.textContent = 'Error saving';
                         statusEl.style.color = 'oklch(0.577 0.245 27.325)'; /* Destructive red from style guide */

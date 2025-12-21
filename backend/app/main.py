@@ -1594,6 +1594,19 @@ def update_insight(
     if insight_data.description is not None:
         insight.description = insight_data.description
     if insight_data.notes is not None:
+        logger.info(f"Updating notes for insight {insight_id}, length: {len(insight_data.notes)}")
+        logger.info(f"Notes content (first 500 chars): {insight_data.notes[:500]}")
+        logger.info(f"Notes content (last 100 chars): {insight_data.notes[-100:]}")
+        # Check if notes contains img tag
+        if '<img' in insight_data.notes:
+            import re
+            img_matches = re.findall(r'<img[^>]+src="([^"]+)"', insight_data.notes)
+            logger.info(f"Found {len(img_matches)} image(s) in notes")
+            for i, img_src in enumerate(img_matches):
+                logger.info(f"Image {i+1} src: {img_src}")
+                logger.info(f"Image {i+1} src length: {len(img_src)}")
+                if not img_src.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp')):
+                    logger.warning(f"Image {i+1} src does not end with image extension - may be truncated!")
         insight.notes = insight_data.notes
     if insight_data.verbatims is not None:
         insight.verbatims = insight_data.verbatims
@@ -2304,6 +2317,126 @@ async def upload_csv(
     except Exception as e:
         logger.error(f"Error uploading CSV: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/upload-media")
+async def upload_media(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Upload an image or video to Vercel Blob storage and return the URL.
+    Supports: JPG, PNG, GIF, MP4, WebM, MOV
+    """
+    # Validate file type
+    allowed_types = [
+        'image/jpeg', 'image/jpg', 'image/png', 'image/gif',
+        'video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'
+    ]
+    
+    if not file.content_type or file.content_type.lower() not in [t.lower() for t in allowed_types]:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"File type not allowed. Allowed types: {', '.join(allowed_types)}"
+        )
+    
+    # Read file content
+    contents = await file.read()
+    
+    # Generate unique filename
+    file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'bin'
+    unique_filename = f"insights/{uuid.uuid4()}.{file_extension}"
+    
+    try:
+        # Get Vercel Blob token from environment
+        blob_token = os.getenv('BLOB_READ_WRITE_TOKEN')
+        if not blob_token:
+            raise HTTPException(status_code=500, detail="Blob storage not configured")
+        
+        # Upload to Vercel Blob using the JavaScript SDK approach via HTTP
+        # Since the Python SDK seems problematic, we'll use the same API the JS SDK uses
+        import requests
+        import json
+        
+        # Vercel Blob API - try different endpoint formats
+        # The @vercel/blob SDK uses: POST to https://blob.vercel-storage.com/put
+        upload_url = "https://blob.vercel-storage.com/put"
+        
+        # Prepare multipart form data
+        # The JS SDK sends: pathname, content-type, access, and the file
+        files = {
+            'file': (unique_filename, contents, file.content_type)
+        }
+        
+        # Form data fields (not in files dict)
+        form_data = {
+            'pathname': unique_filename,
+            'content-type': file.content_type,
+            'access': 'public',
+        }
+        
+        headers = {
+            'Authorization': f'Bearer {blob_token}',
+        }
+        
+        logger.info(f"Uploading to Vercel Blob: {unique_filename}, size: {len(contents)} bytes, type: {file.content_type}")
+        logger.info(f"Upload URL: {upload_url}")
+        logger.info(f"Form data: {form_data}")
+        
+        try:
+            # POST with multipart/form-data (files parameter handles this)
+            response = requests.post(
+                upload_url, 
+                files=files,
+                data=form_data,
+                headers=headers, 
+                timeout=30
+            )
+            
+            logger.info(f"Vercel Blob response status: {response.status_code}")
+            logger.info(f"Vercel Blob response headers: {dict(response.headers)}")
+            logger.info(f"Vercel Blob response text (full): {response.text}")
+            
+            if response.status_code not in [200, 201]:
+                error_msg = response.text[:500] if response.text else 'No error message'
+                logger.error(f"Vercel Blob upload failed: {response.status_code} - {error_msg}")
+                
+                # Try to parse error JSON
+                try:
+                    error_json = response.json()
+                    error_detail = error_json.get('error', {}).get('message', error_msg)
+                    raise HTTPException(status_code=500, detail=f"Vercel Blob upload failed: {error_detail}")
+                except:
+                    raise HTTPException(status_code=500, detail=f"Vercel Blob upload failed: {response.status_code} - {error_msg}")
+            
+            result = response.json()
+            logger.info(f"Vercel Blob response JSON: {result}")
+            
+            # The response might have 'url' at root or nested
+            url = result.get('url') or (result.get('blob', {}) if isinstance(result.get('blob'), dict) else {}).get('url')
+            
+            if not url:
+                logger.error(f"No URL in response: {result}")
+                raise HTTPException(status_code=500, detail="Upload succeeded but no URL in response")
+            
+            logger.info(f"Successfully uploaded file to Vercel Blob, URL: {url}")
+            return {"url": url}
+        except HTTPException:
+            raise
+        except requests.exceptions.Timeout:
+            logger.error("Vercel Blob upload timed out")
+            raise HTTPException(status_code=500, detail="Upload timed out after 30 seconds")
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Vercel Blob upload request error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Upload request failed: {str(e)}")
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse Vercel Blob response as JSON: {response.text[:200]}")
+            raise HTTPException(status_code=500, detail=f"Invalid response from Vercel Blob: {str(e)}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading media: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload media: {str(e)}")
 
 
 @app.get("/api/debug/trigger-function")

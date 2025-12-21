@@ -1,8 +1,35 @@
 const express = require('express');
 const path = require('path');
+const { put } = require('@vercel/blob');
+const multer = require('multer');
+const fs = require('fs');
+
+// Load environment variables - try root .env first, then backend/.env
+require('dotenv').config(); // Load root .env if it exists
+const backendEnvPath = path.join(__dirname, 'backend', '.env');
+if (fs.existsSync(backendEnvPath)) {
+  require('dotenv').config({ path: backendEnvPath, override: false }); // Load backend/.env, don't override existing vars
+  console.log('✅ Loaded environment variables from backend/.env');
+} else {
+  console.log('⚠️  backend/.env not found');
+}
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Log blob token status (without exposing the actual token)
+if (process.env.BLOB_READ_WRITE_TOKEN) {
+  console.log('✅ BLOB_READ_WRITE_TOKEN is configured');
+} else {
+  console.log('⚠️  BLOB_READ_WRITE_TOKEN is not set');
+}
+
+// Enable JSON and file upload parsing
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Configure multer for file uploads
+const upload = multer({ storage: multer.memoryStorage() });
 
 // API URL will be injected from environment variable
 // Default to localhost for development
@@ -44,6 +71,41 @@ app.get('/client-insights', (req, res) => {
 
 app.get('/client-insights.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'client-insights.html'));
+});
+
+// Media upload endpoint using Vercel Blob SDK
+app.post('/api/upload-media', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file provided' });
+    }
+
+    const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+    if (!blobToken) {
+      console.error('BLOB_READ_WRITE_TOKEN not found in environment variables');
+      console.error('Available env vars:', Object.keys(process.env).filter(k => k.includes('BLOB')));
+      return res.status(500).json({ error: 'Blob storage not configured' });
+    }
+
+    // Generate unique filename
+    const fileExtension = req.file.originalname.split('.').pop() || 'bin';
+    const uniqueFilename = `insights/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
+
+    console.log(`Uploading to Vercel Blob: ${uniqueFilename}, size: ${req.file.size} bytes, type: ${req.file.mimetype}`);
+
+    // Upload to Vercel Blob using the SDK
+    const blob = await put(uniqueFilename, req.file.buffer, {
+      access: 'public',
+      contentType: req.file.mimetype,
+      token: blobToken,
+    });
+
+    console.log(`Upload successful, URL: ${blob.url}`);
+    res.json({ url: blob.url });
+  } catch (error) {
+    console.error('Upload error:', error);
+    res.status(500).json({ error: error.message || 'Upload failed' });
+  }
 });
 
 app.listen(PORT, () => {
