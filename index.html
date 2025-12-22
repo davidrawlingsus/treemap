@@ -10897,7 +10897,7 @@
                             <svg class="doc-icon" viewBox="0 0 16 16" fill="currentColor">
                                 <path d="M2.5 2.5h11l.5.5v10l-.5.5h-11l-.5-.5V3l.5-.5zM3 4v8h10V4H3zm2 1h6v1H5V5zm0 2h6v1H5V7zm0 2h4v1H5V9z"/>
                             </svg>
-                            <span>${escapeHtml(insight.name)}</span>
+                            <span>${escapeHtml(toPascalCase(insight.name))}</span>
                             <button class="insight-open-btn-table" onclick="openInsightNotes('${insight.id}')" title="Open in side peek" style="display: none;">
                                 <span style="font-size: 12px; margin-right: 4px;">OPEN</span>
                                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="opacity: 0.6;">
@@ -10908,7 +10908,7 @@
                         </div>
                     </td>`,
                     type: `<td data-column="type">
-                        <span class="tag tag-type">${escapeHtml(insight.type)}</span>
+                        <span class="tag tag-type">${escapeHtml(toPascalCase(insight.type))}</span>
                     </td>`,
                     status: `<td data-column="status">
                         <select class="status-select" 
@@ -10993,7 +10993,14 @@
             if (!text) return '';
             return text
                 .split(/[\s_-]+/)
-                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                .map(word => {
+                    // Keep US and USA as uppercase (case-insensitive check)
+                    const upperWord = word.toUpperCase();
+                    if (upperWord === 'US' || upperWord === 'USA') {
+                        return upperWord;
+                    }
+                    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+                })
                 .join(' ');
         }
 
@@ -12225,7 +12232,7 @@
                     newTitle.contentEditable = 'true';
                     newTitle.style.cssText = 'font-size: 1.875rem; font-weight: 700; font-family: \'Lato\', sans-serif; color: oklch(0.145 0 0); outline: none; min-height: 2.5rem; line-height: 1.2; margin: 0;';
                     newTitle.setAttribute('data-placeholder', 'Untitled');
-                    newTitle.textContent = insight.name || 'Untitled';
+                    newTitle.textContent = toPascalCase(insight.name || 'Untitled');
                     
                     // Set up event listeners for the title
                     newTitle.addEventListener('blur', () => {
@@ -12244,7 +12251,7 @@
                     title.contentEditable = 'true';
                     title.style.cssText = 'font-size: 1.875rem; font-weight: 700; font-family: \'Lato\', sans-serif; color: oklch(0.145 0 0); outline: none; min-height: 2.5rem; line-height: 1.2; margin: 0;';
                     title.setAttribute('data-placeholder', 'Untitled');
-                    title.textContent = insight.name || 'Untitled';
+                    title.textContent = toPascalCase(insight.name || 'Untitled');
                     
                     // Set up event listeners for the title
                     title.addEventListener('blur', () => {
@@ -12299,28 +12306,32 @@
             // Get verbatims from insight
             const insightVerbatims = (insight.verbatims && Array.isArray(insight.verbatims)) ? insight.verbatims : [];
             
-            // Build breadcrumb HTML
+            // Build breadcrumb HTML with pill format (matching insights list)
             const breadcrumbParts = [];
             if (dataSourceName) {
-                breadcrumbParts.push(`<span class="insight-breadcrumb-item">${escapeHtml(dataSourceName)}</span>`);
+                const pascalDataSource = toPascalCase(dataSourceName);
+                breadcrumbParts.push(`<span class="tag tag-data-source insight-origin-pill">${escapeHtml(pascalDataSource)}</span>`);
             }
             if (dimensionName) {
+                const pascalDimension = toPascalCase(dimensionName);
                 // Make dimension clickable if we have dimension_ref
                 if (dimensionRef) {
-                    breadcrumbParts.push(`<span class="insight-breadcrumb-item insight-breadcrumb-item--clickable" data-breadcrumb-click="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtml(dimensionName)}">${escapeHtml(dimensionName)}</span>`);
+                    breadcrumbParts.push(`<span class="tag tag-data-source insight-origin-pill" data-breadcrumb-click="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtml(dimensionName)}" style="cursor: pointer;">${escapeHtml(pascalDimension)}</span>`);
                 } else {
-                    breadcrumbParts.push(`<span class="insight-breadcrumb-item">${escapeHtml(dimensionName)}</span>`);
+                    breadcrumbParts.push(`<span class="tag tag-data-source insight-origin-pill">${escapeHtml(pascalDimension)}</span>`);
                 }
             }
             if (categoryName) {
-                breadcrumbParts.push(`<span class="insight-breadcrumb-item insight-breadcrumb-item--clickable" data-breadcrumb-click="category" data-category="${escapeHtml(categoryName)}" data-topic="${topicName ? escapeHtml(topicName) : ''}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}">${escapeHtml(categoryName)}</span>`);
+                const pascalCategory = toPascalCase(categoryName);
+                breadcrumbParts.push(`<span class="tag tag-category insight-origin-pill" data-breadcrumb-click="category" data-category="${escapeHtml(categoryName)}" data-topic="${topicName ? escapeHtml(topicName) : ''}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}" style="cursor: pointer;">${escapeHtml(pascalCategory)}</span>`);
             }
             if (topicName) {
-                breadcrumbParts.push(`<span class="insight-breadcrumb-item insight-breadcrumb-item--clickable" data-breadcrumb-click="topic" data-category="${categoryName ? escapeHtml(categoryName) : ''}" data-topic="${escapeHtml(topicName)}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}">${escapeHtml(topicName)}</span>`);
+                const pascalTopic = toPascalCase(topicName);
+                breadcrumbParts.push(`<span class="tag tag-topic insight-origin-pill" data-breadcrumb-click="topic" data-category="${categoryName ? escapeHtml(categoryName) : ''}" data-topic="${escapeHtml(topicName)}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}" style="cursor: pointer;">${escapeHtml(pascalTopic)}</span>`);
             }
             
             const breadcrumbHTML = breadcrumbParts.length > 0 
-                ? `<div class="insight-breadcrumb">${breadcrumbParts.join('<span class="insight-breadcrumb-separator">/</span>')}</div>`
+                ? breadcrumbParts.join('<span style="margin: 0 4px; color: oklch(0.7 0 0);">|</span>')
                 : '';
             
             console.log('[BreadcrumbNav] initializeInsightPanel (standalone) - Generated breadcrumb HTML');
@@ -12331,7 +12342,7 @@
                     <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column;">
                         <div style="padding: 1rem 1.5rem; border-bottom: 1px solid oklch(0.922 0 0); flex-shrink: 0;">
                             <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 0.75rem;">
-                                <!-- Breadcrumb -->
+                                <!-- Origin Breadcrumb -->
                                 ${breadcrumbHTML ? `
                                 <div class="insight-attribute-row">
                                     <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Origin</div>
@@ -12345,7 +12356,7 @@
                                     <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Type</div>
                                     <div style="flex: 1;">
                                         <div id="insightTypeChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
-                                            ${escapeHtml(insight.type || 'Empty')}
+                                            ${escapeHtml(toPascalCase(insight.type || 'Empty'))}
                                         </div>
                                     </div>
                                 </div>
@@ -13812,29 +13823,33 @@
                     this.prePinnedVerbatimIndex = null;
                 }
                 
-                // Build breadcrumb HTML
+                // Build breadcrumb HTML with pill format (matching insights list)
                 const breadcrumbParts = [];
                 if (dataSourceName) {
-                    breadcrumbParts.push(`<span class="insight-breadcrumb-item">${escapeHtml(dataSourceName)}</span>`);
+                    const pascalDataSource = toPascalCase(dataSourceName);
+                    breadcrumbParts.push(`<span class="tag tag-data-source insight-origin-pill">${escapeHtml(pascalDataSource)}</span>`);
                 }
                 if (dimensionName) {
+                    const pascalDimension = toPascalCase(dimensionName);
                     // Make dimension clickable if we have dimension_ref
                     if (dimensionRef) {
-                        breadcrumbParts.push(`<span class="insight-breadcrumb-item insight-breadcrumb-item--clickable" data-breadcrumb-click="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtml(dimensionName)}">${escapeHtml(dimensionName)}</span>`);
+                        breadcrumbParts.push(`<span class="tag tag-data-source insight-origin-pill" data-breadcrumb-click="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtml(dimensionName)}" style="cursor: pointer;">${escapeHtml(pascalDimension)}</span>`);
                     } else {
-                        breadcrumbParts.push(`<span class="insight-breadcrumb-item">${escapeHtml(dimensionName)}</span>`);
+                        breadcrumbParts.push(`<span class="tag tag-data-source insight-origin-pill">${escapeHtml(pascalDimension)}</span>`);
                     }
                 }
                 if (categoryName) {
+                    const pascalCategory = toPascalCase(categoryName);
                     // For create mode, we don't have data source ID yet, so we'll pass the name
-                    breadcrumbParts.push(`<span class="insight-breadcrumb-item insight-breadcrumb-item--clickable" data-breadcrumb-click="category" data-category="${escapeHtml(categoryName)}" data-topic="${topicName ? escapeHtml(topicName) : ''}" data-data-source-name="${dataSourceName || ''}" data-dimension="${dimensionName || ''}">${escapeHtml(categoryName)}</span>`);
+                    breadcrumbParts.push(`<span class="tag tag-category insight-origin-pill" data-breadcrumb-click="category" data-category="${escapeHtml(categoryName)}" data-topic="${topicName ? escapeHtml(topicName) : ''}" data-data-source-name="${dataSourceName || ''}" data-dimension="${dimensionName || ''}" style="cursor: pointer;">${escapeHtml(pascalCategory)}</span>`);
                 }
                 if (topicName) {
-                    breadcrumbParts.push(`<span class="insight-breadcrumb-item insight-breadcrumb-item--clickable" data-breadcrumb-click="topic" data-category="${categoryName ? escapeHtml(categoryName) : ''}" data-topic="${escapeHtml(topicName)}" data-data-source-name="${dataSourceName || ''}" data-dimension="${dimensionName || ''}">${escapeHtml(topicName)}</span>`);
+                    const pascalTopic = toPascalCase(topicName);
+                    breadcrumbParts.push(`<span class="tag tag-topic insight-origin-pill" data-breadcrumb-click="topic" data-category="${categoryName ? escapeHtml(categoryName) : ''}" data-topic="${escapeHtml(topicName)}" data-data-source-name="${dataSourceName || ''}" data-dimension="${dimensionName || ''}" style="cursor: pointer;">${escapeHtml(pascalTopic)}</span>`);
                 }
                 
                 const breadcrumbHTML = breadcrumbParts.length > 0 
-                    ? `<div class="insight-breadcrumb">${breadcrumbParts.join('<span class="insight-breadcrumb-separator">/</span>')}</div>`
+                    ? breadcrumbParts.join('<span style="margin: 0 4px; color: oklch(0.7 0 0);">|</span>')
                     : '';
                 
                 console.log('[BreadcrumbNav] initializeCreateInsightPanel - Generated breadcrumb HTML');
@@ -14258,7 +14273,7 @@
                 // Set editable title in header
                 const insightTitleEl = document.getElementById('slideoutTitle');
                 if (insightTitleEl) {
-                    insightTitleEl.textContent = insight.name || '';
+                    insightTitleEl.textContent = toPascalCase(insight.name || '');
                     insightTitleEl.setAttribute('data-placeholder', 'Insight Title');
                     insightTitleEl.setAttribute('contenteditable', 'true');
                 }
@@ -14266,28 +14281,32 @@
                 // Get verbatims from insight
                 const insightVerbatims = insight.verbatims || [];
                 
-                // Build breadcrumb HTML
+                // Build breadcrumb HTML with pill format (matching insights list)
                 const breadcrumbParts = [];
                 if (dataSourceName) {
-                    breadcrumbParts.push(`<span class="insight-breadcrumb-item">${escapeHtml(dataSourceName)}</span>`);
+                    const pascalDataSource = toPascalCase(dataSourceName);
+                    breadcrumbParts.push(`<span class="tag tag-data-source insight-origin-pill">${escapeHtml(pascalDataSource)}</span>`);
                 }
                 if (dimensionName) {
+                    const pascalDimension = toPascalCase(dimensionName);
                     // Make dimension clickable if we have dimension_ref
                     if (dimensionRef) {
-                        breadcrumbParts.push(`<span class="insight-breadcrumb-item insight-breadcrumb-item--clickable" data-breadcrumb-click="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtml(dimensionName)}">${escapeHtml(dimensionName)}</span>`);
+                        breadcrumbParts.push(`<span class="tag tag-data-source insight-origin-pill" data-breadcrumb-click="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtml(dimensionName)}" style="cursor: pointer;">${escapeHtml(pascalDimension)}</span>`);
                     } else {
-                        breadcrumbParts.push(`<span class="insight-breadcrumb-item">${escapeHtml(dimensionName)}</span>`);
+                        breadcrumbParts.push(`<span class="tag tag-data-source insight-origin-pill">${escapeHtml(pascalDimension)}</span>`);
                     }
                 }
                 if (categoryName) {
-                    breadcrumbParts.push(`<span class="insight-breadcrumb-item insight-breadcrumb-item--clickable" data-breadcrumb-click="category" data-category="${escapeHtml(categoryName)}" data-topic="${topicName ? escapeHtml(topicName) : ''}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}">${escapeHtml(categoryName)}</span>`);
+                    const pascalCategory = toPascalCase(categoryName);
+                    breadcrumbParts.push(`<span class="tag tag-category insight-origin-pill" data-breadcrumb-click="category" data-category="${escapeHtml(categoryName)}" data-topic="${topicName ? escapeHtml(topicName) : ''}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}" style="cursor: pointer;">${escapeHtml(pascalCategory)}</span>`);
                 }
                 if (topicName) {
-                    breadcrumbParts.push(`<span class="insight-breadcrumb-item insight-breadcrumb-item--clickable" data-breadcrumb-click="topic" data-category="${categoryName ? escapeHtml(categoryName) : ''}" data-topic="${escapeHtml(topicName)}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}">${escapeHtml(topicName)}</span>`);
+                    const pascalTopic = toPascalCase(topicName);
+                    breadcrumbParts.push(`<span class="tag tag-topic insight-origin-pill" data-breadcrumb-click="topic" data-category="${categoryName ? escapeHtml(categoryName) : ''}" data-topic="${escapeHtml(topicName)}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}" style="cursor: pointer;">${escapeHtml(pascalTopic)}</span>`);
                 }
                 
                 const breadcrumbHTML = breadcrumbParts.length > 0 
-                    ? `<div class="insight-breadcrumb">${breadcrumbParts.join('<span class="insight-breadcrumb-separator">/</span>')}</div>`
+                    ? breadcrumbParts.join('<span style="margin: 0 4px; color: oklch(0.7 0 0);">|</span>')
                     : '';
                 
                 console.log('[BreadcrumbNav] Generated breadcrumb HTML');
@@ -15211,7 +15230,7 @@
                             
                             // Update ALL UI elements at once (before content update)
                             if (title) {
-                                title.textContent = insight.name || '';
+                                title.textContent = toPascalCase(insight.name || '');
                                 title.setAttribute('contenteditable', 'true');
                                 title.setAttribute('data-placeholder', 'Insight Title');
                             }
@@ -15390,19 +15409,12 @@
                 // Render each category (now filtered to only show the selected one if categoryName provided)
                 categories.forEach((category, catIndex) => {
                     const categoryId = `chart-cat-${catIndex}`;
-                    const isHighlighted = categoryName && category.name === categoryName;
-                    // Auto-expand if we're showing only one category (categoryName provided) or if navigating from topic
-                    const shouldExpand = categoryName ? true : (isHighlighted && topicName);
                     const baseColor = colorPalette[category.name] || categoryColors[catIndex % categoryColors.length];
                     
                     // Category header
                     chartHTML += `
-                        <div class="chart-category-group" style="border: 1px solid oklch(0.922 0 0); border-radius: 4px; padding: 0.75rem; ${isHighlighted ? 'background: oklch(0.95 0.1 120); border: 2px solid #B9F040;' : ''}">
-                            <div style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-bottom: ${shouldExpand ? '0.5rem' : '0'};" 
-                                 onclick="SlideoutPanel.toggleChartCategory('${categoryId}')"
-                                 data-category-name="${escapeHtml(category.name)}">
-                                <button style="background: none; border: none; cursor: pointer; font-size: 1.2rem; color: oklch(0.556 0 0); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;"
-                                        data-category-toggle="${categoryId}">${shouldExpand ? '−' : '+'}</button>
+                        <div class="chart-category-group" style="border: 1px solid oklch(0.922 0 0); border-radius: 4px; padding: 0.75rem;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
                                 <div style="flex: 1; font-weight: 600; font-size: 0.875rem; color: oklch(0.145 0 0);">${escapeHtml(category.name)}</div>
                                 <div style="font-size: 0.875rem; color: oklch(0.556 0 0);">${category.percent.toFixed(1)}%</div>
                             </div>
@@ -15419,7 +15431,7 @@
                             </div>
                             
                             <!-- Topics panel -->
-                            <div id="${categoryId}" style="display: ${shouldExpand ? 'block' : 'none'}; margin-top: 0.5rem; padding-left: 2rem;">
+                            <div id="${categoryId}" style="display: block; margin-top: 0.5rem; padding-left: 0;">
                                 ${category.topics.map((topic, topicIndex) => {
                                     const isTopicHighlighted = topicName && topic.name === topicName;
                                     const topicColor = adjustColorLightness(baseColor, (topicIndex % 3 - 1) * 15);
@@ -15477,21 +15489,6 @@
             },
             
             // Toggle category expansion in chart view
-            toggleChartCategory(categoryId) {
-                console.log('[BreadcrumbNav] toggleChartCategory called:', categoryId);
-                const panel = document.getElementById(categoryId);
-                const toggle = document.querySelector(`[data-category-toggle="${categoryId}"]`);
-                
-                if (panel && toggle) {
-                    if (panel.style.display === 'none') {
-                        panel.style.display = 'block';
-                        toggle.textContent = '−';
-                    } else {
-                        panel.style.display = 'none';
-                        toggle.textContent = '+';
-                    }
-                }
-            },
             
             // Navigate to verbatims from breadcrumb (direct navigation, skipping chart)
             navigateToVerbatimsFromBreadcrumb(topicName, categoryName) {
@@ -16193,7 +16190,7 @@
                                 <svg class="doc-icon" viewBox="0 0 16 16" fill="currentColor">
                                     <path d="M2.5 2.5h11l.5.5v10l-.5.5h-11l-.5-.5V3l.5-.5zM3 4v8h10V4H3zm2 1h6v1H5V5zm0 2h6v1H5V7zm0 2h4v1H5V9z"/>
                                 </svg>
-                                <span>${escapeHtml(insight.name)}</span>
+                                <span>${escapeHtml(toPascalCase(insight.name))}</span>
                                 <button class="insight-open-btn-table" onclick="SlideoutPanel.openInsightNotes('${insight.id}')" title="Open in side peek" style="display: none;">
                                     <span style="font-size: 12px; margin-right: 4px;">OPEN</span>
                                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="opacity: 0.6;">
