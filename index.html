@@ -13014,7 +13014,7 @@
                 // Set editable title in header (empty for new insight)
                 if (title) {
                     title.textContent = '';
-                    title.setAttribute('data-placeholder', 'Insight Title');
+                    title.setAttribute('data-placeholder', 'New Insight');
                     title.setAttribute('contenteditable', 'true');
                 }
                 
@@ -13034,6 +13034,13 @@
                 }
                 
                 this.isOpen = true;
+                
+                // Focus the title input after panel is opened
+                if (title) {
+                    setTimeout(() => {
+                        title.focus();
+                    }, 100);
+                }
                 
                 // Prevent body scroll
                 document.body.classList.add('slideout-open');
