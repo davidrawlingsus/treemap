@@ -1600,6 +1600,42 @@
             max-width: 40%;
         }
 
+        /* Fixed width for Status column in insights section */
+        #insights-section .notion-table th[data-column="status"],
+        #insights-section .notion-table td[data-column="status"] {
+            width: 190px;
+            min-width: 190px;
+            max-width: 190px;
+            text-align: center;
+        }
+
+        /* Center the status dropdown in the column */
+        #insights-section .notion-table td[data-column="status"] {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #insights-section .notion-table td[data-column="status"] .status-select {
+            margin: 0;
+        }
+
+        /* Name column takes remaining space in insights section */
+        #insights-section .notion-table .name-cell,
+        #insights-section .notion-table th.name-cell {
+            width: auto;
+            min-width: 250px;
+        }
+
+        /* Font size for insight rows and pills */
+        #insights-section .notion-table td {
+            font-size: 15px;
+        }
+
+        #insights-section .tag {
+            font-size: 15px;
+        }
+
         /* Control Bar */
         .control-bar {
             position: relative;
@@ -12390,394 +12426,21 @@
         }
 
         async function openInsightNotes(insightId) {
-            console.log('[openInsightNotes] Function called with insightId:', insightId);
-            console.log('[openInsightNotes] insightsCurrentClientId:', insightsCurrentClientId);
-            
-            if (!insightsCurrentClientId) {
-                console.error('[openInsightNotes] No client selected');
-                return;
-            }
-            
-            // Prevent duplicate initialization if the same insight is already open
-            if (insightsCurrentInsightNotesId === insightId) {
-                const panel = document.getElementById('insightNotesPanel');
-                if (panel && panel.classList.contains('open')) {
-                    console.log('[openInsightNotes] Insight already open, skipping duplicate initialization');
-                    return;
-                }
-            }
-            
-            // Reset navigation stack when opening a new insight (if using SlideoutPanel)
-            if (window.SlideoutPanel) {
-                window.SlideoutPanel.navigationStack = [];
-                window.SlideoutPanel.updateBackButton();
-            }
-            
-            insightsCurrentInsightNotesId = insightId;
-            
-            const panel = document.getElementById('insightNotesPanel');
-            const overlay = document.getElementById('insightNotesOverlay');
-            // Check for insightTitleEditable first (after first use), then fallback to insightNotesTitle
-            const title = document.getElementById('insightTitleEditable') || document.getElementById('insightNotesTitle');
-            const content = document.getElementById('insightNotesContent');
-            
-            console.log('[openInsightNotes] UI elements:', {
-                panel: !!panel,
-                overlay: !!overlay,
-                title: !!title,
-                content: !!content
-            });
-            
-            if (panel) {
-                console.log('[openInsightNotes] Adding "open" class to panel');
-                panel.classList.add('open');
-                console.log('[openInsightNotes] Panel classes after adding open:', panel.classList.toString());
+            // Delegate to SlideoutPanel for consistent behavior
+            if (window.SlideoutPanel && window.SlideoutPanel.openInsightNotes) {
+                return await window.SlideoutPanel.openInsightNotes(insightId);
             } else {
-                console.error('[openInsightNotes] Panel element not found!');
-            }
-            
-            if (overlay) {
-                console.log('[openInsightNotes] Adding "visible" class to overlay');
-                overlay.classList.add('visible');
-            } else {
-                console.error('[openInsightNotes] Overlay element not found!');
-            }
-            
-            document.body.classList.add('slideout-open');
-            console.log('[openInsightNotes] Body classes:', document.body.classList.toString());
-            
-            try {
-                console.log('[openInsightNotes] Fetching insight data...');
-                const response = await fetch(`${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights/${insightId}`, {
-                    headers: getAuthHeadersSafe()
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to load insight');
-                }
-                
-                const insight = await response.json();
-                console.log('[openInsightNotes] Insight loaded:', insight);
-                console.log('[openInsightNotes] Insight notes content:', insight.notes);
-                console.log('[openInsightNotes] Insight notes length:', insight.notes?.length);
-                console.log('[openInsightNotes] Insight notes contains img:', insight.notes?.includes('<img'));
-                insightsCurrentInsightData = insight;
-                
-                // Set up editable title in header
-                if (title) {
-                    // If element already has the correct id, just update its content
-                    if (title.id === 'insightTitleEditable') {
-                        title.textContent = toPascalCase(insight.name || 'Untitled');
-                    } else if (title.parentNode) {
-                        // Clone to remove old event listeners, then replace
-                        const newTitle = title.cloneNode(false);
-                        title.parentNode.replaceChild(newTitle, title);
-                        
-                        // Update the new element properties
-                        newTitle.id = 'insightTitleEditable';
-                        newTitle.contentEditable = 'true';
-                        newTitle.style.cssText = 'font-size: 1.875rem; font-weight: 700; font-family: \'Lato\', sans-serif; color: oklch(0.145 0 0); outline: none; min-height: 2.5rem; line-height: 1.2; margin: 0;';
-                        newTitle.setAttribute('data-placeholder', 'Untitled');
-                        newTitle.textContent = toPascalCase(insight.name || 'Untitled');
-                        
-                        // Set up event listeners for the title
-                        newTitle.addEventListener('blur', () => {
-                            const newName = newTitle.textContent.trim() || 'Untitled';
-                            debouncedSaveInsightField('name', newName);
-                        });
-                        newTitle.addEventListener('keydown', (e) => {
-                            if (e.key === 'Enter') {
-                                e.preventDefault();
-                                newTitle.blur();
-                            }
-                        });
-                    } else {
-                        // Fallback: just update the element if parent doesn't exist
-                        title.id = 'insightTitleEditable';
-                        title.contentEditable = 'true';
-                        title.style.cssText = 'font-size: 1.875rem; font-weight: 700; font-family: \'Lato\', sans-serif; color: oklch(0.145 0 0); outline: none; min-height: 2.5rem; line-height: 1.2; margin: 0;';
-                        title.setAttribute('data-placeholder', 'Untitled');
-                        title.textContent = toPascalCase(insight.name || 'Untitled');
-                        
-                        // Set up event listeners for the title
-                        title.addEventListener('blur', () => {
-                            const newName = title.textContent.trim() || 'Untitled';
-                            debouncedSaveInsightField('name', newName);
-                        });
-                        title.addEventListener('keydown', (e) => {
-                            if (e.key === 'Enter') {
-                                e.preventDefault();
-                                title.blur();
-                            }
-                        });
-                    }
-                }
-                console.log('[openInsightNotes] Calling initializeInsightPanel');
-                await initializeInsightPanel(content, insight);
-                console.log('[openInsightNotes] Panel initialization complete');
-            } catch (error) {
-                console.error('[openInsightNotes] Error loading insight:', error);
-                if (content) {
-                    content.innerHTML = `<div style="padding: 24px; color: #666;">Error loading insight: ${error.message}</div>`;
-                }
-            }
-        }
-
-        async function initializeInsightPanel(container, insight) {
-            console.log('[BreadcrumbNav] initializeInsightPanel (standalone) called for insight:', insight.id);
-            if (!container) return;
-            
-            // Reset navigation stack when opening a new insight (if using SlideoutPanel)
-            if (window.SlideoutPanel) {
-                window.SlideoutPanel.navigationStack = [];
-                window.SlideoutPanel.updateBackButton();
-            }
-            
-            // Extract breadcrumb data from origins JSONB
-            const firstOrigin = insight.origins?.[0] || {};
-            const categoryName = firstOrigin.category || null;
-            const topicName = firstOrigin.topic_label || null;
-            const dataSourceId = firstOrigin.data_source || null;
-            const dimensionName = firstOrigin.dimension_name || null;
-            const dimensionRef = firstOrigin.dimension_ref || null;
-            
-            console.log('[BreadcrumbNav] initializeInsightPanel (standalone) - Extracted breadcrumb data:', { categoryName, topicName, dataSourceId, dimensionName, dimensionRef });
-            
-            // Fetch data source name if we have SlideoutPanel available
-            let dataSourceName = null;
-            if (dataSourceId && window.SlideoutPanel) {
-                dataSourceName = await window.SlideoutPanel.fetchDataSourceName(dataSourceId);
-                console.log('[BreadcrumbNav] initializeInsightPanel (standalone) - Fetched data source name:', dataSourceName);
-            }
-            
-            // Get verbatims from insight
-            const insightVerbatims = (insight.verbatims && Array.isArray(insight.verbatims)) ? insight.verbatims : [];
-            
-            // Build breadcrumb HTML with pill format (matching insights list)
-            const breadcrumbParts = [];
-            if (dataSourceName) {
-                const pascalDataSource = toPascalCase(dataSourceName);
-                breadcrumbParts.push(`<span class="tag tag-data-source insight-origin-pill">${escapeHtml(pascalDataSource)}</span>`);
-            }
-            if (dimensionName) {
-                const pascalDimension = toPascalCase(dimensionName);
-                // Make dimension clickable if we have dimension_ref
-                if (dimensionRef) {
-                    breadcrumbParts.push(`<span class="tag tag-data-source insight-origin-pill" data-breadcrumb-click="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtml(dimensionName)}" style="cursor: pointer;">${escapeHtml(pascalDimension)}</span>`);
-                } else {
-                    breadcrumbParts.push(`<span class="tag tag-data-source insight-origin-pill">${escapeHtml(pascalDimension)}</span>`);
-                }
-            }
-            if (categoryName) {
-                const pascalCategory = toPascalCase(categoryName);
-                breadcrumbParts.push(`<span class="tag tag-category insight-origin-pill" data-breadcrumb-click="category" data-category="${escapeHtml(categoryName)}" data-topic="${topicName ? escapeHtml(topicName) : ''}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}" data-dimension-ref="${dimensionRef || ''}" style="cursor: pointer;">${escapeHtml(pascalCategory)}</span>`);
-            }
-            if (topicName) {
-                const pascalTopic = toPascalCase(topicName);
-                breadcrumbParts.push(`<span class="tag tag-topic insight-origin-pill" data-breadcrumb-click="topic" data-category="${categoryName ? escapeHtml(categoryName) : ''}" data-topic="${escapeHtml(topicName)}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}" data-dimension-ref="${dimensionRef || ''}" style="cursor: pointer;">${escapeHtml(pascalTopic)}</span>`);
-            }
-            
-            const breadcrumbHTML = breadcrumbParts.length > 0 
-                ? breadcrumbParts.join('<span style="margin: 0 4px; color: oklch(0.7 0 0);">|</span>')
-                : '';
-            
-            console.log('[BreadcrumbNav] initializeInsightPanel (standalone) - Generated breadcrumb HTML');
-            
-            container.innerHTML = `
-                <div style="padding: 0; display: flex; flex-direction: column; height: 100%;">
-                    <!-- Scrollable Content Area -->
-                    <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column;">
-                        <div style="padding: 1rem 1.5rem; border-bottom: 1px solid oklch(0.922 0 0); flex-shrink: 0;">
-                            <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 0.75rem;">
-                                <!-- Origin Breadcrumb -->
-                                ${breadcrumbHTML ? `
-                                <div class="insight-attribute-row">
-                                    <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Origin</div>
-                                    <div style="flex: 1;">
-                                        ${breadcrumbHTML}
-                                    </div>
-                                </div>
-                                ` : ''}
-                                
-                            </div>
-                        </div>
-                        <div style="padding: 1.5rem; flex-shrink: 0;">
-                            <div id="insightNotesSaveStatus" style="font-size: 0.75rem; font-family: 'Lato', sans-serif; color: oklch(0.556 0 0); margin-bottom: 0.5rem; min-height: 1rem;"></div>
-                            <div id="insightNotesEditor" style="min-height: 200px; outline: none; font-size: 0.875rem; font-family: 'Lato', sans-serif; line-height: 1.5; color: oklch(0.145 0 0);"></div>
-                        </div>
-                        
-                        <!-- Verbatims Section (read-only) -->
-                        ${insightVerbatims.length > 0 ? `
-                        <div style="padding: 1.5rem; border-top: 1px solid oklch(0.922 0 0); flex-shrink: 0;">
-                            <div style="font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 600; color: oklch(0.145 0 0); margin-bottom: 0.75rem;">
-                                Pinned Verbatims (${insightVerbatims.length})
-                            </div>
-                            <div id="insightVerbatimsList" style="max-height: 400px; overflow-y: auto; display: flex; flex-direction: column; gap: 0.5rem;">
-                                ${insightVerbatims.map(verbatim => {
-                                    const verbatimText = escapeHtml((verbatim.text || '').substring(0, 200)) + (verbatim.text && verbatim.text.length > 200 ? '...' : '');
-                                    return `
-                                        <div class="insight-verbatim-item" style="
-                                            display: flex;
-                                            align-items: flex-start;
-                                            gap: 0.75rem;
-                                            padding: 0.75rem;
-                                            border: 1px solid oklch(0.922 0 0);
-                                            border-radius: 0.5rem;
-                                            background: oklch(0.98 0.02 120);
-                                        ">
-                                            <div style="flex: 1; font-size: 0.875rem; font-family: 'Lato', sans-serif; color: oklch(0.145 0 0); line-height: 1.5;">
-                                                ${verbatimText}
-                                            </div>
-                                            <div style="flex-shrink: 0; color: #B9F040; display: flex; align-items: center; justify-content: center; padding: 0.25rem;">
-                                                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                                                    <path d="M8 2v12M5 6l3-4 3 4"/>
-                                                    <circle cx="8" cy="6" r="1.5" fill="currentColor"/>
-                                                </svg>
-                                            </div>
-                                        </div>
-                                    `;
-                                }).join('')}
-                            </div>
-                        </div>
-                        ` : ''}
-                    </div>
-                </div>
-            `;
-            
-            // Set up breadcrumb click handlers
-            const breadcrumbClickItems = container.querySelectorAll('[data-breadcrumb-click]');
-            breadcrumbClickItems.forEach(item => {
-                item.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const clickType = item.getAttribute('data-breadcrumb-click');
-                    const catName = item.getAttribute('data-category') || null;
-                    const topName = item.getAttribute('data-topic') || null;
-                    const dsId = item.getAttribute('data-data-source') || null;
-                    const dimName = item.getAttribute('data-dimension') || null;
-                    const dimRef = item.getAttribute('data-dimension-ref') || null;
-                    
-                    console.log('[BreadcrumbNav] initializeInsightPanel (standalone) - Breadcrumb clicked:', { clickType, catName, topName, dsId, dimName, dimRef });
-                    
-                    if (clickType === 'dimension' && dimRef) {
-                        // Dimension click: navigate to visualizations and filter by dimension
-                        navigateToView('visualizations');
-                        
-                        // Set the dimension selector to the clicked dimension
-                        const questionSelect = document.getElementById('questionSelect');
-                        if (questionSelect) {
-                            const previousRefKey = currentQuestionRefKey;
-                            questionSelect.value = dimRef;
-                            currentQuestionRefKey = dimRef;
-                            
-                            // Filter by this dimension (this will reload charts/data in the background)
-                            filterByQuestion(dimRef, previousRefKey);
-                            
-                            // Update navigation links
-                            updateNavLinks();
-                            
-                            // Update AI Insights panel with current dimension
-                            if (window.AIInsightsPanel) {
-                                window.AIInsightsPanel.setCurrentDimension(dimRef);
-                            }
-                        }
-                    } else if (clickType === 'topic' && topName && catName) {
-                        // Topic click: go directly to verbatims
-                        const insightId = insightsCurrentInsightNotesId;
-                        if (window.SlideoutPanel && insightId) {
-                            // Set SlideoutPanel state
-                            window.SlideoutPanel.currentMode = 'insight-notes';
-                            window.SlideoutPanel.currentInsightId = insightId;
-                            
-                            // Close the insightNotesPanel first
-                            const insightPanel = document.getElementById('insightNotesPanel');
-                            const insightOverlay = document.getElementById('insightNotesOverlay');
-                            if (insightPanel) {
-                                insightPanel.classList.remove('open');
-                                console.log('[BreadcrumbNav] Closed insightNotesPanel');
-                            }
-                            if (insightOverlay) {
-                                insightOverlay.classList.remove('visible');
-                            }
-                            
-                            // Small delay to ensure panel is closed before opening new one
-                            setTimeout(async () => {
-                                if (window.SlideoutPanel.navigateToVerbatimsFromBreadcrumb) {
-                                    await window.SlideoutPanel.navigateToVerbatimsFromBreadcrumb(topName, catName, dsId, dimRef);
-                                }
-                            }, 100);
-                        } else {
-                            console.warn('[BreadcrumbNav] SlideoutPanel or insightId not available');
-                        }
-                    } else if (clickType === 'category') {
-                        // Category click: go to chart view
-                        const insightId = insightsCurrentInsightNotesId;
-                        if (window.SlideoutPanel && insightId) {
-                            // Set SlideoutPanel state so navigateToChart knows we're coming from insight
-                            window.SlideoutPanel.currentMode = 'insight-notes';
-                            window.SlideoutPanel.currentInsightId = insightId;
-                            
-                            // Close the insightNotesPanel first
-                            const insightPanel = document.getElementById('insightNotesPanel');
-                            const insightOverlay = document.getElementById('insightNotesOverlay');
-                            if (insightPanel) {
-                                insightPanel.classList.remove('open');
-                                console.log('[BreadcrumbNav] Closed insightNotesPanel');
-                            }
-                            if (insightOverlay) {
-                                insightOverlay.classList.remove('visible');
-                            }
-                            
-                            // Small delay to ensure panel is closed before opening new one
-                            setTimeout(async () => {
-                                // Ensure we're in the correct context before navigating
-                                await ensureContextForInsightNavigation(dsId, dimRef);
-                                // Navigate to chart view in slideoutPanel
-                                if (window.SlideoutPanel.navigateToChart) {
-                                    const dimName = dimRef ? getDimensionDisplayName(dimRef) : null;
-                                    window.SlideoutPanel.navigateToChart(catName, null, dsId, dimName);
-                                }
-                            }, 100);
-                        } else {
-                            console.warn('[BreadcrumbNav] SlideoutPanel or insightId not available');
-                        }
-                    }
-                });
-            });
-            
-            // Title is now set up in header in openInsightNotes function, so no need to set it up here
-            
-            // Wait a bit for DOM to be ready before initializing editor
-            await new Promise(resolve => setTimeout(resolve, 50));
-            const editorElement = document.getElementById('insightNotesEditor');
-            console.log('[initializeInsightPanel] Editor element lookup:', {
-                found: !!editorElement,
-                id: editorElement?.id,
-                inDOM: editorElement ? document.contains(editorElement) : false,
-                parent: editorElement?.parentElement?.id || editorElement?.parentElement?.className
-            });
-            if (editorElement) {
-                await initializeInsightEditor(editorElement, insight.notes || '');
-            } else {
-                console.error('[initializeInsightPanel] Editor element not found after creating HTML');
+                console.error('[openInsightNotes] SlideoutPanel not available');
+                alert('Unable to open insight. Please refresh the page.');
             }
         }
 
         function closeInsightNotes() {
-            const panel = document.getElementById('insightNotesPanel');
-            const overlay = document.getElementById('insightNotesOverlay');
-            
-            if (insightsCurrentInsightEditor) {
-                insightsCurrentInsightEditor.destroy();
-                insightsCurrentInsightEditor = null;
+            if (window.SlideoutPanel && window.SlideoutPanel.close) {
+                window.SlideoutPanel.close();
             }
             
-            // Clean up context menu handlers
-            cleanupInsightEditorContextMenu();
-            
-            if (panel) panel.classList.remove('open');
-            if (overlay) overlay.classList.remove('visible');
-            document.body.classList.remove('slideout-open');
-            
+            // Clean up any remaining standalone state
             insightsCurrentInsightNotesId = null;
             insightsCurrentInsightData = null;
             
@@ -12942,667 +12605,10 @@
             };
         }
         
-        async function initializeInsightEditor(editorElement, initialContent) {
-            console.log('[initializeInsightEditor GLOBAL] Called with initialContent:', initialContent);
-            console.log('[initializeInsightEditor GLOBAL] InitialContent contains img:', initialContent?.includes('<img'));
-            
-            if (insightsCurrentInsightEditor) {
-                insightsCurrentInsightEditor.destroy();
-                insightsCurrentInsightEditor = null;
-            }
-            
-            // Clean up context menu handlers
-            cleanupInsightEditorContextMenu();
-            
-            if (!editorElement) return;
-            
-            // Clear the editor element before initializing TipTap to ensure clean state
-            editorElement.innerHTML = '';
-            // Ensure the element is visible and interactive
-            editorElement.style.display = '';
-            editorElement.style.visibility = '';
-            editorElement.style.opacity = '';
-            editorElement.style.pointerEvents = '';
-            
-            try {
-                const { Editor, Node, mergeAttributes } = await import('https://esm.sh/@tiptap/core@2.1.13');
-                const StarterKitModule = await import('https://esm.sh/@tiptap/starter-kit@2.1.13');
-                const StarterKit = StarterKitModule.default || StarterKitModule;
-                const { Image } = await import('https://esm.sh/@tiptap/extension-image@2.1.13');
-                
-                // Function to insert image/video immediately and upload in background
-                const insertAndUploadMedia = async (file, isVideo = false) => {
-                    const objectURL = URL.createObjectURL(file);
-                    const editor = insightsCurrentInsightEditor;
-                    
-                    // Insert immediately with object URL
-                    if (isVideo) {
-                        editor.chain().focus().insertContent(`<video src="${objectURL}" controls width="100%" style="max-width: 100%; height: auto; border-radius: 0.5rem; margin: 1rem 0;"></video>`).run();
-                    } else {
-                        editor.chain().focus().setImage({ src: objectURL }).run();
-                    }
-                    
-                    // Upload in background and replace URL when done
-                    try {
-                        const permanentURL = await uploadMediaToBlob(file);
-                        
-                        // Use Tiptap's transaction API to find and update the image node
-                        const { state } = editor.view;
-                        const { tr } = state;
-                        let foundImage = false;
-                        
-                        tr.doc.descendants((node, pos) => {
-                            if (node.type.name === 'image' && node.attrs.src === objectURL) {
-                                tr.setNodeMarkup(pos, undefined, { ...node.attrs, src: permanentURL });
-                                foundImage = true;
-                            }
-                        });
-                        
-                        // Handle videos (which are raw HTML)
-                        if (isVideo) {
-                            const currentHTML = editor.getHTML();
-                            const escapedObjectURL = objectURL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                            const updatedHTML = currentHTML.replace(new RegExp(escapedObjectURL, 'g'), permanentURL);
-                            editor.commands.setContent(updatedHTML, false);
-                        } else {
-                            // For images, use the transaction
-                            if (foundImage) {
-                                editor.view.dispatch(tr);
-                            } else {
-                                // Fallback: try HTML replacement
-                                const currentHTML = editor.getHTML();
-                                const escapedObjectURL = objectURL.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                                const updatedHTML = currentHTML.replace(new RegExp(escapedObjectURL, 'g'), permanentURL);
-                                editor.commands.setContent(updatedHTML, false);
-                            }
-                        }
-                        
-                        URL.revokeObjectURL(objectURL);
-                    } catch (error) {
-                        console.error('Error uploading media:', error);
-                    }
-                };
-                
-                // Create a custom iframe extension for Loom embeds
-                const Iframe = Node.create({
-                    name: 'iframe',
-                    group: 'block',
-                    atom: true,
-                    addAttributes() {
-                        return {
-                            src: {
-                                default: null,
-                            },
-                            width: {
-                                default: '100%',
-                            },
-                            height: {
-                                default: '500px',
-                            },
-                            frameborder: {
-                                default: '0',
-                            },
-                            allowfullscreen: {
-                                default: true,
-                            },
-                            style: {
-                                default: 'width: 100%; border-radius: 0.5rem; aspect-ratio: 16/9; margin: 1rem 0; border: none;',
-                            },
-                        };
-                    },
-                    parseHTML() {
-                        return [{
-                            tag: 'iframe',
-                            getAttrs: (node) => {
-                                console.log('[Iframe Extension] Parsing iframe node:', node);
-                                return {
-                                    src: node.getAttribute('src'),
-                                    width: node.getAttribute('width') || '100%',
-                                    height: node.getAttribute('height') || '500px',
-                                    frameborder: node.getAttribute('frameborder') || '0',
-                                    allowfullscreen: node.hasAttribute('allowfullscreen'),
-                                    style: node.getAttribute('style') || 'width: 100%; border-radius: 0.5rem; aspect-ratio: 16/9; margin: 1rem 0; border: none;',
-                                };
-                            },
-                        }];
-                    },
-                    renderHTML({ HTMLAttributes }) {
-                        console.log('[Iframe Extension] Rendering iframe with attributes:', HTMLAttributes);
-                        return ['iframe', mergeAttributes(HTMLAttributes)];
-                    },
-                });
-                
-                insightsCurrentInsightEditor = new Editor({
-                    element: editorElement,
-                    extensions: [
-                        StarterKit,
-                        Image.configure({
-                            inline: true,
-                            allowBase64: false,
-                            HTMLAttributes: {
-                                class: 'insight-image',
-                            },
-                        }),
-                        Iframe,
-                    ],
-                    content: initialContent || '', // Set content directly in constructor for better parsing
-                    editable: true, // Explicitly set editable
-                    editorProps: {
-                        attributes: {
-                            class: 'prose prose-sm max-w-none focus:outline-none',
-                            style: 'min-height: 400px;'
-                        },
-                        handlePaste: (view, event, slice) => {
-                            console.log('[Editor Setup] Paste handler called for insightsCurrentInsightEditor');
-                            const handler = createMediaPasteHandler(() => {
-                                console.log('[Editor Setup] Getting editor, current value:', insightsCurrentInsightEditor);
-                                return insightsCurrentInsightEditor;
-                            }, insertAndUploadMedia);
-                            return handler(view, event, slice);
-                        },
-                        handleDrop: createMediaDropHandler(insertAndUploadMedia)
-                    },
-                    onUpdate: ({ editor }) => {
-                        const html = editor.getHTML();
-                        debouncedSaveInsightNotes(insightsCurrentInsightNotesId, html);
-                    },
-                    onCreate: ({ editor }) => {
-                        // Ensure editor is ready and focusable
-                        setTimeout(() => {
-                            const view = editor.view;
-                            if (view && view.dom) {
-                                view.dom.setAttribute('contenteditable', 'true');
-                                // Focus the editor to make it interactive
-                                editor.commands.focus('end');
-                            }
-                        }, 100);
-                    }
-                });
-                
-                // Debug: Check what was actually parsed and verify editor structure
-                setTimeout(() => {
-                    const html = insightsCurrentInsightEditor.getHTML();
-                    console.log('[initializeInsightEditor GLOBAL] Editor HTML after creation:', html);
-                    console.log('[initializeInsightEditor GLOBAL] Contains img tag:', html.includes('<img'));
-                    console.log('[initializeInsightEditor GLOBAL] Contains iframe tag:', html.includes('<iframe'));
-                    
-                    // Check ProseMirror view structure
-                    // TipTap transforms the editorElement itself into the ProseMirror editor
-                    const view = insightsCurrentInsightEditor.view;
-                    const viewDOM = view?.dom;
-                    // The viewDOM should be the editorElement itself (TipTap transforms it)
-                    const proseMirrorEl = viewDOM || editorElement;
-                    const hasProseMirrorClass = editorElement.classList.contains('ProseMirror') || editorElement.classList.contains('tiptap');
-                    
-                    console.log('[initializeInsightEditor GLOBAL] Editor element structure:', {
-                        editorElementId: editorElement.id,
-                        editorElementClasses: editorElement.className,
-                        editorElementChildren: editorElement.children.length,
-                        hasProseMirrorClass: hasProseMirrorClass,
-                        viewDOM: !!viewDOM,
-                        viewDOMIsEditorElement: viewDOM === editorElement,
-                        proseMirrorEl: !!proseMirrorEl,
-                        proseMirrorElVisible: proseMirrorEl ? window.getComputedStyle(proseMirrorEl).display !== 'none' : false,
-                        proseMirrorElHeight: proseMirrorEl ? window.getComputedStyle(proseMirrorEl).height : null,
-                        proseMirrorElPointerEvents: proseMirrorEl ? window.getComputedStyle(proseMirrorEl).pointerEvents : null,
-                        proseMirrorElContentEditable: proseMirrorEl?.getAttribute('contenteditable')
-                    });
-                    
-                    const images = editorElement.querySelectorAll('img');
-                    const iframes = editorElement.querySelectorAll('iframe');
-                    console.log('[initializeInsightEditor GLOBAL] Images in DOM:', images.length);
-                    console.log('[initializeInsightEditor GLOBAL] Iframes in DOM:', iframes.length);
-                    
-                    // Ensure editor element (which is the ProseMirror element) is visible and interactive
-                    if (proseMirrorEl) {
-                        proseMirrorEl.style.display = '';
-                        proseMirrorEl.style.visibility = '';
-                        proseMirrorEl.style.opacity = '';
-                        proseMirrorEl.style.pointerEvents = '';
-                        proseMirrorEl.setAttribute('contenteditable', 'true');
-                        // Ensure it has proper cursor style
-                        if (!proseMirrorEl.style.cursor) {
-                            proseMirrorEl.style.cursor = 'text';
-                        }
-                        console.log('[initializeInsightEditor GLOBAL] Ensured editor element is visible and interactive');
-                    }
-                    
-                    if (images.length === 0 && initialContent?.includes('<img')) {
-                        console.warn('[initializeInsightEditor GLOBAL] ⚠️ Image in content but not in DOM!');
-                    }
-                    if (iframes.length === 0 && initialContent?.includes('<iframe')) {
-                        console.warn('[initializeInsightEditor GLOBAL] ⚠️ Iframe in content but not in DOM!');
-                        console.warn('[initializeInsightEditor GLOBAL] Initial content:', initialContent);
-                        console.warn('[initializeInsightEditor GLOBAL] Parsed HTML:', html);
-                    }
-                }, 300);
-                
-                // Set up context menu for formatting - wait for editor to be fully initialized
-                console.log('[initializeInsightEditor GLOBAL] Setting up context menu for editor element:', editorElement);
-                console.log('[initializeInsightEditor GLOBAL] Editor element at setup time:', {
-                    exists: !!editorElement,
-                    id: editorElement?.id,
-                    inDOM: editorElement ? document.contains(editorElement) : false,
-                    parent: editorElement?.parentElement?.id
-                });
-                
-                // Wait for ProseMirror view to be fully initialized before setting up context menu
-                setTimeout(() => {
-                    console.log('[initializeInsightEditor GLOBAL] Setting up context menu after delay');
-                    setupInsightEditorContextMenu(editorElement);
-                }, 300);
-                
-                // Ensure editor is focused and ready for interaction
-                setTimeout(() => {
-                    if (insightsCurrentInsightEditor && insightsCurrentInsightEditor.view) {
-                        const view = insightsCurrentInsightEditor.view;
-                        const viewDOM = view.dom;
-                        if (viewDOM) {
-                            viewDOM.setAttribute('contenteditable', 'true');
-                            // Ensure styles allow interaction
-                            viewDOM.style.pointerEvents = '';
-                            viewDOM.style.cursor = 'text';
-                            // Focus the editor to make it interactive
-                            try {
-                                insightsCurrentInsightEditor.commands.focus('end');
-                                console.log('[initializeInsightEditor GLOBAL] Editor focused successfully');
-                            } catch (error) {
-                                console.warn('[initializeInsightEditor GLOBAL] Failed to focus editor:', error);
-                                // Try alternative focus method
-                                if (viewDOM.focus) {
-                                    viewDOM.focus();
-                                }
-                            }
-                            
-                            // Verify editor is actually editable
-                            const isEditable = viewDOM.getAttribute('contenteditable') === 'true' && 
-                                             !viewDOM.hasAttribute('disabled') &&
-                                             window.getComputedStyle(viewDOM).pointerEvents !== 'none';
-                            console.log('[initializeInsightEditor GLOBAL] Editor editable status:', {
-                                contenteditable: viewDOM.getAttribute('contenteditable'),
-                                disabled: viewDOM.hasAttribute('disabled'),
-                                pointerEvents: window.getComputedStyle(viewDOM).pointerEvents,
-                                isEditable: isEditable
-                            });
-                        }
-                    }
-                }, 400);
-                
-                console.log('[initializeInsightEditor GLOBAL] Editor initialization complete');
-            } catch (error) {
-                console.error('Error initializing editor:', error);
-                throw error;
-            }
-        }
-        
-        function setupInsightEditorContextMenu(editorElement) {
-            console.log('[setupInsightEditorContextMenu] Called with editorElement:', editorElement);
-            console.log('[setupInsightEditorContextMenu] Editor element exists:', !!editorElement);
-            console.log('[setupInsightEditorContextMenu] Editor element ID:', editorElement?.id);
-            console.log('[setupInsightEditorContextMenu] Editor element classes:', editorElement?.className);
-            console.log('[setupInsightEditorContextMenu] insightsCurrentInsightEditor exists:', !!insightsCurrentInsightEditor);
-            
-            // Clean up existing context menu setup if any
-            if (insightsEditorContextMenuHandlers) {
-                console.log('[setupInsightEditorContextMenu] Cleaning up existing handlers');
-                cleanupInsightEditorContextMenu();
-            }
-            
-            // Get or create context menu element
-            let contextMenu = document.getElementById('editorContextMenu');
-            if (!contextMenu) {
-                console.log('[setupInsightEditorContextMenu] Creating new context menu element');
-                contextMenu = document.createElement('div');
-                contextMenu.id = 'editorContextMenu';
-                contextMenu.className = 'editor-context-menu';
-                contextMenu.style.display = 'none';
-                contextMenu.innerHTML = `
-                    <div class="context-menu-item" data-action="heading-1">H1</div>
-                    <div class="context-menu-item" data-action="heading-2">H2</div>
-                    <div class="context-menu-item" data-action="heading-3">H3</div>
-                    <div class="context-menu-divider"></div>
-                    <div class="context-menu-item" data-action="bold">Bold</div>
-                    <div class="context-menu-item" data-action="bulletList">Bullets</div>
-                    <div class="context-menu-item" data-action="taskList">Checklist</div>
-                    <div class="context-menu-item" data-action="blockquote">Callout</div>
-                `;
-                document.body.appendChild(contextMenu);
-                console.log('[setupInsightEditorContextMenu] Context menu element created and appended to body');
-            } else {
-                // Hide menu if it was previously visible
-                contextMenu.style.display = 'none';
-                console.log('[setupInsightEditorContextMenu] Using existing context menu element');
-            }
-            
-            // Handle right-click on editor
-            const contextMenuHandler = (e) => {
-                console.log('[setupInsightEditorContextMenu] Context menu event triggered');
-                console.log('[setupInsightEditorContextMenu] Event target:', e.target);
-                console.log('[setupInsightEditorContextMenu] Event currentTarget:', e.currentTarget);
-                console.log('[setupInsightEditorContextMenu] ClientX:', e.clientX, 'ClientY:', e.clientY);
-                
-                e.preventDefault();
-                
-                const editor = insightsCurrentInsightEditor;
-                console.log('[setupInsightEditorContextMenu] Editor from insightsCurrentInsightEditor:', !!editor);
-                if (!editor) {
-                    console.warn('[setupInsightEditorContextMenu] ⚠️ Editor not available, cannot show context menu');
-                    return;
-                }
-                
-                // Position menu at the right-click cursor position
-                console.log('[setupInsightEditorContextMenu] Showing context menu');
-                contextMenu.style.display = 'block';
-                contextMenu.style.left = `${e.clientX}px`;
-                contextMenu.style.top = `${e.clientY}px`;
-                console.log('[setupInsightEditorContextMenu] Menu positioned at:', e.clientX, e.clientY);
-                
-                // Ensure menu stays within viewport
-                setTimeout(() => {
-                    const menuRect = contextMenu.getBoundingClientRect();
-                    console.log('[setupInsightEditorContextMenu] Menu rect:', menuRect);
-                    if (menuRect.right > window.innerWidth) {
-                        contextMenu.style.left = `${window.innerWidth - menuRect.width - 10}px`;
-                    }
-                    if (menuRect.bottom > window.innerHeight) {
-                        contextMenu.style.top = `${window.innerHeight - menuRect.height - 10}px`;
-                    }
-                    if (menuRect.left < 0) {
-                        contextMenu.style.left = '10px';
-                    }
-                    if (menuRect.top < 0) {
-                        contextMenu.style.top = '10px';
-                    }
-                }, 0);
-                
-                // Update active states
-                console.log('[setupInsightEditorContextMenu] Updating context menu states');
-                updateInsightContextMenuStates(contextMenu, editor);
-            };
-            
-            console.log('[setupInsightEditorContextMenu] Adding contextmenu event listener to editor element');
-            
-            // Find the actual ProseMirror content area - this is where users click
-            let proseMirrorContent = null;
-            if (insightsCurrentInsightEditor && insightsCurrentInsightEditor.view) {
-                const view = insightsCurrentInsightEditor.view;
-                const viewDOM = view.dom;
-                console.log('[setupInsightEditorContextMenu] ProseMirror view DOM found:', {
-                    exists: !!viewDOM,
-                    tagName: viewDOM?.tagName,
-                    className: viewDOM?.className,
-                    id: viewDOM?.id
-                });
-                
-                // Find the actual content area (usually .ProseMirror class)
-                proseMirrorContent = viewDOM.querySelector('.ProseMirror') || viewDOM;
-                console.log('[setupInsightEditorContextMenu] ProseMirror content element:', {
-                    found: !!proseMirrorContent,
-                    tagName: proseMirrorContent?.tagName,
-                    className: proseMirrorContent?.className,
-                    isViewDOM: proseMirrorContent === viewDOM
-                });
-            }
-            
-            // Add listener to ProseMirror content area (primary target)
-            let viewContextMenuHandler = null;
-            if (proseMirrorContent) {
-                viewContextMenuHandler = (e) => {
-                    console.log('[setupInsightEditorContextMenu] ✅ Context menu event on ProseMirror content!');
-                    console.log('[setupInsightEditorContextMenu] Event target:', e.target);
-                    contextMenuHandler(e);
-                };
-                proseMirrorContent.addEventListener('contextmenu', viewContextMenuHandler, true); // Use capture phase
-                console.log('[setupInsightEditorContextMenu] ✅ Added contextmenu listener to ProseMirror content (capture phase)');
-            }
-            
-            // Also add to editor container as fallback
-            editorElement.addEventListener('contextmenu', (e) => {
-                console.log('[setupInsightEditorContextMenu] Context menu event on editor container');
-                contextMenuHandler(e);
-            }, true); // Use capture phase
-            console.log('[setupInsightEditorContextMenu] Added contextmenu listener to editor container (capture phase)');
-            
-            // Add a document-level listener in capture phase to catch ALL right-clicks and log them
-            const documentContextMenuHandler = (e) => {
-                // Check if it's within the editor area
-                const isInEditor = editorElement && (
-                    editorElement.contains(e.target) || 
-                    (proseMirrorContent && proseMirrorContent.contains(e.target))
-                );
-                
-                if (isInEditor) {
-                    console.log('[setupInsightEditorContextMenu] 🔍 Document-level contextmenu event detected in editor area');
-                    console.log('[setupInsightEditorContextMenu] Target:', e.target);
-                    console.log('[setupInsightEditorContextMenu] Target classes:', e.target.className);
-                    console.log('[setupInsightEditorContextMenu] Target tag:', e.target.tagName);
-                    // Don't prevent default here - let the specific handlers do it
-                } else {
-                    // Log all right-clicks for debugging
-                    console.log('[setupInsightEditorContextMenu] 🔍 Document-level contextmenu event (outside editor):', {
-                        target: e.target,
-                        targetClass: e.target.className,
-                        targetTag: e.target.tagName
-                    });
-                }
-            };
-            document.addEventListener('contextmenu', documentContextMenuHandler, true);
-            console.log('[setupInsightEditorContextMenu] Added document-level contextmenu listener (capture phase) - will log ALL right-clicks');
-            
-            // Verify the event listener was added and test right-click detection
-            setTimeout(() => {
-                console.log('[setupInsightEditorContextMenu] ═══ Event Listener Verification ═══');
-                console.log('[setupInsightEditorContextMenu] Editor element in DOM:', document.contains(editorElement));
-                console.log('[setupInsightEditorContextMenu] Editor element parent:', editorElement.parentElement?.id || editorElement.parentElement?.className);
-                
-                // Check if ProseMirror view exists
-                if (insightsCurrentInsightEditor && insightsCurrentInsightEditor.view) {
-                    const viewDOM = insightsCurrentInsightEditor.view.dom;
-                    const proseMirrorContent = viewDOM.querySelector('.ProseMirror') || viewDOM;
-                    console.log('[setupInsightEditorContextMenu] ProseMirror view DOM in DOM:', document.contains(viewDOM));
-                    console.log('[setupInsightEditorContextMenu] ProseMirror content element:', {
-                        found: !!proseMirrorContent,
-                        inDOM: proseMirrorContent ? document.contains(proseMirrorContent) : false,
-                        className: proseMirrorContent?.className,
-                        tagName: proseMirrorContent?.tagName
-                    });
-                    
-                    // Add a test click handler to verify the element is clickable
-                    const testClick = (e) => {
-                        console.log('[setupInsightEditorContextMenu] 🧪 TEST: Click detected on ProseMirror content!', e.type);
-                    };
-                    proseMirrorContent.addEventListener('click', testClick, true);
-                    proseMirrorContent.addEventListener('mousedown', testClick, true);
-                    console.log('[setupInsightEditorContextMenu] Added test click/mousedown handlers to verify element is interactive');
-                }
-                
-                // Add a test handler to the editor container too
-                const testContainerClick = (e) => {
-                    console.log('[setupInsightEditorContextMenu] 🧪 TEST: Click detected on editor container!', e.type);
-                };
-                editorElement.addEventListener('click', testContainerClick, true);
-                editorElement.addEventListener('mousedown', testContainerClick, true);
-                console.log('[setupInsightEditorContextMenu] Added test click/mousedown handlers to editor container');
-                
-                console.log('[setupInsightEditorContextMenu] ═══ Right-click in the editor to test context menu ═══');
-            }, 500);
-            
-            // Handle menu item clicks
-            const menuClickHandler = (e) => {
-                console.log('[setupInsightEditorContextMenu] Menu item clicked:', e.target);
-                e.stopPropagation(); // Prevent event from bubbling to document
-                e.preventDefault();
-                
-                const action = e.target.getAttribute('data-action');
-                console.log('[setupInsightEditorContextMenu] Menu action:', action);
-                if (!action) {
-                    console.log('[setupInsightEditorContextMenu] No action found, hiding menu');
-                    contextMenu.style.display = 'none';
-                    return;
-                }
-                
-                const editor = insightsCurrentInsightEditor;
-                console.log('[setupInsightEditorContextMenu] Editor available for action:', !!editor);
-                if (!editor) {
-                    console.warn('[setupInsightEditorContextMenu] ⚠️ Editor not available for menu action');
-                    contextMenu.style.display = 'none';
-                    return;
-                }
-                
-                // Hide menu first to prevent conflicts
-                contextMenu.style.display = 'none';
-                
-                // Small delay to ensure menu is hidden before applying command
-                setTimeout(() => {
-                    switch (action) {
-                        case 'heading-1':
-                            editor.chain().focus().toggleHeading({ level: 1 }).run();
-                            break;
-                        case 'heading-2':
-                            editor.chain().focus().toggleHeading({ level: 2 }).run();
-                            break;
-                        case 'heading-3':
-                            editor.chain().focus().toggleHeading({ level: 3 }).run();
-                            break;
-                        case 'bold':
-                            editor.chain().focus().toggleBold().run();
-                            break;
-                        case 'bulletList':
-                            editor.chain().focus().toggleBulletList().run();
-                            break;
-                        case 'taskList':
-                            editor.chain().focus().toggleTaskList().run();
-                            break;
-                        case 'blockquote':
-                            // Toggle blockquote
-                            if (editor.isActive('blockquote')) {
-                                // If already in blockquote, lift it
-                                editor.chain().focus().lift('blockquote').run();
-                            } else {
-                                // Wrap the current block in blockquote
-                                // This works for both selections and empty cursor positions
-                                editor.chain().focus().wrapIn('blockquote').run();
-                            }
-                            break;
-                    }
-                }, 10);
-            };
-            
-            contextMenu.addEventListener('click', menuClickHandler);
-            
-            // Hide menu on click outside, scroll, or escape key
-            const hideMenu = (e) => {
-                if (contextMenu.style.display !== 'none') {
-                    // Don't hide if clicking inside the menu itself or the editor
-                    if (!contextMenu.contains(e.target) && (!editorElement || !editorElement.contains(e.target))) {
-                        contextMenu.style.display = 'none';
-                    }
-                }
-            };
-            
-            const scrollHandler = () => {
-                contextMenu.style.display = 'none';
-            };
-            
-            const keydownHandler = (e) => {
-                if (e.key === 'Escape' && contextMenu.style.display !== 'none') {
-                    contextMenu.style.display = 'none';
-                }
-            };
-            
-            // Use capture phase to handle clicks before they bubble
-            document.addEventListener('click', hideMenu, true);
-            document.addEventListener('scroll', scrollHandler, true);
-            document.addEventListener('keydown', keydownHandler);
-            
-            // Store handlers for cleanup (including any view handlers)
-            // Note: viewContextMenuHandler and documentContextMenuHandler are defined above
-            insightsEditorContextMenuHandlers = {
-                contextMenuHandler,
-                menuClickHandler,
-                hideMenu,
-                scrollHandler,
-                keydownHandler,
-                editorElement,
-                contextMenu,
-                viewContextMenuHandler,
-                documentContextMenuHandler
-            };
-            
-            console.log('[setupInsightEditorContextMenu] Context menu setup complete');
-            console.log('[setupInsightEditorContextMenu] Stored handlers:', {
-                hasContextMenuHandler: !!contextMenuHandler,
-                hasMenuClickHandler: !!menuClickHandler,
-                hasHideMenu: !!hideMenu,
-                hasScrollHandler: !!scrollHandler,
-                hasKeydownHandler: !!keydownHandler,
-                editorElementId: editorElement?.id,
-                contextMenuId: contextMenu?.id
-            });
-        }
-        
-        function cleanupInsightEditorContextMenu() {
-            console.log('[cleanupInsightEditorContextMenu] Called');
-            if (!insightsEditorContextMenuHandlers) {
-                console.log('[cleanupInsightEditorContextMenu] No handlers to clean up');
-                return;
-            }
-            
-            const { contextMenuHandler, menuClickHandler, hideMenu, scrollHandler, keydownHandler, editorElement, contextMenu, viewContextMenuHandler, documentContextMenuHandler } = insightsEditorContextMenuHandlers;
-            
-            console.log('[cleanupInsightEditorContextMenu] Cleaning up handlers:', {
-                hasContextMenuHandler: !!contextMenuHandler,
-                hasViewContextMenuHandler: !!viewContextMenuHandler,
-                hasDocumentContextMenuHandler: !!documentContextMenuHandler,
-                hasMenuClickHandler: !!menuClickHandler,
-                hasHideMenu: !!hideMenu,
-                hasScrollHandler: !!scrollHandler,
-                hasKeydownHandler: !!keydownHandler
-            });
-            
-            // Remove event listeners
-            if (editorElement && contextMenuHandler) {
-                editorElement.removeEventListener('contextmenu', contextMenuHandler);
-                console.log('[cleanupInsightEditorContextMenu] Removed contextmenu listener from editor element');
-            }
-            
-            // Remove ProseMirror view listener if it exists
-            if (insightsCurrentInsightEditor && insightsCurrentInsightEditor.view && viewContextMenuHandler) {
-                const viewDOM = insightsCurrentInsightEditor.view.dom;
-                if (viewDOM) {
-                    viewDOM.removeEventListener('contextmenu', viewContextMenuHandler);
-                    console.log('[cleanupInsightEditorContextMenu] Removed contextmenu listener from ProseMirror view DOM');
-                }
-            }
-            
-            // Remove document-level listener
-            if (documentContextMenuHandler) {
-                document.removeEventListener('contextmenu', documentContextMenuHandler, true);
-                console.log('[cleanupInsightEditorContextMenu] Removed document-level contextmenu listener');
-            }
-            
-            if (contextMenu && menuClickHandler) {
-                contextMenu.removeEventListener('click', menuClickHandler);
-            }
-            if (hideMenu) {
-                document.removeEventListener('click', hideMenu, true);
-            }
-            if (scrollHandler) {
-                document.removeEventListener('scroll', scrollHandler, true);
-            }
-            if (keydownHandler) {
-                document.removeEventListener('keydown', keydownHandler);
-            }
-            
-            // Hide menu if visible
-            if (contextMenu) {
-                contextMenu.style.display = 'none';
-            }
-            
-            // Clear handlers
-            insightsEditorContextMenuHandlers = null;
-            console.log('[cleanupInsightEditorContextMenu] Cleanup complete');
-        }
+        // Removed standalone functions - now using SlideoutPanel implementations:
+        // - initializeInsightEditor -> SlideoutPanel.initializeInsightEditor
+        // - setupInsightEditorContextMenu -> SlideoutPanel.setupEditorContextMenu
+        // - cleanupInsightEditorContextMenu -> SlideoutPanel.cleanupEditorContextMenu
         
         function updateInsightContextMenuStates(menu, editor) {
             const items = menu.querySelectorAll('.context-menu-item');
@@ -13643,6 +12649,10 @@
         }
 
         function debouncedSaveInsightNotes(insightId, content) {
+            // Use SlideoutPanel.currentInsightId if insightId is not provided
+            if (!insightId && window.SlideoutPanel && window.SlideoutPanel.currentInsightId) {
+                insightId = window.SlideoutPanel.currentInsightId;
+            }
             clearTimeout(insightsSaveNotesTimeout);
             
             const statusEl = document.getElementById('insightNotesSaveStatus');
@@ -13662,7 +12672,15 @@
         }
 
         async function saveInsightField(fieldName, value) {
-            if (!insightsCurrentClientId || !insightsCurrentInsightNotesId) return;
+            // Use SlideoutPanel.currentInsightId if available, otherwise fall back to insightsCurrentInsightNotesId
+            const insightId = (window.SlideoutPanel && window.SlideoutPanel.currentInsightId) 
+                ? window.SlideoutPanel.currentInsightId 
+                : insightsCurrentInsightNotesId;
+            const clientId = (window.SlideoutPanel && currentClientId) 
+                ? currentClientId 
+                : insightsCurrentClientId;
+            
+            if (!clientId || !insightId) return;
             
             try {
                 const token = getAuthToken() || localStorage.getItem('visualizd_auth_token');
@@ -13673,7 +12691,7 @@
                 const updateData = {};
                 updateData[fieldName] = value;
                 
-                const response = await fetch(`${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights/${insightsCurrentInsightNotesId}`, {
+                const response = await fetch(`${API_BASE_URL}/api/clients/${clientId}/insights/${insightId}`, {
                     method: 'PUT',
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -13699,7 +12717,19 @@
         }
 
         async function saveInsightNotes(insightId, content) {
-            if (!insightsCurrentClientId || !insightId) return;
+            // Use SlideoutPanel.currentInsightId if insightId is not provided
+            if (!insightId && window.SlideoutPanel && window.SlideoutPanel.currentInsightId) {
+                insightId = window.SlideoutPanel.currentInsightId;
+            }
+            // Use SlideoutPanel.currentInsightId if available, otherwise fall back to insightsCurrentInsightNotesId
+            const finalInsightId = insightId || ((window.SlideoutPanel && window.SlideoutPanel.currentInsightId) 
+                ? window.SlideoutPanel.currentInsightId 
+                : insightsCurrentInsightNotesId);
+            const clientId = (window.SlideoutPanel && currentClientId) 
+                ? currentClientId 
+                : insightsCurrentClientId;
+            
+            if (!clientId || !finalInsightId) return;
             
             const statusEl = document.getElementById('insightNotesSaveStatus');
             
@@ -13709,7 +12739,7 @@
                     throw new Error('Not authenticated');
                 }
                 
-                const response = await fetch(`${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights/${insightId}`, {
+                const response = await fetch(`${API_BASE_URL}/api/clients/${clientId}/insights/${finalInsightId}`, {
                     method: 'PUT',
                     headers: {
                         'Authorization': `Bearer ${token}`,
@@ -14056,8 +13086,9 @@
                 closeModal();
             }
             
-            const overlay = document.getElementById('insightNotesOverlay');
-            if (overlay && e.target === overlay) {
+            // Check for slideoutOverlay (SlideoutPanel) instead of insightNotesOverlay
+            const overlay = document.getElementById('slideoutOverlay');
+            if (overlay && e.target === overlay && window.SlideoutPanel && window.SlideoutPanel.isOpen) {
                 closeInsightNotes();
             }
         });
@@ -14069,19 +13100,15 @@
                     closeModal();
                 }
                 
-                const panel = document.getElementById('insightNotesPanel');
-                if (panel && panel.classList.contains('open')) {
+                // Check for slideoutPanel (SlideoutPanel) instead of insightNotesPanel
+                const panel = document.getElementById('slideoutPanel');
+                if (panel && panel.classList.contains('open') && window.SlideoutPanel && window.SlideoutPanel.isOpen) {
                     closeInsightNotes();
                 }
             }
         });
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const closeBtn = document.getElementById('closeInsightNotesPanel');
-            if (closeBtn) {
-                closeBtn.addEventListener('click', closeInsightNotes);
-            }
-        });
+        // Removed: closeInsightNotesPanel button event listener - now using SlideoutPanel's close button
         
         const authCheck = typeof Auth !== 'undefined' ? Auth.checkAuth() : Promise.resolve(false);
         authCheck.then(authenticated => {
@@ -15336,6 +14363,12 @@
                             } else {
                                 console.log('[onUpdate] Not saving - mode:', this.currentMode, 'insightId:', this.currentInsightId);
                             }
+                        },
+                        onSelectionUpdate: ({ editor }) => {
+                            // Show context menu when text is selected
+                            if (this.editorContextMenuHandlers && this.editorContextMenuHandlers.showMenuOnSelection) {
+                                this.editorContextMenuHandlers.showMenuOnSelection(editor);
+                            }
                         }
                     });
                     
@@ -15425,43 +14458,55 @@
                 // Store current editor element for cleanup
                 this.currentEditorElement = editorElement;
                 
-                // Handle right-click on editor
-                const contextMenuHandler = (e) => {
-                    e.preventDefault();
-                    
-                    // Use currentInsightEditor if available, otherwise try to get it from the element
-                    const editor = this.currentInsightEditor;
+                // Function to show menu when text is selected
+                const showMenuOnSelection = (editor) => {
+                    if (!editor) {
+                        editor = this.currentInsightEditor;
+                    }
                     if (!editor) {
                         return;
                     }
                     
-                    // Position menu at the right-click cursor position
-                    contextMenu.style.display = 'block';
-                    contextMenu.style.left = `${e.clientX}px`;
-                    contextMenu.style.top = `${e.clientY}px`;
+                    const { from, to } = editor.state.selection;
+                    const isEmpty = from === to;
                     
-                    // Ensure menu stays within viewport
-                    setTimeout(() => {
-                        const menuRect = contextMenu.getBoundingClientRect();
-                        if (menuRect.right > window.innerWidth) {
-                            contextMenu.style.left = `${window.innerWidth - menuRect.width - 10}px`;
-                        }
-                        if (menuRect.bottom > window.innerHeight) {
-                            contextMenu.style.top = `${window.innerHeight - menuRect.height - 10}px`;
-                        }
-                        if (menuRect.left < 0) {
-                            contextMenu.style.left = '10px';
-                        }
-                        if (menuRect.top < 0) {
-                            contextMenu.style.top = '10px';
-                        }
-                    }, 0);
+                    if (isEmpty) {
+                        // Hide menu if no text is selected
+                        contextMenu.style.display = 'none';
+                        return;
+                    }
                     
-                    // Update active states
-                    this.updateContextMenuStates(contextMenu, editor);
+                    // Get selection coordinates from the editor view
+                    const view = editor.view;
+                    const coords = view.coordsAtPos(to);
+                    
+                    if (coords) {
+                        // Position menu near the end of the selection
+                        contextMenu.style.display = 'block';
+                        contextMenu.style.left = `${coords.right}px`;
+                        contextMenu.style.top = `${coords.bottom + 5}px`;
+                        
+                        // Ensure menu stays within viewport
+                        setTimeout(() => {
+                            const menuRect = contextMenu.getBoundingClientRect();
+                            if (menuRect.right > window.innerWidth) {
+                                contextMenu.style.left = `${window.innerWidth - menuRect.width - 10}px`;
+                            }
+                            if (menuRect.bottom > window.innerHeight) {
+                                contextMenu.style.top = `${coords.top - menuRect.height - 5}px`;
+                            }
+                            if (menuRect.left < 0) {
+                                contextMenu.style.left = '10px';
+                            }
+                            if (menuRect.top < 0) {
+                                contextMenu.style.top = '10px';
+                            }
+                        }, 0);
+                        
+                        // Update active states
+                        this.updateContextMenuStates(contextMenu, editor);
+                    }
                 };
-                
-                editorElement.addEventListener('contextmenu', contextMenuHandler);
                 
                 // Handle menu item clicks
                 const menuClickHandler = (e) => {
@@ -15548,7 +14593,7 @@
                 
                 // Store handlers for cleanup
                 this.editorContextMenuHandlers = {
-                    contextMenuHandler,
+                    showMenuOnSelection, // Function to show menu on text selection
                     menuClickHandler,
                     hideMenu,
                     scrollHandler,
@@ -15561,12 +14606,9 @@
             cleanupEditorContextMenu() {
                 if (!this.editorContextMenuHandlers) return;
                 
-                const { contextMenuHandler, menuClickHandler, hideMenu, scrollHandler, keydownHandler, editorElement, contextMenu } = this.editorContextMenuHandlers;
+                const { menuClickHandler, hideMenu, scrollHandler, keydownHandler, editorElement, contextMenu } = this.editorContextMenuHandlers;
                 
-                // Remove event listeners
-                if (editorElement && contextMenuHandler) {
-                    editorElement.removeEventListener('contextmenu', contextMenuHandler);
-                }
+                // No event listeners to remove for selection-based menu (handled by Tiptap's onSelectionUpdate)
                 if (contextMenu && menuClickHandler) {
                     contextMenu.removeEventListener('click', menuClickHandler);
                 }
@@ -17599,19 +16641,7 @@
         </div>
 
         <!-- Slideout Panel for Insight Notes -->
-        <div id="insightNotesPanel" class="ai-insights-panel">
-            <div class="ai-insights-header">
-                <div style="flex: 1;">
-                    <div id="insightNotesTitle" style="margin: 0; font-size: 20px; font-weight: 600; color: #37352f;">Insight Notes</div>
-                </div>
-                <button id="closeInsightNotesPanel" class="ai-close-btn">&times;</button>
-            </div>
-            <div id="insightNotesContent" class="ai-insights-content">
-                <!-- Editor will be initialized here -->
-            </div>
-        </div>
-        
-        <div id="insightNotesOverlay" class="ai-insights-overlay"></div>
+        <!-- Removed: insightNotesPanel and insightNotesOverlay - now using slideoutPanel and slideoutOverlay -->
 
         <!-- Create/Edit Modal -->
         <div id="insightModal" class="modal">
