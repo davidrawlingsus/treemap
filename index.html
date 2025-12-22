@@ -581,8 +581,8 @@
 
         .treemap-search-input:focus {
             outline: none;
-            border-color: #667eea;
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            border-color: #B9F040;
+            box-shadow: 0 0 0 3px rgba(185, 240, 64, 0.1);
         }
 
         .treemap-search-clear {
@@ -1307,10 +1307,11 @@
         }
 
         .search-highlight {
-            background-color: #fff3cd;
+            background-color: rgba(185, 240, 64, 0.3) !important;
             padding: 2px 2px;
             border-radius: 2px;
             font-weight: 500;
+            color: inherit;
         }
 
         .verbatim-meta {
@@ -2236,6 +2237,46 @@
         .tag-data-source {
             background: rgba(99, 71, 169, 0.15);
             color: #6347a9;
+        }
+
+        .insight-origin-pill {
+            transition: all 0.2s ease;
+        }
+
+        .insight-origin-pill:hover {
+            opacity: 0.8;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .insight-origin-pill.tag-project:hover {
+            background: rgba(255, 171, 0, 0.25);
+        }
+
+        .insight-origin-pill.tag-data-source:hover {
+            background: rgba(99, 71, 169, 0.25);
+        }
+
+        .tag-category {
+            background: rgba(111, 212, 161, 0.15);
+            color: #6fd4a1;
+        }
+
+        .tag-topic {
+            background: rgba(116, 199, 232, 0.15);
+            color: #74c7e8;
+        }
+
+        .insight-origin-pill.tag-category:hover {
+            background: rgba(111, 212, 161, 0.25);
+        }
+
+        .insight-origin-pill.tag-topic:hover {
+            background: rgba(116, 199, 232, 0.25);
+        }
+
+        .insight-origin-pill:hover:not(.tag-project):not(.tag-data-source):not(.tag-category):not(.tag-topic) {
+            background: rgba(0, 0, 0, 0.05);
         }
 
         /* Status */
@@ -3757,6 +3798,13 @@
 
         #slideoutSearch {
             color: #333 !important;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        #slideoutSearch:focus {
+            outline: none;
+            border-color: #B9F040 !important;
+            box-shadow: 0 0 0 3px rgba(185, 240, 64, 0.1) !important;
         }
 
         #slideoutSearchClear {
@@ -4269,6 +4317,46 @@
         .tag-data-source {
             background: rgba(99, 71, 169, 0.15);
             color: #6347a9;
+        }
+
+        .insight-origin-pill {
+            transition: all 0.2s ease;
+        }
+
+        .insight-origin-pill:hover {
+            opacity: 0.8;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .insight-origin-pill.tag-project:hover {
+            background: rgba(255, 171, 0, 0.25);
+        }
+
+        .insight-origin-pill.tag-data-source:hover {
+            background: rgba(99, 71, 169, 0.25);
+        }
+
+        .tag-category {
+            background: rgba(111, 212, 161, 0.15);
+            color: #6fd4a1;
+        }
+
+        .tag-topic {
+            background: rgba(116, 199, 232, 0.15);
+            color: #74c7e8;
+        }
+
+        .insight-origin-pill.tag-category:hover {
+            background: rgba(111, 212, 161, 0.25);
+        }
+
+        .insight-origin-pill.tag-topic:hover {
+            background: rgba(116, 199, 232, 0.25);
+        }
+
+        .insight-origin-pill:hover:not(.tag-project):not(.tag-data-source):not(.tag-category):not(.tag-topic) {
+            background: rgba(0, 0, 0, 0.05);
         }
 
         .status {
@@ -8510,7 +8598,15 @@
             });
             
             // Display filtered verbatims
-            // Set the search term in the slideout panel so highlighting works
+            if (filteredVerbatims.length > 0) {
+                showVerbatims(filteredVerbatims, `Search: "${searchTerm}"`, 'All Categories');
+            } else {
+                // Show empty state in verbatims panel
+                showVerbatims([], `Search: "${searchTerm}"`, 'All Categories');
+            }
+            
+            // Set the search term in the slideout panel AFTER openVerbatims completes
+            // (openVerbatims clears it, so we need to set it after and re-render)
             if (window.SlideoutPanel) {
                 window.SlideoutPanel.verbatimSearchTerm = searchTerm;
                 // Also update the slideout search input to show the search term
@@ -8523,13 +8619,14 @@
                 if (slideoutClearBtn) {
                     slideoutClearBtn.style.display = searchTerm ? 'flex' : 'none';
                 }
-            }
-            
-            if (filteredVerbatims.length > 0) {
-                showVerbatims(filteredVerbatims, `Search: "${searchTerm}"`, 'All Categories');
-            } else {
-                // Show empty state in verbatims panel
-                showVerbatims([], `Search: "${searchTerm}"`, 'All Categories');
+                // Re-render verbatims with the search term for highlighting
+                if (window.SlideoutPanel.currentMode === 'verbatims' && window.SlideoutPanel.currentVerbatimsData) {
+                    window.SlideoutPanel.renderVerbatims(
+                        window.SlideoutPanel.currentVerbatimsData,
+                        window.SlideoutPanel.currentTopicName,
+                        window.SlideoutPanel.currentCategoryName
+                    );
+                }
             }
         }
         
@@ -10614,10 +10711,16 @@
             tbody.innerHTML = '<tr><td colspan="9" class="loading">Loading insights...</td></tr>';
 
             try {
+                // Map 'origin' to 'created_at' for backend sorting (backend doesn't support project sorting)
+                // We'll sort by origin client-side after loading
+                const backendSortBy = insightsCurrentSortBy === 'origin' ? 'created_at' : 
+                                     insightsCurrentSortBy === 'name' ? 'name' : 
+                                     insightsCurrentSortBy === 'created_at' ? 'created_at' : 'created_at';
+                
                 const params = new URLSearchParams({
                     page: '1',
                     page_size: '1000',
-                    sort_by: insightsCurrentSortBy === 'name' ? 'name' : insightsCurrentSortBy === 'created_at' ? 'created_at' : 'created_at',
+                    sort_by: backendSortBy,
                     sort_order: insightsSortOrder,
                 });
 
@@ -10669,6 +10772,26 @@
                 
                 insightsAllInsights = data.items || [];
                 console.log('[DEBUG] Stored', insightsAllInsights.length, 'insights in insightsAllInsights array');
+                
+                // Sort by origin client-side if needed (backend doesn't support project sorting)
+                if (insightsCurrentSortBy === 'origin') {
+                    insightsAllInsights.sort((a, b) => {
+                        const aOrigin = a.origins?.[0] || {};
+                        const bOrigin = b.origins?.[0] || {};
+                        const aProject = aOrigin.project_name || '';
+                        const bProject = bOrigin.project_name || '';
+                        const aDimension = aOrigin.dimension_name || aOrigin.dimension_ref || '';
+                        const bDimension = bOrigin.dimension_name || bOrigin.dimension_ref || '';
+                        
+                        // Sort by project first, then dimension
+                        const projectCompare = aProject.localeCompare(bProject);
+                        if (projectCompare !== 0) {
+                            return insightsSortOrder === 'asc' ? projectCompare : -projectCompare;
+                        }
+                        const dimensionCompare = aDimension.localeCompare(bDimension);
+                        return insightsSortOrder === 'asc' ? dimensionCompare : -dimensionCompare;
+                    });
+                }
                 
                 // Restore visible filter dropdowns after loading insights (so we have data for dropdown options)
                 restoreFilterDropdowns();
@@ -10774,9 +10897,38 @@
                 const currentStatus = insight.status || 'Not Started';
                 const createdDate = new Date(insight.created_at).toLocaleDateString();
                 const firstOrigin = insight.origins?.[0] || {};
-                const projectName = firstOrigin.project_name || '-';
-                const dataSource = firstOrigin.data_source || '-';
-                const dimension = firstOrigin.dimension_name || firstOrigin.dimension_ref || '-';
+                const projectName = firstOrigin.project_name || null;
+                const dataSource = firstOrigin.data_source || null;
+                const dimensionName = firstOrigin.dimension_name || null;
+                const dimensionRef = firstOrigin.dimension_ref || null;
+                const categoryName = firstOrigin.category || null;
+                const topicName = firstOrigin.topic_label || null;
+                
+                // Build origin breadcrumb pills with PascalCase formatting
+                const originPills = [];
+                if (projectName) {
+                    const pascalProject = toPascalCase(projectName);
+                    originPills.push(`<span class="tag tag-project insight-origin-pill" data-origin-type="project" data-project-name="${escapeHtml(projectName)}" onclick="event.stopPropagation(); navigateToProjectFromInsight('${escapeHtml(projectName)}')" style="cursor: pointer;">${escapeHtml(pascalProject)}</span>`);
+                }
+                if (dimensionName && dimensionRef) {
+                    const pascalDimension = toPascalCase(dimensionName);
+                    originPills.push(`<span class="tag tag-data-source insight-origin-pill" data-origin-type="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtml(dimensionName)}" onclick="event.stopPropagation(); navigateToDimensionFromInsight('${dimensionRef}', '${escapeHtml(dimensionName)}')" style="cursor: pointer;">${escapeHtml(pascalDimension)}</span>`);
+                } else if (dimensionName) {
+                    const pascalDimension = toPascalCase(dimensionName);
+                    originPills.push(`<span class="tag tag-data-source insight-origin-pill">${escapeHtml(pascalDimension)}</span>`);
+                }
+                if (categoryName) {
+                    const pascalCategory = toPascalCase(categoryName);
+                    originPills.push(`<span class="tag tag-category insight-origin-pill" data-origin-type="category" data-category="${escapeHtml(categoryName)}" data-topic="${topicName ? escapeHtml(topicName) : ''}" data-data-source="${dataSource || ''}" data-dimension="${dimensionName || ''}" onclick="event.stopPropagation(); navigateToCategoryFromInsight('${escapeHtml(categoryName)}', '${topicName ? escapeHtml(topicName) : ''}', '${dataSource || ''}', '${dimensionName || ''}')" style="cursor: pointer;">${escapeHtml(pascalCategory)}</span>`);
+                }
+                if (topicName) {
+                    const pascalTopic = toPascalCase(topicName);
+                    originPills.push(`<span class="tag tag-topic insight-origin-pill" data-origin-type="topic" data-category="${categoryName ? escapeHtml(categoryName) : ''}" data-topic="${escapeHtml(topicName)}" data-data-source="${dataSource || ''}" data-dimension="${dimensionName || ''}" onclick="event.stopPropagation(); navigateToTopicFromInsight('${escapeHtml(topicName)}', '${categoryName ? escapeHtml(categoryName) : ''}', '${dataSource || ''}', '${dimensionName || ''}')" style="cursor: pointer;">${escapeHtml(pascalTopic)}</span>`);
+                }
+                
+                const originContent = originPills.length > 0 
+                    ? originPills.join('<span style="margin: 0 4px; color: oklch(0.7 0 0);">|</span>')
+                    : '-';
                 
                 // Build cells in default order, we'll reorder them after rendering
                 const cells = {
@@ -10814,11 +10966,8 @@
                             <option value="Disproved" ${(insight.status || 'Not Started') === 'Disproved' ? 'selected' : ''}>Disproved</option>
                         </select>
                     </td>`,
-                    project: `<td data-column="project">
-                        ${projectName !== '-' ? `<span class="tag tag-project">${escapeHtml(projectName)}</span>` : '-'}
-                    </td>`,
-                    data_source: `<td data-column="data_source">
-                        ${dataSource !== '-' ? `<span class="tag tag-data-source">${escapeHtml(dataSource)}</span>` : '-'}
+                    origin: `<td data-column="origin" style="white-space: nowrap;">
+                        ${originContent}
                     </td>`,
                     created_at: `<td data-column="created_at">${createdDate}</td>`
                 };
@@ -10876,7 +11025,94 @@
                 indicator.textContent = insightsSortOrder === 'asc' ? '↑' : '↓';
             }
             
+            // Map 'origin' to 'project' for backend sorting (sorts by project name)
+            const sortColumn = column === 'origin' ? 'project' : column;
+            
             loadInsightsPage();
+        }
+
+        // Helper function to convert text to PascalCase
+        function toPascalCase(text) {
+            if (!text) return '';
+            return text
+                .split(/[\s_-]+/)
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                .join(' ');
+        }
+
+        // Navigation functions for origin breadcrumb pills
+        function navigateToProjectFromInsight(projectName) {
+            console.log('[InsightOriginNav] Navigating to project:', projectName);
+            // Navigate to visualizations view
+            navigateToView('visualizations');
+            
+            // Set the project selector
+            const projectSelect = document.getElementById('projectSelect');
+            if (projectSelect && projectSelect.value !== projectName) {
+                projectSelect.value = projectName;
+                // Trigger change event to load sources
+                const changeEvent = new Event('change', { bubbles: true });
+                projectSelect.dispatchEvent(changeEvent);
+            } else if (projectSelect) {
+                // Project already selected, just ensure we're on visualizations
+                currentProjectName = projectName;
+            }
+        }
+
+        function navigateToDimensionFromInsight(dimensionRef, dimensionName) {
+            console.log('[InsightOriginNav] Navigating to dimension:', dimensionRef, dimensionName);
+            // Navigate to visualizations view
+            navigateToView('visualizations');
+            
+            // Set the dimension selector
+            const questionSelect = document.getElementById('questionSelect');
+            if (questionSelect) {
+                const previousRefKey = currentQuestionRefKey;
+                questionSelect.value = dimensionRef;
+                currentQuestionRefKey = dimensionRef;
+                
+                // Filter by this dimension
+                filterByQuestion(dimensionRef, previousRefKey);
+                
+                // Update navigation links
+                updateNavLinks();
+                
+                // Update AI Insights panel with current dimension
+                if (window.AIInsightsPanel) {
+                    window.AIInsightsPanel.setCurrentDimension(dimensionRef);
+                }
+            }
+        }
+
+        function navigateToCategoryFromInsight(categoryName, topicName, dataSource, dimensionName) {
+            console.log('[InsightOriginNav] Navigating to category:', categoryName, topicName, dataSource, dimensionName);
+            // Use slideout to show chart view
+            if (window.SlideoutPanel) {
+                window.SlideoutPanel.navigateToChart(categoryName, topicName, null, dimensionName);
+            }
+        }
+
+        function navigateToTopicFromInsight(topicName, categoryName, dataSource, dimensionName) {
+            console.log('[InsightOriginNav] Navigating to topic:', topicName, categoryName, dataSource, dimensionName);
+            // Use slideout to show verbatims directly
+            if (window.SlideoutPanel) {
+                // Get verbatims from chart data
+                const { categories } = processBarChartData();
+                let verbatims = [];
+                
+                if (topicName && categoryName) {
+                    const category = categories.find(c => c.name === categoryName);
+                    if (category) {
+                        const topic = category.topics.find(t => t.name === topicName);
+                        if (topic) {
+                            verbatims = topic.verbatims || [];
+                        }
+                    }
+                }
+                
+                // Navigate to verbatims view
+                window.SlideoutPanel.openVerbatims(verbatims, topicName, categoryName);
+            }
         }
 
         function handleSearch() {
@@ -12804,7 +13040,7 @@
         const COLUMN_ORDER_KEY = 'insights_column_order';
         
         function getDefaultColumnOrder() {
-            return ['name', 'type', 'status', 'project', 'data_source', 'created_at'];
+            return ['name', 'type', 'status', 'origin', 'created_at'];
         }
         
         function getColumnOrder() {
@@ -12812,11 +13048,23 @@
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
+                    // Migrate old column order: replace 'project' and 'data_source' with 'origin'
+                    const migrated = parsed.map(col => {
+                        if (col === 'project' || col === 'data_source') {
+                            return 'origin';
+                        }
+                        return col;
+                    }).filter((col, index, arr) => arr.indexOf(col) === index); // Remove duplicates
+                    
                     // Validate that all default columns are present
                     const defaultOrder = getDefaultColumnOrder();
-                    const hasAllColumns = defaultOrder.every(col => parsed.includes(col));
-                    if (hasAllColumns && parsed.length === defaultOrder.length) {
-                        return parsed;
+                    const hasAllColumns = defaultOrder.every(col => migrated.includes(col));
+                    if (hasAllColumns && migrated.length === defaultOrder.length) {
+                        // Save migrated order
+                        if (JSON.stringify(migrated) !== JSON.stringify(parsed)) {
+                            saveColumnOrder(migrated);
+                        }
+                        return migrated;
                     }
                 } catch (e) {
                     console.warn('Failed to parse saved column order:', e);
@@ -13331,9 +13579,10 @@
                 this.renderVerbatims(verbatims, topicName, categoryName);
             },
             
-            async openCreateInsight(contextData) {
+            async openCreateInsight(contextData, fromContextMenu = false) {
                 console.log('[SlideoutPanel.openCreateInsight] Called with contextData:', contextData);
                 console.log('[SlideoutPanel.openCreateInsight] currentClientId:', currentClientId);
+                console.log('[SlideoutPanel.openCreateInsight] fromContextMenu:', fromContextMenu);
                 
                 if (!currentClientId) {
                     console.error('[SlideoutPanel.openCreateInsight] No client selected');
@@ -13409,7 +13658,7 @@
                 
                 // Initialize panel with empty form, pre-populated with context
                 console.log('[SlideoutPanel.openCreateInsight] Calling initializeCreateInsightPanel');
-                await this.initializeCreateInsightPanel(content, contextData);
+                await this.initializeCreateInsightPanel(content, contextData, fromContextMenu);
                 console.log('[SlideoutPanel.openCreateInsight] Panel initialization complete');
             },
             
@@ -13533,10 +13782,11 @@
                 return [];
             },
             
-            async initializeCreateInsightPanel(container, contextData) {
+            async initializeCreateInsightPanel(container, contextData, fromContextMenu = false) {
                 console.log('[initializeCreateInsightPanel] Called');
                 console.log('[initializeCreateInsightPanel] Container:', container);
                 console.log('[initializeCreateInsightPanel] ContextData:', contextData);
+                console.log('[initializeCreateInsightPanel] fromContextMenu:', fromContextMenu);
                 
                 if (!container) {
                     console.error('[initializeCreateInsightPanel] Container is null or undefined!');
@@ -13628,7 +13878,7 @@
                             <div style="padding: 1rem 1.5rem; border-bottom: 1px solid oklch(0.922 0 0); flex-shrink: 0;">
                                 <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 0.75rem;">
                                     <!-- Breadcrumb -->
-                                    ${breadcrumbHTML ? `
+                                    ${breadcrumbHTML && !fromContextMenu ? `
                                     <div class="insight-attribute-row">
                                         <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Origin</div>
                                         <div style="flex: 1;">
@@ -16200,7 +16450,7 @@
                         setTimeout(() => {
                             console.log('About to open slideout panel with saved data:', savedContextData);
                             hideContextMenu();
-                            SlideoutPanel.openCreateInsight(savedContextData);
+                            SlideoutPanel.openCreateInsight(savedContextData, true);
                         }, 10);
                     } else {
                         console.error('No context data available when clicking create insight');
@@ -16676,38 +16926,22 @@
                     <thead>
                         <tr>
                             <th class="name-cell sorted draggable" data-column="name" draggable="true" onclick="sortBy('name')">
-                                <span class="drag-handle">⋮⋮</span>
-                                <span class="column-icon">Aa</span>
                                 <span>Name</span>
                                 <span class="sort-indicator">↓</span>
                             </th>
                             <th class="draggable" data-column="type" draggable="true" onclick="sortBy('type')">
-                                <span class="drag-handle">⋮⋮</span>
-                                <span class="column-icon">≡</span>
                                 <span>Type</span>
                                 <span class="sort-indicator"></span>
                             </th>
                             <th class="draggable" data-column="status" draggable="true" onclick="sortBy('status')">
-                                <span class="drag-handle">⋮⋮</span>
-                                <span class="column-icon">⁂</span>
                                 <span>Status</span>
                                 <span class="sort-indicator"></span>
                             </th>
-                            <th class="draggable" data-column="project" draggable="true" onclick="sortBy('project')">
-                                <span class="drag-handle">⋮⋮</span>
-                                <span class="column-icon">≡</span>
-                                <span>Project</span>
-                                <span class="sort-indicator"></span>
-                            </th>
-                            <th class="draggable" data-column="data_source" draggable="true" onclick="sortBy('data_source')">
-                                <span class="drag-handle">⋮⋮</span>
-                                <span class="column-icon">≡</span>
-                                <span>Data Source</span>
+                            <th class="draggable" data-column="origin" draggable="true" onclick="sortBy('origin')">
+                                <span>Origin</span>
                                 <span class="sort-indicator"></span>
                             </th>
                             <th class="draggable" data-column="created_at" draggable="true" onclick="sortBy('created_at')">
-                                <span class="drag-handle">⋮⋮</span>
-                                <span class="column-icon">📅</span>
                                 <span>Created</span>
                                 <span class="sort-indicator"></span>
                             </th>
