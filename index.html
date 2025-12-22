@@ -12749,6 +12749,12 @@
             // Wait a bit for DOM to be ready before initializing editor
             await new Promise(resolve => setTimeout(resolve, 50));
             const editorElement = document.getElementById('insightNotesEditor');
+            console.log('[initializeInsightPanel] Editor element lookup:', {
+                found: !!editorElement,
+                id: editorElement?.id,
+                inDOM: editorElement ? document.contains(editorElement) : false,
+                parent: editorElement?.parentElement?.id || editorElement?.parentElement?.className
+            });
             if (editorElement) {
                 await initializeInsightEditor(editorElement, insight.notes || '');
             } else {
@@ -12950,6 +12956,14 @@
             
             if (!editorElement) return;
             
+            // Clear the editor element before initializing TipTap to ensure clean state
+            editorElement.innerHTML = '';
+            // Ensure the element is visible and interactive
+            editorElement.style.display = '';
+            editorElement.style.visibility = '';
+            editorElement.style.opacity = '';
+            editorElement.style.pointerEvents = '';
+            
             try {
                 const { Editor, Node, mergeAttributes } = await import('https://esm.sh/@tiptap/core@2.1.13');
                 const StarterKitModule = await import('https://esm.sh/@tiptap/starter-kit@2.1.13');
@@ -13105,16 +13119,54 @@
                     }
                 });
                 
-                // Debug: Check what was actually parsed
+                // Debug: Check what was actually parsed and verify editor structure
                 setTimeout(() => {
                     const html = insightsCurrentInsightEditor.getHTML();
                     console.log('[initializeInsightEditor GLOBAL] Editor HTML after creation:', html);
                     console.log('[initializeInsightEditor GLOBAL] Contains img tag:', html.includes('<img'));
                     console.log('[initializeInsightEditor GLOBAL] Contains iframe tag:', html.includes('<iframe'));
+                    
+                    // Check ProseMirror view structure
+                    // TipTap transforms the editorElement itself into the ProseMirror editor
+                    const view = insightsCurrentInsightEditor.view;
+                    const viewDOM = view?.dom;
+                    // The viewDOM should be the editorElement itself (TipTap transforms it)
+                    const proseMirrorEl = viewDOM || editorElement;
+                    const hasProseMirrorClass = editorElement.classList.contains('ProseMirror') || editorElement.classList.contains('tiptap');
+                    
+                    console.log('[initializeInsightEditor GLOBAL] Editor element structure:', {
+                        editorElementId: editorElement.id,
+                        editorElementClasses: editorElement.className,
+                        editorElementChildren: editorElement.children.length,
+                        hasProseMirrorClass: hasProseMirrorClass,
+                        viewDOM: !!viewDOM,
+                        viewDOMIsEditorElement: viewDOM === editorElement,
+                        proseMirrorEl: !!proseMirrorEl,
+                        proseMirrorElVisible: proseMirrorEl ? window.getComputedStyle(proseMirrorEl).display !== 'none' : false,
+                        proseMirrorElHeight: proseMirrorEl ? window.getComputedStyle(proseMirrorEl).height : null,
+                        proseMirrorElPointerEvents: proseMirrorEl ? window.getComputedStyle(proseMirrorEl).pointerEvents : null,
+                        proseMirrorElContentEditable: proseMirrorEl?.getAttribute('contenteditable')
+                    });
+                    
                     const images = editorElement.querySelectorAll('img');
                     const iframes = editorElement.querySelectorAll('iframe');
                     console.log('[initializeInsightEditor GLOBAL] Images in DOM:', images.length);
                     console.log('[initializeInsightEditor GLOBAL] Iframes in DOM:', iframes.length);
+                    
+                    // Ensure editor element (which is the ProseMirror element) is visible and interactive
+                    if (proseMirrorEl) {
+                        proseMirrorEl.style.display = '';
+                        proseMirrorEl.style.visibility = '';
+                        proseMirrorEl.style.opacity = '';
+                        proseMirrorEl.style.pointerEvents = '';
+                        proseMirrorEl.setAttribute('contenteditable', 'true');
+                        // Ensure it has proper cursor style
+                        if (!proseMirrorEl.style.cursor) {
+                            proseMirrorEl.style.cursor = 'text';
+                        }
+                        console.log('[initializeInsightEditor GLOBAL] Ensured editor element is visible and interactive');
+                    }
+                    
                     if (images.length === 0 && initialContent?.includes('<img')) {
                         console.warn('[initializeInsightEditor GLOBAL] ⚠️ Image in content but not in DOM!');
                     }
@@ -13125,20 +13177,56 @@
                     }
                 }, 300);
                 
-                // Set up context menu for formatting
-                setupInsightEditorContextMenu(editorElement);
+                // Set up context menu for formatting - wait for editor to be fully initialized
+                console.log('[initializeInsightEditor GLOBAL] Setting up context menu for editor element:', editorElement);
+                console.log('[initializeInsightEditor GLOBAL] Editor element at setup time:', {
+                    exists: !!editorElement,
+                    id: editorElement?.id,
+                    inDOM: editorElement ? document.contains(editorElement) : false,
+                    parent: editorElement?.parentElement?.id
+                });
+                
+                // Wait for ProseMirror view to be fully initialized before setting up context menu
+                setTimeout(() => {
+                    console.log('[initializeInsightEditor GLOBAL] Setting up context menu after delay');
+                    setupInsightEditorContextMenu(editorElement);
+                }, 300);
                 
                 // Ensure editor is focused and ready for interaction
                 setTimeout(() => {
                     if (insightsCurrentInsightEditor && insightsCurrentInsightEditor.view) {
                         const view = insightsCurrentInsightEditor.view;
-                        if (view.dom) {
-                            view.dom.setAttribute('contenteditable', 'true');
+                        const viewDOM = view.dom;
+                        if (viewDOM) {
+                            viewDOM.setAttribute('contenteditable', 'true');
+                            // Ensure styles allow interaction
+                            viewDOM.style.pointerEvents = '';
+                            viewDOM.style.cursor = 'text';
                             // Focus the editor to make it interactive
-                            insightsCurrentInsightEditor.commands.focus('end');
+                            try {
+                                insightsCurrentInsightEditor.commands.focus('end');
+                                console.log('[initializeInsightEditor GLOBAL] Editor focused successfully');
+                            } catch (error) {
+                                console.warn('[initializeInsightEditor GLOBAL] Failed to focus editor:', error);
+                                // Try alternative focus method
+                                if (viewDOM.focus) {
+                                    viewDOM.focus();
+                                }
+                            }
+                            
+                            // Verify editor is actually editable
+                            const isEditable = viewDOM.getAttribute('contenteditable') === 'true' && 
+                                             !viewDOM.hasAttribute('disabled') &&
+                                             window.getComputedStyle(viewDOM).pointerEvents !== 'none';
+                            console.log('[initializeInsightEditor GLOBAL] Editor editable status:', {
+                                contenteditable: viewDOM.getAttribute('contenteditable'),
+                                disabled: viewDOM.hasAttribute('disabled'),
+                                pointerEvents: window.getComputedStyle(viewDOM).pointerEvents,
+                                isEditable: isEditable
+                            });
                         }
                     }
-                }, 200);
+                }, 400);
                 
                 console.log('[initializeInsightEditor GLOBAL] Editor initialization complete');
             } catch (error) {
@@ -13148,14 +13236,22 @@
         }
         
         function setupInsightEditorContextMenu(editorElement) {
+            console.log('[setupInsightEditorContextMenu] Called with editorElement:', editorElement);
+            console.log('[setupInsightEditorContextMenu] Editor element exists:', !!editorElement);
+            console.log('[setupInsightEditorContextMenu] Editor element ID:', editorElement?.id);
+            console.log('[setupInsightEditorContextMenu] Editor element classes:', editorElement?.className);
+            console.log('[setupInsightEditorContextMenu] insightsCurrentInsightEditor exists:', !!insightsCurrentInsightEditor);
+            
             // Clean up existing context menu setup if any
             if (insightsEditorContextMenuHandlers) {
+                console.log('[setupInsightEditorContextMenu] Cleaning up existing handlers');
                 cleanupInsightEditorContextMenu();
             }
             
             // Get or create context menu element
             let contextMenu = document.getElementById('editorContextMenu');
             if (!contextMenu) {
+                console.log('[setupInsightEditorContextMenu] Creating new context menu element');
                 contextMenu = document.createElement('div');
                 contextMenu.id = 'editorContextMenu';
                 contextMenu.className = 'editor-context-menu';
@@ -13171,28 +13267,40 @@
                     <div class="context-menu-item" data-action="blockquote">Callout</div>
                 `;
                 document.body.appendChild(contextMenu);
+                console.log('[setupInsightEditorContextMenu] Context menu element created and appended to body');
             } else {
                 // Hide menu if it was previously visible
                 contextMenu.style.display = 'none';
+                console.log('[setupInsightEditorContextMenu] Using existing context menu element');
             }
             
             // Handle right-click on editor
             const contextMenuHandler = (e) => {
+                console.log('[setupInsightEditorContextMenu] Context menu event triggered');
+                console.log('[setupInsightEditorContextMenu] Event target:', e.target);
+                console.log('[setupInsightEditorContextMenu] Event currentTarget:', e.currentTarget);
+                console.log('[setupInsightEditorContextMenu] ClientX:', e.clientX, 'ClientY:', e.clientY);
+                
                 e.preventDefault();
                 
                 const editor = insightsCurrentInsightEditor;
+                console.log('[setupInsightEditorContextMenu] Editor from insightsCurrentInsightEditor:', !!editor);
                 if (!editor) {
+                    console.warn('[setupInsightEditorContextMenu] ⚠️ Editor not available, cannot show context menu');
                     return;
                 }
                 
                 // Position menu at the right-click cursor position
+                console.log('[setupInsightEditorContextMenu] Showing context menu');
                 contextMenu.style.display = 'block';
                 contextMenu.style.left = `${e.clientX}px`;
                 contextMenu.style.top = `${e.clientY}px`;
+                console.log('[setupInsightEditorContextMenu] Menu positioned at:', e.clientX, e.clientY);
                 
                 // Ensure menu stays within viewport
                 setTimeout(() => {
                     const menuRect = contextMenu.getBoundingClientRect();
+                    console.log('[setupInsightEditorContextMenu] Menu rect:', menuRect);
                     if (menuRect.right > window.innerWidth) {
                         contextMenu.style.left = `${window.innerWidth - menuRect.width - 10}px`;
                     }
@@ -13208,24 +13316,135 @@
                 }, 0);
                 
                 // Update active states
+                console.log('[setupInsightEditorContextMenu] Updating context menu states');
                 updateInsightContextMenuStates(contextMenu, editor);
             };
             
-            editorElement.addEventListener('contextmenu', contextMenuHandler);
+            console.log('[setupInsightEditorContextMenu] Adding contextmenu event listener to editor element');
+            
+            // Find the actual ProseMirror content area - this is where users click
+            let proseMirrorContent = null;
+            if (insightsCurrentInsightEditor && insightsCurrentInsightEditor.view) {
+                const view = insightsCurrentInsightEditor.view;
+                const viewDOM = view.dom;
+                console.log('[setupInsightEditorContextMenu] ProseMirror view DOM found:', {
+                    exists: !!viewDOM,
+                    tagName: viewDOM?.tagName,
+                    className: viewDOM?.className,
+                    id: viewDOM?.id
+                });
+                
+                // Find the actual content area (usually .ProseMirror class)
+                proseMirrorContent = viewDOM.querySelector('.ProseMirror') || viewDOM;
+                console.log('[setupInsightEditorContextMenu] ProseMirror content element:', {
+                    found: !!proseMirrorContent,
+                    tagName: proseMirrorContent?.tagName,
+                    className: proseMirrorContent?.className,
+                    isViewDOM: proseMirrorContent === viewDOM
+                });
+            }
+            
+            // Add listener to ProseMirror content area (primary target)
+            let viewContextMenuHandler = null;
+            if (proseMirrorContent) {
+                viewContextMenuHandler = (e) => {
+                    console.log('[setupInsightEditorContextMenu] ✅ Context menu event on ProseMirror content!');
+                    console.log('[setupInsightEditorContextMenu] Event target:', e.target);
+                    contextMenuHandler(e);
+                };
+                proseMirrorContent.addEventListener('contextmenu', viewContextMenuHandler, true); // Use capture phase
+                console.log('[setupInsightEditorContextMenu] ✅ Added contextmenu listener to ProseMirror content (capture phase)');
+            }
+            
+            // Also add to editor container as fallback
+            editorElement.addEventListener('contextmenu', (e) => {
+                console.log('[setupInsightEditorContextMenu] Context menu event on editor container');
+                contextMenuHandler(e);
+            }, true); // Use capture phase
+            console.log('[setupInsightEditorContextMenu] Added contextmenu listener to editor container (capture phase)');
+            
+            // Add a document-level listener in capture phase to catch ALL right-clicks and log them
+            const documentContextMenuHandler = (e) => {
+                // Check if it's within the editor area
+                const isInEditor = editorElement && (
+                    editorElement.contains(e.target) || 
+                    (proseMirrorContent && proseMirrorContent.contains(e.target))
+                );
+                
+                if (isInEditor) {
+                    console.log('[setupInsightEditorContextMenu] 🔍 Document-level contextmenu event detected in editor area');
+                    console.log('[setupInsightEditorContextMenu] Target:', e.target);
+                    console.log('[setupInsightEditorContextMenu] Target classes:', e.target.className);
+                    console.log('[setupInsightEditorContextMenu] Target tag:', e.target.tagName);
+                    // Don't prevent default here - let the specific handlers do it
+                } else {
+                    // Log all right-clicks for debugging
+                    console.log('[setupInsightEditorContextMenu] 🔍 Document-level contextmenu event (outside editor):', {
+                        target: e.target,
+                        targetClass: e.target.className,
+                        targetTag: e.target.tagName
+                    });
+                }
+            };
+            document.addEventListener('contextmenu', documentContextMenuHandler, true);
+            console.log('[setupInsightEditorContextMenu] Added document-level contextmenu listener (capture phase) - will log ALL right-clicks');
+            
+            // Verify the event listener was added and test right-click detection
+            setTimeout(() => {
+                console.log('[setupInsightEditorContextMenu] ═══ Event Listener Verification ═══');
+                console.log('[setupInsightEditorContextMenu] Editor element in DOM:', document.contains(editorElement));
+                console.log('[setupInsightEditorContextMenu] Editor element parent:', editorElement.parentElement?.id || editorElement.parentElement?.className);
+                
+                // Check if ProseMirror view exists
+                if (insightsCurrentInsightEditor && insightsCurrentInsightEditor.view) {
+                    const viewDOM = insightsCurrentInsightEditor.view.dom;
+                    const proseMirrorContent = viewDOM.querySelector('.ProseMirror') || viewDOM;
+                    console.log('[setupInsightEditorContextMenu] ProseMirror view DOM in DOM:', document.contains(viewDOM));
+                    console.log('[setupInsightEditorContextMenu] ProseMirror content element:', {
+                        found: !!proseMirrorContent,
+                        inDOM: proseMirrorContent ? document.contains(proseMirrorContent) : false,
+                        className: proseMirrorContent?.className,
+                        tagName: proseMirrorContent?.tagName
+                    });
+                    
+                    // Add a test click handler to verify the element is clickable
+                    const testClick = (e) => {
+                        console.log('[setupInsightEditorContextMenu] 🧪 TEST: Click detected on ProseMirror content!', e.type);
+                    };
+                    proseMirrorContent.addEventListener('click', testClick, true);
+                    proseMirrorContent.addEventListener('mousedown', testClick, true);
+                    console.log('[setupInsightEditorContextMenu] Added test click/mousedown handlers to verify element is interactive');
+                }
+                
+                // Add a test handler to the editor container too
+                const testContainerClick = (e) => {
+                    console.log('[setupInsightEditorContextMenu] 🧪 TEST: Click detected on editor container!', e.type);
+                };
+                editorElement.addEventListener('click', testContainerClick, true);
+                editorElement.addEventListener('mousedown', testContainerClick, true);
+                console.log('[setupInsightEditorContextMenu] Added test click/mousedown handlers to editor container');
+                
+                console.log('[setupInsightEditorContextMenu] ═══ Right-click in the editor to test context menu ═══');
+            }, 500);
             
             // Handle menu item clicks
             const menuClickHandler = (e) => {
+                console.log('[setupInsightEditorContextMenu] Menu item clicked:', e.target);
                 e.stopPropagation(); // Prevent event from bubbling to document
                 e.preventDefault();
                 
                 const action = e.target.getAttribute('data-action');
+                console.log('[setupInsightEditorContextMenu] Menu action:', action);
                 if (!action) {
+                    console.log('[setupInsightEditorContextMenu] No action found, hiding menu');
                     contextMenu.style.display = 'none';
                     return;
                 }
                 
                 const editor = insightsCurrentInsightEditor;
+                console.log('[setupInsightEditorContextMenu] Editor available for action:', !!editor);
                 if (!editor) {
+                    console.warn('[setupInsightEditorContextMenu] ⚠️ Editor not available for menu action');
                     contextMenu.style.display = 'none';
                     return;
                 }
@@ -13296,7 +13515,8 @@
             document.addEventListener('scroll', scrollHandler, true);
             document.addEventListener('keydown', keydownHandler);
             
-            // Store handlers for cleanup
+            // Store handlers for cleanup (including any view handlers)
+            // Note: viewContextMenuHandler and documentContextMenuHandler are defined above
             insightsEditorContextMenuHandlers = {
                 contextMenuHandler,
                 menuClickHandler,
@@ -13304,19 +13524,63 @@
                 scrollHandler,
                 keydownHandler,
                 editorElement,
-                contextMenu
+                contextMenu,
+                viewContextMenuHandler,
+                documentContextMenuHandler
             };
+            
+            console.log('[setupInsightEditorContextMenu] Context menu setup complete');
+            console.log('[setupInsightEditorContextMenu] Stored handlers:', {
+                hasContextMenuHandler: !!contextMenuHandler,
+                hasMenuClickHandler: !!menuClickHandler,
+                hasHideMenu: !!hideMenu,
+                hasScrollHandler: !!scrollHandler,
+                hasKeydownHandler: !!keydownHandler,
+                editorElementId: editorElement?.id,
+                contextMenuId: contextMenu?.id
+            });
         }
         
         function cleanupInsightEditorContextMenu() {
-            if (!insightsEditorContextMenuHandlers) return;
+            console.log('[cleanupInsightEditorContextMenu] Called');
+            if (!insightsEditorContextMenuHandlers) {
+                console.log('[cleanupInsightEditorContextMenu] No handlers to clean up');
+                return;
+            }
             
-            const { contextMenuHandler, menuClickHandler, hideMenu, scrollHandler, keydownHandler, editorElement, contextMenu } = insightsEditorContextMenuHandlers;
+            const { contextMenuHandler, menuClickHandler, hideMenu, scrollHandler, keydownHandler, editorElement, contextMenu, viewContextMenuHandler, documentContextMenuHandler } = insightsEditorContextMenuHandlers;
+            
+            console.log('[cleanupInsightEditorContextMenu] Cleaning up handlers:', {
+                hasContextMenuHandler: !!contextMenuHandler,
+                hasViewContextMenuHandler: !!viewContextMenuHandler,
+                hasDocumentContextMenuHandler: !!documentContextMenuHandler,
+                hasMenuClickHandler: !!menuClickHandler,
+                hasHideMenu: !!hideMenu,
+                hasScrollHandler: !!scrollHandler,
+                hasKeydownHandler: !!keydownHandler
+            });
             
             // Remove event listeners
             if (editorElement && contextMenuHandler) {
                 editorElement.removeEventListener('contextmenu', contextMenuHandler);
+                console.log('[cleanupInsightEditorContextMenu] Removed contextmenu listener from editor element');
             }
+            
+            // Remove ProseMirror view listener if it exists
+            if (insightsCurrentInsightEditor && insightsCurrentInsightEditor.view && viewContextMenuHandler) {
+                const viewDOM = insightsCurrentInsightEditor.view.dom;
+                if (viewDOM) {
+                    viewDOM.removeEventListener('contextmenu', viewContextMenuHandler);
+                    console.log('[cleanupInsightEditorContextMenu] Removed contextmenu listener from ProseMirror view DOM');
+                }
+            }
+            
+            // Remove document-level listener
+            if (documentContextMenuHandler) {
+                document.removeEventListener('contextmenu', documentContextMenuHandler, true);
+                console.log('[cleanupInsightEditorContextMenu] Removed document-level contextmenu listener');
+            }
+            
             if (contextMenu && menuClickHandler) {
                 contextMenu.removeEventListener('click', menuClickHandler);
             }
@@ -13337,6 +13601,7 @@
             
             // Clear handlers
             insightsEditorContextMenuHandlers = null;
+            console.log('[cleanupInsightEditorContextMenu] Cleanup complete');
         }
         
         function updateInsightContextMenuStates(menu, editor) {
