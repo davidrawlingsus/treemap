@@ -3899,7 +3899,19 @@
             color: #333;
         }
 
-        .insights-panel-header-center .search-box {
+        .insights-panel-header-search {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        .insights-panel-header-search .search-box {
+            position: relative;
+            min-width: 200px;
+            max-width: 400px;
+            width: 100%;
             background: white;
             border: 1px solid #ddd;
             border-radius: 6px;
@@ -3921,7 +3933,7 @@
             color: rgba(55, 53, 47, 0.4);
         }
 
-        .insights-panel-header-center .search-box:focus-within {
+        .insights-panel-header-search .search-box:focus-within {
             border-color: #B9F040 !important;
             box-shadow: 0 0 0 3px rgba(185, 240, 64, 0.1) !important;
         }
@@ -5113,8 +5125,8 @@
                             <h2>Recent Insights</h2>
                             <span id="insightsFilterBadge" class="insights-filter-badge" style="display: none;"></span>
                         </div>
-                        <div class="insights-panel-header-center" style="position: relative; flex: 1; display: flex; justify-content: center;">
-                            <div class="search-box" style="position: relative; min-width: 200px; max-width: 400px; width: 100%;">
+                        <div class="insights-panel-header-search">
+                            <div class="search-box">
                                 <input type="text" id="insightsSearchInput" placeholder="Search insights..." oninput="handleInsightsSearch()" onfocus="updateInsightsSearchClearButton()">
                                 <button
                                     id="insightsSearchClear"
@@ -13747,7 +13759,7 @@
                                 <div id="insightAttributes" style="display: flex; flex-direction: column; gap: ${attributesGap};">
                                     <!-- Breadcrumb -->
                                     <div class="insight-attribute-row">
-                                        <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Origin</div>
+                                        <div style="font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Origin</div>
                                         <div style="flex: 1;">
                                             ${breadcrumbHTML}
                                         </div>
@@ -14129,7 +14141,7 @@
                                     <!-- Breadcrumb -->
                                     ${breadcrumbHTML ? `
                                     <div class="insight-attribute-row">
-                                        <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Origin</div>
+                                        <div style="font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Origin</div>
                                         <div style="flex: 1;">
                                             ${breadcrumbHTML}
                                         </div>
@@ -16098,8 +16110,33 @@
         }
 
         function handleInsightsSearch() {
-            insightsSearchTerm = document.getElementById('insightsSearchInput')?.value.trim() || '';
+            const searchInput = document.getElementById('insightsSearchInput');
+            insightsSearchTerm = searchInput?.value.trim() || '';
+            updateInsightsSearchClearButton();
             renderInsights();
+        }
+
+        function updateInsightsSearchClearButton() {
+            const searchInput = document.getElementById('insightsSearchInput');
+            const clearButton = document.getElementById('insightsSearchClear');
+            if (!searchInput || !clearButton) return;
+
+            if (searchInput.value.trim() !== '') {
+                clearButton.style.display = 'flex';
+            } else {
+                clearButton.style.display = 'none';
+            }
+        }
+
+        function clearInsightsSearch() {
+            const searchInput = document.getElementById('insightsSearchInput');
+            if (!searchInput) return;
+
+            searchInput.value = '';
+            insightsSearchTerm = '';
+            updateInsightsSearchClearButton();
+            renderInsights();
+            searchInput.focus();
         }
 
         function sortInsightsBy(column) {
