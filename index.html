@@ -10484,6 +10484,7 @@
         let insightsCurrentInsightData = null;
         let insightsSaveNotesTimeout = null;
         let insightsFieldSaveTimeout = null;
+        let insightsEditorContextMenuHandlers = null;
         let selectedInsightIds = new Set();
         window.insightsInitialized = false;
 
@@ -12589,6 +12590,9 @@
                 insightsCurrentInsightEditor = null;
             }
             
+            // Clean up context menu handlers
+            cleanupInsightEditorContextMenu();
+            
             if (panel) panel.classList.remove('open');
             if (overlay) overlay.classList.remove('visible');
             document.body.classList.remove('slideout-open');
@@ -12766,6 +12770,9 @@
                 insightsCurrentInsightEditor = null;
             }
             
+            // Clean up context menu handlers
+            cleanupInsightEditorContextMenu();
+            
             if (!editorElement) return;
             
             try {
@@ -12937,10 +12944,244 @@
                         console.warn('[initializeInsightEditor GLOBAL] Parsed HTML:', html);
                     }
                 }, 300);
+                
+                // Set up context menu for formatting
+                setupInsightEditorContextMenu(editorElement);
+                console.log('[initializeInsightEditor GLOBAL] Editor initialization complete');
             } catch (error) {
                 console.error('Error initializing editor:', error);
                 throw error;
             }
+        }
+        
+        function setupInsightEditorContextMenu(editorElement) {
+            // Clean up existing context menu setup if any
+            if (insightsEditorContextMenuHandlers) {
+                cleanupInsightEditorContextMenu();
+            }
+            
+            // Get or create context menu element
+            let contextMenu = document.getElementById('editorContextMenu');
+            if (!contextMenu) {
+                contextMenu = document.createElement('div');
+                contextMenu.id = 'editorContextMenu';
+                contextMenu.className = 'editor-context-menu';
+                contextMenu.style.display = 'none';
+                contextMenu.innerHTML = `
+                    <div class="context-menu-item" data-action="heading-1">H1</div>
+                    <div class="context-menu-item" data-action="heading-2">H2</div>
+                    <div class="context-menu-item" data-action="heading-3">H3</div>
+                    <div class="context-menu-divider"></div>
+                    <div class="context-menu-item" data-action="bold">Bold</div>
+                    <div class="context-menu-item" data-action="bulletList">Bullets</div>
+                    <div class="context-menu-item" data-action="taskList">Checklist</div>
+                    <div class="context-menu-item" data-action="blockquote">Callout</div>
+                `;
+                document.body.appendChild(contextMenu);
+            } else {
+                // Hide menu if it was previously visible
+                contextMenu.style.display = 'none';
+            }
+            
+            // Handle right-click on editor
+            const contextMenuHandler = (e) => {
+                e.preventDefault();
+                
+                const editor = insightsCurrentInsightEditor;
+                if (!editor) {
+                    return;
+                }
+                
+                // Position menu at the right-click cursor position
+                contextMenu.style.display = 'block';
+                contextMenu.style.left = `${e.clientX}px`;
+                contextMenu.style.top = `${e.clientY}px`;
+                
+                // Ensure menu stays within viewport
+                setTimeout(() => {
+                    const menuRect = contextMenu.getBoundingClientRect();
+                    if (menuRect.right > window.innerWidth) {
+                        contextMenu.style.left = `${window.innerWidth - menuRect.width - 10}px`;
+                    }
+                    if (menuRect.bottom > window.innerHeight) {
+                        contextMenu.style.top = `${window.innerHeight - menuRect.height - 10}px`;
+                    }
+                    if (menuRect.left < 0) {
+                        contextMenu.style.left = '10px';
+                    }
+                    if (menuRect.top < 0) {
+                        contextMenu.style.top = '10px';
+                    }
+                }, 0);
+                
+                // Update active states
+                updateInsightContextMenuStates(contextMenu, editor);
+            };
+            
+            editorElement.addEventListener('contextmenu', contextMenuHandler);
+            
+            // Handle menu item clicks
+            const menuClickHandler = (e) => {
+                e.stopPropagation(); // Prevent event from bubbling to document
+                e.preventDefault();
+                
+                const action = e.target.getAttribute('data-action');
+                if (!action) {
+                    contextMenu.style.display = 'none';
+                    return;
+                }
+                
+                const editor = insightsCurrentInsightEditor;
+                if (!editor) {
+                    contextMenu.style.display = 'none';
+                    return;
+                }
+                
+                // Hide menu first to prevent conflicts
+                contextMenu.style.display = 'none';
+                
+                // Small delay to ensure menu is hidden before applying command
+                setTimeout(() => {
+                    switch (action) {
+                        case 'heading-1':
+                            editor.chain().focus().toggleHeading({ level: 1 }).run();
+                            break;
+                        case 'heading-2':
+                            editor.chain().focus().toggleHeading({ level: 2 }).run();
+                            break;
+                        case 'heading-3':
+                            editor.chain().focus().toggleHeading({ level: 3 }).run();
+                            break;
+                        case 'bold':
+                            editor.chain().focus().toggleBold().run();
+                            break;
+                        case 'bulletList':
+                            editor.chain().focus().toggleBulletList().run();
+                            break;
+                        case 'taskList':
+                            editor.chain().focus().toggleTaskList().run();
+                            break;
+                        case 'blockquote':
+                            // Toggle blockquote
+                            if (editor.isActive('blockquote')) {
+                                // If already in blockquote, lift it
+                                editor.chain().focus().lift('blockquote').run();
+                            } else {
+                                // Wrap the current block in blockquote
+                                // This works for both selections and empty cursor positions
+                                editor.chain().focus().wrapIn('blockquote').run();
+                            }
+                            break;
+                    }
+                }, 10);
+            };
+            
+            contextMenu.addEventListener('click', menuClickHandler);
+            
+            // Hide menu on click outside, scroll, or escape key
+            const hideMenu = (e) => {
+                if (contextMenu.style.display !== 'none') {
+                    // Don't hide if clicking inside the menu itself or the editor
+                    if (!contextMenu.contains(e.target) && (!editorElement || !editorElement.contains(e.target))) {
+                        contextMenu.style.display = 'none';
+                    }
+                }
+            };
+            
+            const scrollHandler = () => {
+                contextMenu.style.display = 'none';
+            };
+            
+            const keydownHandler = (e) => {
+                if (e.key === 'Escape' && contextMenu.style.display !== 'none') {
+                    contextMenu.style.display = 'none';
+                }
+            };
+            
+            // Use capture phase to handle clicks before they bubble
+            document.addEventListener('click', hideMenu, true);
+            document.addEventListener('scroll', scrollHandler, true);
+            document.addEventListener('keydown', keydownHandler);
+            
+            // Store handlers for cleanup
+            insightsEditorContextMenuHandlers = {
+                contextMenuHandler,
+                menuClickHandler,
+                hideMenu,
+                scrollHandler,
+                keydownHandler,
+                editorElement,
+                contextMenu
+            };
+        }
+        
+        function cleanupInsightEditorContextMenu() {
+            if (!insightsEditorContextMenuHandlers) return;
+            
+            const { contextMenuHandler, menuClickHandler, hideMenu, scrollHandler, keydownHandler, editorElement, contextMenu } = insightsEditorContextMenuHandlers;
+            
+            // Remove event listeners
+            if (editorElement && contextMenuHandler) {
+                editorElement.removeEventListener('contextmenu', contextMenuHandler);
+            }
+            if (contextMenu && menuClickHandler) {
+                contextMenu.removeEventListener('click', menuClickHandler);
+            }
+            if (hideMenu) {
+                document.removeEventListener('click', hideMenu, true);
+            }
+            if (scrollHandler) {
+                document.removeEventListener('scroll', scrollHandler, true);
+            }
+            if (keydownHandler) {
+                document.removeEventListener('keydown', keydownHandler);
+            }
+            
+            // Hide menu if visible
+            if (contextMenu) {
+                contextMenu.style.display = 'none';
+            }
+            
+            // Clear handlers
+            insightsEditorContextMenuHandlers = null;
+        }
+        
+        function updateInsightContextMenuStates(menu, editor) {
+            const items = menu.querySelectorAll('.context-menu-item');
+            items.forEach(item => {
+                const action = item.getAttribute('data-action');
+                let isActive = false;
+                
+                switch (action) {
+                    case 'heading-1':
+                        isActive = editor.isActive('heading', { level: 1 });
+                        break;
+                    case 'heading-2':
+                        isActive = editor.isActive('heading', { level: 2 });
+                        break;
+                    case 'heading-3':
+                        isActive = editor.isActive('heading', { level: 3 });
+                        break;
+                    case 'bold':
+                        isActive = editor.isActive('bold');
+                        break;
+                    case 'bulletList':
+                        isActive = editor.isActive('bulletList');
+                        break;
+                    case 'taskList':
+                        isActive = editor.isActive('taskList');
+                        break;
+                    case 'blockquote':
+                        isActive = editor.isActive('blockquote');
+                        break;
+                }
+                
+                if (isActive) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
         }
 
         function debouncedSaveInsightNotes(insightId, content) {
