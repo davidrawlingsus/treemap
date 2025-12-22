@@ -113,7 +113,7 @@
             padding: 0.5rem 1rem; /* 8px 16px */
             color: oklch(0.556 0 0); /* Muted foreground */
             text-decoration: none;
-            font-size: 0.875rem; /* 14px */
+            font-size: 1rem; /* 16px */
             font-weight: 500;
             font-family: 'Lato', sans-serif;
             border-radius: 0.375rem; /* 6px */
@@ -230,33 +230,40 @@
             display: flex;
             align-items: center;
             gap: 24px;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
+            overflow: hidden;
+            min-width: 0;
         }
 
         .filter-panel {
             display: flex;
             align-items: center;
             gap: 10px;
+            flex-shrink: 0;
+            min-width: 0;
         }
 
         .filter-panel label {
             font-weight: 500;
             color: #333;
             font-size: 14px;
+            flex-shrink: 0;
         }
 
         .filter-panel select {
-            min-width: 200px;
-            max-width: 300px;
+            width: auto;
+            min-width: 0;
+            max-width: none;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            flex-shrink: 1;
         }
 
         #questionSelect {
-            width: 225px;
-            min-width: 225px;
-            max-width: 225px;
+            width: auto;
+            min-width: 0;
+            max-width: none;
         }
         
         .filter-panel select option {
@@ -5572,6 +5579,120 @@
 
             ensureActiveFilterTab();
             applyPanelDisplayForViewport();
+            // Use requestAnimationFrame to ensure layout is complete
+            requestAnimationFrame(() => {
+                setTimeout(() => autoSizeFilterSelects(), 0);
+            });
+        }
+
+        // Auto-size filter selects to fit their content, with truncation if needed
+        function autoSizeFilterSelects() {
+            // Skip auto-sizing on mobile view where selects should be full width
+            if (isMobileFilterView()) {
+                return;
+            }
+
+            const selectIds = ['clientSelect', 'projectSelect', 'sourceSelect', 'questionSelect'];
+            const selects = selectIds
+                .map(id => document.getElementById(id))
+                .filter(select => select && select.style.display !== 'none' && select.offsetParent !== null);
+            
+            if (selects.length === 0) return;
+
+            // Get the parent container that holds both filter-panels and data-source-actions
+            const contentContainer = document.querySelector('.data-source-selector__content');
+            const filterPanels = document.querySelector('.filter-panels');
+            const actionsContainer = document.querySelector('.data-source-actions');
+            
+            if (!contentContainer || !filterPanels) return;
+
+            // Get the actual available width for filter-panels
+            // Use getBoundingClientRect for more accurate measurements
+            const contentRect = contentContainer.getBoundingClientRect();
+            let availableWidth = contentRect.width;
+            
+            // Account for the actions container if it's visible
+            const contentGap = 24; // Gap between filter-panels and actions
+            if (actionsContainer && actionsContainer.offsetParent !== null) {
+                const actionsRect = actionsContainer.getBoundingClientRect();
+                availableWidth = availableWidth - actionsRect.width - contentGap;
+            }
+
+            if (availableWidth <= 100) return; // Minimum reasonable width
+
+            // Temporarily reset widths to auto to get accurate measurements
+            selects.forEach(select => {
+                const originalWidth = select.style.width;
+                select.style.width = 'auto';
+                // Force a reflow
+                void select.offsetWidth;
+            });
+
+            // Create a temporary span to measure text width
+            const measureSpan = document.createElement('span');
+            measureSpan.style.visibility = 'hidden';
+            measureSpan.style.position = 'absolute';
+            measureSpan.style.whiteSpace = 'nowrap';
+            measureSpan.style.fontSize = window.getComputedStyle(selects[0]).fontSize;
+            measureSpan.style.fontFamily = window.getComputedStyle(selects[0]).fontFamily;
+            measureSpan.style.fontWeight = window.getComputedStyle(selects[0]).fontWeight;
+            measureSpan.style.padding = '0';
+            document.body.appendChild(measureSpan);
+
+            // Calculate ideal widths for each select
+            const idealWidths = selects.map(select => {
+                const selectedOption = select.options[select.selectedIndex];
+                const text = selectedOption ? selectedOption.text : '';
+                measureSpan.textContent = text;
+                // Add padding for dropdown arrow and some extra space
+                const selectStyle = window.getComputedStyle(select);
+                const padding = parseFloat(selectStyle.paddingLeft) + parseFloat(selectStyle.paddingRight) + 35; // Extra for dropdown arrow
+                return Math.max(measureSpan.offsetWidth + padding, 80); // Minimum 80px
+            });
+
+            document.body.removeChild(measureSpan);
+
+            const gap = 24; // Gap between panels
+            const labelWidths = selects.map(select => {
+                const label = document.querySelector(`label[for="${select.id}"]`);
+                if (label && label.offsetParent !== null) {
+                    const labelStyle = window.getComputedStyle(label);
+                    const labelGap = parseFloat(labelStyle.marginRight) || 10;
+                    return label.offsetWidth + labelGap;
+                }
+                return 0;
+            });
+
+            // Calculate total width needed
+            const totalNeeded = idealWidths.reduce((sum, width, i) => sum + width + labelWidths[i], 0) + 
+                                (selects.length - 1) * gap;
+
+            // Add a small buffer (20px) to account for any measurement inaccuracies
+            const buffer = 20;
+
+            // If everything fits (with small buffer), use ideal widths
+            if (totalNeeded <= availableWidth + buffer) {
+                selects.forEach((select, i) => {
+                    select.style.width = idealWidths[i] + 'px';
+                    select.style.minWidth = '0';
+                    select.style.maxWidth = 'none';
+                });
+            } else {
+                // Need to truncate - distribute available space proportionally
+                const availableForSelects = availableWidth - (selects.length - 1) * gap - 
+                                         labelWidths.reduce((sum, w) => sum + w, 0);
+                
+                // Calculate proportional widths
+                const totalIdeal = idealWidths.reduce((sum, w) => sum + w, 0);
+                const scale = Math.max(0, Math.min(1, availableForSelects / totalIdeal));
+
+                selects.forEach((select, i) => {
+                    const scaledWidth = Math.max(80, Math.floor(idealWidths[i] * scale));
+                    select.style.width = scaledWidth + 'px';
+                    select.style.minWidth = '0';
+                    select.style.maxWidth = 'none';
+                });
+            }
         }
 
         let filterTabsInitialized = false;
@@ -5602,6 +5723,16 @@
             });
 
             window.addEventListener('resize', applyPanelDisplayForViewport);
+            
+            // Add debounced resize listener for auto-sizing
+            let resizeTimeout;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => {
+                    autoSizeFilterSelects();
+                }, 100);
+            });
+            
             filterTabsInitialized = true;
             syncFilterTabState();
         }
@@ -9102,6 +9233,10 @@
         // Close overlay when clicking on backdrop
         document.addEventListener('DOMContentLoaded', () => {
             setupFilterTabs();
+            // Auto-size selects after a short delay to ensure everything is rendered
+            setTimeout(() => {
+                autoSizeFilterSelects();
+            }, 100);
         });
 
         document.addEventListener('DOMContentLoaded', () => {
