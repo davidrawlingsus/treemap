@@ -2099,6 +2099,8 @@
             cursor: pointer;
             user-select: none;
             position: relative;
+            border-right: 1px solid oklch(0.922 0 0);
+            border-bottom: 1px solid oklch(0.922 0 0);
         }
 
         .notion-table th:hover {
@@ -2120,7 +2122,6 @@
         }
 
         .notion-table tbody tr {
-            border-bottom: 1px solid oklch(0.97 0 0);
             transition: background 0.1s;
         }
 
@@ -2165,6 +2166,8 @@
             font-size: 0.875rem;
             font-family: 'Lato', sans-serif;
             vertical-align: middle;
+            border-right: 1px solid oklch(0.922 0 0);
+            border-bottom: 1px solid oklch(0.97 0 0);
         }
 
         .notion-table .checkbox-cell {
@@ -4100,6 +4103,8 @@
             cursor: pointer;
             user-select: none;
             position: relative;
+            border-right: 1px solid rgba(55, 53, 47, 0.09);
+            border-bottom: 1px solid rgba(55, 53, 47, 0.09);
         }
 
         .notion-table th.draggable {
@@ -4164,7 +4169,6 @@
         }
 
         .notion-table tbody tr {
-            border-bottom: 1px solid rgba(55, 53, 47, 0.06);
             transition: background 0.1s;
         }
 
@@ -4207,6 +4211,8 @@
             padding: 8px 12px;
             font-size: 14px;
             vertical-align: middle;
+            border-right: 1px solid rgba(55, 53, 47, 0.09);
+            border-bottom: 1px solid rgba(55, 53, 47, 0.06);
         }
 
         .notion-table .checkbox-cell {
@@ -10879,11 +10885,11 @@
                 }
                 if (categoryName) {
                     const pascalCategory = toPascalCase(categoryName);
-                    originPills.push(`<span class="tag tag-category insight-origin-pill" data-origin-type="category" data-category="${escapeHtml(categoryName)}" data-topic="${topicName ? escapeHtml(topicName) : ''}" data-data-source="${dataSource || ''}" data-dimension="${dimensionName || ''}" onclick="event.stopPropagation(); navigateToCategoryFromInsight('${escapeHtml(categoryName)}', '${topicName ? escapeHtml(topicName) : ''}', '${dataSource || ''}', '${dimensionName || ''}')" style="cursor: pointer;">${escapeHtml(pascalCategory)}</span>`);
+                    originPills.push(`<span class="tag tag-category insight-origin-pill" data-origin-type="category" data-category="${escapeHtml(categoryName)}" data-topic="${topicName ? escapeHtml(topicName) : ''}" data-data-source="${dataSource || ''}" data-dimension="${dimensionName || ''}" data-dimension-ref="${dimensionRef || ''}" onclick="event.stopPropagation(); navigateToCategoryFromInsight('${escapeHtml(categoryName)}', '${topicName ? escapeHtml(topicName) : ''}', '${dataSource || ''}', '${dimensionRef || ''}')" style="cursor: pointer;">${escapeHtml(pascalCategory)}</span>`);
                 }
                 if (topicName) {
                     const pascalTopic = toPascalCase(topicName);
-                    originPills.push(`<span class="tag tag-topic insight-origin-pill" data-origin-type="topic" data-category="${categoryName ? escapeHtml(categoryName) : ''}" data-topic="${escapeHtml(topicName)}" data-data-source="${dataSource || ''}" data-dimension="${dimensionName || ''}" onclick="event.stopPropagation(); navigateToTopicFromInsight('${escapeHtml(topicName)}', '${categoryName ? escapeHtml(categoryName) : ''}', '${dataSource || ''}', '${dimensionName || ''}')" style="cursor: pointer;">${escapeHtml(pascalTopic)}</span>`);
+                    originPills.push(`<span class="tag tag-topic insight-origin-pill" data-origin-type="topic" data-category="${categoryName ? escapeHtml(categoryName) : ''}" data-topic="${escapeHtml(topicName)}" data-data-source="${dataSource || ''}" data-dimension="${dimensionName || ''}" data-dimension-ref="${dimensionRef || ''}" onclick="event.stopPropagation(); navigateToTopicFromInsight('${escapeHtml(topicName)}', '${categoryName ? escapeHtml(categoryName) : ''}', '${dataSource || ''}', '${dimensionRef || ''}')" style="cursor: pointer;">${escapeHtml(pascalTopic)}</span>`);
                 }
                 
                 const originContent = originPills.length > 0 
@@ -11048,19 +11054,102 @@
             }
         }
 
-        function navigateToCategoryFromInsight(categoryName, topicName, dataSource, dimensionName) {
-            console.log('[InsightOriginNav] Navigating to category:', categoryName, topicName, dataSource, dimensionName);
+        // Helper function to ensure correct data source and dimension are selected before navigation
+        async function ensureContextForInsightNavigation(dataSource, dimensionRef) {
+            let needsDataSourceSwitch = false;
+            let needsDimensionSwitch = false;
+            
+            // Check if data source needs to change
+            if (dataSource && dataSource !== currentDataSourceId) {
+                needsDataSourceSwitch = true;
+            }
+            
+            // Check if dimension needs to change
+            if (dimensionRef && dimensionRef !== currentQuestionRefKey) {
+                needsDimensionSwitch = true;
+            }
+            
+            // Switch data source if needed
+            if (needsDataSourceSwitch) {
+                console.log('[InsightOriginNav] Switching data source from', currentDataSourceId, 'to', dataSource);
+                currentDataSourceId = dataSource;
+                currentQuestionRefKey = null; // Reset dimension when switching data source
+                dimensionFilters = {}; // Clear dimension filters
+                saveState();
+                updateNavLinks();
+                
+                // Load the new data source - this will call detectAndSetupQuestionFilter
+                // which loads availableQuestions, so we need to wait for it to complete
+                await loadDataSource(currentClientId, currentDataSourceId);
+                
+                // Wait a bit for the question filter to be set up and availableQuestions to be populated
+                // We'll check multiple times with a short delay
+                let attempts = 0;
+                const maxAttempts = 10;
+                while (attempts < maxAttempts && (!availableQuestions || availableQuestions.length === 0)) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+                
+                // After loading, check if we still need to switch dimension
+                if (dimensionRef) {
+                    needsDimensionSwitch = true;
+                }
+            }
+            
+            // Switch dimension if needed
+            if (needsDimensionSwitch && dimensionRef) {
+                console.log('[InsightOriginNav] Switching dimension from', currentQuestionRefKey, 'to', dimensionRef);
+                const questionSelect = document.getElementById('questionSelect');
+                if (questionSelect) {
+                    // Check if the dimension is available
+                    // Wait a bit more if availableQuestions is not yet populated
+                    let attempts = 0;
+                    const maxAttempts = 10;
+                    while (attempts < maxAttempts && (!availableQuestions || availableQuestions.length === 0)) {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        attempts++;
+                    }
+                    
+                    if (availableQuestions && availableQuestions.includes(dimensionRef)) {
+                        const previousRefKey = currentQuestionRefKey;
+                        questionSelect.value = dimensionRef;
+                        currentQuestionRefKey = dimensionRef;
+                        filterByQuestion(dimensionRef, previousRefKey);
+                        
+                        // Update AI Insights panel
+                        if (window.AIInsightsPanel) {
+                            window.AIInsightsPanel.setCurrentDimension(dimensionRef);
+                        }
+                    } else {
+                        console.warn('[InsightOriginNav] Dimension', dimensionRef, 'not available in current data source. Available:', availableQuestions);
+                    }
+                }
+            }
+        }
+
+        async function navigateToCategoryFromInsight(categoryName, topicName, dataSource, dimensionRef) {
+            console.log('[InsightOriginNav] Navigating to category:', categoryName, topicName, dataSource, dimensionRef);
+            
+            // Ensure we're in the correct context (data source and dimension)
+            await ensureContextForInsightNavigation(dataSource, dimensionRef);
+            
             // Use slideout to show chart view
             if (window.SlideoutPanel) {
+                const dimensionName = dimensionRef ? getDimensionDisplayName(dimensionRef) : null;
                 window.SlideoutPanel.navigateToChart(categoryName, topicName, null, dimensionName);
             }
         }
 
-        function navigateToTopicFromInsight(topicName, categoryName, dataSource, dimensionName) {
-            console.log('[InsightOriginNav] Navigating to topic:', topicName, categoryName, dataSource, dimensionName);
+        async function navigateToTopicFromInsight(topicName, categoryName, dataSource, dimensionRef) {
+            console.log('[InsightOriginNav] Navigating to topic:', topicName, categoryName, dataSource, dimensionRef);
+            
+            // Ensure we're in the correct context (data source and dimension)
+            await ensureContextForInsightNavigation(dataSource, dimensionRef);
+            
             // Use slideout to show verbatims directly
             if (window.SlideoutPanel) {
-                // Get verbatims from chart data
+                // Get verbatims from chart data (now that we're in the correct context)
                 const { categories } = processBarChartData();
                 let verbatims = [];
                 
@@ -11073,6 +11162,8 @@
                         }
                     }
                 }
+                
+                console.log('[InsightOriginNav] Found', verbatims.length, 'verbatims for topic', topicName);
                 
                 // Navigate to verbatims view
                 window.SlideoutPanel.openVerbatims(verbatims, topicName, categoryName);
@@ -12323,11 +12414,11 @@
             }
             if (categoryName) {
                 const pascalCategory = toPascalCase(categoryName);
-                breadcrumbParts.push(`<span class="tag tag-category insight-origin-pill" data-breadcrumb-click="category" data-category="${escapeHtml(categoryName)}" data-topic="${topicName ? escapeHtml(topicName) : ''}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}" style="cursor: pointer;">${escapeHtml(pascalCategory)}</span>`);
+                breadcrumbParts.push(`<span class="tag tag-category insight-origin-pill" data-breadcrumb-click="category" data-category="${escapeHtml(categoryName)}" data-topic="${topicName ? escapeHtml(topicName) : ''}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}" data-dimension-ref="${dimensionRef || ''}" style="cursor: pointer;">${escapeHtml(pascalCategory)}</span>`);
             }
             if (topicName) {
                 const pascalTopic = toPascalCase(topicName);
-                breadcrumbParts.push(`<span class="tag tag-topic insight-origin-pill" data-breadcrumb-click="topic" data-category="${categoryName ? escapeHtml(categoryName) : ''}" data-topic="${escapeHtml(topicName)}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}" style="cursor: pointer;">${escapeHtml(pascalTopic)}</span>`);
+                breadcrumbParts.push(`<span class="tag tag-topic insight-origin-pill" data-breadcrumb-click="topic" data-category="${categoryName ? escapeHtml(categoryName) : ''}" data-topic="${escapeHtml(topicName)}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}" data-dimension-ref="${dimensionRef || ''}" style="cursor: pointer;">${escapeHtml(pascalTopic)}</span>`);
             }
             
             const breadcrumbHTML = breadcrumbParts.length > 0 
@@ -12469,9 +12560,9 @@
                             }
                             
                             // Small delay to ensure panel is closed before opening new one
-                            setTimeout(() => {
+                            setTimeout(async () => {
                                 if (window.SlideoutPanel.navigateToVerbatimsFromBreadcrumb) {
-                                    window.SlideoutPanel.navigateToVerbatimsFromBreadcrumb(topName, catName);
+                                    await window.SlideoutPanel.navigateToVerbatimsFromBreadcrumb(topName, catName, dsId, dimRef);
                                 }
                             }, 100);
                         } else {
@@ -12497,9 +12588,12 @@
                             }
                             
                             // Small delay to ensure panel is closed before opening new one
-                            setTimeout(() => {
+                            setTimeout(async () => {
+                                // Ensure we're in the correct context before navigating
+                                await ensureContextForInsightNavigation(dsId, dimRef);
                                 // Navigate to chart view in slideoutPanel
                                 if (window.SlideoutPanel.navigateToChart) {
+                                    const dimName = dimRef ? getDimensionDisplayName(dimRef) : null;
                                     window.SlideoutPanel.navigateToChart(catName, null, dsId, dimName);
                                 }
                             }, 100);
@@ -14298,11 +14392,11 @@
                 }
                 if (categoryName) {
                     const pascalCategory = toPascalCase(categoryName);
-                    breadcrumbParts.push(`<span class="tag tag-category insight-origin-pill" data-breadcrumb-click="category" data-category="${escapeHtml(categoryName)}" data-topic="${topicName ? escapeHtml(topicName) : ''}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}" style="cursor: pointer;">${escapeHtml(pascalCategory)}</span>`);
+                    breadcrumbParts.push(`<span class="tag tag-category insight-origin-pill" data-breadcrumb-click="category" data-category="${escapeHtml(categoryName)}" data-topic="${topicName ? escapeHtml(topicName) : ''}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}" data-dimension-ref="${dimensionRef || ''}" style="cursor: pointer;">${escapeHtml(pascalCategory)}</span>`);
                 }
                 if (topicName) {
                     const pascalTopic = toPascalCase(topicName);
-                    breadcrumbParts.push(`<span class="tag tag-topic insight-origin-pill" data-breadcrumb-click="topic" data-category="${categoryName ? escapeHtml(categoryName) : ''}" data-topic="${escapeHtml(topicName)}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}" style="cursor: pointer;">${escapeHtml(pascalTopic)}</span>`);
+                    breadcrumbParts.push(`<span class="tag tag-topic insight-origin-pill" data-breadcrumb-click="topic" data-category="${categoryName ? escapeHtml(categoryName) : ''}" data-topic="${escapeHtml(topicName)}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}" data-dimension-ref="${dimensionRef || ''}" style="cursor: pointer;">${escapeHtml(pascalTopic)}</span>`);
                 }
                 
                 const breadcrumbHTML = breadcrumbParts.length > 0 
@@ -14434,10 +14528,14 @@
                             }
                         } else if (clickType === 'topic' && topName && catName) {
                             // Topic click: go directly to verbatims
-                            this.navigateToVerbatimsFromBreadcrumb(topName, catName);
+                            this.navigateToVerbatimsFromBreadcrumb(topName, catName, dsId, dimRef);
                         } else if (clickType === 'category') {
                             // Category click: go to chart view
-                            this.navigateToChart(catName, null, dsId, dimName);
+                            // Ensure we're in the correct context before navigating
+                            ensureContextForInsightNavigation(dsId, dimRef).then(() => {
+                                const dimName = dimRef ? getDimensionDisplayName(dimRef) : null;
+                                this.navigateToChart(catName, null, dsId, dimName);
+                            });
                         }
                     });
                 });
@@ -15491,8 +15589,13 @@
             // Toggle category expansion in chart view
             
             // Navigate to verbatims from breadcrumb (direct navigation, skipping chart)
-            navigateToVerbatimsFromBreadcrumb(topicName, categoryName) {
-                console.log('[BreadcrumbNav] navigateToVerbatimsFromBreadcrumb called:', { topicName, categoryName });
+            async navigateToVerbatimsFromBreadcrumb(topicName, categoryName, dataSource, dimensionRef) {
+                console.log('[BreadcrumbNav] navigateToVerbatimsFromBreadcrumb called:', { topicName, categoryName, dataSource, dimensionRef });
+                
+                // Ensure we're in the correct context (data source and dimension)
+                if (dataSource || dimensionRef) {
+                    await ensureContextForInsightNavigation(dataSource, dimensionRef);
+                }
                 
                 // Save current insight state to navigation stack
                 if (this.currentMode === 'insight-notes' && this.currentInsightId) {
@@ -15504,7 +15607,7 @@
                     console.log('[BreadcrumbNav] Pushed insight state to stack from breadcrumb');
                 }
                 
-                // Get verbatims from chart data
+                // Get verbatims from chart data (now that we're in the correct context)
                 const { categories } = processBarChartData();
                 let verbatims = [];
                 
