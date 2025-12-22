@@ -12398,6 +12398,15 @@
                 return;
             }
             
+            // Prevent duplicate initialization if the same insight is already open
+            if (insightsCurrentInsightNotesId === insightId) {
+                const panel = document.getElementById('insightNotesPanel');
+                if (panel && panel.classList.contains('open')) {
+                    console.log('[openInsightNotes] Insight already open, skipping duplicate initialization');
+                    return;
+                }
+            }
+            
             // Reset navigation stack when opening a new insight (if using SlideoutPanel)
             if (window.SlideoutPanel) {
                 window.SlideoutPanel.navigationStack = [];
@@ -12737,7 +12746,14 @@
             
             // Title is now set up in header in openInsightNotes function, so no need to set it up here
             
-            await initializeInsightEditor(document.getElementById('insightNotesEditor'), insight.notes || '');
+            // Wait a bit for DOM to be ready before initializing editor
+            await new Promise(resolve => setTimeout(resolve, 50));
+            const editorElement = document.getElementById('insightNotesEditor');
+            if (editorElement) {
+                await initializeInsightEditor(editorElement, insight.notes || '');
+            } else {
+                console.error('[initializeInsightPanel] Editor element not found after creating HTML');
+            }
         }
 
         function closeInsightNotes() {
@@ -13055,7 +13071,8 @@
                         }),
                         Iframe,
                     ],
-                    content: '', // Set empty initially, then set content explicitly
+                    content: initialContent || '', // Set content directly in constructor for better parsing
+                    editable: true, // Explicitly set editable
                     editorProps: {
                         attributes: {
                             class: 'prose prose-sm max-w-none focus:outline-none',
@@ -13074,15 +13091,19 @@
                     onUpdate: ({ editor }) => {
                         const html = editor.getHTML();
                         debouncedSaveInsightNotes(insightsCurrentInsightNotesId, html);
+                    },
+                    onCreate: ({ editor }) => {
+                        // Ensure editor is ready and focusable
+                        setTimeout(() => {
+                            const view = editor.view;
+                            if (view && view.dom) {
+                                view.dom.setAttribute('contenteditable', 'true');
+                                // Focus the editor to make it interactive
+                                editor.commands.focus('end');
+                            }
+                        }, 100);
                     }
                 });
-                
-                // Set content explicitly after editor is created (helps with parsing)
-                if (initialContent) {
-                    console.log('[initializeInsightEditor GLOBAL] Setting initial content:', initialContent);
-                    console.log('[initializeInsightEditor GLOBAL] Initial content contains iframe:', initialContent.includes('<iframe'));
-                    insightsCurrentInsightEditor.commands.setContent(initialContent, false);
-                }
                 
                 // Debug: Check what was actually parsed
                 setTimeout(() => {
@@ -13106,6 +13127,19 @@
                 
                 // Set up context menu for formatting
                 setupInsightEditorContextMenu(editorElement);
+                
+                // Ensure editor is focused and ready for interaction
+                setTimeout(() => {
+                    if (insightsCurrentInsightEditor && insightsCurrentInsightEditor.view) {
+                        const view = insightsCurrentInsightEditor.view;
+                        if (view.dom) {
+                            view.dom.setAttribute('contenteditable', 'true');
+                            // Focus the editor to make it interactive
+                            insightsCurrentInsightEditor.commands.focus('end');
+                        }
+                    }
+                }, 200);
+                
                 console.log('[initializeInsightEditor GLOBAL] Editor initialization complete');
             } catch (error) {
                 console.error('Error initializing editor:', error);
