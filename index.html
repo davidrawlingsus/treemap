@@ -2239,46 +2239,6 @@
             color: #6347a9;
         }
 
-        .insight-origin-pill {
-            transition: all 0.2s ease;
-        }
-
-        .insight-origin-pill:hover {
-            opacity: 0.8;
-            transform: translateY(-1px);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-
-        .insight-origin-pill.tag-project:hover {
-            background: rgba(255, 171, 0, 0.25);
-        }
-
-        .insight-origin-pill.tag-data-source:hover {
-            background: rgba(99, 71, 169, 0.25);
-        }
-
-        .tag-category {
-            background: rgba(111, 212, 161, 0.15);
-            color: #6fd4a1;
-        }
-
-        .tag-topic {
-            background: rgba(116, 199, 232, 0.15);
-            color: #74c7e8;
-        }
-
-        .insight-origin-pill.tag-category:hover {
-            background: rgba(111, 212, 161, 0.25);
-        }
-
-        .insight-origin-pill.tag-topic:hover {
-            background: rgba(116, 199, 232, 0.25);
-        }
-
-        .insight-origin-pill:hover:not(.tag-project):not(.tag-data-source):not(.tag-category):not(.tag-topic) {
-            background: rgba(0, 0, 0, 0.05);
-        }
-
         /* Status */
         .status {
             display: flex;
@@ -11025,9 +10985,6 @@
                 indicator.textContent = insightsSortOrder === 'asc' ? '↑' : '↓';
             }
             
-            // Map 'origin' to 'project' for backend sorting (sorts by project name)
-            const sortColumn = column === 'origin' ? 'project' : column;
-            
             loadInsightsPage();
         }
 
@@ -13549,7 +13506,14 @@
                     const settingsBtn = document.getElementById('slideoutSettingsBtn');
                     
                     // Show search and settings for verbatims
-                    if (searchBox) searchBox.style.display = 'block';
+                    if (searchBox) {
+                        searchBox.style.display = 'block';
+                        // Also show the wrapper div that contains the search box
+                        const searchWrapper = searchBox.closest('div[style*="padding: 0 10px"]');
+                        if (searchWrapper) {
+                            searchWrapper.style.display = 'block';
+                        }
+                    }
                     if (settingsBtn) settingsBtn.style.display = 'block';
                     
                     // For verbatims mode, keep title as h2 (not editable)
@@ -13617,7 +13581,14 @@
                 });
                 
                 // Hide search and settings (only for verbatims)
-                if (searchBox) searchBox.style.display = 'none';
+                if (searchBox) {
+                    searchBox.style.display = 'none';
+                    // Also hide the wrapper div that contains the search box to remove unnecessary spacing
+                    const searchWrapper = searchBox.closest('div[style*="padding: 0 10px"]');
+                    if (searchWrapper) {
+                        searchWrapper.style.display = 'none';
+                    }
+                }
                 if (settingsBtn) settingsBtn.style.display = 'none';
                 if (subtitle) subtitle.style.display = 'none';
                 
@@ -13870,13 +13841,16 @@
                 
                 // Create panel structure with attributes (title is now in header)
                 // Use flexbox layout with scrollable content and fixed footer
+                // Adjust padding and gap when opened from context menu to reduce whitespace
+                const attributesPadding = fromContextMenu ? '0.5rem 1.5rem 0.75rem 1.5rem' : '1rem 1.5rem';
+                const attributesGap = fromContextMenu ? '0.5rem' : '0.75rem';
                 container.innerHTML = `
                     <div style="padding: 0; display: flex; flex-direction: column; height: 100%;">
                         <!-- Scrollable Content Area -->
                         <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column;">
                             <!-- Attributes Section -->
-                            <div style="padding: 1rem 1.5rem; border-bottom: 1px solid oklch(0.922 0 0); flex-shrink: 0;">
-                                <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                            <div style="padding: ${attributesPadding}; border-bottom: 1px solid oklch(0.922 0 0); flex-shrink: 0;">
+                                <div id="insightAttributes" style="display: flex; flex-direction: column; gap: ${attributesGap};">
                                     <!-- Breadcrumb -->
                                     ${breadcrumbHTML && !fromContextMenu ? `
                                     <div class="insight-attribute-row">
