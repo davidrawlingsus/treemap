@@ -5120,14 +5120,6 @@
                     <input type="text" id="insightModalName" required>
                 </div>
                 <div class="insight-form-group">
-                    <label for="insightModalType">Type *</label>
-                    <input type="text" id="insightModalType" required placeholder="e.g., improvement, feature, bug">
-                </div>
-                <div class="insight-form-group">
-                    <label for="insightModalApplication">Application</label>
-                    <textarea id="insightModalApplication" placeholder="Where/how to apply this insight"></textarea>
-                </div>
-                <div class="insight-form-group">
                     <label for="insightModalDescription">Description</label>
                     <textarea id="insightModalDescription" placeholder="Detailed description"></textarea>
                 </div>
@@ -10484,7 +10476,6 @@
         // Available filter fields
         const FILTER_FIELDS = [
             { id: 'status', label: 'Status', icon: '⁂', type: 'select' },
-            { id: 'type', label: 'Type', icon: '≡', type: 'select' },
             { id: 'project', label: 'Project', icon: '≡', type: 'select' },
             { id: 'data_source', label: 'Data Source', icon: '≡', type: 'select' },
             { id: 'created_at', label: 'Created', icon: '📅', type: 'date' }
@@ -10787,7 +10778,6 @@
                 const term = insightsSearchTerm.toLowerCase();
                 filtered = filtered.filter(insight => 
                     insight.name?.toLowerCase().includes(term) ||
-                    insight.type?.toLowerCase().includes(term) ||
                     insight.description?.toLowerCase().includes(term)
                 );
             }
@@ -10801,8 +10791,6 @@
                         
                         if (filter.field === 'status') {
                             insightValue = insight.status || 'Not Started';
-                        } else if (filter.field === 'type') {
-                            insightValue = insight.type;
                         } else if (filter.field === 'project' || filter.field === 'data_source') {
                             const firstOrigin = insight.origins?.[0] || {};
                             if (filter.field === 'project') {
@@ -10910,9 +10898,6 @@
                                 </svg>
                             </button>
                         </div>
-                    </td>`,
-                    type: `<td data-column="type">
-                        <span class="tag tag-type">${escapeHtml(toPascalCase(insight.type))}</span>
                     </td>`,
                     status: `<td data-column="status">
                         <select class="status-select" 
@@ -11780,8 +11765,6 @@
                 
                 if (fieldId === 'status') {
                     value = insight.status || 'Not Started';
-                } else if (fieldId === 'type') {
-                    value = insight.type;
                 } else if (fieldId === 'project' || fieldId === 'data_source' || fieldId === 'dimension') {
                     const firstOrigin = insight.origins?.[0] || {};
                     if (fieldId === 'project') {
@@ -11978,8 +11961,8 @@
             
             const insightData = {
                 name: document.getElementById('insightName').value.trim(),
-                type: document.getElementById('insightType').value.trim(),
-                application: toNull(document.getElementById('insightApplication').value),
+                type: '',
+                application: '',
                 description: toNull(document.getElementById('insightDescription').value),
                 origins: [{
                     origin_type: originContext.category ? 'category' : (originContext.topic_label ? 'topic' : 'category'),
@@ -12441,22 +12424,6 @@
                                 </div>
                                 ` : ''}
                                 
-                                <div class="insight-attribute-row">
-                                    <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Type</div>
-                                    <div style="flex: 1;">
-                                        <div id="insightTypeChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
-                                            ${escapeHtml(toPascalCase(insight.type || 'Empty'))}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="insight-attribute-row">
-                                    <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Application</div>
-                                    <div style="flex: 1;">
-                                        <div id="insightApplicationChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
-                                            ${escapeHtml(insight.application || 'Empty')}
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
                         </div>
                         <div style="padding: 1.5rem; flex-shrink: 0;">
@@ -12603,34 +12570,6 @@
             });
             
             // Title is now set up in header in openInsightNotes function, so no need to set it up here
-            
-            const typeChip = document.getElementById('insightTypeChip');
-            if (typeChip) {
-                typeChip.addEventListener('blur', () => {
-                    const newType = typeChip.textContent.trim() || 'Empty';
-                    debouncedSaveInsightField('type', newType === 'Empty' ? '' : newType);
-                });
-                typeChip.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        typeChip.blur();
-                    }
-                });
-            }
-            
-            const appChip = document.getElementById('insightApplicationChip');
-            if (appChip) {
-                appChip.addEventListener('blur', () => {
-                    const newApp = appChip.textContent.trim() || 'Empty';
-                    debouncedSaveInsightField('application', newApp === 'Empty' ? '' : newApp);
-                });
-                appChip.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        appChip.blur();
-                    }
-                });
-            }
             
             await initializeInsightEditor(document.getElementById('insightNotesEditor'), insight.notes || '');
         }
@@ -13612,9 +13551,9 @@
                     if (searchBox) {
                         searchBox.style.display = 'block';
                         // Also show the wrapper div that contains the search box
-                        const searchWrapper = searchBox.closest('div[style*="padding: 0 10px"]');
-                        if (searchWrapper) {
-                            searchWrapper.style.display = 'block';
+                        const searchContainer = document.getElementById('slideoutSearchContainer');
+                        if (searchContainer) {
+                            searchContainer.style.display = 'block';
                         }
                     }
                     if (settingsBtn) settingsBtn.style.display = 'block';
@@ -13687,9 +13626,9 @@
                 if (searchBox) {
                     searchBox.style.display = 'none';
                     // Also hide the wrapper div that contains the search box to remove unnecessary spacing
-                    const searchWrapper = searchBox.closest('div[style*="padding: 0 10px"]');
-                    if (searchWrapper) {
-                        searchWrapper.style.display = 'none';
+                    const searchContainer = document.getElementById('slideoutSearchContainer');
+                    if (searchContainer) {
+                        searchContainer.style.display = 'none';
                     }
                 }
                 if (settingsBtn) settingsBtn.style.display = 'none';
@@ -13756,6 +13695,8 @@
                 
                 // Hide search and settings (only for verbatims)
                 if (searchBox) searchBox.style.display = 'none';
+                const searchContainer = document.getElementById('slideoutSearchContainer');
+                if (searchContainer) searchContainer.style.display = 'none';
                 if (settingsBtn) settingsBtn.style.display = 'none';
                 if (subtitle) subtitle.style.display = 'none';
                 
@@ -13968,25 +13909,6 @@
                                     </div>
                                     ` : ''}
                                     
-                                    <!-- Type Attribute -->
-                                    <div class="insight-attribute-row">
-                                        <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Type</div>
-                                        <div style="flex: 1;">
-                                            <div id="insightTypeChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
-                                                Empty
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Application Attribute -->
-                                    <div class="insight-attribute-row">
-                                        <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Application</div>
-                                        <div style="flex: 1;">
-                                            <div id="insightApplicationChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
-                                                Empty
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                             
@@ -14039,48 +13961,6 @@
                         if (e.key === 'Enter') {
                             e.preventDefault();
                             titleEl.blur();
-                        }
-                    });
-                }
-                
-                // Set up editable type chip (no auto-save in create mode)
-                const typeChip = document.getElementById('insightTypeChip');
-                if (typeChip) {
-                    typeChip.addEventListener('focus', () => {
-                        if (typeChip.textContent.trim() === 'Empty') {
-                            typeChip.textContent = '';
-                        }
-                    });
-                    typeChip.addEventListener('blur', () => {
-                        if (!typeChip.textContent.trim()) {
-                            typeChip.textContent = 'Empty';
-                        }
-                    });
-                    typeChip.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter') {
-                            e.preventDefault();
-                            typeChip.blur();
-                        }
-                    });
-                }
-                
-                // Set up editable application chip (no auto-save in create mode)
-                const appChip = document.getElementById('insightApplicationChip');
-                if (appChip) {
-                    appChip.addEventListener('focus', () => {
-                        if (appChip.textContent.trim() === 'Empty') {
-                            appChip.textContent = '';
-                        }
-                    });
-                    appChip.addEventListener('blur', () => {
-                        if (!appChip.textContent.trim()) {
-                            appChip.textContent = 'Empty';
-                        }
-                    });
-                    appChip.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter') {
-                            e.preventDefault();
-                            appChip.blur();
                         }
                     });
                 }
@@ -14213,12 +14093,8 @@
                 }
                 
                 const titleEl = document.getElementById('slideoutTitle');
-                const typeChip = document.getElementById('insightTypeChip');
-                const appChip = document.getElementById('insightApplicationChip');
                 
                 const name = titleEl?.textContent.trim() || '';
-                const type = typeChip?.textContent.trim() || '';
-                const application = appChip?.textContent.trim() || '';
                 const notes = this.currentInsightEditor ? this.currentInsightEditor.getHTML() : '';
                 
                 console.log('[saveNewInsight] Notes content:', notes);
@@ -14242,11 +14118,6 @@
                     return;
                 }
                 
-                if (!type || type === 'Empty') {
-                    alert('Please enter an insight type');
-                    return;
-                }
-                
                 const statusEl = document.getElementById('insightNotesSaveStatus');
                 if (statusEl) statusEl.textContent = 'Creating...';
                 
@@ -14263,8 +14134,8 @@
                 try {
                     const insightData = {
                         name: name,
-                        type: type === 'Empty' ? '' : type,
-                        application: application === 'Empty' ? '' : application,
+                        type: '',
+                        application: '',
                         notes: notes || null,
                         origins: [this.createInsightOrigin],
                         verbatims: pinnedVerbatimsArray.length > 0 ? pinnedVerbatimsArray : null,
@@ -14421,25 +14292,6 @@
                                     </div>
                                     ` : ''}
                                     
-                                    <!-- Type Attribute -->
-                                    <div class="insight-attribute-row">
-                                        <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Type</div>
-                                        <div style="flex: 1;">
-                                            <div id="insightTypeChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
-                                                ${escapeHtml(insight.type || 'Empty')}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Application Attribute -->
-                                    <div class="insight-attribute-row">
-                                        <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Application</div>
-                                        <div style="flex: 1;">
-                                            <div id="insightApplicationChip" class="insight-attribute-chip" contenteditable="true" style="display: inline-block; min-width: 60px;">
-                                                ${escapeHtml(insight.application || 'Empty')}
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                             
@@ -14558,59 +14410,8 @@
                     });
                 }
                 
-                // Set up editable type chip (with auto-save for edit mode)
-                const editTypeChip = document.getElementById('insightTypeChip');
-                if (editTypeChip) {
-                    editTypeChip.addEventListener('focus', () => {
-                        if (editTypeChip.textContent.trim() === 'Empty') {
-                            editTypeChip.textContent = '';
-                        }
-                    });
-                    editTypeChip.addEventListener('blur', () => {
-                        // Restore "Empty" if field is left blank
-                        if (!editTypeChip.textContent.trim()) {
-                            editTypeChip.textContent = 'Empty';
-                        }
-                        // Only auto-save if we're in edit mode, not create mode
-                        if (this.currentMode === 'insight-notes' && this.currentInsightId) {
-                            const newType = editTypeChip.textContent.trim() || 'Empty';
-                            this.debouncedSaveInsightField('type', newType === 'Empty' ? '' : newType);
-                        }
-                    });
-                    editTypeChip.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter') {
-                            e.preventDefault();
-                            editTypeChip.blur();
-                        }
-                    });
-                }
                 
                 // Set up editable application chip (with auto-save for edit mode)
-                const editAppChip = document.getElementById('insightApplicationChip');
-                if (editAppChip) {
-                    editAppChip.addEventListener('focus', () => {
-                        if (editAppChip.textContent.trim() === 'Empty') {
-                            editAppChip.textContent = '';
-                        }
-                    });
-                    editAppChip.addEventListener('blur', () => {
-                        // Restore "Empty" if field is left blank
-                        if (!editAppChip.textContent.trim()) {
-                            editAppChip.textContent = 'Empty';
-                        }
-                        // Only auto-save if we're in edit mode, not create mode
-                        if (this.currentMode === 'insight-notes' && this.currentInsightId) {
-                            const newApp = editAppChip.textContent.trim() || 'Empty';
-                            this.debouncedSaveInsightField('application', newApp === 'Empty' ? '' : newApp);
-                        }
-                    });
-                    editAppChip.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter') {
-                            e.preventDefault();
-                            editAppChip.blur();
-                        }
-                    });
-                }
                 
                 // Initialize editor with notes
                 console.log('[initializeInsightPanel] Initializing editor with notes:', insight.notes);
@@ -15332,6 +15133,8 @@
                             }
                             if (subtitle) subtitle.style.display = 'none';
                             if (searchBox) searchBox.style.display = 'none';
+                            const searchContainer = document.getElementById('slideoutSearchContainer');
+                            if (searchContainer) searchContainer.style.display = 'none';
                             if (settingsBtn) settingsBtn.style.display = 'none';
                             
                             // Update content (this happens after all UI elements are set)
@@ -15356,6 +15159,8 @@
                     }
                     if (subtitle) subtitle.style.display = 'none';
                     if (searchBox) searchBox.style.display = 'none';
+                    const searchContainer = document.getElementById('slideoutSearchContainer');
+                    if (searchContainer) searchContainer.style.display = 'none';
                     if (settingsBtn) settingsBtn.style.display = 'none';
                     
                     // Update content (this happens after all UI elements are set)
@@ -16236,7 +16041,6 @@
                 const term = insightsSearchTerm.toLowerCase();
                 filtered = filtered.filter(insight =>
                     insight.name?.toLowerCase().includes(term) ||
-                    insight.type?.toLowerCase().includes(term) ||
                     insight.description?.toLowerCase().includes(term)
                 );
             }
@@ -16245,7 +16049,7 @@
             Object.entries(insightsFilters).forEach(([key, value]) => {
                 if (value) {
                     filtered = filtered.filter(insight => {
-                        if (key === 'type') return insight.type?.toLowerCase().includes(value.toLowerCase());
+                        // Filter logic (type filter removed)
                         return true;
                     });
                 }
@@ -16257,9 +16061,6 @@
                 if (insightsSortBy === 'name') {
                     aVal = a.name || '';
                     bVal = b.name || '';
-                } else if (insightsSortBy === 'type') {
-                    aVal = a.type || '';
-                    bVal = b.type || '';
                 } else if (insightsSortBy === 'created_at') {
                     aVal = new Date(a.created_at).getTime();
                     bVal = new Date(b.created_at).getTime();
@@ -16363,12 +16164,7 @@
         }
 
         function openInsightsFilterMenu() {
-            const type = prompt('Filter by type (leave empty to cancel):');
-            if (type && type.trim()) {
-                insightsFilters.type = type.trim();
-                updateInsightsFilterChips();
-                renderInsights();
-            }
+            // Type filter removed
         }
 
         function escapeHtml(text) {
@@ -16778,12 +16574,10 @@
             }
             
             const name = document.getElementById('insightModalName').value.trim();
-            const type = document.getElementById('insightModalType').value.trim();
-            const application = document.getElementById('insightModalApplication').value.trim() || null;
             const description = document.getElementById('insightModalDescription').value.trim() || null;
             
-            if (!name || !type) {
-                alert('Please fill in required fields (Name and Type)');
+            if (!name) {
+                alert('Please fill in required fields (Name)');
                 return;
             }
             
@@ -16795,8 +16589,8 @@
             
             const insightData = {
                 name,
-                type,
-                application,
+                type: '',
+                application: '',
                 description,
                 origins: [origin],
             };
@@ -16918,7 +16712,7 @@
         </div>
         
         <!-- Search box for verbatims -->
-        <div style="padding: 0 10px 10px 10px; margin-top: 16px;">
+        <div id="slideoutSearchContainer" style="padding: 0 10px 10px 10px; margin-top: 16px; display: none;">
             <div style="position: relative;">
                 <input
                     type="text"
@@ -17001,10 +16795,6 @@
                                 <span>Name</span>
                                 <span class="sort-indicator">↓</span>
                             </th>
-                            <th class="draggable" data-column="type" draggable="true" onclick="sortBy('type')">
-                                <span>Type</span>
-                                <span class="sort-indicator"></span>
-                            </th>
                             <th class="draggable" data-column="status" draggable="true" onclick="sortBy('status')">
                                 <span>Status</span>
                                 <span class="sort-indicator"></span>
@@ -17052,14 +16842,6 @@
                     <div class="form-group">
                         <label>Insight Name *</label>
                         <input type="text" id="insightName" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Type *</label>
-                        <input type="text" id="insightType" required placeholder="e.g., improvement, feature, bug">
-                    </div>
-                    <div class="form-group">
-                        <label>Application</label>
-                        <textarea id="insightApplication" placeholder="Where/how to apply this insight"></textarea>
                     </div>
                     <div class="form-group">
                         <label>Description</label>
