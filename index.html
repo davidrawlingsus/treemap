@@ -1306,6 +1306,13 @@
             margin-bottom: 8px;
         }
 
+        .search-highlight {
+            background-color: #fff3cd;
+            padding: 2px 2px;
+            border-radius: 2px;
+            font-weight: 500;
+        }
+
         .verbatim-meta {
             display: flex;
             flex-direction: column;
@@ -3418,6 +3425,73 @@
             justify-content: space-between;
             align-items: center;
             background: oklch(1 0 0); /* White */
+            gap: 12px;
+        }
+
+        .slideout-back-button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 6px;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            color: oklch(0.556 0 0);
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .slideout-back-button:hover {
+            background: oklch(0.97 0 0);
+            color: oklch(0.145 0 0);
+        }
+
+        .slideout-back-button:active {
+            transform: scale(0.95);
+        }
+
+        .insight-breadcrumb {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 4px;
+            font-size: 0.875rem;
+            font-family: 'Lato', sans-serif;
+            color: oklch(0.556 0 0);
+        }
+
+        .insight-breadcrumb-item {
+            color: oklch(0.556 0 0);
+        }
+
+        .insight-breadcrumb-item--clickable {
+            color: oklch(0.4 0.15 240);
+            cursor: pointer;
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .insight-breadcrumb-item--clickable:hover {
+            color: oklch(0.3 0.2 240);
+            text-decoration: underline;
+        }
+
+        .insight-breadcrumb-separator {
+            color: oklch(0.7 0 0);
+            margin: 0 4px;
+        }
+
+        .chart-view-highlighted {
+            background: oklch(0.95 0.1 120) !important;
+            border: 2px solid #B9F040 !important;
+            border-radius: 4px;
+        }
+
+        .chart-view-highlighted-topic {
+            background: oklch(0.97 0.05 120) !important;
+            border-left: 3px solid #B9F040 !important;
+            padding-left: 8px !important;
         }
 
         .ai-insights-header h2,
@@ -3698,6 +3772,25 @@
             flex: 1;
             overflow-y: auto;
             padding: 24px;
+            transition: opacity 0.2s ease;
+        }
+
+        .ai-insights-content.transitioning {
+            opacity: 0;
+        }
+
+        #slideoutTitle.transitioning,
+        #slideoutSubtitle.transitioning,
+        #slideoutSearch.transitioning,
+        #slideoutSettingsBtn.transitioning {
+            opacity: 0;
+        }
+        
+        #slideoutTitle,
+        #slideoutSubtitle,
+        #slideoutSearch,
+        #slideoutSettingsBtn {
+            transition: opacity 0.2s ease;
         }
 
         .ai-loading {
@@ -4434,6 +4527,25 @@
             flex: 1;
             overflow-y: auto;
             padding: 0 10px;
+            transition: opacity 0.2s ease;
+        }
+
+        .ai-insights-content.transitioning {
+            opacity: 0;
+        }
+
+        #slideoutTitle.transitioning,
+        #slideoutSubtitle.transitioning,
+        #slideoutSearch.transitioning,
+        #slideoutSettingsBtn.transitioning {
+            opacity: 0;
+        }
+        
+        #slideoutTitle,
+        #slideoutSubtitle,
+        #slideoutSearch,
+        #slideoutSettingsBtn {
+            transition: opacity 0.2s ease;
         }
 
         .insight-attribute-row {
@@ -4736,7 +4848,6 @@
                             </svg>
                         </button>
                     </div>
-                    <p class="treemap-subtitle">Hierarchical view of conversation categories and topics</p>
                 </div>
                 <div class="treemap-search-container">
                     <input
@@ -8112,6 +8223,35 @@
             return div.innerHTML;
         }
 
+        // Highlight search terms in text (case-insensitive, supports multiple words)
+        function highlightSearchTerms(text, searchTerm) {
+            if (!text || !searchTerm) {
+                return escapeHtml(text || '');
+            }
+            
+            // Escape the text first for safety
+            const escapedText = escapeHtml(text);
+            const trimmedSearch = searchTerm.trim();
+            if (!trimmedSearch) {
+                return escapedText;
+            }
+            
+            // Split search term into words (handle multiple words)
+            const searchWords = trimmedSearch.split(/\s+/).filter(word => word.length > 0);
+            
+            // Build regex pattern that matches any of the search words (case-insensitive)
+            const pattern = searchWords.map(word => {
+                // Escape special regex characters in the search word
+                const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                return escapedWord;
+            }).join('|');
+            
+            const regex = new RegExp(`(${pattern})`, 'gi');
+            
+            // Replace matches with highlighted versions
+            return escapedText.replace(regex, '<mark class="search-highlight">$1</mark>');
+        }
+
         // Render verbatims cards with current metadata settings
         function renderVerbatims(verbatims, topicName, categoryName) {
             const container = document.getElementById('verbatims');
@@ -8158,7 +8298,8 @@
                 card.className = 'verbatim-card';
                 
                 const sentimentClass = v.sentiment ? `sentiment-${v.sentiment}` : 'sentiment-neutral';
-                const escapedText = escapeHtml(v.text || 'No text available');
+                // Highlight search terms if there's a search
+                const highlightedText = searchTerm ? highlightSearchTerms(v.text || 'No text available', verbatimSearchTerm) : escapeHtml(v.text || 'No text available');
                 const escapedCity = v.city ? escapeHtml(v.city) : '';
                 const escapedCountry = v.country ? escapeHtml(v.country) : '';
                 
@@ -8206,7 +8347,7 @@
                 
                 card.innerHTML = `
                     <div class="verbatim-card-header">
-                        <div class="verbatim-text" style="flex: 1; margin-bottom: 0; padding-right: 8px;">${escapedText}</div>
+                        <div class="verbatim-text" style="flex: 1; margin-bottom: 0; padding-right: 8px;">${highlightedText}</div>
                         <button class="create-insight-button" data-verbatim="${verbatimData}" onclick="createInsightFromVerbatim(this)" title="Create insight from this verbatim" style="background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; color: oklch(0.556 0 0); transition: all 0.2s ease;" onmouseover="this.style.color='#B9F040'" onmouseout="this.style.color='oklch(0.556 0 0)'">
                             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M12 5v14M5 12h14"/>
@@ -8257,6 +8398,8 @@
             const searchInput = document.getElementById('slideoutSearch');
             if (searchInput) {
                 searchInput.value = '';
+                // Focus the search input after clearing
+                searchInput.focus();
                 handleSlideoutSearch();
             }
         }
@@ -8367,6 +8510,21 @@
             });
             
             // Display filtered verbatims
+            // Set the search term in the slideout panel so highlighting works
+            if (window.SlideoutPanel) {
+                window.SlideoutPanel.verbatimSearchTerm = searchTerm;
+                // Also update the slideout search input to show the search term
+                const slideoutSearchInput = document.getElementById('slideoutSearch');
+                const slideoutClearBtn = document.getElementById('slideoutSearchClear');
+                if (slideoutSearchInput) {
+                    slideoutSearchInput.value = searchTerm;
+                }
+                // Show the clear button if there's a search term
+                if (slideoutClearBtn) {
+                    slideoutClearBtn.style.display = searchTerm ? 'flex' : 'none';
+                }
+            }
+            
             if (filteredVerbatims.length > 0) {
                 showVerbatims(filteredVerbatims, `Search: "${searchTerm}"`, 'All Categories');
             } else {
@@ -8383,6 +8541,25 @@
                 searchInput.value = '';
                 if (clearBtn) {
                     clearBtn.style.display = 'none';
+                }
+                // Focus the search input after clearing
+                searchInput.focus();
+            }
+            
+            // Clear the slideout search term if it was set from treemap search
+            if (window.SlideoutPanel) {
+                const slideoutSearchInput = document.getElementById('slideoutSearch');
+                if (slideoutSearchInput && slideoutSearchInput.value) {
+                    // Only clear if the slideout is showing search results
+                    const currentTitle = document.getElementById('slideoutTitle');
+                    if (currentTitle && currentTitle.textContent.includes('Search:')) {
+                        window.SlideoutPanel.verbatimSearchTerm = '';
+                        slideoutSearchInput.value = '';
+                        const slideoutClearBtn = document.getElementById('slideoutSearchClear');
+                        if (slideoutClearBtn) {
+                            slideoutClearBtn.style.display = 'none';
+                        }
+                    }
                 }
             }
             
@@ -8671,7 +8848,8 @@
                 card.className = 'verbatim-card';
                 
                 const sentimentClass = v.sentiment ? `sentiment-${v.sentiment}` : 'sentiment-neutral';
-                const escapedText = escapeHtml(v.text || 'No text available');
+                // Highlight search terms if there's a search
+                const highlightedText = searchTerm ? highlightSearchTerms(v.text || 'No text available', favouritesSearchTerm) : escapeHtml(v.text || 'No text available');
                 const escapedCity = v.city ? escapeHtml(v.city) : '';
                 const escapedCountry = v.country ? escapeHtml(v.country) : '';
                 
@@ -8740,7 +8918,7 @@
                 
                 card.innerHTML = `
                     <div class="verbatim-card-header">
-                        <div class="verbatim-text" style="flex: 1; margin-bottom: 0; padding-right: 8px;">${escapedText}</div>
+                        <div class="verbatim-text" style="flex: 1; margin-bottom: 0; padding-right: 8px;">${highlightedText}</div>
                         <button class="create-insight-button" data-verbatim="${verbatimData}" onclick="createInsightFromVerbatim(this)" title="Create insight from this verbatim" style="background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; color: oklch(0.556 0 0); transition: all 0.2s ease;" onmouseover="this.style.color='#B9F040'" onmouseout="this.style.color='oklch(0.556 0 0)'">
                             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M12 5v14M5 12h14"/>
@@ -10650,7 +10828,7 @@
                 
                 // Build row HTML in the correct order
                 const orderedCells = columnOrder.map(col => cells[col] || '').filter(cell => cell);
-                const checkboxCell = `<td class="checkbox-cell">
+                const checkboxCell = `<td class="checkbox-cell" onclick="event.stopPropagation(); const checkbox = this.querySelector('.insight-checkbox'); if (checkbox && !event.target.matches('.insight-checkbox')) { checkbox.checked = !checkbox.checked; checkbox.dispatchEvent(new Event('change')); }">
                     <input type="checkbox" class="insight-checkbox" data-insight-id="${insight.id}" onchange="handleInsightCheckboxChange()" onclick="event.stopPropagation()">
                 </td>`;
                 
@@ -11788,6 +11966,12 @@
                 return;
             }
             
+            // Reset navigation stack when opening a new insight (if using SlideoutPanel)
+            if (window.SlideoutPanel) {
+                window.SlideoutPanel.navigationStack = [];
+                window.SlideoutPanel.updateBackButton();
+            }
+            
             insightsCurrentInsightNotesId = insightId;
             
             const panel = document.getElementById('insightNotesPanel');
@@ -11893,15 +12077,54 @@
         }
 
         async function initializeInsightPanel(container, insight) {
+            console.log('[BreadcrumbNav] initializeInsightPanel (standalone) called for insight:', insight.id);
             if (!container) return;
             
-            // Extract category and topic from origins JSONB (matching SlideoutPanel implementation)
+            // Reset navigation stack when opening a new insight (if using SlideoutPanel)
+            if (window.SlideoutPanel) {
+                window.SlideoutPanel.navigationStack = [];
+                window.SlideoutPanel.updateBackButton();
+            }
+            
+            // Extract breadcrumb data from origins JSONB
             const firstOrigin = insight.origins?.[0] || {};
             const categoryName = firstOrigin.category || null;
             const topicName = firstOrigin.topic_label || null;
+            const dataSourceId = firstOrigin.data_source || null;
+            const dimensionName = firstOrigin.dimension_name || null;
+            
+            console.log('[BreadcrumbNav] initializeInsightPanel (standalone) - Extracted breadcrumb data:', { categoryName, topicName, dataSourceId, dimensionName });
+            
+            // Fetch data source name if we have SlideoutPanel available
+            let dataSourceName = null;
+            if (dataSourceId && window.SlideoutPanel) {
+                dataSourceName = await window.SlideoutPanel.fetchDataSourceName(dataSourceId);
+                console.log('[BreadcrumbNav] initializeInsightPanel (standalone) - Fetched data source name:', dataSourceName);
+            }
             
             // Get verbatims from insight
             const insightVerbatims = (insight.verbatims && Array.isArray(insight.verbatims)) ? insight.verbatims : [];
+            
+            // Build breadcrumb HTML
+            const breadcrumbParts = [];
+            if (dataSourceName) {
+                breadcrumbParts.push(`<span class="insight-breadcrumb-item">${escapeHtml(dataSourceName)}</span>`);
+            }
+            if (dimensionName) {
+                breadcrumbParts.push(`<span class="insight-breadcrumb-item">${escapeHtml(dimensionName)}</span>`);
+            }
+            if (categoryName) {
+                breadcrumbParts.push(`<span class="insight-breadcrumb-item insight-breadcrumb-item--clickable" data-breadcrumb-click="category" data-category="${escapeHtml(categoryName)}" data-topic="${topicName ? escapeHtml(topicName) : ''}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}">${escapeHtml(categoryName)}</span>`);
+            }
+            if (topicName) {
+                breadcrumbParts.push(`<span class="insight-breadcrumb-item insight-breadcrumb-item--clickable" data-breadcrumb-click="topic" data-category="${categoryName ? escapeHtml(categoryName) : ''}" data-topic="${escapeHtml(topicName)}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}">${escapeHtml(topicName)}</span>`);
+            }
+            
+            const breadcrumbHTML = breadcrumbParts.length > 0 
+                ? `<div class="insight-breadcrumb">${breadcrumbParts.join('<span class="insight-breadcrumb-separator">/</span>')}</div>`
+                : '';
+            
+            console.log('[BreadcrumbNav] initializeInsightPanel (standalone) - Generated breadcrumb HTML');
             
             container.innerHTML = `
                 <div style="padding: 0; display: flex; flex-direction: column; height: 100%;">
@@ -11909,26 +12132,12 @@
                     <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column;">
                         <div style="padding: 1rem 1.5rem; border-bottom: 1px solid oklch(0.922 0 0); flex-shrink: 0;">
                             <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 0.75rem;">
-                                <!-- Category Attribute -->
-                                ${categoryName ? `
+                                <!-- Breadcrumb -->
+                                ${breadcrumbHTML ? `
                                 <div class="insight-attribute-row">
-                                    <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Category</div>
+                                    <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Origin</div>
                                     <div style="flex: 1;">
-                                        <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
-                                            ${escapeHtml(categoryName)}
-                                        </div>
-                                    </div>
-                                </div>
-                                ` : ''}
-                                
-                                <!-- Topic Attribute -->
-                                ${topicName ? `
-                                <div class="insight-attribute-row">
-                                    <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Topic</div>
-                                    <div style="flex: 1;">
-                                        <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
-                                            ${escapeHtml(topicName)}
-                                        </div>
+                                        ${breadcrumbHTML}
                                     </div>
                                 </div>
                                 ` : ''}
@@ -11993,6 +12202,80 @@
                     </div>
                 </div>
             `;
+            
+            // Set up breadcrumb click handlers
+            const breadcrumbClickItems = container.querySelectorAll('[data-breadcrumb-click]');
+            breadcrumbClickItems.forEach(item => {
+                item.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const clickType = item.getAttribute('data-breadcrumb-click');
+                    const catName = item.getAttribute('data-category') || null;
+                    const topName = item.getAttribute('data-topic') || null;
+                    const dsId = item.getAttribute('data-data-source') || null;
+                    const dimName = item.getAttribute('data-dimension') || null;
+                    
+                    console.log('[BreadcrumbNav] initializeInsightPanel (standalone) - Breadcrumb clicked:', { clickType, catName, topName, dsId, dimName });
+                    
+                    if (clickType === 'topic' && topName && catName) {
+                        // Topic click: go directly to verbatims
+                        const insightId = insightsCurrentInsightNotesId;
+                        if (window.SlideoutPanel && insightId) {
+                            // Set SlideoutPanel state
+                            window.SlideoutPanel.currentMode = 'insight-notes';
+                            window.SlideoutPanel.currentInsightId = insightId;
+                            
+                            // Close the insightNotesPanel first
+                            const insightPanel = document.getElementById('insightNotesPanel');
+                            const insightOverlay = document.getElementById('insightNotesOverlay');
+                            if (insightPanel) {
+                                insightPanel.classList.remove('open');
+                                console.log('[BreadcrumbNav] Closed insightNotesPanel');
+                            }
+                            if (insightOverlay) {
+                                insightOverlay.classList.remove('visible');
+                            }
+                            
+                            // Small delay to ensure panel is closed before opening new one
+                            setTimeout(() => {
+                                if (window.SlideoutPanel.navigateToVerbatimsFromBreadcrumb) {
+                                    window.SlideoutPanel.navigateToVerbatimsFromBreadcrumb(topName, catName);
+                                }
+                            }, 100);
+                        } else {
+                            console.warn('[BreadcrumbNav] SlideoutPanel or insightId not available');
+                        }
+                    } else if (clickType === 'category') {
+                        // Category click: go to chart view
+                        const insightId = insightsCurrentInsightNotesId;
+                        if (window.SlideoutPanel && insightId) {
+                            // Set SlideoutPanel state so navigateToChart knows we're coming from insight
+                            window.SlideoutPanel.currentMode = 'insight-notes';
+                            window.SlideoutPanel.currentInsightId = insightId;
+                            
+                            // Close the insightNotesPanel first
+                            const insightPanel = document.getElementById('insightNotesPanel');
+                            const insightOverlay = document.getElementById('insightNotesOverlay');
+                            if (insightPanel) {
+                                insightPanel.classList.remove('open');
+                                console.log('[BreadcrumbNav] Closed insightNotesPanel');
+                            }
+                            if (insightOverlay) {
+                                insightOverlay.classList.remove('visible');
+                            }
+                            
+                            // Small delay to ensure panel is closed before opening new one
+                            setTimeout(() => {
+                                // Navigate to chart view in slideoutPanel
+                                if (window.SlideoutPanel.navigateToChart) {
+                                    window.SlideoutPanel.navigateToChart(catName, null, dsId, dimName);
+                                }
+                            }, 100);
+                        } else {
+                            console.warn('[BreadcrumbNav] SlideoutPanel or insightId not available');
+                        }
+                    }
+                });
+            });
             
             // Title is now set up in header in openInsightNotes function, so no need to set it up here
             
@@ -12835,13 +13118,19 @@
         // Slideout Panel - handles AI Insights, Verbatims, Insight Notes, and Create Insight
         const SlideoutPanel = {
             isOpen: false,
-            currentMode: null, // 'ai-insights', 'verbatims', 'insight-notes', or 'create-insight'
+            currentMode: null, // 'ai-insights', 'verbatims', 'insight-notes', 'create-insight', or 'chart'
             currentContext: null,
             currentDimensionRef: null,  // Track current dimension
             currentInsightEditor: null,  // Tiptap editor instance for insight notes
             currentInsightId: null,  // Currently open insight ID
             currentInsightData: null,  // Full insight data for editing
             createInsightContext: null,  // Context data for creating new insight
+            navigationStack: [],  // Navigation stack: [{level, data, view}], levels: 'insight', 'chart', 'verbatims'
+            dataSourceNameCache: {},  // Cache for data source names: {dataSourceId: name}
+            currentChartCategoryName: null,  // Current chart view category
+            currentChartTopicName: null,  // Current chart view topic (if any)
+            currentChartDataSourceId: null,  // Current chart view data source
+            currentChartDimensionName: null,  // Current chart view dimension
             
             init() {
                 const tab = document.getElementById('slideoutTab');
@@ -12931,13 +13220,40 @@
                 await this.loadSummary();
             },
             
-            openVerbatims(verbatims, topicName, categoryName) {
-                console.log('SlideoutPanel.openVerbatims called with:', { 
+            openVerbatims(verbatims, topicName, categoryName, skipUIUpdates = false, skipStackPush = false) {
+                console.log('[BreadcrumbNav] SlideoutPanel.openVerbatims called with:', { 
                     verbatimsCount: verbatims?.length, 
                     topicName, 
                     categoryName,
-                    firstVerbatim: verbatims?.[0]
+                    firstVerbatim: verbatims?.[0],
+                    currentMode: this.currentMode,
+                    skipUIUpdates,
+                    skipStackPush
                 });
+                
+                // Save current state to navigation stack if not already in verbatims mode and not skipped
+                if (!skipStackPush && this.currentMode !== 'verbatims') {
+                    if (this.currentMode === 'chart') {
+                        // Save chart state
+                        this.navigationStack.push({
+                            level: 'chart',
+                            data: { 
+                                categoryName: categoryName || null,
+                                topicName: topicName || null
+                            },
+                            view: 'chart'
+                        });
+                        console.log('[BreadcrumbNav] Pushed chart state to stack');
+                    } else if (this.currentMode === 'insight-notes' && this.currentInsightId) {
+                        // Save insight state
+                        this.navigationStack.push({
+                            level: 'insight',
+                            data: { insightId: this.currentInsightId },
+                            view: 'insight'
+                        });
+                        console.log('[BreadcrumbNav] Pushed insight state to stack');
+                    }
+                }
                 
                 this.currentMode = 'verbatims';
                 this.currentVerbatimsData = verbatims;
@@ -12945,30 +13261,42 @@
                 this.currentCategoryName = categoryName;
                 this.verbatimSearchTerm = '';
                 
-                // Open UI
-                const panel = document.getElementById('slideoutPanel');
-                const overlay = document.getElementById('slideoutOverlay');
-                const title = document.getElementById('slideoutTitle');
-                const subtitle = document.getElementById('slideoutSubtitle');
-                
-                // For verbatims mode, keep title as h2 (not editable)
-                if (title) {
-                    title.textContent = topicName;
-                    // Remove contenteditable if it was set
-                    title.removeAttribute('contenteditable');
-                    title.setAttribute('data-placeholder', '');
+                // Update UI (unless already updated by caller)
+                if (!skipUIUpdates) {
+                    // Open UI
+                    const panel = document.getElementById('slideoutPanel');
+                    const overlay = document.getElementById('slideoutOverlay');
+                    const title = document.getElementById('slideoutTitle');
+                    const subtitle = document.getElementById('slideoutSubtitle');
+                    const searchBox = document.getElementById('slideoutSearch');
+                    const settingsBtn = document.getElementById('slideoutSettingsBtn');
+                    
+                    // Show search and settings for verbatims
+                    if (searchBox) searchBox.style.display = 'block';
+                    if (settingsBtn) settingsBtn.style.display = 'block';
+                    
+                    // For verbatims mode, keep title as h2 (not editable)
+                    if (title) {
+                        title.textContent = topicName || categoryName || 'Verbatims';
+                        // Remove contenteditable if it was set
+                        title.removeAttribute('contenteditable');
+                        title.setAttribute('data-placeholder', '');
+                    }
+                    if (subtitle) {
+                        subtitle.textContent = `${categoryName || ''} • ${verbatims.length} verbatim${verbatims.length !== 1 ? 's' : ''}`;
+                        subtitle.style.display = 'block';
+                    }
+                    
+                    // Update back button
+                    this.updateBackButton();
+                    
+                    if (panel) panel.classList.add('open');
+                    if (overlay) overlay.classList.add('visible');
+                    this.isOpen = true;
+                    
+                    // Prevent body scroll
+                    document.body.classList.add('slideout-open');
                 }
-                if (subtitle) {
-                    subtitle.textContent = `${categoryName} • ${verbatims.length} verbatim${verbatims.length !== 1 ? 's' : ''}`;
-                    subtitle.style.display = 'block';
-                }
-                
-                if (panel) panel.classList.add('open');
-                if (overlay) overlay.classList.add('visible');
-                this.isOpen = true;
-                
-                // Prevent body scroll
-                document.body.classList.add('slideout-open');
                 
                 // Render verbatims
                 this.renderVerbatims(verbatims, topicName, categoryName);
@@ -12982,6 +13310,10 @@
                     console.error('[SlideoutPanel.openCreateInsight] No client selected');
                     return;
                 }
+                
+                // Reset navigation stack when creating new insight
+                this.navigationStack = [];
+                this.updateBackButton();
                 
                 this.currentMode = 'create-insight';
                 this.createInsightContext = contextData;
@@ -13100,11 +13432,45 @@
                     
                     // Initialize panel with attributes and editor
                     await this.initializeInsightPanel(content, insight);
+                    
+                    // Remove transitioning class from all elements (for smooth fade-in)
+                    const updatedContent = document.getElementById('slideoutContent');
+                    const updatedTitle = document.getElementById('slideoutTitle');
+                    const updatedSubtitle = document.getElementById('slideoutSubtitle');
+                    const updatedSearchBox = document.getElementById('slideoutSearch');
+                    const updatedSettingsBtn = document.getElementById('slideoutSettingsBtn');
+                    
+                    if (updatedContent) {
+                        void updatedContent.offsetHeight;
+                        updatedContent.classList.remove('transitioning');
+                    }
+                    if (updatedTitle) {
+                        void updatedTitle.offsetHeight;
+                        updatedTitle.classList.remove('transitioning');
+                    }
+                    if (updatedSubtitle) {
+                        void updatedSubtitle.offsetHeight;
+                        updatedSubtitle.classList.remove('transitioning');
+                    }
+                    if (updatedSearchBox) {
+                        void updatedSearchBox.offsetHeight;
+                        updatedSearchBox.classList.remove('transitioning');
+                    }
+                    if (updatedSettingsBtn) {
+                        void updatedSettingsBtn.offsetHeight;
+                        updatedSettingsBtn.classList.remove('transitioning');
+                    }
                 } catch (error) {
                     console.error('Error loading insight:', error);
                     if (content) {
                         content.innerHTML = `<div style="padding: 24px; color: #666;">Error loading insight: ${error.message}</div>`;
                     }
+                    // Remove transitioning from all elements even on error
+                    const allElements = [content, title, subtitle, searchBox, settingsBtn].filter(Boolean);
+                    allElements.forEach(el => {
+                        void el.offsetHeight;
+                        el.classList.remove('transitioning');
+                    });
                 }
             },
             
@@ -13161,9 +13527,13 @@
                     topic_label: contextData.topic_label || null,
                 };
                 
-                // Extract category and topic from context data
+                // Extract breadcrumb data from context data
                 const categoryName = contextData.category || null;
                 const topicName = contextData.topic_label || null;
+                const dataSourceName = contextData.data_source || null; // This is the name, not ID in contextData
+                const dimensionName = contextData.dimension_name || null;
+                
+                console.log('[BreadcrumbNav] initializeCreateInsightPanel - Extracted breadcrumb data:', { categoryName, topicName, dataSourceName, dimensionName });
                 
                 // Get verbatims for this context
                 let availableVerbatims = this.getVerbatimsFromContext(contextData);
@@ -13191,6 +13561,28 @@
                     this.prePinnedVerbatimIndex = null;
                 }
                 
+                // Build breadcrumb HTML
+                const breadcrumbParts = [];
+                if (dataSourceName) {
+                    breadcrumbParts.push(`<span class="insight-breadcrumb-item">${escapeHtml(dataSourceName)}</span>`);
+                }
+                if (dimensionName) {
+                    breadcrumbParts.push(`<span class="insight-breadcrumb-item">${escapeHtml(dimensionName)}</span>`);
+                }
+                if (categoryName) {
+                    // For create mode, we don't have data source ID yet, so we'll pass the name
+                    breadcrumbParts.push(`<span class="insight-breadcrumb-item insight-breadcrumb-item--clickable" data-breadcrumb-click="category" data-category="${escapeHtml(categoryName)}" data-topic="${topicName ? escapeHtml(topicName) : ''}" data-data-source-name="${dataSourceName || ''}" data-dimension="${dimensionName || ''}">${escapeHtml(categoryName)}</span>`);
+                }
+                if (topicName) {
+                    breadcrumbParts.push(`<span class="insight-breadcrumb-item insight-breadcrumb-item--clickable" data-breadcrumb-click="topic" data-category="${categoryName ? escapeHtml(categoryName) : ''}" data-topic="${escapeHtml(topicName)}" data-data-source-name="${dataSourceName || ''}" data-dimension="${dimensionName || ''}">${escapeHtml(topicName)}</span>`);
+                }
+                
+                const breadcrumbHTML = breadcrumbParts.length > 0 
+                    ? `<div class="insight-breadcrumb">${breadcrumbParts.join('<span class="insight-breadcrumb-separator">/</span>')}</div>`
+                    : '';
+                
+                console.log('[BreadcrumbNav] initializeCreateInsightPanel - Generated breadcrumb HTML');
+                
                 // Create panel structure with attributes (title is now in header)
                 // Use flexbox layout with scrollable content and fixed footer
                 container.innerHTML = `
@@ -13200,26 +13592,12 @@
                             <!-- Attributes Section -->
                             <div style="padding: 1rem 1.5rem; border-bottom: 1px solid oklch(0.922 0 0); flex-shrink: 0;">
                                 <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 0.75rem;">
-                                    <!-- Category Attribute -->
-                                    ${categoryName ? `
+                                    <!-- Breadcrumb -->
+                                    ${breadcrumbHTML ? `
                                     <div class="insight-attribute-row">
-                                        <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Category</div>
+                                        <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Origin</div>
                                         <div style="flex: 1;">
-                                            <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
-                                                ${escapeHtml(categoryName)}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    ` : ''}
-                                    
-                                    <!-- Topic Attribute -->
-                                    ${topicName ? `
-                                    <div class="insight-attribute-row">
-                                        <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Topic</div>
-                                        <div style="flex: 1;">
-                                            <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
-                                                ${escapeHtml(topicName)}
-                                            </div>
+                                            ${breadcrumbHTML}
                                         </div>
                                     </div>
                                     ` : ''}
@@ -13348,6 +13726,27 @@
                         this.saveNewInsight();
                     });
                 }
+                
+                // Set up breadcrumb click handlers
+                const breadcrumbClickItems = container.querySelectorAll('[data-breadcrumb-click]');
+                breadcrumbClickItems.forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const clickType = item.getAttribute('data-breadcrumb-click');
+                        const catName = item.getAttribute('data-category') || null;
+                        const topName = item.getAttribute('data-topic') || null;
+                        const dsName = item.getAttribute('data-data-source-name') || null;
+                        const dimName = item.getAttribute('data-dimension') || null;
+                        
+                        console.log('[BreadcrumbNav] initializeCreateInsightPanel - Breadcrumb clicked:', { clickType, catName, topName, dsName, dimName });
+                        
+                        if (clickType === 'category' || clickType === 'topic') {
+                            // For create mode, we need to find the data source ID from the name
+                            // We'll navigate to chart view, and it should work with current rawData
+                            this.navigateToChart(catName, topName, null, dimName);
+                        }
+                    });
+                });
                 
                 // Initialize editor with empty notes
                 await this.initializeInsightEditor(document.getElementById('insightNotesEditor'), '');
@@ -13550,12 +13949,28 @@
             },
             
             async initializeInsightPanel(container, insight) {
+                console.log('[BreadcrumbNav] initializeInsightPanel called for insight:', insight.id);
                 if (!container) return;
                 
-                // Extract category and topic from origins JSONB
+                // Reset navigation stack when opening a new insight
+                this.navigationStack = [];
+                this.updateBackButton();
+                
+                // Extract breadcrumb data from origins JSONB
                 const firstOrigin = insight.origins?.[0] || {};
                 const categoryName = firstOrigin.category || null;
                 const topicName = firstOrigin.topic_label || null;
+                const dataSourceId = firstOrigin.data_source || null;
+                const dimensionName = firstOrigin.dimension_name || null;
+                
+                console.log('[BreadcrumbNav] Extracted breadcrumb data:', { categoryName, topicName, dataSourceId, dimensionName });
+                
+                // Fetch data source name
+                let dataSourceName = null;
+                if (dataSourceId) {
+                    dataSourceName = await this.fetchDataSourceName(dataSourceId);
+                    console.log('[BreadcrumbNav] Fetched data source name:', dataSourceName);
+                }
                 
                 // Set editable title in header
                 const insightTitleEl = document.getElementById('slideoutTitle');
@@ -13568,6 +13983,27 @@
                 // Get verbatims from insight
                 const insightVerbatims = insight.verbatims || [];
                 
+                // Build breadcrumb HTML
+                const breadcrumbParts = [];
+                if (dataSourceName) {
+                    breadcrumbParts.push(`<span class="insight-breadcrumb-item">${escapeHtml(dataSourceName)}</span>`);
+                }
+                if (dimensionName) {
+                    breadcrumbParts.push(`<span class="insight-breadcrumb-item">${escapeHtml(dimensionName)}</span>`);
+                }
+                if (categoryName) {
+                    breadcrumbParts.push(`<span class="insight-breadcrumb-item insight-breadcrumb-item--clickable" data-breadcrumb-click="category" data-category="${escapeHtml(categoryName)}" data-topic="${topicName ? escapeHtml(topicName) : ''}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}">${escapeHtml(categoryName)}</span>`);
+                }
+                if (topicName) {
+                    breadcrumbParts.push(`<span class="insight-breadcrumb-item insight-breadcrumb-item--clickable" data-breadcrumb-click="topic" data-category="${categoryName ? escapeHtml(categoryName) : ''}" data-topic="${escapeHtml(topicName)}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}">${escapeHtml(topicName)}</span>`);
+                }
+                
+                const breadcrumbHTML = breadcrumbParts.length > 0 
+                    ? `<div class="insight-breadcrumb">${breadcrumbParts.join('<span class="insight-breadcrumb-separator">/</span>')}</div>`
+                    : '';
+                
+                console.log('[BreadcrumbNav] Generated breadcrumb HTML');
+                
                 // Create panel structure with attributes (title is now in header)
                 container.innerHTML = `
                     <div style="padding: 0; display: flex; flex-direction: column; height: 100%;">
@@ -13576,26 +14012,12 @@
                             <!-- Attributes Section -->
                             <div style="padding: 1rem 1.5rem; border-bottom: 1px solid oklch(0.922 0 0); flex-shrink: 0;">
                                 <div id="insightAttributes" style="display: flex; flex-direction: column; gap: 0.75rem;">
-                                    <!-- Category Attribute -->
-                                    ${categoryName ? `
+                                    <!-- Breadcrumb -->
+                                    ${breadcrumbHTML ? `
                                     <div class="insight-attribute-row">
-                                        <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Category</div>
+                                        <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Origin</div>
                                         <div style="flex: 1;">
-                                            <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
-                                                ${escapeHtml(categoryName)}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    ` : ''}
-                                    
-                                    <!-- Topic Attribute -->
-                                    ${topicName ? `
-                                    <div class="insight-attribute-row">
-                                        <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Topic</div>
-                                        <div style="flex: 1;">
-                                            <div class="insight-attribute-chip" style="display: inline-block; background: oklch(0.97 0 0); color: oklch(0.145 0 0); cursor: default;">
-                                                ${escapeHtml(topicName)}
-                                            </div>
+                                            ${breadcrumbHTML}
                                         </div>
                                     </div>
                                     ` : ''}
@@ -13666,6 +14088,29 @@
                     </div>
                     </div>
                 `;
+                
+                // Set up breadcrumb click handlers
+                const breadcrumbClickItems = container.querySelectorAll('[data-breadcrumb-click]');
+                breadcrumbClickItems.forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const clickType = item.getAttribute('data-breadcrumb-click');
+                        const catName = item.getAttribute('data-category') || null;
+                        const topName = item.getAttribute('data-topic') || null;
+                        const dsId = item.getAttribute('data-data-source') || null;
+                        const dimName = item.getAttribute('data-dimension') || null;
+                        
+                        console.log('[BreadcrumbNav] Breadcrumb clicked:', { clickType, catName, topName, dsId, dimName });
+                        
+                        if (clickType === 'topic' && topName && catName) {
+                            // Topic click: go directly to verbatims
+                            this.navigateToVerbatimsFromBreadcrumb(topName, catName);
+                        } else if (clickType === 'category') {
+                            // Category click: go to chart view
+                            this.navigateToChart(catName, null, dsId, dimName);
+                        }
+                    });
+                });
                 
                 // Set up editable title in header (with auto-save for edit mode)
                 const headerTitleEl = document.getElementById('slideoutTitle');
@@ -14334,6 +14779,11 @@
                 this.currentInsightData = null;
                 this.createInsightContext = null;
                 this.createInsightOrigin = null;
+                this.navigationStack = [];  // Reset navigation stack
+                
+                // Hide back button
+                const backButton = document.getElementById('slideoutBackButton');
+                if (backButton) backButton.style.display = 'none';
                 
                 // Clear save timeouts
                 if (this.saveTimeout) {
@@ -14344,6 +14794,480 @@
                     clearTimeout(this.fieldSaveTimeout);
                     this.fieldSaveTimeout = null;
                 }
+            },
+            
+            // Fetch data source name from API
+            async fetchDataSourceName(dataSourceId) {
+                console.log('[BreadcrumbNav] fetchDataSourceName called with:', dataSourceId);
+                if (!dataSourceId) {
+                    console.log('[BreadcrumbNav] No data source ID provided');
+                    return null;
+                }
+                
+                // Check cache first
+                if (this.dataSourceNameCache[dataSourceId]) {
+                    console.log('[BreadcrumbNav] Using cached data source name:', this.dataSourceNameCache[dataSourceId]);
+                    return this.dataSourceNameCache[dataSourceId];
+                }
+                
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/data-sources/${dataSourceId}`, {
+                        headers: getAuthHeaders()
+                    });
+                    
+                    if (!response.ok) {
+                        console.warn('[BreadcrumbNav] Failed to fetch data source:', response.status);
+                        return null;
+                    }
+                    
+                    const dataSource = await response.json();
+                    const name = dataSource.name || dataSource.source_name || null;
+                    
+                    if (name) {
+                        this.dataSourceNameCache[dataSourceId] = name;
+                        console.log('[BreadcrumbNav] Cached data source name:', name);
+                    }
+                    
+                    return name;
+                } catch (error) {
+                    console.error('[BreadcrumbNav] Error fetching data source name:', error);
+                    return null;
+                }
+            },
+            
+            // Update back button visibility
+            updateBackButton() {
+                const backButton = document.getElementById('slideoutBackButton');
+                if (backButton) {
+                    if (this.navigationStack.length > 0) {
+                        backButton.style.display = 'flex';
+                        console.log('[BreadcrumbNav] Back button shown, stack length:', this.navigationStack.length);
+                    } else {
+                        backButton.style.display = 'none';
+                        console.log('[BreadcrumbNav] Back button hidden');
+                    }
+                }
+            },
+            
+            // Navigate back through navigation stack
+            async navigateBack() {
+                console.log('[BreadcrumbNav] navigateBack called, stack:', this.navigationStack);
+                
+                if (this.navigationStack.length === 0) {
+                    console.warn('[BreadcrumbNav] Navigation stack is empty, cannot navigate back');
+                    return;
+                }
+                
+                const previousState = this.navigationStack.pop();
+                console.log('[BreadcrumbNav] Popped state:', previousState);
+                
+                // Get all UI elements
+                const content = document.getElementById('slideoutContent');
+                const title = document.getElementById('slideoutTitle');
+                const subtitle = document.getElementById('slideoutSubtitle');
+                const searchBox = document.getElementById('slideoutSearch');
+                const settingsBtn = document.getElementById('slideoutSettingsBtn');
+                const backButton = document.getElementById('slideoutBackButton');
+                
+                // Start transition: fade out ALL UI elements simultaneously
+                if (content) content.classList.add('transitioning');
+                if (title) title.classList.add('transitioning');
+                if (subtitle) subtitle.classList.add('transitioning');
+                if (searchBox) searchBox.classList.add('transitioning');
+                if (settingsBtn) settingsBtn.classList.add('transitioning');
+                
+                // Wait for fade out
+                await new Promise(resolve => setTimeout(resolve, 200));
+                
+                // Update ALL UI elements simultaneously before restoring content
+                // This ensures everything changes at once, not sequentially
+                this.updateBackButton();
+                
+                // Restore previous view based on level (this will update content)
+                if (previousState.level === 'insight') {
+                    // Restore insight view - load data first, then update all UI at once
+                    if (previousState.data.insightId) {
+                        // Load insight data
+                        const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights/${previousState.data.insightId}`, {
+                            headers: getAuthHeaders()
+                        });
+                        
+                        if (response.ok) {
+                            const insight = await response.json();
+                            this.currentInsightData = insight;
+                            this.currentMode = 'insight-notes';
+                            this.currentInsightId = previousState.data.insightId;
+                            
+                            // Update ALL UI elements at once (before content update)
+                            if (title) {
+                                title.textContent = insight.name || '';
+                                title.setAttribute('contenteditable', 'true');
+                                title.setAttribute('data-placeholder', 'Insight Title');
+                            }
+                            if (subtitle) subtitle.style.display = 'none';
+                            if (searchBox) searchBox.style.display = 'none';
+                            if (settingsBtn) settingsBtn.style.display = 'none';
+                            
+                            // Update content (this happens after all UI elements are set)
+                            await this.initializeInsightPanel(content, insight);
+                        }
+                    }
+                } else if (previousState.level === 'chart') {
+                    // Restore chart view
+                    this.currentMode = 'chart';
+                    
+                    // Update ALL UI elements at once (before content update)
+                    if (title) {
+                        if (previousState.data.topicName && previousState.data.categoryName) {
+                            title.textContent = `${previousState.data.categoryName} / ${previousState.data.topicName}`;
+                        } else if (previousState.data.categoryName) {
+                            title.textContent = previousState.data.categoryName;
+                        } else {
+                            title.textContent = 'Topics by Category';
+                        }
+                        title.removeAttribute('contenteditable');
+                        title.setAttribute('data-placeholder', '');
+                    }
+                    if (subtitle) subtitle.style.display = 'none';
+                    if (searchBox) searchBox.style.display = 'none';
+                    if (settingsBtn) settingsBtn.style.display = 'none';
+                    
+                    // Update content (this happens after all UI elements are set)
+                    await this.renderChartView(
+                        previousState.data.categoryName,
+                        previousState.data.topicName,
+                        previousState.data.dataSourceId,
+                        previousState.data.dimensionName,
+                        true // Skip UI updates, already done above
+                    );
+                }
+                
+                // End transition: fade in all elements (re-get elements in case DOM was updated)
+                const updatedContent = document.getElementById('slideoutContent');
+                const updatedTitle = document.getElementById('slideoutTitle');
+                const updatedSubtitle = document.getElementById('slideoutSubtitle');
+                const updatedSearchBox = document.getElementById('slideoutSearch');
+                const updatedSettingsBtn = document.getElementById('slideoutSettingsBtn');
+                
+                // Force reflow and remove transitioning class from all elements
+                if (updatedContent) {
+                    void updatedContent.offsetHeight;
+                    updatedContent.classList.remove('transitioning');
+                }
+                if (updatedTitle) {
+                    void updatedTitle.offsetHeight;
+                    updatedTitle.classList.remove('transitioning');
+                }
+                if (updatedSubtitle) {
+                    void updatedSubtitle.offsetHeight;
+                    updatedSubtitle.classList.remove('transitioning');
+                }
+                if (updatedSearchBox) {
+                    void updatedSearchBox.offsetHeight;
+                    updatedSearchBox.classList.remove('transitioning');
+                }
+                if (updatedSettingsBtn) {
+                    void updatedSettingsBtn.offsetHeight;
+                    updatedSettingsBtn.classList.remove('transitioning');
+                }
+            },
+            
+            // Navigate to chart view from breadcrumb
+            async navigateToChart(categoryName, topicName, dataSourceId, dimensionName) {
+                console.log('[BreadcrumbNav] navigateToChart called:', { categoryName, topicName, dataSourceId, dimensionName });
+                
+                // Save current state to navigation stack
+                if (this.currentMode === 'insight-notes' && this.currentInsightId) {
+                    this.navigationStack.push({
+                        level: 'insight',
+                        data: { insightId: this.currentInsightId },
+                        view: 'insight'
+                    });
+                    console.log('[BreadcrumbNav] Pushed insight state to stack');
+                }
+                
+                // Navigate to chart view
+                await this.renderChartView(categoryName, topicName, dataSourceId, dimensionName);
+            },
+            
+            // Render chart view in slideout
+            async renderChartView(categoryName, topicName, dataSourceId, dimensionName, skipUIUpdates = false) {
+                console.log('[BreadcrumbNav] renderChartView called:', { categoryName, topicName, dataSourceId, dimensionName, skipUIUpdates });
+                
+                this.currentMode = 'chart';
+                // Track current chart state
+                this.currentChartCategoryName = categoryName;
+                this.currentChartTopicName = topicName;
+                this.currentChartDataSourceId = dataSourceId;
+                this.currentChartDimensionName = dimensionName;
+                
+                // Update UI (unless already updated by caller)
+                if (!skipUIUpdates) {
+                    const panel = document.getElementById('slideoutPanel');
+                    const overlay = document.getElementById('slideoutOverlay');
+                    const title = document.getElementById('slideoutTitle');
+                    const searchBox = document.getElementById('slideoutSearch');
+                    const settingsBtn = document.getElementById('slideoutSettingsBtn');
+                    const subtitle = document.getElementById('slideoutSubtitle');
+                    
+                    // Hide search and settings
+                    if (searchBox) searchBox.style.display = 'none';
+                    if (settingsBtn) settingsBtn.style.display = 'none';
+                    if (subtitle) subtitle.style.display = 'none';
+                    
+                    // Set title
+                    if (title) {
+                        if (topicName && categoryName) {
+                            title.textContent = `${categoryName} / ${topicName}`;
+                        } else if (categoryName) {
+                            title.textContent = categoryName;
+                        } else {
+                            title.textContent = 'Topics by Category';
+                        }
+                        title.removeAttribute('contenteditable');
+                        title.setAttribute('data-placeholder', '');
+                    }
+                    
+                    // Update back button
+                    this.updateBackButton();
+                    
+                    // Open panel if not already open
+                    if (panel && !panel.classList.contains('open')) {
+                        panel.classList.add('open');
+                    }
+                    if (overlay && !overlay.classList.contains('visible')) {
+                        overlay.classList.add('visible');
+                    }
+                    this.isOpen = true;
+                    document.body.classList.add('slideout-open');
+                }
+                
+                const content = document.getElementById('slideoutContent');
+                
+                // Process chart data using existing function
+                const { categories: allCategories, totalTopicInstances } = processBarChartData();
+                const colorPalette = generateCategoryColorPalette();
+                
+                // Filter to only show the specified category if categoryName is provided
+                const categories = categoryName 
+                    ? allCategories.filter(c => c.name === categoryName)
+                    : allCategories;
+                
+                // Calculate total for filtered categories
+                const filteredTotal = categories.reduce((sum, cat) => sum + cat.count, 0);
+                
+                // Get max percent for scaling (use filtered categories)
+                const maxPercent = categories.length > 0 
+                    ? Math.max(...categories.map(c => c.percent))
+                    : 0;
+                
+                // Render chart in content
+                if (!content) {
+                    console.error('[BreadcrumbNav] Content container not found');
+                    return;
+                }
+                
+                // Build chart HTML
+                let chartHTML = `
+                    <div style="padding: 1rem 1.5rem; display: flex; flex-direction: column; height: 100%; overflow-y: auto;">
+                        <div style="margin-bottom: 1rem; font-size: 0.875rem; color: oklch(0.556 0 0);">
+                            Frequency (n=${filteredTotal})
+                        </div>
+                        <div id="chartViewContainer" style="display: flex; flex-direction: column; gap: 1rem;">
+                `;
+                
+                // Render each category (now filtered to only show the selected one if categoryName provided)
+                categories.forEach((category, catIndex) => {
+                    const categoryId = `chart-cat-${catIndex}`;
+                    const isHighlighted = categoryName && category.name === categoryName;
+                    // Auto-expand if we're showing only one category (categoryName provided) or if navigating from topic
+                    const shouldExpand = categoryName ? true : (isHighlighted && topicName);
+                    const baseColor = colorPalette[category.name] || categoryColors[catIndex % categoryColors.length];
+                    
+                    // Category header
+                    chartHTML += `
+                        <div class="chart-category-group" style="border: 1px solid oklch(0.922 0 0); border-radius: 4px; padding: 0.75rem; ${isHighlighted ? 'background: oklch(0.95 0.1 120); border: 2px solid #B9F040;' : ''}">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin-bottom: ${shouldExpand ? '0.5rem' : '0'};" 
+                                 onclick="SlideoutPanel.toggleChartCategory('${categoryId}')"
+                                 data-category-name="${escapeHtml(category.name)}">
+                                <button style="background: none; border: none; cursor: pointer; font-size: 1.2rem; color: oklch(0.556 0 0); width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;"
+                                        data-category-toggle="${categoryId}">${shouldExpand ? '−' : '+'}</button>
+                                <div style="flex: 1; font-weight: 600; font-size: 0.875rem; color: oklch(0.145 0 0);">${escapeHtml(category.name)}</div>
+                                <div style="font-size: 0.875rem; color: oklch(0.556 0 0);">${category.percent.toFixed(1)}%</div>
+                            </div>
+                            
+                            <!-- Category bar -->
+                            <div style="margin-bottom: 0.5rem; cursor: pointer;"
+                                 onclick="SlideoutPanel.navigateToVerbatimsFromChart(null, '${escapeHtml(category.name)}')">
+                                <div style="position: relative; height: 24px; background: oklch(0.97 0 0); border-radius: 4px; overflow: hidden;">
+                                    <div style="height: 100%; width: ${(category.percent / maxPercent) * 100}%; background: ${baseColor}; transition: width 0.3s ease;"></div>
+                                    <div style="position: absolute; top: 50%; left: 8px; transform: translateY(-50%); font-size: 0.75rem; color: ${category.percent / maxPercent > 0.15 ? '#fff' : 'oklch(0.145 0 0)'}; font-weight: 500;">
+                                        ${category.percent.toFixed(1)}%
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Topics panel -->
+                            <div id="${categoryId}" style="display: ${shouldExpand ? 'block' : 'none'}; margin-top: 0.5rem; padding-left: 2rem;">
+                                ${category.topics.map((topic, topicIndex) => {
+                                    const isTopicHighlighted = topicName && topic.name === topicName;
+                                    const topicColor = adjustColorLightness(baseColor, (topicIndex % 3 - 1) * 15);
+                                    return `
+                                        <div class="chart-topic-row" 
+                                             style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; margin-bottom: 0.5rem; cursor: pointer; border-radius: 4px; ${isTopicHighlighted ? 'background: oklch(0.97 0.05 120); border-left: 3px solid #B9F040; padding-left: 8px;' : ''}"
+                                             onclick="SlideoutPanel.navigateToVerbatimsFromChart('${escapeHtml(topic.name)}', '${escapeHtml(category.name)}')">
+                                            <div style="width: 8px; height: 8px; border-radius: 50%; background: ${topicColor}; opacity: 0.6;"></div>
+                                            <div style="flex: 1; font-size: 0.875rem; color: oklch(0.145 0 0);">${escapeHtml(topic.name)}</div>
+                                            <div style="font-size: 0.75rem; color: oklch(0.556 0 0);">${topic.percent.toFixed(1)}%</div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                chartHTML += `
+                        </div>
+                    </div>
+                `;
+                
+                content.innerHTML = chartHTML;
+                
+                // Remove transitioning class from all elements (for smooth fade-in)
+                const updatedContent = document.getElementById('slideoutContent');
+                const updatedTitle = document.getElementById('slideoutTitle');
+                const updatedSubtitle = document.getElementById('slideoutSubtitle');
+                const updatedSearchBox = document.getElementById('slideoutSearch');
+                const updatedSettingsBtn = document.getElementById('slideoutSettingsBtn');
+                
+                if (updatedContent) {
+                    void updatedContent.offsetHeight;
+                    updatedContent.classList.remove('transitioning');
+                }
+                if (updatedTitle) {
+                    void updatedTitle.offsetHeight;
+                    updatedTitle.classList.remove('transitioning');
+                }
+                if (updatedSubtitle) {
+                    void updatedSubtitle.offsetHeight;
+                    updatedSubtitle.classList.remove('transitioning');
+                }
+                if (updatedSearchBox) {
+                    void updatedSearchBox.offsetHeight;
+                    updatedSearchBox.classList.remove('transitioning');
+                }
+                if (updatedSettingsBtn) {
+                    void updatedSettingsBtn.offsetHeight;
+                    updatedSettingsBtn.classList.remove('transitioning');
+                }
+                
+                console.log('[BreadcrumbNav] Chart view rendered');
+            },
+            
+            // Toggle category expansion in chart view
+            toggleChartCategory(categoryId) {
+                console.log('[BreadcrumbNav] toggleChartCategory called:', categoryId);
+                const panel = document.getElementById(categoryId);
+                const toggle = document.querySelector(`[data-category-toggle="${categoryId}"]`);
+                
+                if (panel && toggle) {
+                    if (panel.style.display === 'none') {
+                        panel.style.display = 'block';
+                        toggle.textContent = '−';
+                    } else {
+                        panel.style.display = 'none';
+                        toggle.textContent = '+';
+                    }
+                }
+            },
+            
+            // Navigate to verbatims from breadcrumb (direct navigation, skipping chart)
+            navigateToVerbatimsFromBreadcrumb(topicName, categoryName) {
+                console.log('[BreadcrumbNav] navigateToVerbatimsFromBreadcrumb called:', { topicName, categoryName });
+                
+                // Save current insight state to navigation stack
+                if (this.currentMode === 'insight-notes' && this.currentInsightId) {
+                    this.navigationStack.push({
+                        level: 'insight',
+                        data: { insightId: this.currentInsightId },
+                        view: 'insight'
+                    });
+                    console.log('[BreadcrumbNav] Pushed insight state to stack from breadcrumb');
+                }
+                
+                // Get verbatims from chart data
+                const { categories } = processBarChartData();
+                let verbatims = [];
+                
+                if (topicName && categoryName) {
+                    // Get verbatims for specific topic
+                    const category = categories.find(c => c.name === categoryName);
+                    if (category) {
+                        const topic = category.topics.find(t => t.name === topicName);
+                        if (topic) {
+                            verbatims = topic.verbatims || [];
+                        }
+                    }
+                }
+                
+                console.log('[BreadcrumbNav] Found verbatims from breadcrumb:', verbatims.length);
+                
+                // Navigate to verbatims view
+                this.openVerbatims(verbatims, topicName, categoryName);
+            },
+            
+            // Navigate to verbatims from chart view
+            navigateToVerbatimsFromChart(topicName, categoryName) {
+                console.log('[BreadcrumbNav] navigateToVerbatimsFromChart called:', { topicName, categoryName });
+                
+                // Save current chart state to navigation stack (use current chart state, not navigation target)
+                this.navigationStack.push({
+                    level: 'chart',
+                    data: { 
+                        categoryName: this.currentChartCategoryName || null,
+                        topicName: this.currentChartTopicName || null,
+                        dataSourceId: this.currentChartDataSourceId || null,
+                        dimensionName: this.currentChartDimensionName || null
+                    },
+                    view: 'chart'
+                });
+                console.log('[BreadcrumbNav] Pushed current chart state to stack:', {
+                    categoryName: this.currentChartCategoryName,
+                    topicName: this.currentChartTopicName,
+                    dataSourceId: this.currentChartDataSourceId,
+                    dimensionName: this.currentChartDimensionName
+                });
+                
+                // Get verbatims from chart data
+                const { categories } = processBarChartData();
+                let verbatims = [];
+                
+                if (topicName && categoryName) {
+                    // Get verbatims for specific topic
+                    const category = categories.find(c => c.name === categoryName);
+                    if (category) {
+                        const topic = category.topics.find(t => t.name === topicName);
+                        if (topic) {
+                            verbatims = topic.verbatims || [];
+                        }
+                    }
+                } else if (categoryName) {
+                    // Get all verbatims for category
+                    const category = categories.find(c => c.name === categoryName);
+                    if (category) {
+                        category.topics.forEach(topic => {
+                            if (topic.verbatims) {
+                                verbatims.push(...topic.verbatims);
+                            }
+                        });
+                    }
+                }
+                
+                console.log('[BreadcrumbNav] Found verbatims:', verbatims.length);
+                
+                // Navigate to verbatims view - pass skipStackPush=true since we already pushed chart state
+                this.openVerbatims(verbatims, topicName || categoryName, categoryName, false, true);
             },
             
             // Extract all available metadata fields from verbatims
@@ -14520,7 +15444,8 @@
                     const card = document.createElement('div');
                     card.className = 'verbatim-card';
                     
-                    const escapedText = escapeHtml(v.text || 'No text available');
+                    // Highlight search terms if there's a search
+                    const highlightedText = searchTerm ? highlightSearchTerms(v.text || 'No text available', searchTerm) : escapeHtml(v.text || 'No text available');
                     
                     // Build metadata HTML based on settings
                     const metaItems = [];
@@ -14607,7 +15532,7 @@
                     const verbatimData = btoa(unescape(encodeURIComponent(verbatimJson)));
                     card.innerHTML = `
                         <div class="verbatim-card-header">
-                            <div class="verbatim-text" style="flex: 1; margin-bottom: 0; padding-right: 8px;">${escapedText}</div>
+                            <div class="verbatim-text" style="flex: 1; margin-bottom: 0; padding-right: 8px;">${highlightedText}</div>
                             <button class="create-insight-button" data-verbatim="${verbatimData}" onclick="createInsightFromVerbatim(this)" title="Create insight from this verbatim" style="background: none; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; color: oklch(0.556 0 0); transition: all 0.2s ease;" onmouseover="this.style.color='#B9F040'" onmouseout="this.style.color='oklch(0.556 0 0)'">
                                 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                     <path d="M12 5v14M5 12h14"/>
@@ -14621,6 +15546,34 @@
                 });
                 
                 console.log('Finished rendering', displayVerbatims.length, 'cards to slideoutContent');
+                
+                // Remove transitioning class from all elements (for smooth fade-in)
+                const updatedContent = document.getElementById('slideoutContent');
+                const updatedTitle = document.getElementById('slideoutTitle');
+                const updatedSubtitle = document.getElementById('slideoutSubtitle');
+                const updatedSearchBox = document.getElementById('slideoutSearch');
+                const updatedSettingsBtn = document.getElementById('slideoutSettingsBtn');
+                
+                if (updatedContent) {
+                    void updatedContent.offsetHeight;
+                    updatedContent.classList.remove('transitioning');
+                }
+                if (updatedTitle) {
+                    void updatedTitle.offsetHeight;
+                    updatedTitle.classList.remove('transitioning');
+                }
+                if (updatedSubtitle) {
+                    void updatedSubtitle.offsetHeight;
+                    updatedSubtitle.classList.remove('transitioning');
+                }
+                if (updatedSearchBox) {
+                    void updatedSearchBox.offsetHeight;
+                    updatedSearchBox.classList.remove('transitioning');
+                }
+                if (updatedSettingsBtn) {
+                    void updatedSettingsBtn.offsetHeight;
+                    updatedSettingsBtn.classList.remove('transitioning');
+                }
             },
             
             async loadSummary(forceRegenerate = false) {
@@ -15535,6 +16488,11 @@
     
     <div id="slideoutPanel" class="ai-insights-panel">
         <div class="ai-insights-header">
+            <button id="slideoutBackButton" class="slideout-back-button" onclick="SlideoutPanel.navigateBack()" title="Back">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 4l-6 6 6 6"/>
+                </svg>
+            </button>
             <div style="flex: 1;">
                 <div id="slideoutTitle" 
                      contenteditable="true" 
