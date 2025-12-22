@@ -3719,9 +3719,9 @@
         }
         
         .image-modal-close {
-            position: absolute;
-            top: -2.5rem;
-            right: 0;
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
             background: rgba(255, 255, 255, 0.2);
             border: none;
             color: white;
@@ -3735,6 +3735,7 @@
             justify-content: center;
             line-height: 1;
             transition: background 0.2s;
+            z-index: 100001; /* Above the modal overlay */
         }
         
         .image-modal-close:hover {
@@ -3894,6 +3895,46 @@
         }
 
         #slideoutSearchClear:hover {
+            background: #f5f5f5;
+            color: #333;
+        }
+
+        .insights-panel-header-center .search-box {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 8px 36px 8px 12px;
+        }
+
+        #insightsSearchInput {
+            color: #333 !important;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 14px;
+            width: 100%;
+            padding: 0;
+        }
+
+        #insightsSearchInput::placeholder {
+            color: rgba(55, 53, 47, 0.4);
+        }
+
+        .insights-panel-header-center .search-box:focus-within {
+            border-color: #B9F040 !important;
+            box-shadow: 0 0 0 3px rgba(185, 240, 64, 0.1) !important;
+        }
+
+        #insightsSearchInput:focus {
+            outline: none;
+        }
+
+        #insightsSearchClear {
+            transition: all 0.2s;
+        }
+
+        #insightsSearchClear:hover {
             background: #f5f5f5;
             color: #333;
         }
@@ -5070,10 +5111,18 @@
                     <div class="insights-panel-header">
                         <div class="insights-panel-header-left">
                             <h2>Recent Insights</h2>
-                            <div class="search-box" style="margin-left: 16px;">
-                                <input type="text" id="insightsSearchInput" placeholder="Search insights..." oninput="handleInsightsSearch()">
-                            </div>
                             <span id="insightsFilterBadge" class="insights-filter-badge" style="display: none;"></span>
+                        </div>
+                        <div class="insights-panel-header-center" style="position: relative; flex: 1; display: flex; justify-content: center;">
+                            <div class="search-box" style="position: relative; min-width: 200px; max-width: 400px; width: 100%;">
+                                <input type="text" id="insightsSearchInput" placeholder="Search insights..." oninput="handleInsightsSearch()" onfocus="updateInsightsSearchClearButton()">
+                                <button
+                                    id="insightsSearchClear"
+                                    onclick="clearInsightsSearch()"
+                                    style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 0; display: none; color: #666; font-size: 20px; line-height: 1; width: 24px; height: 24px; align-items: center; justify-content: center; border-radius: 3px;"
+                                    title="Clear search"
+                                >&times;</button>
+                            </div>
                         </div>
                         <div class="insights-panel-header-right">
                             <button class="insights-panel-toggle" onclick="toggleInsightsPanel()" id="insightsPanelToggle">
@@ -16021,6 +16070,9 @@
 
             tbody.innerHTML = filtered.map(insight => {
                 const createdDate = new Date(insight.created_at).toLocaleDateString();
+                // Highlight search terms in insight name if there's a search term
+                const insightName = toPascalCase(insight.name || '');
+                const highlightedName = insightsSearchTerm ? highlightSearchTerms(insightName, insightsSearchTerm) : escapeHtml(insightName);
 
                 return `
                     <tr data-insight-id="${insight.id}" onclick="SlideoutPanel.openInsightNotes('${insight.id}')" style="cursor: pointer;">
@@ -16029,7 +16081,7 @@
                                 <svg class="doc-icon" viewBox="0 0 16 16" fill="currentColor">
                                     <path d="M2.5 2.5h11l.5.5v10l-.5.5h-11l-.5-.5V3l.5-.5zM3 4v8h10V4H3zm2 1h6v1H5V5zm0 2h6v1H5V7zm0 2h4v1H5V9z"/>
                                 </svg>
-                                <span>${escapeHtml(toPascalCase(insight.name))}</span>
+                                <span>${highlightedName}</span>
                                 <button class="insight-open-btn-table" onclick="SlideoutPanel.openInsightNotes('${insight.id}')" title="Open in side peek" style="display: none;">
                                     <span style="font-size: 12px; margin-right: 4px;">OPEN</span>
                                     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="opacity: 0.6;">
@@ -16096,6 +16148,7 @@
             insightsSearchTerm = '';
             const searchInput = document.getElementById('insightsSearchInput');
             if (searchInput) searchInput.value = '';
+            updateInsightsSearchClearButton();
             updateInsightsFilterChips();
             renderInsights();
         }
@@ -16640,9 +16693,18 @@
             
             // Set up image modal backdrop click
             const imageModal = document.getElementById('imageModal');
+            const imageModalContent = imageModal?.querySelector('.image-modal-content');
+            
             if (imageModal) {
+                // Prevent clicks on content from closing modal
+                if (imageModalContent) {
+                    imageModalContent.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                    });
+                }
+                
+                // Close when clicking on overlay background
                 imageModal.addEventListener('click', (e) => {
-                    // Close if clicking on overlay (not the image content)
                     if (e.target === imageModal) {
                         closeImageModal();
                     }
@@ -16721,6 +16783,14 @@
     </div>
     
     <div id="slideoutOverlay" class="ai-insights-overlay"></div>
+    
+    <!-- Image Modal for Full-Size Image Viewing -->
+    <div id="imageModal" class="image-modal-overlay">
+        <div class="image-modal-content">
+            <button class="image-modal-close" onclick="closeImageModal()" aria-label="Close image">&times;</button>
+            <img id="imageModalImg" src="" alt="Full size image">
+        </div>
+    </div>
         </div> <!-- End visualizations-section -->
 
         <!-- Insights Section -->
