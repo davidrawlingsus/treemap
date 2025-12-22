@@ -12248,7 +12248,8 @@
             
             const panel = document.getElementById('insightNotesPanel');
             const overlay = document.getElementById('insightNotesOverlay');
-            const title = document.getElementById('insightNotesTitle');
+            // Check for insightTitleEditable first (after first use), then fallback to insightNotesTitle
+            const title = document.getElementById('insightTitleEditable') || document.getElementById('insightNotesTitle');
             const content = document.getElementById('insightNotesContent');
             
             console.log('[openInsightNotes] UI elements:', {
@@ -12294,48 +12295,53 @@
                 insightsCurrentInsightData = insight;
                 
                 // Set up editable title in header
-                if (title && title.parentNode) {
-                    // Clone to remove old event listeners, then replace
-                    const newTitle = title.cloneNode(false);
-                    title.parentNode.replaceChild(newTitle, title);
-                    
-                    // Update the new element properties
-                    newTitle.id = 'insightTitleEditable';
-                    newTitle.contentEditable = 'true';
-                    newTitle.style.cssText = 'font-size: 1.875rem; font-weight: 700; font-family: \'Lato\', sans-serif; color: oklch(0.145 0 0); outline: none; min-height: 2.5rem; line-height: 1.2; margin: 0;';
-                    newTitle.setAttribute('data-placeholder', 'Untitled');
-                    newTitle.textContent = toPascalCase(insight.name || 'Untitled');
-                    
-                    // Set up event listeners for the title
-                    newTitle.addEventListener('blur', () => {
-                        const newName = newTitle.textContent.trim() || 'Untitled';
-                        debouncedSaveInsightField('name', newName);
-                    });
-                    newTitle.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter') {
-                            e.preventDefault();
-                            newTitle.blur();
-                        }
-                    });
-                } else if (title) {
-                    // Fallback: just update the element if parent doesn't exist
-                    title.id = 'insightTitleEditable';
-                    title.contentEditable = 'true';
-                    title.style.cssText = 'font-size: 1.875rem; font-weight: 700; font-family: \'Lato\', sans-serif; color: oklch(0.145 0 0); outline: none; min-height: 2.5rem; line-height: 1.2; margin: 0;';
-                    title.setAttribute('data-placeholder', 'Untitled');
-                    title.textContent = toPascalCase(insight.name || 'Untitled');
-                    
-                    // Set up event listeners for the title
-                    title.addEventListener('blur', () => {
-                        const newName = title.textContent.trim() || 'Untitled';
-                        debouncedSaveInsightField('name', newName);
-                    });
-                    title.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter') {
-                            e.preventDefault();
-                            title.blur();
-                        }
-                    });
+                if (title) {
+                    // If element already has the correct id, just update its content
+                    if (title.id === 'insightTitleEditable') {
+                        title.textContent = toPascalCase(insight.name || 'Untitled');
+                    } else if (title.parentNode) {
+                        // Clone to remove old event listeners, then replace
+                        const newTitle = title.cloneNode(false);
+                        title.parentNode.replaceChild(newTitle, title);
+                        
+                        // Update the new element properties
+                        newTitle.id = 'insightTitleEditable';
+                        newTitle.contentEditable = 'true';
+                        newTitle.style.cssText = 'font-size: 1.875rem; font-weight: 700; font-family: \'Lato\', sans-serif; color: oklch(0.145 0 0); outline: none; min-height: 2.5rem; line-height: 1.2; margin: 0;';
+                        newTitle.setAttribute('data-placeholder', 'Untitled');
+                        newTitle.textContent = toPascalCase(insight.name || 'Untitled');
+                        
+                        // Set up event listeners for the title
+                        newTitle.addEventListener('blur', () => {
+                            const newName = newTitle.textContent.trim() || 'Untitled';
+                            debouncedSaveInsightField('name', newName);
+                        });
+                        newTitle.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                newTitle.blur();
+                            }
+                        });
+                    } else {
+                        // Fallback: just update the element if parent doesn't exist
+                        title.id = 'insightTitleEditable';
+                        title.contentEditable = 'true';
+                        title.style.cssText = 'font-size: 1.875rem; font-weight: 700; font-family: \'Lato\', sans-serif; color: oklch(0.145 0 0); outline: none; min-height: 2.5rem; line-height: 1.2; margin: 0;';
+                        title.setAttribute('data-placeholder', 'Untitled');
+                        title.textContent = toPascalCase(insight.name || 'Untitled');
+                        
+                        // Set up event listeners for the title
+                        title.addEventListener('blur', () => {
+                            const newName = title.textContent.trim() || 'Untitled';
+                            debouncedSaveInsightField('name', newName);
+                        });
+                        title.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                title.blur();
+                            }
+                        });
+                    }
                 }
                 console.log('[openInsightNotes] Calling initializeInsightPanel');
                 await initializeInsightPanel(content, insight);
@@ -14468,6 +14474,9 @@
                     this.currentInsightEditor = null;
                 }
                 
+                // Clean up context menu handlers
+                this.cleanupEditorContextMenu();
+                
                 if (!editorElement) return;
                 
                 // Initialize Tiptap editor using ES modules
@@ -14686,29 +14695,46 @@
             },
             
             setupEditorContextMenu(editorElement) {
-                const contextMenu = document.createElement('div');
-                contextMenu.id = 'editorContextMenu';
-                contextMenu.className = 'editor-context-menu';
-                contextMenu.style.display = 'none';
-                contextMenu.innerHTML = `
-                    <div class="context-menu-item" data-action="heading-1">H1</div>
-                    <div class="context-menu-item" data-action="heading-2">H2</div>
-                    <div class="context-menu-item" data-action="heading-3">H3</div>
-                    <div class="context-menu-divider"></div>
-                    <div class="context-menu-item" data-action="bold">Bold</div>
-                    <div class="context-menu-item" data-action="bulletList">Bullets</div>
-                    <div class="context-menu-item" data-action="taskList">Checklist</div>
-                    <div class="context-menu-item" data-action="blockquote">Callout</div>
-                `;
-                document.body.appendChild(contextMenu);
+                // Clean up existing context menu setup if any
+                if (this.editorContextMenuHandlers) {
+                    this.cleanupEditorContextMenu();
+                }
+                
+                // Get or create context menu element
+                let contextMenu = document.getElementById('editorContextMenu');
+                if (!contextMenu) {
+                    contextMenu = document.createElement('div');
+                    contextMenu.id = 'editorContextMenu';
+                    contextMenu.className = 'editor-context-menu';
+                    contextMenu.style.display = 'none';
+                    contextMenu.innerHTML = `
+                        <div class="context-menu-item" data-action="heading-1">H1</div>
+                        <div class="context-menu-item" data-action="heading-2">H2</div>
+                        <div class="context-menu-item" data-action="heading-3">H3</div>
+                        <div class="context-menu-divider"></div>
+                        <div class="context-menu-item" data-action="bold">Bold</div>
+                        <div class="context-menu-item" data-action="bulletList">Bullets</div>
+                        <div class="context-menu-item" data-action="taskList">Checklist</div>
+                        <div class="context-menu-item" data-action="blockquote">Callout</div>
+                    `;
+                    document.body.appendChild(contextMenu);
+                } else {
+                    // Hide menu if it was previously visible
+                    contextMenu.style.display = 'none';
+                }
+                
+                // Store current editor element for cleanup
+                this.currentEditorElement = editorElement;
                 
                 // Handle right-click on editor
-                editorElement.addEventListener('contextmenu', (e) => {
+                const contextMenuHandler = (e) => {
                     e.preventDefault();
                     
-                    if (!this.currentInsightEditor) return;
-                    
+                    // Use currentInsightEditor if available, otherwise try to get it from the element
                     const editor = this.currentInsightEditor;
+                    if (!editor) {
+                        return;
+                    }
                     
                     // Position menu at the right-click cursor position
                     contextMenu.style.display = 'block';
@@ -14734,20 +14760,26 @@
                     
                     // Update active states
                     this.updateContextMenuStates(contextMenu, editor);
-                });
+                };
+                
+                editorElement.addEventListener('contextmenu', contextMenuHandler);
                 
                 // Handle menu item clicks
-                contextMenu.addEventListener('click', (e) => {
+                const menuClickHandler = (e) => {
                     e.stopPropagation(); // Prevent event from bubbling to document
                     e.preventDefault();
                     
                     const action = e.target.getAttribute('data-action');
-                    if (!action || !this.currentInsightEditor) {
+                    if (!action) {
                         contextMenu.style.display = 'none';
                         return;
                     }
                     
                     const editor = this.currentInsightEditor;
+                    if (!editor) {
+                        contextMenu.style.display = 'none';
+                        return;
+                    }
                     
                     // Hide menu first to prevent conflicts
                     contextMenu.style.display = 'none';
@@ -14786,29 +14818,77 @@
                                 break;
                         }
                     }, 10);
-                });
+                };
+                
+                contextMenu.addEventListener('click', menuClickHandler);
                 
                 // Hide menu on click outside, scroll, or escape key
                 const hideMenu = (e) => {
                     if (contextMenu.style.display !== 'none') {
-                        // Don't hide if clicking inside the menu itself
-                        if (!contextMenu.contains(e.target) && !editorElement.contains(e.target)) {
+                        // Don't hide if clicking inside the menu itself or the editor
+                        if (!contextMenu.contains(e.target) && (!editorElement || !editorElement.contains(e.target))) {
                             contextMenu.style.display = 'none';
                         }
                     }
                 };
                 
-                // Use capture phase to handle clicks before they bubble
-                document.addEventListener('click', hideMenu, true);
-                document.addEventListener('scroll', () => {
+                const scrollHandler = () => {
                     contextMenu.style.display = 'none';
-                }, true);
+                };
                 
-                document.addEventListener('keydown', (e) => {
+                const keydownHandler = (e) => {
                     if (e.key === 'Escape' && contextMenu.style.display !== 'none') {
                         contextMenu.style.display = 'none';
                     }
-                });
+                };
+                
+                // Use capture phase to handle clicks before they bubble
+                document.addEventListener('click', hideMenu, true);
+                document.addEventListener('scroll', scrollHandler, true);
+                document.addEventListener('keydown', keydownHandler);
+                
+                // Store handlers for cleanup
+                this.editorContextMenuHandlers = {
+                    contextMenuHandler,
+                    menuClickHandler,
+                    hideMenu,
+                    scrollHandler,
+                    keydownHandler,
+                    editorElement,
+                    contextMenu
+                };
+            },
+            
+            cleanupEditorContextMenu() {
+                if (!this.editorContextMenuHandlers) return;
+                
+                const { contextMenuHandler, menuClickHandler, hideMenu, scrollHandler, keydownHandler, editorElement, contextMenu } = this.editorContextMenuHandlers;
+                
+                // Remove event listeners
+                if (editorElement && contextMenuHandler) {
+                    editorElement.removeEventListener('contextmenu', contextMenuHandler);
+                }
+                if (contextMenu && menuClickHandler) {
+                    contextMenu.removeEventListener('click', menuClickHandler);
+                }
+                if (hideMenu) {
+                    document.removeEventListener('click', hideMenu, true);
+                }
+                if (scrollHandler) {
+                    document.removeEventListener('scroll', scrollHandler, true);
+                }
+                if (keydownHandler) {
+                    document.removeEventListener('keydown', keydownHandler);
+                }
+                
+                // Hide menu if visible
+                if (contextMenu) {
+                    contextMenu.style.display = 'none';
+                }
+                
+                // Clear handlers
+                this.editorContextMenuHandlers = null;
+                this.currentEditorElement = null;
             },
             
             updateContextMenuStates(menu, editor) {
@@ -14985,6 +15065,9 @@
                     this.currentInsightEditor.destroy();
                     this.currentInsightEditor = null;
                 }
+                
+                // Clean up context menu handlers
+                this.cleanupEditorContextMenu();
                 
                 // Reset title to default (remove contenteditable for non-insight modes)
                 if (title) {
