@@ -3879,25 +3879,6 @@
             border-radius: 0.375rem; /* 6px */
         }
 
-        #slideoutSearch {
-            color: #333 !important;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-
-        #slideoutSearch:focus {
-            outline: none;
-            border-color: #B9F040 !important;
-            box-shadow: 0 0 0 3px rgba(185, 240, 64, 0.1) !important;
-        }
-
-        #slideoutSearchClear {
-            transition: all 0.2s;
-        }
-
-        #slideoutSearchClear:hover {
-            background: #f5f5f5;
-            color: #333;
-        }
 
         .insights-panel-header-search {
             position: relative;
@@ -3964,14 +3945,12 @@
 
         #slideoutTitle.transitioning,
         #slideoutSubtitle.transitioning,
-        #slideoutSearch.transitioning,
         #slideoutSettingsBtn.transitioning {
             opacity: 0;
         }
         
         #slideoutTitle,
         #slideoutSubtitle,
-        #slideoutSearch,
         #slideoutSettingsBtn {
             transition: opacity 0.2s ease;
         }
@@ -4186,6 +4165,37 @@
 
         .search-box input::placeholder {
             color: rgba(55, 53, 47, 0.4);
+        }
+
+        #insights-section .search-box {
+            position: relative;
+            align-items: center;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 8px 36px 8px 12px;
+            min-width: 200px;
+            max-width: 360px;
+            width: 260px;
+            flex: 0 0 auto;
+        }
+
+        #insights-section .search-box input {
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 14px;
+            padding: 0;
+            width: 100%;
+        }
+
+        #insights-section .search-box input::placeholder {
+            color: rgba(55, 53, 47, 0.4);
+        }
+
+        #insights-section .search-box:focus-within {
+            border-color: #B9F040 !important;
+            box-shadow: 0 0 0 3px rgba(185, 240, 64, 0.1) !important;
         }
 
         .filter-chips {
@@ -4762,14 +4772,12 @@
 
         #slideoutTitle.transitioning,
         #slideoutSubtitle.transitioning,
-        #slideoutSearch.transitioning,
         #slideoutSettingsBtn.transitioning {
             opacity: 0;
         }
         
         #slideoutTitle,
         #slideoutSubtitle,
-        #slideoutSearch,
         #slideoutSettingsBtn {
             transition: opacity 0.2s ease;
         }
@@ -8719,40 +8727,7 @@
             }
         }
         
-        // Helper functions for slideout search and settings
-        function handleSlideoutSearch() {
-            const searchInput = document.getElementById('slideoutSearch');
-            const clearBtn = document.getElementById('slideoutSearchClear');
-            
-            if (searchInput && window.SlideoutPanel) {
-                // Store the search term (preserve what user typed)
-                window.SlideoutPanel.verbatimSearchTerm = searchInput.value;
-                
-                // Show/hide clear button
-                if (clearBtn) {
-                    clearBtn.style.display = searchInput.value.trim() ? 'flex' : 'none';
-                }
-                
-                // Re-render verbatims with search filter
-                if (window.SlideoutPanel.currentMode === 'verbatims' && window.SlideoutPanel.currentVerbatimsData) {
-                    window.SlideoutPanel.renderVerbatims(
-                        window.SlideoutPanel.currentVerbatimsData,
-                        window.SlideoutPanel.currentTopicName,
-                        window.SlideoutPanel.currentCategoryName
-                    );
-                }
-            }
-        }
-        
-        function clearSlideoutSearch() {
-            const searchInput = document.getElementById('slideoutSearch');
-            if (searchInput) {
-                searchInput.value = '';
-                // Focus the search input after clearing
-                searchInput.focus();
-                handleSlideoutSearch();
-            }
-        }
+        // Helper functions for slideout settings
         
         function toggleSlideoutSettings() {
             const panel = document.getElementById('slideoutSettingsPanel');
@@ -8871,16 +8846,6 @@
             // (openVerbatims clears it, so we need to set it after and re-render)
             if (window.SlideoutPanel) {
                 window.SlideoutPanel.verbatimSearchTerm = searchTerm;
-                // Also update the slideout search input to show the search term
-                const slideoutSearchInput = document.getElementById('slideoutSearch');
-                const slideoutClearBtn = document.getElementById('slideoutSearchClear');
-                if (slideoutSearchInput) {
-                    slideoutSearchInput.value = searchTerm;
-                }
-                // Show the clear button if there's a search term
-                if (slideoutClearBtn) {
-                    slideoutClearBtn.style.display = searchTerm ? 'flex' : 'none';
-                }
                 // Re-render verbatims with the search term for highlighting
                 if (window.SlideoutPanel.currentMode === 'verbatims' && window.SlideoutPanel.currentVerbatimsData) {
                     window.SlideoutPanel.renderVerbatims(
@@ -8907,18 +8872,10 @@
             
             // Clear the slideout search term if it was set from treemap search
             if (window.SlideoutPanel) {
-                const slideoutSearchInput = document.getElementById('slideoutSearch');
-                if (slideoutSearchInput && slideoutSearchInput.value) {
-                    // Only clear if the slideout is showing search results
-                    const currentTitle = document.getElementById('slideoutTitle');
-                    if (currentTitle && currentTitle.textContent.includes('Search:')) {
-                        window.SlideoutPanel.verbatimSearchTerm = '';
-                        slideoutSearchInput.value = '';
-                        const slideoutClearBtn = document.getElementById('slideoutSearchClear');
-                        if (slideoutClearBtn) {
-                            slideoutClearBtn.style.display = 'none';
-                        }
-                    }
+                // Only clear if the slideout is showing search results
+                const currentTitle = document.getElementById('slideoutTitle');
+                if (currentTitle && currentTitle.textContent.includes('Search:')) {
+                    window.SlideoutPanel.verbatimSearchTerm = '';
                 }
             }
             
@@ -11175,6 +11132,8 @@
                 const dimensionRef = firstOrigin.dimension_ref || null;
                 const categoryName = firstOrigin.category || null;
                 const topicName = firstOrigin.topic_label || null;
+                const insightName = toPascalCase(insight.name || '');
+                const highlightedInsightName = insightsSearchTerm ? highlightSearchTerms(insightName, insightsSearchTerm) : escapeHtml(insightName);
                 
                 // Build origin breadcrumb pills with PascalCase formatting
                 const originPills = [];
@@ -11209,7 +11168,7 @@
                             <svg class="doc-icon" viewBox="0 0 16 16" fill="currentColor">
                                 <path d="M2.5 2.5h11l.5.5v10l-.5.5h-11l-.5-.5V3l.5-.5zM3 4v8h10V4H3zm2 1h6v1H5V5zm0 2h6v1H5V7zm0 2h4v1H5V9z"/>
                             </svg>
-                            <span>${escapeHtml(toPascalCase(insight.name))}</span>
+                            <span>${highlightedInsightName}</span>
                             <button class="insight-open-btn-table" onclick="openInsightNotes('${insight.id}')" title="Open in side peek" style="display: none;">
                                 <span style="font-size: 12px; margin-right: 4px;">OPEN</span>
                                 <svg width="14" height="14" viewBox="0 0 16 16" fill="none" style="opacity: 0.6;">
@@ -11474,8 +11433,29 @@
         }
 
         function handleSearch() {
-            insightsSearchTerm = document.getElementById('searchInput').value.trim();
+            const searchInput = document.getElementById('searchInput');
+            insightsSearchTerm = searchInput?.value.trim() || '';
+            updateInsightsSectionSearchClearButton();
             renderInsightsPage();
+        }
+
+        function updateInsightsSectionSearchClearButton() {
+            const searchInput = document.getElementById('searchInput');
+            const clearButton = document.getElementById('insightsSectionSearchClear');
+            if (!searchInput || !clearButton) return;
+
+            clearButton.style.display = searchInput.value.trim() ? 'flex' : 'none';
+        }
+
+        function clearInsightsSectionSearch() {
+            const searchInput = document.getElementById('searchInput');
+            if (!searchInput) return;
+
+            searchInput.value = '';
+            insightsSearchTerm = '';
+            updateInsightsSectionSearchClearButton();
+            renderInsightsPage();
+            searchInput.focus();
         }
 
         function updateFilterChips() {
@@ -11513,6 +11493,7 @@
             insightsSearchTerm = '';
             const searchInput = document.getElementById('searchInput');
             if (searchInput) searchInput.value = '';
+            updateInsightsSectionSearchClearButton();
             updateFilterChips();
             updateActiveFiltersDisplay();
             saveFiltersToStorage();
@@ -16790,28 +16771,9 @@
             </div>
         </div>
         
-        <!-- Search box for verbatims -->
-        <div id="slideoutSearchContainer" style="padding: 0 10px 10px 10px; margin-top: 16px; display: none;">
-            <div style="position: relative;">
-                <input
-                    type="text"
-                    id="slideoutSearch"
-                    placeholder="Search verbatims..."
-                    style="width: 100%; padding: 8px 36px 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; background: white; color: #333; display: none;"
-                    oninput="handleSlideoutSearch()"
-                />
-                <button
-                    id="slideoutSearchClear"
-                    onclick="clearSlideoutSearch()"
-                    style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 0; display: none; color: #666; font-size: 20px; line-height: 1; width: 24px; height: 24px; align-items: center; justify-content: center; border-radius: 3px;"
-                    title="Clear search"
-                >&times;</button>
-            </div>
-            
-            <!-- Settings panel for verbatims -->
-            <div id="slideoutSettingsPanel" class="settings-panel" style="display: none; margin-top: 12px;">
-                <!-- Metadata checkboxes will be dynamically generated here -->
-            </div>
+        <!-- Settings panel for verbatims -->
+        <div id="slideoutSettingsPanel" class="settings-panel" style="display: none; margin-top: 12px; padding: 0 10px 10px 10px;">
+            <!-- Metadata checkboxes will be dynamically generated here -->
         </div>
         
         <div id="slideoutContent" class="ai-insights-content">
@@ -16834,8 +16796,20 @@
         <div id="insights-section" class="spa-section">
             <div class="control-bar" style="position: relative;">
                 <h1 style="margin: 0; font-size: 20px; font-weight: 600; color: #37352f; margin-right: 0.5rem;">Insights</h1>
-                <div class="search-box">
-                    <input type="text" id="searchInput" placeholder="Search insights..." oninput="handleSearch()">
+                <div class="search-box insights-section-search">
+                    <input
+                        type="text"
+                        id="searchInput"
+                        placeholder="Search insights..."
+                        oninput="handleSearch()"
+                        onfocus="updateInsightsSectionSearchClearButton()"
+                    >
+                    <button
+                        id="insightsSectionSearchClear"
+                        onclick="clearInsightsSectionSearch()"
+                        title="Clear search"
+                        style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 0; display: none; color: #666; font-size: 20px; line-height: 1; width: 24px; height: 24px; align-items: center; justify-content: center; border-radius: 3px;"
+                    >&times;</button>
                 </div>
                 <div class="filter-chips" id="filterChips"></div>
                 <div style="position: relative;">
