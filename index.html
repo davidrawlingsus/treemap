@@ -193,7 +193,7 @@
         }
 
         .data-source-selector select {
-            padding: 10px 14px;
+            padding: 10px 35px 10px 14px;
             border: 1px solid #d6d9df;
             border-radius: 6px;
             font-size: 15px;
@@ -3527,6 +3527,15 @@
         #insightNotesEditor .ProseMirror-focused {
             outline: none !important;
             border: none !important;
+        }
+
+        /* Minimize empty paragraphs in editor */
+        #insightNotesEditor .tiptap p:empty,
+        #insightNotesEditor .ProseMirror p:empty {
+            min-height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            line-height: 1.2 !important;
         }
 
         /* Blockquote styling */
@@ -14139,28 +14148,28 @@
                 // Adjust padding and gap when opened from context menu to reduce whitespace
                 const attributesPadding = fromContextMenu ? '0.5rem 1.5rem 0.75rem 1.5rem' : '1rem 1.5rem';
                 const attributesGap = fromContextMenu ? '0.5rem' : '0.75rem';
+                const hasBreadcrumb = breadcrumbHTML && !fromContextMenu;
                 container.innerHTML = `
                     <div style="padding: 0; display: flex; flex-direction: column; height: 100%;">
                         <!-- Scrollable Content Area -->
                         <div style="flex: 1; overflow-y: auto; display: flex; flex-direction: column;">
-                            <!-- Attributes Section -->
+                            <!-- Attributes Section - Only show if there's breadcrumb content -->
+                            ${hasBreadcrumb ? `
                             <div style="padding: ${attributesPadding}; border-bottom: 1px solid oklch(0.922 0 0); flex-shrink: 0;">
                                 <div id="insightAttributes" style="display: flex; flex-direction: column; gap: ${attributesGap};">
                                     <!-- Breadcrumb -->
-                                    ${breadcrumbHTML && !fromContextMenu ? `
                                     <div class="insight-attribute-row">
                                         <div style="width: 140px; font-size: 0.875rem; font-family: 'Lato', sans-serif; font-weight: 500; color: oklch(0.556 0 0); flex-shrink: 0;">Origin</div>
                                         <div style="flex: 1;">
                                             ${breadcrumbHTML}
                                         </div>
                                     </div>
-                                    ` : ''}
-                                    
                                 </div>
                             </div>
+                            ` : ''}
                             
                             <!-- Notes Section -->
-                            <div style="padding: 1.5rem; flex-shrink: 0;">
+                            <div style="padding: 1.5rem; flex-shrink: 0; border-top: none;">
                                 <div id="insightNotesSaveStatus" style="font-size: 0.75rem; font-family: 'Lato', sans-serif; color: oklch(0.556 0 0); margin-bottom: 0.5rem; min-height: 1rem;"></div>
                                 <div id="insightNotesEditor" style="min-height: 200px; outline: none; font-size: 0.875rem; font-family: 'Lato', sans-serif; line-height: 1.5; color: oklch(0.145 0 0);"></div>
                             </div>
