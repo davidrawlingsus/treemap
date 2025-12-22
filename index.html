@@ -582,8 +582,28 @@
             display: none;
         }
 
+        .treemap-search-input-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        /* Bring search input and clear button above slideout overlay when search is active and slideout is visible */
+        body.slideout-open .treemap-search-container.search-active .treemap-search-input-wrapper {
+            position: relative;
+            z-index: 10001;
+        }
+
+        body.slideout-open .treemap-search-container.search-active .treemap-search-input {
+            background: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        body.slideout-open .treemap-search-container.search-active .treemap-search-clear {
+            z-index: 10002;
+        }
+
         .treemap-search-input {
-            width: 100%;
+            width: 300px;
             padding: 10px 40px 10px 14px;
             border: 1px solid #ddd;
             border-radius: 6px;
@@ -600,7 +620,7 @@
 
         .treemap-search-clear {
             position: absolute;
-            right: 34px;
+            right: 8px;
             top: 50%;
             transform: translateY(-50%);
             background: none;
@@ -5084,19 +5104,21 @@
                     </div>
                 </div>
                 <div class="treemap-search-container">
-                    <input
-                        type="text"
-                        id="treemapSearch"
-                        class="treemap-search-input"
-                        placeholder="Search verbatims by keyword..."
-                    />
-                    <button
-                        id="treemapSearchClear"
-                        class="treemap-search-clear"
-                        onclick="clearTreemapSearch()"
-                        title="Clear search"
-                        style="display: none;"
-                    >&times;</button>
+                    <div class="treemap-search-input-wrapper">
+                        <input
+                            type="text"
+                            id="treemapSearch"
+                            class="treemap-search-input"
+                            placeholder="Search verbatims by keyword..."
+                        />
+                        <button
+                            id="treemapSearchClear"
+                            class="treemap-search-clear"
+                            onclick="clearTreemapSearch()"
+                            title="Clear search"
+                            style="display: none;"
+                        >&times;</button>
+                    </div>
                 </div>
                 <div class="treemap-svg-container">
                     <div class="loading" id="loading">Loading data...</div>
@@ -8804,6 +8826,7 @@
         function handleTreemapSearch() {
             const searchInput = document.getElementById('treemapSearch');
             const clearBtn = document.getElementById('treemapSearchClear');
+            const searchContainer = document.querySelector('.treemap-search-container');
             
             if (!searchInput) return;
             
@@ -8812,6 +8835,16 @@
             // Show/hide clear button
             if (clearBtn) {
                 clearBtn.style.display = searchTerm ? 'flex' : 'none';
+            }
+            
+            // Update search-active class based on search term and slideout state
+            if (searchContainer) {
+                const slideoutOpen = document.body.classList.contains('slideout-open');
+                if (searchTerm && slideoutOpen) {
+                    searchContainer.classList.add('search-active');
+                } else {
+                    searchContainer.classList.remove('search-active');
+                }
             }
             
             // If search is empty, don't do anything (user can continue viewing treemap)
@@ -8860,6 +8893,7 @@
         function clearTreemapSearch() {
             const searchInput = document.getElementById('treemapSearch');
             const clearBtn = document.getElementById('treemapSearchClear');
+            const searchContainer = document.querySelector('.treemap-search-container');
             
             if (searchInput) {
                 searchInput.value = '';
@@ -8868,6 +8902,11 @@
                 }
                 // Focus the search input after clearing
                 searchInput.focus();
+            }
+            
+            // Remove search-active class
+            if (searchContainer) {
+                searchContainer.classList.remove('search-active');
             }
             
             // Clear the slideout search term if it was set from treemap search
@@ -8886,6 +8925,23 @@
                 if (currentTitle && currentTitle.textContent.includes('Search:')) {
                     window.SlideoutPanel.close();
                 }
+            }
+        }
+
+        // Update search bar z-index based on slideout state and search term
+        function updateTreemapSearchZIndex() {
+            const searchInput = document.getElementById('treemapSearch');
+            const searchContainer = document.querySelector('.treemap-search-container');
+            
+            if (!searchContainer || !searchInput) return;
+            
+            const searchTerm = searchInput.value.trim();
+            const slideoutOpen = document.body.classList.contains('slideout-open');
+            
+            if (searchTerm && slideoutOpen) {
+                searchContainer.classList.add('search-active');
+            } else {
+                searchContainer.classList.remove('search-active');
             }
         }
 
@@ -13329,6 +13385,11 @@
                 // Prevent body scroll
                 document.body.classList.add('slideout-open');
                 
+                // Update search bar z-index when slideout opens
+                if (typeof updateTreemapSearchZIndex === 'function') {
+                    updateTreemapSearchZIndex();
+                }
+                
                 // Load content
                 await this.loadSummary();
             },
@@ -13416,6 +13477,11 @@
                     
                     // Prevent body scroll
                     document.body.classList.add('slideout-open');
+                    
+                    // Update search bar z-index when slideout opens
+                    if (typeof updateTreemapSearchZIndex === 'function') {
+                        updateTreemapSearchZIndex();
+                    }
                 }
                 
                 // Render verbatims
@@ -13506,6 +13572,11 @@
                 document.body.classList.add('slideout-open');
                 console.log('[SlideoutPanel.openCreateInsight] Body classes:', document.body.classList.toString());
                 
+                // Update search bar z-index when slideout opens
+                if (typeof updateTreemapSearchZIndex === 'function') {
+                    updateTreemapSearchZIndex();
+                }
+                
                 // Initialize panel with empty form, pre-populated with context
                 console.log('[SlideoutPanel.openCreateInsight] Calling initializeCreateInsightPanel');
                 await this.initializeCreateInsightPanel(content, contextData, fromContextMenu);
@@ -13543,6 +13614,11 @@
                 
                 // Prevent body scroll
                 document.body.classList.add('slideout-open');
+                
+                // Update search bar z-index when slideout opens
+                if (typeof updateTreemapSearchZIndex === 'function') {
+                    updateTreemapSearchZIndex();
+                }
                 
                 // Load insight data
                 try {
@@ -14979,6 +15055,11 @@
                 // Re-enable body scroll
                 document.body.classList.remove('slideout-open');
                 
+                // Update search bar z-index when slideout closes
+                if (typeof updateTreemapSearchZIndex === 'function') {
+                    updateTreemapSearchZIndex();
+                }
+                
                 this.isOpen = false;
                 this.currentMode = null;
                 this.currentInsightId = null;
@@ -15250,6 +15331,11 @@
                     }
                     this.isOpen = true;
                     document.body.classList.add('slideout-open');
+                    
+                    // Update search bar z-index when slideout opens
+                    if (typeof updateTreemapSearchZIndex === 'function') {
+                        updateTreemapSearchZIndex();
+                    }
                 }
                 
                 const content = document.getElementById('slideoutContent');
