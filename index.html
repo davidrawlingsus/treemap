@@ -1546,6 +1546,39 @@
             padding: 0;
         }
 
+        /* Override table width for insights panel to fit container */
+        .insights-table-section .table-container {
+            overflow-x: visible;
+        }
+
+        .insights-table-section .notion-table {
+            min-width: auto;
+            width: 100%;
+            table-layout: fixed;
+        }
+
+        /* Hide drag handles and column icons in insights panel */
+        .insights-table-section .notion-table th .drag-handle,
+        .insights-table-section .notion-table th .column-icon {
+            display: none;
+        }
+
+        /* Override name-cell padding and width in insights panel (no checkbox column) */
+        .insights-table-section .notion-table .name-cell,
+        .insights-table-section .notion-table th.name-cell {
+            padding-left: 0.75rem;
+            min-width: auto;
+            width: 60%;
+            max-width: 60%;
+        }
+
+        /* Created column takes remaining space */
+        .insights-table-section .notion-table th[data-column="created_at"],
+        .insights-table-section .notion-table td[data-column="created_at"] {
+            width: 40%;
+            max-width: 40%;
+        }
+
         /* Control Bar */
         .control-bar {
             position: relative;
@@ -3129,6 +3162,7 @@
             justify-content: center;
             flex-shrink: 0;
             padding: 0;
+            margin: 0;
             transition: background 0.2s ease-in-out;
         }
 
@@ -3137,15 +3171,14 @@
         }
 
         .toggle:focus {
-            outline: 2px solid #667eea;
-            outline-offset: 2px;
+            outline: none;
         }
 
         .group__label-wrapper {
             display: flex;
             align-items: center;
             gap: 8px;
-            padding-left: 8px;
+            padding-left: 6px;
             flex: 1;
             min-width: 0;
         }
@@ -4753,6 +4786,9 @@
                     <div class="insights-panel-header">
                         <div class="insights-panel-header-left">
                             <h2>Recent Insights</h2>
+                            <div class="search-box" style="margin-left: 16px;">
+                                <input type="text" id="insightsSearchInput" placeholder="Search insights..." oninput="handleInsightsSearch()">
+                            </div>
                             <span id="insightsFilterBadge" class="insights-filter-badge" style="display: none;"></span>
                         </div>
                         <div class="insights-panel-header-right">
@@ -4765,25 +4801,10 @@
                     </div>
                     <div class="insights-panel-body" id="insightsPanelBody">
                         <div class="insights-table-section">
-                            <div class="control-bar">
-                                <div class="search-box">
-                                    <input type="text" id="insightsSearchInput" placeholder="Search insights..." oninput="handleInsightsSearch()">
-                                </div>
-                                <div class="filter-chips" id="insightsFilterChips"></div>
-                                <button class="btn-filter" onclick="openInsightsFilterMenu()">
-                                    <span>+</span>
-                                    <span>Filter</span>
-                                </button>
-                                <button class="btn-reset" onclick="resetInsightsFilters()" id="insightsResetBtn" style="display: none;">Reset</button>
-                                <button class="btn-delete" onclick="deleteSelectedInsights()" id="insightsDeleteBtn" style="display: none;">Delete Selected</button>
-                            </div>
                             <div class="table-container">
                                 <table class="notion-table">
                                     <thead>
                                         <tr>
-                                            <th class="checkbox-cell">
-                                                <input type="checkbox" id="insightsSelectAll" onchange="toggleSelectAllInsights(this.checked)" title="Select all">
-                                            </th>
                                             <th class="name-cell sorted draggable" data-column="name" draggable="true" onclick="sortInsightsBy('name')">
                                                 <span class="drag-handle">⋮⋮</span>
                                                 <span class="column-icon">Aa</span>
@@ -10686,13 +10707,8 @@
 
         function updateFilterChips() {
             const chipsContainer = document.getElementById('filterChips');
-            const resetBtn = document.getElementById('resetBtn');
             const badge = document.getElementById('insightsListFilterBadge');
             const hasFilters = insightsFilters && insightsFilters.length > 0;
-            
-            if (resetBtn) {
-                resetBtn.style.display = hasFilters ? 'block' : 'none';
-            }
             
             // Update filter badge
             if (badge) {
@@ -14885,7 +14901,7 @@
             });
 
             if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" class="empty-state"><h3>No insights found</h3><p>Create your first insight to get started</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="2" class="empty-state"><h3>No insights found</h3><p>Create your first insight to get started</p></td></tr>';
                 return;
             }
 
@@ -14894,9 +14910,6 @@
 
                 return `
                     <tr data-insight-id="${insight.id}" onclick="SlideoutPanel.openInsightNotes('${insight.id}')" style="cursor: pointer;">
-                        <td class="checkbox-cell">
-                            <input type="checkbox" class="insight-checkbox" data-insight-id="${insight.id}" onchange="handleInsightCheckboxChange()" onclick="event.stopPropagation()">
-                        </td>
                         <td class="name-cell">
                             <div class="name-content" style="position: relative;">
                                 <svg class="doc-icon" viewBox="0 0 16 16" fill="currentColor">
@@ -14951,10 +14964,6 @@
 
         function updateInsightsFilterChips() {
             const chipsContainer = document.getElementById('insightsFilterChips');
-            const resetBtn = document.getElementById('insightsResetBtn');
-            const hasFilters = Object.keys(insightsFilters).length > 0;
-
-            if (resetBtn) resetBtn.style.display = hasFilters ? 'block' : 'none';
 
             // Don't render filter chips - filters are shown as checkboxes in the dropdown
             if (chipsContainer) {
@@ -15589,7 +15598,6 @@
                 </div>
                 <button class="btn-delete" onclick="deleteSelectedInsights()" id="insightsSectionDeleteBtn" style="display: none;">Delete Selected</button>
                 <button class="btn-new" onclick="openCreateModal()">+ New</button>
-                <button class="btn-reset" onclick="resetFilters()" id="resetBtn" style="display: none;">Reset</button>
             </div>
             
             <!-- Filter Value Selection Dialog -->
