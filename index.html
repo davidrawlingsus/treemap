@@ -10623,6 +10623,7 @@
                     status: `<td data-column="status">
                         <select class="status-select" 
                                 onchange="console.log('[DEBUG status-select onchange] Triggered for insight:', '${insight.id}', 'new value:', this.value); updateInsightStatus('${insight.id}', this.value)" 
+                                onclick="event.stopPropagation()"
                                 data-insight-id="${insight.id}"
                                 data-current-status="${insight.status || 'Not Started'}">
                             <option value="Not Started" ${(insight.status || 'Not Started') === 'Not Started' ? 'selected' : ''}>Not Started</option>
@@ -11755,13 +11756,19 @@
                 console.log('[DEBUG updateInsightStatus] Response data:', responseData);
                 console.log('[DEBUG updateInsightStatus] Status update successful!');
                 
-                // Refresh insights list
-                if (typeof loadInsightsPage === 'function') {
-                    console.log('[DEBUG updateInsightStatus] Refreshing insights list...');
-                    await loadInsightsPage();
-                    console.log('[DEBUG updateInsightStatus] Insights list refreshed');
-                } else {
-                    console.warn('[DEBUG updateInsightStatus] loadInsightsPage function not found');
+                // Update local data without reloading
+                const insightIndex = insightsAllInsights.findIndex(insight => insight.id === insightId);
+                if (insightIndex !== -1) {
+                    insightsAllInsights[insightIndex].status = status;
+                    console.log('[DEBUG updateInsightStatus] Updated local insight data');
+                }
+                
+                // Update the select element's data attribute and selected option
+                const selectElement = document.querySelector(`select.status-select[data-insight-id="${insightId}"]`);
+                if (selectElement) {
+                    selectElement.setAttribute('data-current-status', status);
+                    selectElement.value = status;
+                    console.log('[DEBUG updateInsightStatus] Updated select element UI');
                 }
             } catch (error) {
                 console.error('[DEBUG updateInsightStatus] ERROR caught:', error);
