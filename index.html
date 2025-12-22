@@ -214,8 +214,8 @@
 
         .data-source-selector select:focus {
             outline: none;
-            border-color: #111;
-            box-shadow: 0 0 0 1px #111;
+            border-color: #B9F040;
+            box-shadow: 0 0 0 1px #B9F040;
         }
 
         .data-source-selector__content {
@@ -7031,6 +7031,12 @@
                     questionSelect.appendChild(option);
                 });
                 
+                // Add "All Dimensions" option at the bottom
+                const allDimensionsOption = document.createElement('option');
+                allDimensionsOption.value = '';
+                allDimensionsOption.textContent = 'All Dimensions';
+                questionSelect.appendChild(allDimensionsOption);
+                
                 // Show question selector
                 questionSelect.style.display = 'inline';
                 document.getElementById('questionLabel').style.display = 'inline';
@@ -7065,14 +7071,19 @@
                 
                 // Restore saved question or default to first dimension
                 let questionToSelect = null;
-                if (savedState && savedState.questionRefKey && availableQuestions.includes(savedState.questionRefKey)) {
-                    questionToSelect = savedState.questionRefKey;
-                } else if (availableQuestions.length > 0) {
-                    // Default to first dimension in the list
+                if (savedState && savedState.questionRefKey !== undefined) {
+                    // Allow empty string for "All Dimensions" or specific dimension
+                    if (savedState.questionRefKey === '' || availableQuestions.includes(savedState.questionRefKey)) {
+                        questionToSelect = savedState.questionRefKey;
+                    }
+                }
+                // Default to first dimension if nothing was restored (but not if "All Dimensions" was explicitly saved)
+                if (questionToSelect === null && availableQuestions.length > 0) {
                     questionToSelect = availableQuestions[0];
                 }
                 
-                if (questionToSelect) {
+                // Apply the selection (questionToSelect can be empty string for "All Dimensions" or a dimension ref)
+                if (questionToSelect !== null) {
                     const previousRefKey = currentQuestionRefKey; // Save old value before updating
                     currentQuestionRefKey = questionToSelect;
                     questionSelect.value = questionToSelect;
