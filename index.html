@@ -3668,6 +3668,7 @@
             margin: 1rem 0 !important;
             display: block !important;
             min-height: 50px !important; /* Ensure images take up space while loading */
+            cursor: pointer !important; /* Indicate images are clickable */
         }
         
         /* Add error styling for broken images */
@@ -3676,6 +3677,68 @@
         .tiptap img[src=""] {
             border: 2px dashed #ccc;
             background: #f5f5f5;
+        }
+        
+        /* Image Modal Styles */
+        .image-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 100000; /* Higher than slideout panel */
+            padding: 2rem;
+            cursor: pointer;
+        }
+        
+        .image-modal-overlay.active {
+            display: flex;
+        }
+        
+        .image-modal-content {
+            position: relative;
+            max-width: 90vw;
+            max-height: 90vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .image-modal-content img {
+            max-width: 100%;
+            max-height: 90vh;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+            border-radius: 0.5rem;
+            cursor: default;
+        }
+        
+        .image-modal-close {
+            position: absolute;
+            top: -2.5rem;
+            right: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 2rem;
+            width: 2.5rem;
+            height: 2.5rem;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            transition: background 0.2s;
+        }
+        
+        .image-modal-close:hover {
+            background: rgba(255, 255, 255, 0.3);
         }
 
         /* Video styling */
@@ -3707,13 +3770,13 @@
 
         /* Editor Context Menu */
         .editor-context-menu {
-            position: absolute;
+            position: fixed; /* Use fixed positioning for viewport coordinates */
             background: oklch(1 0 0); /* White */
             border: 1px solid oklch(0.922 0 0); /* Border color from style guide */
             border-radius: 0.5rem;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             padding: 0.25rem;
-            z-index: 10000;
+            z-index: 10010; /* Higher than slideout panel (which is typically 10000) */
             min-width: 140px;
             font-family: 'Lato', sans-serif;
         }
@@ -14203,6 +14266,12 @@
                 // Clean up context menu handlers
                 this.cleanupEditorContextMenu();
                 
+                // Clean up image click handlers
+                if (this.imageClickHandler && this.currentEditorElement) {
+                    this.currentEditorElement.removeEventListener('click', this.imageClickHandler);
+                    this.imageClickHandler = null;
+                }
+                
                 if (!editorElement) return;
                 
                 // Initialize Tiptap editor using ES modules
@@ -14414,8 +14483,11 @@
                     }, 300);
                     
                     // Set up context menu for formatting
+                    // IMPORTANT: This must be called AFTER editor creation so onSelectionUpdate callback can access the handlers
                     this.setupEditorContextMenu(editorElement);
-                    console.log('[initializeInsightEditor] Editor initialization complete');
+                    
+                    // Set up image click handlers to open modal
+                    this.setupImageClickHandlers(editorElement);
                 } catch (error) {
                     console.error('[initializeInsightEditor] Error initializing editor:', error);
                     console.error('[initializeInsightEditor] Error stack:', error.stack);
@@ -14478,17 +14550,24 @@
                     
                     // Get selection coordinates from the editor view
                     const view = editor.view;
+                    if (!view) {
+                        return;
+                    }
+                    
                     const coords = view.coordsAtPos(to);
                     
                     if (coords) {
                         // Position menu near the end of the selection
+                        // coordsAtPos returns viewport coordinates, so we need position: fixed
+                        contextMenu.style.position = 'fixed';
                         contextMenu.style.display = 'block';
                         contextMenu.style.left = `${coords.right}px`;
                         contextMenu.style.top = `${coords.bottom + 5}px`;
                         
                         // Ensure menu stays within viewport
-                        setTimeout(() => {
+                        requestAnimationFrame(() => {
                             const menuRect = contextMenu.getBoundingClientRect();
+                            
                             if (menuRect.right > window.innerWidth) {
                                 contextMenu.style.left = `${window.innerWidth - menuRect.width - 10}px`;
                             }
@@ -14501,7 +14580,7 @@
                             if (menuRect.top < 0) {
                                 contextMenu.style.top = '10px';
                             }
-                        }, 0);
+                        });
                         
                         // Update active states
                         this.updateContextMenuStates(contextMenu, editor);
@@ -14601,6 +14680,40 @@
                     editorElement,
                     contextMenu
                 };
+            },
+            
+            setupImageClickHandlers(editorElement) {
+                if (!editorElement) return;
+                
+                // Clean up existing handler if any
+                if (this.imageClickHandler && this.currentEditorElement) {
+                    this.currentEditorElement.removeEventListener('click', this.imageClickHandler);
+                }
+                
+                // Store editor element reference for cleanup
+                this.currentEditorElement = editorElement;
+                
+                // Use event delegation to handle clicks on images
+                // This works for both existing and dynamically added images
+                const clickHandler = (e) => {
+                    // Check if the clicked element or its parent is an image
+                    let img = e.target;
+                    if (img.tagName !== 'IMG') {
+                        img = img.closest('img');
+                    }
+                    
+                    if (img && (img.classList.contains('insight-image') || editorElement.contains(img))) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        openImageModal(img.src);
+                    }
+                };
+                
+                // Store handler for cleanup
+                this.imageClickHandler = clickHandler;
+                
+                // Add click listener to editor element
+                editorElement.addEventListener('click', clickHandler);
             },
             
             cleanupEditorContextMenu() {
@@ -16492,6 +16605,28 @@
             }
         }
 
+        // Image Modal Functions
+        function openImageModal(imageSrc) {
+            const modal = document.getElementById('imageModal');
+            const modalImg = document.getElementById('imageModalImg');
+            
+            if (modal && modalImg) {
+                modalImg.src = imageSrc;
+                modal.classList.add('active');
+                // Prevent body scroll when modal is open
+                document.body.style.overflow = 'hidden';
+            }
+        }
+        
+        function closeImageModal() {
+            const modal = document.getElementById('imageModal');
+            if (modal) {
+                modal.classList.remove('active');
+                // Restore body scroll
+                document.body.style.overflow = '';
+            }
+        }
+        
         // Close modal on backdrop click
         document.addEventListener('DOMContentLoaded', () => {
             const modal = document.getElementById('createInsightModal');
@@ -16502,6 +16637,27 @@
                     }
                 });
             }
+            
+            // Set up image modal backdrop click
+            const imageModal = document.getElementById('imageModal');
+            if (imageModal) {
+                imageModal.addEventListener('click', (e) => {
+                    // Close if clicking on overlay (not the image content)
+                    if (e.target === imageModal) {
+                        closeImageModal();
+                    }
+                });
+            }
+            
+            // Close image modal on Escape key
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    const imageModal = document.getElementById('imageModal');
+                    if (imageModal && imageModal.classList.contains('active')) {
+                        closeImageModal();
+                    }
+                }
+            });
         });
     </script>
     
