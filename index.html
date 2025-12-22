@@ -12092,8 +12092,9 @@
             const topicName = firstOrigin.topic_label || null;
             const dataSourceId = firstOrigin.data_source || null;
             const dimensionName = firstOrigin.dimension_name || null;
+            const dimensionRef = firstOrigin.dimension_ref || null;
             
-            console.log('[BreadcrumbNav] initializeInsightPanel (standalone) - Extracted breadcrumb data:', { categoryName, topicName, dataSourceId, dimensionName });
+            console.log('[BreadcrumbNav] initializeInsightPanel (standalone) - Extracted breadcrumb data:', { categoryName, topicName, dataSourceId, dimensionName, dimensionRef });
             
             // Fetch data source name if we have SlideoutPanel available
             let dataSourceName = null;
@@ -12111,7 +12112,12 @@
                 breadcrumbParts.push(`<span class="insight-breadcrumb-item">${escapeHtml(dataSourceName)}</span>`);
             }
             if (dimensionName) {
-                breadcrumbParts.push(`<span class="insight-breadcrumb-item">${escapeHtml(dimensionName)}</span>`);
+                // Make dimension clickable if we have dimension_ref
+                if (dimensionRef) {
+                    breadcrumbParts.push(`<span class="insight-breadcrumb-item insight-breadcrumb-item--clickable" data-breadcrumb-click="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtml(dimensionName)}">${escapeHtml(dimensionName)}</span>`);
+                } else {
+                    breadcrumbParts.push(`<span class="insight-breadcrumb-item">${escapeHtml(dimensionName)}</span>`);
+                }
             }
             if (categoryName) {
                 breadcrumbParts.push(`<span class="insight-breadcrumb-item insight-breadcrumb-item--clickable" data-breadcrumb-click="category" data-category="${escapeHtml(categoryName)}" data-topic="${topicName ? escapeHtml(topicName) : ''}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}">${escapeHtml(categoryName)}</span>`);
@@ -12213,10 +12219,33 @@
                     const topName = item.getAttribute('data-topic') || null;
                     const dsId = item.getAttribute('data-data-source') || null;
                     const dimName = item.getAttribute('data-dimension') || null;
+                    const dimRef = item.getAttribute('data-dimension-ref') || null;
                     
-                    console.log('[BreadcrumbNav] initializeInsightPanel (standalone) - Breadcrumb clicked:', { clickType, catName, topName, dsId, dimName });
+                    console.log('[BreadcrumbNav] initializeInsightPanel (standalone) - Breadcrumb clicked:', { clickType, catName, topName, dsId, dimName, dimRef });
                     
-                    if (clickType === 'topic' && topName && catName) {
+                    if (clickType === 'dimension' && dimRef) {
+                        // Dimension click: navigate to visualizations and filter by dimension
+                        navigateToView('visualizations');
+                        
+                        // Set the dimension selector to the clicked dimension
+                        const questionSelect = document.getElementById('questionSelect');
+                        if (questionSelect) {
+                            const previousRefKey = currentQuestionRefKey;
+                            questionSelect.value = dimRef;
+                            currentQuestionRefKey = dimRef;
+                            
+                            // Filter by this dimension (this will reload charts/data in the background)
+                            filterByQuestion(dimRef, previousRefKey);
+                            
+                            // Update navigation links
+                            updateNavLinks();
+                            
+                            // Update AI Insights panel with current dimension
+                            if (window.AIInsightsPanel) {
+                                window.AIInsightsPanel.setCurrentDimension(dimRef);
+                            }
+                        }
+                    } else if (clickType === 'topic' && topName && catName) {
                         // Topic click: go directly to verbatims
                         const insightId = insightsCurrentInsightNotesId;
                         if (window.SlideoutPanel && insightId) {
@@ -13532,8 +13561,9 @@
                 const topicName = contextData.topic_label || null;
                 const dataSourceName = contextData.data_source || null; // This is the name, not ID in contextData
                 const dimensionName = contextData.dimension_name || null;
+                const dimensionRef = contextData.dimension_ref || null;
                 
-                console.log('[BreadcrumbNav] initializeCreateInsightPanel - Extracted breadcrumb data:', { categoryName, topicName, dataSourceName, dimensionName });
+                console.log('[BreadcrumbNav] initializeCreateInsightPanel - Extracted breadcrumb data:', { categoryName, topicName, dataSourceName, dimensionName, dimensionRef });
                 
                 // Get verbatims for this context
                 let availableVerbatims = this.getVerbatimsFromContext(contextData);
@@ -13567,7 +13597,12 @@
                     breadcrumbParts.push(`<span class="insight-breadcrumb-item">${escapeHtml(dataSourceName)}</span>`);
                 }
                 if (dimensionName) {
-                    breadcrumbParts.push(`<span class="insight-breadcrumb-item">${escapeHtml(dimensionName)}</span>`);
+                    // Make dimension clickable if we have dimension_ref
+                    if (dimensionRef) {
+                        breadcrumbParts.push(`<span class="insight-breadcrumb-item insight-breadcrumb-item--clickable" data-breadcrumb-click="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtml(dimensionName)}">${escapeHtml(dimensionName)}</span>`);
+                    } else {
+                        breadcrumbParts.push(`<span class="insight-breadcrumb-item">${escapeHtml(dimensionName)}</span>`);
+                    }
                 }
                 if (categoryName) {
                     // For create mode, we don't have data source ID yet, so we'll pass the name
@@ -13737,10 +13772,33 @@
                         const topName = item.getAttribute('data-topic') || null;
                         const dsName = item.getAttribute('data-data-source-name') || null;
                         const dimName = item.getAttribute('data-dimension') || null;
+                        const dimRef = item.getAttribute('data-dimension-ref') || null;
                         
-                        console.log('[BreadcrumbNav] initializeCreateInsightPanel - Breadcrumb clicked:', { clickType, catName, topName, dsName, dimName });
+                        console.log('[BreadcrumbNav] initializeCreateInsightPanel - Breadcrumb clicked:', { clickType, catName, topName, dsName, dimName, dimRef });
                         
-                        if (clickType === 'category' || clickType === 'topic') {
+                        if (clickType === 'dimension' && dimRef) {
+                            // Dimension click: navigate to visualizations and filter by dimension
+                            navigateToView('visualizations');
+                            
+                            // Set the dimension selector to the clicked dimension
+                            const questionSelect = document.getElementById('questionSelect');
+                            if (questionSelect) {
+                                const previousRefKey = currentQuestionRefKey;
+                                questionSelect.value = dimRef;
+                                currentQuestionRefKey = dimRef;
+                                
+                                // Filter by this dimension (this will reload charts/data in the background)
+                                filterByQuestion(dimRef, previousRefKey);
+                                
+                                // Update navigation links
+                                updateNavLinks();
+                                
+                                // Update AI Insights panel with current dimension
+                                if (window.AIInsightsPanel) {
+                                    window.AIInsightsPanel.setCurrentDimension(dimRef);
+                                }
+                            }
+                        } else if (clickType === 'category' || clickType === 'topic') {
                             // For create mode, we need to find the data source ID from the name
                             // We'll navigate to chart view, and it should work with current rawData
                             this.navigateToChart(catName, topName, null, dimName);
@@ -13962,8 +14020,9 @@
                 const topicName = firstOrigin.topic_label || null;
                 const dataSourceId = firstOrigin.data_source || null;
                 const dimensionName = firstOrigin.dimension_name || null;
+                const dimensionRef = firstOrigin.dimension_ref || null;
                 
-                console.log('[BreadcrumbNav] Extracted breadcrumb data:', { categoryName, topicName, dataSourceId, dimensionName });
+                console.log('[BreadcrumbNav] Extracted breadcrumb data:', { categoryName, topicName, dataSourceId, dimensionName, dimensionRef });
                 
                 // Fetch data source name
                 let dataSourceName = null;
@@ -13989,7 +14048,12 @@
                     breadcrumbParts.push(`<span class="insight-breadcrumb-item">${escapeHtml(dataSourceName)}</span>`);
                 }
                 if (dimensionName) {
-                    breadcrumbParts.push(`<span class="insight-breadcrumb-item">${escapeHtml(dimensionName)}</span>`);
+                    // Make dimension clickable if we have dimension_ref
+                    if (dimensionRef) {
+                        breadcrumbParts.push(`<span class="insight-breadcrumb-item insight-breadcrumb-item--clickable" data-breadcrumb-click="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtml(dimensionName)}">${escapeHtml(dimensionName)}</span>`);
+                    } else {
+                        breadcrumbParts.push(`<span class="insight-breadcrumb-item">${escapeHtml(dimensionName)}</span>`);
+                    }
                 }
                 if (categoryName) {
                     breadcrumbParts.push(`<span class="insight-breadcrumb-item insight-breadcrumb-item--clickable" data-breadcrumb-click="category" data-category="${escapeHtml(categoryName)}" data-topic="${topicName ? escapeHtml(topicName) : ''}" data-data-source="${dataSourceId || ''}" data-dimension="${dimensionName || ''}">${escapeHtml(categoryName)}</span>`);
@@ -14099,10 +14163,33 @@
                         const topName = item.getAttribute('data-topic') || null;
                         const dsId = item.getAttribute('data-data-source') || null;
                         const dimName = item.getAttribute('data-dimension') || null;
+                        const dimRef = item.getAttribute('data-dimension-ref') || null;
                         
-                        console.log('[BreadcrumbNav] Breadcrumb clicked:', { clickType, catName, topName, dsId, dimName });
+                        console.log('[BreadcrumbNav] Breadcrumb clicked:', { clickType, catName, topName, dsId, dimName, dimRef });
                         
-                        if (clickType === 'topic' && topName && catName) {
+                        if (clickType === 'dimension' && dimRef) {
+                            // Dimension click: navigate to visualizations and filter by dimension
+                            navigateToView('visualizations');
+                            
+                            // Set the dimension selector to the clicked dimension
+                            const questionSelect = document.getElementById('questionSelect');
+                            if (questionSelect) {
+                                const previousRefKey = currentQuestionRefKey;
+                                questionSelect.value = dimRef;
+                                currentQuestionRefKey = dimRef;
+                                
+                                // Filter by this dimension (this will reload charts/data in the background)
+                                filterByQuestion(dimRef, previousRefKey);
+                                
+                                // Update navigation links
+                                updateNavLinks();
+                                
+                                // Update AI Insights panel with current dimension
+                                if (window.AIInsightsPanel) {
+                                    window.AIInsightsPanel.setCurrentDimension(dimRef);
+                                }
+                            }
+                        } else if (clickType === 'topic' && topName && catName) {
                             // Topic click: go directly to verbatims
                             this.navigateToVerbatimsFromBreadcrumb(topName, catName);
                         } else if (clickType === 'category') {
