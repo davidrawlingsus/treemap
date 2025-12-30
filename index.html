@@ -10689,6 +10689,9 @@
                 
                 // Reload insights for the current client
                 console.log('[NavigateView DEBUG] Calling initInsightsPage to reload for current client');
+                // Reset the initialized flag to allow reload
+                window.insightsInitialized = false;
+                console.log('[NavigateView DEBUG] Reset insightsInitialized to false');
                 if (typeof initInsightsPage === 'function') {
                     initInsightsPage();
                 }
