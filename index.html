@@ -6042,16 +6042,26 @@
         }
 
         function selectClientAndLaunch(clientId) {
+            console.log('[ClientSwitch DEBUG] selectClientAndLaunch called with clientId:', clientId);
+            console.log('[ClientSwitch DEBUG] Current currentClientId:', currentClientId);
+            console.log('[ClientSwitch DEBUG] Current insightsCurrentClientId:', typeof insightsCurrentClientId !== 'undefined' ? insightsCurrentClientId : 'UNDEFINED');
+            
             // Prevent multiple calls
             if (hasAutoLaunched && currentClientId === clientId) {
+                console.log('[ClientSwitch DEBUG] Skipping - already launched for this client');
                 return;
             }
             currentClientId = clientId;
+            console.log('[ClientSwitch DEBUG] Set currentClientId to:', currentClientId);
+            
             // Also update the Insights tab client ID to keep them in sync
             if (typeof insightsCurrentClientId !== 'undefined') {
                 insightsCurrentClientId = clientId;
-                console.log('[ClientSwitch] Updated insightsCurrentClientId to:', clientId);
+                console.log('[ClientSwitch DEBUG] Updated insightsCurrentClientId to:', insightsCurrentClientId);
+            } else {
+                console.error('[ClientSwitch DEBUG] insightsCurrentClientId is UNDEFINED - cannot update!');
             }
+            
             saveState();
             hasAutoLaunched = true;
             const loginContainer = document.querySelector('.login-container');
@@ -6384,15 +6394,25 @@
                 // Add change listener (remove existing one first to avoid duplicates)
                 const handleClientChange = async (e) => {
                     const newClientId = e.target.value;
+                    console.log('[ClientSwitch DEBUG] handleClientChange called with newClientId:', newClientId);
+                    console.log('[ClientSwitch DEBUG] Current currentClientId:', currentClientId);
+                    console.log('[ClientSwitch DEBUG] Current insightsCurrentClientId:', typeof insightsCurrentClientId !== 'undefined' ? insightsCurrentClientId : 'UNDEFINED');
+                    
                     if (!newClientId || newClientId === currentClientId) {
+                        console.log('[ClientSwitch DEBUG] Skipping - no change or same client');
                         return; // No change or same client
                     }
                     currentClientId = newClientId;
+                    console.log('[ClientSwitch DEBUG] Set currentClientId to:', currentClientId);
+                    
                     // Also update the Insights tab client ID to keep them in sync
                     if (typeof insightsCurrentClientId !== 'undefined') {
                         insightsCurrentClientId = newClientId;
-                        console.log('[ClientSwitch] Updated insightsCurrentClientId to:', newClientId);
+                        console.log('[ClientSwitch DEBUG] Updated insightsCurrentClientId to:', insightsCurrentClientId);
+                    } else {
+                        console.error('[ClientSwitch DEBUG] insightsCurrentClientId is UNDEFINED - cannot update!');
                     }
+                    
                     currentProjectName = null; // Reset project when client changes
                     currentDataSourceId = null; // Reset data source when client changes
                     currentQuestionRefKey = null; // Reset question when client changes
