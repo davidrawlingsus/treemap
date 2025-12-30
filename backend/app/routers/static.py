@@ -137,3 +137,25 @@ if (frontend_path / "choose-data-source.html").exists():
         """Serve the choose data source page"""
         return FileResponse(frontend_path / "choose-data-source.html")
 
+if (frontend_path / "founder_voc_editor.html").exists():
+    @router.get("/founder_voc_editor", response_class=FileResponse)
+    def serve_founder_voc_editor():
+        """Serve the founder VOC editor page"""
+        return FileResponse(frontend_path / "founder_voc_editor.html")
+    
+    @router.get("/founder_voc_editor.html", response_class=FileResponse)
+    def serve_founder_voc_editor_html():
+        """Serve the founder VOC editor page"""
+        return FileResponse(frontend_path / "founder_voc_editor.html")
+
+if (frontend_path / "founder_authorized_domains.html").exists():
+    @router.get("/founder_authorized_domains", response_class=FileResponse)
+    def serve_founder_authorized_domains():
+        """Serve the founder authorized domains page"""
+        return FileResponse(frontend_path / "founder_authorized_domains.html")
+    
+    @router.get("/founder_authorized_domains.html", response_class=FileResponse)
+    def serve_founder_authorized_domains_html():
+        """Serve the founder authorized domains page"""
+        return FileResponse(frontend_path / "founder_authorized_domains.html")
+
