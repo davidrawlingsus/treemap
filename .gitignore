@@ -9,3 +9,5 @@ data_sources/
 backend.log
 frontend.log
 
+treemap.db
+*.db

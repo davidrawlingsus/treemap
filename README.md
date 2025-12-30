@@ -90,22 +90,24 @@ Root
 ## File Structure
 
 ```
-treemap/
+vizualizd/
 ├── index.html                    # Frontend visualization
 ├── QUICKSTART.md                 # Quick start guide
 ├── README.md                     # This file
-├── Documentation/                # Complete documentation
-│   ├── README.md                # Documentation index
-│   ├── MULTI_FORMAT_GUIDE.md   # Multi-format system guide
-│   ├── FORMAT_COMPARISON.md    # Format comparison
-│   └── ...                      # Additional docs
+├── .env.example                  # Environment configuration template
+├── docs/
+│   └── ENVIRONMENT_VARIABLES.md # Complete environment setup guide
 ├── backend/                      # FastAPI backend
 │   ├── app/
-│   │   ├── transformers/        # Format transformation system
+│   │   ├── routers/             # API route handlers
+│   │   ├── schemas/             # Pydantic schemas
 │   │   ├── models/              # Database models
-│   │   └── main.py             # API endpoints
-│   └── migrate_data_sources.py # Migration script
-└── test_wattbike_local.sh       # Automated testing script
+│   │   ├── services/            # Business logic services
+│   │   ├── authorization.py     # Access control
+│   │   └── main.py              # Application entry point
+│   ├── tests/                   # Automated tests
+│   └── alembic/                 # Database migrations
+└── styles.css                   # Frontend styling
 ```
 
 ## Customization
@@ -118,15 +120,12 @@ You can customize the visualization by modifying these variables in `index.html`
 
 ## Documentation
 
-📚 **Complete documentation** is available in the [`Documentation/`](Documentation/) folder:
+📚 **Documentation** is available in:
 
-- **[Multi-Format Guide](Documentation/MULTI_FORMAT_GUIDE.md)** - How to use different data formats
-- **[Format Comparison](Documentation/FORMAT_COMPARISON.md)** - Understanding data structures
-- **[Quick Test Guide](Documentation/QUICK_TEST_GUIDE.md)** - Local testing instructions
-- **[Test Checklist](Documentation/TEST_CHECKLIST.md)** - Comprehensive testing
-- **[Refactoring Summary](Documentation/REFACTORING_SUMMARY.md)** - Technical details
-
-See the [Documentation README](Documentation/README.md) for a complete index.
+- **[QUICKSTART.md](QUICKSTART.md)** - Quick start guide for running the application
+- **[Backend README](backend/README.md)** - Backend-specific setup instructions
+- **[Environment Variables](docs/ENVIRONMENT_VARIABLES.md)** - Complete configuration guide
+- **[.env.example](.env.example)** - Configuration template with all options
 
 ## Multi-Format Support
 
