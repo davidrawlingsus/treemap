@@ -11413,6 +11413,13 @@
                 saveState();
                 updateNavLinks();
                 
+                // Update the data source dropdown UI
+                const sourceSelect = document.getElementById('sourceSelect');
+                if (sourceSelect) {
+                    sourceSelect.value = dataSource;
+                    console.log('[InsightOriginNav] Updated source dropdown to:', dataSource);
+                }
+                
                 // Load the new data source - this will call detectAndSetupQuestionFilter
                 // which loads availableQuestions, so we need to wait for it to complete
                 await loadDataSource(currentClientId, currentDataSourceId);
