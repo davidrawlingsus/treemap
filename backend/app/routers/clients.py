@@ -21,35 +21,10 @@ from app.schemas import (
     InsightOrigin,
 )
 from app.auth import get_current_user
+from app.authorization import verify_client_access
 
 router = APIRouter(prefix="/api/clients", tags=["clients"])
 logger = logging.getLogger(__name__)
-
-
-def verify_client_access(client_id: UUID, current_user: User, db: Session) -> Client:
-    """Verify that the current user has access to the specified client."""
-    client = db.query(Client).filter(Client.id == client_id).first()
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found")
-    
-    # Check if user has access via memberships
-    membership = db.query(Membership).filter(
-        Membership.user_id == current_user.id,
-        Membership.client_id == client_id,
-        Membership.status == 'active'
-    ).first()
-    
-    if membership:
-        return client
-    
-    # If user is founder, check if they founded this client
-    if current_user.is_founder and client.founder_user_id == current_user.id:
-        return client
-    
-    raise HTTPException(
-        status_code=403,
-        detail="You do not have access to this client"
-    )
 
 
 @router.get("", response_model=List[ClientResponse])

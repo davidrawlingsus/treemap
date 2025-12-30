@@ -214,7 +214,7 @@ app.include_router(clients.router)
 from app.routers import dimensions
 app.include_router(dimensions.router)
 
-# Include founder admin router
+# Include founder admin router (now modularized)
 from app.routers import founder_admin
 app.include_router(founder_admin.router)
 

@@ -25,6 +25,7 @@ from app.schemas import (
     CsvColumnMappingRequest,
 )
 from app.auth import get_current_user
+from app.authorization import verify_client_access
 
 router = APIRouter(prefix="/api/voc", tags=["voc"])
 logger = logging.getLogger(__name__)
@@ -343,19 +344,7 @@ async def upload_csv(
     """
     try:
         # Validate user has access to client
-        client = db.query(Client).filter(Client.id == client_uuid).first()
-        if not client:
-            raise HTTPException(status_code=404, detail="Client not found")
-        
-        # Check user access (simplified - you may want to add membership check)
-        if not current_user.is_founder:
-            # For non-founders, check if they have access via memberships
-            membership = db.query(Membership).filter(
-                Membership.user_id == current_user.id,
-                Membership.client_id == client_uuid
-            ).first()
-            if not membership:
-                raise HTTPException(status_code=403, detail="Access denied to this client")
+        verify_client_access(client_uuid, current_user, db)
 
         # Read and parse CSV
         contents = await file.read()

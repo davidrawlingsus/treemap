@@ -21,6 +21,7 @@ from app.auth import (
 )
 from app.services import MagicLinkEmailParams
 from app.utils import build_email_service
+from app.authorization import get_user_clients
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
@@ -423,27 +424,10 @@ def get_current_user_info(
     db: Session = Depends(get_db)
 ):
     """Get current authenticated user information with accessible clients."""
-    from app.models import Client
     from app.schemas import ClientResponse
     
-    # Get clients user has access to via memberships
-    memberships = db.query(Membership).filter(
-        Membership.user_id == current_user.id,
-        Membership.status == 'active'
-    ).options(joinedload(Membership.client)).all()
-    
-    accessible_clients = [m.client for m in memberships if m.client]
-    
-    # If user is founder, also include clients they founded
-    if current_user.is_founder:
-        founded_clients = db.query(Client).filter(
-            Client.founder_user_id == current_user.id
-        ).all()
-        # Merge and deduplicate
-        client_ids = {c.id for c in accessible_clients}
-        for client in founded_clients:
-            if client.id not in client_ids:
-                accessible_clients.append(client)
+    # Get all accessible clients using centralized authorization logic
+    accessible_clients = get_user_clients(current_user, db)
     
     return UserWithClients(
         id=current_user.id,
