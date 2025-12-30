@@ -108,10 +108,14 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
             detail="User account is inactive"
         )
     
-    # NOTE: Password validation is disabled - any password is accepted
-    # TODO: Add password verification when password fields are added
-    # if not verify_password(credentials.password, user.hashed_password):
-    #     raise HTTPException(status_code=401, detail="Incorrect email or password")
+    # Password validation for founder accounts in production
+    if user.is_founder and is_production:
+        if credentials.password != settings.founder_admin_password:
+            raise HTTPException(
+                status_code=401,
+                detail="Incorrect password for founder account"
+            )
+    # For non-founders or in development, password is not required
     
     # Update last login
     try:
