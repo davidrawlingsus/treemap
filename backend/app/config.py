@@ -80,6 +80,38 @@ class Settings(BaseSettings):
 
         return []
 
+
+def get_cors_origins(settings: Settings) -> list[str]:
+    """
+    Get list of CORS allowed origins from settings.
+    
+    Combines frontend_base_url and additional_cors_origins, normalizing
+    and deduplicating origins.
+    
+    Args:
+        settings: Settings instance containing CORS configuration
+        
+    Returns:
+        List of normalized CORS origin URLs
+    """
+    from app.utils import extract_origin
+    
+    cors_origins: list[str] = []
+    
+    # Add primary origin from frontend_base_url
+    primary_origin = extract_origin(settings.frontend_base_url)
+    if primary_origin:
+        cors_origins.append(primary_origin)
+    
+    # Add additional origins from settings
+    for origin in settings.get_additional_cors_origins():
+        normalized_origin = extract_origin(origin)
+        if normalized_origin and normalized_origin not in cors_origins:
+            cors_origins.append(normalized_origin)
+    
+    return cors_origins
+
+
 @lru_cache()
 def get_settings():
     return Settings()

@@ -4991,7 +4991,7 @@
                     <!-- Advanced Multi-Filter -->
                     <div class="filter-menu">
                         <button id="filterBtn" class="filter-button" type="button" aria-label="Open filters">
-                            <img src="/images/filter_list.svg" alt="" aria-hidden="true">
+                            <img src="/static/images/filter_list.svg" alt="" aria-hidden="true">
                             <span id="filterBadge" class="filter-badge" aria-hidden="true"></span>
                         </button>
                         <div id="filterDropdown" style="display: none; position: absolute; top: 100%; right: 0; margin-top: 8px; background: white; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 350px; max-width: 450px; z-index: 1000; max-height: 500px; overflow-y: auto;">
@@ -6047,6 +6047,12 @@
                 return;
             }
             currentClientId = clientId;
+            
+            // Sync Insights tab client ID to keep both tabs in sync
+            if (typeof insightsCurrentClientId !== 'undefined') {
+                insightsCurrentClientId = clientId;
+            }
+            
             saveState();
             hasAutoLaunched = true;
             const loginContainer = document.querySelector('.login-container');
@@ -6383,6 +6389,12 @@
                         return; // No change or same client
                     }
                     currentClientId = newClientId;
+                    
+                    // Sync Insights tab client ID to keep both tabs in sync
+                    if (typeof insightsCurrentClientId !== 'undefined') {
+                        insightsCurrentClientId = newClientId;
+                    }
+                    
                     currentProjectName = null; // Reset project when client changes
                     currentDataSourceId = null; // Reset data source when client changes
                     currentQuestionRefKey = null; // Reset question when client changes
@@ -10626,6 +10638,11 @@
                     });
                 }
             } else if (viewName === 'insights') {
+                // Sync insightsCurrentClientId with currentClientId when navigating to insights
+                if (currentClientId && insightsCurrentClientId !== currentClientId) {
+                    insightsCurrentClientId = currentClientId;
+                }
+                
                 if (insightsSection) {
                     insightsSection.classList.add('active');
                     // Reset styles for active section
@@ -10642,6 +10659,14 @@
                     mainContainer.style.height = 'auto';
                     mainContainer.setAttribute('data-view', 'insights');
                 }
+                
+                // Reload insights for the current client
+                // Reset the initialized flag to force reload with current client data
+                window.insightsInitialized = false;
+                if (typeof initInsightsPage === 'function') {
+                    initInsightsPage();
+                }
+                
                 // Scroll to top to ensure insights section is visible
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 // Also scroll the container if it's scrollable
@@ -10854,36 +10879,20 @@
         }
 
         async function initInsightsPage() {
+            // Check if already initialized - this is reset to false when navigating to allow reload
             if (window.insightsInitialized) {
-                console.log('[DEBUG] initInsightsPage: Already initialized, skipping');
                 return;
             }
             
-            console.log('[DEBUG] ========== initInsightsPage called ==========');
-            console.log('[DEBUG] Window location:', window.location.href);
-            console.log('[DEBUG] Window location search:', window.location.search);
-            
+            // Wait for auth to be available
             let attempts = 0;
             while (typeof getAuthHeaders === 'undefined' && attempts < 10) {
-                console.log(`[DEBUG] Waiting for getAuthHeaders (attempt ${attempts + 1}/10)`);
                 await new Promise(resolve => setTimeout(resolve, 100));
                 attempts++;
             }
-            
-            if (typeof getAuthHeaders === 'undefined') {
-                console.warn('[DEBUG] getAuthHeaders still undefined after waiting');
-            } else {
-                console.log('[DEBUG] getAuthHeaders is now available');
-            }
 
             const urlParams = new URLSearchParams(window.location.search);
-            console.log('[DEBUG] URL params:', Array.from(urlParams.entries()));
-            console.log('[DEBUG] currentClientId from global:', currentClientId);
-            
             insightsCurrentClientId = urlParams.get('client_uuid') || currentClientId;
-            console.log('[DEBUG] insightsCurrentClientId set to:', insightsCurrentClientId);
-            console.log('[DEBUG] client_uuid from URL:', urlParams.get('client_uuid'));
-            console.log('[DEBUG] currentClientId fallback:', currentClientId);
             
             const authTokenFromUrl = urlParams.get('auth_token');
             if (authTokenFromUrl) {
@@ -10892,22 +10901,15 @@
             }
 
             if (!insightsCurrentClientId) {
-                console.warn('[DEBUG] No client ID found, will wait for currentClientId to be set');
-                console.log('[DEBUG] Setting up retry mechanism...');
-                
                 // Wait for currentClientId to be set (with timeout)
                 let retryAttempts = 0;
                 const maxRetries = 50; // 5 seconds max wait
                 while (!currentClientId && retryAttempts < maxRetries) {
                     await new Promise(resolve => setTimeout(resolve, 100));
                     retryAttempts++;
-                    if (retryAttempts % 10 === 0) {
-                        console.log(`[DEBUG] Still waiting for currentClientId (${retryAttempts * 100}ms elapsed)...`);
-                    }
                 }
                 
                 if (currentClientId) {
-                    console.log('[DEBUG] currentClientId is now available:', currentClientId);
                     insightsCurrentClientId = currentClientId;
                 } else {
                     console.error('[DEBUG] currentClientId never became available');
@@ -10931,7 +10933,6 @@
             
             await loadInsightsPage();
             window.insightsInitialized = true;
-            console.log('[DEBUG] ========== initInsightsPage completed ==========');
         }
         
         // Close filter dropdown when clicking outside
@@ -10988,12 +10989,6 @@
         });
 
         async function loadInsightsPage() {
-            console.log('[DEBUG] ========== loadInsightsPage called ==========');
-            console.log('[DEBUG] insightsCurrentClientId:', insightsCurrentClientId);
-            console.log('[DEBUG] API_BASE_URL:', API_BASE_URL);
-            console.log('[DEBUG] insightsCurrentSortBy:', insightsCurrentSortBy);
-            console.log('[DEBUG] insightsSortOrder:', insightsSortOrder);
-            console.log('[DEBUG] insightsFilters:', insightsFilters);
             
             if (!insightsCurrentClientId) {
                 console.error('[DEBUG] No client ID, cannot load insights');
@@ -11026,51 +11021,23 @@
                 Object.entries(insightsFilters).forEach(([key, value]) => {
                     if (value) {
                         params.append(key, value);
-                        console.log(`[DEBUG] Added filter: ${key} = ${value}`);
                     }
                 });
 
                 const headers = getAuthHeadersSafe();
                 const url = `${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights?${params.toString()}`;
-                console.log('[DEBUG] Fetching insights from:', url);
-                console.log('[DEBUG] Request headers:', headers);
-                console.log('[DEBUG] Request method: GET');
                 
-                const fetchStartTime = Date.now();
-                const response = await fetch(url, {
-                    headers: headers
-                });
-                const fetchDuration = Date.now() - fetchStartTime;
-                
-                console.log('[DEBUG] Fetch completed in', fetchDuration, 'ms');
-                console.log('[DEBUG] Response status:', response.status);
-                console.log('[DEBUG] Response statusText:', response.statusText);
-                console.log('[DEBUG] Response headers:', Array.from(response.headers.entries()));
+                const response = await fetch(url, { headers });
 
                 if (!response.ok) {
-                    console.error('[DEBUG] Response not OK');
                     if (response.status === 401) {
-                        console.error('[DEBUG] 401 Unauthorized - authentication required');
                         throw new Error('Authentication required. Please log in.');
                     }
-                    const errorText = await response.text();
-                    console.error('[DEBUG] Error response body:', errorText);
                     throw new Error(`Failed to load insights: ${response.status} ${response.statusText}`);
                 }
 
                 const data = await response.json();
-                console.log('[DEBUG] Response JSON parsed successfully');
-                console.log('[DEBUG] Response data keys:', Object.keys(data));
-                console.log('[DEBUG] Insights count:', data.items?.length || 0);
-                console.log('[DEBUG] Total insights (if available):', data.total);
-                console.log('[DEBUG] Sample insight (first item):', data.items?.[0] ? {
-                    id: data.items[0].id,
-                    name: data.items[0].name,
-                    type: data.items[0].type
-                } : 'none');
-                
                 insightsAllInsights = data.items || [];
-                console.log('[DEBUG] Stored', insightsAllInsights.length, 'insights in insightsAllInsights array');
                 
                 // Sort by origin client-side if needed (backend doesn't support project sorting)
                 if (insightsCurrentSortBy === 'origin') {
@@ -11096,17 +11063,12 @@
                 restoreFilterDropdowns();
                 
                 renderInsightsPage();
-                console.log('[DEBUG] ========== loadInsightsPage completed successfully ==========');
             } catch (error) {
-                console.error('[DEBUG] ========== ERROR in loadInsightsPage ==========');
-                console.error('[DEBUG] Error type:', error.constructor.name);
-                console.error('[DEBUG] Error message:', error.message);
-                console.error('[DEBUG] Error stack:', error.stack);
-                
+                console.error('Error loading insights:', error);
                 const errorTbody = document.getElementById('insightsPageTableBody');
                 if (errorTbody) {
                     const errorMessage = error.message || 'Unknown error occurred';
-                    errorTbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>Error loading insights</h3><p>' + escapeHtml(errorMessage) + '</p><p style="font-size: 12px; color: #999; margin-top: 8px;">Check console for details</p></td></tr>';
+                    errorTbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>Error loading insights</h3><p>' + escapeHtml(errorMessage) + '</p></td></tr>';
                 }
             }
         }
@@ -11128,7 +11090,6 @@
             
             // Apply filters
             if (insightsFilters && insightsFilters.length > 0) {
-                console.log('[DEBUG] Applying', insightsFilters.length, 'filters');
                 filtered = filtered.filter(insight => {
                     return insightsFilters.every(filter => {
                         let insightValue = null;
@@ -11182,7 +11143,6 @@
             }
 
             if (filtered.length === 0) {
-                console.log('[DEBUG] No insights to render, showing empty state');
                 // Calculate colspan: 1 for checkbox + number of columns
                 const columnCount = getColumnOrder().length;
                 tbody.innerHTML = `<tr><td colspan="${columnCount + 1}" class="empty-state"><h3>No insights found</h3><p>Create your first insight to get started</p></td></tr>`;
@@ -11210,7 +11170,7 @@
                 }
                 if (dimensionName && dimensionRef) {
                     const pascalDimension = toPascalCase(dimensionName);
-                    originPills.push(`<span class="tag tag-data-source insight-origin-pill" data-origin-type="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtml(dimensionName)}" onclick="event.stopPropagation(); navigateToDimensionFromInsight('${dimensionRef}', '${escapeHtml(dimensionName)}')" style="cursor: pointer;">${escapeHtml(pascalDimension)}</span>`);
+                    originPills.push(`<span class="tag tag-data-source insight-origin-pill" data-origin-type="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtml(dimensionName)}" data-data-source="${dataSource || ''}" onclick="event.stopPropagation(); navigateToDimensionFromInsight('${dimensionRef}', '${escapeHtml(dimensionName)}', '${dataSource || ''}')" style="cursor: pointer;">${escapeHtml(pascalDimension)}</span>`);
                 } else if (dimensionName) {
                     const pascalDimension = toPascalCase(dimensionName);
                     originPills.push(`<span class="tag tag-data-source insight-origin-pill">${escapeHtml(pascalDimension)}</span>`);
@@ -11358,27 +11318,33 @@
             }
         }
 
-        function navigateToDimensionFromInsight(dimensionRef, dimensionName) {
-            console.log('[InsightOriginNav] Navigating to dimension:', dimensionRef, dimensionName);
+        async function navigateToDimensionFromInsight(dimensionRef, dimensionName, dataSource) {
+            console.log('[InsightOriginNav] Navigating to dimension:', dimensionRef, dimensionName, 'dataSource:', dataSource);
+            
             // Navigate to visualizations view
             navigateToView('visualizations');
             
-            // Set the dimension selector
-            const questionSelect = document.getElementById('questionSelect');
-            if (questionSelect) {
-                const previousRefKey = currentQuestionRefKey;
-                questionSelect.value = dimensionRef;
-                currentQuestionRefKey = dimensionRef;
-                
-                // Filter by this dimension
-                filterByQuestion(dimensionRef, previousRefKey);
-                
-                // Update navigation links
-                updateNavLinks();
-                
-                // Update AI Insights panel with current dimension
-                if (window.AIInsightsPanel) {
-                    window.AIInsightsPanel.setCurrentDimension(dimensionRef);
+            // Ensure we're on the correct data source before selecting dimension
+            if (dataSource) {
+                await ensureContextForInsightNavigation(dataSource, dimensionRef);
+            } else {
+                // If no data source specified, just switch dimension
+                const questionSelect = document.getElementById('questionSelect');
+                if (questionSelect) {
+                    const previousRefKey = currentQuestionRefKey;
+                    questionSelect.value = dimensionRef;
+                    currentQuestionRefKey = dimensionRef;
+                    
+                    // Filter by this dimension
+                    filterByQuestion(dimensionRef, previousRefKey);
+                    
+                    // Update navigation links
+                    updateNavLinks();
+                    
+                    // Update AI Insights panel with current dimension
+                    if (window.AIInsightsPanel) {
+                        window.AIInsightsPanel.setCurrentDimension(dimensionRef);
+                    }
                 }
             }
         }
@@ -11406,6 +11372,13 @@
                 dimensionFilters = {}; // Clear dimension filters
                 saveState();
                 updateNavLinks();
+                
+                // Update the data source dropdown UI
+                const sourceSelect = document.getElementById('sourceSelect');
+                if (sourceSelect) {
+                    sourceSelect.value = dataSource;
+                    console.log('[InsightOriginNav] Updated source dropdown to:', dataSource);
+                }
                 
                 // Load the new data source - this will call detectAndSetupQuestionFilter
                 // which loads availableQuestions, so we need to wait for it to complete
@@ -16911,7 +16884,7 @@
                 <div class="filter-chips" id="filterChips"></div>
                 <div style="position: relative;">
                     <button class="filter-button" onclick="toggleFilterMenu(event)" id="filterMenuBtn" type="button" aria-label="Open filters">
-                        <img src="/images/filter_list.svg" alt="" aria-hidden="true">
+                        <img src="/static/images/filter_list.svg" alt="" aria-hidden="true">
                         <span id="insightsListFilterBadge" class="filter-badge" aria-hidden="true"></span>
                     </button>
                     
