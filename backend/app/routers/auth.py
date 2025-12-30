@@ -1,7 +1,7 @@
 """
 Authentication routes.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from datetime import datetime, timedelta, timezone
@@ -18,6 +18,7 @@ from app.auth import (
     create_access_token,
     generate_magic_link_token,
     is_magic_link_token_valid,
+    validate_founder_password,
 )
 from app.services import MagicLinkEmailParams
 from app.utils import build_email_service
@@ -36,7 +37,7 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
     Password fields may not exist in the Railway database yet.
     """
     settings = get_settings()
-    is_production = settings.environment.lower() in {"production", "prod", "production2"}
+    is_production = settings.is_production()
     
     # Normalize email input
     email_input = credentials.email.strip().lower()
@@ -108,14 +109,14 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
             detail="User account is inactive"
         )
     
-    # Password validation for founder accounts in production
-    if user.is_founder and is_production:
-        if credentials.password != settings.founder_admin_password:
-            raise HTTPException(
-                status_code=401,
-                detail="Incorrect password for founder account"
-            )
-    # For non-founders or in development, password is not required
+    # Password validation for founder accounts (required in production only)
+    if user.is_founder:
+        validate_founder_password(
+            password=credentials.password,
+            expected_password=settings.founder_admin_password,
+            is_production=is_production,
+            status_code=status.HTTP_401_UNAUTHORIZED  # 401 for login (authentication failure)
+        )
     
     # Update last login
     try:

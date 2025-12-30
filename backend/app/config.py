@@ -81,6 +81,10 @@ class Settings(BaseSettings):
 
         return []
 
+    def is_production(self) -> bool:
+        """Check if running in production environment."""
+        return self.environment.lower() in {"production", "prod", "production2"}
+
 
 def get_cors_origins(settings: Settings) -> list[str]:
     """

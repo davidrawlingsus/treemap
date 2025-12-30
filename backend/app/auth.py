@@ -96,6 +96,33 @@ def get_current_active_founder(
     return current_user
 
 
+def validate_founder_password(
+    password: str | None, 
+    expected_password: str, 
+    is_production: bool,
+    status_code: int = status.HTTP_403_FORBIDDEN
+) -> None:
+    """
+    Validate founder password.
+    
+    In production, password must match. In development, validation is skipped for convenience.
+    
+    Args:
+        password: The password to validate
+        expected_password: The expected password from config
+        is_production: Whether running in production environment
+        status_code: HTTP status code to use for password mismatch (default: 403)
+        
+    Raises:
+        HTTPException: If password is incorrect in production
+    """
+    if is_production and password != expected_password:
+        raise HTTPException(
+            status_code=status_code,
+            detail="Incorrect founder admin password",
+        )
+
+
 def get_current_active_founder_with_password(
     current_user: User = Depends(get_current_user),
     password_header: str | None = Header(None, alias="X-Founder-Admin-Password"),
@@ -126,18 +153,13 @@ def get_current_active_founder_with_password(
             detail="Not enough permissions - founder access required",
         )
     
-    # Skip password check in development mode for convenience
+    # Validate password (skipped in development mode for convenience)
     settings = get_settings()
-    is_production = settings.environment.lower() in {"production", "prod", "production2"}
-    
-    if is_production:
-        # In production, password is required
-        if password_header != settings.founder_admin_password:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Incorrect founder admin password",
-            )
-    # In development, password check is skipped (founder status is sufficient)
+    validate_founder_password(
+        password=password_header,
+        expected_password=settings.founder_admin_password,
+        is_production=settings.is_production()
+    )
     
     return current_user
 
