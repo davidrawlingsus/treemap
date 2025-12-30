@@ -21,7 +21,7 @@ from app.schemas import (
     TableCreateRequest,
     ColumnAddRequest,
 )
-from app.auth import get_current_active_founder
+from app.auth import get_current_active_founder_with_password
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 @router.get("/api/founder/database/tables", response_model=List[TableInfo])
 def list_database_tables(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_active_founder_with_password),
 ):
     """List all tables in the database with their column information."""
     inspector = inspect(engine)
@@ -107,7 +107,7 @@ def list_database_tables(
 def get_table_columns(
     table_name: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_active_founder_with_password),
 ):
     """Get column information for a specific table."""
     inspector = inspect(engine)
@@ -163,7 +163,7 @@ def get_table_data(
     page: int = 1,
     page_size: int = 50,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_active_founder_with_password),
 ):
     """Get paginated data from a specific table."""
     inspector = inspect(engine)
@@ -262,7 +262,7 @@ def create_table_row(
     table_name: str,
     request: RowCreateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_active_founder_with_password),
 ):
     """Create a new row in a table."""
     inspector = inspect(engine)
@@ -316,7 +316,7 @@ def update_table_row(
     table_name: str,
     request: RowUpdateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_active_founder_with_password),
 ):
     """Update a row in a table. Requires 'id' field to identify the row."""
     inspector = inspect(engine)
@@ -402,7 +402,7 @@ def delete_table_row(
     table_name: str,
     id: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_active_founder_with_password),
 ):
     """Delete a row from a table. Requires 'id' query parameter."""
     if not id:
@@ -445,7 +445,7 @@ def delete_table_row(
 def create_table(
     request: TableCreateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_active_founder_with_password),
 ):
     """Create a new table. ⚠️ DANGEROUS: Schema changes can break the application."""
     inspector = inspect(engine)
@@ -489,7 +489,7 @@ def add_table_column(
     table_name: str,
     request: ColumnAddRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_active_founder_with_password),
 ):
     """Add a column to a table. ⚠️ DANGEROUS: Schema changes can break the application."""
     inspector = inspect(engine)
@@ -531,7 +531,7 @@ def delete_table(
     table_name: str,
     confirm: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_active_founder_with_password),
 ):
     """Delete a table. ⚠️ DANGEROUS: This will permanently delete all data in the table."""
     # Handle confirm parameter - FastAPI query params come as strings
@@ -598,7 +598,7 @@ def delete_table_column(
     column_name: str,
     confirm: bool = False,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_active_founder_with_password),
 ):
     """Delete a column from a table. ⚠️ DANGEROUS: This will permanently delete all data in the column."""
     if not confirm:

@@ -15,7 +15,7 @@ from app.schemas import (
     FieldMetadata,
     DynamicBulkUpdateRequest,
 )
-from app.auth import get_current_active_founder
+from app.auth import get_current_active_founder_with_password
 
 router = APIRouter()
 
@@ -36,7 +36,7 @@ def get_founder_admin_voc_data(
     page: int = 1,
     page_size: int = 100,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder)
+    current_user: User = Depends(get_current_active_founder_with_password)
 ):
     """
     Get all process_voc rows with optional filtering.
@@ -92,7 +92,7 @@ def get_founder_admin_voc_data(
 def bulk_update_voc_data(
     update_request: ProcessVocBulkUpdateRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder)
+    current_user: User = Depends(get_current_active_founder_with_password)
 ):
     """
     Bulk update project_name and/or dimension_name for multiple process_voc rows.
@@ -132,7 +132,7 @@ def bulk_update_voc_data(
 
 @router.get("/api/founder-admin/field-metadata", response_model=FieldMetadataResponse)
 def get_field_metadata(
-    current_user: User = Depends(get_current_active_founder)
+    current_user: User = Depends(get_current_active_founder_with_password)
 ):
     """
     Get metadata about all editable fields in process_voc table.
@@ -186,7 +186,7 @@ def bulk_update_filtered_voc_data(
     data_source: Optional[str] = None,
     client_name: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder)
+    current_user: User = Depends(get_current_active_founder_with_password)
 ):
     """
     Bulk update any fields for all rows matching filter criteria.
@@ -314,7 +314,7 @@ def bulk_delete_voc_data(
     project_id: Optional[str] = None,
     dimension_ref: Optional[str] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder)
+    current_user: User = Depends(get_current_active_founder_with_password)
 ):
     """
     Bulk delete all rows matching filter criteria.

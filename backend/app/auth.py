@@ -6,7 +6,7 @@ import hashlib
 import secrets
 from typing import Optional, Tuple
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Header, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -93,6 +93,52 @@ def get_current_active_founder(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not enough permissions - founder access required",
         )
+    return current_user
+
+
+def get_current_active_founder_with_password(
+    current_user: User = Depends(get_current_user),
+    password_header: str | None = Header(None, alias="X-Founder-Admin-Password"),
+) -> User:
+    """
+    Get the current user if they are a founder AND provide the correct admin password.
+    
+    This adds an additional layer of security for founder admin routes by requiring
+    both a valid JWT token (proving founder status) and a password header.
+    
+    NOTE: Password check is skipped in development mode for convenience.
+    In production, the password is always required.
+    
+    Args:
+        current_user: The authenticated user from JWT token
+        password_header: Password provided in X-Founder-Admin-Password header
+        
+    Returns:
+        User object if both checks pass
+        
+    Raises:
+        HTTPException: 403 if not a founder or password is incorrect
+    """
+    # First check if user is a founder
+    if not current_user.is_founder:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions - founder access required",
+        )
+    
+    # Skip password check in development mode for convenience
+    settings = get_settings()
+    is_production = settings.environment.lower() in {"production", "prod", "production2"}
+    
+    if is_production:
+        # In production, password is required
+        if password_header != settings.founder_admin_password:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Incorrect founder admin password",
+            )
+    # In development, password check is skipped (founder status is sufficient)
+    
     return current_user
 
 
