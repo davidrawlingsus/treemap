@@ -10559,6 +10559,10 @@
 
         // SPA Routing Functions
         function navigateToView(viewName) {
+            console.log('[NavigateView DEBUG] navigateToView called with:', viewName);
+            console.log('[NavigateView DEBUG] Current insightsCurrentClientId:', typeof insightsCurrentClientId !== 'undefined' ? insightsCurrentClientId : 'UNDEFINED');
+            console.log('[NavigateView DEBUG] Current currentClientId:', typeof currentClientId !== 'undefined' ? currentClientId : 'UNDEFINED');
+            
             const vizSection = document.getElementById('visualizations-section');
             const insightsSection = document.getElementById('insights-section');
             const navVisualizations = document.getElementById('navVisualizations');
@@ -10656,6 +10660,16 @@
                     });
                 }
             } else if (viewName === 'insights') {
+                console.log('[NavigateView DEBUG] Switching to insights view');
+                console.log('[NavigateView DEBUG] insightsCurrentClientId before switch:', insightsCurrentClientId);
+                console.log('[NavigateView DEBUG] currentClientId before switch:', currentClientId);
+                
+                // Sync insightsCurrentClientId with currentClientId when navigating to insights
+                if (currentClientId && insightsCurrentClientId !== currentClientId) {
+                    console.log('[NavigateView DEBUG] Syncing insightsCurrentClientId from', insightsCurrentClientId, 'to', currentClientId);
+                    insightsCurrentClientId = currentClientId;
+                }
+                
                 if (insightsSection) {
                     insightsSection.classList.add('active');
                     // Reset styles for active section
@@ -10672,6 +10686,13 @@
                     mainContainer.style.height = 'auto';
                     mainContainer.setAttribute('data-view', 'insights');
                 }
+                
+                // Reload insights for the current client
+                console.log('[NavigateView DEBUG] Calling initInsightsPage to reload for current client');
+                if (typeof initInsightsPage === 'function') {
+                    initInsightsPage();
+                }
+                
                 // Scroll to top to ensure insights section is visible
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 // Also scroll the container if it's scrollable
