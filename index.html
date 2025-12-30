@@ -6047,6 +6047,11 @@
                 return;
             }
             currentClientId = clientId;
+            // Also update the Insights tab client ID to keep them in sync
+            if (typeof insightsCurrentClientId !== 'undefined') {
+                insightsCurrentClientId = clientId;
+                console.log('[ClientSwitch] Updated insightsCurrentClientId to:', clientId);
+            }
             saveState();
             hasAutoLaunched = true;
             const loginContainer = document.querySelector('.login-container');
@@ -6383,6 +6388,11 @@
                         return; // No change or same client
                     }
                     currentClientId = newClientId;
+                    // Also update the Insights tab client ID to keep them in sync
+                    if (typeof insightsCurrentClientId !== 'undefined') {
+                        insightsCurrentClientId = newClientId;
+                        console.log('[ClientSwitch] Updated insightsCurrentClientId to:', newClientId);
+                    }
                     currentProjectName = null; // Reset project when client changes
                     currentDataSourceId = null; // Reset data source when client changes
                     currentQuestionRefKey = null; // Reset question when client changes
