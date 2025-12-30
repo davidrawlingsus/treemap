@@ -11021,51 +11021,23 @@
                 Object.entries(insightsFilters).forEach(([key, value]) => {
                     if (value) {
                         params.append(key, value);
-                        console.log(`[DEBUG] Added filter: ${key} = ${value}`);
                     }
                 });
 
                 const headers = getAuthHeadersSafe();
                 const url = `${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights?${params.toString()}`;
-                console.log('[DEBUG] Fetching insights from:', url);
-                console.log('[DEBUG] Request headers:', headers);
-                console.log('[DEBUG] Request method: GET');
                 
-                const fetchStartTime = Date.now();
-                const response = await fetch(url, {
-                    headers: headers
-                });
-                const fetchDuration = Date.now() - fetchStartTime;
-                
-                console.log('[DEBUG] Fetch completed in', fetchDuration, 'ms');
-                console.log('[DEBUG] Response status:', response.status);
-                console.log('[DEBUG] Response statusText:', response.statusText);
-                console.log('[DEBUG] Response headers:', Array.from(response.headers.entries()));
+                const response = await fetch(url, { headers });
 
                 if (!response.ok) {
-                    console.error('[DEBUG] Response not OK');
                     if (response.status === 401) {
-                        console.error('[DEBUG] 401 Unauthorized - authentication required');
                         throw new Error('Authentication required. Please log in.');
                     }
-                    const errorText = await response.text();
-                    console.error('[DEBUG] Error response body:', errorText);
                     throw new Error(`Failed to load insights: ${response.status} ${response.statusText}`);
                 }
 
                 const data = await response.json();
-                console.log('[DEBUG] Response JSON parsed successfully');
-                console.log('[DEBUG] Response data keys:', Object.keys(data));
-                console.log('[DEBUG] Insights count:', data.items?.length || 0);
-                console.log('[DEBUG] Total insights (if available):', data.total);
-                console.log('[DEBUG] Sample insight (first item):', data.items?.[0] ? {
-                    id: data.items[0].id,
-                    name: data.items[0].name,
-                    type: data.items[0].type
-                } : 'none');
-                
                 insightsAllInsights = data.items || [];
-                console.log('[DEBUG] Stored', insightsAllInsights.length, 'insights in insightsAllInsights array');
                 
                 // Sort by origin client-side if needed (backend doesn't support project sorting)
                 if (insightsCurrentSortBy === 'origin') {
@@ -11091,17 +11063,12 @@
                 restoreFilterDropdowns();
                 
                 renderInsightsPage();
-                console.log('[DEBUG] ========== loadInsightsPage completed successfully ==========');
             } catch (error) {
-                console.error('[DEBUG] ========== ERROR in loadInsightsPage ==========');
-                console.error('[DEBUG] Error type:', error.constructor.name);
-                console.error('[DEBUG] Error message:', error.message);
-                console.error('[DEBUG] Error stack:', error.stack);
-                
+                console.error('Error loading insights:', error);
                 const errorTbody = document.getElementById('insightsPageTableBody');
                 if (errorTbody) {
                     const errorMessage = error.message || 'Unknown error occurred';
-                    errorTbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>Error loading insights</h3><p>' + escapeHtml(errorMessage) + '</p><p style="font-size: 12px; color: #999; margin-top: 8px;">Check console for details</p></td></tr>';
+                    errorTbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>Error loading insights</h3><p>' + escapeHtml(errorMessage) + '</p></td></tr>';
                 }
             }
         }
@@ -11123,7 +11090,6 @@
             
             // Apply filters
             if (insightsFilters && insightsFilters.length > 0) {
-                console.log('[DEBUG] Applying', insightsFilters.length, 'filters');
                 filtered = filtered.filter(insight => {
                     return insightsFilters.every(filter => {
                         let insightValue = null;
