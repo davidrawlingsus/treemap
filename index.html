@@ -11210,7 +11210,7 @@
                 }
                 if (dimensionName && dimensionRef) {
                     const pascalDimension = toPascalCase(dimensionName);
-                    originPills.push(`<span class="tag tag-data-source insight-origin-pill" data-origin-type="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtml(dimensionName)}" onclick="event.stopPropagation(); navigateToDimensionFromInsight('${dimensionRef}', '${escapeHtml(dimensionName)}')" style="cursor: pointer;">${escapeHtml(pascalDimension)}</span>`);
+                    originPills.push(`<span class="tag tag-data-source insight-origin-pill" data-origin-type="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtml(dimensionName)}" data-data-source="${dataSource || ''}" onclick="event.stopPropagation(); navigateToDimensionFromInsight('${dimensionRef}', '${escapeHtml(dimensionName)}', '${dataSource || ''}')" style="cursor: pointer;">${escapeHtml(pascalDimension)}</span>`);
                 } else if (dimensionName) {
                     const pascalDimension = toPascalCase(dimensionName);
                     originPills.push(`<span class="tag tag-data-source insight-origin-pill">${escapeHtml(pascalDimension)}</span>`);
@@ -11358,40 +11358,19 @@
             }
         }
 
-        async function navigateToDimensionFromInsight(dimensionRef, dimensionName) {
-            console.log('[InsightOriginNav] Navigating to dimension:', dimensionRef, dimensionName);
+        async function navigateToDimensionFromInsight(dimensionRef, dimensionName, dataSource) {
+            console.log('[InsightOriginNav] Navigating to dimension:', dimensionRef, dimensionName, 'dataSource:', dataSource);
             
             // Navigate to visualizations view
             navigateToView('visualizations');
             
-            // Wait for view to switch
-            await new Promise(resolve => setTimeout(resolve, 100));
-            
-            // Check if dimension exists in current availableQuestions
-            const dimensionExists = availableQuestions?.some(q => q.ref_key === dimensionRef);
-            
-            if (!dimensionExists) {
-                console.log('[InsightOriginNav] Dimension not in current data source, needs to reload questions');
-                // The dimension isn't in the current data source
-                // We need to reload the data to get the correct questions
-                // This will happen automatically when we set the dimension dropdown
-                // But we need to wait for the data to load first
-                
-                // Check if we need to reload the current data source
-                if (currentClientId && currentProjectName && currentDataSourceId) {
-                    console.log('[InsightOriginNav] Reloading data source to get dimensions');
-                    await loadDataSource(currentClientId, currentProjectName, currentDataSourceId);
-                }
-            }
-            
-            // Now set the dimension selector
-            const questionSelect = document.getElementById('questionSelect');
-            if (questionSelect) {
-                // Check if dimension is now available
-                const option = Array.from(questionSelect.options).find(opt => opt.value === dimensionRef);
-                
-                if (option) {
-                    console.log('[InsightOriginNav] Setting dimension to:', dimensionRef);
+            // Ensure we're on the correct data source before selecting dimension
+            if (dataSource) {
+                await ensureContextForInsightNavigation(dataSource, dimensionRef);
+            } else {
+                // If no data source specified, just switch dimension
+                const questionSelect = document.getElementById('questionSelect');
+                if (questionSelect) {
                     const previousRefKey = currentQuestionRefKey;
                     questionSelect.value = dimensionRef;
                     currentQuestionRefKey = dimensionRef;
@@ -11406,9 +11385,6 @@
                     if (window.AIInsightsPanel) {
                         window.AIInsightsPanel.setCurrentDimension(dimensionRef);
                     }
-                } else {
-                    console.warn('[InsightOriginNav] Dimension not found in dropdown:', dimensionRef);
-                    console.warn('[InsightOriginNav] Available dimensions:', Array.from(questionSelect.options).map(o => o.value));
                 }
             }
         }
