@@ -10,7 +10,7 @@ from typing import List, Optional
 from app.database import get_db
 from app.models import User, Membership, Client
 from app.schemas import FounderUserSummary, FounderUserMembership, ClientResponse
-from app.auth import get_current_active_founder_with_password
+from app.auth import get_current_active_founder
 
 router = APIRouter()
 
@@ -55,7 +55,7 @@ def list_founder_users(
     domain: Optional[str] = None,
     client_id: Optional[UUID] = None,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder_with_password),
+    current_user: User = Depends(get_current_active_founder),
 ):
     """List users with membership metadata for founder tooling."""
     query = db.query(User)

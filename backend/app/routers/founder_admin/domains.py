@@ -11,7 +11,7 @@ from typing import List
 from app.database import get_db
 from app.models import User, Client, AuthorizedDomain, AuthorizedDomainClient
 from app.schemas import AuthorizedDomainResponse, AuthorizedDomainCreate, AuthorizedDomainUpdate
-from app.auth import get_current_active_founder_with_password
+from app.auth import get_current_active_founder
 from app.utils import serialize_authorized_domain
 
 router = APIRouter()
@@ -23,7 +23,7 @@ router = APIRouter()
 )
 def list_authorized_domains_for_founder(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder_with_password),
+    current_user: User = Depends(get_current_active_founder),
 ):
     """List authorized domains with associated clients for founder tooling."""
     domains = (
@@ -48,7 +48,7 @@ def list_authorized_domains_for_founder(
 def create_authorized_domain_for_founder(
     payload: AuthorizedDomainCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder_with_password),
+    current_user: User = Depends(get_current_active_founder),
 ):
     """Create a new authorized domain and associate it with clients."""
     normalized_domain = payload.domain.strip().lower()
@@ -117,7 +117,7 @@ def update_authorized_domain_for_founder(
     domain_id: UUID,
     payload: AuthorizedDomainUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder_with_password),
+    current_user: User = Depends(get_current_active_founder),
 ):
     """Update an existing authorized domain and its client associations."""
     authorized_domain = (
