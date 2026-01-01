@@ -477,6 +477,17 @@
             background: var(--bg);
         }
 
+        .version-selector {
+            cursor: pointer;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .version-selector:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
         /* Slideout Panel Styles */
         .ai-insights-panel {
             position: fixed;
@@ -757,7 +768,10 @@
                 </div>
             </div>
             <div class="modal-actions">
-                <button class="btn btn-secondary" id="cancelModalButton" type="button">Cancel</button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-secondary" id="newVersionButton" type="button" style="display: none;">New Version</button>
+                    <button class="btn btn-secondary" id="cancelModalButton" type="button">Cancel</button>
+                </div>
                 <div class="split-button-container">
                     <button class="btn btn-primary split-button-main" id="saveAndRunButton" type="button">Save and Run</button>
                     <button class="btn btn-primary split-button-dropdown" id="saveButtonDropdown" type="button" aria-label="More options">▼</button>
@@ -839,6 +853,7 @@
             saveButtonDropdown: getElement('saveButtonDropdown'),
             saveButtonMenu: getElement('saveButtonMenu'),
             saveChangesButton: getElement('saveChangesButton'),
+            newVersionButton: getElement('newVersionButton'),
             slideoutPanel: getElement('slideoutPanel'),
             slideoutOverlay: getElement('slideoutOverlay'),
             slideoutContent: getElement('slideoutContent'),
@@ -1043,7 +1058,8 @@
 
             elements.promptsContainer.innerHTML = Object.entries(promptsByName)
                 .map(([name, versions]) => {
-                    const latest = versions.sort((a, b) => b.version - a.version)[0];
+                    const sortedVersions = versions.sort((a, b) => b.version - a.version);
+                    const latest = sortedVersions[0];
                     const versionCount = versions.length;
                     const statusBadge = `<span class="client-chip" style="background: ${latest.status === 'live' ? '#f0fff4' : latest.status === 'test' ? '#fffbf0' : '#f7fafc'}; border-color: ${latest.status === 'live' ? '#c6f6d5' : latest.status === 'test' ? '#fbd38d' : '#e2e8f0'}; color: ${latest.status === 'live' ? '#22543d' : latest.status === 'test' ? '#744210' : '#4a5568'};">${latest.status.toUpperCase()}</span>`;
                     const updatedAt = latest.updated_at ? new Date(latest.updated_at).toLocaleString() : 'Unknown';
@@ -1051,8 +1067,24 @@
                     const purposeChip = `<span class="client-chip">${latest.prompt_purpose}</span>`;
                     const modelChip = `<span class="client-chip" style="background: #edf2f7; border-color: #cbd5e0; color: #4a5568;">${latest.llm_model}</span>`;
 
+                    // Build version selector if multiple versions exist
+                    let versionSelector = '';
+                    if (versionCount > 1) {
+                        const versionOptions = sortedVersions.map(v => 
+                            `<option value="${v.id}" ${v.id === latest.id ? 'selected' : ''}>v${v.version} - ${v.status}${v.updated_at ? ' (' + new Date(v.updated_at).toLocaleDateString() + ')' : ''}</option>`
+                        ).join('');
+                        versionSelector = `
+                            <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border);">
+                                <label style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); display: block; margin-bottom: 6px;">Version History</label>
+                                <select class="version-selector" data-prompt-name="${name}" style="width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: white;">
+                                    ${versionOptions}
+                                </select>
+                            </div>
+                        `;
+                    }
+
                     return `
-                        <article class="domain-card">
+                        <article class="domain-card" data-prompt-name="${name}">
                             <div class="domain-header">
                                 <div>
                                     <h2>${name}</h2>
@@ -1068,6 +1100,7 @@
                                 ${statusBadge} ${purposeChip} ${modelChip}
                             </div>
                             <div class="description" style="font-family: monospace; font-size: 12px; max-height: 100px; overflow-y: auto; background: #f7fafc; padding: 8px; border-radius: 6px; white-space: pre-wrap; word-break: break-word;">${latest.system_message.substring(0, 200)}${latest.system_message.length > 200 ? '...' : ''}</div>
+                            ${versionSelector}
                         </article>
                     `;
                 })
@@ -1076,6 +1109,14 @@
             elements.promptsContainer.querySelectorAll('[data-action="edit-prompt"]').forEach((button) => {
                 button.addEventListener('click', () => {
                     const promptId = button.getAttribute('data-prompt-id');
+                    openPromptModal('edit', promptId);
+                });
+            });
+
+            // Add event listeners for version selectors
+            elements.promptsContainer.querySelectorAll('.version-selector').forEach((select) => {
+                select.addEventListener('change', (e) => {
+                    const promptId = e.target.value;
                     openPromptModal('edit', promptId);
                 });
             });
@@ -1149,6 +1190,11 @@
                 elements.llmModelInput.value = prompt.llm_model;
                 elements.systemMessageInput.value = prompt.system_message;
                 elements.userMessageInput.value = ''; // User message is not stored, always empty
+                
+                // Show "New Version" button when editing
+                if (elements.newVersionButton) {
+                    elements.newVersionButton.style.display = 'block';
+                }
             } else {
                 elements.modalTitle.textContent = 'New Prompt';
                 elements.nameInput.value = '';
@@ -1158,6 +1204,11 @@
                 elements.llmModelInput.value = 'gpt-4o-mini';
                 elements.systemMessageInput.value = '';
                 elements.userMessageInput.value = '';
+                
+                // Hide "New Version" button when creating new prompt
+                if (elements.newVersionButton) {
+                    elements.newVersionButton.style.display = 'none';
+                }
             }
 
             state.actionMode = 'save-and-run';
@@ -1193,6 +1244,46 @@
             state.currentMode = 'create';
             state.currentPromptId = null;
             elements.modalBackdrop.classList.remove('visible');
+            if (elements.newVersionButton) {
+                elements.newVersionButton.style.display = 'none';
+            }
+        }
+
+        function createNewVersion() {
+            if (!state.currentPromptId) {
+                showStatus('No prompt selected to create version from.', 'error');
+                return;
+            }
+
+            const currentPrompt = state.prompts.find((item) => item.id === state.currentPromptId);
+            if (!currentPrompt) {
+                showStatus('Current prompt could not be found.', 'error');
+                return;
+            }
+
+            // Find the highest version for this prompt name
+            const sameNamePrompts = state.prompts.filter(p => p.name === currentPrompt.name);
+            const maxVersion = Math.max(...sameNamePrompts.map(p => p.version));
+            const newVersion = maxVersion + 1;
+
+            // Pre-fill form with current prompt data but with new version
+            elements.modalTitle.textContent = `New Version: ${currentPrompt.name} (v${newVersion})`;
+            elements.nameInput.value = currentPrompt.name;
+            elements.versionInput.value = newVersion;
+            elements.promptPurposeInput.value = currentPrompt.prompt_purpose;
+            elements.statusInput.value = 'test'; // New versions start as test
+            elements.llmModelInput.value = currentPrompt.llm_model;
+            elements.systemMessageInput.value = currentPrompt.system_message;
+            elements.userMessageInput.value = '';
+
+            // Change mode to create
+            state.currentMode = 'create';
+            state.currentPromptId = null;
+            
+            // Hide "New Version" button since we're now creating
+            if (elements.newVersionButton) {
+                elements.newVersionButton.style.display = 'none';
+            }
         }
 
         async function handlePromptFormSubmit(event) {
@@ -1425,6 +1516,9 @@
             e.stopPropagation();
             elements.saveButtonMenu.classList.toggle('visible');
         });
+        if (elements.newVersionButton) {
+            elements.newVersionButton.addEventListener('click', createNewVersion);
+        }
         if (elements.closeSlideoutPanel) {
             elements.closeSlideoutPanel.addEventListener('click', closeSlideout);
         } else {
