@@ -192,41 +192,19 @@ def delete_prompt_for_founder(
         raise HTTPException(status_code=500, detail=str(exc))
 
 
-@router.get("/api/founder/prompts/{prompt_id}/actions", response_model=List[ActionResponse])
-def get_prompt_actions(
-    prompt_id: UUID,
+@router.get("/api/founder/prompts/all/actions", response_model=List[ActionResponse])
+def get_all_prompt_actions(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_founder),
 ):
-    """Get all action records (execution results) for a specific prompt, ordered oldest to newest."""
-    actions = db.query(Action).filter(Action.prompt_id == prompt_id).order_by(Action.created_at.asc()).all()
-    return actions
-
-
-@router.delete("/api/founder/prompts/actions/{action_id}")
-def delete_prompt_action(
-    action_id: UUID,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
-):
-    """Delete an action record (execution result)."""
-    action = db.query(Action).filter(Action.id == action_id).first()
+    """Get all action records (execution results) from all prompts, ordered oldest to newest."""
+    from sqlalchemy.orm import joinedload
+    from app.schemas.action import ActionResponse
     
-    if not action:
-        raise HTTPException(status_code=404, detail="Action not found.")
-    
-    # Verify this action belongs to the prompt engineering client
-    prompt_engineering_client = get_or_create_prompt_engineering_client(db)
-    if action.client_id != prompt_engineering_client.id:
-        raise HTTPException(status_code=403, detail="Action does not belong to prompt engineering.")
-    
-    try:
-        db.delete(action)
-        db.commit()
-        return {"message": "Action deleted successfully"}
-    except Exception as exc:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Failed to delete action: {str(exc)}")
+    # Get all actions with their prompt relationship loaded
+    actions = db.query(Action).options(joinedload(Action.prompt)).order_by(Action.created_at.asc()).all()
+    # Convert to response with prompt details
+    return [ActionResponse.from_orm_with_prompt(action) for action in actions]
 
 
 @router.get("/api/founder/prompts/{prompt_id}/actions", response_model=List[ActionResponse])
