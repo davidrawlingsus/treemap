@@ -11,8 +11,8 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 from app.database import get_db
-from app.models import User, Prompt
-from app.schemas import PromptResponse, PromptCreate, PromptUpdate
+from app.models import User, Prompt, Client, Action
+from app.schemas import PromptResponse, PromptCreate, PromptUpdate, ActionResponse
 from app.auth import get_current_active_founder
 from app.services.openai_service import OpenAIService
 
@@ -20,6 +20,27 @@ from app.services.openai_service import OpenAIService
 def get_openai_service(request: Request) -> OpenAIService:
     """Dependency to get OpenAI service from app state"""
     return request.app.state.openai_service
+
+
+def get_or_create_prompt_engineering_client(db: Session) -> Client:
+    """Get or create the special 'Prompt Engineering' client for tracking prompt executions."""
+    PROMPT_ENGINEERING_SLUG = "prompt-engineering"
+    
+    client = db.query(Client).filter(Client.slug == PROMPT_ENGINEERING_SLUG).first()
+    
+    if not client:
+        # Create the prompt engineering client
+        client = Client(
+            name="Prompt Engineering",
+            slug=PROMPT_ENGINEERING_SLUG,
+            is_active=True,
+            settings={}
+        )
+        db.add(client)
+        db.commit()
+        db.refresh(client)
+    
+    return client
 
 
 class PromptExecuteRequest(BaseModel):
@@ -171,6 +192,80 @@ def delete_prompt_for_founder(
         raise HTTPException(status_code=500, detail=str(exc))
 
 
+@router.get("/api/founder/prompts/{prompt_id}/actions", response_model=List[ActionResponse])
+def get_prompt_actions(
+    prompt_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Get all action records (execution results) for a specific prompt, ordered oldest to newest."""
+    actions = db.query(Action).filter(Action.prompt_id == prompt_id).order_by(Action.created_at.asc()).all()
+    return actions
+
+
+@router.delete("/api/founder/prompts/actions/{action_id}")
+def delete_prompt_action(
+    action_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Delete an action record (execution result)."""
+    action = db.query(Action).filter(Action.id == action_id).first()
+    
+    if not action:
+        raise HTTPException(status_code=404, detail="Action not found.")
+    
+    # Verify this action belongs to the prompt engineering client
+    prompt_engineering_client = get_or_create_prompt_engineering_client(db)
+    if action.client_id != prompt_engineering_client.id:
+        raise HTTPException(status_code=403, detail="Action does not belong to prompt engineering.")
+    
+    try:
+        db.delete(action)
+        db.commit()
+        return {"message": "Action deleted successfully"}
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete action: {str(exc)}")
+
+
+@router.get("/api/founder/prompts/{prompt_id}/actions", response_model=List[ActionResponse])
+def get_prompt_actions(
+    prompt_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Get all action records (execution results) for a specific prompt, ordered oldest to newest."""
+    actions = db.query(Action).filter(Action.prompt_id == prompt_id).order_by(Action.created_at.asc()).all()
+    return actions
+
+
+@router.delete("/api/founder/prompts/actions/{action_id}")
+def delete_prompt_action(
+    action_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Delete an action record (execution result)."""
+    action = db.query(Action).filter(Action.id == action_id).first()
+    
+    if not action:
+        raise HTTPException(status_code=404, detail="Action not found.")
+    
+    # Verify this action belongs to the prompt engineering client
+    prompt_engineering_client = get_or_create_prompt_engineering_client(db)
+    if action.client_id != prompt_engineering_client.id:
+        raise HTTPException(status_code=403, detail="Action does not belong to prompt engineering.")
+    
+    try:
+        db.delete(action)
+        db.commit()
+        return {"message": "Action deleted successfully"}
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to delete action: {str(exc)}")
+
+
 @router.post("/api/founder/prompts/{prompt_id}/execute")
 def execute_prompt_for_founder(
     prompt_id: UUID,
@@ -180,21 +275,45 @@ def execute_prompt_for_founder(
     current_user: User = Depends(get_current_active_founder),
     openai_service: OpenAIService = Depends(get_openai_service),
 ):
-    """Execute a prompt by sending it to OpenAI API."""
+    """Execute a prompt by sending it to OpenAI API and save the result to actions table."""
     prompt = db.query(Prompt).filter(Prompt.id == prompt_id).first()
     
     if not prompt:
         raise HTTPException(status_code=404, detail="Prompt not found.")
     
     try:
+        # Execute the prompt
         result = openai_service.execute_prompt(
             system_message=prompt.system_message,
             user_message=payload.user_message,
             model=prompt.llm_model
         )
+        
+        # Get or create the prompt engineering client
+        prompt_engineering_client = get_or_create_prompt_engineering_client(db)
+        
+        # Combine system and user messages for prompt_text_sent
+        # Format: "System: {system_message}\n\nUser: {user_message}"
+        prompt_text_sent = f"System: {prompt.system_message}\n\nUser: {payload.user_message}"
+        
+        # Create action record to save the execution result
+        action = Action(
+            prompt_id=prompt.id,
+            client_id=prompt_engineering_client.id,
+            prompt_text_sent=prompt_text_sent,
+            actions=result,  # Store full result (content, tokens_used, model) in JSONB
+            insight_ids=[]  # No insights used in prompt engineering executions
+        )
+        db.add(action)
+        db.commit()
+        db.refresh(action)
+        
+        # Return the result (same as before for frontend compatibility)
         return result
     except RuntimeError as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
     except Exception as exc:
+        db.rollback()
         raise HTTPException(status_code=500, detail=f"Failed to execute prompt: {str(exc)}")
 

@@ -578,6 +578,73 @@
             overflow-x: auto;
         }
 
+        .prompt-output-item {
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            background: var(--surface);
+        }
+
+        .prompt-output-item-new {
+            border-color: #B9F040;
+            border-width: 2px;
+        }
+
+        .prompt-output-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: #f8fafc;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .prompt-output-meta {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 4px;
+            font-size: 13px;
+        }
+
+        .prompt-output-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .btn-copy-output,
+        .btn-delete-output {
+            background: none;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--muted);
+            transition: all 0.2s;
+        }
+
+        .btn-copy-output:hover {
+            background: #f0f4f8;
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        .btn-delete-output:hover {
+            background: #fff5f5;
+            border-color: var(--danger);
+            color: var(--danger);
+        }
+
+        .btn-copy-output img,
+        .btn-delete-output img {
+            display: block;
+        }
+
         .prompt-result-metadata {
             margin-bottom: 16px;
             padding: 12px;
@@ -1195,6 +1262,10 @@
                 if (elements.newVersionButton) {
                     elements.newVersionButton.style.display = 'block';
                 }
+                
+                // Load and display execution history in slideout
+                openSlideout(`Execution History: ${prompt.name} (v${prompt.version})`);
+                displayPromptResultWithHistory(promptId);
             } else {
                 elements.modalTitle.textContent = 'New Prompt';
                 elements.nameInput.value = '';
@@ -1387,7 +1458,7 @@
                 }
 
                 const result = await response.json();
-                displayPromptResult(result);
+                await displayPromptResultWithHistory(promptId, result);
             } catch (error) {
                 console.error('Prompt execution failed', error);
                 elements.slideoutContent.innerHTML = `
@@ -1399,38 +1470,196 @@
             }
         }
 
-        function displayPromptResult(result) {
-            console.log('[DEBUG] displayPromptResult called', result);
-            console.log('[DEBUG] slideoutContent element:', elements.slideoutContent);
+        async function displayPromptResultWithHistory(promptId, newResult = null) {
+            console.log('[DEBUG] displayPromptResultWithHistory called', { promptId, newResult });
             
             if (!elements.slideoutContent) {
-                console.error('[DEBUG] slideoutContent is null in displayPromptResult!');
+                console.error('[DEBUG] slideoutContent is null!');
                 showStatus('Error: Slideout panel not found. Please refresh the page.', 'error');
                 return;
             }
 
-            const metadata = `
-                <div class="prompt-result-metadata">
-                    <strong>Model:</strong> ${result.model || 'N/A'}<br>
-                    <strong>Tokens Used:</strong> ${result.tokens_used || 'N/A'}
-                </div>
-            `;
-            
-            const content = typeof result.content === 'string' 
-                ? result.content 
-                : JSON.stringify(result.content, null, 2);
-            
-            console.log('[DEBUG] Setting result content in slideoutContent');
-            elements.slideoutContent.innerHTML = `
-                ${metadata}
-                <div class="prompt-result-content">${escapeHtml(content)}</div>
-            `;
+            try {
+                // Load historical outputs
+                const actionsResponse = await fetch(`${API_BASE_URL}/api/founder/prompts/${promptId}/actions`, {
+                    headers: authHeaders(),
+                });
+
+                let actions = [];
+                if (actionsResponse.ok) {
+                    actions = await actionsResponse.json();
+                }
+
+                // Build HTML for all outputs (oldest to newest)
+                let outputsHtml = '';
+
+                if (actions.length === 0 && !newResult) {
+                    outputsHtml = '<p style="color: var(--muted); padding: 24px; text-align: center;">No execution history yet. Execute the prompt to see results here.</p>';
+                } else {
+                    // Display historical outputs (oldest first)
+                    actions.forEach((action, index) => {
+                        const actionContent = action.actions?.content || '';
+                        const content = typeof actionContent === 'string' 
+                            ? actionContent 
+                            : JSON.stringify(actionContent, null, 2);
+                        
+                        const createdAt = action.created_at 
+                            ? new Date(action.created_at).toLocaleString() 
+                            : 'Unknown';
+                        
+                        const metadata = action.actions || {};
+                        
+                        outputsHtml += `
+                            <div class="prompt-output-item" data-action-id="${action.id}">
+                                <div class="prompt-output-header">
+                                    <div class="prompt-output-meta">
+                                        <strong>Execution #${index + 1}</strong>
+                                        <span style="color: var(--muted); font-size: 12px; margin-left: 12px;">${createdAt}</span>
+                                        ${metadata.model ? `<span style="color: var(--muted); font-size: 12px; margin-left: 8px;">• ${metadata.model}</span>` : ''}
+                                        ${metadata.tokens_used ? `<span style="color: var(--muted); font-size: 12px; margin-left: 8px;">• ${metadata.tokens_used} tokens</span>` : ''}
+                                    </div>
+                                    <div class="prompt-output-actions">
+                                        <button class="btn-copy-output" data-action-id="${action.id}" title="Copy to clipboard">
+                                            <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/copy_button.png" alt="Copy" width="16" height="16">
+                                        </button>
+                                        <button class="btn-delete-output" data-action-id="${action.id}" title="Delete">
+                                            <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/delete_button.png" alt="Delete" width="16" height="16">
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="prompt-result-content">${escapeHtml(content)}</div>
+                            </div>
+                        `;
+                    });
+
+                    // If there's a new result, add it at the end (newest)
+                    if (newResult) {
+                        const content = typeof newResult.content === 'string' 
+                            ? newResult.content 
+                            : JSON.stringify(newResult.content, null, 2);
+                        
+                        outputsHtml += `
+                            <div class="prompt-output-item prompt-output-item-new">
+                                <div class="prompt-output-header">
+                                    <div class="prompt-output-meta">
+                                        <strong>Latest Execution</strong>
+                                        <span style="color: var(--muted); font-size: 12px; margin-left: 12px;">Just now</span>
+                                        ${newResult.model ? `<span style="color: var(--muted); font-size: 12px; margin-left: 8px;">• ${newResult.model}</span>` : ''}
+                                        ${newResult.tokens_used ? `<span style="color: var(--muted); font-size: 12px; margin-left: 8px;">• ${newResult.tokens_used} tokens</span>` : ''}
+                                    </div>
+                                    <div class="prompt-output-actions">
+                                        <button class="btn-copy-output btn-copy-new-result" data-content-raw="${escapeHtmlForAttribute(content)}" title="Copy to clipboard">
+                                            <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/copy_button.png" alt="Copy" width="16" height="16">
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="prompt-result-content">${escapeHtml(content)}</div>
+                            </div>
+                        `;
+                    }
+                }
+
+                elements.slideoutContent.innerHTML = outputsHtml;
+
+                // Attach event listeners for copy and delete buttons
+                attachOutputActionListeners(promptId);
+            } catch (error) {
+                console.error('Failed to load execution history', error);
+                elements.slideoutContent.innerHTML = `
+                    <div style="padding: 24px;">
+                        <h3 style="color: var(--danger); margin-bottom: 12px;">Error</h3>
+                        <p style="color: var(--text);">${error.message || 'Failed to load execution history'}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function attachOutputActionListeners(promptId) {
+            // Copy buttons
+            elements.slideoutContent.querySelectorAll('.btn-copy-output').forEach((button) => {
+                button.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const actionId = button.getAttribute('data-action-id');
+                    const dataContentRaw = button.getAttribute('data-content-raw');
+                    
+                    let textToCopy = '';
+                    
+                    if (dataContentRaw) {
+                        // New result (not yet saved) - decode HTML entities
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = dataContentRaw;
+                        textToCopy = tempDiv.textContent || tempDiv.innerText;
+                    } else if (actionId) {
+                        // Historical result - get content from the action
+                        const outputItem = button.closest('.prompt-output-item');
+                        const contentDiv = outputItem?.querySelector('.prompt-result-content');
+                        if (contentDiv) {
+                            textToCopy = contentDiv.textContent || contentDiv.innerText;
+                        }
+                    }
+                    
+                    if (textToCopy) {
+                        try {
+                            await navigator.clipboard.writeText(textToCopy);
+                            showStatus('Copied to clipboard!', 'success');
+                            setTimeout(() => showStatus(), 2000);
+                        } catch (err) {
+                            console.error('Failed to copy:', err);
+                            showStatus('Failed to copy to clipboard', 'error');
+                        }
+                    }
+                });
+            });
+
+            // Delete buttons
+            elements.slideoutContent.querySelectorAll('.btn-delete-output').forEach((button) => {
+                button.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const actionId = button.getAttribute('data-action-id');
+                    
+                    if (!actionId) return;
+                    
+                    if (!confirm('Are you sure you want to delete this execution result?')) {
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/api/founder/prompts/actions/${actionId}`, {
+                            method: 'DELETE',
+                            headers: authHeaders(),
+                        });
+                        
+                        if (!response.ok) {
+                            const error = await response.json().catch(() => ({}));
+                            throw new Error(error.detail || 'Failed to delete action');
+                        }
+                        
+                        // Reload the history
+                        await displayPromptResultWithHistory(promptId);
+                        showStatus('Execution result deleted', 'success');
+                        setTimeout(() => showStatus(), 2000);
+                    } catch (error) {
+                        console.error('Failed to delete action', error);
+                        showStatus(error.message || 'Failed to delete execution result', 'error');
+                    }
+                });
+            });
         }
 
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        function escapeHtmlForAttribute(text) {
+            // Escape for HTML attribute (handles quotes and special chars)
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
         }
 
         function openSlideout(title) {
