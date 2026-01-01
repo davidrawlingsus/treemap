@@ -34,6 +34,7 @@ class ClientResponse(BaseModel):
     slug: str
     is_active: bool
     business_summary: Optional[str] = None
+    client_url: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime]
 

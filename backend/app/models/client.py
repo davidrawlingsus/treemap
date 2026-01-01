@@ -18,6 +18,7 @@ class Client(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     founder_user_id = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True)
     business_summary = Column(Text, nullable=True)
+    client_url = Column(String(500), nullable=True)
 
     # Relationships
     founder = relationship("User", foreign_keys=[founder_user_id], back_populates="founded_clients")
