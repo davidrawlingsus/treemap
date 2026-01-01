@@ -78,6 +78,17 @@ from .insight import (
     InsightListResponse,
 )
 
+from .prompt import (
+    PromptCreate,
+    PromptUpdate,
+    PromptResponse,
+)
+
+from .action import (
+    ActionCreate,
+    ActionResponse,
+)
+
 # Export all for backward compatibility
 __all__ = [
     # Auth
@@ -140,5 +151,12 @@ __all__ = [
     "InsightUpdate",
     "InsightResponse",
     "InsightListResponse",
+    # Prompts
+    "PromptCreate",
+    "PromptUpdate",
+    "PromptResponse",
+    # Actions
+    "ActionCreate",
+    "ActionResponse",
 ]
 

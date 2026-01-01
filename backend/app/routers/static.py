@@ -159,3 +159,14 @@ if (frontend_path / "founder_authorized_domains.html").exists():
         """Serve the founder authorized domains page"""
         return FileResponse(frontend_path / "founder_authorized_domains.html")
 
+if (frontend_path / "founder_prompt_engineering.html").exists():
+    @router.get("/founder_prompt_engineering", response_class=FileResponse)
+    def serve_founder_prompt_engineering():
+        """Serve the founder prompt engineering page"""
+        return FileResponse(frontend_path / "founder_prompt_engineering.html")
+    
+    @router.get("/founder_prompt_engineering.html", response_class=FileResponse)
+    def serve_founder_prompt_engineering_html():
+        """Serve the founder prompt engineering page"""
+        return FileResponse(frontend_path / "founder_prompt_engineering.html")
+

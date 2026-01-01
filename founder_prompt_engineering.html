@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-ZHSFGWQMSN"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-ZHSFGWQMSN');
+</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Founder Admin - Prompt Engineering</title>
+    <script src="/config.js"></script>
+    <style>
+        :root {
+            --bg: #f5f7fb;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --border-strong: #cbd5f5;
+            --primary: #667eea;
+            --primary-dark: #4c51bf;
+            --danger: #e53e3e;
+            --success: #38a169;
+            --text: #1a202c;
+            --muted: #718096;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: "Inter", "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .login-overlay {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.85);
+            z-index: 999;
+        }
+
+        .login-overlay.hidden {
+            display: none;
+        }
+
+        .login-card {
+            background: var(--surface);
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 25px 50px -12px rgba(56, 66, 106, 0.35);
+            width: min(380px, 92vw);
+        }
+
+        .login-card h2 {
+            margin-bottom: 12px;
+        }
+
+        .login-card p {
+            margin-bottom: 16px;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .login-card input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 15px;
+            margin-bottom: 12px;
+            transition: border 0.2s;
+        }
+
+        .login-card input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: #edf2f7;
+            color: var(--text);
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--primary);
+        }
+
+        .btn-ghost:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #appShell {
+            display: none;
+            min-height: 100vh;
+            flex-direction: column;
+        }
+
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 24px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+
+        header h1 {
+            font-size: 26px;
+            font-weight: 600;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: var(--muted);
+            margin-top: 6px;
+            max-width: 640px;
+        }
+
+        .founder-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        #founderEmail {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        main {
+            flex: 1;
+            padding: 32px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .content {
+            width: min(1100px, 100%);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .toolbar {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .status-message {
+            padding: 14px 18px;
+            border-radius: 10px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .status-message.success {
+            background: #f0fff4;
+            border: 1px solid #c6f6d5;
+            color: var(--success);
+        }
+
+        .status-message.error {
+            background: #fff5f5;
+            border: 1px solid #fed7d7;
+            color: var(--danger);
+        }
+
+        .domains-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .domain-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 22px;
+            box-shadow: 0 20px 45px -24px rgba(15, 23, 42, 0.35);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .domain-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .domain-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+            word-break: break-word;
+        }
+
+        .domain-meta {
+            font-size: 12px;
+            color: var(--muted);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .description {
+            font-size: 14px;
+            color: var(--muted);
+        }
+
+        .client-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .client-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(102, 126, 234, 0.35);
+            background: rgba(102, 126, 234, 0.12);
+            font-size: 12px;
+            color: var(--primary-dark);
+            font-weight: 600;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--muted);
+            border: 1px dashed var(--border);
+            border-radius: 12px;
+            padding: 48px 24px;
+            background: rgba(255, 255, 255, 0.7);
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 40px 24px;
+        }
+
+        .modal-backdrop.visible {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--surface);
+            border-radius: 16px;
+            box-shadow: 0 30px 60px -24px rgba(15, 23, 42, 0.45);
+            border: 1px solid var(--border-strong);
+            width: min(800px, 95vw);
+            max-height: 92vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal header {
+            position: static;
+            border-bottom: 1px solid var(--border);
+            padding: 24px 32px;
+            background: #f7f9ff;
+            border-radius: 16px 16px 0 0;
+        }
+
+        .modal header h2 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .modal form {
+            padding: 32px 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted);
+            margin-bottom: 2px;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 200px;
+            line-height: 1.6;
+        }
+
+        .client-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            max-height: 220px;
+            overflow-y: auto;
+            padding: 6px 2px;
+        }
+
+        .client-option {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            font-size: 13px;
+            padding: 6px 8px;
+            border: 1px solid transparent;
+            border-radius: 8px;
+        }
+
+        .client-option:hover {
+            border-color: rgba(102, 126, 234, 0.3);
+            background: rgba(102, 126, 234, 0.08);
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 20px 32px;
+            border-top: 1px solid var(--border);
+            background: #f8fafc;
+            border-radius: 0 0 16px 16px;
+        }
+
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .founder-meta {
+                align-items: flex-start;
+            }
+
+            main {
+                padding: 24px;
+            }
+
+            .domains-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-card">
+            <h2>Founder Login</h2>
+            <p>Use your founder email to manage prompts and version control.</p>
+            <div id="loginError" class="status-message error" style="display: none;"></div>
+            <input type="email" id="loginEmail" placeholder="founder@example.com" autocomplete="email">
+            <input type="password" id="loginPassword" placeholder="Password (if configured)" autocomplete="current-password">
+            <button class="btn btn-primary" id="loginButton">Login</button>
+        </div>
+    </div>
+
+    <div id="appShell">
+        <header>
+            <div>
+                <h1>Prompt Engineering</h1>
+                <div class="subtitle">
+                    Manage system prompts for transforming insights into actions with version control.
+                </div>
+            </div>
+            <div class="founder-meta">
+                <span id="founderEmail"></span>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-secondary" id="refreshButton">Refresh</button>
+                    <button class="btn btn-ghost" id="logoutButton">Logout</button>
+                </div>
+            </div>
+        </header>
+        <main>
+            <div class="content">
+                <div class="toolbar">
+                    <div>
+                        <h2 style="font-size: 18px; font-weight: 600;">Prompts</h2>
+                        <p style="font-size: 14px; color: var(--muted); margin-top: 6px;">
+                            Create and manage system prompts with version control for transforming insights into actions.
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <select id="statusFilter" style="padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
+                            <option value="">All Statuses</option>
+                            <option value="live">Live</option>
+                            <option value="test">Test</option>
+                            <option value="archived">Archived</option>
+                        </select>
+                        <select id="purposeFilter" style="padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
+                            <option value="">All Purposes</option>
+                            <option value="summarize">Summarize</option>
+                            <option value="headlines">Headlines</option>
+                            <option value="ux-fixes">UX Fixes</option>
+                            <option value="risk-reversal">Risk Reversal</option>
+                            <option value="microcopy">Microcopy</option>
+                        </select>
+                        <button class="btn btn-primary" id="newPromptButton">New Prompt</button>
+                    </div>
+                </div>
+                <div id="statusMessage" class="status-message"></div>
+                <div id="promptsContainer" class="domains-grid"></div>
+            </div>
+        </main>
+    </div>
+
+    <div id="modalBackdrop" class="modal-backdrop">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+            <header>
+                <h2 id="modalTitle">New Prompt</h2>
+            </header>
+            <form id="promptForm" style="max-height: calc(92vh - 180px); overflow-y: auto;">
+                <div class="form-group">
+                    <label for="nameInput">Name</label>
+                    <input type="text" id="nameInput" placeholder="e.g., summarize-data, generate-headlines" required>
+                    <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Human-readable identifier for the prompt</p>
+                </div>
+                <div class="form-group">
+                    <label for="versionInput">Version</label>
+                    <input type="number" id="versionInput" placeholder="1" min="1" required>
+                    <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Version number for this prompt</p>
+                </div>
+                <div class="form-group">
+                    <label for="promptPurposeInput">Purpose</label>
+                    <div style="display: flex; gap: 8px; align-items: flex-start;">
+                        <select id="promptPurposeInput" required style="flex: 1;">
+                            <option value="">Select purpose...</option>
+                            <option value="summarize">Summarize</option>
+                            <option value="headlines">Headlines</option>
+                            <option value="ux-fixes">UX Fixes</option>
+                            <option value="risk-reversal">Risk Reversal</option>
+                            <option value="microcopy">Microcopy</option>
+                        </select>
+                        <button type="button" class="btn btn-secondary" id="addPurposeButton" style="padding: 12px 16px; white-space: nowrap;" title="Add new purpose">+</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="statusInput">Status</label>
+                    <select id="statusInput" required>
+                        <option value="test">Test</option>
+                        <option value="live">Live</option>
+                        <option value="archived">Archived</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="llmModelInput">LLM Model</label>
+                    <input type="text" id="llmModelInput" placeholder="gpt-4o-mini" value="gpt-4o-mini" required>
+                    <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Model identifier (e.g., gpt-4o-mini, gpt-4)</p>
+                </div>
+                <div class="form-group">
+                    <label for="promptTextInput">Prompt Text</label>
+                    <textarea id="promptTextInput" placeholder="Enter the system prompt text here..." style="min-height: 300px; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; line-height: 1.6;" required></textarea>
+                    <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">The actual system prompt that will be sent to the LLM</p>
+                </div>
+            </form>
+            <div id="addPurposeModal" class="modal-backdrop" style="display: none;">
+                <div class="modal" style="width: min(450px, 90vw);">
+                    <header>
+                        <h2>Add New Purpose</h2>
+                    </header>
+                    <form id="addPurposeForm" style="padding: 32px;">
+                        <div class="form-group">
+                            <label for="newPurposeInput">Purpose Name</label>
+                            <input type="text" id="newPurposeInput" placeholder="e.g., email-copy, social-media" required style="text-transform: lowercase;">
+                            <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Use lowercase with hyphens (e.g., email-copy)</p>
+                        </div>
+                    </form>
+                    <div class="modal-actions">
+                        <button class="btn btn-secondary" id="cancelAddPurposeButton" type="button">Cancel</button>
+                        <button class="btn btn-primary" id="savePurposeButton" type="button">Add Purpose</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="cancelModalButton" type="button">Cancel</button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" id="submitPromptButton" type="submit" form="promptForm">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+        const AUTH_TOKEN_KEY = 'visualizd_auth_token';
+
+        const elements = {
+            loginOverlay: document.getElementById('loginOverlay'),
+            loginEmail: document.getElementById('loginEmail'),
+            loginPassword: document.getElementById('loginPassword'),
+            loginButton: document.getElementById('loginButton'),
+            loginError: document.getElementById('loginError'),
+            appShell: document.getElementById('appShell'),
+            founderEmail: document.getElementById('founderEmail'),
+            logoutButton: document.getElementById('logoutButton'),
+            refreshButton: document.getElementById('refreshButton'),
+            newPromptButton: document.getElementById('newPromptButton'),
+            statusMessage: document.getElementById('statusMessage'),
+            promptsContainer: document.getElementById('promptsContainer'),
+            statusFilter: document.getElementById('statusFilter'),
+            purposeFilter: document.getElementById('purposeFilter'),
+            modalBackdrop: document.getElementById('modalBackdrop'),
+            modalTitle: document.getElementById('modalTitle'),
+            promptForm: document.getElementById('promptForm'),
+            nameInput: document.getElementById('nameInput'),
+            versionInput: document.getElementById('versionInput'),
+            promptPurposeInput: document.getElementById('promptPurposeInput'),
+            statusInput: document.getElementById('statusInput'),
+            llmModelInput: document.getElementById('llmModelInput'),
+            promptTextInput: document.getElementById('promptTextInput'),
+            cancelModalButton: document.getElementById('cancelModalButton'),
+            submitPromptButton: document.getElementById('submitPromptButton'),
+            addPurposeButton: document.getElementById('addPurposeButton'),
+            addPurposeModal: document.getElementById('addPurposeModal'),
+            newPurposeInput: document.getElementById('newPurposeInput'),
+            cancelAddPurposeButton: document.getElementById('cancelAddPurposeButton'),
+            savePurposeButton: document.getElementById('savePurposeButton'),
+        };
+
+        const state = {
+            founder: null,
+            prompts: [],
+            currentMode: 'create',
+            currentPromptId: null,
+        };
+
+        const getAuthToken = () => localStorage.getItem(AUTH_TOKEN_KEY);
+        const setAuthToken = (token) => localStorage.setItem(AUTH_TOKEN_KEY, token);
+        const clearAuth = () => localStorage.removeItem(AUTH_TOKEN_KEY);
+
+        const authHeaders = () => {
+            const token = getAuthToken();
+            return token
+                ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
+                : { 'Content-Type': 'application/json' };
+        };
+
+        function showLoginError(message) {
+            if (!message) {
+                elements.loginError.style.display = 'none';
+                elements.loginError.textContent = '';
+                return;
+            }
+            elements.loginError.textContent = message;
+            elements.loginError.style.display = 'block';
+        }
+
+        function showStatus(message, type = 'success') {
+            if (!message) {
+                elements.statusMessage.style.display = 'none';
+                elements.statusMessage.textContent = '';
+                elements.statusMessage.classList.remove('success', 'error');
+                return;
+            }
+            elements.statusMessage.textContent = message;
+            elements.statusMessage.style.display = 'block';
+            elements.statusMessage.classList.remove('success', 'error');
+            elements.statusMessage.classList.add(type);
+        }
+
+        async function validateFounderSession() {
+            const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+                headers: authHeaders(),
+            });
+            if (!response.ok) {
+                throw new Error('Could not validate founder session.');
+            }
+            const data = await response.json();
+            if (!data.is_founder) {
+                throw new Error('Access denied: founder privileges required.');
+            }
+            state.founder = data;
+            return data;
+        }
+
+        function renderFounderInfo() {
+            if (state.founder?.email) {
+                elements.founderEmail.textContent = state.founder.email;
+            } else {
+                elements.founderEmail.textContent = '';
+            }
+        }
+
+        function showAppShell() {
+            elements.loginOverlay.classList.add('hidden');
+            elements.appShell.style.display = 'flex';
+            renderFounderInfo();
+        }
+
+        function resetLoginForm() {
+            elements.loginButton.disabled = false;
+            elements.loginButton.textContent = 'Login';
+        }
+
+        async function loginFounder() {
+            const email = elements.loginEmail.value.trim();
+            const password = elements.loginPassword.value;
+
+            if (!email) {
+                showLoginError('Please enter your founder email.');
+                return;
+            }
+
+            elements.loginButton.disabled = true;
+            elements.loginButton.textContent = 'Logging in...';
+            showLoginError();
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password }),
+                });
+
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    throw new Error(error.detail || 'Login failed');
+                }
+
+                const data = await response.json();
+                setAuthToken(data.access_token);
+
+                await validateFounderSession();
+                showAppShell();
+                await loadInitialData();
+            } catch (error) {
+                console.error('Founder login failed', error);
+                showLoginError(error.message || 'Unable to log in.');
+                clearAuth();
+            } finally {
+                resetLoginForm();
+            }
+        }
+
+        function logout() {
+            clearAuth();
+            state.founder = null;
+            state.domains = [];
+            state.clients = [];
+            window.location.href = 'https://marketably.ai';
+        }
+
+        async function attemptExistingSession() {
+            const token = getAuthToken();
+            if (!token) return false;
+            try {
+                await validateFounderSession();
+                showAppShell();
+                await loadInitialData();
+                return true;
+            } catch (error) {
+                console.warn('Existing founder session invalid', error);
+                clearAuth();
+                return false;
+            }
+        }
+
+        async function loadInitialData() {
+            showStatus('Loading prompts…', 'success');
+            try {
+                await loadPrompts();
+                showStatus();
+            } catch (error) {
+                console.error('Failed to load initial data', error);
+                showStatus(error.message || 'Unable to load data.', 'error');
+            }
+        }
+
+        async function loadPrompts() {
+            const statusFilter = elements.statusFilter.value;
+            const purposeFilter = elements.purposeFilter.value;
+            let url = `${API_BASE_URL}/api/founder/prompts?`;
+            const params = new URLSearchParams();
+            if (statusFilter) params.append('status', statusFilter);
+            if (purposeFilter) params.append('prompt_purpose', purposeFilter);
+            url += params.toString();
+
+            const response = await fetch(url, {
+                headers: authHeaders(),
+            });
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    logout();
+                    return;
+                }
+                throw new Error('Failed to load prompts.');
+            }
+            state.prompts = await response.json();
+            renderPrompts();
+        }
+
+        function renderPrompts() {
+            if (!state.prompts.length) {
+                elements.promptsContainer.innerHTML = `
+                    <div class="empty-state">
+                        <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">No prompts yet</h3>
+                        <p style="font-size: 14px;">Create your first prompt to start transforming insights into actions.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            // Group prompts by name to show version history
+            const promptsByName = {};
+            state.prompts.forEach(prompt => {
+                if (!promptsByName[prompt.name]) {
+                    promptsByName[prompt.name] = [];
+                }
+                promptsByName[prompt.name].push(prompt);
+            });
+
+            elements.promptsContainer.innerHTML = Object.entries(promptsByName)
+                .map(([name, versions]) => {
+                    const latest = versions.sort((a, b) => b.version - a.version)[0];
+                    const versionCount = versions.length;
+                    const statusBadge = `<span class="client-chip" style="background: ${latest.status === 'live' ? '#f0fff4' : latest.status === 'test' ? '#fffbf0' : '#f7fafc'}; border-color: ${latest.status === 'live' ? '#c6f6d5' : latest.status === 'test' ? '#fbd38d' : '#e2e8f0'}; color: ${latest.status === 'live' ? '#22543d' : latest.status === 'test' ? '#744210' : '#4a5568'};">${latest.status.toUpperCase()}</span>`;
+                    const updatedAt = latest.updated_at ? new Date(latest.updated_at).toLocaleString() : 'Unknown';
+                    const createdAt = latest.created_at ? new Date(latest.created_at).toLocaleDateString() : 'Unknown';
+                    const purposeChip = `<span class="client-chip">${latest.prompt_purpose}</span>`;
+                    const modelChip = `<span class="client-chip" style="background: #edf2f7; border-color: #cbd5e0; color: #4a5568;">${latest.llm_model}</span>`;
+
+                    return `
+                        <article class="domain-card">
+                            <div class="domain-header">
+                                <div>
+                                    <h2>${name}</h2>
+                                    <div class="domain-meta">
+                                        <span>Version ${latest.version}${versionCount > 1 ? ` (${versionCount} versions)` : ''}</span>
+                                        <span>Created ${createdAt}</span>
+                                        <span>Updated ${updatedAt}</span>
+                                    </div>
+                                </div>
+                                <button class="btn btn-secondary" data-action="edit-prompt" data-prompt-id="${latest.id}">Edit</button>
+                            </div>
+                            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+                                ${statusBadge} ${purposeChip} ${modelChip}
+                            </div>
+                            <div class="description" style="font-family: monospace; font-size: 12px; max-height: 100px; overflow-y: auto; background: #f7fafc; padding: 8px; border-radius: 6px; white-space: pre-wrap; word-break: break-word;">${latest.prompt_text.substring(0, 200)}${latest.prompt_text.length > 200 ? '...' : ''}</div>
+                        </article>
+                    `;
+                })
+                .join('');
+
+            elements.promptsContainer.querySelectorAll('[data-action="edit-prompt"]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const promptId = button.getAttribute('data-prompt-id');
+                    openPromptModal('edit', promptId);
+                });
+            });
+        }
+
+        function loadCustomPurposes() {
+            const customPurposes = JSON.parse(localStorage.getItem('customPromptPurposes') || '[]');
+            const existingOptions = Array.from(elements.promptPurposeInput.options).map(opt => opt.value);
+            
+            customPurposes.forEach(purpose => {
+                if (purpose && !existingOptions.includes(purpose)) {
+                    const option = document.createElement('option');
+                    option.value = purpose;
+                    option.textContent = purpose.split('-').map(word => 
+                        word.charAt(0).toUpperCase() + word.slice(1)
+                    ).join(' ');
+                    elements.promptPurposeInput.appendChild(option);
+                }
+            });
+        }
+
+        function addCustomPurpose(purpose) {
+            if (!purpose) return;
+            
+            // Normalize to lowercase with hyphens
+            const normalizedPurpose = purpose.toLowerCase().trim().replace(/\s+/g, '-');
+            
+            // Get existing custom purposes
+            const customPurposes = JSON.parse(localStorage.getItem('customPromptPurposes') || '[]');
+            
+            // Add if not already present
+            if (!customPurposes.includes(normalizedPurpose)) {
+                customPurposes.push(normalizedPurpose);
+                localStorage.setItem('customPromptPurposes', JSON.stringify(customPurposes));
+                
+                // Add to dropdown if not already there
+                const existingOptions = Array.from(elements.promptPurposeInput.options).map(opt => opt.value);
+                if (!existingOptions.includes(normalizedPurpose)) {
+                    const option = document.createElement('option');
+                    option.value = normalizedPurpose;
+                    option.textContent = normalizedPurpose.split('-').map(word => 
+                        word.charAt(0).toUpperCase() + word.slice(1)
+                    ).join(' ');
+                    elements.promptPurposeInput.appendChild(option);
+                }
+            }
+            
+            // Select the new purpose
+            elements.promptPurposeInput.value = normalizedPurpose;
+        }
+
+        function openPromptModal(mode, promptId = null) {
+            state.currentMode = mode;
+            state.currentPromptId = promptId;
+            elements.promptForm.reset();
+            
+            // Reload custom purposes
+            loadCustomPurposes();
+
+            if (mode === 'edit' && promptId) {
+                const prompt = state.prompts.find((item) => item.id === promptId);
+                if (!prompt) {
+                    showStatus('Selected prompt could not be found.', 'error');
+                    return;
+                }
+                elements.modalTitle.textContent = `Edit ${prompt.name} (v${prompt.version})`;
+                elements.nameInput.value = prompt.name;
+                elements.versionInput.value = prompt.version;
+                elements.promptPurposeInput.value = prompt.prompt_purpose;
+                elements.statusInput.value = prompt.status;
+                elements.llmModelInput.value = prompt.llm_model;
+                elements.promptTextInput.value = prompt.prompt_text;
+            } else {
+                elements.modalTitle.textContent = 'New Prompt';
+                elements.nameInput.value = '';
+                elements.versionInput.value = '1';
+                elements.promptPurposeInput.value = '';
+                elements.statusInput.value = 'test';
+                elements.llmModelInput.value = 'gpt-4o-mini';
+                elements.promptTextInput.value = '';
+            }
+
+            elements.submitPromptButton.textContent = mode === 'edit' ? 'Save Changes' : 'Create Prompt';
+            elements.modalBackdrop.classList.add('visible');
+            setTimeout(() => elements.nameInput.focus(), 50);
+        }
+
+        function openAddPurposeModal() {
+            elements.newPurposeInput.value = '';
+            elements.addPurposeModal.style.display = 'flex';
+            setTimeout(() => elements.newPurposeInput.focus(), 50);
+        }
+
+        function closeAddPurposeModal() {
+            elements.addPurposeModal.style.display = 'none';
+            elements.newPurposeInput.value = '';
+        }
+
+        function handleAddPurpose() {
+            const newPurpose = elements.newPurposeInput.value.trim();
+            if (!newPurpose) {
+                showStatus('Please enter a purpose name.', 'error');
+                return;
+            }
+            
+            addCustomPurpose(newPurpose);
+            closeAddPurposeModal();
+            showStatus('Purpose added successfully.', 'success');
+            setTimeout(() => showStatus(), 2000);
+        }
+
+        function closePromptModal() {
+            state.currentMode = 'create';
+            state.currentPromptId = null;
+            elements.modalBackdrop.classList.remove('visible');
+        }
+
+        async function handlePromptFormSubmit(event) {
+            event.preventDefault();
+            elements.submitPromptButton.disabled = true;
+            const nameValue = elements.nameInput.value.trim();
+            const versionValue = parseInt(elements.versionInput.value);
+            const promptPurposeValue = elements.promptPurposeInput.value;
+            const statusValue = elements.statusInput.value;
+            const llmModelValue = elements.llmModelInput.value.trim();
+            const promptTextValue = elements.promptTextInput.value.trim();
+
+            if (!nameValue || !promptPurposeValue || !promptTextValue || !llmModelValue) {
+                showStatus('All required fields must be filled.', 'error');
+                elements.submitPromptButton.disabled = false;
+                return;
+            }
+
+            if (isNaN(versionValue) || versionValue < 1) {
+                showStatus('Version must be a positive integer.', 'error');
+                elements.submitPromptButton.disabled = false;
+                return;
+            }
+
+            const payload = {
+                name: nameValue,
+                version: versionValue,
+                prompt_purpose: promptPurposeValue,
+                status: statusValue,
+                llm_model: llmModelValue,
+                prompt_text: promptTextValue,
+            };
+
+            try {
+                if (state.currentMode === 'edit' && state.currentPromptId) {
+                    await updatePrompt(state.currentPromptId, payload);
+                    showStatus('Prompt updated successfully.', 'success');
+                } else {
+                    await createPrompt(payload);
+                    showStatus('Prompt created successfully.', 'success');
+                }
+                closePromptModal();
+                await loadPrompts();
+            } catch (error) {
+                console.error('Prompt save failed', error);
+                showStatus(error.message || 'Unable to save prompt.', 'error');
+            } finally {
+                elements.submitPromptButton.disabled = false;
+            }
+        }
+
+        async function createPrompt(payload) {
+            const response = await fetch(`${API_BASE_URL}/api/founder/prompts`, {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify(payload),
+            });
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(error.detail || 'Failed to create prompt.');
+            }
+            return response.json();
+        }
+
+        async function updatePrompt(promptId, payload) {
+            const response = await fetch(`${API_BASE_URL}/api/founder/prompts/${promptId}`, {
+                method: 'PUT',
+                headers: authHeaders(),
+                body: JSON.stringify(payload),
+            });
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(error.detail || 'Failed to update prompt.');
+            }
+            return response.json();
+        }
+
+        elements.loginButton.addEventListener('click', loginFounder);
+        elements.logoutButton.addEventListener('click', logout);
+        elements.refreshButton.addEventListener('click', loadInitialData);
+        elements.newPromptButton.addEventListener('click', () => openPromptModal('create'));
+        elements.cancelModalButton.addEventListener('click', closePromptModal);
+        elements.promptForm.addEventListener('submit', handlePromptFormSubmit);
+        elements.statusFilter.addEventListener('change', loadPrompts);
+        elements.purposeFilter.addEventListener('change', loadPrompts);
+        elements.addPurposeButton.addEventListener('click', openAddPurposeModal);
+        elements.cancelAddPurposeButton.addEventListener('click', closeAddPurposeModal);
+        elements.savePurposeButton.addEventListener('click', handleAddPurpose);
+        
+        // Allow Enter key to submit add purpose form
+        elements.newPurposeInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                handleAddPurpose();
+            }
+        });
+        
+        // Close add purpose modal when clicking backdrop
+        elements.addPurposeModal.addEventListener('click', (event) => {
+            if (event.target === elements.addPurposeModal) {
+                closeAddPurposeModal();
+            }
+        });
+
+        elements.modalBackdrop.addEventListener('click', (event) => {
+            if (event.target === elements.modalBackdrop) {
+                closePromptModal();
+            }
+        });
+
+        elements.loginEmail.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                loginFounder();
+            }
+        });
+
+        elements.loginPassword.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                loginFounder();
+            }
+        });
+
+        // Load custom purposes on page load
+        loadCustomPurposes();
+        
+        // Also load existing purposes from database to populate filter dropdown
+        async function loadExistingPurposes() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/founder/prompts`, {
+                    headers: authHeaders(),
+                });
+                if (response.ok) {
+                    const prompts = await response.json();
+                    const uniquePurposes = [...new Set(prompts.map(p => p.prompt_purpose))].sort();
+                    
+                    // Add to filter dropdown
+                    uniquePurposes.forEach(purpose => {
+                        const existingOptions = Array.from(elements.purposeFilter.options).map(opt => opt.value);
+                        if (!existingOptions.includes(purpose)) {
+                            const option = document.createElement('option');
+                            option.value = purpose;
+                            option.textContent = purpose.split('-').map(word => 
+                                word.charAt(0).toUpperCase() + word.slice(1)
+                            ).join(' ');
+                            elements.purposeFilter.appendChild(option);
+                        }
+                    });
+                }
+            } catch (error) {
+                console.warn('Could not load existing purposes for filter:', error);
+            }
+        }
+
+        attemptExistingSession().then((hasSession) => {
+            if (!hasSession) {
+                elements.loginOverlay.classList.remove('hidden');
+                elements.appShell.style.display = 'none';
+            } else {
+                loadExistingPurposes();
+            }
+        });
+    </script>
+</body>
+</html>
