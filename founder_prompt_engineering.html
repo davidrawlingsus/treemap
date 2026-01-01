@@ -41,6 +41,10 @@
             min-height: 100vh;
         }
 
+        body.slideout-open {
+            overflow: hidden;
+        }
+
         .login-overlay {
             position: fixed;
             inset: 0;
@@ -419,6 +423,182 @@
             border-radius: 0 0 16px 16px;
         }
 
+        .split-button-container {
+            display: flex;
+            gap: 0;
+            position: relative;
+        }
+
+        .split-button-main {
+            border-radius: 8px 0 0 8px;
+            border-right: none;
+        }
+
+        .split-button-dropdown {
+            border-radius: 0 8px 8px 0;
+            padding: 10px 12px;
+            border-left: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .split-button-dropdown-menu {
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            right: 0;
+            margin-bottom: 8px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 160px;
+            z-index: 1001;
+            overflow: hidden;
+        }
+
+        .split-button-dropdown-menu.visible {
+            display: block;
+        }
+
+        .split-button-dropdown-menu-item {
+            display: block;
+            width: 100%;
+            padding: 10px 16px;
+            text-align: left;
+            background: none;
+            border: none;
+            color: var(--text);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .split-button-dropdown-menu-item:hover {
+            background: var(--bg);
+        }
+
+        /* Slideout Panel Styles */
+        .ai-insights-panel {
+            position: fixed;
+            right: -520px;
+            top: 0;
+            width: 500px;
+            height: 100vh;
+            background: oklch(1 0 0);
+            box-shadow: -4px 0 20px rgba(0,0,0,0.15);
+            z-index: 10001;
+            transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            border-top: 3px solid #B9F040;
+        }
+
+        .ai-insights-panel.open {
+            right: 0;
+        }
+
+        .ai-insights-header {
+            padding: 1.25rem 1.5rem 1rem 1.5rem;
+            border-bottom: 1px solid oklch(0.922 0 0);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: oklch(1 0 0);
+            gap: 12px;
+        }
+
+        .ai-insights-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            transition: opacity 0.2s ease;
+        }
+
+        .ai-close-btn {
+            background: none;
+            border: none;
+            color: oklch(0.556 0 0);
+            font-size: 1.75rem;
+            line-height: 1;
+            cursor: pointer;
+            padding: 0;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 0.375rem;
+            transition: all 0.2s ease;
+            font-family: 'Lato', sans-serif;
+        }
+
+        .ai-close-btn:hover {
+            background: oklch(0.97 0 0);
+            color: oklch(0.145 0 0);
+        }
+
+        .ai-insights-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 10000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .ai-insights-overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .prompt-result-content {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            background: #f7fafc;
+            padding: 16px;
+            border-radius: 8px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            overflow-x: auto;
+        }
+
+        .prompt-result-metadata {
+            margin-bottom: 16px;
+            padding: 12px;
+            background: #f0f4f8;
+            border-radius: 6px;
+            font-size: 13px;
+            color: var(--muted);
+        }
+
+        .ai-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 20px;
+            text-align: center;
+        }
+
+        .ai-loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #e4e6eb;
+            border-top-color: #b9f040;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         @media (max-width: 768px) {
             header {
                 flex-direction: column;
@@ -435,6 +615,10 @@
 
             .domains-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .ai-insights-panel {
+                width: 100%;
             }
         }
     </style>
@@ -544,9 +728,14 @@
                     <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Model identifier (e.g., gpt-4o-mini, gpt-4)</p>
                 </div>
                 <div class="form-group">
-                    <label for="promptTextInput">Prompt Text</label>
-                    <textarea id="promptTextInput" placeholder="Enter the system prompt text here..." style="min-height: 300px; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; line-height: 1.6;" required></textarea>
-                    <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">The actual system prompt that will be sent to the LLM</p>
+                    <label for="systemMessageInput">System Message</label>
+                    <textarea id="systemMessageInput" placeholder="Enter the system prompt text here..." style="min-height: 300px; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; line-height: 1.6;" required></textarea>
+                    <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">The system message that will be sent to the LLM</p>
+                </div>
+                <div class="form-group">
+                    <label for="userMessageInput">Prompt Messages</label>
+                    <textarea id="userMessageInput" placeholder="Enter user message (e.g., URL, verbatim JSON, etc.)" style="min-height: 200px; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; line-height: 1.6;"></textarea>
+                    <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">The user input that will be sent with the system message to the LLM</p>
                 </div>
             </form>
             <div id="addPurposeModal" class="modal-backdrop" style="display: none;">
@@ -569,55 +758,102 @@
             </div>
             <div class="modal-actions">
                 <button class="btn btn-secondary" id="cancelModalButton" type="button">Cancel</button>
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-primary" id="submitPromptButton" type="submit" form="promptForm">Save</button>
+                <div class="split-button-container">
+                    <button class="btn btn-primary split-button-main" id="saveAndRunButton" type="button">Save and Run</button>
+                    <button class="btn btn-primary split-button-dropdown" id="saveButtonDropdown" type="button" aria-label="More options">▼</button>
+                    <div class="split-button-dropdown-menu" id="saveButtonMenu">
+                        <button class="split-button-dropdown-menu-item" id="saveChangesButton" type="button">Save Changes</button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Slideout Panel for Prompt Results -->
+    <div id="slideoutPanel" class="ai-insights-panel">
+        <div class="ai-insights-header">
+            <div style="flex: 1;">
+                <div id="slideoutTitle" style="font-size: 1.5rem; font-weight: 600; font-family: 'Lato', sans-serif; color: oklch(0.145 0 0);">Prompt Execution Results</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <button id="closeSlideoutPanel" class="ai-close-btn">&times;</button>
+            </div>
+        </div>
+        <div id="slideoutContent" class="ai-insights-content">
+            <!-- Content loaded dynamically -->
+        </div>
+    </div>
+    
+    <div id="slideoutOverlay" class="ai-insights-overlay"></div>
+
     <script>
         const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
         const AUTH_TOKEN_KEY = 'visualizd_auth_token';
 
+        // Initialize elements with debugging
+        function getElement(id, required = true) {
+            const el = document.getElementById(id);
+            if (required && !el) {
+                console.error(`[DEBUG] Required element not found: #${id}`);
+            } else if (!el) {
+                console.warn(`[DEBUG] Optional element not found: #${id}`);
+            } else {
+                console.log(`[DEBUG] Element found: #${id}`);
+            }
+            return el;
+        }
+
         const elements = {
-            loginOverlay: document.getElementById('loginOverlay'),
-            loginEmail: document.getElementById('loginEmail'),
-            loginPassword: document.getElementById('loginPassword'),
-            loginButton: document.getElementById('loginButton'),
-            loginError: document.getElementById('loginError'),
-            appShell: document.getElementById('appShell'),
-            founderEmail: document.getElementById('founderEmail'),
-            logoutButton: document.getElementById('logoutButton'),
-            refreshButton: document.getElementById('refreshButton'),
-            newPromptButton: document.getElementById('newPromptButton'),
-            statusMessage: document.getElementById('statusMessage'),
-            promptsContainer: document.getElementById('promptsContainer'),
-            statusFilter: document.getElementById('statusFilter'),
-            purposeFilter: document.getElementById('purposeFilter'),
-            modalBackdrop: document.getElementById('modalBackdrop'),
-            modalTitle: document.getElementById('modalTitle'),
-            promptForm: document.getElementById('promptForm'),
-            nameInput: document.getElementById('nameInput'),
-            versionInput: document.getElementById('versionInput'),
-            promptPurposeInput: document.getElementById('promptPurposeInput'),
-            statusInput: document.getElementById('statusInput'),
-            llmModelInput: document.getElementById('llmModelInput'),
-            promptTextInput: document.getElementById('promptTextInput'),
-            cancelModalButton: document.getElementById('cancelModalButton'),
-            submitPromptButton: document.getElementById('submitPromptButton'),
-            addPurposeButton: document.getElementById('addPurposeButton'),
-            addPurposeModal: document.getElementById('addPurposeModal'),
-            newPurposeInput: document.getElementById('newPurposeInput'),
-            cancelAddPurposeButton: document.getElementById('cancelAddPurposeButton'),
-            savePurposeButton: document.getElementById('savePurposeButton'),
+            loginOverlay: getElement('loginOverlay'),
+            loginEmail: getElement('loginEmail'),
+            loginPassword: getElement('loginPassword'),
+            loginButton: getElement('loginButton'),
+            loginError: getElement('loginError'),
+            appShell: getElement('appShell'),
+            founderEmail: getElement('founderEmail'),
+            logoutButton: getElement('logoutButton'),
+            refreshButton: getElement('refreshButton'),
+            newPromptButton: getElement('newPromptButton'),
+            statusMessage: getElement('statusMessage'),
+            promptsContainer: getElement('promptsContainer'),
+            statusFilter: getElement('statusFilter'),
+            purposeFilter: getElement('purposeFilter'),
+            modalBackdrop: getElement('modalBackdrop'),
+            modalTitle: getElement('modalTitle'),
+            promptForm: getElement('promptForm'),
+            nameInput: getElement('nameInput'),
+            versionInput: getElement('versionInput'),
+            promptPurposeInput: getElement('promptPurposeInput'),
+            statusInput: getElement('statusInput'),
+            llmModelInput: getElement('llmModelInput'),
+            systemMessageInput: getElement('systemMessageInput'),
+            userMessageInput: getElement('userMessageInput'),
+            cancelModalButton: getElement('cancelModalButton'),
+            submitPromptButton: getElement('submitPromptButton', false),
+            addPurposeButton: getElement('addPurposeButton'),
+            addPurposeModal: getElement('addPurposeModal'),
+            newPurposeInput: getElement('newPurposeInput'),
+            cancelAddPurposeButton: getElement('cancelAddPurposeButton'),
+            savePurposeButton: getElement('savePurposeButton'),
+            saveAndRunButton: getElement('saveAndRunButton'),
+            saveButtonDropdown: getElement('saveButtonDropdown'),
+            saveButtonMenu: getElement('saveButtonMenu'),
+            saveChangesButton: getElement('saveChangesButton'),
+            slideoutPanel: getElement('slideoutPanel'),
+            slideoutOverlay: getElement('slideoutOverlay'),
+            slideoutContent: getElement('slideoutContent'),
+            slideoutTitle: getElement('slideoutTitle'),
+            closeSlideoutPanel: getElement('closeSlideoutPanel'),
         };
+
+        console.log('[DEBUG] Elements initialization complete');
 
         const state = {
             founder: null,
             prompts: [],
             currentMode: 'create',
             currentPromptId: null,
+            actionMode: 'save-and-run', // 'save-and-run' or 'save-only'
         };
 
         const getAuthToken = () => localStorage.getItem(AUTH_TOKEN_KEY);
@@ -831,7 +1067,7 @@
                             <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
                                 ${statusBadge} ${purposeChip} ${modelChip}
                             </div>
-                            <div class="description" style="font-family: monospace; font-size: 12px; max-height: 100px; overflow-y: auto; background: #f7fafc; padding: 8px; border-radius: 6px; white-space: pre-wrap; word-break: break-word;">${latest.prompt_text.substring(0, 200)}${latest.prompt_text.length > 200 ? '...' : ''}</div>
+                            <div class="description" style="font-family: monospace; font-size: 12px; max-height: 100px; overflow-y: auto; background: #f7fafc; padding: 8px; border-radius: 6px; white-space: pre-wrap; word-break: break-word;">${latest.system_message.substring(0, 200)}${latest.system_message.length > 200 ? '...' : ''}</div>
                         </article>
                     `;
                 })
@@ -911,7 +1147,8 @@
                 elements.promptPurposeInput.value = prompt.prompt_purpose;
                 elements.statusInput.value = prompt.status;
                 elements.llmModelInput.value = prompt.llm_model;
-                elements.promptTextInput.value = prompt.prompt_text;
+                elements.systemMessageInput.value = prompt.system_message;
+                elements.userMessageInput.value = ''; // User message is not stored, always empty
             } else {
                 elements.modalTitle.textContent = 'New Prompt';
                 elements.nameInput.value = '';
@@ -919,10 +1156,11 @@
                 elements.promptPurposeInput.value = '';
                 elements.statusInput.value = 'test';
                 elements.llmModelInput.value = 'gpt-4o-mini';
-                elements.promptTextInput.value = '';
+                elements.systemMessageInput.value = '';
+                elements.userMessageInput.value = '';
             }
 
-            elements.submitPromptButton.textContent = mode === 'edit' ? 'Save Changes' : 'Create Prompt';
+            state.actionMode = 'save-and-run';
             elements.modalBackdrop.classList.add('visible');
             setTimeout(() => elements.nameInput.focus(), 50);
         }
@@ -959,23 +1197,31 @@
 
         async function handlePromptFormSubmit(event) {
             event.preventDefault();
-            elements.submitPromptButton.disabled = true;
+            await savePrompt(state.actionMode === 'save-and-run');
+        }
+
+        async function savePrompt(shouldExecute = false) {
+            elements.saveAndRunButton.disabled = true;
+            elements.saveChangesButton.disabled = true;
+            
             const nameValue = elements.nameInput.value.trim();
             const versionValue = parseInt(elements.versionInput.value);
             const promptPurposeValue = elements.promptPurposeInput.value;
             const statusValue = elements.statusInput.value;
             const llmModelValue = elements.llmModelInput.value.trim();
-            const promptTextValue = elements.promptTextInput.value.trim();
+            const systemMessageValue = elements.systemMessageInput.value.trim();
 
-            if (!nameValue || !promptPurposeValue || !promptTextValue || !llmModelValue) {
+            if (!nameValue || !promptPurposeValue || !systemMessageValue || !llmModelValue) {
                 showStatus('All required fields must be filled.', 'error');
-                elements.submitPromptButton.disabled = false;
+                elements.saveAndRunButton.disabled = false;
+                elements.saveChangesButton.disabled = false;
                 return;
             }
 
             if (isNaN(versionValue) || versionValue < 1) {
                 showStatus('Version must be a positive integer.', 'error');
-                elements.submitPromptButton.disabled = false;
+                elements.saveAndRunButton.disabled = false;
+                elements.saveChangesButton.disabled = false;
                 return;
             }
 
@@ -985,25 +1231,154 @@
                 prompt_purpose: promptPurposeValue,
                 status: statusValue,
                 llm_model: llmModelValue,
-                prompt_text: promptTextValue,
+                system_message: systemMessageValue,
             };
 
             try {
+                let savedPrompt;
                 if (state.currentMode === 'edit' && state.currentPromptId) {
-                    await updatePrompt(state.currentPromptId, payload);
+                    savedPrompt = await updatePrompt(state.currentPromptId, payload);
                     showStatus('Prompt updated successfully.', 'success');
                 } else {
-                    await createPrompt(payload);
+                    savedPrompt = await createPrompt(payload);
                     showStatus('Prompt created successfully.', 'success');
                 }
-                closePromptModal();
-                await loadPrompts();
+                
+                if (shouldExecute) {
+                    const userMessage = elements.userMessageInput.value.trim();
+                    closePromptModal();
+                    await loadPrompts();
+                    await executePrompt(savedPrompt.id, userMessage);
+                } else {
+                    closePromptModal();
+                    await loadPrompts();
+                }
             } catch (error) {
                 console.error('Prompt save failed', error);
                 showStatus(error.message || 'Unable to save prompt.', 'error');
             } finally {
-                elements.submitPromptButton.disabled = false;
+                elements.saveAndRunButton.disabled = false;
+                elements.saveChangesButton.disabled = false;
             }
+        }
+
+        async function executePrompt(promptId, userMessage) {
+            console.log('[DEBUG] executePrompt called', { promptId, userMessage });
+            console.log('[DEBUG] slideoutContent element:', elements.slideoutContent);
+            
+            if (!elements.slideoutContent) {
+                console.error('[DEBUG] slideoutContent is null! Cannot display results.');
+                showStatus('Error: Slideout panel not found. Please refresh the page.', 'error');
+                return;
+            }
+
+            openSlideout('Prompt Execution Results');
+            
+            // Show loading state
+            console.log('[DEBUG] Setting loading state in slideoutContent');
+            elements.slideoutContent.innerHTML = `
+                <div class="ai-loading">
+                    <div class="ai-loading-spinner"></div>
+                    <p>Executing prompt...</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/founder/prompts/${promptId}/execute`, {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({ user_message: userMessage || '' }),
+                });
+
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    throw new Error(error.detail || 'Failed to execute prompt');
+                }
+
+                const result = await response.json();
+                displayPromptResult(result);
+            } catch (error) {
+                console.error('Prompt execution failed', error);
+                elements.slideoutContent.innerHTML = `
+                    <div style="padding: 24px;">
+                        <h3 style="color: var(--danger); margin-bottom: 12px;">Error</h3>
+                        <p style="color: var(--text);">${error.message || 'Failed to execute prompt'}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function displayPromptResult(result) {
+            console.log('[DEBUG] displayPromptResult called', result);
+            console.log('[DEBUG] slideoutContent element:', elements.slideoutContent);
+            
+            if (!elements.slideoutContent) {
+                console.error('[DEBUG] slideoutContent is null in displayPromptResult!');
+                showStatus('Error: Slideout panel not found. Please refresh the page.', 'error');
+                return;
+            }
+
+            const metadata = `
+                <div class="prompt-result-metadata">
+                    <strong>Model:</strong> ${result.model || 'N/A'}<br>
+                    <strong>Tokens Used:</strong> ${result.tokens_used || 'N/A'}
+                </div>
+            `;
+            
+            const content = typeof result.content === 'string' 
+                ? result.content 
+                : JSON.stringify(result.content, null, 2);
+            
+            console.log('[DEBUG] Setting result content in slideoutContent');
+            elements.slideoutContent.innerHTML = `
+                ${metadata}
+                <div class="prompt-result-content">${escapeHtml(content)}</div>
+            `;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function openSlideout(title) {
+            console.log('[DEBUG] openSlideout called', { title });
+            console.log('[DEBUG] slideoutTitle:', elements.slideoutTitle);
+            console.log('[DEBUG] slideoutPanel:', elements.slideoutPanel);
+            console.log('[DEBUG] slideoutOverlay:', elements.slideoutOverlay);
+            
+            if (elements.slideoutTitle) {
+                elements.slideoutTitle.textContent = title || 'Prompt Execution Results';
+            } else {
+                console.warn('[DEBUG] slideoutTitle is null');
+            }
+            
+            if (elements.slideoutPanel) {
+                elements.slideoutPanel.classList.add('open');
+                console.log('[DEBUG] Added "open" class to slideoutPanel');
+            } else {
+                console.error('[DEBUG] slideoutPanel is null!');
+            }
+            
+            if (elements.slideoutOverlay) {
+                elements.slideoutOverlay.classList.add('visible');
+                console.log('[DEBUG] Added "visible" class to slideoutOverlay');
+            } else {
+                console.error('[DEBUG] slideoutOverlay is null!');
+            }
+            
+            document.body.classList.add('slideout-open');
+        }
+
+        function closeSlideout() {
+            if (elements.slideoutPanel) {
+                elements.slideoutPanel.classList.remove('open');
+            }
+            if (elements.slideoutOverlay) {
+                elements.slideoutOverlay.classList.remove('visible');
+            }
+            document.body.classList.remove('slideout-open');
         }
 
         async function createPrompt(payload) {
@@ -1038,6 +1413,43 @@
         elements.newPromptButton.addEventListener('click', () => openPromptModal('create'));
         elements.cancelModalButton.addEventListener('click', closePromptModal);
         elements.promptForm.addEventListener('submit', handlePromptFormSubmit);
+        elements.saveAndRunButton.addEventListener('click', () => {
+            state.actionMode = 'save-and-run';
+            elements.promptForm.requestSubmit();
+        });
+        elements.saveChangesButton.addEventListener('click', () => {
+            state.actionMode = 'save-only';
+            elements.promptForm.requestSubmit();
+        });
+        elements.saveButtonDropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+            elements.saveButtonMenu.classList.toggle('visible');
+        });
+        if (elements.closeSlideoutPanel) {
+            elements.closeSlideoutPanel.addEventListener('click', closeSlideout);
+        } else {
+            console.error('[DEBUG] closeSlideoutPanel is null, cannot attach event listener');
+        }
+        
+        if (elements.slideoutOverlay) {
+            elements.slideoutOverlay.addEventListener('click', closeSlideout);
+        } else {
+            console.error('[DEBUG] slideoutOverlay is null, cannot attach event listener');
+        }
+        
+        // Close dropdown menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!elements.saveButtonDropdown.contains(e.target) && !elements.saveButtonMenu.contains(e.target)) {
+                elements.saveButtonMenu.classList.remove('visible');
+            }
+        });
+        
+        // Close slideout on ESC key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && elements.slideoutPanel && elements.slideoutPanel.classList.contains('open')) {
+                closeSlideout();
+            }
+        });
         elements.statusFilter.addEventListener('change', loadPrompts);
         elements.purposeFilter.addEventListener('change', loadPrompts);
         elements.addPurposeButton.addEventListener('click', openAddPurposeModal);

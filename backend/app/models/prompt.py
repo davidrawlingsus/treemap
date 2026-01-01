@@ -12,7 +12,7 @@ class Prompt(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(255), nullable=False)
     version = Column(Integer, nullable=False)
-    prompt_text = Column(Text, nullable=False)
+    system_message = Column(Text, nullable=False)
     prompt_purpose = Column(String(100), nullable=False)
     status = Column(String(50), nullable=False, default='test')  # live, test, archived
     llm_model = Column(String(100), nullable=False, default='gpt-4o-mini')

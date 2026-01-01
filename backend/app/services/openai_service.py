@@ -111,6 +111,69 @@ class OpenAIService:
             logger.error(f"Failed to generate summary: {e}")
             raise RuntimeError(f"Failed to generate AI summary: {str(e)}")
     
+    def execute_prompt(
+        self,
+        system_message: str,
+        user_message: str,
+        model: str = None
+    ) -> Dict:
+        """
+        Execute a prompt with system and user messages.
+        
+        Args:
+            system_message: The system prompt message
+            user_message: The user input message
+            model: LLM model identifier (defaults to self.model)
+        
+        Returns:
+            Dict with content, tokens_used, and model
+        """
+        if not self.is_configured():
+            raise RuntimeError("OpenAI service is not configured. Set OPENAI_API_KEY.")
+        
+        model_to_use = model or self.model
+        
+        try:
+            # Use OpenAI API (v1.0+ format)
+            from openai import OpenAI
+            import httpx
+            
+            # Create OpenAI client with explicit configuration
+            # Avoid proxy issues in Railway environment
+            client = OpenAI(
+                api_key=self.api_key,
+                http_client=httpx.Client(timeout=60.0)
+            )
+            
+            response = client.chat.completions.create(
+                model=model_to_use,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": system_message
+                    },
+                    {
+                        "role": "user",
+                        "content": user_message
+                    }
+                ],
+                temperature=0.7,
+                max_tokens=4000
+            )
+            
+            content = response.choices[0].message.content
+            tokens_used = response.usage.total_tokens
+            
+            return {
+                "content": content,
+                "tokens_used": tokens_used,
+                "model": model_to_use
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to execute prompt: {e}")
+            raise RuntimeError(f"Failed to execute prompt: {str(e)}")
+    
     def _build_prompt(
         self,
         dimension_name: str,
