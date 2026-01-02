@@ -13,16 +13,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Founder Admin - Tools</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
     <script src="/config.js"></script>
     <script src="/auth.js"></script>
     <style>
         :root {
+            --font-lato: 'Lato', sans-serif;
+            --brand-color: #B9F040;
+            --bg-black: #000000;
+            --text-white: #ffffff;
             --bg: #f5f7fb;
             --surface: #ffffff;
             --border: #e2e8f0;
-            --primary: #667eea;
-            --primary-dark: #4c51bf;
+            --primary: #B9F040;
+            --primary-dark: #a0d636;
             --danger: #e53e3e;
             --text: #1a202c;
             --muted: #718096;
@@ -35,7 +42,7 @@
         }
 
         body {
-            font-family: "Inter", "Segoe UI", sans-serif;
+            font-family: var(--font-lato), "Segoe UI", sans-serif;
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
@@ -56,11 +63,12 @@
             border: none;
             transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
             text-decoration: none;
+            font-family: var(--font-lato);
         }
 
         .btn-primary {
-            background: var(--primary);
-            color: white;
+            background: var(--brand-color);
+            color: var(--bg-black);
         }
 
         .btn-primary:hover {
@@ -103,12 +111,57 @@
         header h1 {
             font-size: 26px;
             font-weight: 600;
+            font-family: var(--font-lato);
+            margin: 0;
         }
 
         .subtitle {
             font-size: 14px;
             color: var(--muted);
             margin-top: 6px;
+        }
+
+        .breadcrumbs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 12px;
+            font-family: var(--font-lato);
+        }
+
+        .breadcrumbs a {
+            color: var(--bg-black);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumbs a:hover {
+            color: var(--brand-color);
+            text-decoration: underline;
+        }
+
+        .breadcrumbs-separator {
+            color: var(--muted);
+            opacity: 0.5;
+        }
+
+        .back-to-app {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--bg-black);
+            text-decoration: none;
+            font-size: 13px;
+            font-family: var(--font-lato);
+            margin-bottom: 12px;
+            transition: color 0.2s;
+        }
+
+        .back-to-app:hover {
+            color: var(--brand-color);
+            text-decoration: underline;
         }
 
         .founder-meta {
@@ -201,6 +254,7 @@
     <div id="appShell">
         <header>
             <div>
+                <a href="/index.html" class="back-to-app">← Back to App</a>
                 <h1>Founder Admin</h1>
                 <div class="subtitle">Launch internal tools and manage Marketable operations.</div>
             </div>

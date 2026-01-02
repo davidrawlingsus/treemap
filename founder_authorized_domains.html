@@ -13,17 +13,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Founder Admin - Authorized Domains</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
     <script src="/config.js"></script>
     <script src="/auth.js"></script>
     <style>
         :root {
+            --font-lato: 'Lato', sans-serif;
+            --brand-color: #B9F040;
+            --bg-black: #000000;
+            --text-white: #ffffff;
             --bg: #f5f7fb;
             --surface: #ffffff;
             --border: #e2e8f0;
             --border-strong: #cbd5f5;
-            --primary: #667eea;
-            --primary-dark: #4c51bf;
+            --primary: #B9F040;
+            --primary-dark: #a0d636;
             --danger: #e53e3e;
             --success: #38a169;
             --text: #1a202c;
@@ -37,7 +44,7 @@
         }
 
         body {
-            font-family: "Inter", "Segoe UI", sans-serif;
+            font-family: var(--font-lato), "Segoe UI", sans-serif;
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
@@ -88,8 +95,8 @@
 
         .login-card input:focus {
             outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25);
+            border-color: var(--brand-color);
+            box-shadow: 0 0 0 3px rgba(185, 240, 64, 0.25);
         }
 
         .btn {
@@ -105,11 +112,12 @@
             border: none;
             transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
             text-decoration: none;
+            font-family: var(--font-lato);
         }
 
         .btn-primary {
-            background: var(--primary);
-            color: #fff;
+            background: var(--brand-color);
+            color: var(--bg-black);
         }
 
         .btn-primary:hover {
@@ -127,11 +135,11 @@
 
         .btn-ghost {
             background: transparent;
-            color: var(--primary);
+            color: var(--brand-color);
         }
 
         .btn-ghost:hover {
-            background: rgba(102, 126, 234, 0.1);
+            background: rgba(185, 240, 64, 0.1);
         }
 
         .btn:disabled {
@@ -161,6 +169,8 @@
         header h1 {
             font-size: 26px;
             font-weight: 600;
+            font-family: var(--font-lato);
+            margin: 0;
         }
 
         .subtitle {
@@ -168,6 +178,32 @@
             color: var(--muted);
             margin-top: 6px;
             max-width: 640px;
+        }
+
+        .breadcrumbs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 12px;
+            font-family: var(--font-lato);
+        }
+
+        .breadcrumbs a {
+            color: var(--bg-black);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumbs a:hover {
+            color: var(--brand-color);
+            text-decoration: underline;
+        }
+
+        .breadcrumbs-separator {
+            color: var(--muted);
+            opacity: 0.5;
         }
 
         .founder-meta {
@@ -281,10 +317,10 @@
             align-items: center;
             padding: 4px 10px;
             border-radius: 999px;
-            border: 1px solid rgba(102, 126, 234, 0.35);
-            background: rgba(102, 126, 234, 0.12);
+            border: 1px solid rgba(185, 240, 64, 0.35);
+            background: rgba(185, 240, 64, 0.12);
             font-size: 12px;
-            color: var(--primary-dark);
+            color: var(--bg-black);
             font-weight: 600;
         }
 
@@ -391,8 +427,8 @@
         }
 
         .client-option:hover {
-            border-color: rgba(102, 126, 234, 0.3);
-            background: rgba(102, 126, 234, 0.08);
+            border-color: rgba(185, 240, 64, 0.3);
+            background: rgba(185, 240, 64, 0.08);
         }
 
         .modal-actions {
@@ -443,6 +479,11 @@
     <div id="appShell">
         <header>
             <div>
+                <nav class="breadcrumbs">
+                    <a href="/founder_admin.html">Founder Admin</a>
+                    <span class="breadcrumbs-separator">›</span>
+                    <span>Authorized Domains</span>
+                </nav>
                 <h1>Authorized Domains</h1>
                 <div class="subtitle">
                     Manage which email domains can request access and which clients each domain can view.

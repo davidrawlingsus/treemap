@@ -13,16 +13,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Founder Tools – Impersonation & Access</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
     <script src="/config.js"></script>
     <script src="/auth.js"></script>
     <style>
         :root {
+            --font-lato: 'Lato', sans-serif;
+            --brand-color: #B9F040;
+            --bg-black: #000000;
+            --text-white: #ffffff;
             --bg: #f7f9fc;
             --surface: #ffffff;
             --border: #e3e8f0;
-            --primary: #667eea;
-            --primary-dark: #4c51bf;
+            --primary: #B9F040;
+            --primary-dark: #a0d636;
             --danger: #e53e3e;
             --text: #1a202c;
             --muted: #718096;
@@ -37,7 +44,7 @@
         }
 
         body {
-            font-family: "Inter", "Segoe UI", sans-serif;
+            font-family: var(--font-lato), "Segoe UI", sans-serif;
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
@@ -92,8 +99,8 @@
 
         .login-card input:focus {
             outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25);
+            border-color: var(--brand-color);
+            box-shadow: 0 0 0 3px rgba(185, 240, 64, 0.25);
         }
 
         .btn {
@@ -108,11 +115,12 @@
             cursor: pointer;
             border: none;
             transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+            font-family: var(--font-lato);
         }
 
         .btn-primary {
-            background: var(--primary);
-            color: white;
+            background: var(--brand-color);
+            color: var(--bg-black);
         }
 
         .btn-primary:hover {
@@ -130,11 +138,11 @@
 
         .btn-ghost {
             background: transparent;
-            color: var(--primary);
+            color: var(--brand-color);
         }
 
         .btn-ghost:hover {
-            background: rgba(102, 126, 234, 0.1);
+            background: rgba(185, 240, 64, 0.1);
         }
 
         .btn:disabled {
@@ -175,10 +183,50 @@
 
         header h1 {
             font-size: 24px;
+            font-family: var(--font-lato);
+            margin: 0;
         }
 
         header .subtitle {
             font-size: 14px;
+            color: var(--muted);
+        }
+
+        .breadcrumbs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 12px;
+            font-family: var(--font-lato);
+        }
+
+        .breadcrumbs a {
+            color: var(--bg-black);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumbs a:hover {
+            color: var(--brand-color);
+            text-decoration: underline;
+        }
+
+        .breadcrumbs-separator {
+            color: var(--muted);
+            opacity: 0.5;
+        }
+
+        .founder-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        #founderEmail {
+            font-size: 12px;
             color: var(--muted);
         }
 
@@ -261,8 +309,8 @@
             padding: 4px 8px;
             border-radius: 999px;
             font-size: 11px;
-            background: rgba(102, 126, 234, 0.12);
-            color: var(--primary-dark);
+            background: rgba(185, 240, 64, 0.12);
+            color: var(--bg-black);
             font-weight: 600;
         }
 
@@ -331,8 +379,8 @@
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            background: #eef2ff;
-            color: var(--primary-dark);
+            background: rgba(185, 240, 64, 0.15);
+            color: var(--bg-black);
             padding: 4px 10px;
             border-radius: 100px;
             font-size: 11px;
@@ -350,10 +398,10 @@
             align-items: center;
             gap: 6px;
             border-radius: 999px;
-            border: 1px solid rgba(102, 126, 234, 0.4);
+            border: 1px solid rgba(185, 240, 64, 0.4);
             padding: 4px 10px;
             font-size: 12px;
-            background: rgba(102, 126, 234, 0.08);
+            background: rgba(185, 240, 64, 0.08);
         }
 
         .user-actions {
@@ -400,12 +448,20 @@
     <div id="appShell" style="display: none;">
         <header>
             <div>
-                <h1>Founder Tools</h1>
+                <nav class="breadcrumbs">
+                    <a href="/founder_admin.html">Founder Admin</a>
+                    <span class="breadcrumbs-separator">›</span>
+                    <span>User Impersonation</span>
+                </nav>
+                <h1>User Impersonation</h1>
                 <div class="subtitle">Impersonate users, review authorizations, and open the app as a customer.</div>
             </div>
-            <div style="display: flex; gap: 12px;">
-                <button class="btn btn-secondary" id="refreshButton">Refresh Data</button>
-                <button class="btn btn-ghost" id="logoutButton">Logout</button>
+            <div class="founder-meta">
+                <span id="founderEmail"></span>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-secondary" id="refreshButton">Refresh</button>
+                    <button class="btn btn-secondary" id="logoutButton">Logout</button>
+                </div>
             </div>
         </header>
 
@@ -510,9 +566,19 @@
             return Auth.getAuthHeaders();
         };
 
+        function renderFounderInfo() {
+            if (state.founder?.email) {
+                const emailEl = document.getElementById('founderEmail');
+                if (emailEl) {
+                    emailEl.textContent = state.founder.email;
+                }
+            }
+        }
+
         function initializePage() {
             Auth.hideLogin();
             elements.appShell.style.display = 'block';
+            renderFounderInfo();
             Promise.all([loadAuthorizedDomains(), loadUsers()]);
         }
 

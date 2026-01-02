@@ -16,7 +16,14 @@
     <script src="/config.js"></script>
     <script src="/auth.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+        :root {
+            --font-lato: 'Lato', sans-serif;
+            --brand-color: #B9F040;
+            --bg-black: #000000;
+            --text-white: #ffffff;
+        }
 
         * {
             margin: 0;
@@ -25,7 +32,7 @@
         }
 
         body {
-            font-family: 'Inter', 'Roboto', sans-serif;
+            font-family: 'Lato', 'Inter', 'Roboto', sans-serif;
             background: #fafafa;
             min-height: 100vh;
             padding: 0;
@@ -79,17 +86,18 @@
         .login-container button {
             width: 100%;
             padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: var(--brand-color);
+            color: var(--bg-black);
             border: none;
             border-radius: 6px;
             font-size: 16px;
             font-weight: 600;
             cursor: pointer;
+            font-family: var(--font-lato);
         }
 
         .login-container button:hover {
-            opacity: 0.9;
+            background: #a0d636;
         }
 
         .login-container button:disabled {
@@ -114,39 +122,88 @@
         }
 
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-            position: relative;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 24px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+
+        .header-content {
+            flex: 1;
         }
 
         .header h1 {
-            font-size: 32px;
+            font-size: 26px;
             font-weight: 600;
-            margin-bottom: 10px;
+            margin: 0 0 6px 0;
+            font-family: var(--font-lato);
         }
 
-        .header p {
-            font-size: 16px;
-            opacity: 0.9;
+        .header .subtitle {
+            font-size: 14px;
+            color: var(--muted);
+            margin-top: 6px;
+        }
+
+        .breadcrumbs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 12px;
+            font-family: var(--font-lato);
+        }
+
+        .breadcrumbs a {
+            color: var(--bg-black);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumbs a:hover {
+            color: var(--brand-color);
+            text-decoration: underline;
+        }
+
+        .breadcrumbs-separator {
+            color: var(--muted);
+            opacity: 0.5;
+        }
+
+        .founder-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        #founderEmail {
+            font-size: 12px;
+            color: var(--muted);
         }
 
         .logout-btn {
-            position: absolute;
-            top: 30px;
-            right: 30px;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: #edf2f7;
+            color: var(--text);
+            border: 1px solid var(--border);
             padding: 8px 16px;
             border-radius: 6px;
             cursor: pointer;
             font-size: 14px;
+            font-weight: 600;
+            font-family: var(--font-lato);
+            transition: background 0.2s;
         }
 
         .logout-btn:hover {
-            background: rgba(255, 255, 255, 0.3);
+            background: #e2e8f0;
         }
 
         .content {
@@ -210,12 +267,12 @@
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: var(--brand-color);
+            color: var(--bg-black);
         }
 
         .btn-primary:hover {
-            opacity: 0.9;
+            background: #a0d636;
         }
 
         .btn-secondary {
@@ -322,7 +379,7 @@
 
         .editable-input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: var(--brand-color);
         }
 
         .text-cell {
@@ -598,9 +655,19 @@
     <!-- Main Container -->
     <div id="mainContainer" class="container" style="display: none;">
         <div class="header">
-            <button class="logout-btn" onclick="handleLogout()">Logout</button>
-            <h1>VOC Process Editor</h1>
-            <p>Manage and bulk update Process VOC data.</p>
+            <div class="header-content">
+                <nav class="breadcrumbs">
+                    <a href="/founder_admin.html">Founder Admin</a>
+                    <span class="breadcrumbs-separator">›</span>
+                    <span>VOC Process Editor</span>
+                </nav>
+                <h1>VOC Process Editor</h1>
+                <div class="subtitle">Manage and bulk update Process VOC data.</div>
+            </div>
+            <div class="founder-meta">
+                <span id="founderEmail"></span>
+                <button class="logout-btn" onclick="handleLogout()">Logout</button>
+            </div>
         </div>
 
         <div class="content">
@@ -769,13 +836,29 @@
         let selectedFields = new Set(); // Track which fields are selected for bulk edit
 
         // Authentication - using unified auth.js
+        let founderInfo = null;
+
         function getAuthHeaders() {
             return Auth.getAuthHeaders();
+        }
+
+        function renderFounderInfo() {
+            if (founderInfo?.email) {
+                const emailEl = document.getElementById('founderEmail');
+                if (emailEl) {
+                    emailEl.textContent = founderInfo.email;
+                }
+            }
         }
 
         function initializePage() {
             document.getElementById('loginOverlay').classList.add('hidden');
             document.getElementById('mainContainer').style.display = 'flex';
+            const userInfo = Auth.getStoredUserInfo();
+            if (userInfo) {
+                founderInfo = userInfo;
+                renderFounderInfo();
+            }
             loadFieldMetadata();
             loadData();
         }
@@ -792,6 +875,7 @@
                         errorEl.style.display = 'block';
                     }
                 } else {
+                    founderInfo = userInfo;
                     initializePage();
                 }
             }
@@ -801,6 +885,7 @@
         window.addEventListener('auth:authenticated', (e) => {
             const userInfo = e.detail.user;
             if (userInfo?.is_founder) {
+                founderInfo = userInfo;
                 initializePage();
             } else {
                 Auth.showLogin();

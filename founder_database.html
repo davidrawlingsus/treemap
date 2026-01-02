@@ -13,16 +13,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Founder Admin - Database Management</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
     <script src="/config.js"></script>
     <script src="/auth.js"></script>
     <style>
         :root {
+            --font-lato: 'Lato', sans-serif;
+            --brand-color: #B9F040;
+            --bg-black: #000000;
+            --text-white: #ffffff;
             --bg: #f5f7fb;
             --surface: #ffffff;
             --border: #e2e8f0;
-            --primary: #667eea;
-            --primary-dark: #4c51bf;
+            --primary: #B9F040;
+            --primary-dark: #a0d636;
             --danger: #e53e3e;
             --text: #1a202c;
             --muted: #718096;
@@ -36,7 +43,7 @@
         }
 
         body {
-            font-family: "Inter", "Segoe UI", sans-serif;
+            font-family: var(--font-lato), "Segoe UI", sans-serif;
             background: var(--bg);
             color: var(--text);
             min-height: 100vh;
@@ -91,11 +98,12 @@
             border: none;
             transition: all 0.2s;
             text-decoration: none;
+            font-family: var(--font-lato);
         }
 
         .btn-primary {
-            background: var(--primary);
-            color: white;
+            background: var(--brand-color);
+            color: var(--bg-black);
         }
 
         .btn-primary:hover {
@@ -144,6 +152,34 @@
         header h1 {
             font-size: 26px;
             font-weight: 600;
+            font-family: var(--font-lato);
+            margin: 0;
+        }
+
+        .breadcrumbs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 12px;
+            font-family: var(--font-lato);
+        }
+
+        .breadcrumbs a {
+            color: var(--bg-black);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumbs a:hover {
+            color: var(--brand-color);
+            text-decoration: underline;
+        }
+
+        .breadcrumbs-separator {
+            color: var(--muted);
+            opacity: 0.5;
         }
 
         .main-content {
@@ -190,8 +226,8 @@
         }
 
         .table-item.active {
-            background: var(--primary);
-            color: white;
+            background: var(--brand-color);
+            color: var(--bg-black);
         }
 
         .table-item-name {
@@ -258,8 +294,8 @@
         }
 
         .badge-primary {
-            background: var(--primary);
-            color: white;
+            background: var(--brand-color);
+            color: var(--bg-black);
         }
 
         .badge-type {
@@ -482,9 +518,17 @@
 
     <div id="appShell" class="app-shell">
         <header>
-            <h1>Database Management</h1>
             <div>
-                <button class="btn btn-secondary" onclick="location.href='/founder_admin.html'">← Back to Admin</button>
+                <nav class="breadcrumbs">
+                    <a href="/founder_admin.html">Founder Admin</a>
+                    <span class="breadcrumbs-separator">›</span>
+                    <span>Database Management</span>
+                </nav>
+                <h1>Database Management</h1>
+            </div>
+            <div class="founder-meta">
+                <span id="founderEmail"></span>
+                <button class="btn btn-secondary" id="logoutButton">Logout</button>
             </div>
         </header>
 
@@ -658,6 +702,7 @@
                         errorEl.style.display = 'block';
                     }
                 } else {
+                    founderInfo = userInfo;
                     initializePage();
                 }
             }
@@ -667,6 +712,7 @@
         window.addEventListener('auth:authenticated', (e) => {
             const userInfo = e.detail.user;
             if (userInfo?.is_founder) {
+                founderInfo = userInfo;
                 initializePage();
             } else {
                 Auth.showLogin();
@@ -677,6 +723,14 @@
                 }
             }
         });
+
+        // Logout handler
+        const logoutButton = document.getElementById('logoutButton');
+        if (logoutButton) {
+            logoutButton.addEventListener('click', () => {
+                Auth.handleLogout();
+            });
+        }
 
         async function loadTables() {
             try {
@@ -1437,15 +1491,6 @@
         });
 
         // Initialization is handled by Auth.checkAuth() above
-            try {
-                await validateSession();
-                document.getElementById('loginOverlay').classList.add('hidden');
-                document.getElementById('appShell').style.display = 'flex';
-                loadTables();
-            } catch {
-                document.getElementById('loginOverlay').classList.remove('hidden');
-            }
-        })();
     </script>
 </body>
 </html>
