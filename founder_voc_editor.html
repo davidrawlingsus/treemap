@@ -580,13 +580,18 @@
 </head>
 <body>
     <!-- Login Overlay -->
-    <div id="loginOverlay" class="login-overlay">
+    <div id="loginOverlay" class="login-overlay hidden">
         <div class="login-container">
-            <h2>Founder Login</h2>
-            <input type="email" id="loginEmail" placeholder="Email" autocomplete="email">
-            <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password">
-            <button id="loginButton" onclick="handleLogin()">Login</button>
-            <div id="loginError" class="login-error"></div>
+            <div id="loginFormSection">
+                <h2>Sign in</h2>
+                <p class="login-subtext">
+                    Enter your work email and we'll email you a secure magic link.
+                </p>
+                <input type="email" id="loginEmail" placeholder="you@company.com" autocomplete="email">
+                <button id="loginButton" type="button">Send Magic Link</button>
+                <div id="loginError" class="login-error"></div>
+                <div id="loginSuccess" class="login-success"></div>
+            </div>
         </div>
     </div>
 
@@ -745,7 +750,6 @@
     <script>
         // API Configuration
         const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
-        const AUTH_TOKEN_KEY = 'visualizd_auth_token';
         
         // State
         let currentPage = 1;
@@ -764,126 +768,52 @@
         let fieldMetadata = []; // Store field metadata from API
         let selectedFields = new Set(); // Track which fields are selected for bulk edit
 
-        // Authentication
-        function getAuthToken() {
-            return localStorage.getItem(AUTH_TOKEN_KEY);
-        }
-
-        function setAuthToken(token) {
-            localStorage.setItem(AUTH_TOKEN_KEY, token);
-        }
-
-        function clearAuth() {
-            localStorage.removeItem(AUTH_TOKEN_KEY);
-        }
-
+        // Authentication - using unified auth.js
         function getAuthHeaders() {
-            const token = getAuthToken();
-            return token ? {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            } : {
-                'Content-Type': 'application/json'
-            };
+            return Auth.getAuthHeaders();
         }
 
-        async function handleLogin() {
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            const loginButton = document.getElementById('loginButton');
-            const loginError = document.getElementById('loginError');
-            
-            if (!email) {
-                loginError.textContent = 'Please enter your email';
-                loginError.style.display = 'block';
-                return;
-            }
-            
-            loginButton.disabled = true;
-            loginButton.textContent = 'Logging in...';
-            loginError.style.display = 'none';
-            
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
-                });
-                
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.detail || 'Login failed');
-                }
-                
-                const data = await response.json();
-                setAuthToken(data.access_token);
-                
-                // Verify user is founder
-                const userResponse = await fetch(`${API_BASE_URL}/api/auth/me`, {
-                    headers: getAuthHeaders()
-                });
-                
-                if (userResponse.ok) {
-                    const userInfo = await userResponse.json();
-                    if (!userInfo.is_founder) {
-                        throw new Error('Access denied: Founder privileges required');
+        function initializePage() {
+            document.getElementById('loginOverlay').classList.add('hidden');
+            document.getElementById('mainContainer').style.display = 'flex';
+            loadFieldMetadata();
+            loadData();
+        }
+
+        // Check authentication on page load
+        Auth.checkAuth().then(authenticated => {
+            if (authenticated) {
+                const userInfo = Auth.getStoredUserInfo();
+                if (!userInfo?.is_founder) {
+                    Auth.showLogin();
+                    const errorEl = document.getElementById('loginError');
+                    if (errorEl) {
+                        errorEl.textContent = 'Access denied: founder privileges required.';
+                        errorEl.style.display = 'block';
                     }
+                } else {
+                    initializePage();
                 }
-                
-                document.getElementById('loginOverlay').classList.add('hidden');
-                document.getElementById('mainContainer').style.display = 'flex';
-                await loadFieldMetadata();
-                loadData();
-                
-            } catch (error) {
-                loginError.textContent = error.message || 'Login failed. Please try again.';
-                loginError.style.display = 'block';
-            } finally {
-                loginButton.disabled = false;
-                loginButton.textContent = 'Login';
             }
-        }
+        });
 
-        async function checkAuth() {
-            const token = getAuthToken();
-            if (!token) {
-                showLogin();
-                return false;
-            }
-            
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-                    headers: getAuthHeaders()
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Invalid token');
+        // Listen for auth events
+        window.addEventListener('auth:authenticated', (e) => {
+            const userInfo = e.detail.user;
+            if (userInfo?.is_founder) {
+                initializePage();
+            } else {
+                Auth.showLogin();
+                const errorEl = document.getElementById('loginError');
+                if (errorEl) {
+                    errorEl.textContent = 'Access denied: founder privileges required.';
+                    errorEl.style.display = 'block';
                 }
-                
-                const userInfo = await response.json();
-                if (!userInfo.is_founder) {
-                    throw new Error('Access denied: Founder privileges required');
-                }
-                
-                document.getElementById('loginOverlay').classList.add('hidden');
-                document.getElementById('mainContainer').style.display = 'flex';
-                return true;
-                
-            } catch (error) {
-                clearAuth();
-                showLogin();
-                return false;
             }
-        }
-
-        function showLogin() {
-            document.getElementById('loginOverlay').classList.remove('hidden');
-            document.getElementById('mainContainer').style.display = 'none';
-        }
+        });
 
         function handleLogout() {
-            clearAuth();
-            window.location.href = 'https://marketably.ai';
+            Auth.handleLogout();
         }
 
         // Data Loading
@@ -1552,18 +1482,7 @@
             });
         }
 
-        // Initialize
-        const token = getAuthToken();
-        if (!token) {
-            showLogin();
-        } else {
-            checkAuth().then(authenticated => {
-                if (authenticated) {
-                    loadFieldMetadata();
-                    loadData();
-                }
-            });
-        }
+        // Initialization is handled by Auth.checkAuth() above
     </script>
 </body>
 </html>

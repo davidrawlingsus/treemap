@@ -13,7 +13,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Founder Tools – Impersonation & Access</title>
+    <link rel="stylesheet" href="/styles.css">
     <script src="/config.js"></script>
+    <script src="/auth.js"></script>
     <style>
         :root {
             --bg: #f7f9fc;
@@ -380,14 +382,18 @@
     </style>
 </head>
 <body>
-    <div id="loginOverlay" class="login-overlay">
-        <div class="login-card">
-            <h2>Founder Login</h2>
-            <p>Use your founder email to access impersonation tools. Password is currently optional.</p>
-            <div id="loginError" class="alert alert-error" style="display: none;"></div>
-            <input type="email" id="loginEmail" placeholder="founder@example.com" autocomplete="email">
-            <input type="password" id="loginPassword" placeholder="Password (if configured)" autocomplete="current-password">
-            <button class="btn btn-primary" id="loginButton">Login</button>
+    <div id="loginOverlay" class="login-overlay hidden">
+        <div class="login-container">
+            <div id="loginFormSection">
+                <h2>Sign in</h2>
+                <p class="login-subtext">
+                    Enter your work email and we'll email you a secure magic link.
+                </p>
+                <input type="email" id="loginEmail" placeholder="you@company.com" autocomplete="email">
+                <button id="loginButton" type="button">Send Magic Link</button>
+                <div id="loginError" class="login-error"></div>
+                <div id="loginSuccess" class="login-success"></div>
+            </div>
         </div>
     </div>
 
@@ -475,14 +481,8 @@
 
     <script>
         const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
-        const AUTH_TOKEN_KEY = 'visualizd_auth_token';
 
         const elements = {
-            loginOverlay: document.getElementById('loginOverlay'),
-            loginEmail: document.getElementById('loginEmail'),
-            loginPassword: document.getElementById('loginPassword'),
-            loginButton: document.getElementById('loginButton'),
-            loginError: document.getElementById('loginError'),
             appShell: document.getElementById('appShell'),
             refreshButton: document.getElementById('refreshButton'),
             logoutButton: document.getElementById('logoutButton'),
@@ -506,77 +506,52 @@
         let userRows = [];
         let lastTokenInfo = null;
 
-        const getAuthToken = () => localStorage.getItem(AUTH_TOKEN_KEY);
-        const setAuthToken = (token) => localStorage.setItem(AUTH_TOKEN_KEY, token);
-        const clearAuth = () => localStorage.removeItem(AUTH_TOKEN_KEY);
-
         const authHeaders = () => {
-            const token = getAuthToken();
-            return token
-                ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-                : { 'Content-Type': 'application/json' };
+            return Auth.getAuthHeaders();
         };
 
-        async function loginFounder() {
-            const email = elements.loginEmail.value.trim();
-            const password = elements.loginPassword.value;
-
-            if (!email) {
-                showLoginError('Please enter your founder email.');
-                return;
-            }
-
-            elements.loginButton.disabled = true;
-            elements.loginButton.textContent = 'Logging in...';
-            showLoginError();
-
-            try {
-                const resp = await fetch(`${API_BASE_URL}/api/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password }),
-                });
-
-                if (!resp.ok) {
-                    const error = await resp.json().catch(() => ({}));
-                    throw new Error(error.detail || 'Login failed');
-                }
-
-                const data = await resp.json();
-                setAuthToken(data.access_token);
-
-                const meResp = await fetch(`${API_BASE_URL}/api/auth/me`, { headers: authHeaders() });
-                if (!meResp.ok) {
-                    throw new Error('Could not validate founder session.');
-                }
-
-                const userInfo = await meResp.json();
-                if (!userInfo.is_founder) {
-                    clearAuth();
-                    throw new Error('Access denied: founder privileges required.');
-                }
-
-                elements.loginOverlay.classList.add('hidden');
-                elements.appShell.style.display = 'block';
-                await Promise.all([loadAuthorizedDomains(), loadUsers()]);
-            } catch (error) {
-                showLoginError(error.message);
-                clearAuth();
-            } finally {
-                elements.loginButton.disabled = false;
-                elements.loginButton.textContent = 'Login';
-            }
+        function initializePage() {
+            Auth.hideLogin();
+            elements.appShell.style.display = 'block';
+            Promise.all([loadAuthorizedDomains(), loadUsers()]);
         }
 
-        function showLoginError(message) {
-            if (!message) {
-                elements.loginError.style.display = 'none';
-                elements.loginError.textContent = '';
-                return;
+        // Check authentication on page load
+        Auth.checkAuth().then(authenticated => {
+            if (authenticated) {
+                const userInfo = Auth.getStoredUserInfo();
+                if (!userInfo?.is_founder) {
+                    Auth.showLogin();
+                    const errorEl = document.getElementById('loginError');
+                    if (errorEl) {
+                        errorEl.textContent = 'Access denied: founder privileges required.';
+                        errorEl.style.display = 'block';
+                    }
+                } else {
+                    initializePage();
+                }
             }
-            elements.loginError.textContent = message;
-            elements.loginError.style.display = 'block';
-        }
+        });
+
+        // Listen for auth events
+        window.addEventListener('auth:authenticated', (e) => {
+            const userInfo = e.detail.user;
+            if (userInfo?.is_founder) {
+                initializePage();
+            } else {
+                Auth.showLogin();
+                const errorEl = document.getElementById('loginError');
+                if (errorEl) {
+                    errorEl.textContent = 'Access denied: founder privileges required.';
+                    errorEl.style.display = 'block';
+                }
+            }
+        });
+
+        // Logout handler
+        elements.logoutButton.addEventListener('click', () => {
+            Auth.handleLogout();
+        });
 
         async function loadAuthorizedDomains() {
             try {
@@ -804,12 +779,6 @@
             window.open(url, '_blank', 'noopener');
         }
 
-        function logout() {
-            clearAuth();
-            clearImpersonationToken();
-            window.location.href = 'https://marketably.ai';
-        }
-
         function clearFilters() {
             elements.searchInput.value = '';
             elements.domainSelect.value = '';
@@ -818,17 +787,10 @@
 
         function attachEventListeners() {
             elements.loginButton.addEventListener('click', loginFounder);
-            elements.loginEmail.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') loginFounder();
-            });
-            elements.loginPassword.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') loginFounder();
-            });
             elements.refreshButton.addEventListener('click', async () => {
                 await Promise.all([loadAuthorizedDomains(), loadUsers()]);
                 clearImpersonationToken();
             });
-            elements.logoutButton.addEventListener('click', logout);
             elements.applyFiltersButton.addEventListener('click', loadUsers);
             elements.clearFiltersButton.addEventListener('click', () => {
                 clearFilters();
@@ -839,19 +801,7 @@
             elements.clearTokenButton.addEventListener('click', clearImpersonationToken);
         }
 
-        function attemptExistingSession() {
-            const token = getAuthToken();
-            if (!token) return false;
-            elements.loginOverlay.classList.add('hidden');
-            elements.appShell.style.display = 'block';
-            Promise.all([loadAuthorizedDomains(), loadUsers()]);
-            return true;
-        }
-
         attachEventListeners();
-        if (!attemptExistingSession()) {
-            elements.loginOverlay.classList.remove('hidden');
-        }
     </script>
 </body>
 </html>

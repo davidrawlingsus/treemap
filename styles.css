@@ -436,6 +436,14 @@
   font-family: var(--font-lato);
 }
 
+.login-overlay.hidden {
+  display: none !important;
+}
+
+.hidden {
+  display: none !important;
+}
+
 .login-container {
   background: white;
   padding: 40px;

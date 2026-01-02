@@ -13,7 +13,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Founder Admin - Database Management</title>
+    <link rel="stylesheet" href="/styles.css">
     <script src="/config.js"></script>
+    <script src="/auth.js"></script>
     <style>
         :root {
             --bg: #f5f7fb;
@@ -463,13 +465,18 @@
     </style>
 </head>
 <body>
-    <div id="loginOverlay" class="login-overlay">
-        <div class="login-card">
-            <h2>Founder Login</h2>
-            <input type="email" id="loginEmail" placeholder="founder@example.com" autocomplete="email">
-            <input type="password" id="loginPassword" placeholder="Password" autocomplete="current-password">
-            <button class="btn btn-primary" id="loginButton" style="width: 100%;">Login</button>
-            <div id="loginError" style="color: var(--danger); margin-top: 12px; display: none;"></div>
+    <div id="loginOverlay" class="login-overlay hidden">
+        <div class="login-container">
+            <div id="loginFormSection">
+                <h2>Sign in</h2>
+                <p class="login-subtext">
+                    Enter your work email and we'll email you a secure magic link.
+                </p>
+                <input type="email" id="loginEmail" placeholder="you@company.com" autocomplete="email">
+                <button id="loginButton" type="button">Send Magic Link</button>
+                <div id="loginError" class="login-error"></div>
+                <div id="loginSuccess" class="login-success"></div>
+            </div>
         </div>
     </div>
 
@@ -624,52 +631,52 @@
 
     <script>
         const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
-        const AUTH_TOKEN_KEY = 'visualizd_auth_token';
 
         let currentTable = null;
         let currentPage = 1;
         let tables = [];
 
-        const getAuthToken = () => localStorage.getItem(AUTH_TOKEN_KEY);
-        const authHeaders = () => ({
-            'Authorization': `Bearer ${getAuthToken()}`,
-            'Content-Type': 'application/json'
+        const authHeaders = () => {
+            return Auth.getAuthHeaders();
+        };
+
+        function initializePage() {
+            Auth.hideLogin();
+            document.getElementById('appShell').style.display = 'flex';
+            loadTables();
+        }
+
+        // Check authentication on page load
+        Auth.checkAuth().then(authenticated => {
+            if (authenticated) {
+                const userInfo = Auth.getStoredUserInfo();
+                if (!userInfo?.is_founder) {
+                    Auth.showLogin();
+                    const errorEl = document.getElementById('loginError');
+                    if (errorEl) {
+                        errorEl.textContent = 'Access denied: founder privileges required.';
+                        errorEl.style.display = 'block';
+                    }
+                } else {
+                    initializePage();
+                }
+            }
         });
 
-        async function validateSession() {
-            const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-                headers: authHeaders()
-            });
-            if (!response.ok) throw new Error('Session invalid');
-            const data = await response.json();
-            if (!data.is_founder) throw new Error('Founder access required');
-            return data;
-        }
-
-        async function login() {
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            const errorEl = document.getElementById('loginError');
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
-                });
-
-                if (!response.ok) throw new Error('Login failed');
-                const data = await response.json();
-                localStorage.setItem(AUTH_TOKEN_KEY, data.access_token);
-                await validateSession();
-                document.getElementById('loginOverlay').classList.add('hidden');
-                document.getElementById('appShell').style.display = 'flex';
-                loadTables();
-            } catch (error) {
-                errorEl.textContent = error.message;
-                errorEl.style.display = 'block';
+        // Listen for auth events
+        window.addEventListener('auth:authenticated', (e) => {
+            const userInfo = e.detail.user;
+            if (userInfo?.is_founder) {
+                initializePage();
+            } else {
+                Auth.showLogin();
+                const errorEl = document.getElementById('loginError');
+                if (errorEl) {
+                    errorEl.textContent = 'Access denied: founder privileges required.';
+                    errorEl.style.display = 'block';
+                }
             }
-        }
+        });
 
         async function loadTables() {
             try {
@@ -1429,17 +1436,7 @@
             }
         });
 
-        // Initialize
-        document.getElementById('loginButton').addEventListener('click', login);
-        document.getElementById('loginEmail').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') login();
-        });
-        document.getElementById('loginPassword').addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') login();
-        });
-
-        // Check existing session
-        (async () => {
+        // Initialization is handled by Auth.checkAuth() above
             try {
                 await validateSession();
                 document.getElementById('loginOverlay').classList.add('hidden');

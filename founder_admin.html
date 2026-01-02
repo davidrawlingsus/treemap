@@ -13,7 +13,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Founder Admin - Tools</title>
+    <link rel="stylesheet" href="/styles.css">
     <script src="/config.js"></script>
+    <script src="/auth.js"></script>
     <style>
         :root {
             --bg: #f5f7fb;
@@ -39,67 +41,7 @@
             min-height: 100vh;
         }
 
-        .login-overlay {
-            position: fixed;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(15, 23, 42, 0.85);
-            z-index: 999;
-        }
-
-        .login-overlay.hidden {
-            display: none;
-        }
-
-        .login-card {
-            background: var(--surface);
-            padding: 32px;
-            border-radius: 12px;
-            box-shadow: 0 25px 50px -12px rgba(56, 66, 106, 0.35);
-            width: min(380px, 92vw);
-        }
-
-        .login-card h2 {
-            margin-bottom: 12px;
-        }
-
-        .login-card p {
-            margin-bottom: 16px;
-            color: var(--muted);
-            font-size: 14px;
-            line-height: 1.5;
-        }
-
-        .login-card input {
-            width: 100%;
-            padding: 12px 14px;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            font-size: 15px;
-            margin-bottom: 12px;
-            transition: border 0.2s;
-        }
-
-        .login-card input:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25);
-        }
-
-        .alert {
-            border-radius: 8px;
-            padding: 12px 14px;
-            font-size: 14px;
-            margin-bottom: 16px;
-        }
-
-        .alert-error {
-            background: #fff5f5;
-            color: var(--danger);
-            border: 1px solid #fed7d7;
-        }
+        /* Login styles are handled by auth.js and styles.css */
 
         .btn {
             display: inline-flex;
@@ -241,14 +183,18 @@
     </style>
 </head>
 <body>
-    <div id="loginOverlay" class="login-overlay">
-        <div class="login-card">
-            <h2>Founder Login</h2>
-            <p>Use your founder email to access admin tools.</p>
-            <div id="loginError" class="alert alert-error" style="display: none;"></div>
-            <input type="email" id="loginEmail" placeholder="founder@example.com" autocomplete="email">
-            <input type="password" id="loginPassword" placeholder="Password (if configured)" autocomplete="current-password">
-            <button class="btn btn-primary" id="loginButton">Login</button>
+    <div id="loginOverlay" class="login-overlay hidden">
+        <div class="login-container">
+            <div id="loginFormSection">
+                <h2>Sign in</h2>
+                <p class="login-subtext">
+                    Enter your work email and we'll email you a secure magic link.
+                </p>
+                <input type="email" id="loginEmail" placeholder="you@company.com" autocomplete="email">
+                <button id="loginButton" type="button">Send Magic Link</button>
+                <div id="loginError" class="login-error"></div>
+                <div id="loginSuccess" class="login-success"></div>
+            </div>
         </div>
     </div>
 
@@ -306,14 +252,8 @@
 
     <script>
         const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
-        const AUTH_TOKEN_KEY = 'visualizd_auth_token';
 
         const elements = {
-            loginOverlay: document.getElementById('loginOverlay'),
-            loginEmail: document.getElementById('loginEmail'),
-            loginPassword: document.getElementById('loginPassword'),
-            loginButton: document.getElementById('loginButton'),
-            loginError: document.getElementById('loginError'),
             appShell: document.getElementById('appShell'),
             founderEmail: document.getElementById('founderEmail'),
             logoutButton: document.getElementById('logoutButton'),
@@ -321,150 +261,240 @@
 
         let founderInfo = null;
 
-        const getAuthToken = () => localStorage.getItem(AUTH_TOKEN_KEY);
-        const setAuthToken = (token) => localStorage.setItem(AUTH_TOKEN_KEY, token);
-        const clearAuth = () => localStorage.removeItem(AUTH_TOKEN_KEY);
-
-        const authHeaders = () => {
-            const token = getAuthToken();
-            return token
-                ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-                : { 'Content-Type': 'application/json' };
-        };
-
-        function showLoginError(message) {
-            if (!message) {
-                elements.loginError.style.display = 'none';
-                elements.loginError.textContent = '';
-                return;
-            }
-            elements.loginError.textContent = message;
-            elements.loginError.style.display = 'block';
-        }
-
-        async function validateFounderSession() {
-            const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
-                headers: authHeaders(),
+        // Wait for auth.js to be fully loaded
+        function waitForAuth() {
+            return new Promise((resolve) => {
+                if (typeof Auth !== 'undefined' && typeof Auth.checkAuth === 'function') {
+                    console.log('[FOUNDER_ADMIN] Auth is ready');
+                    resolve();
+                } else {
+                    console.log('[FOUNDER_ADMIN] Waiting for Auth to be ready...');
+                    const checkInterval = setInterval(() => {
+                        if (typeof Auth !== 'undefined' && typeof Auth.checkAuth === 'function') {
+                            console.log('[FOUNDER_ADMIN] Auth is now ready');
+                            clearInterval(checkInterval);
+                            resolve();
+                        }
+                    }, 50);
+                    // Timeout after 2 seconds
+                    setTimeout(() => {
+                        clearInterval(checkInterval);
+                        console.error('[FOUNDER_ADMIN] Auth did not load within 2 seconds');
+                        resolve(); // Continue anyway
+                    }, 2000);
+                }
             });
-
-            if (!response.ok) {
-                throw new Error('Could not validate founder session.');
-            }
-
-            const data = await response.json();
-            if (!data.is_founder) {
-                throw new Error('Access denied: founder privileges required.');
-            }
-            founderInfo = data;
-            return data;
         }
 
         function renderFounderInfo() {
+            console.log('[FOUNDER_ADMIN] renderFounderInfo called, founderInfo:', founderInfo);
             if (founderInfo?.email) {
                 elements.founderEmail.textContent = founderInfo.email;
+                console.log('[FOUNDER_ADMIN] Set founder email to:', founderInfo.email);
             } else {
                 elements.founderEmail.textContent = '';
+                console.warn('[FOUNDER_ADMIN] No founder email to display');
             }
         }
 
         function showAppShell() {
-            elements.loginOverlay.classList.add('hidden');
+            console.log('[FOUNDER_ADMIN] showAppShell called');
+            
+            // Debug: Check login overlay state BEFORE hiding
+            const loginOverlay = document.getElementById('loginOverlay');
+            console.log('[FOUNDER_ADMIN] BEFORE hideLogin:');
+            console.log('[FOUNDER_ADMIN] - loginOverlay element:', loginOverlay);
+            console.log('[FOUNDER_ADMIN] - loginOverlay classes:', loginOverlay?.className);
+            console.log('[FOUNDER_ADMIN] - loginOverlay computed display:', loginOverlay ? window.getComputedStyle(loginOverlay).display : 'N/A');
+            console.log('[FOUNDER_ADMIN] - appShell computed display:', window.getComputedStyle(elements.appShell).display);
+            
+            Auth.hideLogin();
+            
+            // Debug: Check login overlay state AFTER hiding
+            console.log('[FOUNDER_ADMIN] AFTER hideLogin:');
+            console.log('[FOUNDER_ADMIN] - loginOverlay classes:', loginOverlay?.className);
+            console.log('[FOUNDER_ADMIN] - loginOverlay has "hidden" class:', loginOverlay?.classList.contains('hidden'));
+            console.log('[FOUNDER_ADMIN] - loginOverlay computed display:', loginOverlay ? window.getComputedStyle(loginOverlay).display : 'N/A');
+            
+            // Force hide if needed
+            if (loginOverlay && !loginOverlay.classList.contains('hidden')) {
+                console.warn('[FOUNDER_ADMIN] loginOverlay missing "hidden" class, adding it manually');
+                loginOverlay.classList.add('hidden');
+            }
+            if (loginOverlay && window.getComputedStyle(loginOverlay).display !== 'none') {
+                console.warn('[FOUNDER_ADMIN] loginOverlay still visible, forcing display:none');
+                loginOverlay.style.display = 'none';
+            }
+            
             elements.appShell.style.display = 'flex';
+            console.log('[FOUNDER_ADMIN] appShell display set to:', elements.appShell.style.display);
+            console.log('[FOUNDER_ADMIN] appShell computed display:', window.getComputedStyle(elements.appShell).display);
+            console.log('[FOUNDER_ADMIN] appShell visibility:', window.getComputedStyle(elements.appShell).visibility);
+            console.log('[FOUNDER_ADMIN] appShell z-index:', window.getComputedStyle(elements.appShell).zIndex);
+            console.log('[FOUNDER_ADMIN] appShell classes:', elements.appShell.className);
+            
             renderFounderInfo();
-        }
-
-        function resetLoginForm() {
-            elements.loginButton.disabled = false;
-            elements.loginButton.textContent = 'Login';
-        }
-
-        async function loginFounder() {
-            const email = elements.loginEmail.value.trim();
-            const password = elements.loginPassword.value;
-
-            if (!email) {
-                showLoginError('Please enter your founder email.');
-                return;
-            }
-
-            elements.loginButton.disabled = true;
-            elements.loginButton.textContent = 'Logging in...';
-            showLoginError();
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password }),
-                });
-
-                if (!response.ok) {
-                    const error = await response.json().catch(() => ({}));
-                    throw new Error(error.detail || 'Login failed');
+            
+            // Verify final state
+            setTimeout(() => {
+                console.log('[FOUNDER_ADMIN] Final state check (100ms later):');
+                console.log('[FOUNDER_ADMIN] - loginOverlay hidden:', loginOverlay?.classList.contains('hidden'));
+                console.log('[FOUNDER_ADMIN] - loginOverlay computed display:', loginOverlay ? window.getComputedStyle(loginOverlay).display : 'N/A');
+                console.log('[FOUNDER_ADMIN] - appShell visible:', window.getComputedStyle(elements.appShell).display !== 'none');
+                console.log('[FOUNDER_ADMIN] - appShell computed display:', window.getComputedStyle(elements.appShell).display);
+                
+                // Check if overlay is blocking
+                if (loginOverlay && window.getComputedStyle(loginOverlay).display !== 'none') {
+                    console.error('[FOUNDER_ADMIN] ERROR: loginOverlay is still visible and may be blocking content!');
                 }
-
-                const data = await response.json();
-                setAuthToken(data.access_token);
-
-                await validateFounderSession();
-                showAppShell();
-            } catch (error) {
-                console.error('Founder login failed', error);
-                showLoginError(error.message || 'Unable to log in.');
-                clearAuth();
-            } finally {
-                resetLoginForm();
-            }
+            }, 100);
         }
 
-        function logout() {
-            clearAuth();
-            founderInfo = null;
-            window.location.href = 'https://marketably.ai';
+        function initializePage() {
+            console.log('[FOUNDER_ADMIN] initializePage called');
+            console.log('[FOUNDER_ADMIN] founderInfo:', founderInfo);
+            showAppShell();
         }
 
-        async function attemptExistingSession() {
-            const token = getAuthToken();
-            if (!token) {
-                return false;
+        // Initialize authentication check after Auth is ready
+        waitForAuth().then(() => {
+            console.log('[FOUNDER_ADMIN] Starting authentication check...');
+            console.log('[FOUNDER_ADMIN] Auth object available:', typeof Auth !== 'undefined');
+            
+            // Debug localStorage directly
+            console.log('[FOUNDER_ADMIN] All localStorage keys:', Object.keys(localStorage));
+            console.log('[FOUNDER_ADMIN] visualizd_auth_token in localStorage:', localStorage.getItem('visualizd_auth_token') ? 'EXISTS' : 'MISSING');
+            console.log('[FOUNDER_ADMIN] visualizd_user_info in localStorage:', localStorage.getItem('visualizd_user_info') ? 'EXISTS' : 'MISSING');
+            
+            const token = Auth.getAuthToken();
+            console.log('[FOUNDER_ADMIN] Token from Auth.getAuthToken():', !!token);
+            if (token) {
+                console.log('[FOUNDER_ADMIN] Token preview:', token.substring(0, 20) + '...');
+            } else {
+                console.warn('[FOUNDER_ADMIN] No token found - user needs to authenticate');
+                console.log('[FOUNDER_ADMIN] Checking if magic link params are in URL...');
+                const urlParams = new URLSearchParams(window.location.search);
+                const magicToken = urlParams.get('token');
+                const magicEmail = urlParams.get('email');
+                console.log('[FOUNDER_ADMIN] Magic link token in URL:', !!magicToken);
+                console.log('[FOUNDER_ADMIN] Magic link email in URL:', !!magicEmail);
             }
-
-            try {
-                await validateFounderSession();
-                showAppShell();
-                return true;
-            } catch (error) {
-                console.warn('Existing founder session invalid', error);
-                clearAuth();
-                return false;
-            }
-        }
-
-        function attachEventListeners() {
-            elements.loginButton.addEventListener('click', loginFounder);
-            elements.logoutButton.addEventListener('click', logout);
-
-            elements.loginEmail.addEventListener('keypress', (event) => {
-                if (event.key === 'Enter') {
-                    loginFounder();
+            
+            // Also fetch fresh user info from API to verify
+            async function verifyFounderStatus() {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+                        headers: Auth.getAuthHeaders(),
+                    });
+                    console.log('[FOUNDER_ADMIN] /api/auth/me response status:', response.status);
+                    
+                    if (response.ok) {
+                        const freshUserInfo = await response.json();
+                        console.log('[FOUNDER_ADMIN] Fresh userInfo from API:', freshUserInfo);
+                        console.log('[FOUNDER_ADMIN] Fresh is_founder:', freshUserInfo?.is_founder);
+                        return freshUserInfo;
+                    } else {
+                        const errorText = await response.text();
+                        console.error('[FOUNDER_ADMIN] /api/auth/me failed:', response.status, errorText);
+                        return null;
+                    }
+                } catch (error) {
+                    console.error('[FOUNDER_ADMIN] Error fetching /api/auth/me:', error);
+                    return null;
                 }
+            }
+            
+            Auth.checkAuth().then(async authenticated => {
+            console.log('[FOUNDER_ADMIN] checkAuth result:', authenticated);
+            
+            if (authenticated) {
+                const storedUserInfo = Auth.getStoredUserInfo();
+                console.log('[FOUNDER_ADMIN] Stored userInfo:', storedUserInfo);
+                console.log('[FOUNDER_ADMIN] Stored is_founder:', storedUserInfo?.is_founder);
+                
+                // Also get fresh info from API
+                const freshUserInfo = await verifyFounderStatus();
+                const userInfo = freshUserInfo || storedUserInfo;
+                
+                console.log('[FOUNDER_ADMIN] Using userInfo:', userInfo);
+                console.log('[FOUNDER_ADMIN] Final is_founder check:', userInfo?.is_founder);
+                console.log('[FOUNDER_ADMIN] userInfo type:', typeof userInfo);
+                console.log('[FOUNDER_ADMIN] userInfo keys:', userInfo ? Object.keys(userInfo) : 'null');
+                
+                if (!userInfo?.is_founder) {
+                    console.warn('[FOUNDER_ADMIN] User is authenticated but NOT a founder');
+                    console.warn('[FOUNDER_ADMIN] Full userInfo object:', JSON.stringify(userInfo, null, 2));
+                    Auth.showLogin();
+                    const errorEl = document.getElementById('loginError');
+                    if (errorEl) {
+                        errorEl.textContent = 'Access denied: founder privileges required.';
+                        errorEl.style.display = 'block';
+                    }
+                } else {
+                    console.log('[FOUNDER_ADMIN] User is authenticated AND is a founder - initializing page');
+                    founderInfo = userInfo;
+                    // Update stored info if we got fresh data
+                    if (freshUserInfo) {
+                        Auth.setUserInfo(freshUserInfo);
+                    }
+                    initializePage();
+                }
+            } else {
+                console.log('[FOUNDER_ADMIN] User is not authenticated');
+            }
+            }).catch(error => {
+                console.error('[FOUNDER_ADMIN] Error during checkAuth:', error);
+                console.error('[FOUNDER_ADMIN] Error stack:', error.stack);
             });
+        });
 
-            elements.loginPassword.addEventListener('keypress', (event) => {
-                if (event.key === 'Enter') {
-                    loginFounder();
+        // Listen for auth events
+        window.addEventListener('auth:authenticated', (e) => {
+            console.log('[FOUNDER_ADMIN] auth:authenticated event received');
+            const userInfo = e.detail.user;
+            console.log('[FOUNDER_ADMIN] Event userInfo:', userInfo);
+            console.log('[FOUNDER_ADMIN] Event is_founder:', userInfo?.is_founder);
+            
+            if (userInfo?.is_founder) {
+                console.log('[FOUNDER_ADMIN] Event: User is founder - initializing page');
+                founderInfo = userInfo;
+                initializePage();
+            } else {
+                console.warn('[FOUNDER_ADMIN] Event: User is authenticated but NOT a founder');
+                Auth.showLogin();
+                const errorEl = document.getElementById('loginError');
+                if (errorEl) {
+                    errorEl.textContent = 'Access denied: founder privileges required.';
+                    errorEl.style.display = 'block';
                 }
-            });
-        }
-
-        attachEventListeners();
-
-        attemptExistingSession().then((hasSession) => {
-            if (!hasSession) {
-                elements.loginOverlay.classList.remove('hidden');
-                elements.appShell.style.display = 'none';
             }
         });
+
+        // Also listen for magic link verification
+        window.addEventListener('auth:magicVerified', (e) => {
+            console.log('[FOUNDER_ADMIN] auth:magicVerified event received');
+            const userInfo = e.detail.user;
+            console.log('[FOUNDER_ADMIN] Magic verified userInfo:', userInfo);
+            console.log('[FOUNDER_ADMIN] Magic verified is_founder:', userInfo?.is_founder);
+        });
+
+        // Logout handler
+        elements.logoutButton.addEventListener('click', () => {
+            console.log('[FOUNDER_ADMIN] Logout button clicked');
+            Auth.handleLogout();
+        });
+
+        // Debug: Log page load
+        console.log('[FOUNDER_ADMIN] Page loaded, DOM ready');
+        console.log('[FOUNDER_ADMIN] Elements:', elements);
+        console.log('[FOUNDER_ADMIN] Current URL:', window.location.href);
+        console.log('[FOUNDER_ADMIN] Current origin:', window.location.origin);
+        
+        // Wait a bit and check again in case token is set asynchronously
+        setTimeout(() => {
+            console.log('[FOUNDER_ADMIN] Delayed check - Token after 500ms:', !!Auth.getAuthToken());
+            console.log('[FOUNDER_ADMIN] Delayed check - localStorage keys:', Object.keys(localStorage));
+        }, 500);
     </script>
 </body>
 </html>

@@ -18,7 +18,6 @@ from app.auth import (
     create_access_token,
     generate_magic_link_token,
     is_magic_link_token_valid,
-    validate_founder_password,
 )
 from app.services import MagicLinkEmailParams
 from app.utils import build_email_service
@@ -33,8 +32,8 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
     """
     Login endpoint - validates email and returns JWT token.
     
-    NOTE: For now, this accepts any email from the users table without password validation.
-    Password fields may not exist in the Railway database yet.
+    NOTE: Password is optional/ignored. This endpoint is kept for backward compatibility.
+    All authentication should use magic link authentication via /api/auth/magic-link/request.
     """
     settings = get_settings()
     is_production = settings.is_production()
@@ -107,15 +106,6 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=403,
             detail="User account is inactive"
-        )
-    
-    # Password validation for founder accounts (required in production only)
-    if user.is_founder:
-        validate_founder_password(
-            password=credentials.password,
-            expected_password=settings.founder_admin_password,
-            is_production=is_production,
-            status_code=status.HTTP_401_UNAUTHORIZED  # 401 for login (authentication failure)
         )
     
     # Update last login
