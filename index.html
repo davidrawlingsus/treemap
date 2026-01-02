@@ -4991,7 +4991,7 @@
                     <!-- Advanced Multi-Filter -->
                     <div class="filter-menu">
                         <button id="filterBtn" class="filter-button" type="button" aria-label="Open filters">
-                            <img src="/static/images/filter_list.svg" alt="" aria-hidden="true">
+                            <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/filter_list.svg" alt="" aria-hidden="true">
                             <span id="filterBadge" class="filter-badge" aria-hidden="true"></span>
                         </button>
                         <div id="filterDropdown" style="display: none; position: absolute; top: 100%; right: 0; margin-top: 8px; background: white; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 350px; max-width: 450px; z-index: 1000; max-height: 500px; overflow-y: auto;">
@@ -5316,6 +5316,9 @@
         </div>
         <div class="context-menu-item" data-action="exclude-category" style="display: none; cursor: pointer; user-select: none;">
             Exclude Category
+        </div>
+        <div class="context-menu-item" data-action="copy-json" style="cursor: pointer; user-select: none;">
+            Copy JSON
         </div>
     </div>
 
@@ -8334,6 +8337,85 @@
         function findTopicInCategory(categoryData, topicName) {
             if (!categoryData || !categoryData.children) return null;
             return categoryData.children.find(topic => topic.name === topicName) || null;
+        }
+
+        // Helper function to get full data structure for context (category or topic with verbatims)
+        function getFullDataForContext(contextData) {
+            if (!contextData) return null;
+            
+            const categoryName = contextData.category;
+            const topicName = contextData.topic_label;
+            const type = contextData.type;
+            
+            if (!categoryName) return null;
+            
+            // Try treemap data first (hierarchyData)
+            if (hierarchyData && hierarchyData.children) {
+                const categoryData = findCategoryInHierarchy(categoryName);
+                if (categoryData) {
+                    if (type === 'topic' && topicName) {
+                        // Get specific topic
+                        const topicData = findTopicInCategory(categoryData, topicName);
+                        if (topicData) {
+                            // Return a clean copy of the topic data
+                            return {
+                                name: topicData.name,
+                                code: topicData.code || null,
+                                value: topicData.value || null,
+                                verbatims: topicData.verbatims || []
+                            };
+                        }
+                    } else if (type === 'category') {
+                        // Return full category with all topics
+                        return {
+                            name: categoryData.name,
+                            children: (categoryData.children || []).map(topic => ({
+                                name: topic.name,
+                                code: topic.code || null,
+                                value: topic.value || null,
+                                verbatims: topic.verbatims || []
+                            }))
+                        };
+                    }
+                }
+            }
+            
+            // Try bar chart data as fallback
+            try {
+                const { categories } = processBarChartData();
+                const categoryData = categories.find(cat => cat.name === categoryName);
+                if (categoryData) {
+                    if (type === 'topic' && topicName) {
+                        // Get specific topic
+                        const topicData = categoryData.topics.find(topic => topic.name === topicName);
+                        if (topicData) {
+                            return {
+                                name: topicData.name,
+                                count: topicData.count,
+                                percent: topicData.percent,
+                                verbatims: topicData.verbatims || []
+                            };
+                        }
+                    } else if (type === 'category') {
+                        // Return full category with all topics
+                        return {
+                            name: categoryData.name,
+                            count: categoryData.count,
+                            percent: categoryData.percent,
+                            topics: (categoryData.topics || []).map(topic => ({
+                                name: topic.name,
+                                count: topic.count,
+                                percent: topic.percent,
+                                verbatims: topic.verbatims || []
+                            }))
+                        };
+                    }
+                }
+            } catch (error) {
+                console.error('Error accessing bar chart data:', error);
+            }
+            
+            return null;
         }
 
         // Render treemap
@@ -16522,6 +16604,126 @@
                         console.error('Invalid context data for exclude category action:', currentContextData);
                         alert('Error: Unable to exclude category. Please try right-clicking again.');
                     }
+                } else if (action === 'copy-json') {
+                    console.log('=== COPY JSON ACTION ===');
+                    if (currentContextData) {
+                        try {
+                            // Get the full data structure
+                            const fullData = getFullDataForContext(currentContextData);
+                            
+                            if (!fullData) {
+                                alert('Error: Unable to retrieve data. Please try right-clicking again.');
+                                hideContextMenu();
+                                return;
+                            }
+                            
+                            // Helper function to extract metadata from verbatims and clean the data structure
+                            const coreFields = ['text', 'sentiment', 'index', 'row_id'];
+                            const excludedMetadataFields = ['created_at', 'start_date', 'date', 'submit_date'];
+                            const metadataFields = new Set();
+                            const metadataValues = {};
+                            
+                            // First pass: collect all metadata fields and values from verbatims
+                            function collectMetadata(obj) {
+                                if (Array.isArray(obj)) {
+                                    obj.forEach(item => collectMetadata(item));
+                                } else if (obj && typeof obj === 'object') {
+                                    if (obj.verbatims && Array.isArray(obj.verbatims)) {
+                                        obj.verbatims.forEach(v => {
+                                            Object.keys(v).forEach(key => {
+                                                if (!coreFields.includes(key) && !excludedMetadataFields.includes(key) && v[key] !== null && v[key] !== undefined && v[key] !== '') {
+                                                    metadataFields.add(key);
+                                                    if (!metadataValues[key]) {
+                                                        metadataValues[key] = new Set();
+                                                    }
+                                                    const value = v[key];
+                                                    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+                                                        metadataValues[key].add(value);
+                                                    }
+                                                }
+                                            });
+                                        });
+                                    } else {
+                                        Object.values(obj).forEach(val => collectMetadata(val));
+                                    }
+                                }
+                            }
+                            
+                            collectMetadata(fullData);
+                            
+                            // Build metadata object with unique values
+                            const metadata = {};
+                            Array.from(metadataFields).sort().forEach(key => {
+                                const uniqueValues = Array.from(metadataValues[key]).sort();
+                                if (uniqueValues.length === 1) {
+                                    metadata[key] = uniqueValues[0];
+                                } else {
+                                    metadata[key] = uniqueValues;
+                                }
+                            });
+                            
+                            // Second pass: clean the data structure - remove metadata from verbatims
+                            function cleanDataStructure(obj) {
+                                if (Array.isArray(obj)) {
+                                    return obj.map(item => cleanDataStructure(item));
+                                } else if (obj && typeof obj === 'object') {
+                                    if (obj.verbatims && Array.isArray(obj.verbatims)) {
+                                        // Clean verbatims - keep only text, sentiment, index
+                                        const cleaned = { ...obj };
+                                        cleaned.verbatims = obj.verbatims.map(v => {
+                                            const clean = {
+                                                text: v.text || '',
+                                                sentiment: v.sentiment || 'neutral',
+                                                index: v.index !== undefined ? v.index : (v.row_id !== undefined ? v.row_id : null)
+                                            };
+                                            return clean;
+                                        });
+                                        return cleaned;
+                                    } else {
+                                        // Recursively clean object properties
+                                        const cleaned = {};
+                                        Object.keys(obj).forEach(key => {
+                                            cleaned[key] = cleanDataStructure(obj[key]);
+                                        });
+                                        return cleaned;
+                                    }
+                                }
+                                return obj;
+                            }
+                            
+                            const cleanedData = cleanDataStructure(fullData);
+                            
+                            // Build final JSON structure with metadata at top level
+                            const jsonData = {
+                                ...currentContextData,
+                                metadata: metadata,
+                                data: cleanedData
+                            };
+                            
+                            // Convert to formatted JSON string
+                            const jsonString = JSON.stringify(jsonData, null, 2);
+                            
+                            // Copy to clipboard
+                            navigator.clipboard.writeText(jsonString).then(() => {
+                                console.log('JSON copied to clipboard successfully');
+                                // Provide user feedback (simple console log, can be enhanced with UI notification)
+                                // Hide the context menu
+                                hideContextMenu();
+                            }).catch(err => {
+                                console.error('Failed to copy JSON to clipboard:', err);
+                                alert('Error: Failed to copy to clipboard. Please try again.');
+                                hideContextMenu();
+                            });
+                        } catch (error) {
+                            console.error('Error copying JSON:', error);
+                            alert('Error: Unable to copy JSON. Please try again.');
+                            hideContextMenu();
+                        }
+                    } else {
+                        console.error('No context data available when copying JSON');
+                        alert('Error: No context data available. Please try right-clicking again.');
+                        hideContextMenu();
+                    }
                 } else {
                     console.warn('Unknown action:', action);
                 }
@@ -16884,7 +17086,7 @@
                 <div class="filter-chips" id="filterChips"></div>
                 <div style="position: relative;">
                     <button class="filter-button" onclick="toggleFilterMenu(event)" id="filterMenuBtn" type="button" aria-label="Open filters">
-                        <img src="/static/images/filter_list.svg" alt="" aria-hidden="true">
+                        <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/filter_list.svg" alt="" aria-hidden="true">
                         <span id="insightsListFilterBadge" class="filter-badge" aria-hidden="true"></span>
                     </button>
                     
