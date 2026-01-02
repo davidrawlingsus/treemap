@@ -145,9 +145,10 @@ class OpenAIService:
                 http_client=httpx.Client(timeout=60.0)
             )
             
-            response = client.chat.completions.create(
-                model=model_to_use,
-                messages=[
+            # Build request parameters
+            request_params = {
+                "model": model_to_use,
+                "messages": [
                     {
                         "role": "system",
                         "content": system_message
@@ -156,10 +157,72 @@ class OpenAIService:
                         "role": "user",
                         "content": user_message
                     }
-                ],
-                temperature=0.7,
-                max_tokens=4000
-            )
+                ]
+            }
+            
+            # Some models don't support certain parameters
+            # Models like o1, o1-preview, o1-mini don't support temperature or max_tokens
+            # gpt-4o and gpt-4o-mini don't support max_tokens, and may have issues with temperature
+            model_lower = model_to_use.lower()
+            models_without_params = ['o1', 'o1-preview', 'o1-mini']
+            models_without_temperature = ['gpt-4o', 'gpt-4o-mini'] + models_without_params
+            models_without_max_tokens = ['gpt-4o', 'gpt-4o-mini'] + models_without_params
+            
+            # Add temperature for models that support it
+            if not any(model_lower.startswith(m) for m in models_without_temperature):
+                request_params["temperature"] = 0.7
+            
+            # Add max_tokens for models that support it
+            if not any(model_lower.startswith(m) for m in models_without_max_tokens):
+                request_params["max_tokens"] = 4000
+            
+            # Try the request, and if we get unsupported parameter errors, retry without them
+            max_retries = 2
+            last_error = None
+            
+            for attempt in range(max_retries):
+                try:
+                    response = client.chat.completions.create(**request_params)
+                    break  # Success, exit retry loop
+                except Exception as e:
+                    last_error = e
+                    error_str = str(e).lower()
+                    
+                    # Check for unsupported parameter errors
+                    if 'unsupported_parameter' in error_str or 'unsupported_value' in error_str:
+                        logger.warning(f"Model {model_to_use} returned unsupported parameter error (attempt {attempt + 1}): {e}")
+                        
+                        # Remove problematic parameters and retry (check both independently, not elif)
+                        removed_any = False
+                        if 'max_tokens' in error_str and 'max_tokens' in request_params:
+                            logger.info(f"Removing max_tokens parameter for model {model_to_use}")
+                            request_params.pop("max_tokens", None)
+                            removed_any = True
+                        if 'temperature' in error_str and 'temperature' in request_params:
+                            logger.info(f"Removing temperature parameter for model {model_to_use}")
+                            request_params.pop("temperature", None)
+                            removed_any = True
+                        
+                        # If we couldn't identify the specific parameter but got an unsupported error,
+                        # remove all optional parameters
+                        if not removed_any:
+                            logger.info(f"Removing all optional parameters for model {model_to_use} due to unsupported parameter error")
+                            request_params.pop("max_tokens", None)
+                            request_params.pop("temperature", None)
+                        
+                        # Continue to next iteration to retry (if not last attempt)
+                        if attempt < max_retries - 1:
+                            continue
+                        else:
+                            # Last attempt failed, raise the error
+                            raise
+                    else:
+                        # Not an unsupported parameter error, don't retry
+                        raise
+            
+            # If we exhausted retries, raise the last error
+            if 'response' not in locals():
+                raise last_error
             
             content = response.choices[0].message.content
             tokens_used = response.usage.total_tokens

@@ -128,8 +128,9 @@
          * Populate a select element with purposes
          * @param {HTMLSelectElement} selectElement - Select element to populate
          * @param {boolean} includeEmpty - Whether to include empty option
+         * @param {Array} prompts - Optional array of prompts to extract purposes from
          */
-        populateSelect(selectElement, includeEmpty = false) {
+        populateSelect(selectElement, includeEmpty = false, prompts = null) {
             if (!selectElement) return;
 
             // Clear existing options except default ones
@@ -142,9 +143,24 @@
                 }
             });
 
-            // Add custom purposes
+            // Get all purposes to include
+            const allPurposes = new Set([...DEFAULT_PURPOSES]);
+            
+            // Add custom purposes from localStorage
             const customPurposes = this.getCustomPurposes();
-            customPurposes.forEach(purpose => {
+            customPurposes.forEach(purpose => allPurposes.add(purpose));
+            
+            // Add purposes from existing prompts if provided
+            if (prompts && Array.isArray(prompts)) {
+                prompts.forEach(prompt => {
+                    if (prompt.prompt_purpose) {
+                        allPurposes.add(prompt.prompt_purpose);
+                    }
+                });
+            }
+
+            // Add all purposes to select
+            Array.from(allPurposes).sort().forEach(purpose => {
                 const existingOptions = Array.from(selectElement.options).map(opt => opt.value);
                 if (!existingOptions.includes(purpose)) {
                     const option = document.createElement('option');

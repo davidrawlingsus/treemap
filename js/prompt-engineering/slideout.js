@@ -81,6 +81,56 @@
         },
 
         /**
+         * Execute a prompt (used when opening slideout after save and run)
+         * @param {string} userMessage - User message to send with prompt
+         */
+        async executePrompt(userMessage = '') {
+            const promptId = state.get('slideoutPromptId');
+            if (!promptId) {
+                console.warn('[SLIDEOUT] executePrompt() called but no promptId in state');
+                return;
+            }
+
+            console.log('[SLIDEOUT] executePrompt() called', {
+                promptId,
+                userMessage: userMessage.substring(0, 100) + (userMessage.length > 100 ? '...' : ''),
+                userMessageLength: userMessage.length,
+                timestamp: new Date().toISOString()
+            });
+
+            try {
+                console.log('[SLIDEOUT] Calling PromptAPI.execute() from executePrompt()', {
+                    promptId,
+                    userMessageLength: userMessage.length,
+                    timestamp: new Date().toISOString()
+                });
+
+                // Execute the prompt
+                const result = await PromptAPI.execute(promptId, userMessage);
+
+                console.log('[SLIDEOUT] executePrompt() completed successfully', {
+                    promptId,
+                    result: result ? (typeof result === 'object' ? JSON.stringify(result).substring(0, 200) + '...' : result) : 'null/undefined',
+                    resultType: typeof result,
+                    timestamp: new Date().toISOString()
+                });
+
+                return result;
+            } catch (error) {
+                console.error('[SLIDEOUT] executePrompt() failed', {
+                    promptId,
+                    error: error.message || String(error),
+                    errorStack: error.stack,
+                    errorName: error.name,
+                    errorResponse: error.response || error.data || 'no response data',
+                    errorStatus: error.status || error.statusCode || 'unknown',
+                    timestamp: new Date().toISOString()
+                });
+                throw error;
+            }
+        },
+
+        /**
          * Display all prompt results
          */
         async displayAllResults() {
@@ -136,13 +186,27 @@
          * Handle chat submit
          */
         async handleChatSubmit() {
+            console.log('[SLIDEOUT] handleChatSubmit() called', {
+                timestamp: new Date().toISOString()
+            });
+
             const promptId = state.get('slideoutPromptId');
+            console.log('[SLIDEOUT] promptId from state:', promptId);
+
             if (!promptId) {
+                console.warn('[SLIDEOUT] No promptId found in state, aborting');
                 return;
             }
 
-            const userMessage = this.elements.chatInput?.value.trim();
+            const userMessage = this.elements.chatInput?.value.trim() || '';
+            console.log('[SLIDEOUT] userMessage:', {
+                message: userMessage.substring(0, 100) + (userMessage.length > 100 ? '...' : ''),
+                length: userMessage.length,
+                isEmpty: !userMessage
+            });
+
             if (!userMessage) {
+                console.warn('[SLIDEOUT] No user message provided, aborting');
                 return;
             }
 
@@ -157,16 +221,31 @@
             }
 
             try {
+                console.log('[SLIDEOUT] Calling PromptAPI.execute()', {
+                    promptId,
+                    userMessageLength: userMessage.length,
+                    timestamp: new Date().toISOString()
+                });
+
                 // Execute the prompt
-                await PromptAPI.execute(promptId, userMessage);
+                const result = await PromptAPI.execute(promptId, userMessage);
+
+                console.log('[SLIDEOUT] PromptAPI.execute() completed', {
+                    promptId,
+                    result: result ? (typeof result === 'object' ? JSON.stringify(result).substring(0, 200) + '...' : result) : 'null/undefined',
+                    resultType: typeof result,
+                    timestamp: new Date().toISOString()
+                });
 
                 // Clear the input
                 if (this.elements.chatInput) {
                     this.elements.chatInput.value = '';
                 }
 
+                console.log('[SLIDEOUT] Refreshing results...');
                 // Refresh results
                 await this.displayAllResults();
+                console.log('[SLIDEOUT] Results refreshed');
 
                 // Show done icon
                 if (this.elements.chatSend) {
@@ -181,7 +260,15 @@
                     }
                 }, 2000);
             } catch (error) {
-                console.error('[SLIDEOUT] Prompt execution failed:', error);
+                console.error('[SLIDEOUT] Prompt execution failed', {
+                    promptId,
+                    error: error.message || String(error),
+                    errorStack: error.stack,
+                    errorName: error.name,
+                    errorResponse: error.response || error.data || 'no response data',
+                    errorStatus: error.status || error.statusCode || 'unknown',
+                    timestamp: new Date().toISOString()
+                });
                 // Reset to send icon on error
                 if (this.elements.chatSend) {
                     this.elements.chatSend.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/send_icon.png" alt="Send" width="20" height="20" id="slideoutChatSendIcon">';

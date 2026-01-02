@@ -166,7 +166,7 @@
                     <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">The user input that will be sent with the system message to the LLM</p>
                 </div>
             </form>
-            <div id="addPurposeModal" class="modal-backdrop" style="display: none;">
+            <div id="addPurposeModal" class="modal-backdrop">
                 <div class="modal" style="width: min(450px, 90vw);">
                     <header>
                         <h2>Add New Purpose</h2>
@@ -184,7 +184,7 @@
                     </div>
                 </div>
             </div>
-            <div id="managePurposesModal" class="modal-backdrop" style="display: none;">
+            <div id="managePurposesModal" class="modal-backdrop">
                 <div class="modal" style="width: min(500px, 90vw);">
                     <header>
                         <h2>Manage Custom Purposes</h2>
@@ -204,7 +204,7 @@
                     <button class="btn btn-primary split-button-main" id="saveAndRunButton" type="button">Save and Run</button>
                     <button class="btn btn-primary split-button-dropdown" id="saveButtonDropdown" type="button" aria-label="More options">▼</button>
                     <div class="split-button-dropdown-menu" id="saveButtonMenu">
-                        <button class="split-button-dropdown-menu-item" id="saveChangesButton" type="button">Save Changes</button>
+                        <button class="split-button-dropdown-menu-item" id="saveChangesButton" type="button">Save and Close</button>
                         <button class="split-button-dropdown-menu-item" id="newVersionButton" type="button" style="display: none;">New Version</button>
                     </div>
                 </div>
@@ -224,20 +224,32 @@
                         <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/filter_list.svg" alt="" aria-hidden="true">
                         <span id="promptFilterBadge" class="filter-badge" data-filter-badge aria-hidden="true"></span>
                     </button>
-                    <div id="promptFiltersDropdown" class="filter-dropdown" data-filter-dropdown style="display: none;">
-                        <div style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa;">
-                            <strong style="font-size: 14px;">Filter LLM Outputs</strong>
-                            <button id="clearAllPromptFilters" style="padding: 4px 8px; background: transparent; border: none; color: var(--brand-color); cursor: pointer; font-size: 12px; font-weight: 500;">Clear All</button>
+                    <div id="promptFiltersDropdown" class="filter-dropdown" data-filter-dropdown style="display: none; position: absolute; top: 100%; right: 0px; margin-top: 8px; background: white; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 350px; max-width: 450px; z-index: 1000; max-height: 500px; overflow-y: auto;">
+                        <!-- Filter Type Selection View -->
+                        <div id="promptFilterTypeView" style="display: block;">
+                            <div style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa;">
+                                <strong style="font-size: 14px;">Filter By</strong>
+                                <button id="clearAllPromptFilters" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 12px; font-weight: 500;">Clear All</button>
+                            </div>
+                            <div id="promptFilterTypeList" style="padding: 8px;">
+                                <!-- Filter types will be dynamically populated here -->
+                            </div>
+                            <div id="activePromptFiltersList" style="padding: 8px 12px; border-top: 1px solid #e0e0e0; background: #f8f9fa; max-height: 150px; overflow-y: auto;"></div>
                         </div>
-                        <div style="padding: 16px;">
-                            <div class="filter-section">
-                                <label style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 8px; display: block;">Filter by Prompt</label>
-                                <div id="promptNameFilters" class="filter-checkboxes"></div>
+                        
+                        <!-- Filter Selection View (for prompts or versions) -->
+                        <div id="promptFilterSelectionView" style="display: none;">
+                            <div style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0; display: flex; justify-content: space-between; align-items: center; background: #f8f9fa;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <button id="backToPromptFilterType" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 16px; font-weight: 500;">←</button>
+                                    <strong id="promptFilterSelectionTitle" style="font-size: 14px;">Select Items</strong>
+                                </div>
+                                <div style="display: flex; gap: 8px;">
+                                    <button id="selectAllPromptItems" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 12px; font-weight: 500;">Select All</button>
+                                    <button id="clearAllPromptItems" style="padding: 4px 8px; background: transparent; border: none; color: #667eea; cursor: pointer; font-size: 12px; font-weight: 500;">Clear All</button>
+                                </div>
                             </div>
-                            <div class="filter-section" style="margin-top: 16px;">
-                                <label style="font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 8px; display: block;">Filter by Version</label>
-                                <div id="promptVersionFilters" class="filter-checkboxes"></div>
-                            </div>
+                            <div id="promptFilterSelectionList" style="padding: 8px; max-height: 350px; overflow-y: auto;"></div>
                         </div>
                     </div>
                 </div>

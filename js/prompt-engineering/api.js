@@ -114,9 +114,48 @@
          * @returns {Promise<Object>} Execution result
          */
         async execute(promptId, userMessage = '') {
-            return API.post(`/api/founder/prompts/${promptId}/execute`, {
-                user_message: userMessage
+            console.log('[PROMPT_API] execute() called', {
+                promptId,
+                userMessage: userMessage.substring(0, 100) + (userMessage.length > 100 ? '...' : ''),
+                userMessageLength: userMessage.length,
+                timestamp: new Date().toISOString()
             });
+
+            try {
+                const endpoint = `/api/founder/prompts/${promptId}/execute`;
+                const payload = {
+                    user_message: userMessage
+                };
+
+                console.log('[PROMPT_API] Making POST request', {
+                    endpoint,
+                    payload: {
+                        ...payload,
+                        user_message: payload.user_message.substring(0, 100) + (payload.user_message.length > 100 ? '...' : '')
+                    }
+                });
+
+                const result = await API.post(endpoint, payload);
+
+                console.log('[PROMPT_API] execute() success', {
+                    promptId,
+                    result: result ? (typeof result === 'object' ? JSON.stringify(result).substring(0, 200) + '...' : result) : 'null/undefined',
+                    resultType: typeof result,
+                    timestamp: new Date().toISOString()
+                });
+
+                return result;
+            } catch (error) {
+                console.error('[PROMPT_API] execute() error', {
+                    promptId,
+                    error: error.message || String(error),
+                    errorStack: error.stack,
+                    errorName: error.name,
+                    errorResponse: error.response || error.data || 'no response data',
+                    timestamp: new Date().toISOString()
+                });
+                throw error;
+            }
         },
 
         /**

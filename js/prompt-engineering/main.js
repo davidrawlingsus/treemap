@@ -158,12 +158,55 @@
                 this.elements,
                 () => this.loadPrompts(), // onPromptSaved
                 async (promptId, userMessage) => { // onPromptExecuted
+                    console.log('[APP] onPromptExecuted callback called', {
+                        promptId,
+                        userMessage: userMessage ? userMessage.substring(0, 100) + (userMessage.length > 100 ? '...' : '') : 'empty',
+                        userMessageLength: userMessage ? userMessage.length : 0,
+                        timestamp: new Date().toISOString()
+                    });
+
+                    console.log('[APP] Loading prompts...');
                     await this.loadPrompts();
+                    console.log('[APP] Prompts loaded');
+
                     if (this.slideoutManager) {
+                        console.log('[APP] Setting slideout prompt ID and opening...', { promptId });
                         this.slideoutManager.setPromptId(promptId);
                         this.slideoutManager.open('LLM Outputs');
+                        
+                        // Execute the prompt if userMessage is provided
+                        if (userMessage) {
+                            console.log('[APP] Executing prompt with userMessage...', {
+                                promptId,
+                                userMessageLength: userMessage.length
+                            });
+                            try {
+                                await this.slideoutManager.executePrompt(userMessage);
+                                console.log('[APP] Prompt execution completed');
+                            } catch (error) {
+                                console.error('[APP] Prompt execution failed in callback', {
+                                    promptId,
+                                    error: error.message || String(error),
+                                    timestamp: new Date().toISOString()
+                                });
+                                // Still show existing results even if execution fails
+                            }
+                        }
+                        
+                        console.log('[APP] Displaying all results...');
                         await this.slideoutManager.displayAllResults();
+                        console.log('[APP] Results displayed');
+                        
+                        // Refresh filters after displaying results
+                        if (this.filterManager) {
+                            console.log('[APP] Refreshing filters...');
+                            this.filterManager.refreshFilters();
+                        }
+                    } else {
+                        console.warn('[APP] slideoutManager not available');
                     }
+
+                    console.log('[APP] onPromptExecuted callback completed');
                 }
             );
 
@@ -192,9 +235,7 @@
                         filterButton: this.elements.promptFiltersBtn,
                         filterDropdown: this.elements.promptFiltersDropdown,
                         badge: this.elements.promptFilterBadge,
-                        clearAllButton: this.elements.clearAllPromptFilters,
-                        nameFilters: this.elements.promptNameFilters,
-                        versionFilters: this.elements.promptVersionFilters
+                        clearAllButton: this.elements.clearAllPromptFilters
                     },
                     () => {
                         // onFilterChange - re-render results
@@ -337,6 +378,11 @@
 
                 // Update purpose filter dropdown with new purposes from prompts
                 this.updatePurposeFilter();
+
+                // Refresh slideout filters if slideout is open
+                if (this.filterManager && this.slideoutManager && this.slideoutManager.slideout?.isOpen()) {
+                    this.filterManager.refreshFilters();
+                }
             } catch (error) {
                 console.error('[APP] Failed to load prompts:', error);
                 throw error;

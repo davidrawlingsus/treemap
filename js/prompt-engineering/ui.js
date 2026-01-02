@@ -279,6 +279,28 @@
                 ? `v${action.prompt_version}` 
                 : '';
 
+            // Handle user message truncation
+            const MAX_PREVIEW_LENGTH = 200;
+            let userMessageHtml = '';
+            if (userMessage) {
+                const isLong = userMessage.length > MAX_PREVIEW_LENGTH;
+                const preview = isLong ? userMessage.substring(0, MAX_PREVIEW_LENGTH) + '...' : userMessage;
+                userMessageHtml = `
+                    <div style="margin-top: 8px;">
+                        <div style="font-size: 12px; color: var(--text); margin-top: 4px;">
+                            <strong>User Message:</strong> 
+                            <span class="user-message-preview" id="user-msg-preview-${action.id}">${DOM.escapeHtml(preview)}</span>
+                            ${isLong ? `<span class="user-message-full" id="user-msg-full-${action.id}" style="display: none;">${DOM.escapeHtml(userMessage)}</span>` : ''}
+                        </div>
+                        ${isLong ? `
+                            <button class="toggle-user-message" data-action-id="${action.id}" style="background: none; border: none; color: #666; cursor: pointer; font-size: 12px; padding: 0; text-decoration: underline; margin-top: 4px;">
+                                <span class="toggle-text">Show</span> Full User Message
+                            </button>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
             return `
                 <div class="prompt-output-item" data-action-id="${action.id}" data-prompt-name="${DOM.escapeHtmlForAttribute(promptName)}" data-prompt-version="${action.prompt_version || ''}">
                     <div class="prompt-output-header">
@@ -289,10 +311,10 @@
                                 ${metadata.model ? `<span style="color: var(--muted); font-size: 12px; margin-left: 8px;">• ${DOM.escapeHtml(metadata.model)}</span>` : ''}
                                 ${metadata.tokens_used ? `<span style="color: var(--muted); font-size: 12px; margin-left: 8px;">• ${metadata.tokens_used} tokens</span>` : ''}
                             </div>
-                            ${userMessage ? `<div style="font-size: 12px; color: var(--text); margin-top: 4px;"><strong>User Message:</strong> ${DOM.escapeHtml(userMessage)}</div>` : ''}
+                            ${userMessageHtml}
                             ${systemMessage ? `
                                 <div style="margin-top: 8px;">
-                                    <button class="toggle-system-message" data-action-id="${action.id}" style="background: none; border: none; color: var(--primary); cursor: pointer; font-size: 12px; padding: 0; text-decoration: underline;">
+                                    <button class="toggle-system-message" data-action-id="${action.id}" style="background: none; border: none; color: #666; cursor: pointer; font-size: 12px; padding: 0; text-decoration: underline;">
                                         <span class="toggle-text">Show</span> System Message
                                     </button>
                                     <div class="system-message-content" id="system-msg-${action.id}" style="display: none; margin-top: 8px; padding: 12px; background: #f7fafc; border-radius: 6px; font-size: 12px; color: var(--text); white-space: pre-wrap; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;">${DOM.escapeHtml(systemMessage)}</div>
@@ -332,6 +354,30 @@
                             toggleText.textContent = 'Hide';
                         } else {
                             systemMsgDiv.style.display = 'none';
+                            toggleText.textContent = 'Show';
+                        }
+                    }
+                });
+            });
+
+            // Attach user message toggle listeners
+            container.querySelectorAll('.toggle-user-message').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const actionId = button.getAttribute('data-action-id');
+                    const previewDiv = document.getElementById(`user-msg-preview-${actionId}`);
+                    const fullDiv = document.getElementById(`user-msg-full-${actionId}`);
+                    const toggleText = button.querySelector('.toggle-text');
+                    
+                    if (previewDiv && fullDiv && toggleText) {
+                        if (previewDiv.style.display !== 'none') {
+                            // Show full message
+                            previewDiv.style.display = 'none';
+                            fullDiv.style.display = 'inline';
+                            toggleText.textContent = 'Hide';
+                        } else {
+                            // Show preview
+                            previewDiv.style.display = 'inline';
+                            fullDiv.style.display = 'none';
                             toggleText.textContent = 'Show';
                         }
                     }

@@ -109,20 +109,57 @@
         async request(endpoint, options = {}) {
             const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
             
+            // Enhanced logging for execute endpoint
+            const isExecuteRequest = endpoint.includes('/execute');
+            if (isExecuteRequest) {
+                console.log('[API] Making execute request', {
+                    url,
+                    method: options.method || 'GET',
+                    hasBody: !!options.body,
+                    bodyPreview: options.body ? (typeof options.body === 'string' ? options.body.substring(0, 200) : JSON.stringify(options.body).substring(0, 200)) : 'none',
+                    timestamp: new Date().toISOString()
+                });
+            }
+            
             try {
+                const requestHeaders = {
+                    ...this.getAuthHeaders(),
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                };
+
+                if (isExecuteRequest) {
+                    console.log('[API] Request headers', {
+                        hasAuth: !!requestHeaders['Authorization'],
+                        contentType: requestHeaders['Content-Type'],
+                        headerKeys: Object.keys(requestHeaders)
+                    });
+                }
+
+                const requestBody = options.body ? (typeof options.body === 'string' ? options.body : JSON.stringify(options.body)) : undefined;
+
                 const response = await fetch(url, {
                     ...options,
-                    headers: {
-                        ...this.getAuthHeaders(),
-                        'Content-Type': 'application/json',
-                        ...options.headers
-                    },
-                    body: options.body ? (typeof options.body === 'string' ? options.body : JSON.stringify(options.body)) : undefined
+                    headers: requestHeaders,
+                    body: requestBody
                 });
+
+                if (isExecuteRequest) {
+                    console.log('[API] Response received', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        ok: response.ok,
+                        headers: Object.fromEntries(response.headers.entries()),
+                        timestamp: new Date().toISOString()
+                    });
+                }
 
                 if (!response.ok) {
                     // Handle auth errors
                     if (response.status === 401 || response.status === 403) {
+                        if (isExecuteRequest) {
+                            console.error('[API] Authentication error', { status: response.status });
+                        }
                         Auth.showLogin();
                         const errorEl = document.getElementById('loginError');
                         if (errorEl) {
@@ -134,12 +171,23 @@
 
                     // Try to parse error response
                     let errorMessage = `Request failed with status ${response.status}`;
+                    let errorData = null;
                     try {
-                        const errorData = await response.json();
+                        errorData = await response.json();
                         errorMessage = errorData.detail || errorData.message || errorMessage;
                     } catch (e) {
                         const errorText = await response.text();
                         if (errorText) errorMessage = errorText;
+                    }
+
+                    if (isExecuteRequest) {
+                        console.error('[API] Request failed with error response', {
+                            status: response.status,
+                            statusText: response.statusText,
+                            errorMessage,
+                            errorData,
+                            timestamp: new Date().toISOString()
+                        });
                     }
 
                     throw new Error(errorMessage);
@@ -148,12 +196,37 @@
                 // Handle empty responses
                 const contentType = response.headers.get('content-type');
                 if (!contentType || !contentType.includes('application/json')) {
+                    if (isExecuteRequest) {
+                        console.warn('[API] Response is not JSON', {
+                            contentType,
+                            returningNull: true
+                        });
+                    }
                     return null;
                 }
 
-                return await response.json();
+                const jsonData = await response.json();
+                
+                if (isExecuteRequest) {
+                    console.log('[API] Response JSON parsed successfully', {
+                        dataType: typeof jsonData,
+                        dataPreview: jsonData ? (typeof jsonData === 'object' ? JSON.stringify(jsonData).substring(0, 200) + '...' : jsonData) : 'null',
+                        timestamp: new Date().toISOString()
+                    });
+                }
+
+                return jsonData;
             } catch (error) {
-                console.error('[API] Request failed:', error);
+                if (isExecuteRequest) {
+                    console.error('[API] Request exception', {
+                        error: error.message || String(error),
+                        errorStack: error.stack,
+                        errorName: error.name,
+                        timestamp: new Date().toISOString()
+                    });
+                } else {
+                    console.error('[API] Request failed:', error);
+                }
                 throw error;
             }
         },

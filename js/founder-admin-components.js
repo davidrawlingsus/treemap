@@ -64,6 +64,10 @@
         show() {
             if (this.container) {
                 this.container.classList.add('visible');
+                // Remove inline display style if present to allow CSS to control visibility
+                if (this.container.style.display === 'none') {
+                    this.container.style.display = '';
+                }
             }
         }
 

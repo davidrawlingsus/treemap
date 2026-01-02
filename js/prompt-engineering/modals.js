@@ -86,19 +86,29 @@
 
             // Save buttons
             if (this.elements.saveAndRunButton) {
-                this.elements.saveAndRunButton.addEventListener('click', () => {
+                this.elements.saveAndRunButton.addEventListener('click', async (e) => {
+                    e.preventDefault();
                     state.set('actionMode', 'save-and-run');
-                    if (this.elements.promptForm) {
-                        this.elements.promptForm.requestSubmit();
+                    // Validate form first
+                    if (this.elements.promptForm && this.elements.promptForm.checkValidity()) {
+                        await this.handlePromptFormSubmit();
+                    } else if (this.elements.promptForm) {
+                        // Trigger HTML5 validation display
+                        this.elements.promptForm.reportValidity();
                     }
                 });
             }
 
             if (this.elements.saveChangesButton) {
-                this.elements.saveChangesButton.addEventListener('click', () => {
+                this.elements.saveChangesButton.addEventListener('click', async (e) => {
+                    e.preventDefault();
                     state.set('actionMode', 'save-only');
-                    if (this.elements.promptForm) {
-                        this.elements.promptForm.requestSubmit();
+                    // Validate form first
+                    if (this.elements.promptForm && this.elements.promptForm.checkValidity()) {
+                        await this.handlePromptFormSubmit();
+                    } else if (this.elements.promptForm) {
+                        // Trigger HTML5 validation display
+                        this.elements.promptForm.reportValidity();
                     }
                 });
             }
@@ -188,13 +198,15 @@
                 this.elements.promptForm.reset();
             }
 
-            // Reload custom purposes
+            // Get prompts to include their purposes in dropdown
+            const prompts = state.get('prompts') || [];
+
+            // Reload custom purposes (include purposes from existing prompts)
             if (this.elements.promptPurposeInput) {
-                PurposesManager.populateSelect(this.elements.promptPurposeInput, true);
+                PurposesManager.populateSelect(this.elements.promptPurposeInput, true, prompts);
             }
 
             if (mode === 'edit' && promptId) {
-                const prompts = state.get('prompts');
                 const prompt = prompts.find((item) => item.id === promptId);
                 
                 if (!prompt) {
@@ -398,11 +410,26 @@
 
                 if (shouldExecute) {
                     const userMessage = this.elements.userMessageInput?.value.trim() || '';
+                    console.log('[MODALS] Prompt saved, executing...', {
+                        promptId: savedPrompt.id,
+                        promptName: savedPrompt.name,
+                        userMessage: userMessage.substring(0, 100) + (userMessage.length > 100 ? '...' : ''),
+                        userMessageLength: userMessage.length,
+                        timestamp: new Date().toISOString()
+                    });
+
                     if (this.onPromptSaved) {
+                        console.log('[MODALS] Calling onPromptSaved callback...');
                         await this.onPromptSaved();
+                        console.log('[MODALS] onPromptSaved callback completed');
                     }
                     if (this.onPromptExecuted) {
+                        console.log('[MODALS] Calling onPromptExecuted callback...', {
+                            promptId: savedPrompt.id,
+                            userMessageLength: userMessage.length
+                        });
                         await this.onPromptExecuted(savedPrompt.id, userMessage);
+                        console.log('[MODALS] onPromptExecuted callback completed');
                     }
                 } else {
                     this.closePromptModal();
@@ -473,7 +500,8 @@
             if (normalizedPurpose) {
                 // Update dropdowns
                 if (this.elements.promptPurposeInput) {
-                    PurposesManager.populateSelect(this.elements.promptPurposeInput, true);
+                    const prompts = state.get('prompts') || [];
+                    PurposesManager.populateSelect(this.elements.promptPurposeInput, true, prompts);
                     this.elements.promptPurposeInput.value = normalizedPurpose;
                 }
 
@@ -589,7 +617,8 @@
 
             // Update dropdowns
             if (this.elements.promptPurposeInput) {
-                PurposesManager.populateSelect(this.elements.promptPurposeInput, true);
+                const prompts = state.get('prompts') || [];
+                PurposesManager.populateSelect(this.elements.promptPurposeInput, true, prompts);
                 if (this.elements.promptPurposeInput.value === oldPurpose) {
                     this.elements.promptPurposeInput.value = normalizedPurpose;
                 }
@@ -616,7 +645,8 @@
 
             // Update dropdowns
             if (this.elements.promptPurposeInput) {
-                PurposesManager.populateSelect(this.elements.promptPurposeInput, true);
+                const prompts = state.get('prompts') || [];
+                PurposesManager.populateSelect(this.elements.promptPurposeInput, true, prompts);
                 if (this.elements.promptPurposeInput.value === purpose) {
                     this.elements.promptPurposeInput.value = '';
                 }
