@@ -16677,6 +16677,11 @@
                                                 index: v.index !== undefined ? v.index : (v.row_id !== undefined ? v.row_id : null)
                                             };
                                             return clean;
+                                        }).sort((a, b) => {
+                                            // Sort by text length (descending) - most verbose first
+                                            const lengthA = (a.text || '').length;
+                                            const lengthB = (b.text || '').length;
+                                            return lengthB - lengthA;
                                         });
                                         return cleaned;
                                     } else {
