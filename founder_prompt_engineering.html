@@ -308,6 +308,7 @@
             justify-content: center;
             z-index: 1000;
             padding: 40px 24px;
+            transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .modal-backdrop.visible {
@@ -949,8 +950,11 @@
 
     <div id="modalBackdrop" class="modal-backdrop">
         <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-            <header>
+            <header style="display: flex; justify-content: space-between; align-items: center;">
                 <h2 id="modalTitle">New Prompt</h2>
+                <button type="button" id="modalCloseButton" style="background: none; border: none; cursor: pointer; padding: 8px; display: flex; align-items: center; justify-content: center;" title="Close">
+                    <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/close_button.png" alt="Close" width="24" height="24">
+                </button>
             </header>
             <form id="promptForm" style="max-height: calc(92vh - 180px); overflow-y: auto;">
                 <div class="form-group">
@@ -974,7 +978,12 @@
                             <option value="risk-reversal">Risk Reversal</option>
                             <option value="microcopy">Microcopy</option>
                         </select>
-                        <button type="button" class="btn btn-secondary" id="addPurposeButton" style="padding: 12px 16px; white-space: nowrap;" title="Add new purpose">+</button>
+                        <button type="button" class="btn btn-secondary" id="addPurposeButton" style="padding: 12px 16px; white-space: nowrap; display: flex; align-items: center; justify-content: center;" title="Add new purpose">
+                            <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/add.png" alt="Add new purpose" width="20" height="20">
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="managePurposesButton" style="padding: 12px 16px; white-space: nowrap; display: flex; align-items: center; justify-content: center;" title="Manage purposes">
+                            <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/edit.png" alt="Manage purposes" width="20" height="20">
+                        </button>
                     </div>
                 </div>
                 <div class="form-group">
@@ -1019,16 +1028,28 @@
                     </div>
                 </div>
             </div>
-            <div class="modal-actions">
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn btn-secondary" id="newVersionButton" type="button" style="display: none;">New Version</button>
-                    <button class="btn btn-secondary" id="cancelModalButton" type="button">Cancel</button>
+            <div id="managePurposesModal" class="modal-backdrop" style="display: none;">
+                <div class="modal" style="width: min(500px, 90vw);">
+                    <header>
+                        <h2>Manage Custom Purposes</h2>
+                    </header>
+                    <div style="padding: 32px;">
+                        <div id="purposesList" style="margin-bottom: 24px;">
+                            <!-- Custom purposes will be listed here -->
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn btn-secondary" id="cancelManagePurposesButton" type="button">Close</button>
+                    </div>
                 </div>
-                <div class="split-button-container">
+            </div>
+            <div class="modal-actions">
+                <div class="split-button-container" style="margin-left: auto; display: flex; gap: 0;">
                     <button class="btn btn-primary split-button-main" id="saveAndRunButton" type="button">Save and Run</button>
                     <button class="btn btn-primary split-button-dropdown" id="saveButtonDropdown" type="button" aria-label="More options">▼</button>
                     <div class="split-button-dropdown-menu" id="saveButtonMenu">
                         <button class="split-button-dropdown-menu-item" id="saveChangesButton" type="button">Save Changes</button>
+                        <button class="split-button-dropdown-menu-item" id="newVersionButton" type="button" style="display: none;">New Version</button>
                     </div>
                 </div>
             </div>
@@ -1124,12 +1145,16 @@
             llmModelInput: getElement('llmModelInput'),
             systemMessageInput: getElement('systemMessageInput'),
             userMessageInput: getElement('userMessageInput'),
-            cancelModalButton: getElement('cancelModalButton'),
+            modalCloseButton: getElement('modalCloseButton'),
             submitPromptButton: getElement('submitPromptButton', false),
             addPurposeButton: getElement('addPurposeButton'),
+            managePurposesButton: getElement('managePurposesButton'),
             addPurposeModal: getElement('addPurposeModal'),
+            managePurposesModal: getElement('managePurposesModal'),
+            purposesList: getElement('purposesList'),
             newPurposeInput: getElement('newPurposeInput'),
             cancelAddPurposeButton: getElement('cancelAddPurposeButton'),
+            cancelManagePurposesButton: getElement('cancelManagePurposesButton'),
             savePurposeButton: getElement('savePurposeButton'),
             saveAndRunButton: getElement('saveAndRunButton'),
             saveButtonDropdown: getElement('saveButtonDropdown'),
@@ -1487,7 +1512,7 @@
                 elements.systemMessageInput.value = prompt.system_message;
                 elements.userMessageInput.value = ''; // User message is not stored, always empty
                 
-                // Show "New Version" button when editing
+                // Show "New Version" button in dropdown when editing
                 if (elements.newVersionButton) {
                     elements.newVersionButton.style.display = 'block';
                 }
@@ -1546,8 +1571,200 @@
             
             addCustomPurpose(newPurpose);
             closeAddPurposeModal();
+            
+            // If manage modal is open, refresh the list
+            if (elements.managePurposesModal.style.display === 'flex') {
+                renderPurposesList();
+            }
+            
             showStatus('Purpose added successfully.', 'success');
             setTimeout(() => showStatus(), 2000);
+        }
+
+        function openManagePurposesModal() {
+            renderPurposesList();
+            elements.managePurposesModal.style.display = 'flex';
+        }
+
+        function closeManagePurposesModal() {
+            elements.managePurposesModal.style.display = 'none';
+        }
+
+        function renderPurposesList() {
+            const customPurposes = JSON.parse(localStorage.getItem('customPromptPurposes') || '[]');
+            
+            if (customPurposes.length === 0) {
+                elements.purposesList.innerHTML = '<p style="color: var(--muted); text-align: center; padding: 24px;">No custom purposes yet. Add one using the "+" button.</p>';
+                return;
+            }
+
+            let html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
+            
+            customPurposes.forEach((purpose, index) => {
+                const displayName = purpose.split('-').map(word => 
+                    word.charAt(0).toUpperCase() + word.slice(1)
+                ).join(' ');
+                
+                html += `
+                    <div class="purpose-item" data-purpose="${purpose}" style="display: flex; align-items: center; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary);">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 500; margin-bottom: 4px;">${displayName}</div>
+                            <div style="font-size: 12px; color: var(--muted); font-family: monospace;">${purpose}</div>
+                        </div>
+                        <button type="button" class="btn btn-secondary edit-purpose-btn" data-purpose="${purpose}" data-index="${index}" style="padding: 8px 12px; white-space: nowrap;">Edit</button>
+                        <button type="button" class="btn btn-secondary delete-purpose-btn" data-purpose="${purpose}" style="padding: 8px 12px; white-space: nowrap; background: var(--danger); color: white;">Delete</button>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            elements.purposesList.innerHTML = html;
+
+            // Attach event listeners
+            elements.purposesList.querySelectorAll('.edit-purpose-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const purpose = e.currentTarget.getAttribute('data-purpose');
+                    if (purpose) {
+                        editPurpose(purpose);
+                    }
+                });
+            });
+
+            elements.purposesList.querySelectorAll('.delete-purpose-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const purpose = e.currentTarget.getAttribute('data-purpose');
+                    if (purpose) {
+                        deletePurpose(purpose);
+                    }
+                });
+            });
+        }
+
+        function editPurpose(oldPurpose) {
+            if (!oldPurpose) {
+                return;
+            }
+            
+            const displayName = oldPurpose.split('-').map(word => 
+                word.charAt(0).toUpperCase() + word.slice(1)
+            ).join(' ');
+            
+            const newName = prompt(`Edit purpose name:\n\nCurrent: ${displayName}\n(${oldPurpose})`, displayName);
+            
+            if (!newName || newName.trim() === '') {
+                return;
+            }
+            
+            // Normalize to lowercase with hyphens
+            const normalizedPurpose = newName.toLowerCase().trim().replace(/\s+/g, '-');
+            
+            // Check if the new name already exists (and it's not the same as the old one)
+            const customPurposes = JSON.parse(localStorage.getItem('customPromptPurposes') || '[]');
+            if (customPurposes.includes(normalizedPurpose) && normalizedPurpose !== oldPurpose) {
+                showStatus('A purpose with this name already exists.', 'error');
+                return;
+            }
+            
+            // Update in localStorage
+            const index = customPurposes.indexOf(oldPurpose);
+            if (index !== -1) {
+                customPurposes[index] = normalizedPurpose;
+                localStorage.setItem('customPromptPurposes', JSON.stringify(customPurposes));
+            }
+            
+            // Update dropdown
+            updatePurposeDropdown();
+            
+            // If the current prompt form has this purpose selected, update it
+            if (elements.promptPurposeInput.value === oldPurpose) {
+                elements.promptPurposeInput.value = normalizedPurpose;
+            }
+            
+            // Re-render the list
+            renderPurposesList();
+            
+            // Update filter dropdown
+            updatePurposeFilterDropdown();
+            
+            showStatus('Purpose updated successfully.', 'success');
+            setTimeout(() => showStatus(), 2000);
+        }
+
+        function deletePurpose(purpose) {
+            if (!confirm(`Are you sure you want to delete the purpose "${purpose.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}"?\n\nThis will not affect existing prompts, but you won't be able to select this purpose for new prompts.`)) {
+                return;
+            }
+            
+            // Remove from localStorage
+            const customPurposes = JSON.parse(localStorage.getItem('customPromptPurposes') || '[]');
+            const index = customPurposes.indexOf(purpose);
+            if (index !== -1) {
+                customPurposes.splice(index, 1);
+                localStorage.setItem('customPromptPurposes', JSON.stringify(customPurposes));
+            }
+            
+            // Update dropdown
+            updatePurposeDropdown();
+            
+            // If the current prompt form has this purpose selected, clear it
+            if (elements.promptPurposeInput.value === purpose) {
+                elements.promptPurposeInput.value = '';
+            }
+            
+            // Re-render the list
+            renderPurposesList();
+            
+            // Update filter dropdown
+            updatePurposeFilterDropdown();
+            
+            showStatus('Purpose deleted successfully.', 'success');
+            setTimeout(() => showStatus(), 2000);
+        }
+
+        function updatePurposeDropdown() {
+            // Remove all custom purposes from dropdown
+            const customPurposes = JSON.parse(localStorage.getItem('customPromptPurposes') || '[]');
+            const defaultOptions = ['', 'summarize', 'headlines', 'ux-fixes', 'risk-reversal', 'microcopy'];
+            
+            // Remove all options except defaults
+            Array.from(elements.promptPurposeInput.options).forEach(option => {
+                if (!defaultOptions.includes(option.value)) {
+                    option.remove();
+                }
+            });
+            
+            // Re-add custom purposes
+            loadCustomPurposes();
+            
+            // Also update the filter dropdown
+            updatePurposeFilterDropdown();
+        }
+
+        function updatePurposeFilterDropdown() {
+            const customPurposes = JSON.parse(localStorage.getItem('customPromptPurposes') || '[]');
+            const defaultOptions = ['summarize', 'headlines', 'ux-fixes', 'risk-reversal', 'microcopy'];
+            const allPurposes = [...defaultOptions, ...customPurposes];
+            
+            // Remove all options except "All Purposes"
+            Array.from(elements.purposeFilter.options).forEach(option => {
+                if (option.value !== '') {
+                    option.remove();
+                }
+            });
+            
+            // Re-add all purposes
+            allPurposes.forEach(purpose => {
+                const option = document.createElement('option');
+                option.value = purpose;
+                option.textContent = purpose.split('-').map(word => 
+                    word.charAt(0).toUpperCase() + word.slice(1)
+                ).join(' ');
+                elements.purposeFilter.appendChild(option);
+            });
         }
 
         function closePromptModal() {
@@ -1556,6 +1773,10 @@
             elements.modalBackdrop.classList.remove('visible');
             if (elements.newVersionButton) {
                 elements.newVersionButton.style.display = 'none';
+            }
+            // Close slideout panel if it's open
+            if (elements.slideoutPanel && elements.slideoutPanel.classList.contains('open')) {
+                closeSlideout();
             }
         }
 
@@ -1647,7 +1868,7 @@
                 
                 if (shouldExecute) {
                     const userMessage = elements.userMessageInput.value.trim();
-                    closePromptModal();
+                    // Don't close modal when saving and running - keep it open for iteration
                     await loadPrompts();
                     await executePrompt(savedPrompt.id, userMessage);
                 } else {
@@ -2453,7 +2674,7 @@
         elements.logoutButton.addEventListener('click', logout);
         elements.refreshButton.addEventListener('click', loadInitialData);
         elements.newPromptButton.addEventListener('click', () => openPromptModal('create'));
-        elements.cancelModalButton.addEventListener('click', closePromptModal);
+        elements.modalCloseButton.addEventListener('click', closePromptModal);
         elements.promptForm.addEventListener('submit', handlePromptFormSubmit);
         elements.saveAndRunButton.addEventListener('click', () => {
             state.actionMode = 'save-and-run';
@@ -2518,7 +2739,9 @@
         elements.statusFilter.addEventListener('change', loadPrompts);
         elements.purposeFilter.addEventListener('change', loadPrompts);
         elements.addPurposeButton.addEventListener('click', openAddPurposeModal);
+        elements.managePurposesButton.addEventListener('click', openManagePurposesModal);
         elements.cancelAddPurposeButton.addEventListener('click', closeAddPurposeModal);
+        elements.cancelManagePurposesButton.addEventListener('click', closeManagePurposesModal);
         elements.savePurposeButton.addEventListener('click', handleAddPurpose);
         
         // Allow Enter key to submit add purpose form
@@ -2533,6 +2756,13 @@
         elements.addPurposeModal.addEventListener('click', (event) => {
             if (event.target === elements.addPurposeModal) {
                 closeAddPurposeModal();
+            }
+        });
+
+        // Close manage purposes modal when clicking backdrop
+        elements.managePurposesModal.addEventListener('click', (event) => {
+            if (event.target === elements.managePurposesModal) {
+                closeManagePurposesModal();
             }
         });
 
