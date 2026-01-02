@@ -536,7 +536,10 @@
     </div>
 
     <script>
+        console.log('[IMPERSONATION] Page script loaded');
         const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+        console.log('[IMPERSONATION] API_BASE_URL:', API_BASE_URL);
+        console.log('[IMPERSONATION] window.APP_CONFIG:', window.APP_CONFIG);
 
         const elements = {
             appShell: document.getElementById('appShell'),
@@ -558,35 +561,59 @@
             clearTokenButton: document.getElementById('clearTokenButton'),
         };
 
+        console.log('[IMPERSONATION] Elements initialized:', elements);
+        console.log('[IMPERSONATION] Auth available:', typeof Auth !== 'undefined');
+        if (typeof Auth !== 'undefined') {
+            console.log('[IMPERSONATION] Auth.getAuthHeaders available:', typeof Auth.getAuthHeaders === 'function');
+            console.log('[IMPERSONATION] Auth.checkAuth available:', typeof Auth.checkAuth === 'function');
+            console.log('[IMPERSONATION] Auth.getStoredUserInfo available:', typeof Auth.getStoredUserInfo === 'function');
+        }
+
         let domainCache = [];
         let userRows = [];
         let lastTokenInfo = null;
+        let founderInfo = null;
 
         const authHeaders = () => {
-            return Auth.getAuthHeaders();
+            const headers = Auth.getAuthHeaders();
+            console.log('[IMPERSONATION] authHeaders called, returning:', headers);
+            return headers;
         };
 
         function renderFounderInfo() {
-            if (state.founder?.email) {
+            if (founderInfo?.email) {
                 const emailEl = document.getElementById('founderEmail');
                 if (emailEl) {
-                    emailEl.textContent = state.founder.email;
+                    emailEl.textContent = founderInfo.email;
                 }
             }
         }
 
         function initializePage() {
+            console.log('[IMPERSONATION] initializePage called');
+            console.log('[IMPERSONATION] API_BASE_URL:', API_BASE_URL);
+            console.log('[IMPERSONATION] founderInfo:', founderInfo);
             Auth.hideLogin();
             elements.appShell.style.display = 'block';
             renderFounderInfo();
-            Promise.all([loadAuthorizedDomains(), loadUsers()]);
+            console.log('[IMPERSONATION] Starting data load...');
+            Promise.all([loadAuthorizedDomains(), loadUsers()]).then(() => {
+                console.log('[IMPERSONATION] All data loaded successfully');
+            }).catch((error) => {
+                console.error('[IMPERSONATION] Error during data load:', error);
+            });
         }
 
         // Check authentication on page load
+        console.log('[IMPERSONATION] Starting authentication check...');
         Auth.checkAuth().then(authenticated => {
+            console.log('[IMPERSONATION] checkAuth result:', authenticated);
             if (authenticated) {
                 const userInfo = Auth.getStoredUserInfo();
+                console.log('[IMPERSONATION] Stored userInfo:', userInfo);
+                console.log('[IMPERSONATION] is_founder:', userInfo?.is_founder);
                 if (!userInfo?.is_founder) {
+                    console.warn('[IMPERSONATION] User is not a founder');
                     Auth.showLogin();
                     const errorEl = document.getElementById('loginError');
                     if (errorEl) {
@@ -594,17 +621,29 @@
                         errorEl.style.display = 'block';
                     }
                 } else {
+                    console.log('[IMPERSONATION] User is founder, initializing page');
+                    founderInfo = userInfo;
                     initializePage();
                 }
+            } else {
+                console.log('[IMPERSONATION] User not authenticated');
             }
+        }).catch(error => {
+            console.error('[IMPERSONATION] Error during checkAuth:', error);
         });
 
         // Listen for auth events
         window.addEventListener('auth:authenticated', (e) => {
+            console.log('[IMPERSONATION] auth:authenticated event received');
             const userInfo = e.detail.user;
+            console.log('[IMPERSONATION] Event userInfo:', userInfo);
+            console.log('[IMPERSONATION] Event is_founder:', userInfo?.is_founder);
             if (userInfo?.is_founder) {
+                console.log('[IMPERSONATION] Event: User is founder, initializing page');
+                founderInfo = userInfo;
                 initializePage();
             } else {
+                console.warn('[IMPERSONATION] Event: User is not a founder');
                 Auth.showLogin();
                 const errorEl = document.getElementById('loginError');
                 if (errorEl) {
@@ -620,19 +659,54 @@
         });
 
         async function loadAuthorizedDomains() {
+            console.log('[IMPERSONATION] loadAuthorizedDomains called');
             try {
-                const resp = await fetch(`${API_BASE_URL}/api/founder/authorized-domains`, {
-                    headers: authHeaders(),
+                const url = `${API_BASE_URL}/api/founder/authorized-domains`;
+                const headers = authHeaders();
+                
+                console.log('[IMPERSONATION] Loading domains from URL:', url);
+                console.log('[IMPERSONATION] Request headers:', headers);
+
+                const resp = await fetch(url, {
+                    headers: headers,
                 });
-                if (!resp.ok) throw new Error('Failed to load domains');
+                
+                console.log('[IMPERSONATION] Domains response status:', resp.status);
+                console.log('[IMPERSONATION] Domains response ok:', resp.ok);
+                
+                if (!resp.ok) {
+                    let errorDetail = `${resp.status} ${resp.statusText}`;
+                    try {
+                        const errorText = await resp.text();
+                        console.error('[IMPERSONATION] Domains response error text:', errorText);
+                        try {
+                            const errorJson = JSON.parse(errorText);
+                            console.error('[IMPERSONATION] Domains response error JSON:', errorJson);
+                            errorDetail = errorJson.detail || errorJson.message || errorDetail;
+                        } catch (e) {
+                            errorDetail = errorText || errorDetail;
+                        }
+                    } catch (e) {
+                        console.error('[IMPERSONATION] Could not read domains error response:', e);
+                    }
+                    throw new Error(`Failed to load domains: ${errorDetail}`);
+                }
+                
                 const domains = await resp.json();
+                console.log('[IMPERSONATION] Domains loaded successfully:', domains.length, 'domains');
+                console.log('[IMPERSONATION] Domain data:', domains);
                 domainCache = domains;
                 renderDomainList(domains);
                 populateDomainFilter(domains);
                 populateClientFilter(domains);
             } catch (error) {
-                console.error('Failed to load authorized domains', error);
-                elements.domainList.innerHTML = `<div class="alert alert-error">Unable to load authorized domains.</div>`;
+                console.error('[IMPERSONATION] Failed to load authorized domains', error);
+                console.error('[IMPERSONATION] Error details:', {
+                    message: error.message,
+                    stack: error.stack,
+                    name: error.name
+                });
+                elements.domainList.innerHTML = `<div class="alert alert-error">Unable to load authorized domains. Check console for details.</div>`;
             }
         }
 
@@ -697,6 +771,7 @@
         }
 
         async function loadUsers() {
+            console.log('[IMPERSONATION] loadUsers called');
             try {
                 const params = new URLSearchParams();
                 const search = elements.searchInput.value.trim();
@@ -706,23 +781,63 @@
                 const clientId = elements.clientSelect.value;
                 if (clientId) params.set('client_id', clientId);
 
-                const resp = await fetch(`${API_BASE_URL}/api/founder/users?${params.toString()}`, {
-                    headers: authHeaders(),
+                const url = `${API_BASE_URL}/api/founder/users?${params.toString()}`;
+                const headers = authHeaders();
+                
+                console.log('[IMPERSONATION] Loading users from URL:', url);
+                console.log('[IMPERSONATION] Request headers:', headers);
+                console.log('[IMPERSONATION] Query params:', params.toString());
+
+                const resp = await fetch(url, {
+                    headers: headers,
                 });
-                if (!resp.ok) throw new Error('Failed to load users');
+                
+                console.log('[IMPERSONATION] Response status:', resp.status);
+                console.log('[IMPERSONATION] Response ok:', resp.ok);
+                
+                if (!resp.ok) {
+                    let errorDetail = `${resp.status} ${resp.statusText}`;
+                    try {
+                        const errorText = await resp.text();
+                        console.error('[IMPERSONATION] Response error text:', errorText);
+                        try {
+                            const errorJson = JSON.parse(errorText);
+                            console.error('[IMPERSONATION] Response error JSON:', errorJson);
+                            errorDetail = errorJson.detail || errorJson.message || errorDetail;
+                        } catch (e) {
+                            errorDetail = errorText || errorDetail;
+                        }
+                    } catch (e) {
+                        console.error('[IMPERSONATION] Could not read error response:', e);
+                    }
+                    throw new Error(`Failed to load users: ${errorDetail}`);
+                }
+                
                 userRows = await resp.json();
+                console.log('[IMPERSONATION] Users loaded successfully:', userRows.length, 'users');
+                console.log('[IMPERSONATION] User data:', userRows);
                 renderUsers();
             } catch (error) {
-                console.error('Failed to load users', error);
-                elements.usersTableBody.innerHTML = `<tr><td colspan="5"><div class="alert alert-error">Unable to load users.</div></td></tr>`;
+                console.error('[IMPERSONATION] Failed to load users', error);
+                console.error('[IMPERSONATION] Error details:', {
+                    message: error.message,
+                    stack: error.stack,
+                    name: error.name
+                });
+                elements.usersTableBody.innerHTML = `<tr><td colspan="5"><div class="alert alert-error">Unable to load users. Check console for details.</div></td></tr>`;
             }
         }
 
         function renderUsers() {
+            console.log('[IMPERSONATION] renderUsers called');
+            console.log('[IMPERSONATION] userRows:', userRows);
+            console.log('[IMPERSONATION] userRows length:', userRows.length);
             if (!userRows.length) {
+                console.log('[IMPERSONATION] No users to render, showing empty state');
                 elements.usersTableBody.innerHTML = `<tr><td colspan="5" class="empty-state">No users match your filters.</td></tr>`;
                 return;
             }
+            console.log('[IMPERSONATION] Rendering', userRows.length, 'users');
 
             elements.usersTableBody.innerHTML = userRows.map(user => {
                 const statusPill = user.is_active
@@ -852,7 +967,6 @@
         }
 
         function attachEventListeners() {
-            elements.loginButton.addEventListener('click', loginFounder);
             elements.refreshButton.addEventListener('click', async () => {
                 await Promise.all([loadAuthorizedDomains(), loadUsers()]);
                 clearImpersonationToken();

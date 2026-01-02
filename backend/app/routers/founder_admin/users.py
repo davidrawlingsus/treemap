@@ -1,7 +1,8 @@
 """
 User management routes for founder admin.
 """
-from fastapi import APIRouter, Depends
+import logging
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_, func
 from uuid import UUID
@@ -13,6 +14,7 @@ from app.schemas import FounderUserSummary, FounderUserMembership, ClientRespons
 from app.auth import get_current_active_founder
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def build_founder_user_summary(user: User) -> FounderUserSummary:
@@ -58,38 +60,67 @@ def list_founder_users(
     current_user: User = Depends(get_current_active_founder),
 ):
     """List users with membership metadata for founder tooling."""
-    query = db.query(User)
+    try:
+        logger.info(f"Listing users - search: {search}, domain: {domain}, client_id: {client_id}")
+        query = db.query(User)
 
-    if client_id:
-        query = query.join(Membership, Membership.user_id == User.id).filter(
-            Membership.client_id == client_id
-        )
-
-    if search:
-        normalized = f"%{search.lower()}%"
-        query = query.filter(
-            or_(
-                func.lower(User.email).like(normalized),
-                func.lower(User.name).like(normalized),
+        if client_id:
+            query = query.join(Membership, Membership.user_id == User.id).filter(
+                Membership.client_id == client_id
             )
+
+        if search:
+            normalized = f"%{search.lower()}%"
+            query = query.filter(
+                or_(
+                    func.lower(User.email).like(normalized),
+                    func.lower(User.name).like(normalized),
+                )
+            )
+
+        if domain:
+            normalized_domain = domain.lower()
+            query = query.filter(
+                func.lower(User.email).like(f"%@{normalized_domain}")
+            )
+
+        users = (
+            query.options(
+                joinedload(User.memberships).joinedload(Membership.client)
+            )
+            .order_by(func.lower(User.email))
+            .all()
         )
 
-    if domain:
-        normalized_domain = domain.lower()
-        query = query.filter(
-            func.lower(User.email).like(f"%@{normalized_domain}")
+        logger.info(f"Found {len(users)} users from query")
+
+        # Deduplicate in case joins introduced duplicates
+        unique_users_dict = {user.id: user for user in users}
+        unique_users = list(unique_users_dict.values())
+
+        logger.info(f"After deduplication: {len(unique_users)} unique users")
+
+        result = []
+        for user in unique_users:
+            try:
+                summary = build_founder_user_summary(user)
+                result.append(summary)
+            except Exception as e:
+                logger.error(f"Error building summary for user {user.id} ({user.email}): {str(e)}", exc_info=True)
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Error processing user {user.email}: {str(e)}"
+                )
+
+        logger.info(f"Successfully built {len(result)} user summaries")
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error listing users: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to list users: {str(e)}"
         )
-
-    users = (
-        query.options(
-            joinedload(User.memberships).joinedload(Membership.client)
-        )
-        .order_by(func.lower(User.email))
-        .all()
-    )
-
-    # Deduplicate in case joins introduced duplicates
-    unique_users = {user.id: user for user in users}.values()
-
-    return [build_founder_user_summary(user) for user in unique_users]
 

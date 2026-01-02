@@ -89,6 +89,12 @@ from .action import (
     ActionResponse,
 )
 
+# Resolve forward references after all schemas are imported
+# This is necessary for Pydantic v2 when using forward references
+FounderUserMembership.model_rebuild()
+UserWithClients.model_rebuild()
+FounderUserSummary.model_rebuild()
+
 # Export all for backward compatibility
 __all__ = [
     # Auth
