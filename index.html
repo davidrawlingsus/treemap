@@ -142,6 +142,10 @@
             border-radius: 1px;
         }
 
+        .nav-menu-item.founder-admin.hidden {
+            display: none;
+        }
+
         /* SPA Section Visibility */
         .spa-section {
             display: none !important;
@@ -4920,6 +4924,9 @@
                 <a href="#" class="nav-menu-item" id="navInsights" onclick="navigateToView('insights'); return false;">
                     <span>Insights</span>
                 </a>
+                <a href="/founder_admin.html" class="nav-menu-item founder-admin hidden" id="navFounderAdmin">
+                    <span>Admin</span>
+                </a>
             </div>
         </nav>
         
@@ -5545,6 +5552,11 @@
 
         if (storedHeaderUser) {
             showHeaderUserInfo(storedHeaderUser);
+            // Show/hide founder admin nav item based on stored user info
+            const adminNavItem = document.getElementById('navFounderAdmin');
+            if (adminNavItem && storedHeaderUser.is_founder) {
+                adminNavItem.classList.remove('hidden');
+            }
         } else {
             applyHeaderUserState();
         }
@@ -6139,6 +6151,16 @@
             authenticatedUser = userInfo;
             showHeaderUserInfo(userInfo);
             updateAccessibleClients(userInfo.accessible_clients || []);
+            
+            // Show/hide founder admin nav item
+            const adminNavItem = document.getElementById('navFounderAdmin');
+            if (adminNavItem) {
+                if (userInfo.is_founder) {
+                    adminNavItem.classList.remove('hidden');
+                } else {
+                    adminNavItem.classList.add('hidden');
+                }
+            }
 
             if (accessibleClients.length === 0) {
                 const errorEl = document.getElementById('accountSelectionError');
@@ -6223,6 +6245,12 @@
             accessibleClientIds = new Set();
             authenticatedUser = null;
             hideHeaderUserInfo();
+            
+            // Hide admin nav item on logout
+            const adminNavItem = document.getElementById('navFounderAdmin');
+            if (adminNavItem) {
+                adminNavItem.classList.add('hidden');
+            }
         });
 
         // API Configuration - loaded from server config
