@@ -1,0 +1,423 @@
+/**
+ * Founder Admin Common Utilities
+ * Shared functionality for all founder admin pages
+ */
+
+(function() {
+    'use strict';
+
+    // API Configuration
+    const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+
+    /**
+     * DOM Utilities
+     */
+    const DOM = {
+        /**
+         * Get element by ID with optional error handling
+         * @param {string} id - Element ID
+         * @param {boolean} required - Whether element is required
+         * @returns {HTMLElement|null}
+         */
+        getElement(id, required = true) {
+            const el = document.getElementById(id);
+            if (required && !el) {
+                console.error(`[FOUNDER_ADMIN] Required element not found: #${id}`);
+            }
+            return el;
+        },
+
+        /**
+         * Get multiple elements by IDs
+         * @param {string[]} ids - Array of element IDs
+         * @returns {Object} Object with element IDs as keys
+         */
+        getElements(ids) {
+            const elements = {};
+            ids.forEach(id => {
+                elements[id] = this.getElement(id, false);
+            });
+            return elements;
+        },
+
+        /**
+         * Show status message
+         * @param {HTMLElement} element - Status message element
+         * @param {string} message - Message text
+         * @param {string} type - 'success' or 'error'
+         */
+        showStatus(element, message, type = 'success') {
+            if (!element) return;
+            
+            if (!message) {
+                element.style.display = 'none';
+                element.textContent = '';
+                element.classList.remove('success', 'error');
+                return;
+            }
+
+            element.textContent = message;
+            element.style.display = 'block';
+            element.classList.remove('success', 'error');
+            element.classList.add(type);
+        },
+
+        /**
+         * Escape HTML to prevent XSS
+         * @param {string} text - Text to escape
+         * @returns {string} Escaped HTML
+         */
+        escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        },
+
+        /**
+         * Escape HTML for use in attributes
+         * @param {string} text - Text to escape
+         * @returns {string} Escaped text
+         */
+        escapeHtmlForAttribute(text) {
+            return String(text)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+    };
+
+    /**
+     * API Client with error handling
+     */
+    const API = {
+        /**
+         * Get authentication headers
+         * @returns {Object} Headers object
+         */
+        getAuthHeaders() {
+            return Auth.getAuthHeaders();
+        },
+
+        /**
+         * Make API request with error handling
+         * @param {string} endpoint - API endpoint
+         * @param {Object} options - Fetch options
+         * @returns {Promise} Response data
+         */
+        async request(endpoint, options = {}) {
+            const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+            
+            try {
+                const response = await fetch(url, {
+                    ...options,
+                    headers: {
+                        ...this.getAuthHeaders(),
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    body: options.body ? (typeof options.body === 'string' ? options.body : JSON.stringify(options.body)) : undefined
+                });
+
+                if (!response.ok) {
+                    // Handle auth errors
+                    if (response.status === 401 || response.status === 403) {
+                        Auth.showLogin();
+                        const errorEl = document.getElementById('loginError');
+                        if (errorEl) {
+                            errorEl.textContent = 'Session expired. Please log in again.';
+                            errorEl.style.display = 'block';
+                        }
+                        throw new Error('Authentication required');
+                    }
+
+                    // Try to parse error response
+                    let errorMessage = `Request failed with status ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.detail || errorData.message || errorMessage;
+                    } catch (e) {
+                        const errorText = await response.text();
+                        if (errorText) errorMessage = errorText;
+                    }
+
+                    throw new Error(errorMessage);
+                }
+
+                // Handle empty responses
+                const contentType = response.headers.get('content-type');
+                if (!contentType || !contentType.includes('application/json')) {
+                    return null;
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error('[API] Request failed:', error);
+                throw error;
+            }
+        },
+
+        /**
+         * GET request
+         * @param {string} endpoint - API endpoint
+         * @param {Object} params - Query parameters
+         * @returns {Promise} Response data
+         */
+        async get(endpoint, params = {}) {
+            const queryString = new URLSearchParams(params).toString();
+            const url = queryString ? `${endpoint}?${queryString}` : endpoint;
+            return this.request(url, { method: 'GET' });
+        },
+
+        /**
+         * POST request
+         * @param {string} endpoint - API endpoint
+         * @param {Object} data - Request body
+         * @returns {Promise} Response data
+         */
+        async post(endpoint, data = {}) {
+            return this.request(endpoint, {
+                method: 'POST',
+                body: data
+            });
+        },
+
+        /**
+         * PUT request
+         * @param {string} endpoint - API endpoint
+         * @param {Object} data - Request body
+         * @returns {Promise} Response data
+         */
+        async put(endpoint, data = {}) {
+            return this.request(endpoint, {
+                method: 'PUT',
+                body: data
+            });
+        },
+
+        /**
+         * DELETE request
+         * @param {string} endpoint - API endpoint
+         * @returns {Promise} Response data
+         */
+        async delete(endpoint) {
+            return this.request(endpoint, { method: 'DELETE' });
+        }
+    };
+
+    /**
+     * Authentication Utilities
+     */
+    const AuthUtils = {
+        /**
+         * Wait for Auth module to be ready
+         * @returns {Promise} Resolves when Auth is ready
+         */
+        waitForAuth() {
+            return new Promise((resolve) => {
+                if (typeof Auth !== 'undefined' && typeof Auth.checkAuth === 'function') {
+                    resolve();
+                } else {
+                    const checkInterval = setInterval(() => {
+                        if (typeof Auth !== 'undefined' && typeof Auth.checkAuth === 'function') {
+                            clearInterval(checkInterval);
+                            resolve();
+                        }
+                    }, 50);
+                    
+                    setTimeout(() => {
+                        clearInterval(checkInterval);
+                        console.warn('[FOUNDER_ADMIN] Auth did not load within 2 seconds');
+                        resolve(); // Continue anyway
+                    }, 2000);
+                }
+            });
+        },
+
+        /**
+         * Initialize authentication check for founder pages
+         * @param {Function} onAuthenticated - Callback when authenticated
+         * @param {Function} onUnauthenticated - Callback when not authenticated
+         */
+        async initializeAuth(onAuthenticated, onUnauthenticated) {
+            await this.waitForAuth();
+
+            try {
+                const authenticated = await Auth.checkAuth();
+                
+                if (authenticated) {
+                    const userInfo = Auth.getStoredUserInfo();
+                    
+                    if (!userInfo?.is_founder) {
+                        Auth.showLogin();
+                        const errorEl = document.getElementById('loginError');
+                        if (errorEl) {
+                            errorEl.textContent = 'Access denied: founder privileges required.';
+                            errorEl.style.display = 'block';
+                        }
+                        if (onUnauthenticated) onUnauthenticated();
+                    } else {
+                        if (onAuthenticated) onAuthenticated(userInfo);
+                    }
+                } else {
+                    if (onUnauthenticated) onUnauthenticated();
+                }
+            } catch (error) {
+                console.error('[FOUNDER_ADMIN] Auth initialization error:', error);
+                if (onUnauthenticated) onUnauthenticated();
+            }
+        },
+
+        /**
+         * Setup auth event listeners
+         * @param {Function} onAuthenticated - Callback when authenticated
+         */
+        setupAuthListeners(onAuthenticated) {
+            window.addEventListener('auth:authenticated', (e) => {
+                const userInfo = e.detail.user;
+                if (userInfo?.is_founder) {
+                    if (onAuthenticated) onAuthenticated(userInfo);
+                } else {
+                    Auth.showLogin();
+                    const errorEl = document.getElementById('loginError');
+                    if (errorEl) {
+                        errorEl.textContent = 'Access denied: founder privileges required.';
+                        errorEl.style.display = 'block';
+                    }
+                }
+            });
+        }
+    };
+
+    /**
+     * State Management Utilities
+     */
+    const StateManager = {
+        /**
+         * Create a state manager with event-driven updates
+         * @param {Object} initialState - Initial state object
+         * @returns {Object} State manager instance
+         */
+        create(initialState = {}) {
+            const state = { ...initialState };
+            const listeners = new Map();
+
+            return {
+                /**
+                 * Get state value
+                 * @param {string} key - State key
+                 * @returns {*} State value
+                 */
+                get(key) {
+                    return key ? state[key] : state;
+                },
+
+                /**
+                 * Set state value and notify listeners
+                 * @param {string} key - State key
+                 * @param {*} value - New value
+                 */
+                set(key, value) {
+                    const oldValue = state[key];
+                    state[key] = value;
+                    
+                    // Notify listeners
+                    if (listeners.has(key)) {
+                        listeners.get(key).forEach(callback => {
+                            try {
+                                callback(value, oldValue);
+                            } catch (error) {
+                                console.error(`[StateManager] Listener error for ${key}:`, error);
+                            }
+                        });
+                    }
+
+                    // Dispatch global state change event
+                    window.dispatchEvent(new CustomEvent('state:changed', {
+                        detail: { key, value, oldValue }
+                    }));
+                },
+
+                /**
+                 * Subscribe to state changes
+                 * @param {string} key - State key to watch
+                 * @param {Function} callback - Callback function
+                 * @returns {Function} Unsubscribe function
+                 */
+                subscribe(key, callback) {
+                    if (!listeners.has(key)) {
+                        listeners.set(key, []);
+                    }
+                    listeners.get(key).push(callback);
+
+                    // Return unsubscribe function
+                    return () => {
+                        const callbacks = listeners.get(key);
+                        const index = callbacks.indexOf(callback);
+                        if (index > -1) {
+                            callbacks.splice(index, 1);
+                        }
+                    };
+                },
+
+                /**
+                 * Update multiple state values at once
+                 * @param {Object} updates - Object with key-value pairs
+                 */
+                update(updates) {
+                    Object.keys(updates).forEach(key => {
+                        this.set(key, updates[key]);
+                    });
+                }
+            };
+        }
+    };
+
+    /**
+     * Debounce utility
+     * @param {Function} func - Function to debounce
+     * @param {number} wait - Wait time in milliseconds
+     * @returns {Function} Debounced function
+     */
+    function debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    /**
+     * Throttle utility
+     * @param {Function} func - Function to throttle
+     * @param {number} limit - Time limit in milliseconds
+     * @returns {Function} Throttled function
+     */
+    function throttle(func, limit) {
+        let inThrottle;
+        return function(...args) {
+            if (!inThrottle) {
+                func.apply(this, args);
+                inThrottle = true;
+                setTimeout(() => inThrottle = false, limit);
+            }
+        };
+    }
+
+    // Export to global scope
+    window.FounderAdmin = {
+        DOM,
+        API,
+        AuthUtils,
+        StateManager,
+        debounce,
+        throttle,
+        API_BASE_URL
+    };
+})();
+

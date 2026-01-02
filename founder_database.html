@@ -488,6 +488,11 @@
             background: #c53030;
         }
 
+        .copy-business-summary-btn:hover {
+            opacity: 1 !important;
+            background: #f7fafc;
+        }
+
         @media (max-width: 1024px) {
             .main-content {
                 flex-direction: column;
@@ -879,12 +884,40 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${data.rows.map(row => `
+                                    ${data.rows.map((row, rowIndex) => `
                                         <tr>
                                             ${columns.map(col => {
                                                 const value = row[col.name];
                                                 if (value === null) return '<td style="color: var(--muted);"><em>null</em></td>';
                                                 if (typeof value === 'object') return `<td><pre style="font-size: 11px; margin: 0;">${JSON.stringify(value, null, 2)}</pre></td>`;
+                                                
+                                                // Special handling for business_summary column with copy button
+                                                if (col.name === 'business_summary') {
+                                                    const textValue = String(value);
+                                                    const displayText = textValue.substring(0, 100) + (textValue.length > 100 ? '...' : '');
+                                                    // Encode the full text for safe storage in data attribute
+                                                    const encodedText = btoa(unescape(encodeURIComponent(textValue)));
+                                                    // Escape HTML entities for safe display
+                                                    const escapedDisplayText = displayText
+                                                        .replace(/&/g, '&amp;')
+                                                        .replace(/</g, '&lt;')
+                                                        .replace(/>/g, '&gt;')
+                                                        .replace(/"/g, '&quot;')
+                                                        .replace(/'/g, '&#39;');
+                                                    return `<td style="position: relative;">
+                                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                                            <span style="flex: 1;">${escapedDisplayText}</span>
+                                                            <button class="copy-business-summary-btn" 
+                                                                    data-text="${encodedText}" 
+                                                                    onclick="copyBusinessSummary(this)"
+                                                                    title="Copy full text"
+                                                                    style="background: none; border: 1px solid var(--border); border-radius: 4px; padding: 4px 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; opacity: 0.7; transition: opacity 0.2s, background 0.2s; flex-shrink: 0;">
+                                                                <img src="/images/copy_button.png" alt="Copy" width="14" height="14">
+                                                            </button>
+                                                        </div>
+                                                    </td>`;
+                                                }
+                                                
                                                 return `<td>${String(value).substring(0, 100)}${String(value).length > 100 ? '...' : ''}</td>`;
                                             }).join('')}
                                             <td>
@@ -921,6 +954,31 @@
             currentPage = page;
             if (currentTable) {
                 loadTableDetail(currentTable);
+            }
+        }
+
+        async function copyBusinessSummary(button) {
+            try {
+                const encodedText = button.getAttribute('data-text');
+                if (!encodedText) {
+                    alert('No text to copy');
+                    return;
+                }
+                // Decode the base64 encoded text
+                const textToCopy = decodeURIComponent(escape(atob(encodedText)));
+                await navigator.clipboard.writeText(textToCopy);
+                
+                // Visual feedback - briefly change the button
+                const originalOpacity = button.style.opacity;
+                button.style.opacity = '1';
+                button.style.background = 'var(--success)';
+                setTimeout(() => {
+                    button.style.opacity = originalOpacity || '0.7';
+                    button.style.background = '';
+                }, 200);
+            } catch (error) {
+                console.error('Failed to copy text:', error);
+                alert('Failed to copy text to clipboard. Please try again.');
             }
         }
 

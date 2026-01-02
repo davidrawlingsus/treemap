@@ -133,6 +133,8 @@ class TestSerializeAuthorizedDomain:
         client1.name = "Client B"
         client1.slug = "client-b"
         client1.is_active = True
+        client1.business_summary = None
+        client1.client_url = None
         client1.created_at = now
         client1.updated_at = now
         
@@ -141,6 +143,8 @@ class TestSerializeAuthorizedDomain:
         client2.name = "Client A"
         client2.slug = "client-a"
         client2.is_active = True
+        client2.business_summary = None
+        client2.client_url = None
         client2.created_at = now
         client2.updated_at = now
 
@@ -218,6 +222,8 @@ class TestSerializeAuthorizedDomain:
         client1.name = "Zebra Client"
         client1.slug = "zebra-client"
         client1.is_active = True
+        client1.business_summary = None
+        client1.client_url = None
         client1.created_at = now
         client1.updated_at = now
         
@@ -226,6 +232,8 @@ class TestSerializeAuthorizedDomain:
         client2.name = "apple client"
         client2.slug = "apple-client"
         client2.is_active = True
+        client2.business_summary = None
+        client2.client_url = None
         client2.created_at = now
         client2.updated_at = now
         
@@ -234,6 +242,8 @@ class TestSerializeAuthorizedDomain:
         client3.name = "Banana Client"
         client3.slug = "banana-client"
         client3.is_active = True
+        client3.business_summary = None
+        client3.client_url = None
         client3.created_at = now
         client3.updated_at = now
 
