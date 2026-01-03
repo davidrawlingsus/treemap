@@ -14,12 +14,12 @@ from app.database import get_db
 from app.models import User, Prompt, Client, Action
 from app.schemas import PromptResponse, PromptCreate, PromptUpdate, ActionResponse
 from app.auth import get_current_active_founder
-from app.services.openai_service import OpenAIService
+from app.services.llm_service import LLMService
 
 
-def get_openai_service(request: Request) -> OpenAIService:
-    """Dependency to get OpenAI service from app state"""
-    return request.app.state.openai_service
+def get_llm_service(request: Request) -> LLMService:
+    """Dependency to get LLM service from app state"""
+    return request.app.state.llm_service
 
 
 def get_or_create_prompt_engineering_client(db: Session) -> Client:
@@ -251,21 +251,27 @@ def execute_prompt_for_founder(
     request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_founder),
-    openai_service: OpenAIService = Depends(get_openai_service),
+    llm_service: LLMService = Depends(get_llm_service),
 ):
-    """Execute a prompt by sending it to OpenAI API and save the result to actions table."""
+    """Execute a prompt by sending it to OpenAI or Anthropic API and save the result to actions table."""
     prompt = db.query(Prompt).filter(Prompt.id == prompt_id).first()
     
     if not prompt:
         raise HTTPException(status_code=404, detail="Prompt not found.")
     
     try:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Executing prompt {prompt_id} with model: {prompt.llm_model}, user_message length: {len(payload.user_message) if payload.user_message else 0}")
+        
         # Execute the prompt
-        result = openai_service.execute_prompt(
+        result = llm_service.execute_prompt(
             system_message=prompt.system_message,
             user_message=payload.user_message,
             model=prompt.llm_model
         )
+        
+        logger.info(f"Prompt execution successful. Result keys: {result.keys() if result else 'None'}, content length: {len(result.get('content', '')) if result else 0}")
         
         # Get or create the prompt engineering client
         prompt_engineering_client = get_or_create_prompt_engineering_client(db)

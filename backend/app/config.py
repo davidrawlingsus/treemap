@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     google_oauth_client_id: str | None = Field(default=None)
     google_oauth_client_secret: str | None = Field(default=None)
     additional_cors_origins: str | None = Field(default=None)
+    anthropic_api_key: str | None = Field(default=None)
     founder_admin_password: str = Field(default="tuj@yew2zmw*ZVN8uht")
 
     def get_database_url(self) -> str:

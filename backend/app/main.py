@@ -123,11 +123,22 @@ async def startup_event():
     """Initialize services on startup"""
     settings = get_settings()
     openai_api_key = os.getenv("OPENAI_API_KEY")
+    anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
+    
+    # Initialize OpenAI service for dimension summaries (backward compatibility)
     app.state.openai_service = OpenAIService(
         api_key=openai_api_key,
         model="gpt-4o-mini"
     )
     logger.info(f"OpenAI service initialized: {app.state.openai_service.is_configured()}")
+    
+    # Initialize unified LLM service for prompt engineering
+    from app.services.llm_service import LLMService
+    app.state.llm_service = LLMService(
+        openai_api_key=openai_api_key,
+        anthropic_api_key=anthropic_api_key
+    )
+    logger.info(f"LLM service initialized (OpenAI: {bool(openai_api_key)}, Anthropic: {bool(anthropic_api_key)})")
 
 
 # CORS configuration - allow frontend to communicate with backend

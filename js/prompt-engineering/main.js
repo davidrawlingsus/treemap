@@ -174,23 +174,24 @@
                         this.slideoutManager.setPromptId(promptId);
                         this.slideoutManager.open('LLM Outputs');
                         
-                        // Execute the prompt if userMessage is provided
-                        if (userMessage) {
-                            console.log('[APP] Executing prompt with userMessage...', {
+                        // Execute the prompt (userMessage can be empty - system message alone is valid)
+                        console.log('[APP] Executing prompt...', {
+                            promptId,
+                            userMessage: userMessage ? userMessage.substring(0, 100) + (userMessage.length > 100 ? '...' : '') : 'empty',
+                            userMessageLength: userMessage ? userMessage.length : 0
+                        });
+                        try {
+                            // Pass userMessage even if empty - the backend can handle it
+                            await this.slideoutManager.executePrompt(userMessage || '');
+                            console.log('[APP] Prompt execution completed');
+                        } catch (error) {
+                            console.error('[APP] Prompt execution failed in callback', {
                                 promptId,
-                                userMessageLength: userMessage.length
+                                error: error.message || String(error),
+                                errorResponse: error.response || error.data || 'no response data',
+                                timestamp: new Date().toISOString()
                             });
-                            try {
-                                await this.slideoutManager.executePrompt(userMessage);
-                                console.log('[APP] Prompt execution completed');
-                            } catch (error) {
-                                console.error('[APP] Prompt execution failed in callback', {
-                                    promptId,
-                                    error: error.message || String(error),
-                                    timestamp: new Date().toISOString()
-                                });
-                                // Still show existing results even if execution fails
-                            }
+                            // Still show existing results even if execution fails
                         }
                         
                         console.log('[APP] Displaying all results...');
