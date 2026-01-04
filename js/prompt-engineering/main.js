@@ -370,6 +370,14 @@
                             // Open slideout with results after modal opens
                             setTimeout(async () => {
                                 if (this.slideoutManager) {
+                                    // Find the prompt to get its name and version for filtering
+                                    const prompt = prompts.find(p => p.id === promptId);
+                                    
+                                    // Auto-apply filters for this prompt before opening slideout
+                                    if (this.filterManager && prompt) {
+                                        this.filterManager.applyPromptFilter(prompt.name, prompt.version);
+                                    }
+                                    
                                     this.slideoutManager.setPromptId(promptId);
                                     this.slideoutManager.open('LLM Outputs');
                                     console.log('[APP] Displaying all results when opening slideout from prompt list');

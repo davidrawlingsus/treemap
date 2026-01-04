@@ -260,11 +260,17 @@
 
             state.set('actionMode', 'save-and-run');
             
-            // If editing, open slideout with results
+            // If editing, open slideout with results and apply filters
             if (mode === 'edit' && promptId && window.PromptSlideoutManager) {
                 setTimeout(async () => {
                     const slideoutManager = window.PromptSlideoutManager;
                     slideoutManager.setPromptId(promptId);
+                    
+                    // Auto-apply filters for this prompt before opening slideout
+                    if (window.PromptFilterManager && prompt) {
+                        window.PromptFilterManager.applyPromptFilter(prompt.name, prompt.version);
+                    }
+                    
                     slideoutManager.open('LLM Outputs');
                     console.log('[MODAL] Displaying all results when opening slideout from modal');
                     await slideoutManager.displayAllResults(true, 'modals-openPromptModal');

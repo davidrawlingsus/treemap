@@ -527,6 +527,45 @@
          */
         isOpen() {
             return this.elements.filterDropdown?.style.display !== 'none';
+        },
+
+        /**
+         * Auto-apply filters for a specific prompt
+         * This sets filters to show only results for the given prompt name
+         * @param {string} promptName - The prompt name to filter by
+         * @param {number|null} promptVersion - Optional specific version to filter by
+         */
+        applyPromptFilter(promptName, promptVersion = null) {
+            if (!promptName) return;
+
+            const filterState = state.get('filterState');
+            
+            // Clear existing filters
+            filterState.promptNames.clear();
+            filterState.promptVersions.clear();
+
+            // Set filter for this prompt name
+            filterState.promptNames.add(promptName);
+
+            // If a specific version is provided, also filter by version
+            if (promptVersion !== null && promptVersion !== undefined) {
+                const versionKey = `${promptName}:v${promptVersion}`;
+                filterState.promptVersions.add(versionKey);
+            }
+
+            // Update UI
+            this.updateBadge();
+            this.updateActiveFiltersDisplay();
+            
+            // Refresh filter UI if dropdown is open or slideout is open
+            if (this.isOpen() || (window.PromptEngineeringApp && window.PromptEngineeringApp.slideoutManager && window.PromptEngineeringApp.slideoutManager.slideout?.isOpen())) {
+                this.refreshFilters();
+            }
+
+            // Trigger filter change callback to re-render results
+            if (this.onFilterChange) {
+                this.onFilterChange();
+            }
         }
     };
 
