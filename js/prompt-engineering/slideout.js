@@ -455,7 +455,9 @@
             const contentDiv = outputItem?.querySelector('.prompt-result-content');
             
             if (contentDiv) {
-                const textToCopy = contentDiv.textContent || contentDiv.innerText;
+                // Use raw text from data attribute if available (for streaming items)
+                // Otherwise use textContent which strips HTML tags
+                const textToCopy = contentDiv.dataset.rawText || contentDiv.textContent || contentDiv.innerText;
                 try {
                     await navigator.clipboard.writeText(textToCopy);
                     return true;

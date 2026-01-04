@@ -19,6 +19,143 @@
      */
     const UIRenderer = {
         /**
+         * Convert markdown text to HTML
+         * @param {string} text - Markdown text
+         * @returns {string} HTML string
+         */
+        convertMarkdown(text) {
+            if (!text) return '';
+            
+            // First escape HTML to prevent XSS
+            let html = DOM.escapeHtml(text);
+            
+            // Code blocks first (before other processing)
+            html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+            
+            // Split into lines for block-level processing
+            const lines = html.split('\n');
+            const processedLines = [];
+            let inList = false;
+            let listType = null; // 'ul' or 'ol'
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const trimmed = line.trim();
+                
+                // Headers (must be at start of line)
+                if (/^###\s+/.test(trimmed)) {
+                    if (inList) {
+                        processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+                        inList = false;
+                        listType = null;
+                    }
+                    processedLines.push('<h3>' + trimmed.replace(/^###\s+/, '') + '</h3>');
+                    continue;
+                }
+                if (/^##\s+/.test(trimmed)) {
+                    if (inList) {
+                        processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+                        inList = false;
+                        listType = null;
+                    }
+                    processedLines.push('<h2>' + trimmed.replace(/^##\s+/, '') + '</h2>');
+                    continue;
+                }
+                if (/^#\s+/.test(trimmed)) {
+                    if (inList) {
+                        processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+                        inList = false;
+                        listType = null;
+                    }
+                    processedLines.push('<h1>' + trimmed.replace(/^#\s+/, '') + '</h1>');
+                    continue;
+                }
+                
+                // Unordered list
+                if (/^[\-\*]\s+/.test(trimmed)) {
+                    if (!inList || listType !== 'ul') {
+                        if (inList && listType === 'ol') {
+                            processedLines.push('</ol>');
+                        }
+                        processedLines.push('<ul>');
+                        inList = true;
+                        listType = 'ul';
+                    }
+                    processedLines.push('<li>' + trimmed.replace(/^[\-\*]\s+/, '') + '</li>');
+                    continue;
+                }
+                
+                // Ordered list
+                if (/^\d+\.\s+/.test(trimmed)) {
+                    if (!inList || listType !== 'ol') {
+                        if (inList && listType === 'ul') {
+                            processedLines.push('</ul>');
+                        }
+                        processedLines.push('<ol>');
+                        inList = true;
+                        listType = 'ol';
+                    }
+                    processedLines.push('<li>' + trimmed.replace(/^\d+\.\s+/, '') + '</li>');
+                    continue;
+                }
+                
+                // Empty line
+                if (trimmed === '') {
+                    if (inList) {
+                        processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+                        inList = false;
+                        listType = null;
+                    }
+                    processedLines.push('');
+                    continue;
+                }
+                
+                // Regular text line
+                if (inList) {
+                    processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+                    inList = false;
+                    listType = null;
+                }
+                processedLines.push(line);
+            }
+            
+            // Close any open list
+            if (inList) {
+                processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+            }
+            
+            html = processedLines.join('\n');
+            
+            // Process inline formatting
+            // Bold: **text** -> <strong>text</strong> (do this first)
+            html = html.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
+            
+            // Italic: *text* -> <em>text</em> (after bold, so we don't match **)
+            html = html.replace(/\*([^*\n]+?)\*/g, '<em>$1</em>');
+            
+            // Inline code: `code` -> <code>code</code> (but not inside <pre>)
+            html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+            
+            // Convert double newlines to paragraph breaks, single newlines to <br>
+            // But preserve block elements
+            html = html.split('\n\n').map(block => {
+                const trimmed = block.trim();
+                if (!trimmed) return '';
+                
+                // Don't wrap block elements in paragraphs
+                if (trimmed.match(/^<(h[1-3]|ul|ol|pre|li)/)) {
+                    return block;
+                }
+                
+                // Convert single newlines to <br> within paragraphs
+                const withBreaks = trimmed.replace(/\n/g, '<br>');
+                return '<p>' + withBreaks + '</p>';
+            }).join('');
+            
+            return html;
+        },
+
+        /**
          * Render prompts list
          * @param {HTMLElement} container - Container element
          * @param {Function} onEditClick - Callback when edit button is clicked
@@ -231,14 +368,18 @@
                 });
             });
 
-            // Auto-scroll to bottom
-            requestAnimationFrame(() => {
+            // Auto-scroll to bottom only if user was already at bottom
+            // This prevents interrupting reading when results are refreshed
+            const wasAtBottom = this._isAtBottom(container, 100); // 100px threshold for refresh scenarios
+            if (wasAtBottom) {
                 requestAnimationFrame(() => {
-                    if (container) {
-                        container.scrollTop = container.scrollHeight;
-                    }
+                    requestAnimationFrame(() => {
+                        if (container) {
+                            container.scrollTop = container.scrollHeight;
+                        }
+                    });
                 });
-            });
+            }
         },
 
         /**
@@ -330,7 +471,7 @@
                             </button>
                         </div>
                     </div>
-                    <div class="prompt-result-content">${DOM.escapeHtml(content)}</div>
+                    <div class="prompt-result-content" data-raw-text="${DOM.escapeHtmlForAttribute(content)}">${this.convertMarkdown(content)}</div>
                 </div>
             `;
         },
@@ -434,7 +575,7 @@
 
             const itemHTML = `
                 <div class="prompt-output-item" data-streaming-id="${streamingId}" data-prompt-name="${DOM.escapeHtmlForAttribute(promptName)}" data-prompt-version="${promptVersion || ''}">
-                    <div class="prompt-output-header">
+                    <div class="prompt-output-header" data-streaming-header="${streamingId}">
                         <div class="prompt-output-meta">
                             <div style="margin-bottom: 4px;">
                                 <strong>${DOM.escapeHtml(promptName)} ${versionStr}</strong>
@@ -454,7 +595,7 @@
                             <div class="ai-loading-spinner" style="width: 16px; height: 16px; border-width: 2px; margin-right: 8px;"></div>
                         </div>
                     </div>
-                    <div class="prompt-result-content" data-streaming-content="${streamingId}" style="font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word;"></div>
+                    <div class="prompt-result-content" data-streaming-content="${streamingId}"></div>
                 </div>
             `;
 
@@ -464,14 +605,112 @@
             const itemElement = tempDiv.firstElementChild;
             container.appendChild(itemElement);
 
-            // Auto-scroll to bottom
+            // Initialize auto-scroll state: enabled by default, user can disable by scrolling
+            itemElement.dataset.autoScrollEnabled = 'true';
+            itemElement.dataset.lastScrollTop = container.scrollTop.toString();
+
+            // Add scroll event listener to detect manual scrolling
+            let scrollTimeout = null;
+            const handleScroll = () => {
+                const currentScrollTop = container.scrollTop;
+                const lastScrollTop = parseFloat(itemElement.dataset.lastScrollTop || '0');
+                
+                // If user scrolled up manually, disable auto-scroll
+                if (currentScrollTop < lastScrollTop - 5) { // 5px threshold to account for minor adjustments
+                    console.log('[UI] User scrolled up manually, disabling auto-scroll for streaming item', {
+                        streamingId,
+                        currentScrollTop,
+                        lastScrollTop
+                    });
+                    itemElement.dataset.autoScrollEnabled = 'false';
+                }
+                
+                itemElement.dataset.lastScrollTop = currentScrollTop.toString();
+                
+                // Clear timeout and set new one to detect when scrolling stops
+                clearTimeout(scrollTimeout);
+                scrollTimeout = setTimeout(() => {
+                    // After scrolling stops, check if user is at bottom
+                    const isAtBottom = this._isAtBottom(container);
+                    if (isAtBottom) {
+                        // Re-enable auto-scroll if user scrolled back to bottom
+                        console.log('[UI] User scrolled back to bottom, re-enabling auto-scroll', { streamingId });
+                        itemElement.dataset.autoScrollEnabled = 'true';
+                    }
+                }, 150);
+            };
+
+            container.addEventListener('scroll', handleScroll, { passive: true });
+            
+            // Store cleanup function on element
+            itemElement._cleanupScrollListener = () => {
+                container.removeEventListener('scroll', handleScroll);
+                if (scrollTimeout) clearTimeout(scrollTimeout);
+            };
+
+            // Initial scroll to bottom
             requestAnimationFrame(() => {
                 if (container) {
                     container.scrollTop = container.scrollHeight;
+                    itemElement.dataset.lastScrollTop = container.scrollTop.toString();
                 }
             });
 
             return itemElement;
+        },
+
+        /**
+         * Check if container is scrolled to bottom (within threshold)
+         * @param {HTMLElement} container - Container element
+         * @param {number} threshold - Threshold in pixels (default: 50)
+         * @returns {boolean} True if at bottom
+         */
+        _isAtBottom(container, threshold = 50) {
+            if (!container) return false;
+            const scrollTop = container.scrollTop;
+            const scrollHeight = container.scrollHeight;
+            const clientHeight = container.clientHeight;
+            const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+            return distanceFromBottom <= threshold;
+        },
+
+        /**
+         * Check if streaming header is at or above the top of the container viewport
+         * Uses getBoundingClientRect to check when header aligns with container top
+         * @param {HTMLElement} itemElement - Streaming item element
+         * @param {HTMLElement} container - Container element
+         * @returns {boolean} True if header is at or above top of viewport
+         */
+        _isHeaderAtTop(itemElement, container) {
+            if (!itemElement || !container) return false;
+            
+            const header = itemElement.querySelector('[data-streaming-header]');
+            if (!header) return false;
+
+            // Use getBoundingClientRect to get current viewport positions
+            const containerRect = container.getBoundingClientRect();
+            const headerRect = header.getBoundingClientRect();
+            
+            // When the header reaches the top of the container, headerRect.top should equal containerRect.top
+            // We want to stop when header's top edge is at or just above the container's top edge
+            // Add a small threshold to account for subpixel rendering and rounding
+            const threshold = 3;
+            const headerTopRelativeToContainer = headerRect.top - containerRect.top;
+            const isAtTop = headerTopRelativeToContainer <= threshold;
+            
+            // Only log when we're close to the top to avoid spam
+            if (headerTopRelativeToContainer <= 50) {
+                console.log('[UI] Header position check', {
+                    headerTop: headerRect.top,
+                    containerTop: containerRect.top,
+                    headerTopRelativeToContainer,
+                    scrollTop: container.scrollTop,
+                    isAtTop,
+                    threshold
+                });
+            }
+            
+            return isAtTop;
         },
 
         /**
@@ -483,18 +722,65 @@
             if (!itemElement || !chunk) return;
 
             const contentElement = itemElement.querySelector(`[data-streaming-content]`);
-            if (contentElement) {
-                // Append chunk (escape HTML for safety)
-                contentElement.textContent += chunk;
+            if (!contentElement) return;
 
-                // Auto-scroll to bottom
-                const container = itemElement.closest('.slideout-content') || itemElement.parentElement;
-                if (container) {
+            // Accumulate text for markdown rendering
+            // Store raw text in a data attribute for accumulation
+            const currentText = contentElement.dataset.rawText || '';
+            const newText = currentText + chunk;
+            contentElement.dataset.rawText = newText;
+
+            // Render markdown and update innerHTML
+            contentElement.innerHTML = this.convertMarkdown(newText);
+
+            // Check if auto-scroll is enabled
+            const autoScrollEnabled = itemElement.dataset.autoScrollEnabled === 'true';
+            if (!autoScrollEnabled) {
+                // Auto-scroll disabled, don't scroll
+                return;
+            }
+
+            const container = itemElement.closest('.slideout-content') || itemElement.parentElement;
+            if (!container) return;
+
+            // Check if user is at bottom before auto-scrolling
+            const isAtBottom = this._isAtBottom(container);
+            if (!isAtBottom) {
+                // User is not at bottom, don't auto-scroll
+                console.log('[UI] User not at bottom, skipping auto-scroll', {
+                    streamingId: itemElement.dataset.streamingId,
+                    scrollTop: container.scrollTop,
+                    scrollHeight: container.scrollHeight,
+                    clientHeight: container.clientHeight
+                });
+                return;
+            }
+
+            // User is at bottom and auto-scroll is enabled, scroll to bottom
+            // But first check if header will reach top after this scroll
+            requestAnimationFrame(() => {
+                if (container && itemElement.dataset.autoScrollEnabled === 'true') {
+                    // Store current scroll position
+                    const scrollBefore = container.scrollTop;
+                    
+                    // Scroll to bottom
+                    container.scrollTop = container.scrollHeight;
+                    itemElement.dataset.lastScrollTop = container.scrollTop.toString();
+                    
+                    // Check if header is now at top AFTER scrolling
+                    // Use requestAnimationFrame to ensure DOM has updated
                     requestAnimationFrame(() => {
-                        container.scrollTop = container.scrollHeight;
+                        if (this._isHeaderAtTop(itemElement, container)) {
+                            console.log('[UI] Streaming header reached top of viewport after scroll, disabling auto-scroll', {
+                                streamingId: itemElement.dataset.streamingId,
+                                scrollBefore,
+                                scrollAfter: container.scrollTop
+                            });
+                            itemElement.dataset.autoScrollEnabled = 'false';
+                        }
                     });
                 }
-            }
+            });
         },
 
         /**
@@ -505,14 +791,25 @@
         finalizeStreamingItem(itemElement, metadata = {}) {
             if (!itemElement) return;
 
+            // Clean up scroll listener
+            if (itemElement._cleanupScrollListener) {
+                itemElement._cleanupScrollListener();
+                delete itemElement._cleanupScrollListener;
+            }
+
             // Remove streaming ID attribute
             const streamingId = itemElement.getAttribute('data-streaming-id');
             if (streamingId) {
                 itemElement.removeAttribute('data-streaming-id');
             }
 
+            // Remove streaming header attribute
+            const header = itemElement.querySelector('[data-streaming-header]');
+            if (header) {
+                header.removeAttribute('data-streaming-header');
+            }
+
             // Update header to remove loading indicator and add metadata
-            const header = itemElement.querySelector('.prompt-output-header');
             const metaDiv = header?.querySelector('.prompt-output-meta > div');
             const actionsDiv = header?.querySelector('.prompt-output-actions');
 
@@ -555,6 +852,10 @@
             if (contentElement) {
                 contentElement.removeAttribute('data-streaming-content');
             }
+
+            // Clean up auto-scroll tracking attributes
+            delete itemElement.dataset.autoScrollEnabled;
+            delete itemElement.dataset.lastScrollTop;
         }
     };
 
