@@ -182,8 +182,9 @@
                         });
                         try {
                             // Pass userMessage even if empty - the backend can handle it
+                            // Note: executePrompt() now uses streaming and will call displayAllResults() itself
                             await this.slideoutManager.executePrompt(userMessage || '');
-                            console.log('[APP] Prompt execution completed');
+                            console.log('[APP] Prompt execution completed (streaming will refresh results automatically)');
                         } catch (error) {
                             console.error('[APP] Prompt execution failed in callback', {
                                 promptId,
@@ -192,11 +193,15 @@
                                 timestamp: new Date().toISOString()
                             });
                             // Still show existing results even if execution fails
+                            console.log('[APP] Displaying all results after error...');
+                            await this.slideoutManager.displayAllResults(true, 'main-onPromptExecuted-error');
+                            console.log('[APP] Results displayed after error');
                         }
                         
-                        console.log('[APP] Displaying all results...');
-                        await this.slideoutManager.displayAllResults();
-                        console.log('[APP] Results displayed');
+                        // Note: We no longer call displayAllResults() here because executePrompt() 
+                        // uses streaming and will refresh results automatically after streaming completes
+                        // This prevents the double flash of the loading state
+                        console.log('[APP] Skipping displayAllResults() call - streaming will handle refresh');
                         
                         // Refresh filters after displaying results
                         if (this.filterManager) {
@@ -367,7 +372,8 @@
                                 if (this.slideoutManager) {
                                     this.slideoutManager.setPromptId(promptId);
                                     this.slideoutManager.open('LLM Outputs');
-                                    await this.slideoutManager.displayAllResults();
+                                    console.log('[APP] Displaying all results when opening slideout from prompt list');
+                                    await this.slideoutManager.displayAllResults(true, 'main-onEditClick');
                                 }
                             }, 50);
                         },

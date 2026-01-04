@@ -266,7 +266,8 @@
                     const slideoutManager = window.PromptSlideoutManager;
                     slideoutManager.setPromptId(promptId);
                     slideoutManager.open('LLM Outputs');
-                    await slideoutManager.displayAllResults();
+                    console.log('[MODAL] Displaying all results when opening slideout from modal');
+                    await slideoutManager.displayAllResults(true, 'modals-openPromptModal');
                 }, 50);
             }
             

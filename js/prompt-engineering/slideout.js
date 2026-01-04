@@ -144,7 +144,7 @@
                     },
                     // onDone
                     (metadata) => {
-                        console.log('[SLIDEOUT] Streaming completed', {
+                        console.log('[SLIDEOUT] Streaming completed (executePrompt)', {
                             promptId,
                             tokens_used: metadata.tokens_used,
                             model: metadata.model,
@@ -152,9 +152,14 @@
                         });
                         UIRenderer.finalizeStreamingItem(streamingItem, metadata);
                         
-                        // Refresh results silently to get the saved action (no loading flash)
+                        // Refresh results to get the saved action (without showing loading state)
+                        console.log('[SLIDEOUT] Scheduling displayAllResults() after streaming (executePrompt)', {
+                            delay: 500,
+                            timestamp: new Date().toISOString()
+                        });
                         setTimeout(() => {
-                            this.displayAllResults(false);
+                            console.log('[SLIDEOUT] Calling displayAllResults() after streaming timeout (executePrompt)');
+                            this.displayAllResults(false, 'executePrompt-onDone');
                         }, 500);
                     },
                     // onError
@@ -190,19 +195,41 @@
         /**
          * Display all prompt results
          * @param {boolean} showLoading - Whether to show loading state (default: true)
+         * @param {string} caller - Name of the calling function for debugging
          */
-        async displayAllResults(showLoading = true) {
+        async displayAllResults(showLoading = true, caller = 'unknown') {
+            console.log('[SLIDEOUT] displayAllResults() called', {
+                showLoading,
+                caller,
+                timestamp: new Date().toISOString(),
+                stackTrace: new Error().stack
+            });
+
             const content = this.slideout?.getContent();
-            if (!content) return;
+            if (!content) {
+                console.warn('[SLIDEOUT] displayAllResults() - No content element available');
+                return;
+            }
 
             if (showLoading) {
+                console.log('[SLIDEOUT] displayAllResults() - Showing loading state', { caller });
                 UIRenderer.renderLoading(content, 'Loading execution history...');
+            } else {
+                console.log('[SLIDEOUT] displayAllResults() - Skipping loading state', { caller });
             }
 
             try {
+                console.log('[SLIDEOUT] displayAllResults() - Fetching all actions', { caller });
                 const allActions = await PromptAPI.getAllActions();
+                console.log('[SLIDEOUT] displayAllResults() - Fetched actions', {
+                    caller,
+                    actionCount: allActions?.length || 0,
+                    timestamp: new Date().toISOString()
+                });
+                
                 state.set('allActions', allActions);
 
+                console.log('[SLIDEOUT] displayAllResults() - Rendering actions', { caller });
                 // Render results with handlers
                 UIRenderer.renderActions(
                     content, 
@@ -218,7 +245,7 @@
                         try {
                             await this.handleDelete(actionId);
                             // Refresh results after delete
-                            await this.displayAllResults();
+                            await this.displayAllResults(true, 'handleDelete');
                             if (window.PromptModalManager) {
                                 window.PromptModalManager.showStatus('Execution result deleted', 'success');
                                 setTimeout(() => window.PromptModalManager.hideStatus(), 2000);
@@ -232,15 +259,23 @@
                     }
                 );
 
+                console.log('[SLIDEOUT] displayAllResults() - Actions rendered', { caller });
+
                 // Notify that results are updated (for filters)
                 if (this.onResultsUpdate) {
+                    console.log('[SLIDEOUT] displayAllResults() - Notifying results update', { caller });
                     this.onResultsUpdate(allActions);
                 }
+
+                console.log('[SLIDEOUT] displayAllResults() - Completed successfully', { caller });
             } catch (error) {
-                console.error('[SLIDEOUT] Failed to load execution history:', error);
-                if (showLoading) {
-                    UIRenderer.renderError(content, error.message || 'Failed to load execution history');
-                }
+                console.error('[SLIDEOUT] displayAllResults() - Failed to load execution history', {
+                    caller,
+                    error: error.message || String(error),
+                    errorStack: error.stack,
+                    timestamp: new Date().toISOString()
+                });
+                UIRenderer.renderError(content, error.message || 'Failed to load execution history');
             }
         },
 
@@ -338,7 +373,7 @@
                     },
                     // onDone
                     (metadata) => {
-                        console.log('[SLIDEOUT] Streaming completed', {
+                        console.log('[SLIDEOUT] Streaming completed (handleChatSubmit)', {
                             promptId,
                             tokens_used: metadata.tokens_used,
                             model: metadata.model,
@@ -359,9 +394,14 @@
                             }
                         }, 2000);
 
-                        // Refresh results silently to get the saved action (no loading flash)
+                        // Refresh results to get the saved action (without showing loading state)
+                        console.log('[SLIDEOUT] Scheduling displayAllResults() after streaming (handleChatSubmit)', {
+                            delay: 500,
+                            timestamp: new Date().toISOString()
+                        });
                         setTimeout(() => {
-                            this.displayAllResults(false);
+                            console.log('[SLIDEOUT] Calling displayAllResults() after streaming timeout (handleChatSubmit)');
+                            this.displayAllResults(false, 'handleChatSubmit-onDone');
                         }, 500);
                     },
                     // onError
