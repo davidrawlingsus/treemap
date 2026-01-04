@@ -85,8 +85,58 @@
                     continue;
                 }
                 
-                // Ordered list
+                // Ordered list - but check if it's actually a section header
                 if (/^\d+\.\s+/.test(trimmed)) {
+                    // Intent-aware parsing: detect section headers vs ordered list items
+                    const listItemText = trimmed.replace(/^\d+\.\s+/, '');
+                    const endsWithColon = listItemText.endsWith(':');
+                    const isNumberOne = /^1\.\s+/.test(trimmed);
+                    
+                    // Look ahead to see what comes next
+                    let followedByBulletList = false;
+                    let followedByOrderedItem = false;
+                    let nextOrderedIsAlsoOne = false;
+                    let nextNonEmptyLine = null;
+                    
+                    for (let j = i + 1; j < lines.length; j++) {
+                        const nextTrimmed = lines[j].trim();
+                        if (nextTrimmed === '') continue;
+                        nextNonEmptyLine = nextTrimmed;
+                        
+                        // Check if next line is a bullet (unordered list)
+                        if (/^[\-\*]\s+/.test(nextTrimmed)) {
+                            followedByBulletList = true;
+                        }
+                        // Check if next line is an ordered list item
+                        if (/^\d+\.\s+/.test(nextTrimmed)) {
+                            followedByOrderedItem = true;
+                            // Check if it's also "1."
+                            if (/^1\.\s+/.test(nextTrimmed)) {
+                                nextOrderedIsAlsoOne = true;
+                            }
+                        }
+                        break;
+                    }
+                    
+                    // Treat as section heading if:
+                    // 1. Ends with colon AND followed by bullet list, OR
+                    // 2. Is "1." AND next ordered item is also "1." (repeated numbering = separate sections)
+                    const shouldBeHeading = (endsWithColon && followedByBulletList) || 
+                                          (isNumberOne && nextOrderedIsAlsoOne && !followedByBulletList);
+                    
+                    if (shouldBeHeading) {
+                        // Close any open list
+                        if (inList) {
+                            processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+                            inList = false;
+                            listType = null;
+                        }
+                        // Treat as h3 heading
+                        processedLines.push('<h3>' + listItemText + '</h3>');
+                        continue;
+                    }
+                    
+                    // Otherwise, treat as normal ordered list item
                     if (!inList || listType !== 'ol') {
                         if (inList && listType === 'ul') {
                             processedLines.push('</ul>');
@@ -95,7 +145,7 @@
                         inList = true;
                         listType = 'ol';
                     }
-                    processedLines.push('<li>' + trimmed.replace(/^\d+\.\s+/, '') + '</li>');
+                    processedLines.push('<li>' + listItemText + '</li>');
                     continue;
                 }
                 
@@ -137,7 +187,7 @@
             html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
             
             // Convert double newlines to paragraph breaks, single newlines to <br>
-            // But preserve block elements
+            // But preserve block elements and don't add breaks inside lists
             html = html.split('\n\n').map(block => {
                 const trimmed = block.trim();
                 if (!trimmed) return '';
@@ -151,6 +201,11 @@
                 const withBreaks = trimmed.replace(/\n/g, '<br>');
                 return '<p>' + withBreaks + '</p>';
             }).join('');
+            
+            // Remove <br> tags that appear between list items (inside <ul> or <ol>)
+            html = html.replace(/(<\/li>)\s*<br>\s*(<li>)/g, '$1$2');
+            html = html.replace(/(<ul>|<ol>)\s*<br>\s*/g, '$1');
+            html = html.replace(/\s*<br>\s*(<\/ul>|<\/ol>)/g, '$1');
             
             return html;
         },
@@ -341,6 +396,49 @@
             // Attach system message toggle listeners
             this.attachSystemMessageToggles(container);
 
+            // Get all action items for navigation
+            const actionItems = Array.from(container.querySelectorAll('.prompt-output-item'));
+            
+            // Attach navigation button listeners
+            actionItems.forEach((itemElement, index) => {
+                const prevButton = itemElement.querySelector('.btn-nav-prev');
+                const nextButton = itemElement.querySelector('.btn-nav-next');
+                
+                // Disable prev button for first item
+                if (prevButton) {
+                    if (index === 0) {
+                        prevButton.disabled = true;
+                        prevButton.style.opacity = '0.3';
+                        prevButton.style.cursor = 'not-allowed';
+                    } else {
+                        prevButton.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            const prevItem = actionItems[index - 1];
+                            if (prevItem) {
+                                prevItem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }
+                        });
+                    }
+                }
+                
+                // Disable next button for last item
+                if (nextButton) {
+                    if (index === actionItems.length - 1) {
+                        nextButton.disabled = true;
+                        nextButton.style.opacity = '0.3';
+                        nextButton.style.cursor = 'not-allowed';
+                    } else {
+                        nextButton.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            const nextItem = actionItems[index + 1];
+                            if (nextItem) {
+                                nextItem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                            }
+                        });
+                    }
+                }
+            });
+
             // Attach copy and delete button listeners
             container.querySelectorAll('.btn-copy-output').forEach(button => {
                 button.addEventListener('click', async (e) => {
@@ -463,6 +561,12 @@
                             ` : ''}
                         </div>
                         <div class="prompt-output-actions">
+                            <button class="btn-nav-prev" data-action-id="${action.id}" title="Previous message">
+                                <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1767496461750-8ikag.png" alt="Previous" width="16" height="16">
+                            </button>
+                            <button class="btn-nav-next" data-action-id="${action.id}" title="Next message">
+                                <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1767496465023-xx3hee.png" alt="Next" width="16" height="16">
+                            </button>
                             <button class="btn-copy-output" data-action-id="${action.id}" title="Copy to clipboard">
                                 <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/copy_button.png" alt="Copy" width="16" height="16">
                             </button>
@@ -838,6 +942,12 @@
             // Remove loading spinner and add action buttons
             if (actionsDiv) {
                 actionsDiv.innerHTML = `
+                    <button class="btn-nav-prev" data-action-id="streaming-${streamingId}" title="Previous message">
+                        <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1767496461750-8ikag.png" alt="Previous" width="16" height="16">
+                    </button>
+                    <button class="btn-nav-next" data-action-id="streaming-${streamingId}" title="Next message">
+                        <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1767496465023-xx3hee.png" alt="Next" width="16" height="16">
+                    </button>
                     <button class="btn-copy-output" data-action-id="streaming-${streamingId}" title="Copy to clipboard">
                         <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/copy_button.png" alt="Copy" width="16" height="16">
                     </button>
