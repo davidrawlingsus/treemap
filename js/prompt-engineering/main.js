@@ -100,6 +100,7 @@
                 saveButtonMenu: DOM.getElement('saveButtonMenu'),
                 saveChangesButton: DOM.getElement('saveChangesButton'),
                 newVersionButton: DOM.getElement('newVersionButton'),
+                deletePromptButton: DOM.getElement('deletePromptButton'),
                 // Slideout elements
                 slideoutPanel: DOM.getElement('slideoutPanel'),
                 slideoutOverlay: DOM.getElement('slideoutOverlay'),

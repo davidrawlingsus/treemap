@@ -143,6 +143,13 @@
                 });
             }
 
+            // Delete prompt button
+            if (this.elements.deletePromptButton) {
+                this.elements.deletePromptButton.addEventListener('click', () => {
+                    this.handleDeletePrompt();
+                });
+            }
+
             // Purpose modals
             if (this.elements.addPurposeButton) {
                 this.elements.addPurposeButton.addEventListener('click', () => {
@@ -232,6 +239,11 @@
                     this.elements.newVersionButton.style.display = 'block';
                 }
 
+                // Show delete button
+                if (this.elements.deletePromptButton) {
+                    this.elements.deletePromptButton.style.display = 'inline-flex';
+                }
+
                 // Set prompt ID for slideout
                 state.set('slideoutPromptId', promptId);
             } else {
@@ -251,6 +263,11 @@
                 // Hide "New Version" button
                 if (this.elements.newVersionButton) {
                     this.elements.newVersionButton.style.display = 'none';
+                }
+
+                // Hide delete button
+                if (this.elements.deletePromptButton) {
+                    this.elements.deletePromptButton.style.display = 'none';
                 }
             }
 
@@ -298,6 +315,10 @@
 
             if (this.elements.newVersionButton) {
                 this.elements.newVersionButton.style.display = 'none';
+            }
+
+            if (this.elements.deletePromptButton) {
+                this.elements.deletePromptButton.style.display = 'none';
             }
 
             // Close slideout if open
@@ -348,6 +369,55 @@
             // Hide "New Version" button
             if (this.elements.newVersionButton) {
                 this.elements.newVersionButton.style.display = 'none';
+            }
+
+            // Hide delete button
+            if (this.elements.deletePromptButton) {
+                this.elements.deletePromptButton.style.display = 'none';
+            }
+        },
+
+        /**
+         * Handle delete prompt
+         */
+        async handleDeletePrompt() {
+            const currentPromptId = state.get('currentPromptId');
+            if (!currentPromptId) {
+                this.showStatus('No prompt selected to delete.', 'error');
+                return;
+            }
+
+            const prompts = state.get('prompts') || [];
+            const prompt = prompts.find((item) => item.id === currentPromptId);
+            
+            if (!prompt) {
+                this.showStatus('Prompt could not be found.', 'error');
+                return;
+            }
+
+            const confirmMessage = `Are you sure you want to delete "${prompt.name}" (v${prompt.version})?\n\nThis action cannot be undone.`;
+            if (!confirm(confirmMessage)) {
+                return;
+            }
+
+            try {
+                // Delete the prompt
+                await PromptAPI.delete(currentPromptId);
+                
+                // Close the modal (this also closes the slideout)
+                this.closePromptModal();
+                
+                // Refresh prompts list to remove the deleted card
+                if (this.onPromptSaved) {
+                    await this.onPromptSaved();
+                }
+                
+                // Show success message on main page
+                this.showStatus('Prompt deleted successfully.', 'success');
+                setTimeout(() => this.hideStatus(), 2000);
+            } catch (error) {
+                console.error('[MODALS] Prompt delete failed:', error);
+                this.showStatus(error.message || 'Unable to delete prompt.', 'error');
             }
         },
 
