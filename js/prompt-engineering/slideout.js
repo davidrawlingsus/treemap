@@ -152,9 +152,9 @@
                         });
                         UIRenderer.finalizeStreamingItem(streamingItem, metadata);
                         
-                        // Refresh results to get the saved action
+                        // Refresh results silently to get the saved action (no loading flash)
                         setTimeout(() => {
-                            this.displayAllResults();
+                            this.displayAllResults(false);
                         }, 500);
                     },
                     // onError
@@ -189,12 +189,15 @@
 
         /**
          * Display all prompt results
+         * @param {boolean} showLoading - Whether to show loading state (default: true)
          */
-        async displayAllResults() {
+        async displayAllResults(showLoading = true) {
             const content = this.slideout?.getContent();
             if (!content) return;
 
-            UIRenderer.renderLoading(content, 'Loading execution history...');
+            if (showLoading) {
+                UIRenderer.renderLoading(content, 'Loading execution history...');
+            }
 
             try {
                 const allActions = await PromptAPI.getAllActions();
@@ -235,7 +238,9 @@
                 }
             } catch (error) {
                 console.error('[SLIDEOUT] Failed to load execution history:', error);
-                UIRenderer.renderError(content, error.message || 'Failed to load execution history');
+                if (showLoading) {
+                    UIRenderer.renderError(content, error.message || 'Failed to load execution history');
+                }
             }
         },
 
@@ -354,9 +359,9 @@
                             }
                         }, 2000);
 
-                        // Refresh results to get the saved action
+                        // Refresh results silently to get the saved action (no loading flash)
                         setTimeout(() => {
-                            this.displayAllResults();
+                            this.displayAllResults(false);
                         }, 500);
                     },
                     // onError
