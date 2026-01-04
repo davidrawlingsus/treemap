@@ -159,6 +159,138 @@
         },
 
         /**
+         * Execute a prompt with streaming response
+         * @param {number} promptId - Prompt ID
+         * @param {string} userMessage - User message to send with prompt
+         * @param {Function} onChunk - Callback called for each content chunk: (chunk: string) => void
+         * @param {Function} onDone - Callback called when streaming completes: (metadata: {tokens_used, model, content}) => void
+         * @param {Function} onError - Callback called on error: (error: Error) => void
+         * @returns {Promise<void>} Resolves when streaming completes
+         */
+        async executeStream(promptId, userMessage = '', onChunk, onDone, onError) {
+            console.log('[PROMPT_API] executeStream() called', {
+                promptId,
+                userMessage: userMessage.substring(0, 100) + (userMessage.length > 100 ? '...' : ''),
+                userMessageLength: userMessage.length,
+                timestamp: new Date().toISOString()
+            });
+
+            const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+            const endpoint = `${API_BASE_URL}/api/founder/prompts/${promptId}/execute?stream=true`;
+            
+            try {
+                const authHeaders = API.getAuthHeaders();
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        ...authHeaders,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        user_message: userMessage
+                    })
+                });
+
+                if (!response.ok) {
+                    // Handle auth errors
+                    if (response.status === 401 || response.status === 403) {
+                        if (typeof Auth !== 'undefined') {
+                            Auth.showLogin();
+                        }
+                        throw new Error('Authentication required');
+                    }
+
+                    // Try to parse error response
+                    let errorMessage = `Request failed with status ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.detail || errorData.message || errorMessage;
+                    } catch (e) {
+                        const errorText = await response.text();
+                        if (errorText) errorMessage = errorText;
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                // Read the stream
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    
+                    if (done) {
+                        break;
+                    }
+
+                    // Decode chunk and add to buffer
+                    buffer += decoder.decode(value, { stream: true });
+
+                    // Process complete SSE messages (lines ending with \n\n)
+                    const lines = buffer.split('\n\n');
+                    buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.substring(6)); // Remove 'data: ' prefix
+                                
+                                if (data.type === 'chunk' && data.content) {
+                                    // Content chunk
+                                    if (onChunk) {
+                                        onChunk(data.content);
+                                    }
+                                } else if (data.type === 'done') {
+                                    // Streaming complete
+                                    if (onDone) {
+                                        onDone({
+                                            tokens_used: data.tokens_used,
+                                            model: data.model,
+                                            content: data.content
+                                        });
+                                    }
+                                    return; // Exit loop
+                                } else if (data.type === 'error') {
+                                    // Error from server
+                                    const error = new Error(data.error || 'Streaming error');
+                                    if (onError) {
+                                        onError(error);
+                                    } else {
+                                        throw error;
+                                    }
+                                    return;
+                                }
+                            } catch (parseError) {
+                                console.error('[PROMPT_API] Failed to parse SSE message:', parseError, 'Line:', line);
+                            }
+                        }
+                    }
+                }
+
+                // If we exit the loop without a 'done' message, something went wrong
+                if (buffer.trim()) {
+                    console.warn('[PROMPT_API] Stream ended with incomplete buffer:', buffer);
+                }
+
+            } catch (error) {
+                console.error('[PROMPT_API] executeStream() error', {
+                    promptId,
+                    error: error.message || String(error),
+                    errorStack: error.stack,
+                    errorName: error.name,
+                    timestamp: new Date().toISOString()
+                });
+                
+                if (onError) {
+                    onError(error);
+                } else {
+                    throw error;
+                }
+            }
+        },
+
+        /**
          * Get all actions for a specific prompt
          * @param {number} promptId - Prompt ID
          * @returns {Promise<Array>} Array of actions

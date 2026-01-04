@@ -98,32 +98,89 @@
                 timestamp: new Date().toISOString()
             });
 
+            const content = this.slideout?.getContent();
+            if (!content) {
+                console.warn('[SLIDEOUT] No content element available');
+                return;
+            }
+
             try {
-                console.log('[SLIDEOUT] Calling PromptAPI.execute() from executePrompt()', {
+                // Get prompt info for display
+                let promptName = 'Unknown';
+                let promptVersion = null;
+                try {
+                    const prompt = await PromptAPI.get(promptId);
+                    promptName = prompt.name || 'Unknown';
+                    promptVersion = prompt.version || null;
+                } catch (e) {
+                    console.warn('[SLIDEOUT] Failed to fetch prompt info:', e);
+                }
+
+                // Create streaming result item
+                const streamingItem = UIRenderer.createStreamingResultItem(
+                    content,
+                    promptName,
+                    promptVersion,
+                    userMessage
+                );
+
+                if (!streamingItem) {
+                    throw new Error('Failed to create streaming result item');
+                }
+
+                console.log('[SLIDEOUT] Calling PromptAPI.executeStream() from executePrompt()', {
                     promptId,
                     userMessageLength: userMessage.length,
                     timestamp: new Date().toISOString()
                 });
 
-                // Execute the prompt
-                const result = await PromptAPI.execute(promptId, userMessage);
-
-                console.log('[SLIDEOUT] executePrompt() completed successfully', {
+                // Execute with streaming
+                await PromptAPI.executeStream(
                     promptId,
-                    result: result ? (typeof result === 'object' ? JSON.stringify(result).substring(0, 200) + '...' : result) : 'null/undefined',
-                    resultType: typeof result,
-                    timestamp: new Date().toISOString()
-                });
+                    userMessage,
+                    // onChunk
+                    (chunk) => {
+                        UIRenderer.appendToStreamingItem(streamingItem, chunk);
+                    },
+                    // onDone
+                    (metadata) => {
+                        console.log('[SLIDEOUT] Streaming completed', {
+                            promptId,
+                            tokens_used: metadata.tokens_used,
+                            model: metadata.model,
+                            timestamp: new Date().toISOString()
+                        });
+                        UIRenderer.finalizeStreamingItem(streamingItem, metadata);
+                        
+                        // Refresh results to get the saved action
+                        setTimeout(() => {
+                            this.displayAllResults();
+                        }, 500);
+                    },
+                    // onError
+                    (error) => {
+                        console.error('[SLIDEOUT] Streaming error', {
+                            promptId,
+                            error: error.message || String(error),
+                            timestamp: new Date().toISOString()
+                        });
+                        
+                        // Update the item to show error
+                        const contentDiv = streamingItem.querySelector('.prompt-result-content');
+                        if (contentDiv) {
+                            contentDiv.textContent = `Error: ${error.message || 'Unknown error occurred'}`;
+                        }
+                        UIRenderer.finalizeStreamingItem(streamingItem, {});
+                    }
+                );
 
-                return result;
+                return { success: true };
             } catch (error) {
                 console.error('[SLIDEOUT] executePrompt() failed', {
                     promptId,
                     error: error.message || String(error),
                     errorStack: error.stack,
                     errorName: error.name,
-                    errorResponse: error.response || error.data || 'no response data',
-                    errorStatus: error.status || error.statusCode || 'unknown',
                     timestamp: new Date().toISOString()
                 });
                 throw error;
@@ -220,53 +277,116 @@
                 this.elements.chatSend.innerHTML = '<div class="ai-loading-spinner" style="width: 16px; height: 16px; border-width: 2px;"></div>';
             }
 
+            const content = this.slideout?.getContent();
+            if (!content) {
+                console.warn('[SLIDEOUT] No content element available');
+                // Reset send button
+                if (this.elements.chatSend) {
+                    this.elements.chatSend.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/send_icon.png" alt="Send" width="20" height="20" id="slideoutChatSendIcon">';
+                    this.elements.chatSend.disabled = false;
+                }
+                return;
+            }
+
             try {
-                console.log('[SLIDEOUT] Calling PromptAPI.execute()', {
+                // Get prompt info for display
+                let promptName = 'Unknown';
+                let promptVersion = null;
+                try {
+                    const prompt = await PromptAPI.get(promptId);
+                    promptName = prompt.name || 'Unknown';
+                    promptVersion = prompt.version || null;
+                } catch (e) {
+                    console.warn('[SLIDEOUT] Failed to fetch prompt info:', e);
+                }
+
+                // Create streaming result item
+                const streamingItem = UIRenderer.createStreamingResultItem(
+                    content,
+                    promptName,
+                    promptVersion,
+                    userMessage
+                );
+
+                if (!streamingItem) {
+                    throw new Error('Failed to create streaming result item');
+                }
+
+                // Clear the input immediately
+                if (this.elements.chatInput) {
+                    this.elements.chatInput.value = '';
+                }
+
+                console.log('[SLIDEOUT] Calling PromptAPI.executeStream()', {
                     promptId,
                     userMessageLength: userMessage.length,
                     timestamp: new Date().toISOString()
                 });
 
-                // Execute the prompt
-                const result = await PromptAPI.execute(promptId, userMessage);
-
-                console.log('[SLIDEOUT] PromptAPI.execute() completed', {
+                // Execute with streaming
+                await PromptAPI.executeStream(
                     promptId,
-                    result: result ? (typeof result === 'object' ? JSON.stringify(result).substring(0, 200) + '...' : result) : 'null/undefined',
-                    resultType: typeof result,
-                    timestamp: new Date().toISOString()
-                });
+                    userMessage,
+                    // onChunk
+                    (chunk) => {
+                        UIRenderer.appendToStreamingItem(streamingItem, chunk);
+                    },
+                    // onDone
+                    (metadata) => {
+                        console.log('[SLIDEOUT] Streaming completed', {
+                            promptId,
+                            tokens_used: metadata.tokens_used,
+                            model: metadata.model,
+                            timestamp: new Date().toISOString()
+                        });
+                        UIRenderer.finalizeStreamingItem(streamingItem, metadata);
+                        
+                        // Show done icon
+                        if (this.elements.chatSend) {
+                            this.elements.chatSend.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/done_icon.png" alt="Done" width="20" height="20" id="slideoutChatSendIcon">';
+                        }
 
-                // Clear the input
-                if (this.elements.chatInput) {
-                    this.elements.chatInput.value = '';
-                }
+                        // Reset to send icon after 2 seconds
+                        setTimeout(() => {
+                            if (this.elements.chatSend) {
+                                this.elements.chatSend.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/send_icon.png" alt="Send" width="20" height="20" id="slideoutChatSendIcon">';
+                                this.elements.chatSend.disabled = false;
+                            }
+                        }, 2000);
 
-                console.log('[SLIDEOUT] Refreshing results...');
-                // Refresh results
-                await this.displayAllResults();
-                console.log('[SLIDEOUT] Results refreshed');
-
-                // Show done icon
-                if (this.elements.chatSend) {
-                    this.elements.chatSend.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/done_icon.png" alt="Done" width="20" height="20" id="slideoutChatSendIcon">';
-                }
-
-                // Reset to send icon after 2 seconds
-                setTimeout(() => {
-                    if (this.elements.chatSend) {
-                        this.elements.chatSend.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/send_icon.png" alt="Send" width="20" height="20" id="slideoutChatSendIcon">';
-                        this.elements.chatSend.disabled = false;
+                        // Refresh results to get the saved action
+                        setTimeout(() => {
+                            this.displayAllResults();
+                        }, 500);
+                    },
+                    // onError
+                    (error) => {
+                        console.error('[SLIDEOUT] Streaming error', {
+                            promptId,
+                            error: error.message || String(error),
+                            timestamp: new Date().toISOString()
+                        });
+                        
+                        // Update the item to show error
+                        const contentDiv = streamingItem.querySelector('.prompt-result-content');
+                        if (contentDiv) {
+                            contentDiv.textContent = `Error: ${error.message || 'Unknown error occurred'}`;
+                        }
+                        UIRenderer.finalizeStreamingItem(streamingItem, {});
+                        
+                        // Reset to send icon on error
+                        if (this.elements.chatSend) {
+                            this.elements.chatSend.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/send_icon.png" alt="Send" width="20" height="20" id="slideoutChatSendIcon">';
+                            this.elements.chatSend.disabled = false;
+                        }
                     }
-                }, 2000);
+                );
             } catch (error) {
                 console.error('[SLIDEOUT] Prompt execution failed', {
                     promptId,
                     error: error.message || String(error),
                     errorStack: error.stack,
                     errorName: error.name,
-                    errorResponse: error.response || error.data || 'no response data',
-                    errorStatus: error.status || error.statusCode || 'unknown',
                     timestamp: new Date().toISOString()
                 });
                 // Reset to send icon on error

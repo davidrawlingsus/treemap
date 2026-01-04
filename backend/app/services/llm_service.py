@@ -4,8 +4,9 @@ Used for prompt engineering feature.
 """
 
 import logging
-from typing import Dict, Optional
+from typing import Dict, Optional, Generator, Tuple
 import httpx
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +84,37 @@ class LLMService:
             # Default to OpenAI if model pattern doesn't match
             logger.warning(f"Unknown model pattern '{model}', defaulting to OpenAI")
             return self._execute_openai(system_message, user_message, model)
+    
+    def execute_prompt_stream(
+        self,
+        system_message: str,
+        user_message: str,
+        model: str
+    ) -> Generator[Tuple[str, Optional[Dict]], None, None]:
+        """
+        Execute a prompt with streaming support.
+        Yields (chunk, metadata) tuples where chunk is content and metadata is None until final chunk.
+        Final chunk will have metadata dict with tokens_used and model.
+        
+        Args:
+            system_message: The system prompt message
+            user_message: The user input message
+            model: LLM model identifier
+        
+        Yields:
+            Tuple of (content_chunk, metadata) where metadata is None for content chunks
+            and a dict with tokens_used and model for the final chunk
+        """
+        logger.info(f"Streaming prompt execution. Model: {model}")
+        
+        if self._is_anthropic_model(model):
+            normalized_model = self._normalize_anthropic_model(model)
+            yield from self._execute_anthropic_stream(system_message, user_message, normalized_model)
+        elif self._is_openai_model(model):
+            yield from self._execute_openai_stream(system_message, user_message, model)
+        else:
+            logger.warning(f"Unknown model pattern '{model}', defaulting to OpenAI")
+            yield from self._execute_openai_stream(system_message, user_message, model)
     
     def _execute_openai(
         self,
@@ -190,6 +222,132 @@ class LLMService:
             
         except Exception as e:
             logger.error(f"Failed to execute prompt with OpenAI: {e}")
+            raise RuntimeError(f"Failed to execute prompt: {str(e)}")
+    
+    def _execute_openai_stream(
+        self,
+        system_message: str,
+        user_message: str,
+        model: str
+    ) -> Generator[Tuple[str, Optional[Dict]], None, None]:
+        """Execute prompt using OpenAI API with streaming"""
+        if not self.openai_api_key:
+            raise RuntimeError("OpenAI service is not configured. Set OPENAI_API_KEY.")
+        
+        try:
+            from openai import OpenAI
+            
+            client = OpenAI(
+                api_key=self.openai_api_key,
+                http_client=httpx.Client(timeout=60.0)
+            )
+            
+            # Build request parameters
+            request_params = {
+                "model": model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": system_message
+                    },
+                    {
+                        "role": "user",
+                        "content": user_message
+                    }
+                ],
+                "stream": True
+            }
+            
+            # Some models don't support certain parameters
+            model_lower = model.lower()
+            models_without_params = ['o1', 'o1-preview', 'o1-mini']
+            models_without_temperature = ['gpt-4o', 'gpt-4o-mini'] + models_without_params
+            models_without_max_tokens = ['gpt-4o', 'gpt-4o-mini'] + models_without_params
+            
+            # Add temperature for models that support it
+            if not any(model_lower.startswith(m) for m in models_without_temperature):
+                request_params["temperature"] = 0.7
+            
+            # Add max_tokens for models that support it
+            if not any(model_lower.startswith(m) for m in models_without_max_tokens):
+                request_params["max_tokens"] = 4000
+            
+            # Try the request, and if we get unsupported parameter errors, retry without them
+            max_retries = 2
+            last_error = None
+            stream = None
+            
+            for attempt in range(max_retries):
+                try:
+                    stream = client.chat.completions.create(**request_params)
+                    break  # Success, exit retry loop
+                except Exception as e:
+                    last_error = e
+                    error_str = str(e).lower()
+                    
+                    # Check for unsupported parameter errors
+                    if 'unsupported_parameter' in error_str or 'unsupported_value' in error_str:
+                        logger.warning(f"Model {model} returned unsupported parameter error (attempt {attempt + 1}): {e}")
+                        
+                        # Remove problematic parameters and retry
+                        removed_any = False
+                        if 'max_tokens' in error_str and 'max_tokens' in request_params:
+                            logger.info(f"Removing max_tokens parameter for model {model}")
+                            request_params.pop("max_tokens", None)
+                            removed_any = True
+                        if 'temperature' in error_str and 'temperature' in request_params:
+                            logger.info(f"Removing temperature parameter for model {model}")
+                            request_params.pop("temperature", None)
+                            removed_any = True
+                        
+                        # If we couldn't identify the specific parameter but got an unsupported error,
+                        # remove all optional parameters
+                        if not removed_any:
+                            logger.info(f"Removing all optional parameters for model {model} due to unsupported parameter error")
+                            request_params.pop("max_tokens", None)
+                            request_params.pop("temperature", None)
+                        
+                        # Continue to next iteration to retry (if not last attempt)
+                        if attempt < max_retries - 1:
+                            continue
+                        else:
+                            # Last attempt failed, raise the error
+                            raise
+                    else:
+                        # Not an unsupported parameter error, don't retry
+                        raise
+            
+            # If we exhausted retries, raise the last error
+            if stream is None:
+                raise last_error
+            
+            # Stream chunks and accumulate content
+            accumulated_content = ""
+            tokens_used = 0
+            
+            for chunk in stream:
+                if chunk.choices and len(chunk.choices) > 0:
+                    delta = chunk.choices[0].delta
+                    if hasattr(delta, 'content') and delta.content:
+                        content_chunk = delta.content
+                        accumulated_content += content_chunk
+                        # Yield content chunk with no metadata
+                        yield (content_chunk, None)
+                
+                # Check for usage information in the chunk
+                if hasattr(chunk, 'usage') and chunk.usage:
+                    tokens_used = chunk.usage.total_tokens
+            
+            # If we didn't get tokens from chunks, we'll need to estimate or get from final response
+            # For now, yield final metadata
+            yield ("", {
+                "tokens_used": tokens_used if tokens_used > 0 else None,  # May be None if not provided
+                "model": model,
+                "content": accumulated_content  # Include full content for storage
+            })
+            
+        except Exception as e:
+            logger.error(f"Failed to execute streaming prompt with OpenAI: {e}")
             raise RuntimeError(f"Failed to execute prompt: {str(e)}")
     
     def _execute_anthropic(
@@ -412,4 +570,139 @@ class LLMService:
             
             logger.error(f"Failed to execute prompt with Anthropic: {error_type}: {error_details}", exc_info=True)
             raise RuntimeError(f"Failed to execute prompt with Anthropic: {error_details}")
+    
+    def _execute_anthropic_stream(
+        self,
+        system_message: str,
+        user_message: str,
+        model: str
+    ) -> Generator[Tuple[str, Optional[Dict]], None, None]:
+        """Execute prompt using Anthropic API with streaming"""
+        if not self.anthropic_api_key:
+            raise RuntimeError("Anthropic service is not configured. Set ANTHROPIC_API_KEY.")
+        
+        try:
+            from anthropic import Anthropic
+            
+            logger.info(f"Executing Anthropic streaming prompt with model: {model}")
+            
+            # Validate API key format
+            if not self.anthropic_api_key.startswith('sk-'):
+                logger.warning(f"Anthropic API key doesn't start with 'sk-'. Key format: {self.anthropic_api_key[:10]}...")
+            
+            client = Anthropic(
+                api_key=self.anthropic_api_key,
+                http_client=httpx.Client(timeout=60.0)
+            )
+            
+            # Handle empty user message
+            if not user_message or not isinstance(user_message, str):
+                user_content = "Please proceed."
+            else:
+                user_content = user_message.strip() if user_message.strip() else "Please proceed."
+            
+            # Handle empty system message
+            if not system_message or not isinstance(system_message, str):
+                system_content = ""
+            else:
+                system_content = system_message.strip() if system_message.strip() else ""
+            
+            # Build messages list
+            messages = [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": user_content
+                        }
+                    ]
+                }
+            ]
+            
+            # Build request parameters
+            request_params = {
+                "model": model,
+                "max_tokens": 4096,
+                "temperature": 1,
+                "messages": messages,
+                "stream": True
+            }
+            
+            # Only include system parameter if it's not empty
+            if system_content:
+                request_params["system"] = system_content
+            
+            # Try the requested model first, then fallback models if it's not found
+            models_to_try = [model] + [m for m in self.ANTHROPIC_FALLBACK_MODELS if m != model]
+            last_error = None
+            stream = None
+            successful_model = None
+            
+            for model_to_try in models_to_try:
+                try:
+                    request_params["model"] = model_to_try
+                    logger.info(f"Attempting Anthropic streaming API call with model: {model_to_try}")
+                    stream = client.messages.create(**request_params)
+                    successful_model = model_to_try
+                    break
+                except Exception as api_error:
+                    error_str = str(api_error).lower()
+                    is_not_found = (
+                        'not_found' in error_str or 
+                        'not found' in error_str or
+                        (hasattr(api_error, 'status_code') and api_error.status_code == 404)
+                    )
+                    
+                    if is_not_found and model_to_try != models_to_try[-1]:
+                        logger.warning(f"Model '{model_to_try}' not found, trying fallback models...")
+                        last_error = api_error
+                        continue
+                    else:
+                        logger.error(f"Anthropic streaming API call failed with model {model_to_try}: {type(api_error).__name__}: {api_error}")
+                        raise
+            
+            if stream is None:
+                logger.error(f"All Anthropic model attempts failed. Last error: {last_error}")
+                raise last_error if last_error else RuntimeError("Failed to execute prompt with any Anthropic model")
+            
+            # Stream chunks and accumulate
+            accumulated_content = ""
+            tokens_used = 0
+            input_tokens = 0
+            output_tokens = 0
+            
+            for event in stream:
+                # Anthropic streaming events have different types
+                if event.type == "content_block_delta":
+                    if hasattr(event.delta, 'text') and event.delta.text:
+                        content_chunk = event.delta.text
+                        accumulated_content += content_chunk
+                        yield (content_chunk, None)
+                elif event.type == "message_delta":
+                    # This event contains usage information
+                    if hasattr(event.usage, 'input_tokens'):
+                        input_tokens = event.usage.input_tokens
+                    if hasattr(event.usage, 'output_tokens'):
+                        output_tokens = event.usage.output_tokens
+                elif event.type == "message_stop":
+                    # Final event - usage should be available
+                    if hasattr(event, 'usage'):
+                        if hasattr(event.usage, 'input_tokens'):
+                            input_tokens = event.usage.input_tokens
+                        if hasattr(event.usage, 'output_tokens'):
+                            output_tokens = event.usage.output_tokens
+            
+            tokens_used = input_tokens + output_tokens
+            
+            # Yield final metadata
+            yield ("", {
+                "tokens_used": tokens_used if tokens_used > 0 else None,
+                "model": successful_model or model,
+                "content": accumulated_content
+            })
+            
+        except Exception as e:
+            logger.error(f"Failed to execute streaming prompt with Anthropic: {e}")
+            raise RuntimeError(f"Failed to execute prompt with Anthropic: {str(e)}")
 

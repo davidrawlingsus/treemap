@@ -415,6 +415,146 @@
                     <p style="color: var(--text);">${DOM.escapeHtml(message)}</p>
                 </div>
             `;
+        },
+
+        /**
+         * Create a streaming result item placeholder
+         * @param {HTMLElement} container - Container element to append to
+         * @param {string} promptName - Prompt name
+         * @param {string|number} promptVersion - Prompt version
+         * @param {string} userMessage - User message (optional)
+         * @returns {HTMLElement} The created streaming item element
+         */
+        createStreamingResultItem(container, promptName, promptVersion, userMessage = '') {
+            if (!container) return null;
+
+            const streamingId = `streaming-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const createdAt = new Date().toLocaleString();
+            const versionStr = promptVersion !== null && promptVersion !== undefined ? `v${promptVersion}` : '';
+
+            const itemHTML = `
+                <div class="prompt-output-item" data-streaming-id="${streamingId}" data-prompt-name="${DOM.escapeHtmlForAttribute(promptName)}" data-prompt-version="${promptVersion || ''}">
+                    <div class="prompt-output-header">
+                        <div class="prompt-output-meta">
+                            <div style="margin-bottom: 4px;">
+                                <strong>${DOM.escapeHtml(promptName)} ${versionStr}</strong>
+                                <span style="color: var(--muted); font-size: 12px; margin-left: 12px;">${createdAt}</span>
+                                <span style="color: var(--muted); font-size: 12px; margin-left: 8px;">• Streaming...</span>
+                            </div>
+                            ${userMessage ? `
+                                <div style="margin-top: 8px;">
+                                    <div style="font-size: 12px; color: var(--text); margin-top: 4px;">
+                                        <strong>User Message:</strong> 
+                                        <span>${DOM.escapeHtml(userMessage.length > 200 ? userMessage.substring(0, 200) + '...' : userMessage)}</span>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="prompt-output-actions">
+                            <div class="ai-loading-spinner" style="width: 16px; height: 16px; border-width: 2px; margin-right: 8px;"></div>
+                        </div>
+                    </div>
+                    <div class="prompt-result-content" data-streaming-content="${streamingId}" style="font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word;"></div>
+                </div>
+            `;
+
+            // Append to container
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = itemHTML;
+            const itemElement = tempDiv.firstElementChild;
+            container.appendChild(itemElement);
+
+            // Auto-scroll to bottom
+            requestAnimationFrame(() => {
+                if (container) {
+                    container.scrollTop = container.scrollHeight;
+                }
+            });
+
+            return itemElement;
+        },
+
+        /**
+         * Append content to a streaming result item
+         * @param {HTMLElement} itemElement - The streaming item element
+         * @param {string} chunk - Content chunk to append
+         */
+        appendToStreamingItem(itemElement, chunk) {
+            if (!itemElement || !chunk) return;
+
+            const contentElement = itemElement.querySelector(`[data-streaming-content]`);
+            if (contentElement) {
+                // Append chunk (escape HTML for safety)
+                contentElement.textContent += chunk;
+
+                // Auto-scroll to bottom
+                const container = itemElement.closest('.slideout-content') || itemElement.parentElement;
+                if (container) {
+                    requestAnimationFrame(() => {
+                        container.scrollTop = container.scrollHeight;
+                    });
+                }
+            }
+        },
+
+        /**
+         * Finalize a streaming result item (remove loading, add metadata)
+         * @param {HTMLElement} itemElement - The streaming item element
+         * @param {Object} metadata - Metadata object with tokens_used, model, etc.
+         */
+        finalizeStreamingItem(itemElement, metadata = {}) {
+            if (!itemElement) return;
+
+            // Remove streaming ID attribute
+            const streamingId = itemElement.getAttribute('data-streaming-id');
+            if (streamingId) {
+                itemElement.removeAttribute('data-streaming-id');
+            }
+
+            // Update header to remove loading indicator and add metadata
+            const header = itemElement.querySelector('.prompt-output-header');
+            const metaDiv = header?.querySelector('.prompt-output-meta > div');
+            const actionsDiv = header?.querySelector('.prompt-output-actions');
+
+            if (metaDiv) {
+                // Remove "Streaming..." text
+                const streamingSpan = metaDiv.querySelector('span:last-child');
+                if (streamingSpan && streamingSpan.textContent.includes('Streaming')) {
+                    streamingSpan.remove();
+                }
+
+                // Add metadata if available
+                if (metadata.model || metadata.tokens_used) {
+                    const metadataHTML = [];
+                    if (metadata.model) {
+                        metadataHTML.push(`<span style="color: var(--muted); font-size: 12px; margin-left: 8px;">• ${DOM.escapeHtml(metadata.model)}</span>`);
+                    }
+                    if (metadata.tokens_used) {
+                        metadataHTML.push(`<span style="color: var(--muted); font-size: 12px; margin-left: 8px;">• ${metadata.tokens_used} tokens</span>`);
+                    }
+                    if (metadataHTML.length > 0) {
+                        metaDiv.insertAdjacentHTML('beforeend', metadataHTML.join(''));
+                    }
+                }
+            }
+
+            // Remove loading spinner and add action buttons
+            if (actionsDiv) {
+                actionsDiv.innerHTML = `
+                    <button class="btn-copy-output" data-action-id="streaming-${streamingId}" title="Copy to clipboard">
+                        <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/copy_button.png" alt="Copy" width="16" height="16">
+                    </button>
+                    <button class="btn-delete-output" data-action-id="streaming-${streamingId}" title="Delete">
+                        <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/delete_button.png" alt="Delete" width="16" height="16">
+                    </button>
+                `;
+            }
+
+            // Remove streaming content attribute
+            const contentElement = itemElement.querySelector(`[data-streaming-content]`);
+            if (contentElement) {
+                contentElement.removeAttribute('data-streaming-content');
+            }
         }
     };
 

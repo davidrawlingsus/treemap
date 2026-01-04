@@ -3,18 +3,23 @@ Prompt management routes for founder admin.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from uuid import UUID
 from typing import List, Optional
 from pydantic import BaseModel, Field
+import json
+import logging
 
 from app.database import get_db
 from app.models import User, Prompt, Client, Action
 from app.schemas import PromptResponse, PromptCreate, PromptUpdate, ActionResponse
 from app.auth import get_current_active_founder
 from app.services.llm_service import LLMService
+
+logger = logging.getLogger(__name__)
 
 
 def get_llm_service(request: Request) -> LLMService:
@@ -249,55 +254,158 @@ def execute_prompt_for_founder(
     prompt_id: UUID,
     payload: PromptExecuteRequest,
     request: Request,
+    stream: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_founder),
     llm_service: LLMService = Depends(get_llm_service),
 ):
-    """Execute a prompt by sending it to OpenAI or Anthropic API and save the result to actions table."""
+    """
+    Execute a prompt by sending it to OpenAI or Anthropic API and save the result to actions table.
+    
+    Args:
+        stream: If True, returns streaming response via Server-Sent Events (SSE)
+    """
     prompt = db.query(Prompt).filter(Prompt.id == prompt_id).first()
     
     if not prompt:
         raise HTTPException(status_code=404, detail="Prompt not found.")
     
     try:
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.info(f"Executing prompt {prompt_id} with model: {prompt.llm_model}, user_message length: {len(payload.user_message) if payload.user_message else 0}")
+        logger.info(f"Executing prompt {prompt_id} with model: {prompt.llm_model}, user_message length: {len(payload.user_message) if payload.user_message else 0}, stream: {stream}")
         
-        # Execute the prompt
-        result = llm_service.execute_prompt(
-            system_message=prompt.system_message,
-            user_message=payload.user_message,
-            model=prompt.llm_model
-        )
-        
-        logger.info(f"Prompt execution successful. Result keys: {result.keys() if result else 'None'}, content length: {len(result.get('content', '')) if result else 0}")
-        
-        # Get or create the prompt engineering client
-        prompt_engineering_client = get_or_create_prompt_engineering_client(db)
-        
-        # Combine system and user messages for prompt_text_sent
-        # Format: "System: {system_message}\n\nUser: {user_message}"
-        prompt_text_sent = f"System: {prompt.system_message}\n\nUser: {payload.user_message}"
-        
-        # Create action record to save the execution result
-        action = Action(
-            prompt_id=prompt.id,
-            client_id=prompt_engineering_client.id,
-            prompt_text_sent=prompt_text_sent,
-            actions=result,  # Store full result (content, tokens_used, model) in JSONB
-            insight_ids=[]  # No insights used in prompt engineering executions
-        )
-        db.add(action)
-        db.commit()
-        db.refresh(action)
-        
-        # Return the result (same as before for frontend compatibility)
-        return result
+        if stream:
+            # Store prompt values before creating generator (to avoid session issues)
+            prompt_id_value = prompt.id
+            prompt_system_message = prompt.system_message
+            prompt_llm_model = prompt.llm_model
+            user_message_value = payload.user_message
+            
+            # Streaming mode - return SSE response
+            def generate_stream():
+                accumulated_content = ""
+                final_metadata = None
+                # Create a new database session for saving the result
+                from app.database import SessionLocal
+                save_db = SessionLocal()
+                
+                try:
+                    # Stream chunks from LLM service
+                    for chunk, metadata in llm_service.execute_prompt_stream(
+                        system_message=prompt_system_message,
+                        user_message=user_message_value,
+                        model=prompt_llm_model
+                    ):
+                        if metadata is None:
+                            # Content chunk
+                            if chunk:
+                                accumulated_content += chunk
+                                # Send SSE message with chunk
+                                message = json.dumps({
+                                    "type": "chunk",
+                                    "content": chunk
+                                })
+                                yield f"data: {message}\n\n"
+                        else:
+                            # Final metadata chunk
+                            final_metadata = metadata
+                            # Send final message
+                            message = json.dumps({
+                                "type": "done",
+                                "tokens_used": metadata.get("tokens_used"),
+                                "model": metadata.get("model"),
+                                "content": metadata.get("content", accumulated_content)
+                            })
+                            yield f"data: {message}\n\n"
+                    
+                    # Save the result to database after streaming completes
+                    if final_metadata:
+                        try:
+                            prompt_engineering_client = get_or_create_prompt_engineering_client(save_db)
+                            prompt_text_sent = f"System: {prompt_system_message}\n\nUser: {user_message_value}"
+                            
+                            result = {
+                                "content": final_metadata.get("content", accumulated_content),
+                                "tokens_used": final_metadata.get("tokens_used"),
+                                "model": final_metadata.get("model", prompt_llm_model)
+                            }
+                            
+                            action = Action(
+                                prompt_id=prompt_id_value,
+                                client_id=prompt_engineering_client.id,
+                                prompt_text_sent=prompt_text_sent,
+                                actions=result,
+                                insight_ids=[]
+                            )
+                            save_db.add(action)
+                            save_db.commit()
+                            logger.info(f"Streaming execution saved to database. Content length: {len(result.get('content', ''))}")
+                        except Exception as save_error:
+                            logger.error(f"Error saving streaming result to database: {save_error}", exc_info=True)
+                            save_db.rollback()
+                        finally:
+                            save_db.close()
+                    
+                except Exception as e:
+                    logger.error(f"Error during streaming: {e}", exc_info=True)
+                    # Send error message via SSE
+                    error_message = json.dumps({
+                        "type": "error",
+                        "error": str(e)
+                    })
+                    yield f"data: {error_message}\n\n"
+                    try:
+                        save_db.rollback()
+                    except:
+                        pass
+                    finally:
+                        save_db.close()
+                    raise
+            
+            return StreamingResponse(
+                generate_stream(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no"  # Disable buffering in nginx
+                }
+            )
+        else:
+            # Non-streaming mode (backward compatible)
+            result = llm_service.execute_prompt(
+                system_message=prompt.system_message,
+                user_message=payload.user_message,
+                model=prompt.llm_model
+            )
+            
+            logger.info(f"Prompt execution successful. Result keys: {result.keys() if result else 'None'}, content length: {len(result.get('content', '')) if result else 0}")
+            
+            # Get or create the prompt engineering client
+            prompt_engineering_client = get_or_create_prompt_engineering_client(db)
+            
+            # Combine system and user messages for prompt_text_sent
+            # Format: "System: {system_message}\n\nUser: {user_message}"
+            prompt_text_sent = f"System: {prompt.system_message}\n\nUser: {payload.user_message}"
+            
+            # Create action record to save the execution result
+            action = Action(
+                prompt_id=prompt.id,
+                client_id=prompt_engineering_client.id,
+                prompt_text_sent=prompt_text_sent,
+                actions=result,  # Store full result (content, tokens_used, model) in JSONB
+                insight_ids=[]  # No insights used in prompt engineering executions
+            )
+            db.add(action)
+            db.commit()
+            db.refresh(action)
+            
+            # Return the result (same as before for frontend compatibility)
+            return result
     except RuntimeError as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
     except Exception as exc:
         db.rollback()
+        logger.error(f"Failed to execute prompt: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to execute prompt: {str(exc)}")
 
