@@ -230,6 +230,7 @@
                 state.set('allActions', allActions);
 
                 console.log('[SLIDEOUT] displayAllResults() - Rendering actions', { caller });
+                
                 // Render results with handlers
                 UIRenderer.renderActions(
                     content, 
@@ -455,9 +456,10 @@
             const contentDiv = outputItem?.querySelector('.prompt-result-content');
             
             if (contentDiv) {
-                // Use raw text from data attribute if available (for streaming items)
-                // Otherwise use textContent which strips HTML tags
-                const textToCopy = contentDiv.dataset.rawText || contentDiv.textContent || contentDiv.innerText;
+                // Check WeakMap first for streaming items (avoids data attribute size limits)
+                // Then fall back to data attribute for saved items, then textContent
+                const streamingText = window.PromptUIRenderer?.getStreamingContent?.(contentDiv);
+                const textToCopy = streamingText || contentDiv.dataset.rawText || contentDiv.textContent || contentDiv.innerText;
                 try {
                     await navigator.clipboard.writeText(textToCopy);
                     return true;

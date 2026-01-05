@@ -14,10 +14,22 @@
     const { DOM } = window.FounderAdmin;
     const state = window.PromptEngineeringState;
 
+    // Store streaming content in memory instead of data attributes to avoid size limits
+    // Use WeakMap so elements can be garbage collected when removed from DOM
+    const streamingContentStore = new WeakMap();
+
     /**
      * UI Renderer
      */
     const UIRenderer = {
+        /**
+         * Get raw text content from streaming content store (for copy functionality)
+         * @param {HTMLElement} contentElement - Content element
+         * @returns {string} Raw text content or empty string
+         */
+        getStreamingContent(contentElement) {
+            return streamingContentStore.get(contentElement) || '';
+        },
         /**
          * Convert markdown text to HTML
          * @param {string} text - Markdown text
@@ -377,6 +389,10 @@
                 return;
             }
 
+            // Store scroll position before clearing
+            const scrollTopBefore = container.scrollTop;
+            const wasAtBottomBefore = this._isAtBottom(container, 100);
+
             // Use document fragment for better performance
             const fragment = document.createDocumentFragment();
             const tempDiv = document.createElement('div');
@@ -468,12 +484,21 @@
 
             // Auto-scroll to bottom only if user was already at bottom
             // This prevents interrupting reading when results are refreshed
-            const wasAtBottom = this._isAtBottom(container, 100); // 100px threshold for refresh scenarios
-            if (wasAtBottom) {
+            if (wasAtBottomBefore) {
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
                         if (container) {
                             container.scrollTop = container.scrollHeight;
+                        }
+                    });
+                });
+            } else {
+                // Restore scroll position when user wasn't at bottom
+                // Wait for layout to complete before restoring scroll position
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        if (container) {
+                            container.scrollTop = scrollTopBefore;
                         }
                     });
                 });
@@ -829,13 +854,20 @@
             if (!contentElement) return;
 
             // Accumulate text for markdown rendering
-            // Store raw text in a data attribute for accumulation
-            const currentText = contentElement.dataset.rawText || '';
+            // Store raw text in WeakMap to avoid data attribute size limits
+            const currentText = streamingContentStore.get(contentElement) || '';
             const newText = currentText + chunk;
-            contentElement.dataset.rawText = newText;
+            
+            try {
+                // Store in WeakMap instead of data attribute
+                streamingContentStore.set(contentElement, newText);
 
-            // Render markdown and update innerHTML
-            contentElement.innerHTML = this.convertMarkdown(newText);
+                // Render markdown and update innerHTML
+                contentElement.innerHTML = this.convertMarkdown(newText);
+            } catch (error) {
+                console.error('[UI] Error in appendToStreamingItem:', error);
+                throw error;
+            }
 
             // Check if auto-scroll is enabled
             const autoScrollEnabled = itemElement.dataset.autoScrollEnabled === 'true';
@@ -957,10 +989,12 @@
                 `;
             }
 
-            // Remove streaming content attribute
-            const contentElement = itemElement.querySelector(`[data-streaming-content]`);
-            if (contentElement) {
-                contentElement.removeAttribute('data-streaming-content');
+            // Remove streaming content attribute and clean up WeakMap entry
+            const contentElementFinal = itemElement.querySelector(`[data-streaming-content]`);
+            if (contentElementFinal) {
+                contentElementFinal.removeAttribute('data-streaming-content');
+                // Clean up WeakMap entry (WeakMap will automatically clean up when element is GC'd, but we can clear it explicitly)
+                streamingContentStore.delete(contentElementFinal);
             }
 
             // Clean up auto-scroll tracking attributes
