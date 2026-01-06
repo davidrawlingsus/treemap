@@ -152,6 +152,7 @@
             const filterState = state.get('filterState');
             const hasPromptFilters = filterState.promptNames.size > 0;
             const hasVersionFilters = filterState.promptVersions.size > 0;
+            const hasModelFilters = filterState.models.size > 0;
 
             let html = '';
 
@@ -181,6 +182,19 @@
                 </div>
             `;
 
+            // Model filter option
+            html += `
+                <div class="filter-type-item" data-filter-type="model" style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;" 
+                     onmouseover="this.style.backgroundColor='#f0f0f0';" 
+                     onmouseout="this.style.backgroundColor='transparent';">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 14px; font-weight: 500;">Model</span>
+                        ${hasModelFilters ? `<span style="font-size: 11px; color: #667eea; background: #e8edff; padding: 2px 6px; border-radius: 10px;">${filterState.models.size}</span>` : ''}
+                    </div>
+                    <span style="color: #999; font-size: 12px;">→</span>
+                </div>
+            `;
+
             filterTypeList.innerHTML = html;
 
             // Attach click handlers
@@ -191,6 +205,8 @@
                         this.showPromptSelection();
                     } else if (filterType === 'version') {
                         this.showVersionSelection();
+                    } else if (filterType === 'model') {
+                        this.showModelSelection();
                     }
                 });
             });
@@ -338,6 +354,70 @@
         },
 
         /**
+         * Show model selection view (second layer)
+         */
+        showModelSelection() {
+            this.currentFilterType = 'model';
+            const typeView = document.getElementById('promptFilterTypeView');
+            const selectionView = document.getElementById('promptFilterSelectionView');
+            const selectionTitle = document.getElementById('promptFilterSelectionTitle');
+            const selectionList = document.getElementById('promptFilterSelectionList');
+
+            if (!typeView || !selectionView || !selectionTitle || !selectionList) return;
+
+            typeView.style.display = 'none';
+            selectionView.style.display = 'block';
+            selectionTitle.textContent = 'Filter by Model';
+
+            // Get all actions to extract unique models
+            const allActions = state.get('allActions') || [];
+            const models = new Set();
+            
+            allActions.forEach(action => {
+                const model = action.actions?.model;
+                if (model) {
+                    models.add(model);
+                }
+            });
+
+            const filterState = state.get('filterState');
+            const shouldCheckAll = filterState.models.size === 0;
+
+            let html = '';
+            Array.from(models).sort().forEach(model => {
+                const isChecked = shouldCheckAll || filterState.models.has(model);
+                if (isChecked && shouldCheckAll) {
+                    filterState.models.add(model);
+                }
+                const safeModel = DOM.escapeHtmlForAttribute(model);
+                html += `
+                    <div class="filter-checkbox-item" style="padding: 10px 12px; border-bottom: 1px solid #f0f0f0; display: flex; align-items: center; gap: 10px; cursor: pointer; transition: background 0.2s;"
+                         onmouseover="this.style.backgroundColor='#f8f9fa';" 
+                         onmouseout="this.style.backgroundColor='transparent';">
+                        <input type="checkbox" id="filter-model-${safeModel}" data-model="${safeModel}" ${isChecked ? 'checked' : ''} style="cursor: pointer;">
+                        <label for="filter-model-${safeModel}" style="cursor: pointer; flex: 1; font-size: 13px; margin: 0;">${DOM.escapeHtml(model)}</label>
+                    </div>
+                `;
+            });
+
+            selectionList.innerHTML = html || '<div style="padding: 16px; text-align: center; color: #999; font-size: 13px;">No models found</div>';
+
+            // Attach listeners
+            selectionList.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.addEventListener('change', (e) => {
+                    const model = e.target.getAttribute('data-model');
+                    const filterState = state.get('filterState');
+                    if (e.target.checked) {
+                        filterState.models.add(model);
+                    } else {
+                        filterState.models.delete(model);
+                    }
+                    this.handleFilterChange();
+                });
+            });
+        },
+
+        /**
          * Show filter type view (first layer)
          */
         showFilterTypeView() {
@@ -370,6 +450,9 @@
                 } else if (this.currentFilterType === 'version') {
                     const versionKey = checkbox.getAttribute('data-version-key');
                     filterState.promptVersions.add(versionKey);
+                } else if (this.currentFilterType === 'model') {
+                    const model = checkbox.getAttribute('data-model');
+                    filterState.models.add(model);
                 }
             });
 
@@ -394,6 +477,9 @@
                 } else if (this.currentFilterType === 'version') {
                     const versionKey = checkbox.getAttribute('data-version-key');
                     filterState.promptVersions.delete(versionKey);
+                } else if (this.currentFilterType === 'model') {
+                    const model = checkbox.getAttribute('data-model');
+                    filterState.models.delete(model);
                 }
             });
 
@@ -417,6 +503,10 @@
             filterState.promptVersions.forEach(versionKey => {
                 const [name, version] = versionKey.split(':v');
                 activeFilters.push(`Version: ${name} v${version}`);
+            });
+
+            filterState.models.forEach(model => {
+                activeFilters.push(`Model: ${model}`);
             });
 
             if (activeFilters.length === 0) {
@@ -454,6 +544,7 @@
             const filterState = state.get('filterState');
             filterState.promptNames.clear();
             filterState.promptVersions.clear();
+            filterState.models.clear();
 
             // If in selection view, uncheck all checkboxes
             const selectionList = document.getElementById('promptFilterSelectionList');
@@ -477,7 +568,7 @@
             if (!this.elements.badge) return;
 
             const filterState = state.get('filterState');
-            const totalFilters = filterState.promptNames.size + filterState.promptVersions.size;
+            const totalFilters = filterState.promptNames.size + filterState.promptVersions.size + filterState.models.size;
 
             if (totalFilters > 0) {
                 this.elements.badge.textContent = totalFilters;
@@ -543,6 +634,7 @@
             // Clear existing filters
             filterState.promptNames.clear();
             filterState.promptVersions.clear();
+            filterState.models.clear();
 
             // Set filter for this prompt name
             filterState.promptNames.add(promptName);

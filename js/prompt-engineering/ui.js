@@ -383,6 +383,13 @@
                 });
             }
 
+            if (filterState.models.size > 0) {
+                filteredActions = filteredActions.filter(action => {
+                    const model = action.actions?.model;
+                    return model && filterState.models.has(model);
+                });
+            }
+
             if (filteredActions.length === 0) {
                 container.innerHTML = '<p style="color: var(--muted); padding: 24px; text-align: center;">No execution results match the selected filters.</p>';
                 return;

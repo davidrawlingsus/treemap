@@ -25,6 +25,7 @@
         filterState: {
             promptNames: new Set(), // Selected prompt names
             promptVersions: new Set(), // Selected prompt versions (format: "name:v1")
+            models: new Set(), // Selected models
         },
         statusFilter: '',
         purposeFilter: ''
