@@ -130,11 +130,10 @@
                         break;
                     }
                     
-                    // Treat as section heading if:
-                    // 1. Ends with colon AND followed by bullet list, OR
-                    // 2. Is "1." AND next ordered item is also "1." (repeated numbering = separate sections)
-                    const shouldBeHeading = (endsWithColon && followedByBulletList) || 
-                                          (isNumberOne && nextOrderedIsAlsoOne && !followedByBulletList);
+                    // Treat as section heading ONLY if:
+                    // Ends with colon AND followed by bullet list
+                    // (Don't treat repeated "1." as headings - they're just numbered list items)
+                    const shouldBeHeading = endsWithColon && followedByBulletList;
                     
                     if (shouldBeHeading) {
                         // Close any open list
