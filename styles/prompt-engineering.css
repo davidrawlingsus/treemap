@@ -353,6 +353,43 @@
     font-size: 12px;
 }
 
+.prompt-result-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 14px;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.prompt-result-content thead {
+    background: #f7fafc;
+}
+
+.prompt-result-content th {
+    padding: 12px 16px;
+    text-align: left;
+    font-weight: 600;
+    color: #1a202c;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.prompt-result-content td {
+    padding: 12px 16px;
+    border-bottom: 1px solid #e2e8f0;
+    color: #2d3748;
+}
+
+.prompt-result-content tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.prompt-result-content tbody tr:hover {
+    background: #f7fafc;
+}
+
 .prompt-output-item {
     margin-bottom: 24px;
     border: 1px solid var(--border);

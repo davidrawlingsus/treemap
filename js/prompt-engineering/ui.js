@@ -49,6 +49,9 @@
             const processedLines = [];
             let inList = false;
             let listType = null; // 'ul' or 'ol'
+            let inTable = false;
+            let tableRows = [];
+            let tableAlignments = [];
             
             for (let i = 0; i < lines.length; i++) {
                 const line = lines[i];
@@ -160,6 +163,84 @@
                     continue;
                 }
                 
+                // Table row detection (must start and end with |)
+                if (/^\|.+\|$/.test(trimmed)) {
+                    // Close any open list
+                    if (inList) {
+                        processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+                        inList = false;
+                        listType = null;
+                    }
+                    
+                    // Check if this is a separator row (contains --- or === between pipes)
+                    if (/^\|[\s\-\|:]+$/.test(trimmed)) {
+                        // This is a separator row - extract alignments
+                        const cells = trimmed.split('|').slice(1, -1); // Remove empty first/last
+                        tableAlignments = cells.map(cell => {
+                            const trimmedCell = cell.trim();
+                            if (/^:[\-]+:$/.test(trimmedCell)) return 'center';
+                            if (/^:[\-]+$/.test(trimmedCell)) return 'left';
+                            if (/^[\-]+:$/.test(trimmedCell)) return 'right';
+                            return 'left'; // default
+                        });
+                        // Don't add separator row to tableRows, just continue
+                        continue;
+                    }
+                    
+                    // This is a regular table row
+                    if (!inTable) {
+                        // Start a new table
+                        inTable = true;
+                        tableRows = [];
+                        tableAlignments = [];
+                    }
+                    
+                    // Parse cells (split by | and remove empty first/last)
+                    const cells = trimmed.split('|').slice(1, -1).map(cell => cell.trim());
+                    tableRows.push(cells);
+                    continue;
+                }
+                
+                // Close table if we encounter a non-table line
+                if (inTable && !/^\|.+\|$/.test(trimmed)) {
+                    // Render the accumulated table
+                    if (tableRows.length > 0) {
+                        processedLines.push('<table>');
+                        
+                        // First row is header if we have alignments, otherwise all rows are body
+                        const hasHeader = tableAlignments.length > 0;
+                        const headerRow = hasHeader ? tableRows[0] : null;
+                        const bodyRows = hasHeader ? tableRows.slice(1) : tableRows;
+                        
+                        if (headerRow) {
+                            processedLines.push('<thead><tr>');
+                            headerRow.forEach((cell, idx) => {
+                                const align = tableAlignments[idx] || 'left';
+                                processedLines.push(`<th style="text-align: ${align};">${cell}</th>`);
+                            });
+                            processedLines.push('</tr></thead>');
+                        }
+                        
+                        if (bodyRows.length > 0) {
+                            processedLines.push('<tbody>');
+                            bodyRows.forEach(row => {
+                                processedLines.push('<tr>');
+                                row.forEach((cell, idx) => {
+                                    const align = tableAlignments[idx] || 'left';
+                                    processedLines.push(`<td style="text-align: ${align};">${cell}</td>`);
+                                });
+                                processedLines.push('</tr>');
+                            });
+                            processedLines.push('</tbody>');
+                        }
+                        
+                        processedLines.push('</table>');
+                    }
+                    inTable = false;
+                    tableRows = [];
+                    tableAlignments = [];
+                }
+                
                 // Empty line
                 if (trimmed === '') {
                     if (inList) {
@@ -185,6 +266,39 @@
                 processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
             }
             
+            // Close any open table
+            if (inTable && tableRows.length > 0) {
+                processedLines.push('<table>');
+                
+                const hasHeader = tableAlignments.length > 0;
+                const headerRow = hasHeader ? tableRows[0] : null;
+                const bodyRows = hasHeader ? tableRows.slice(1) : tableRows;
+                
+                if (headerRow) {
+                    processedLines.push('<thead><tr>');
+                    headerRow.forEach((cell, idx) => {
+                        const align = tableAlignments[idx] || 'left';
+                        processedLines.push(`<th style="text-align: ${align};">${cell}</th>`);
+                    });
+                    processedLines.push('</tr></thead>');
+                }
+                
+                if (bodyRows.length > 0) {
+                    processedLines.push('<tbody>');
+                    bodyRows.forEach(row => {
+                        processedLines.push('<tr>');
+                        row.forEach((cell, idx) => {
+                            const align = tableAlignments[idx] || 'left';
+                            processedLines.push(`<td style="text-align: ${align};">${cell}</td>`);
+                        });
+                        processedLines.push('</tr>');
+                    });
+                    processedLines.push('</tbody>');
+                }
+                
+                processedLines.push('</table>');
+            }
+            
             html = processedLines.join('\n');
             
             // Process inline formatting
@@ -204,7 +318,7 @@
                 if (!trimmed) return '';
                 
                 // Don't wrap block elements in paragraphs
-                if (trimmed.match(/^<(h[1-3]|ul|ol|pre|li)/)) {
+                if (trimmed.match(/^<(h[1-3]|ul|ol|pre|li|table)/)) {
                     return block;
                 }
                 
