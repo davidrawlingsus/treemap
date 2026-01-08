@@ -323,8 +323,11 @@ def execute_prompt_for_founder(
                             prompt_engineering_client = get_or_create_prompt_engineering_client(save_db)
                             prompt_text_sent = f"System: {prompt_system_message}\n\nUser: {user_message_value}"
                             
+                            # Get content from final_metadata or fallback to accumulated_content
+                            final_content = final_metadata.get("content", accumulated_content)
+                            
                             result = {
-                                "content": final_metadata.get("content", accumulated_content),
+                                "content": final_content,
                                 "tokens_used": final_metadata.get("tokens_used"),
                                 "model": final_metadata.get("model", prompt_llm_model)
                             }

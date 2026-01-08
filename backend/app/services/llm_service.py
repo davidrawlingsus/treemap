@@ -623,7 +623,7 @@ class LLMService:
             # Build request parameters
             request_params = {
                 "model": model,
-                "max_tokens": 4096,
+                "max_tokens": 100000,  # Set to very high value to effectively remove limit (model will use its actual maximum)
                 "temperature": 1,
                 "messages": messages,
                 "stream": True
