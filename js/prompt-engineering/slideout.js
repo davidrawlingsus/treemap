@@ -55,6 +55,15 @@
                     }
                 });
             }
+
+            // Setup to-top button
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:59',message:'setupToTopButton called from init',data:{hasSlideout:!!this.slideout},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+            this.setupToTopButton();
+
+            // Setup expansion button
+            this.setupExpandButton();
         },
 
         /**
@@ -72,6 +81,13 @@
          */
         close() {
             if (this.slideout) {
+                // Reset expanded state when closing
+                if (this.slideout.panel) {
+                    this.slideout.panel.classList.remove('expanded');
+                }
+                if (this.slideout.overlay) {
+                    this.slideout.overlay.style.width = '500px';
+                }
                 this.slideout.close();
             }
             if (this.elements.chatInput) {
@@ -221,6 +237,9 @@
             try {
                 console.log('[SLIDEOUT] displayAllResults() - Fetching all actions', { caller });
                 const allActions = await PromptAPI.getAllActions();
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:229',message:'displayAllResults - API response received',data:{actionCount:allActions?.length||0,firstActionContentLength:allActions?.[0]?.actions?.content?.length||0,firstActionContentPreview:allActions?.[0]?.actions?.content?.substring?.(0,200)||'',firstActionContentEnd:allActions?.[0]?.actions?.content?.substring?.(Math.max(0,(allActions?.[0]?.actions?.content?.length||0)-200))||''},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
+                // #endregion
                 console.log('[SLIDEOUT] displayAllResults() - Fetched actions', {
                     caller,
                     actionCount: allActions?.length || 0,
@@ -497,6 +516,145 @@
          */
         setPromptId(promptId) {
             state.set('slideoutPromptId', promptId);
+        },
+
+        /**
+         * Setup to-top button functionality
+         */
+        setupToTopButton() {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:508',message:'setupToTopButton entry',data:{hasSlideout:!!this.slideout},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+            const content = this.slideout?.getContent();
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:510',message:'content element check',data:{hasContent:!!content,contentId:content?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+            // #endregion
+            if (!content) return;
+
+            let toTopButton = document.getElementById('slideoutToTopButton');
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:513',message:'button element check',data:{hasButton:!!toTopButton,buttonDisplay:toTopButton?.style?.display,buttonComputedDisplay:toTopButton?window.getComputedStyle(toTopButton).display:null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
+            
+            // Create button if it doesn't exist
+            if (!toTopButton) {
+                toTopButton = document.createElement('button');
+                toTopButton.id = 'slideoutToTopButton';
+                toTopButton.className = 'slideout-to-top-btn';
+                toTopButton.title = 'Scroll to top';
+                toTopButton.style.display = 'none';
+                toTopButton.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1767671630805-s0jbg.png" alt="To top" width="24" height="24">';
+                content.appendChild(toTopButton);
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:525',message:'created to-top button',data:{buttonCreated:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                // #endregion
+            }
+
+            // Show/hide button based on scroll position
+            const updateButtonVisibility = () => {
+                const scrollTop = content.scrollTop;
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:517',message:'updateButtonVisibility called',data:{scrollTop,shouldShow:scrollTop>200,currentDisplay:toTopButton.style.display},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+                // #endregion
+                // Show button if scrolled down more than 200px
+                if (scrollTop > 200) {
+                    toTopButton.style.display = 'flex';
+                    // #region agent log
+                    setTimeout(() => {
+                        const computedStyle = window.getComputedStyle(toTopButton);
+                        const rect = toTopButton.getBoundingClientRect();
+                        fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:525',message:'after setting display flex',data:{display:toTopButton.style.display,computedDisplay:computedStyle.display,width:computedStyle.width,height:computedStyle.height,position:computedStyle.position,bottom:computedStyle.bottom,right:computedStyle.right,rectWidth:rect.width,rectHeight:rect.height,rectTop:rect.top,rectLeft:rect.left},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                    }, 100);
+                    // #endregion
+                } else {
+                    toTopButton.style.display = 'none';
+                }
+            };
+
+            // Update visibility on scroll
+            content.addEventListener('scroll', updateButtonVisibility, { passive: true });
+
+            // Handle button click - scroll to top of first visible prompt-result-content
+            toTopButton.addEventListener('click', () => {
+                const promptResultContents = content.querySelectorAll('.prompt-result-content');
+                
+                // Find the first visible prompt-result-content element
+                let firstVisible = null;
+                for (const element of promptResultContents) {
+                    const rect = element.getBoundingClientRect();
+                    const containerRect = content.getBoundingClientRect();
+                    
+                    // Check if element is visible in the viewport
+                    if (rect.top >= containerRect.top && rect.top <= containerRect.bottom) {
+                        firstVisible = element;
+                        break;
+                    }
+                }
+
+                if (firstVisible) {
+                    // Scroll to the first visible prompt-result-content
+                    firstVisible.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else if (promptResultContents.length > 0) {
+                    // If no visible element found, scroll to the first one
+                    promptResultContents[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else {
+                    // Fallback: scroll to top of content
+                    content.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            });
+
+            // Initial visibility check
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:559',message:'before initial visibility check',data:{contentScrollTop:content.scrollTop,contentScrollHeight:content.scrollHeight,contentClientHeight:content.clientHeight,buttonRect:toTopButton.getBoundingClientRect()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+            // #endregion
+            updateButtonVisibility();
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:561',message:'after initial visibility check',data:{buttonDisplay:toTopButton.style.display,buttonComputedDisplay:window.getComputedStyle(toTopButton).display},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+            // #endregion
+        },
+
+        /**
+         * Setup expansion button functionality
+         */
+        setupExpandButton() {
+            const expandButton = document.getElementById('slideoutExpandButton');
+            if (!expandButton) return;
+
+            expandButton.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent event bubbling
+                this.handleExpandToggle();
+            });
+        },
+
+        /**
+         * Handle expand/collapse toggle
+         */
+        handleExpandToggle() {
+            if (!this.slideout || !this.slideout.panel) return;
+
+            const panel = this.slideout.panel;
+            const overlay = this.slideout.overlay;
+            const isExpanded = panel.classList.contains('expanded');
+
+            // Close any open modals first (hide only, don't close slideout)
+            if (window.PromptModalManager && window.PromptModalManager.promptModal && window.PromptModalManager.promptModal.isVisible()) {
+                // Hide the modal directly without closing the slideout
+                window.PromptModalManager.promptModal.hide();
+            }
+
+            if (isExpanded) {
+                // Collapse to default width
+                panel.classList.remove('expanded');
+                if (overlay) {
+                    overlay.style.width = '500px';
+                }
+            } else {
+                // Expand to 50% of viewport width
+                panel.classList.add('expanded');
+                if (overlay) {
+                    overlay.style.width = '50vw';
+                }
+            }
         }
     };
 

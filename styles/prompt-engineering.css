@@ -21,13 +21,22 @@
     background: oklch(1 0 0);
     box-shadow: -4px 0 20px rgba(0,0,0,0.15);
     z-index: 10001;
-    transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: right 0.4s cubic-bezier(0.4, 0, 0.2, 1), width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     flex-direction: column;
     border-top: 3px solid #B9F040;
 }
 
 .ai-insights-panel.open {
+    right: 0;
+}
+
+.ai-insights-panel.expanded {
+    width: 50vw;
+    right: -50vw;
+}
+
+.ai-insights-panel.expanded.open {
     right: 0;
 }
 
@@ -176,6 +185,31 @@
     color: oklch(0.145 0 0);
 }
 
+.slideout-expand-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 8px;
+    border-radius: 4px;
+    transition: background 0.2s;
+    width: 28px;
+    height: 28px;
+}
+
+.slideout-expand-btn:hover {
+    background: oklch(0.97 0 0);
+}
+
+.slideout-expand-btn img {
+    display: block;
+    width: 20px;
+    height: 20px;
+}
+
 /* Filter Components */
 .filter-menu {
     position: relative;
@@ -292,8 +326,9 @@
     z-index: 10000;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.3s;
+    transition: opacity 0.3s, width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
 
 .ai-insights-overlay.visible {
     opacity: 1;

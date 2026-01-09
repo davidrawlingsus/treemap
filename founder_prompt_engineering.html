@@ -178,7 +178,7 @@
                 </div>
                 <div class="form-group">
                     <label for="userMessageInput">Prompt Messages</label>
-                    <textarea id="userMessageInput" placeholder="Enter user message (e.g., URL, verbatim JSON, etc.)" style="min-height: 200px; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; line-height: 1.6;"></textarea>
+                    <textarea id="userMessageInput" placeholder="Enter user message (e.g., URL, verbatim JSON, etc.)" style="min-height: 200px; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; line-height: 1.6;" required></textarea>
                     <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">The user input that will be sent with the system message to the LLM</p>
                 </div>
             </form>
@@ -235,6 +235,9 @@
     <!-- Slideout Panel for Prompt Results -->
     <div id="slideoutPanel" class="ai-insights-panel">
         <div class="ai-insights-header">
+            <button id="slideoutExpandButton" class="slideout-expand-btn" title="Expand slideout">
+                <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1767922251837-rvam8.png" alt="Expand" width="20" height="20">
+            </button>
             <div style="flex: 1;">
                 <div id="slideoutTitle" data-slideout-title style="font-size: 1.5rem; font-weight: 600; font-family: 'Lato', sans-serif; color: oklch(0.145 0 0);">LLM Outputs</div>
             </div>
@@ -278,6 +281,9 @@
         </div>
         <div id="slideoutContent" class="ai-insights-content" data-slideout-content>
             <!-- Content loaded dynamically -->
+            <button id="slideoutToTopButton" class="slideout-to-top-btn" title="Scroll to top" style="display: none;">
+                <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1767671630805-s0jbg.png" alt="To top" width="24" height="24">
+            </button>
         </div>
         <div class="ai-insights-chat">
             <div class="chat-input-container">
