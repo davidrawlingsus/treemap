@@ -623,7 +623,7 @@ class LLMService:
             # Build request parameters
             request_params = {
                 "model": model,
-                "max_tokens": 100000,  # Set to very high value to effectively remove limit (model will use its actual maximum)
+                "max_tokens": 64000,  # Maximum for Anthropic API
                 "temperature": 1,
                 "messages": messages,
                 "stream": True
