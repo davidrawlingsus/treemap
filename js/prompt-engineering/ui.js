@@ -38,11 +38,67 @@
         convertMarkdown(text) {
             if (!text) return '';
             
-            // First escape HTML to prevent XSS
+            // Process JSON blocks BEFORE HTML escaping (so JSON.parse works)
+            // Use placeholders to preserve their position
+            const jsonBlocks = [];
+            text = text.replace(/```json\s*([\s\S]*?)```/gi, (match, jsonContent) => {
+                try {
+                    // Try to parse the JSON
+                    const jsonData = JSON.parse(jsonContent);
+                    
+                    let ideaCardsHTML = '';
+                    
+                    // Check if this is the structured format with content + ideas
+                    if (jsonData.ideas && Array.isArray(jsonData.ideas)) {
+                        // Generate idea cards HTML object that will be processed later
+                        const htmlObject = {
+                            content: jsonData.content || null,
+                            ideas: jsonData.ideas
+                        };
+                        
+                        // Store and return placeholder
+                        const placeholder = `___JSON_BLOCK_${jsonBlocks.length}___`;
+                        jsonBlocks.push(htmlObject);
+                        return placeholder;
+                    } 
+                    // Legacy support: Check if it's an array of ideas or a single idea
+                    else if (Array.isArray(jsonData)) {
+                        const placeholder = `___JSON_BLOCK_${jsonBlocks.length}___`;
+                        jsonBlocks.push({ content: null, ideas: jsonData });
+                        return placeholder;
+                    } else {
+                        const placeholder = `___JSON_BLOCK_${jsonBlocks.length}___`;
+                        jsonBlocks.push({ content: null, ideas: [jsonData] });
+                        return placeholder;
+                    }
+                } catch (e) {
+                    // If JSON parsing fails, treat as regular code block
+                    console.warn('[UI] Failed to parse JSON block for idea card:', e);
+                    // Return the original match to be processed as regular code block
+                    return match;
+                }
+            });
+            
+            // Now escape HTML to prevent XSS
             let html = DOM.escapeHtml(text);
             
-            // Code blocks first (before other processing)
-            html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+            // Process remaining code blocks (non-JSON or failed JSON)
+            html = html.replace(/```(\w+)?\s*([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+            
+            // Restore JSON block placeholders with the actual idea card HTML
+            jsonBlocks.forEach((htmlObject, index) => {
+                let ideaCardsHTML = '';
+                
+                // Add content section if present
+                if (htmlObject.content) {
+                    ideaCardsHTML += `<div style="margin-bottom: 8px; padding: 8px 10px; background: #f0f4f8; border-left: 4px solid #B9F040; border-radius: 4px;"><p style="margin: 0; font-size: 13px; line-height: 1.4; color: #2d3748; font-weight: 500;">${DOM.escapeHtml(htmlObject.content)}</p></div>`;
+                }
+                
+                // Generate idea cards from the ideas array
+                ideaCardsHTML += htmlObject.ideas.map(idea => this._generateIdeaCardHTML(idea)).join('');
+                
+                html = html.replace(`___JSON_BLOCK_${index}___`, ideaCardsHTML);
+            });
             
             // Split into lines for block-level processing
             const lines = html.split('\n');
@@ -318,7 +374,8 @@
                 if (!trimmed) return '';
                 
                 // Don't wrap block elements in paragraphs
-                if (trimmed.match(/^<(h[1-3]|ul|ol|pre|li|table)/)) {
+                // Include div so our idea cards/callouts don't get wrapped in <p>
+                if (trimmed.match(/^<(h[1-3]|ul|ol|pre|li|table|div)/)) {
                     return block;
                 }
                 
@@ -333,6 +390,64 @@
             html = html.replace(/\s*<br>\s*(<\/ul>|<\/ol>)/g, '$1');
             
             return html;
+        },
+
+        /**
+         * Generate HTML for an idea card from JSON data
+         * @param {Object} idea - Idea data object
+         * @returns {string} HTML string for idea card
+         * 
+         * Expected JSON structure:
+         * {
+         *   "id": "unique-id-001",
+         *   "title": "Short actionable title (max 10 words)",
+         *   "testType": "Objection/Counter Objection | Headline Hooks & Lead-Ins | Risk Reversal | ...",
+         *   "application": "Specific channel/location for fastest feedback",
+         *   "origin": "VoC Source Type / Category / Theme",
+         *   "details": "2–4 sentences explaining why this test exists, the hypothesis, and expected impact. Include 1–3 verbatim VoC quotes."
+         * }
+         */
+        _generateIdeaCardHTML(idea) {
+            // Extract fields from the idea object and escape for HTML safety
+            const id = DOM.escapeHtml(idea.id || '');
+            const title = DOM.escapeHtml(idea.title || idea.name || 'Untitled Idea');
+            const testType = DOM.escapeHtml(idea.testType || idea.test_type || idea.type || '');
+            const application = DOM.escapeHtml(idea.application || '');
+            const origin = DOM.escapeHtml(idea.origin || '');
+            const details = DOM.escapeHtml(idea.details || idea.description || '');
+            
+            // Build metadata rows
+            let metaHTML = '';
+            if (application) {
+                metaHTML += `<div class="pe-idea-card__metaRow"><span class="pe-idea-card__metaLabel">Application:</span><span class="pe-idea-card__metaValue">${application}</span></div>`;
+            }
+            if (origin) {
+                metaHTML += `<div class="pe-idea-card__metaRow"><span class="pe-idea-card__metaLabel">Origin:</span><span class="pe-idea-card__metaValue">${origin}</span></div>`;
+            }
+            
+            // Build details content - preserve line breaks
+            let detailsHTML = '';
+            if (details) {
+                // Convert newlines to <br> for better formatting
+                const formattedDetails = details.replace(/\n/g, '<br>');
+                detailsHTML = `<div class="pe-idea-card__details">${formattedDetails}</div>`;
+            }
+            
+            // Generate the idea card HTML with new structure.
+            // Namespaced classes so styles don't inherit/collide with markdown styles.
+            return `
+                <div class="pe-idea-card" ${id ? `data-idea-id="${id}"` : ''}>
+                    <div class="pe-idea-card__top">
+                        ${testType ? `<div class="pe-idea-card__badge">${testType}</div>` : '<div></div>'}
+                        <button class="pe-idea-card__add" type="button" title="Add idea" data-idea='${DOM.escapeHtmlForAttribute(JSON.stringify(idea))}'>
+                            +
+                        </button>
+                    </div>
+                    <div class="pe-idea-card__title">${title}</div>
+                    ${metaHTML ? `<div class="pe-idea-card__meta">${metaHTML}</div>` : ''}
+                        ${detailsHTML}
+                </div>
+            `;
         },
 
         /**
@@ -531,6 +646,9 @@
 
             // Attach system message toggle listeners
             this.attachSystemMessageToggles(container);
+            
+            // Attach idea card button listeners (with event delegation for dynamic content)
+            this.attachIdeaCardListeners(container);
 
             // Get all action items for navigation
             const actionItems = Array.from(container.querySelectorAll('.prompt-output-item'));
@@ -773,6 +891,58 @@
                     }
                 });
             });
+        },
+
+        /**
+         * Attach idea card button listeners using event delegation
+         * @param {HTMLElement} container - Container element
+         */
+        attachIdeaCardListeners(container) {
+            if (!container) return;
+            
+            // Check if we've already attached the delegated listener
+            if (container.dataset.ideaListenerAttached === 'true') {
+                return;
+            }
+            
+            // Use event delegation to handle dynamically added idea cards
+            container.addEventListener('click', (e) => {
+                const button = e.target.closest('.pe-idea-card__add');
+                if (!button) return;
+                
+                e.stopPropagation();
+                
+                // Toggle selected state
+                const ideaContainer = button.closest('.pe-idea-card');
+                if (!ideaContainer) return;
+                
+                const isSelected = ideaContainer.classList.contains('is-selected');
+                
+                if (isSelected) {
+                    // Deselect
+                    ideaContainer.classList.remove('is-selected');
+                    button.classList.remove('is-selected');
+                    console.log('[UI] Idea deselected');
+                } else {
+                    // Select
+                    ideaContainer.classList.add('is-selected');
+                    button.classList.add('is-selected');
+                    
+                    // Get the idea data
+                    try {
+                        const ideaData = JSON.parse(button.getAttribute('data-idea'));
+                        console.log('[UI] Idea selected:', ideaData);
+                        
+                        // You can add custom logic here to handle the selected idea
+                        // For example, store it in state, send it to backend, etc.
+                    } catch (e) {
+                        console.error('[UI] Failed to parse idea data:', e);
+                    }
+                }
+            });
+            
+            // Mark that we've attached the listener to prevent duplicates
+            container.dataset.ideaListenerAttached = 'true';
         },
 
         /**
