@@ -18,7 +18,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
     <link rel="stylesheet" href="/styles/founder-admin.css">
-    <link rel="stylesheet" href="/styles/prompt-engineering.css">
+    <!-- Prompt engineering styles (split for maintainability) -->
+    <link rel="stylesheet" href="/styles/prompt-engineering/common.css">
+    <link rel="stylesheet" href="/styles/prompt-engineering/slideout.css">
+    <link rel="stylesheet" href="/styles/prompt-engineering/filters.css">
+    <link rel="stylesheet" href="/styles/prompt-engineering/results.css">
+    <link rel="stylesheet" href="/styles/prompt-engineering/idea-cards.css">
     <script src="/config.js"></script>
     <script src="/auth.js"></script>
     <!-- Shared utilities and components -->
@@ -28,7 +33,12 @@
     <script src="/js/prompt-engineering/state.js"></script>
     <script src="/js/prompt-engineering/api.js"></script>
     <script src="/js/prompt-engineering/purposes.js"></script>
-    <script src="/js/prompt-engineering/ui.js"></script>
+    <!-- UI rendering modules (split for maintainability) -->
+    <script src="/js/prompt-engineering/rendering/markdown-converter.js"></script>
+    <script src="/js/prompt-engineering/rendering/streaming-renderer.js"></script>
+    <script src="/js/prompt-engineering/rendering/prompt-list-renderer.js"></script>
+    <script src="/js/prompt-engineering/rendering/action-renderer.js"></script>
+    <script src="/js/prompt-engineering/rendering/ui-helpers.js"></script>
     <script src="/js/prompt-engineering/filters.js"></script>
     <script src="/js/prompt-engineering/slideout.js"></script>
     <script src="/js/prompt-engineering/modals.js"></script>

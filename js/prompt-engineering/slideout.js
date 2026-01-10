@@ -17,6 +17,13 @@
     const UIRenderer = window.PromptUIRenderer;
     const { DOM } = window.FounderAdmin;
 
+    // Constants
+    const SLIDEOUT_DEFAULT_WIDTH = '500px';
+    const SLIDEOUT_EXPANDED_WIDTH = '50vw';
+    const SCROLL_TO_TOP_THRESHOLD = 200; // px
+    const REFRESH_DELAY_AFTER_STREAMING = 500; // ms
+    const RESET_ICON_DELAY = 2000; // ms
+
     /**
      * Slideout Manager
      */
@@ -57,9 +64,6 @@
             }
 
             // Setup to-top button
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:59',message:'setupToTopButton called from init',data:{hasSlideout:!!this.slideout},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
             this.setupToTopButton();
 
             // Setup expansion button
@@ -86,7 +90,7 @@
                     this.slideout.panel.classList.remove('expanded');
                 }
                 if (this.slideout.overlay) {
-                    this.slideout.overlay.style.width = '500px';
+                    this.slideout.overlay.style.width = SLIDEOUT_DEFAULT_WIDTH;
                 }
                 this.slideout.close();
             }
@@ -176,7 +180,7 @@
                         setTimeout(() => {
                             console.log('[SLIDEOUT] Calling displayAllResults() after streaming timeout (executePrompt)');
                             this.displayAllResults(false, 'executePrompt-onDone');
-                        }, 500);
+                        }, REFRESH_DELAY_AFTER_STREAMING);
                     },
                     // onError
                     (error) => {
@@ -237,9 +241,6 @@
             try {
                 console.log('[SLIDEOUT] displayAllResults() - Fetching all actions', { caller });
                 const allActions = await PromptAPI.getAllActions();
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:229',message:'displayAllResults - API response received',data:{actionCount:allActions?.length||0,firstActionContentLength:allActions?.[0]?.actions?.content?.length||0,firstActionContentPreview:allActions?.[0]?.actions?.content?.substring?.(0,200)||'',firstActionContentEnd:allActions?.[0]?.actions?.content?.substring?.(Math.max(0,(allActions?.[0]?.actions?.content?.length||0)-200))||''},timestamp:Date.now(),sessionId:'debug-session',runId:'initial',hypothesisId:'A'})}).catch(()=>{});
-                // #endregion
                 console.log('[SLIDEOUT] displayAllResults() - Fetched actions', {
                     caller,
                     actionCount: allActions?.length || 0,
@@ -406,13 +407,13 @@
                             this.elements.chatSend.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/done_icon.png" alt="Done" width="20" height="20" id="slideoutChatSendIcon">';
                         }
 
-                        // Reset to send icon after 2 seconds
+                        // Reset to send icon after delay
                         setTimeout(() => {
                             if (this.elements.chatSend) {
                                 this.elements.chatSend.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/send_icon.png" alt="Send" width="20" height="20" id="slideoutChatSendIcon">';
                                 this.elements.chatSend.disabled = false;
                             }
-                        }, 2000);
+                        }, RESET_ICON_DELAY);
 
                         // Refresh results to get the saved action (without showing loading state)
                         console.log('[SLIDEOUT] Scheduling displayAllResults() after streaming (handleChatSubmit)', {
@@ -422,7 +423,7 @@
                         setTimeout(() => {
                             console.log('[SLIDEOUT] Calling displayAllResults() after streaming timeout (handleChatSubmit)');
                             this.displayAllResults(false, 'handleChatSubmit-onDone');
-                        }, 500);
+                        }, REFRESH_DELAY_AFTER_STREAMING);
                     },
                     // onError
                     (error) => {
@@ -522,19 +523,10 @@
          * Setup to-top button functionality
          */
         setupToTopButton() {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:508',message:'setupToTopButton entry',data:{hasSlideout:!!this.slideout},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
             const content = this.slideout?.getContent();
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:510',message:'content element check',data:{hasContent:!!content,contentId:content?.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-            // #endregion
             if (!content) return;
 
             let toTopButton = document.getElementById('slideoutToTopButton');
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:513',message:'button element check',data:{hasButton:!!toTopButton,buttonDisplay:toTopButton?.style?.display,buttonComputedDisplay:toTopButton?window.getComputedStyle(toTopButton).display:null},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-            // #endregion
             
             // Create button if it doesn't exist
             if (!toTopButton) {
@@ -545,27 +537,14 @@
                 toTopButton.style.display = 'none';
                 toTopButton.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1767671630805-s0jbg.png" alt="To top" width="24" height="24">';
                 content.appendChild(toTopButton);
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:525',message:'created to-top button',data:{buttonCreated:true},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-                // #endregion
             }
 
             // Show/hide button based on scroll position
             const updateButtonVisibility = () => {
                 const scrollTop = content.scrollTop;
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:517',message:'updateButtonVisibility called',data:{scrollTop,shouldShow:scrollTop>200,currentDisplay:toTopButton.style.display},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-                // #endregion
-                // Show button if scrolled down more than 200px
-                if (scrollTop > 200) {
+                // Show button if scrolled down past threshold
+                if (scrollTop > SCROLL_TO_TOP_THRESHOLD) {
                     toTopButton.style.display = 'flex';
-                    // #region agent log
-                    setTimeout(() => {
-                        const computedStyle = window.getComputedStyle(toTopButton);
-                        const rect = toTopButton.getBoundingClientRect();
-                        fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:525',message:'after setting display flex',data:{display:toTopButton.style.display,computedDisplay:computedStyle.display,width:computedStyle.width,height:computedStyle.height,position:computedStyle.position,bottom:computedStyle.bottom,right:computedStyle.right,rectWidth:rect.width,rectHeight:rect.height,rectTop:rect.top,rectLeft:rect.left},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-                    }, 100);
-                    // #endregion
                 } else {
                     toTopButton.style.display = 'none';
                 }
@@ -604,13 +583,7 @@
             });
 
             // Initial visibility check
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:559',message:'before initial visibility check',data:{contentScrollTop:content.scrollTop,contentScrollHeight:content.scrollHeight,contentClientHeight:content.clientHeight,buttonRect:toTopButton.getBoundingClientRect()},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-            // #endregion
             updateButtonVisibility();
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:561',message:'after initial visibility check',data:{buttonDisplay:toTopButton.style.display,buttonComputedDisplay:window.getComputedStyle(toTopButton).display},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-            // #endregion
         },
 
         /**
@@ -646,13 +619,13 @@
                 // Collapse to default width
                 panel.classList.remove('expanded');
                 if (overlay) {
-                    overlay.style.width = '500px';
+                    overlay.style.width = SLIDEOUT_DEFAULT_WIDTH;
                 }
             } else {
-                // Expand to 50% of viewport width
+                // Expand to viewport width
                 panel.classList.add('expanded');
                 if (overlay) {
-                    overlay.style.width = '50vw';
+                    overlay.style.width = SLIDEOUT_EXPANDED_WIDTH;
                 }
             }
         }

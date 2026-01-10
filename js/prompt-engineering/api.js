@@ -13,9 +13,12 @@
 
     const { API } = window.FounderAdmin;
 
+    // Constants
+    const CACHE_TTL = 30000; // 30 seconds
+    const USER_MESSAGE_LOG_PREVIEW_LENGTH = 100; // characters
+
     // Simple cache with TTL
     const cache = new Map();
-    const CACHE_TTL = 30000; // 30 seconds
 
     function getCacheKey(endpoint, params) {
         const paramStr = params ? JSON.stringify(params) : '';
@@ -116,7 +119,7 @@
         async execute(promptId, userMessage = '') {
             console.log('[PROMPT_API] execute() called', {
                 promptId,
-                userMessage: userMessage.substring(0, 100) + (userMessage.length > 100 ? '...' : ''),
+                userMessage: userMessage.substring(0, USER_MESSAGE_LOG_PREVIEW_LENGTH) + (userMessage.length > USER_MESSAGE_LOG_PREVIEW_LENGTH ? '...' : ''),
                 userMessageLength: userMessage.length,
                 timestamp: new Date().toISOString()
             });
@@ -131,7 +134,7 @@
                     endpoint,
                     payload: {
                         ...payload,
-                        user_message: payload.user_message.substring(0, 100) + (payload.user_message.length > 100 ? '...' : '')
+                        user_message: payload.user_message.substring(0, USER_MESSAGE_LOG_PREVIEW_LENGTH) + (payload.user_message.length > USER_MESSAGE_LOG_PREVIEW_LENGTH ? '...' : '')
                     }
                 });
 
@@ -170,7 +173,7 @@
         async executeStream(promptId, userMessage = '', onChunk, onDone, onError) {
             console.log('[PROMPT_API] executeStream() called', {
                 promptId,
-                userMessage: userMessage.substring(0, 100) + (userMessage.length > 100 ? '...' : ''),
+                userMessage: userMessage.substring(0, USER_MESSAGE_LOG_PREVIEW_LENGTH) + (userMessage.length > USER_MESSAGE_LOG_PREVIEW_LENGTH ? '...' : ''),
                 userMessageLength: userMessage.length,
                 timestamp: new Date().toISOString()
             });

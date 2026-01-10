@@ -1,0 +1,12 @@
+/* Common Prompt Engineering Styles */
+
+.version-selector {
+    cursor: pointer;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.version-selector:focus {
+    outline: none;
+    border-color: var(--brand-color);
+    box-shadow: 0 0 0 3px rgba(185, 240, 64, 0.1);
+}

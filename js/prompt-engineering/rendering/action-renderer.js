@@ -1,0 +1,445 @@
+/**
+ * Action Renderer Module
+ * Handles rendering of prompt execution results/actions
+ */
+
+(function() {
+    'use strict';
+
+    if (!window.FounderAdmin || !window.PromptEngineeringState || !window.MarkdownConverter) {
+        console.error('[ACTION_RENDERER] Dependencies not loaded');
+        return;
+    }
+
+    const { DOM } = window.FounderAdmin;
+    const state = window.PromptEngineeringState;
+    const { convertMarkdown } = window.MarkdownConverter;
+
+    // Constants
+    const USER_MESSAGE_PREVIEW_LENGTH = 200; // characters
+    const SCROLL_BOTTOM_THRESHOLD = 50; // px
+
+    /**
+     * Render prompt results/actions
+     * @param {HTMLElement} container - Container element
+     * @param {Array} actions - Array of action objects
+     * @param {Function} onCopy - Callback when copy button is clicked
+     * @param {Function} onDelete - Callback when delete button is clicked
+     */
+    function renderActions(container, actions, onCopy, onDelete) {
+        if (!container) return;
+
+        if (!actions || actions.length === 0) {
+            container.innerHTML = '<p style="color: var(--muted); padding: 24px; text-align: center;">No execution results match the selected filters.</p>';
+            return;
+        }
+
+        const filterState = state.get('filterState');
+        let filteredActions = actions;
+
+        // Apply filters
+        if (filterState.promptNames.size > 0) {
+            filteredActions = filteredActions.filter(action => 
+                action.prompt_name && filterState.promptNames.has(action.prompt_name)
+            );
+        }
+
+        if (filterState.promptVersions.size > 0) {
+            filteredActions = filteredActions.filter(action => {
+                if (!action.prompt_name || action.prompt_version === null || action.prompt_version === undefined) {
+                    return false;
+                }
+                const versionKey = `${action.prompt_name}:v${action.prompt_version}`;
+                return filterState.promptVersions.has(versionKey);
+            });
+        }
+
+        if (filterState.models.size > 0) {
+            filteredActions = filteredActions.filter(action => {
+                const model = action.actions?.model;
+                return model && filterState.models.has(model);
+            });
+        }
+
+        if (filteredActions.length === 0) {
+            container.innerHTML = '<p style="color: var(--muted); padding: 24px; text-align: center;">No execution results match the selected filters.</p>';
+            return;
+        }
+
+        // Store scroll position before clearing
+        const scrollTopBefore = container.scrollTop;
+        const wasAtBottomBefore = _isAtBottom(container, SCROLL_BOTTOM_THRESHOLD);
+
+        // Use document fragment for better performance
+        const fragment = document.createDocumentFragment();
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = filteredActions.map(action => {
+            return renderActionItem(action, onCopy, onDelete);
+        }).join('');
+
+        // Move nodes to fragment
+        while (tempDiv.firstChild) {
+            fragment.appendChild(tempDiv.firstChild);
+        }
+
+        // Clear and append fragment
+        container.innerHTML = '';
+        container.appendChild(fragment);
+
+        // Attach system message toggle listeners
+        attachSystemMessageToggles(container);
+        
+        // Attach idea card button listeners (with event delegation for dynamic content)
+        attachIdeaCardListeners(container);
+
+        // Get all action items for navigation
+        const actionItems = Array.from(container.querySelectorAll('.prompt-output-item'));
+        
+        // Attach navigation button listeners
+        actionItems.forEach((itemElement, index) => {
+            const prevButton = itemElement.querySelector('.btn-nav-prev');
+            const nextButton = itemElement.querySelector('.btn-nav-next');
+            
+            // Disable prev button for first item
+            if (prevButton) {
+                if (index === 0) {
+                    prevButton.disabled = true;
+                    prevButton.style.opacity = '0.3';
+                    prevButton.style.cursor = 'not-allowed';
+                } else {
+                    prevButton.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const prevItem = actionItems[index - 1];
+                        if (prevItem) {
+                            prevItem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                    });
+                }
+            }
+            
+            // Disable next button for last item
+            if (nextButton) {
+                if (index === actionItems.length - 1) {
+                    nextButton.disabled = true;
+                    nextButton.style.opacity = '0.3';
+                    nextButton.style.cursor = 'not-allowed';
+                } else {
+                    nextButton.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const nextItem = actionItems[index + 1];
+                        if (nextItem) {
+                            nextItem.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }
+                    });
+                }
+            }
+        });
+
+        // Attach copy and delete button listeners
+        container.querySelectorAll('.btn-copy-output').forEach(button => {
+            button.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const actionId = button.getAttribute('data-action-id');
+                if (onCopy) {
+                    const success = await onCopy(actionId);
+                    // Could show a toast notification here
+                }
+            });
+        });
+
+        container.querySelectorAll('.btn-delete-output').forEach(button => {
+            button.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const actionId = button.getAttribute('data-action-id');
+                if (onDelete) {
+                    try {
+                        await onDelete(actionId);
+                        // Results will be refreshed by the caller
+                    } catch (error) {
+                        console.error('[ACTION_RENDERER] Delete failed:', error);
+                    }
+                }
+            });
+        });
+
+        // Auto-scroll to bottom only if user was already at bottom
+        // This prevents interrupting reading when results are refreshed
+        if (wasAtBottomBefore) {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (container) {
+                        container.scrollTop = container.scrollHeight;
+                    }
+                });
+            });
+        } else {
+            // Restore scroll position when user wasn't at bottom
+            // Wait for layout to complete before restoring scroll position
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (container) {
+                        container.scrollTop = scrollTopBefore;
+                    }
+                });
+            });
+        }
+    }
+
+    /**
+     * Render a single action item
+     * @param {Object} action - Action object
+     * @param {Function} onCopy - Copy callback
+     * @param {Function} onDelete - Delete callback
+     * @returns {string} HTML string
+     */
+    function renderActionItem(action, onCopy, onDelete) {
+        const actionContent = action.actions?.content || '';
+        const content = typeof actionContent === 'string' 
+            ? actionContent 
+            : JSON.stringify(actionContent, null, 2);
+        
+        const createdAt = action.created_at 
+            ? new Date(action.created_at).toLocaleString() 
+            : 'Unknown';
+        
+        const metadata = action.actions || {};
+        
+        // Parse prompt_text_sent to extract system and user messages
+        const promptTextSent = action.prompt_text_sent || '';
+        let systemMessage = '';
+        let userMessage = '';
+        
+        if (promptTextSent.includes('System:') && promptTextSent.includes('User:')) {
+            const parts = promptTextSent.split('User:');
+            systemMessage = parts[0].replace('System:', '').trim();
+            userMessage = parts.slice(1).join('User:').trim();
+        } else {
+            systemMessage = action.prompt_system_message || promptTextSent;
+            userMessage = '';
+        }
+
+        const promptName = action.prompt_name || 'Unknown';
+        const promptVersion = action.prompt_version !== null && action.prompt_version !== undefined 
+            ? `v${action.prompt_version}` 
+            : '';
+
+        // Handle user message truncation
+        let userMessageHtml = '';
+        if (userMessage) {
+            const isLong = userMessage.length > USER_MESSAGE_PREVIEW_LENGTH;
+            const preview = isLong ? userMessage.substring(0, USER_MESSAGE_PREVIEW_LENGTH) + '...' : userMessage;
+            userMessageHtml = `
+                <div style="margin-top: 8px;">
+                    <div style="font-size: 12px; color: var(--text); margin-top: 4px;">
+                        <strong>User Message:</strong> 
+                        <span class="user-message-preview" id="user-msg-preview-${action.id}">${DOM.escapeHtml(preview)}</span>
+                        ${isLong ? `<span class="user-message-full" id="user-msg-full-${action.id}" style="display: none;">${DOM.escapeHtml(userMessage)}</span>` : ''}
+                    </div>
+                    ${isLong ? `
+                        <button class="toggle-user-message" data-action-id="${action.id}" style="background: none; border: none; color: #666; cursor: pointer; font-size: 12px; padding: 0; text-decoration: underline; margin-top: 4px;">
+                            <span class="toggle-text">Show</span> Full User Message
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        return `
+            <div class="prompt-output-item" data-action-id="${action.id}" data-prompt-name="${DOM.escapeHtmlForAttribute(promptName)}" data-prompt-version="${action.prompt_version || ''}">
+                <div class="prompt-output-header">
+                    <div class="prompt-output-meta">
+                        <div style="margin-bottom: 4px;">
+                            <strong>${DOM.escapeHtml(promptName)} ${promptVersion}</strong>
+                            <span style="color: var(--muted); font-size: 12px; margin-left: 12px;">${createdAt}</span>
+                            ${metadata.model ? `<span style="color: var(--muted); font-size: 12px; margin-left: 8px;">• ${DOM.escapeHtml(metadata.model)}</span>` : ''}
+                            ${metadata.tokens_used ? `<span style="color: var(--muted); font-size: 12px; margin-left: 8px;">• ${metadata.tokens_used} tokens</span>` : ''}
+                        </div>
+                        ${userMessageHtml}
+                        ${systemMessage ? `
+                            <div style="margin-top: 8px;">
+                                <button class="toggle-system-message" data-action-id="${action.id}" style="background: none; border: none; color: #666; cursor: pointer; font-size: 12px; padding: 0; text-decoration: underline;">
+                                    <span class="toggle-text">Show</span> System Message
+                                </button>
+                                <div class="system-message-content" id="system-msg-${action.id}" style="display: none; margin-top: 8px; padding: 12px; background: #f7fafc; border-radius: 6px; font-size: 12px; color: var(--text); white-space: pre-wrap; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;">${DOM.escapeHtml(systemMessage)}</div>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="prompt-output-actions">
+                        <button class="btn-nav-prev" data-action-id="${action.id}" title="Previous message">
+                            <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1767496461750-8ikag.png" alt="Previous" width="16" height="16">
+                        </button>
+                        <button class="btn-nav-next" data-action-id="${action.id}" title="Next message">
+                            <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1767496465023-xx3hee.png" alt="Next" width="16" height="16">
+                        </button>
+                        <button class="btn-copy-output" data-action-id="${action.id}" title="Copy to clipboard">
+                            <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/copy_button.png" alt="Copy" width="16" height="16">
+                        </button>
+                        <button class="btn-delete-output" data-action-id="${action.id}" title="Delete">
+                            <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/delete_button.png" alt="Delete" width="16" height="16">
+                        </button>
+                    </div>
+                </div>
+                <div class="prompt-result-content" data-raw-text="${DOM.escapeHtmlForAttribute(content)}">${convertMarkdown(content)}</div>
+            </div>
+        `;
+    }
+
+    /**
+     * Attach system message toggle listeners
+     * @param {HTMLElement} container - Container element
+     */
+    function attachSystemMessageToggles(container) {
+        if (!container) return;
+
+        container.querySelectorAll('.toggle-system-message').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const actionId = button.getAttribute('data-action-id');
+                const systemMsgDiv = document.getElementById(`system-msg-${actionId}`);
+                const toggleText = button.querySelector('.toggle-text');
+                
+                if (systemMsgDiv && toggleText) {
+                    if (systemMsgDiv.style.display === 'none') {
+                        systemMsgDiv.style.display = 'block';
+                        toggleText.textContent = 'Hide';
+                    } else {
+                        systemMsgDiv.style.display = 'none';
+                        toggleText.textContent = 'Show';
+                    }
+                }
+            });
+        });
+
+        // Attach user message toggle listeners
+        container.querySelectorAll('.toggle-user-message').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const actionId = button.getAttribute('data-action-id');
+                const previewDiv = document.getElementById(`user-msg-preview-${actionId}`);
+                const fullDiv = document.getElementById(`user-msg-full-${actionId}`);
+                const toggleText = button.querySelector('.toggle-text');
+                
+                if (previewDiv && fullDiv && toggleText) {
+                    if (previewDiv.style.display !== 'none') {
+                        // Show full message
+                        previewDiv.style.display = 'none';
+                        fullDiv.style.display = 'inline';
+                        toggleText.textContent = 'Hide';
+                    } else {
+                        // Show preview
+                        previewDiv.style.display = 'inline';
+                        fullDiv.style.display = 'none';
+                        toggleText.textContent = 'Show';
+                    }
+                }
+            });
+        });
+    }
+
+    /**
+     * Attach idea card button listeners using event delegation
+     * @param {HTMLElement} container - Container element
+     */
+    function attachIdeaCardListeners(container) {
+        if (!container) return;
+        
+        // Check if we've already attached the delegated listener
+        if (container.dataset.ideaListenerAttached === 'true') {
+            return;
+        }
+        
+        // Use event delegation to handle dynamically added idea cards
+        container.addEventListener('click', (e) => {
+            const button = e.target.closest('.pe-idea-card__add');
+            if (!button) return;
+            
+            e.stopPropagation();
+            
+            // Toggle selected state
+            const ideaContainer = button.closest('.pe-idea-card');
+            if (!ideaContainer) return;
+            
+            const isSelected = ideaContainer.classList.contains('is-selected');
+            
+            if (isSelected) {
+                // Deselect
+                ideaContainer.classList.remove('is-selected');
+                button.classList.remove('is-selected');
+                console.log('[ACTION_RENDERER] Idea deselected');
+            } else {
+                // Select
+                ideaContainer.classList.add('is-selected');
+                button.classList.add('is-selected');
+                
+                // Get the idea data
+                try {
+                    const ideaData = JSON.parse(button.getAttribute('data-idea'));
+                    console.log('[ACTION_RENDERER] Idea selected:', ideaData);
+                    
+                    // You can add custom logic here to handle the selected idea
+                    // For example, store it in state, send it to backend, etc.
+                } catch (e) {
+                    console.error('[ACTION_RENDERER] Failed to parse idea data:', e);
+                }
+            }
+        });
+        
+        // Mark that we've attached the listener to prevent duplicates
+        container.dataset.ideaListenerAttached = 'true';
+    }
+
+    /**
+     * Render loading state
+     * @param {HTMLElement} container - Container element
+     * @param {string} message - Loading message
+     */
+    function renderLoading(container, message = 'Loading...') {
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="ai-loading">
+                <div class="ai-loading-spinner"></div>
+                <p>${DOM.escapeHtml(message)}</p>
+            </div>
+        `;
+    }
+
+    /**
+     * Render error state
+     * @param {HTMLElement} container - Container element
+     * @param {string} message - Error message
+     */
+    function renderError(container, message = 'An error occurred') {
+        if (!container) return;
+
+        container.innerHTML = `
+            <div style="padding: 24px;">
+                <h3 style="color: var(--danger); margin-bottom: 12px;">Error</h3>
+                <p style="color: var(--text);">${DOM.escapeHtml(message)}</p>
+            </div>
+        `;
+    }
+
+    /**
+     * Check if container is scrolled to bottom (within threshold)
+     * @param {HTMLElement} container - Container element
+     * @param {number} threshold - Threshold in pixels
+     * @returns {boolean} True if at bottom
+     */
+    function _isAtBottom(container, threshold) {
+        if (!container) return false;
+        const scrollTop = container.scrollTop;
+        const scrollHeight = container.scrollHeight;
+        const clientHeight = container.clientHeight;
+        const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+        return distanceFromBottom <= threshold;
+    }
+
+    // Export
+    window.ActionRenderer = {
+        renderActions,
+        renderActionItem,
+        attachSystemMessageToggles,
+        attachIdeaCardListeners,
+        renderLoading,
+        renderError
+    };
+})();
