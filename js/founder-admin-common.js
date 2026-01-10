@@ -193,6 +193,16 @@
                     throw new Error(errorMessage);
                 }
 
+                // Handle 204 No Content responses (common for DELETE operations)
+                if (response.status === 204) {
+                    if (isExecuteRequest) {
+                        console.log('[API] 204 No Content response, returning null', {
+                            timestamp: new Date().toISOString()
+                        });
+                    }
+                    return null;
+                }
+
                 // Handle empty responses
                 const contentType = response.headers.get('content-type');
                 if (!contentType || !contentType.includes('application/json')) {
@@ -205,7 +215,42 @@
                     return null;
                 }
 
-                const jsonData = await response.json();
+                // Check if response has content before parsing
+                const contentLength = response.headers.get('content-length');
+                if (contentLength === '0') {
+                    if (isExecuteRequest) {
+                        console.log('[API] Empty response body, returning null', {
+                            timestamp: new Date().toISOString()
+                        });
+                    }
+                    return null;
+                }
+
+                // Try to parse JSON, but handle empty responses gracefully
+                let jsonData;
+                try {
+                    const text = await response.text();
+                    if (!text || text.trim() === '') {
+                        if (isExecuteRequest) {
+                            console.log('[API] Empty response text, returning null', {
+                                timestamp: new Date().toISOString()
+                            });
+                        }
+                        return null;
+                    }
+                    jsonData = JSON.parse(text);
+                } catch (parseError) {
+                    // If JSON parsing fails and it's not a critical error, return null
+                    // This handles cases where the response is empty or malformed
+                    if (isExecuteRequest) {
+                        console.warn('[API] Failed to parse JSON response', {
+                            error: parseError.message,
+                            returningNull: true,
+                            timestamp: new Date().toISOString()
+                        });
+                    }
+                    return null;
+                }
                 
                 if (isExecuteRequest) {
                     console.log('[API] Response JSON parsed successfully', {
