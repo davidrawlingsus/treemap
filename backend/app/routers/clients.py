@@ -1,15 +1,17 @@
 """
 Client and insight management routes.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import text
 from uuid import UUID
 from typing import List, Optional
 import logging
+import json
 
 from app.database import get_db
-from app.models import Client, DataSource, Insight, Membership, User
+from app.models import Client, DataSource, Insight, Membership, User, Prompt
 from app.schemas import (
     ClientCreate,
     ClientResponse,
@@ -19,6 +21,8 @@ from app.schemas import (
     InsightResponse,
     InsightListResponse,
     InsightOrigin,
+    PromptMenuItem,
+    ClientPromptExecuteRequest,
 )
 from app.auth import get_current_user
 from app.authorization import verify_client_access
@@ -397,4 +401,158 @@ def add_insight_origin(
     db.refresh(insight)
     
     return InsightResponse.from_orm(insight)
+
+
+def get_llm_service(request: Request):
+    """Dependency to get LLM service from app state"""
+    return request.app.state.llm_service
+
+
+@router.get("/{client_id}/prompts", response_model=List[PromptMenuItem])
+def list_client_prompts(
+    client_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List all live prompts available for a client"""
+    # Verify client access
+    verify_client_access(client_id, current_user, db)
+    
+    # Get all prompts with status='live'
+    prompts = db.query(Prompt).filter(
+        Prompt.status == 'live'
+    ).order_by(Prompt.name).all()
+    
+    # Return minimal info (id and name) for menu display
+    return [PromptMenuItem(id=p.id, name=p.name) for p in prompts]
+
+
+@router.post("/{client_id}/prompts/{prompt_id}/execute")
+def execute_client_prompt(
+    client_id: UUID,
+    prompt_id: UUID,
+    payload: ClientPromptExecuteRequest,
+    request: Request,
+    stream: bool = False,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    llm_service = Depends(get_llm_service),
+):
+    """
+    Execute a prompt for a client with streaming support.
+    
+    Automatically combines client's business_summary with voc_data to construct user message.
+    """
+    # Verify client access
+    verify_client_access(client_id, current_user, db)
+    
+    # Get prompt
+    prompt = db.query(Prompt).filter(Prompt.id == prompt_id).first()
+    if not prompt:
+        raise HTTPException(status_code=404, detail="Prompt not found")
+    
+    # Verify prompt is live
+    if prompt.status != 'live':
+        raise HTTPException(status_code=403, detail="Only live prompts can be executed")
+    
+    # Get client to access business_summary
+    client = db.query(Client).filter(Client.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    try:
+        # Construct user message by combining business_summary and voc_data
+        user_message_parts = []
+        
+        if client.business_summary:
+            user_message_parts.append(f"Business Context:\n{client.business_summary}")
+        
+        # Add voc_data as JSON
+        voc_json = json.dumps(payload.voc_data, indent=2)
+        user_message_parts.append(f"\n\nVoice of Customer Data:\n{voc_json}")
+        
+        user_message = "\n".join(user_message_parts)
+        
+        logger.info(
+            f"Executing prompt {prompt_id} for client {client_id} "
+            f"with model: {prompt.llm_model}, "
+            f"user_message length: {len(user_message)}, "
+            f"stream: {stream}"
+        )
+        
+        if stream:
+            # Store values before creating generator (to avoid session issues)
+            prompt_id_value = prompt.id
+            prompt_system_message = prompt.system_message
+            prompt_llm_model = prompt.llm_model
+            user_message_value = user_message
+            
+            # Streaming mode - return SSE response
+            def generate_stream():
+                accumulated_content = ""
+                final_metadata = None
+                
+                try:
+                    # Stream chunks from LLM service
+                    for chunk, metadata in llm_service.execute_prompt_stream(
+                        system_message=prompt_system_message,
+                        user_message=user_message_value,
+                        model=prompt_llm_model
+                    ):
+                        if metadata is None:
+                            # Content chunk
+                            if chunk:
+                                accumulated_content += chunk
+                                # Send SSE message with chunk
+                                message = json.dumps({
+                                    "type": "chunk",
+                                    "content": chunk
+                                })
+                                yield f"data: {message}\n\n"
+                        else:
+                            # Final metadata chunk
+                            final_metadata = metadata
+                            # Send final message
+                            message = json.dumps({
+                                "type": "done",
+                                "tokens_used": metadata.get("tokens_used"),
+                                "model": metadata.get("model"),
+                                "content": metadata.get("content", accumulated_content)
+                            })
+                            yield f"data: {message}\n\n"
+                    
+                    # Note: We don't save to actions table for client executions
+                    # The result will be saved as an insight by the client
+                    
+                except Exception as stream_error:
+                    logger.error(f"Error during streaming: {stream_error}", exc_info=True)
+                    error_message = json.dumps({
+                        "type": "error",
+                        "error": str(stream_error)
+                    })
+                    yield f"data: {error_message}\n\n"
+            
+            return StreamingResponse(
+                generate_stream(),
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive",
+                    "X-Accel-Buffering": "no"
+                }
+            )
+        else:
+            # Non-streaming mode (not used by client, but included for completeness)
+            result = llm_service.execute_prompt(
+                system_message=prompt.system_message,
+                user_message=user_message,
+                model=prompt.llm_model
+            )
+            return result
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error executing prompt: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 

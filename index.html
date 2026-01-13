@@ -27,6 +27,18 @@
     <script src="/auth.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <!-- Tiptap WYSIWYG Editor - will be loaded as ES module when needed -->
+    
+    <!-- Prompt Engineering Rendering Modules (for AI Expert feature) -->
+    <script src="/js/founder-admin-common.js"></script>
+    <script src="/js/prompt-engineering/rendering/markdown-converter.js"></script>
+    <script src="/js/prompt-engineering/rendering/streaming-renderer.js"></script>
+    <script src="/js/client-prompt-renderer.js"></script>
+    <script src="/js/client-prompt-api.js"></script>
+    
+    <!-- Prompt Engineering CSS (for AI Expert feature) -->
+    <link rel="stylesheet" href="/styles/prompt-engineering/common.css">
+    <link rel="stylesheet" href="/styles/prompt-engineering/idea-cards.css">
+    <link rel="stylesheet" href="/styles/prompt-engineering/results.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
@@ -3831,6 +3843,53 @@
             margin: 0.25rem 0;
         }
 
+        .context-menu-item-with-submenu {
+            position: relative;
+        }
+
+        .context-menu-item-with-submenu:hover .context-menu-submenu {
+            display: block;
+        }
+
+        .context-menu-submenu {
+            position: absolute;
+            left: 100%;
+            top: 0;
+            margin-left: 4px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 200px;
+            max-width: 300px;
+            max-height: 400px;
+            overflow-y: auto;
+            z-index: 10003;
+            padding: 4px 0;
+        }
+
+        .context-menu-submenu-item {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.875rem;
+            color: oklch(0.145 0 0);
+            cursor: pointer;
+            border-radius: 0.375rem;
+            transition: background 0.2s ease;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .context-menu-submenu-item:hover {
+            background: oklch(0.97 0 0);
+        }
+
+        .context-menu-submenu-item.loading {
+            color: oklch(0.556 0 0);
+            font-style: italic;
+            cursor: default;
+        }
+
         .ai-close-btn {
             background: none;
             border: none;
@@ -5320,6 +5379,12 @@
     <div id="contextMenu" class="context-menu" style="display: none;">
         <div class="context-menu-item" data-action="create-insight" style="cursor: pointer; user-select: none;">
             Create Insight
+        </div>
+        <div class="context-menu-item context-menu-item-with-submenu" data-action="ai-expert" style="cursor: pointer; user-select: none; position: relative;">
+            AI Expert
+            <div id="aiExpertSubmenu" class="context-menu-submenu" style="display: none;">
+                <!-- Populated dynamically with live prompts -->
+            </div>
         </div>
         <div class="context-menu-item" data-action="exclude-category" style="display: none; cursor: pointer; user-select: none;">
             Exclude Category
@@ -14093,6 +14158,183 @@
                 this.renderVerbatimsList();
             },
             
+            async openAIExpertInsight(contextData, promptId) {
+                console.log('[openAIExpertInsight] Called with contextData:', contextData, 'promptId:', promptId);
+                
+                if (!currentClientId) {
+                    alert('No client selected');
+                    return;
+                }
+                
+                if (!window.ClientPromptAPI) {
+                    alert('Error: Client prompt API not loaded');
+                    return;
+                }
+                
+                // Diagnostic: Check all dependencies
+                const diagnostics = {
+                    FounderAdmin: !!window.FounderAdmin,
+                    MarkdownConverter: !!window.MarkdownConverter,
+                    StreamingRenderer: !!window.StreamingRenderer,
+                    PromptUIRenderer: !!window.PromptUIRenderer,
+                    ClientPromptRenderer: !!window.ClientPromptRenderer,
+                    getClientPromptRenderer: !!window.getClientPromptRenderer
+                };
+                console.log('[openAIExpertInsight] Module availability:', diagnostics);
+                
+                // Try to get renderer, initializing if needed
+                let renderer = window.PromptUIRenderer || window.ClientPromptRenderer;
+                
+                // If still not available, try to initialize
+                if (!renderer && window.getClientPromptRenderer) {
+                    console.log('[openAIExpertInsight] Attempting to initialize renderer...');
+                    renderer = window.getClientPromptRenderer();
+                }
+                
+                // If still not available, wait a bit and try again (in case modules are still loading)
+                if (!renderer) {
+                    console.log('[openAIExpertInsight] Renderer not available, waiting 200ms and retrying...');
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    renderer = window.PromptUIRenderer || window.ClientPromptRenderer;
+                    if (!renderer && window.getClientPromptRenderer) {
+                        renderer = window.getClientPromptRenderer();
+                    }
+                }
+                
+                if (!renderer) {
+                    console.error('[openAIExpertInsight] Rendering modules not available after retry:', {
+                        ...diagnostics,
+                        afterRetry: {
+                            PromptUIRenderer: !!window.PromptUIRenderer,
+                            ClientPromptRenderer: !!window.ClientPromptRenderer
+                        }
+                    });
+                    alert('Error: Prompt rendering modules not loaded. Please check the browser console for details and refresh the page.');
+                    return;
+                }
+                
+                console.log('[openAIExpertInsight] Using renderer:', renderer.constructor?.name || 'object');
+                
+                // Get JSON data for the context
+                const vocData = getFullDataForContext(contextData);
+                if (!vocData) {
+                    alert('Error: Unable to retrieve data. Please try right-clicking again.');
+                    return;
+                }
+                
+                // Get prompt name for display
+                let promptName = 'AI Expert';
+                try {
+                    const prompts = await window.ClientPromptAPI.listPrompts(currentClientId);
+                    const prompt = prompts.find(p => p.id === promptId);
+                    if (prompt) {
+                        promptName = prompt.name;
+                    }
+                } catch (e) {
+                    console.warn('[openAIExpertInsight] Failed to fetch prompt name:', e);
+                }
+                
+                // Open slideout in create mode - this sets up the panel structure
+                await this.openCreateInsight(contextData, true);
+                
+                // Wait a bit for the panel to fully initialize
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Get content container - this is where we'll show streaming
+                const content = document.getElementById('slideoutContent');
+                if (!content) {
+                    console.error('[openAIExpertInsight] Content container not found');
+                    return;
+                }
+                
+                // Clear the content area (but keep the panel structure from openCreateInsight)
+                // The insight editor is in a separate section, so we can stream into content
+                content.innerHTML = '';
+                
+                // Update title
+                const titleEl = document.getElementById('slideoutTitle');
+                if (titleEl) {
+                    titleEl.textContent = promptName;
+                }
+                
+                // Create streaming result item in the content area
+                const streamingItem = renderer.createStreamingResultItem(
+                    content,
+                    promptName,
+                    null, // version
+                    '' // user message (not shown in client interface)
+                );
+                
+                if (!streamingItem) {
+                    console.error('[openAIExpertInsight] Failed to create streaming item');
+                    alert('Error: Failed to initialize streaming display');
+                    return;
+                }
+                
+                // Start streaming
+                try {
+                    await window.ClientPromptAPI.executeStream(
+                        currentClientId,
+                        promptId,
+                        vocData,
+                        // onChunk
+                        (chunk) => {
+                            renderer.appendToStreamingItem(streamingItem, chunk);
+                        },
+                        // onDone
+                        async (metadata) => {
+                            console.log('[openAIExpertInsight] Streaming completed', metadata);
+                            renderer.finalizeStreamingItem(streamingItem, metadata);
+                            
+                            // Extract content from streaming item
+                            const contentElement = streamingItem.querySelector('.prompt-result-content');
+                            if (contentElement) {
+                                const renderedHTML = contentElement.innerHTML;
+                                
+                                // Get the editor element and set its content
+                                const editorElement = document.getElementById('insightNotesEditor');
+                                if (editorElement) {
+                                    // Wait for editor to be initialized (with a timeout)
+                                    let attempts = 0;
+                                    const maxAttempts = 20; // 2 seconds max wait
+                                    while (!this.currentInsightEditor && attempts < maxAttempts) {
+                                        await new Promise(resolve => setTimeout(resolve, 100));
+                                        attempts++;
+                                    }
+                                    
+                                    if (this.currentInsightEditor) {
+                                        // Editor is initialized, set content
+                                        this.currentInsightEditor.commands.setContent(renderedHTML);
+                                    } else {
+                                        // Editor not initialized yet, initialize it with content
+                                        await this.initializeInsightEditor(editorElement, renderedHTML);
+                                    }
+                                    
+                                    // Remove the streaming item from content (it's now in the editor)
+                                    if (streamingItem.parentNode) {
+                                        streamingItem.remove();
+                                    }
+                                } else {
+                                    console.warn('[openAIExpertInsight] Editor element not found');
+                                }
+                            }
+                        },
+                        // onError
+                        (error) => {
+                            console.error('[openAIExpertInsight] Streaming error:', error);
+                            const contentDiv = streamingItem.querySelector('.prompt-result-content');
+                            if (contentDiv) {
+                                contentDiv.innerHTML = `<p style="color: oklch(0.577 0.245 27.325);">Error: ${escapeHtml(error.message || 'Unknown error occurred')}</p>`;
+                            }
+                            renderer.finalizeStreamingItem(streamingItem, {});
+                        }
+                    );
+                } catch (error) {
+                    console.error('[openAIExpertInsight] Failed to start streaming:', error);
+                    alert('Error: ' + (error.message || 'Failed to start AI expert'));
+                }
+            },
+            
             async saveNewInsight() {
                 if (!currentClientId) {
                     alert('No client selected');
@@ -16420,7 +16662,7 @@
         let currentContextData = null;
         let contextMenuJustClicked = false;
 
-        function showContextMenu(event, contextData) {
+        async function showContextMenu(event, contextData) {
             event.preventDefault();
             event.stopPropagation();
             
@@ -16440,6 +16682,25 @@
                 }
             }
             
+            // Populate AI Expert submenu with live prompts
+            const aiExpertSubmenu = document.getElementById('aiExpertSubmenu');
+            if (aiExpertSubmenu && currentClientId && window.ClientPromptAPI) {
+                aiExpertSubmenu.innerHTML = '<div class="context-menu-submenu-item loading">Loading...</div>';
+                try {
+                    const prompts = await window.ClientPromptAPI.listPrompts(currentClientId);
+                    if (prompts && prompts.length > 0) {
+                        aiExpertSubmenu.innerHTML = prompts.map(prompt => 
+                            `<div class="context-menu-submenu-item" data-action="ai-expert-prompt" data-prompt-id="${prompt.id}">${escapeHtml(prompt.name)}</div>`
+                        ).join('');
+                    } else {
+                        aiExpertSubmenu.innerHTML = '<div class="context-menu-submenu-item loading">No prompts available</div>';
+                    }
+                } catch (error) {
+                    console.error('Error loading prompts:', error);
+                    aiExpertSubmenu.innerHTML = '<div class="context-menu-submenu-item loading">Error loading prompts</div>';
+                }
+            }
+            
             // Position menu at cursor
             contextMenu.style.display = 'block';
             contextMenu.style.left = `${event.clientX}px`;
@@ -16453,6 +16714,13 @@
             if (rect.bottom > window.innerHeight) {
                 contextMenu.style.top = `${window.innerHeight - rect.height - 10}px`;
             }
+        }
+
+        // Helper function to escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         function hideContextMenu() {
@@ -16482,6 +16750,31 @@
                 targetTag: e.target.tagName
             });
             
+            // Check if click is on a submenu item
+            const submenuItem = e.target.closest('.context-menu-submenu-item');
+            if (submenuItem && isMenuVisible) {
+                e.preventDefault();
+                e.stopPropagation();
+                contextMenuJustClicked = true;
+                
+                const action = submenuItem.getAttribute('data-action');
+                if (action === 'ai-expert-prompt') {
+                    const promptId = submenuItem.getAttribute('data-prompt-id');
+                    if (promptId && currentContextData) {
+                        const savedContextData = JSON.parse(JSON.stringify(currentContextData));
+                        setTimeout(() => {
+                            hideContextMenu();
+                            if (window.SlideoutPanel && window.SlideoutPanel.openAIExpertInsight) {
+                                window.SlideoutPanel.openAIExpertInsight(savedContextData, promptId);
+                            } else {
+                                alert('Error: AI Expert feature not available');
+                            }
+                        }, 10);
+                    }
+                }
+                return;
+            }
+            
             if (item && isMenuVisible) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -16494,7 +16787,14 @@
                 console.log('Event target:', e.target);
                 console.log('Closest item:', item);
                 
-                if (action === 'create-insight') {
+                if (action === 'ai-expert') {
+                    // Show/hide submenu on hover or click
+                    const submenu = document.getElementById('aiExpertSubmenu');
+                    if (submenu) {
+                        const isVisible = submenu.style.display !== 'none';
+                        submenu.style.display = isVisible ? 'none' : 'block';
+                    }
+                } else if (action === 'create-insight') {
                     console.log('Create insight action triggered');
                     if (currentContextData) {
                         console.log('Context data exists:', currentContextData);

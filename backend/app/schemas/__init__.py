@@ -82,6 +82,8 @@ from .prompt import (
     PromptCreate,
     PromptUpdate,
     PromptResponse,
+    PromptMenuItem,
+    ClientPromptExecuteRequest,
 )
 
 from .action import (
@@ -161,6 +163,8 @@ __all__ = [
     "PromptCreate",
     "PromptUpdate",
     "PromptResponse",
+    "PromptMenuItem",
+    "ClientPromptExecuteRequest",
     # Actions
     "ActionCreate",
     "ActionResponse",

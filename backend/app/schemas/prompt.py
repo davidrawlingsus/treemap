@@ -42,3 +42,17 @@ class PromptResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+class PromptMenuItem(BaseModel):
+    """Minimal prompt info for menu display (client-facing)"""
+    id: UUID
+    name: str
+
+    class Config:
+        from_attributes = True
+
+
+class ClientPromptExecuteRequest(BaseModel):
+    """Request schema for executing a prompt from client interface"""
+    voc_data: dict = Field(..., description="Voice of customer JSON data from category/topic")
+
