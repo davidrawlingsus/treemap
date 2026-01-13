@@ -1754,13 +1754,19 @@
         }
 
         #history-section .notion-table .name-cell {
-            width: 60%;
+            width: auto;
             min-width: 250px;
+        }
+
+        #history-section .notion-table th[data-column="origin"],
+        #history-section .notion-table td[data-column="origin"] {
+            white-space: nowrap;
         }
 
         #history-section .notion-table th[data-column="created_at"],
         #history-section .notion-table td[data-column="created_at"] {
-            width: 40%;
+            width: 30%;
+            min-width: 120px;
         }
 
         #history-section .notion-table tbody tr:hover {
@@ -14505,6 +14511,9 @@
                     return;
                 }
                 
+                // Store vocData for later use when saving insight
+                this.currentVocData = vocData;
+                
                 // Get prompt name for display
                 let promptName = 'AI Expert';
                 try {
@@ -14540,6 +14549,9 @@
                 
                 // Wait a bit for the panel to fully initialize
                 await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Get origin from createInsightOrigin (set by openCreateInsight/initializeCreateInsightPanel)
+                const origin = this.createInsightOrigin || null;
                 
                 // Get content container - this is where we'll show streaming
                 const content = document.getElementById('slideoutContent');
@@ -14650,7 +14662,9 @@
                                     window.ActionRenderer.attachIdeaCardListeners(slideoutContent);
                                 }
                             }
-                        }
+                        },
+                        // origin (optional)
+                        origin
                     );
                 } catch (error) {
                     console.error('[openAIExpertInsight] Failed to start streaming:', error);
@@ -14703,6 +14717,16 @@
                     });
                 }
                 
+                // Get voc_json from currentVocData (AI expert) or from createInsightContext (visualization)
+                let vocJsonData = null;
+                if (this.currentVocData) {
+                    // From AI expert response
+                    vocJsonData = this.currentVocData;
+                } else if (this.createInsightContext && typeof getFullDataForContext === 'function') {
+                    // From visualization tab
+                    vocJsonData = getFullDataForContext(this.createInsightContext);
+                }
+                
                 try {
                     const insightData = {
                         name: name,
@@ -14711,6 +14735,7 @@
                         notes: notes || null,
                         origins: [this.createInsightOrigin],
                         verbatims: pinnedVerbatimsArray.length > 0 ? pinnedVerbatimsArray : null,
+                        voc_json: vocJsonData,
                     };
                     
                     const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights`, {
@@ -16818,6 +16843,21 @@
                 } else if (historyCurrentSortBy === 'created_at') {
                     aVal = new Date(a.created_at).getTime();
                     bVal = new Date(b.created_at).getTime();
+                } else if (historyCurrentSortBy === 'origin') {
+                    const aOrigin = a.origin || {};
+                    const bOrigin = b.origin || {};
+                    const aProject = aOrigin.project_name || '';
+                    const bProject = bOrigin.project_name || '';
+                    const aDimension = aOrigin.dimension_name || aOrigin.dimension_ref || '';
+                    const bDimension = bOrigin.dimension_name || bOrigin.dimension_ref || '';
+                    
+                    // Sort by project first, then dimension
+                    const projectCompare = aProject.localeCompare(bProject);
+                    if (projectCompare !== 0) {
+                        return historySortOrder === 'asc' ? projectCompare : -projectCompare;
+                    }
+                    const dimensionCompare = aDimension.localeCompare(bDimension);
+                    return historySortOrder === 'asc' ? dimensionCompare : -dimensionCompare;
                 } else {
                     return 0;
                 }
@@ -16830,7 +16870,7 @@
             });
 
             if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="2" class="empty-state"><h3>No history found</h3><p style="font-size: 12px; color: #999;">' + (historySearchTerm ? 'Try a different search term' : 'No AI expert outputs yet') + '</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="3" class="empty-state"><h3>No history found</h3><p style="font-size: 12px; color: #999;">' + (historySearchTerm ? 'Try a different search term' : 'No AI expert outputs yet') + '</p></td></tr>';
                 return;
             }
 
@@ -16854,6 +16894,41 @@
                 
                 // Highlight search terms if there's a search term
                 const highlightedName = historySearchTerm ? highlightSearchTerms(promptName, historySearchTerm) : escapeHtml(promptName);
+                
+                // Extract origin from action and build breadcrumb pills (similar to insights table)
+                const origin = action.origin || {};
+                const projectName = origin.project_name || null;
+                const dataSource = origin.data_source || null;
+                const dimensionName = origin.dimension_name || null;
+                const dimensionRef = origin.dimension_ref || null;
+                const categoryName = origin.category || null;
+                const topicName = origin.topic_label || null;
+                
+                // Build origin breadcrumb pills with PascalCase formatting
+                const originPills = [];
+                if (projectName) {
+                    const pascalProject = toPascalCase(projectName);
+                    originPills.push(`<span class="tag tag-project insight-origin-pill" data-origin-type="project" data-project-name="${escapeHtml(projectName)}" onclick="event.stopPropagation(); navigateToProjectFromInsight('${escapeHtml(projectName)}')" style="cursor: pointer;">${escapeHtml(pascalProject)}</span>`);
+                }
+                if (dimensionName && dimensionRef) {
+                    const pascalDimension = toPascalCase(dimensionName);
+                    originPills.push(`<span class="tag tag-data-source insight-origin-pill" data-origin-type="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtml(dimensionName)}" data-data-source="${dataSource || ''}" onclick="event.stopPropagation(); navigateToDimensionFromInsight('${dimensionRef}', '${escapeHtml(dimensionName)}', '${dataSource || ''}')" style="cursor: pointer;">${escapeHtml(pascalDimension)}</span>`);
+                } else if (dimensionName) {
+                    const pascalDimension = toPascalCase(dimensionName);
+                    originPills.push(`<span class="tag tag-data-source insight-origin-pill">${escapeHtml(pascalDimension)}</span>`);
+                }
+                if (categoryName) {
+                    const pascalCategory = toPascalCase(categoryName);
+                    originPills.push(`<span class="tag tag-category insight-origin-pill" data-origin-type="category" data-category="${escapeHtml(categoryName)}" data-topic="${topicName ? escapeHtml(topicName) : ''}" data-data-source="${dataSource || ''}" data-dimension="${dimensionName || ''}" data-dimension-ref="${dimensionRef || ''}" onclick="event.stopPropagation(); navigateToCategoryFromInsight('${escapeHtml(categoryName)}', '${topicName ? escapeHtml(topicName) : ''}', '${dataSource || ''}', '${dimensionRef || ''}')" style="cursor: pointer;">${escapeHtml(pascalCategory)}</span>`);
+                }
+                if (topicName) {
+                    const pascalTopic = toPascalCase(topicName);
+                    originPills.push(`<span class="tag tag-topic insight-origin-pill" data-origin-type="topic" data-category="${categoryName ? escapeHtml(categoryName) : ''}" data-topic="${escapeHtml(topicName)}" data-data-source="${dataSource || ''}" data-dimension="${dimensionName || ''}" data-dimension-ref="${dimensionRef || ''}" onclick="event.stopPropagation(); navigateToTopicFromInsight('${escapeHtml(topicName)}', '${categoryName ? escapeHtml(categoryName) : ''}', '${dataSource || ''}', '${dimensionRef || ''}')" style="cursor: pointer;">${escapeHtml(pascalTopic)}</span>`);
+                }
+                
+                const originContent = originPills.length > 0 
+                    ? originPills.join('<span style="margin: 0 4px; color: oklch(0.7 0 0);">|</span>')
+                    : '-';
 
                 return `
                     <tr data-action-id="${action.id}" onclick="event.stopPropagation(); openHistoryAction('${action.id}'); return false;" style="cursor: pointer;">
@@ -16864,6 +16939,9 @@
                                 </svg>
                                 <span>${highlightedName}</span>
                             </div>
+                        </td>
+                        <td data-column="origin" style="white-space: nowrap;">
+                            ${originContent}
                         </td>
                         <td>${createdDate}</td>
                     </tr>
@@ -17019,9 +17097,8 @@
                 this.currentMode = 'history';
                 this.isOpen = true;
                 
-                // Create a default origin for history actions so idea cards can create insights
-                // Since we don't have the original context, create a minimal origin
-                const historyOrigin = {
+                // Use origin from action if available, otherwise create a minimal default origin
+                const historyOrigin = actionData?.origin || {
                     origin_type: 'category', // Default to category since we don't have specific context
                     process_voc_id: null,
                     project_name: null,
@@ -17032,8 +17109,9 @@
                     topic_label: null
                 };
                 
-                // Store the origin so idea card listeners can use it
+                // Store the origin and voc_json so idea card listeners can use them
                 this.createInsightOrigin = historyOrigin;
+                this.currentActionVocJson = actionData?.voc_json || null;
                 
                 // Remove any transitioning classes to prevent fade effects
                 contentEl.classList.remove('transitioning');
@@ -18452,6 +18530,10 @@
                         <th class="name-cell sorted draggable" data-column="name" draggable="true" onclick="sortHistoryBy('name')">
                             <span>Name</span>
                             <span class="sort-indicator">↓</span>
+                        </th>
+                        <th class="draggable" data-column="origin" draggable="true" onclick="sortHistoryBy('origin')">
+                            <span>Origin</span>
+                            <span class="sort-indicator"></span>
                         </th>
                         <th class="draggable" data-column="created_at" draggable="true" onclick="sortHistoryBy('created_at')">
                             <span>Created</span>

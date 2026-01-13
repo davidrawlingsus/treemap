@@ -20,6 +20,7 @@ class Insight(Base):
     origins = Column(JSONB, nullable=False, default=[])  # Array of origin objects
     verbatims = Column(JSONB, nullable=True, default=[])  # Array of pinned verbatim objects
     meta_data = Column('metadata', JSONB, nullable=True, default={})  # For future extensibility
+    voc_json = Column(JSONB, nullable=True)  # Source VoC JSON object used when creating the insight
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     created_by = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True)

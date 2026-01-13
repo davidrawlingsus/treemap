@@ -66,13 +66,15 @@
          * @param {Function} onChunk - Callback called for each content chunk: (chunk: string) => void
          * @param {Function} onDone - Callback called when streaming completes: (metadata: {tokens_used, model, content}) => void
          * @param {Function} onError - Callback called on error: (error: Error) => void
+         * @param {Object} origin - Optional origin metadata (same structure as insight origins)
          * @returns {Promise<void>} Resolves when streaming completes
          */
-        async executeStream(clientId, promptId, vocData, onChunk, onDone, onError) {
+        async executeStream(clientId, promptId, vocData, onChunk, onDone, onError, origin = null) {
             console.log('[CLIENT_PROMPT_API] executeStream() called', {
                 clientId,
                 promptId,
                 vocDataSize: JSON.stringify(vocData).length,
+                hasOrigin: !!origin,
                 timestamp: new Date().toISOString()
             });
 
@@ -80,12 +82,16 @@
             
             try {
                 const authHeaders = getAuthHeaders();
+                const requestBody = {
+                    voc_data: vocData
+                };
+                if (origin) {
+                    requestBody.origin = origin;
+                }
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: authHeaders,
-                    body: JSON.stringify({
-                        voc_data: vocData
-                    })
+                    body: JSON.stringify(requestBody)
                 });
 
                 if (!response.ok) {

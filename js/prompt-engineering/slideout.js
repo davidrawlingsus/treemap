@@ -31,6 +31,7 @@
         slideout: null,
         elements: null,
         onResultsUpdate: null,
+        activeStreamingRequests: new Set(), // Track active streaming requests
 
         /**
          * Initialize slideout manager
@@ -77,11 +78,19 @@
         open(title = 'LLM Outputs') {
             if (this.slideout) {
                 this.slideout.open(title);
+                // If there are no active streaming requests, refresh results to show any that completed while closed
+                if (this.activeStreamingRequests.size === 0 && state.get('slideoutPromptId')) {
+                    // Small delay to ensure slideout is fully opened
+                    setTimeout(() => {
+                        this.displayAllResults(false, 'open-after-streaming');
+                    }, 100);
+                }
             }
         },
 
         /**
          * Close slideout
+         * Note: Active streaming requests will continue in the background
          */
         close() {
             if (this.slideout) {
@@ -97,7 +106,11 @@
             if (this.elements.chatInput) {
                 this.elements.chatInput.value = '';
             }
-            state.set('slideoutPromptId', null);
+            // Don't clear slideoutPromptId if there are active streaming requests
+            // This allows the background streaming to complete and save to history
+            if (this.activeStreamingRequests.size === 0) {
+                state.set('slideoutPromptId', null);
+            }
         },
 
         /**
@@ -154,13 +167,20 @@
                     timestamp: new Date().toISOString()
                 });
 
+                // Track this streaming request
+                const streamingRequestId = `streaming-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                this.activeStreamingRequests.add(streamingRequestId);
+
                 // Execute with streaming
                 await PromptAPI.executeStream(
                     promptId,
                     userMessage,
                     // onChunk
                     (chunk) => {
-                        UIRenderer.appendToStreamingItem(streamingItem, chunk);
+                        // Only update UI if slideout is still open and element exists
+                        if (this.slideout?.isOpen() && streamingItem && streamingItem.parentElement) {
+                            UIRenderer.appendToStreamingItem(streamingItem, chunk);
+                        }
                     },
                     // onDone
                     (metadata) => {
@@ -170,17 +190,36 @@
                             model: metadata.model,
                             timestamp: new Date().toISOString()
                         });
-                        UIRenderer.finalizeStreamingItem(streamingItem, metadata);
                         
-                        // Refresh results to get the saved action (without showing loading state)
-                        console.log('[SLIDEOUT] Scheduling displayAllResults() after streaming (executePrompt)', {
-                            delay: 500,
-                            timestamp: new Date().toISOString()
-                        });
-                        setTimeout(() => {
-                            console.log('[SLIDEOUT] Calling displayAllResults() after streaming timeout (executePrompt)');
-                            this.displayAllResults(false, 'executePrompt-onDone');
-                        }, REFRESH_DELAY_AFTER_STREAMING);
+                        // Remove from active requests
+                        this.activeStreamingRequests.delete(streamingRequestId);
+                        
+                        // Only update UI if slideout is still open and element exists
+                        if (this.slideout?.isOpen() && streamingItem && streamingItem.parentElement) {
+                            UIRenderer.finalizeStreamingItem(streamingItem, metadata);
+                            
+                            // Refresh results to get the saved action (without showing loading state)
+                            console.log('[SLIDEOUT] Scheduling displayAllResults() after streaming (executePrompt)', {
+                                delay: 500,
+                                timestamp: new Date().toISOString()
+                            });
+                            setTimeout(() => {
+                                console.log('[SLIDEOUT] Calling displayAllResults() after streaming timeout (executePrompt)');
+                                this.displayAllResults(false, 'executePrompt-onDone');
+                            }, REFRESH_DELAY_AFTER_STREAMING);
+                        } else {
+                            // Slideout was closed, but still refresh history if slideout is reopened
+                            // The backend has already saved the action, so it will appear in history
+                            console.log('[SLIDEOUT] Streaming completed but slideout is closed, action saved to history', {
+                                promptId,
+                                timestamp: new Date().toISOString()
+                            });
+                        }
+                        
+                        // Clear slideoutPromptId if no more active requests
+                        if (this.activeStreamingRequests.size === 0) {
+                            state.set('slideoutPromptId', null);
+                        }
                     },
                     // onError
                     (error) => {
@@ -190,12 +229,23 @@
                             timestamp: new Date().toISOString()
                         });
                         
-                        // Update the item to show error
-                        const contentDiv = streamingItem.querySelector('.prompt-result-content');
-                        if (contentDiv) {
-                            contentDiv.textContent = `Error: ${error.message || 'Unknown error occurred'}`;
+                        // Remove from active requests
+                        this.activeStreamingRequests.delete(streamingRequestId);
+                        
+                        // Only update UI if slideout is still open and element exists
+                        if (this.slideout?.isOpen() && streamingItem && streamingItem.parentElement) {
+                            // Update the item to show error
+                            const contentDiv = streamingItem.querySelector('.prompt-result-content');
+                            if (contentDiv) {
+                                contentDiv.textContent = `Error: ${error.message || 'Unknown error occurred'}`;
+                            }
+                            UIRenderer.finalizeStreamingItem(streamingItem, {});
                         }
-                        UIRenderer.finalizeStreamingItem(streamingItem, {});
+                        
+                        // Clear slideoutPromptId if no more active requests
+                        if (this.activeStreamingRequests.size === 0) {
+                            state.set('slideoutPromptId', null);
+                        }
                     }
                 );
 
@@ -384,13 +434,20 @@
                     timestamp: new Date().toISOString()
                 });
 
+                // Track this streaming request
+                const streamingRequestId = `streaming-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                this.activeStreamingRequests.add(streamingRequestId);
+
                 // Execute with streaming
                 await PromptAPI.executeStream(
                     promptId,
                     userMessage,
                     // onChunk
                     (chunk) => {
-                        UIRenderer.appendToStreamingItem(streamingItem, chunk);
+                        // Only update UI if slideout is still open and element exists
+                        if (this.slideout?.isOpen() && streamingItem && streamingItem.parentElement) {
+                            UIRenderer.appendToStreamingItem(streamingItem, chunk);
+                        }
                     },
                     // onDone
                     (metadata) => {
@@ -400,30 +457,49 @@
                             model: metadata.model,
                             timestamp: new Date().toISOString()
                         });
-                        UIRenderer.finalizeStreamingItem(streamingItem, metadata);
                         
-                        // Show done icon
-                        if (this.elements.chatSend) {
-                            this.elements.chatSend.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/done_icon.png" alt="Done" width="20" height="20" id="slideoutChatSendIcon">';
-                        }
-
-                        // Reset to send icon after delay
-                        setTimeout(() => {
+                        // Remove from active requests
+                        this.activeStreamingRequests.delete(streamingRequestId);
+                        
+                        // Only update UI if slideout is still open and element exists
+                        if (this.slideout?.isOpen() && streamingItem && streamingItem.parentElement) {
+                            UIRenderer.finalizeStreamingItem(streamingItem, metadata);
+                            
+                            // Show done icon
                             if (this.elements.chatSend) {
-                                this.elements.chatSend.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/send_icon.png" alt="Send" width="20" height="20" id="slideoutChatSendIcon">';
-                                this.elements.chatSend.disabled = false;
+                                this.elements.chatSend.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/done_icon.png" alt="Done" width="20" height="20" id="slideoutChatSendIcon">';
                             }
-                        }, RESET_ICON_DELAY);
 
-                        // Refresh results to get the saved action (without showing loading state)
-                        console.log('[SLIDEOUT] Scheduling displayAllResults() after streaming (handleChatSubmit)', {
-                            delay: 500,
-                            timestamp: new Date().toISOString()
-                        });
-                        setTimeout(() => {
-                            console.log('[SLIDEOUT] Calling displayAllResults() after streaming timeout (handleChatSubmit)');
-                            this.displayAllResults(false, 'handleChatSubmit-onDone');
-                        }, REFRESH_DELAY_AFTER_STREAMING);
+                            // Reset to send icon after delay
+                            setTimeout(() => {
+                                if (this.elements.chatSend) {
+                                    this.elements.chatSend.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/send_icon.png" alt="Send" width="20" height="20" id="slideoutChatSendIcon">';
+                                    this.elements.chatSend.disabled = false;
+                                }
+                            }, RESET_ICON_DELAY);
+
+                            // Refresh results to get the saved action (without showing loading state)
+                            console.log('[SLIDEOUT] Scheduling displayAllResults() after streaming (handleChatSubmit)', {
+                                delay: 500,
+                                timestamp: new Date().toISOString()
+                            });
+                            setTimeout(() => {
+                                console.log('[SLIDEOUT] Calling displayAllResults() after streaming timeout (handleChatSubmit)');
+                                this.displayAllResults(false, 'handleChatSubmit-onDone');
+                            }, REFRESH_DELAY_AFTER_STREAMING);
+                        } else {
+                            // Slideout was closed, but still refresh history if slideout is reopened
+                            // The backend has already saved the action, so it will appear in history
+                            console.log('[SLIDEOUT] Streaming completed but slideout is closed, action saved to history', {
+                                promptId,
+                                timestamp: new Date().toISOString()
+                            });
+                        }
+                        
+                        // Clear slideoutPromptId if no more active requests
+                        if (this.activeStreamingRequests.size === 0) {
+                            state.set('slideoutPromptId', null);
+                        }
                     },
                     // onError
                     (error) => {
@@ -433,17 +509,28 @@
                             timestamp: new Date().toISOString()
                         });
                         
-                        // Update the item to show error
-                        const contentDiv = streamingItem.querySelector('.prompt-result-content');
-                        if (contentDiv) {
-                            contentDiv.textContent = `Error: ${error.message || 'Unknown error occurred'}`;
-                        }
-                        UIRenderer.finalizeStreamingItem(streamingItem, {});
+                        // Remove from active requests
+                        this.activeStreamingRequests.delete(streamingRequestId);
                         
-                        // Reset to send icon on error
-                        if (this.elements.chatSend) {
-                            this.elements.chatSend.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/send_icon.png" alt="Send" width="20" height="20" id="slideoutChatSendIcon">';
-                            this.elements.chatSend.disabled = false;
+                        // Only update UI if slideout is still open and element exists
+                        if (this.slideout?.isOpen() && streamingItem && streamingItem.parentElement) {
+                            // Update the item to show error
+                            const contentDiv = streamingItem.querySelector('.prompt-result-content');
+                            if (contentDiv) {
+                                contentDiv.textContent = `Error: ${error.message || 'Unknown error occurred'}`;
+                            }
+                            UIRenderer.finalizeStreamingItem(streamingItem, {});
+                            
+                            // Reset to send icon on error
+                            if (this.elements.chatSend) {
+                                this.elements.chatSend.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/send_icon.png" alt="Send" width="20" height="20" id="slideoutChatSendIcon">';
+                                this.elements.chatSend.disabled = false;
+                            }
+                        }
+                        
+                        // Clear slideoutPromptId if no more active requests
+                        if (this.activeStreamingRequests.size === 0) {
+                            state.set('slideoutPromptId', null);
                         }
                     }
                 );

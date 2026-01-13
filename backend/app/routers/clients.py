@@ -245,6 +245,7 @@ def create_insight(
             origins=origins_json,
             verbatims=insight_data.verbatims or [],
             meta_data=insight_data.metadata or {},
+            voc_json=insight_data.voc_json,
             created_by=current_user.id,
         )
         
@@ -488,6 +489,9 @@ def execute_client_prompt(
             prompt_llm_model = prompt.llm_model
             user_message_value = user_message
             client_id_value = client_id
+            # Capture origin and voc_json from payload
+            origin_value = payload.origin if payload.origin else None
+            voc_json_value = payload.voc_data  # Store the actual JSON object, not stringified
             
             # Streaming mode - return SSE response
             def generate_stream():
@@ -546,7 +550,9 @@ def execute_client_prompt(
                                 client_id=client_id_value,
                                 prompt_text_sent=prompt_text_sent,
                                 actions=result,
-                                insight_ids=[]
+                                insight_ids=[],
+                                origin=origin_value,
+                                voc_json=voc_json_value
                             )
                             save_db.add(action)
                             save_db.commit()

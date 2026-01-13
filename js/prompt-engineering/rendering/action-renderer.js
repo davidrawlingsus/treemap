@@ -18,6 +18,7 @@
     // Constants
     const USER_MESSAGE_PREVIEW_LENGTH = 200; // characters
     const SCROLL_BOTTOM_THRESHOLD = 50; // px
+    const DONE_CHECK_IMAGE_URL = 'https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/done_check_black_1768289477172.png';
 
     /**
      * Render prompt results/actions
@@ -376,11 +377,14 @@
             throw new Error('No client selected. Please select a client first.');
         }
 
-        // Get origin from SlideoutPanel (set when AI expert panel is opened)
+        // Get origin and voc_json from SlideoutPanel (set when AI expert panel or history action is opened)
         const slideoutPanel = window.SlideoutPanel;
         if (!slideoutPanel || !slideoutPanel.createInsightOrigin) {
             throw new Error('No context available. Please open the AI expert panel again.');
         }
+        
+        // Get voc_json from stored action data (for history items) or currentVocData (for AI expert)
+        const vocJsonData = slideoutPanel.currentActionVocJson || slideoutPanel.currentVocData || null;
 
         // Get API base URL
         const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
@@ -411,7 +415,8 @@
             notes: detailsContent, // Details go to notes (the WYSIWYG body/editor)
             origins: [slideoutPanel.createInsightOrigin],
             verbatims: null,
-            metadata: null
+            metadata: null,
+            voc_json: vocJsonData
         };
 
         // Create the insight via API
@@ -491,7 +496,7 @@
                 // Update button to show success state
                 ideaContainer.classList.add('is-selected');
                 button.classList.add('is-selected');
-                button.textContent = '✓';
+                button.innerHTML = `<img src="${DONE_CHECK_IMAGE_URL}" alt="Added" style="width: 100%; height: 100%; object-fit: contain;" />`;
                 button.style.opacity = '1';
                 button.style.cursor = 'default';
                 button.title = 'Added to insights';

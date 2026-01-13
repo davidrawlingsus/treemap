@@ -14,6 +14,8 @@ class ActionCreate(BaseModel):
     actions: Dict[str, Any] = Field(..., description="LLM response data (JSONB)")
     client_id: UUID = Field(..., description="ID of the client this action was generated for")
     insight_ids: List[UUID] = Field(default_factory=list, description="Array of insight UUIDs that were used")
+    origin: Optional[Dict[str, Any]] = Field(None, description="Origin metadata (same structure as insight origins)")
+    voc_json: Optional[Dict[str, Any]] = Field(None, description="Source VoC JSON object used when executing the prompt")
 
 
 class ActionResponse(BaseModel):
@@ -24,6 +26,8 @@ class ActionResponse(BaseModel):
     actions: Dict[str, Any]
     client_id: UUID
     insight_ids: List[UUID]
+    origin: Optional[Dict[str, Any]] = None
+    voc_json: Optional[Dict[str, Any]] = None
     created_at: datetime
     # Include prompt details if available
     prompt_name: Optional[str] = None
@@ -44,6 +48,8 @@ class ActionResponse(BaseModel):
             'actions': action.actions,
             'client_id': action.client_id,
             'insight_ids': action.insight_ids,
+            'origin': getattr(action, 'origin', None),
+            'voc_json': getattr(action, 'voc_json', None),
             'created_at': action.created_at,
         }
         # Add prompt details if relationship is loaded
@@ -62,6 +68,7 @@ class ClientActionResponse(BaseModel):
     prompt_purpose: Optional[str] = None
     created_at: datetime
     content_preview: Optional[str] = None  # First 200 chars of content
+    origin: Optional[Dict[str, Any]] = None  # Origin metadata for display
     
     class Config:
         from_attributes = True
@@ -84,6 +91,7 @@ class ClientActionResponse(BaseModel):
             prompt_id=action.prompt_id,
             prompt_purpose=prompt_purpose,
             created_at=action.created_at,
-            content_preview=content_preview
+            content_preview=content_preview,
+            origin=getattr(action, 'origin', None)
         )
 

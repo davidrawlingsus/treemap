@@ -30,6 +30,7 @@ class InsightCreate(BaseModel):
     origins: List[InsightOrigin] = Field(..., min_length=1)  # At least one origin required
     verbatims: Optional[List[Dict[str, Any]]] = None  # Array of pinned verbatim objects
     metadata: Optional[Dict[str, Any]] = None
+    voc_json: Optional[Dict[str, Any]] = None  # Source VoC JSON object used when creating the insight
 
 
 class InsightUpdate(BaseModel):
@@ -59,6 +60,7 @@ class InsightResponse(BaseModel):
     origins: List[InsightOrigin] = Field(default_factory=list)
     verbatims: Optional[List[Dict[str, Any]]] = Field(default_factory=list)  # Array of pinned verbatim objects
     metadata: Optional[Dict[str, Any]] = None
+    voc_json: Optional[Dict[str, Any]] = None  # Source VoC JSON object used when creating the insight
     created_at: datetime
     updated_at: Optional[datetime] = None
     created_by: Optional[UUID] = None
@@ -79,6 +81,7 @@ class InsightResponse(BaseModel):
             'status': status,
             'metadata': obj.meta_data or {},
             'verbatims': obj.verbatims or [],
+            'voc_json': getattr(obj, 'voc_json', None),
             'created_at': obj.created_at,
             'updated_at': obj.updated_at,
             'created_by': obj.created_by,

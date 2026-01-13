@@ -2,7 +2,7 @@
 Prompt engineering schemas.
 """
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Dict, Any
 from datetime import datetime
 from uuid import UUID
 
@@ -55,4 +55,5 @@ class PromptMenuItem(BaseModel):
 class ClientPromptExecuteRequest(BaseModel):
     """Request schema for executing a prompt from client interface"""
     voc_data: dict = Field(..., description="Voice of customer JSON data from category/topic")
+    origin: Optional[Dict[str, Any]] = Field(None, description="Origin metadata (same structure as insight origins)")
 

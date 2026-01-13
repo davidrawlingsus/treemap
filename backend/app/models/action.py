@@ -15,6 +15,8 @@ class Action(Base):
     actions = Column(JSONB, nullable=False)
     client_id = Column(UUID(as_uuid=True), ForeignKey('clients.id', ondelete='CASCADE'), nullable=False)
     insight_ids = Column(JSONB, nullable=False, default=[])
+    origin = Column(JSONB, nullable=True)  # Origin metadata (same structure as insight origins)
+    voc_json = Column(JSONB, nullable=True)  # Source VoC JSON object used when executing the prompt
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
