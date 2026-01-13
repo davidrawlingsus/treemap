@@ -396,12 +396,19 @@
         }
 
         // Map idea card fields to insight schema
+        // Badge content (testType) - this is where the test will be applied
+        const badgeContent = ideaData.testType || ideaData.test_type || ideaData.type || '';
+        // Application field from idea card (if present, more specific than badge)
+        const applicationField = ideaData.application || null;
+        // Details/description goes to notes (the WYSIWYG body) and description
+        const detailsContent = ideaData.details || ideaData.description || null;
+        
         const insightData = {
             name: ideaData.title || ideaData.name || 'Untitled Idea',
-            type: ideaData.testType || ideaData.test_type || ideaData.type || '',
-            application: ideaData.application || null,
-            description: ideaData.details || ideaData.description || null,
-            notes: null,
+            type: '', // Type field - can be set later if needed
+            application: applicationField || badgeContent || null, // Prefer application field, fallback to badge content (where test will be applied)
+            description: detailsContent, // Keep description for backwards compatibility
+            notes: detailsContent, // Details go to notes (the WYSIWYG body/editor)
             origins: [slideoutPanel.createInsightOrigin],
             verbatims: null,
             metadata: null

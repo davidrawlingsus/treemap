@@ -4173,11 +4173,11 @@
             flex: 1;
             overflow-y: auto;
             padding: 24px;
-            transition: opacity 0.2s ease;
         }
 
         .ai-insights-content.transitioning {
             opacity: 0;
+            transition: opacity 0.2s ease;
         }
 
         #slideoutTitle.transitioning,
@@ -4324,11 +4324,12 @@
             right: 0;
             bottom: 0;
             width: 500px; /* Only cover the slideout panel width */
-            background: rgba(15, 23, 42, 0.6); /* Match modal backdrop color */
+            background: transparent; /* No gradient/backdrop - removed for cleaner UI */
             z-index: 9999;
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.3s, width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            /* Removed opacity transition and background to prevent fade-in effect */
         }
 
         .ai-insights-overlay.visible {
@@ -13691,7 +13692,7 @@
         // Slideout Panel - handles AI Insights, Verbatims, Insight Notes, and Create Insight
         const SlideoutPanel = {
             isOpen: false,
-            currentMode: null, // 'ai-insights', 'verbatims', 'insight-notes', 'create-insight', or 'chart'
+            currentMode: null, // 'ai-insights', 'verbatims', 'insight-notes', 'create-insight', 'history', or 'chart'
             currentContext: null,
             currentDimensionRef: null,  // Track current dimension
             currentInsightEditor: null,  // Tiptap editor instance for insight notes
@@ -13777,8 +13778,11 @@
                 if (tab) {
                     // Always keep tab hidden
                     tab.style.display = 'none';
-                    // Close the panel if it's open
-                    this.close();
+                    // Close the panel if it's open, but NOT if we're viewing history
+                    // History mode should persist even when dimensions change
+                    if (this.currentMode !== 'history') {
+                        this.close();
+                    }
                 }
             },
             
@@ -15724,6 +15728,8 @@
                 }
                 
                 this.isOpen = false;
+                // Only reset currentMode if we're not in history mode (history mode persists)
+                // Actually, we should reset it - when closing, we want to clear the mode
                 this.currentMode = null;
                 this.currentInsightId = null;
                 this.currentInsightData = null;
@@ -16850,7 +16856,7 @@
                 const highlightedName = historySearchTerm ? highlightSearchTerms(promptName, historySearchTerm) : escapeHtml(promptName);
 
                 return `
-                    <tr data-action-id="${action.id}" onclick="openHistoryAction('${action.id}')" style="cursor: pointer;">
+                    <tr data-action-id="${action.id}" onclick="event.stopPropagation(); openHistoryAction('${action.id}'); return false;" style="cursor: pointer;">
                         <td class="name-cell">
                             <div class="name-content" style="position: relative;">
                                 <svg class="doc-icon" viewBox="0 0 16 16" fill="currentColor">
@@ -17009,6 +17015,30 @@
                     return;
                 }
                 
+                // Set mode to 'history' so setCurrentDimension won't close the panel
+                this.currentMode = 'history';
+                this.isOpen = true;
+                
+                // Create a default origin for history actions so idea cards can create insights
+                // Since we don't have the original context, create a minimal origin
+                const historyOrigin = {
+                    origin_type: 'category', // Default to category since we don't have specific context
+                    process_voc_id: null,
+                    project_name: null,
+                    data_source: null,
+                    dimension_ref: null,
+                    dimension_name: null,
+                    category: null,
+                    topic_label: null
+                };
+                
+                // Store the origin so idea card listeners can use it
+                this.createInsightOrigin = historyOrigin;
+                
+                // Remove any transitioning classes to prevent fade effects
+                contentEl.classList.remove('transitioning');
+                if (titleEl) titleEl.classList.remove('transitioning');
+                
                 // Open the panel
                 panel.classList.add('open');
                 overlay.classList.add('visible');
@@ -17017,7 +17047,7 @@
                 // Set title
                 titleEl.textContent = promptName;
                 
-                // Clear content
+                // Clear content immediately without fade
                 contentEl.innerHTML = '';
                 
                 // Try to use ActionRenderer.renderActionItem if available (same as prompt engineering)
@@ -17072,6 +17102,7 @@
                     }
                     
                     // Attach idea card listeners if available
+                    // This enables the add button on idea cards to create insights
                     if (window.ActionRenderer.attachIdeaCardListeners) {
                         window.ActionRenderer.attachIdeaCardListeners(contentEl);
                     }
@@ -17116,6 +17147,11 @@
                             <div class="prompt-result-content">${formattedContent}</div>
                         </div>
                     `;
+                    
+                    // Attach idea card listeners even in fallback mode
+                    if (window.ActionRenderer && window.ActionRenderer.attachIdeaCardListeners) {
+                        window.ActionRenderer.attachIdeaCardListeners(contentEl);
+                    }
                 } else {
                     // Final fallback: simple HTML rendering with basic markdown formatting
                     const formattedContent = content
@@ -17136,6 +17172,11 @@
                             <div class="prompt-result-content"><p>${formattedContent}</p></div>
                         </div>
                     `;
+                    
+                    // Attach idea card listeners even in final fallback mode
+                    if (window.ActionRenderer && window.ActionRenderer.attachIdeaCardListeners) {
+                        window.ActionRenderer.attachIdeaCardListeners(contentEl);
+                    }
                 }
             };
         }

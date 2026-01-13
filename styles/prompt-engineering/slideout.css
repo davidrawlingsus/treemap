@@ -204,11 +204,12 @@
     right: 0;
     bottom: 0;
     width: 500px; /* Only cover the slideout panel width */
-    background: rgba(15, 23, 42, 0.6); /* Match modal backdrop color */
+    background: transparent; /* No gradient/backdrop - removed for cleaner UI */
     z-index: 10000;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.3s, width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    /* Removed opacity transition and background to prevent fade-in effect */
 }
 
 .ai-insights-overlay.visible {
