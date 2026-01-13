@@ -400,17 +400,17 @@
         }
 
         // Map idea card fields to insight schema
-        // Badge content (testType) - this is where the test will be applied
+        // Badge content (testType) - this is the type of test (headlines, social proof, lead-in, etc.)
         const badgeContent = ideaData.testType || ideaData.test_type || ideaData.type || '';
-        // Application field from idea card (if present, more specific than badge)
+        // Application field from idea card - comma-separated values (homepage, pdp, google ad, etc.)
         const applicationField = ideaData.application || null;
         // Details/description goes to notes (the WYSIWYG body) and description
         const detailsContent = ideaData.details || ideaData.description || null;
         
         const insightData = {
             name: ideaData.title || ideaData.name || 'Untitled Idea',
-            type: '', // Type field - can be set later if needed
-            application: applicationField || badgeContent || null, // Prefer application field, fallback to badge content (where test will be applied)
+            type: badgeContent || '', // Type is the badge content (test type)
+            application: applicationField || null, // Application is the application field (comma-separated)
             description: detailsContent, // Keep description for backwards compatibility
             notes: detailsContent, // Details go to notes (the WYSIWYG body/editor)
             origins: [slideoutPanel.createInsightOrigin],
@@ -496,7 +496,7 @@
                 // Update button to show success state
                 ideaContainer.classList.add('is-selected');
                 button.classList.add('is-selected');
-                button.innerHTML = `<img src="${DONE_CHECK_IMAGE_URL}" alt="Added" style="width: 100%; height: 100%; object-fit: contain;" />`;
+                button.innerHTML = `<img src="${DONE_CHECK_IMAGE_URL}" alt="Added" style="width: 70%; height: 70%; object-fit: contain;" />`;
                 button.style.opacity = '1';
                 button.style.cursor = 'default';
                 button.title = 'Added to insights';

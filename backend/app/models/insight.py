@@ -12,8 +12,8 @@ class Insight(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     client_id = Column(UUID(as_uuid=True), ForeignKey('clients.id', ondelete='CASCADE'), nullable=False)
     name = Column(String(255), nullable=False)
-    type = Column(String(100), nullable=False)  # e.g., "improvement", "feature", "bug", etc.
-    application = Column(Text, nullable=True)  # Where/how to apply this insight
+    type = Column(String(100), nullable=True)  # e.g., "headlines", "social proof", "lead-in", etc.
+    application = Column(JSONB, nullable=True)  # JSONB array of applications (e.g., ["homepage", "pdp", "google ad"])
     description = Column(Text, nullable=True)
     notes = Column(Text, nullable=True)  # Formatted notes (HTML from WYSIWYG editor)
     status = Column(String(50), nullable=True, default='Not Started')  # Status: Not Started, Queued, Design, Development, QA, Testing, Win, Disproved

@@ -22,8 +22,8 @@ class InsightOrigin(BaseModel):
 class InsightCreate(BaseModel):
     """Create a new insight"""
     name: str
-    type: str
-    application: Optional[str] = None
+    type: Optional[str] = None  # e.g., "headlines", "social proof", "lead-in", etc.
+    application: Optional[str] = None  # Comma-separated string (e.g., "homepage, pdp, google ad") - will be converted to JSONB array
     description: Optional[str] = None
     notes: Optional[str] = None  # Formatted notes (HTML from WYSIWYG editor)
     status: Optional[str] = None  # Status: Not Started, Queued, Design, Development, QA, Testing, Win, Disproved
@@ -37,7 +37,7 @@ class InsightUpdate(BaseModel):
     """Update an existing insight"""
     name: Optional[str] = None
     type: Optional[str] = None
-    application: Optional[str] = None
+    application: Optional[str] = None  # Comma-separated string (e.g., "homepage, pdp, google ad") - will be converted to JSONB array
     description: Optional[str] = None
     notes: Optional[str] = None  # Formatted notes (HTML from WYSIWYG editor)
     status: Optional[str] = None  # Status: Not Started, Queued, Design, Development, QA, Testing, Win, Disproved
@@ -52,8 +52,8 @@ class InsightResponse(BaseModel):
     id: UUID
     client_id: UUID
     name: str
-    type: str
-    application: Optional[str] = None
+    type: Optional[str] = None  # e.g., "headlines", "social proof", "lead-in", etc.
+    application: Optional[List[str]] = None  # JSONB array of applications (e.g., ["homepage", "pdp", "google ad"])
     description: Optional[str] = None
     notes: Optional[str] = None  # Formatted notes (HTML from WYSIWYG editor)
     status: Optional[str] = None  # Status: Not Started, Queued, Design, Development, QA, Testing, Win, Disproved
@@ -70,12 +70,20 @@ class InsightResponse(BaseModel):
         """Custom from_orm to handle JSONB origins array"""
         # Use getattr to handle cases where status column might not exist yet (before migration)
         status = getattr(obj, 'status', None) or 'Not Started'
+        # Convert application JSONB array to list (it's already a list if JSONB, or None)
+        application_value = obj.application
+        if application_value is not None and not isinstance(application_value, list):
+            # Handle legacy text format (shouldn't happen after migration, but be safe)
+            if isinstance(application_value, str):
+                application_value = [app.strip() for app in application_value.split(',') if app.strip()]
+            else:
+                application_value = None
         data = {
             'id': obj.id,
             'client_id': obj.client_id,
             'name': obj.name,
             'type': obj.type,
-            'application': obj.application,
+            'application': application_value,
             'description': obj.description,
             'notes': obj.notes,
             'status': status,

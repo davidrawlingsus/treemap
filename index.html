@@ -12729,8 +12729,8 @@
             
             const insightData = {
                 name: document.getElementById('insightName').value.trim(),
-                type: '',
-                application: '',
+                type: null,  // Type not available when creating from visualizations view
+                application: null,  // Application not available when creating from visualizations view
                 description: toNull(document.getElementById('insightDescription').value),
                 origins: [{
                     origin_type: originContext.category ? 'category' : (originContext.topic_label ? 'topic' : 'category'),
@@ -14730,8 +14730,8 @@
                 try {
                     const insightData = {
                         name: name,
-                        type: '',
-                        application: '',
+                        type: null,  // Type not available when creating from visualizations view
+                        application: null,  // Application not available when creating from visualizations view
                         notes: notes || null,
                         origins: [this.createInsightOrigin],
                         verbatims: pinnedVerbatimsArray.length > 0 ? pinnedVerbatimsArray : null,
@@ -18191,8 +18191,8 @@
             
             const insightData = {
                 name,
-                type: '',
-                application: '',
+                type: null,  // Type not available when creating from visualizations view
+                application: null,  // Application not available when creating from visualizations view
                 description,
                 origins: [origin],
             };

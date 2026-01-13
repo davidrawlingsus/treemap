@@ -32,6 +32,24 @@ router = APIRouter(prefix="/api/clients", tags=["clients"])
 logger = logging.getLogger(__name__)
 
 
+def parse_application_to_jsonb(application_str: Optional[str]) -> Optional[List[str]]:
+    """
+    Parse comma-separated application string into a list for JSONB storage.
+    
+    Args:
+        application_str: Comma-separated string (e.g., "homepage, pdp, google ad")
+    
+    Returns:
+        List of trimmed application values, or None if input is None/empty
+    """
+    if not application_str or not application_str.strip():
+        return None
+    
+    # Split by comma, trim whitespace, filter empty strings
+    applications = [app.strip() for app in application_str.split(',') if app.strip()]
+    return applications if applications else None
+
+
 @router.get("", response_model=List[ClientResponse])
 def list_clients(db: Session = Depends(get_db)):
     """List all clients"""
@@ -118,6 +136,7 @@ def list_insights(
     db: Session = Depends(get_db),
     origin_type: Optional[str] = None,
     type: Optional[str] = None,
+    application: Optional[str] = None,  # Filter by application (e.g., "homepage", "pdp")
     project_name: Optional[str] = None,
     data_source: Optional[str] = None,
     dimension_ref: Optional[str] = None,
@@ -145,6 +164,12 @@ def list_insights(
     
     if type:
         query = query.filter(Insight.type == type)
+    
+    if application:
+        # Filter insights where the application JSONB array contains the specified application
+        query = query.filter(
+            text(f"application @> '\"{application}\"'::jsonb")
+        )
     
     if project_name:
         query = query.filter(
@@ -234,11 +259,14 @@ def create_insight(
         # Convert origins to JSONB format
         origins_json = [origin.model_dump() for origin in insight_data.origins]
         
+        # Parse application from comma-separated string to JSONB array
+        application_jsonb = parse_application_to_jsonb(insight_data.application)
+        
         insight = Insight(
             client_id=client_id,
             name=insight_data.name,
             type=insight_data.type,
-            application=insight_data.application,
+            application=application_jsonb,
             description=insight_data.description,
             notes=insight_data.notes,
             status=insight_data.status or 'Not Started',
@@ -310,7 +338,8 @@ def update_insight(
     if insight_data.type is not None:
         insight.type = insight_data.type
     if insight_data.application is not None:
-        insight.application = insight_data.application
+        # Parse application from comma-separated string to JSONB array
+        insight.application = parse_application_to_jsonb(insight_data.application)
     if insight_data.description is not None:
         insight.description = insight_data.description
     if insight_data.notes is not None:
