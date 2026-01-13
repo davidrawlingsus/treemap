@@ -11,7 +11,7 @@ import logging
 import json
 
 from app.database import get_db
-from app.models import Client, DataSource, Insight, Membership, User, Prompt
+from app.models import Client, DataSource, Insight, Membership, User, Prompt, Action
 from app.schemas import (
     ClientCreate,
     ClientResponse,
@@ -24,6 +24,7 @@ from app.schemas import (
     PromptMenuItem,
     ClientPromptExecuteRequest,
 )
+from app.schemas.action import ClientActionResponse, ActionResponse
 from app.auth import get_current_user
 from app.authorization import verify_client_access
 
@@ -486,11 +487,16 @@ def execute_client_prompt(
             prompt_system_message = prompt.system_message
             prompt_llm_model = prompt.llm_model
             user_message_value = user_message
+            client_id_value = client_id
             
             # Streaming mode - return SSE response
             def generate_stream():
                 accumulated_content = ""
                 final_metadata = None
+                
+                # Create separate database session for saving action
+                from app.database import SessionLocal
+                save_db = SessionLocal()
                 
                 try:
                     # Stream chunks from LLM service
@@ -521,8 +527,35 @@ def execute_client_prompt(
                             })
                             yield f"data: {message}\n\n"
                     
-                    # Note: We don't save to actions table for client executions
-                    # The result will be saved as an insight by the client
+                    # Save the result to database after streaming completes
+                    if final_metadata:
+                        try:
+                            prompt_text_sent = f"System: {prompt_system_message}\n\nUser: {user_message_value}"
+                            
+                            # Get content from final_metadata or fallback to accumulated_content
+                            final_content = final_metadata.get("content", accumulated_content)
+                            
+                            result = {
+                                "content": final_content,
+                                "tokens_used": final_metadata.get("tokens_used"),
+                                "model": final_metadata.get("model", prompt_llm_model)
+                            }
+                            
+                            action = Action(
+                                prompt_id=prompt_id_value,
+                                client_id=client_id_value,
+                                prompt_text_sent=prompt_text_sent,
+                                actions=result,
+                                insight_ids=[]
+                            )
+                            save_db.add(action)
+                            save_db.commit()
+                            logger.info(f"Client prompt execution saved to database. Content length: {len(result.get('content', ''))}")
+                        except Exception as save_error:
+                            logger.error(f"Error saving client prompt execution to database: {save_error}", exc_info=True)
+                            save_db.rollback()
+                        finally:
+                            save_db.close()
                     
                 except Exception as stream_error:
                     logger.error(f"Error during streaming: {stream_error}", exc_info=True)
@@ -531,6 +564,12 @@ def execute_client_prompt(
                         "error": str(stream_error)
                     })
                     yield f"data: {error_message}\n\n"
+                    try:
+                        save_db.rollback()
+                    except:
+                        pass
+                    finally:
+                        save_db.close()
             
             return StreamingResponse(
                 generate_stream(),
@@ -555,4 +594,51 @@ def execute_client_prompt(
     except Exception as e:
         logger.error(f"Error executing prompt: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{client_id}/actions", response_model=List[ClientActionResponse])
+def list_client_actions(
+    client_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List all AI expert outputs (actions) for a client"""
+    # Verify client access
+    verify_client_access(client_id, current_user, db)
+    
+    # Get all actions for this client, ordered by created_at descending (newest first)
+    actions = db.query(Action).options(
+        joinedload(Action.prompt)
+    ).filter(
+        Action.client_id == client_id
+    ).order_by(Action.created_at.desc()).all()
+    
+    # Convert to response format
+    return [ClientActionResponse.from_action_with_prompt(action) for action in actions]
+
+
+@router.get("/{client_id}/actions/{action_id}", response_model=ActionResponse)
+def get_client_action(
+    client_id: UUID,
+    action_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get a specific action by ID for a client"""
+    # Verify client access
+    verify_client_access(client_id, current_user, db)
+    
+    # Get action with prompt relationship loaded
+    action = db.query(Action).options(
+        joinedload(Action.prompt)
+    ).filter(
+        Action.id == action_id,
+        Action.client_id == client_id
+    ).first()
+    
+    if not action:
+        raise HTTPException(status_code=404, detail="Action not found")
+    
+    # Use the existing ActionResponse.from_orm_with_prompt method
+    return ActionResponse.from_orm_with_prompt(action)
 

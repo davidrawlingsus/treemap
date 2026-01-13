@@ -335,6 +335,97 @@
     }
 
     /**
+     * Get current client ID from various possible sources
+     * @returns {string|null} Client ID or null if not found
+     */
+    function getCurrentClientId() {
+        // Try window.currentClientId first
+        if (typeof window.currentClientId !== 'undefined' && window.currentClientId) {
+            return window.currentClientId;
+        }
+        
+        // Try window.insightsCurrentClientId
+        if (typeof window.insightsCurrentClientId !== 'undefined' && window.insightsCurrentClientId) {
+            return window.insightsCurrentClientId;
+        }
+        
+        // Try to access via Function constructor (safe eval) to access script-scoped variables
+        try {
+            // eslint-disable-next-line no-new-func
+            const getClientId = new Function('return typeof currentClientId !== "undefined" ? currentClientId : null');
+            const clientId = getClientId();
+            if (clientId) {
+                return clientId;
+            }
+        } catch (e) {
+            // Ignore - variable not accessible this way
+        }
+        
+        return null;
+    }
+
+    /**
+     * Create an insight from idea card data
+     * @param {Object} ideaData - Idea card data object
+     * @returns {Promise<void>}
+     */
+    async function createInsightFromIdeaCard(ideaData) {
+        // Get current client ID
+        const currentClientId = getCurrentClientId();
+        if (!currentClientId) {
+            throw new Error('No client selected. Please select a client first.');
+        }
+
+        // Get origin from SlideoutPanel (set when AI expert panel is opened)
+        const slideoutPanel = window.SlideoutPanel;
+        if (!slideoutPanel || !slideoutPanel.createInsightOrigin) {
+            throw new Error('No context available. Please open the AI expert panel again.');
+        }
+
+        // Get API base URL
+        const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+
+        // Get auth headers
+        let getAuthHeaders;
+        if (typeof window.getAuthHeaders === 'function') {
+            getAuthHeaders = window.getAuthHeaders;
+        } else if (typeof window.Auth !== 'undefined' && typeof window.Auth.getAuthHeaders === 'function') {
+            getAuthHeaders = window.Auth.getAuthHeaders;
+        } else {
+            throw new Error('Authentication not available. Please log in again.');
+        }
+
+        // Map idea card fields to insight schema
+        const insightData = {
+            name: ideaData.title || ideaData.name || 'Untitled Idea',
+            type: ideaData.testType || ideaData.test_type || ideaData.type || '',
+            application: ideaData.application || null,
+            description: ideaData.details || ideaData.description || null,
+            notes: null,
+            origins: [slideoutPanel.createInsightOrigin],
+            verbatims: null,
+            metadata: null
+        };
+
+        // Create the insight via API
+        const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights`, {
+            method: 'POST',
+            headers: {
+                ...getAuthHeaders(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(insightData)
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ detail: 'Failed to create insight' }));
+            throw new Error(error.detail || `Failed to create insight: ${response.statusText}`);
+        }
+
+        return await response.json();
+    }
+
+    /**
      * Attach idea card button listeners using event delegation
      * @param {HTMLElement} container - Container element
      */
@@ -347,38 +438,87 @@
         }
         
         // Use event delegation to handle dynamically added idea cards
-        container.addEventListener('click', (e) => {
+        container.addEventListener('click', async (e) => {
             const button = e.target.closest('.pe-idea-card__add');
             if (!button) return;
             
             e.stopPropagation();
             
-            // Toggle selected state
             const ideaContainer = button.closest('.pe-idea-card');
             if (!ideaContainer) return;
-            
-            const isSelected = ideaContainer.classList.contains('is-selected');
-            
-            if (isSelected) {
-                // Deselect
-                ideaContainer.classList.remove('is-selected');
-                button.classList.remove('is-selected');
-                console.log('[ACTION_RENDERER] Idea deselected');
-            } else {
-                // Select
+
+            // Check if already processing (prevent duplicate clicks)
+            if (button.disabled || button.dataset.processing === 'true') {
+                return;
+            }
+
+            // Get the idea data
+            let ideaData;
+            try {
+                const ideaDataStr = button.getAttribute('data-idea');
+                if (!ideaDataStr) {
+                    console.error('[ACTION_RENDERER] No idea data found');
+                    alert('Error: No idea data found');
+                    return;
+                }
+                ideaData = JSON.parse(ideaDataStr);
+            } catch (e) {
+                console.error('[ACTION_RENDERER] Failed to parse idea data:', e);
+                alert('Error: Failed to parse idea data');
+                return;
+            }
+
+            // Set processing state
+            button.disabled = true;
+            button.dataset.processing = 'true';
+            const originalText = button.textContent;
+            button.textContent = '...';
+            button.style.opacity = '0.6';
+            button.style.cursor = 'wait';
+
+            try {
+                // Create insight
+                const newInsight = await createInsightFromIdeaCard(ideaData);
+                console.log('[ACTION_RENDERER] Insight created successfully:', newInsight);
+
+                // Update button to show success state
                 ideaContainer.classList.add('is-selected');
                 button.classList.add('is-selected');
-                
-                // Get the idea data
-                try {
-                    const ideaData = JSON.parse(button.getAttribute('data-idea'));
-                    console.log('[ACTION_RENDERER] Idea selected:', ideaData);
-                    
-                    // You can add custom logic here to handle the selected idea
-                    // For example, store it in state, send it to backend, etc.
-                } catch (e) {
-                    console.error('[ACTION_RENDERER] Failed to parse idea data:', e);
+                button.textContent = '✓';
+                button.style.opacity = '1';
+                button.style.cursor = 'default';
+                button.title = 'Added to insights';
+
+                // Refresh insights list if available
+                if (typeof window.loadInsightsPage === 'function') {
+                    window.loadInsightsPage();
+                } else if (typeof window.loadInsights === 'function') {
+                    window.loadInsights();
                 }
+
+                // Show brief success feedback
+                const successMsg = document.createElement('div');
+                successMsg.textContent = 'Idea added to insights';
+                successMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #B9F040; color: #000; padding: 12px 20px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000; font-size: 14px; font-weight: 500;';
+                document.body.appendChild(successMsg);
+                setTimeout(() => {
+                    successMsg.style.transition = 'opacity 0.3s ease';
+                    successMsg.style.opacity = '0';
+                    setTimeout(() => successMsg.remove(), 300);
+                }, 2000);
+
+            } catch (error) {
+                console.error('[ACTION_RENDERER] Failed to create insight:', error);
+                
+                // Reset button state
+                button.disabled = false;
+                button.dataset.processing = 'false';
+                button.textContent = originalText;
+                button.style.opacity = '1';
+                button.style.cursor = 'pointer';
+
+                // Show error message
+                alert('Error: ' + (error.message || 'Failed to add idea to insights'));
             }
         });
         

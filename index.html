@@ -30,13 +30,16 @@
     
     <!-- Prompt Engineering Rendering Modules (for AI Expert feature) -->
     <script src="/js/founder-admin-common.js"></script>
+    <script src="/js/prompt-engineering/state.js"></script>
     <script src="/js/prompt-engineering/rendering/markdown-converter.js"></script>
     <script src="/js/prompt-engineering/rendering/streaming-renderer.js"></script>
+    <script src="/js/prompt-engineering/rendering/action-renderer.js"></script>
     <script src="/js/client-prompt-renderer.js"></script>
     <script src="/js/client-prompt-api.js"></script>
     
     <!-- Prompt Engineering CSS (for AI Expert feature) -->
     <link rel="stylesheet" href="/styles/prompt-engineering/common.css">
+    <link rel="stylesheet" href="/styles/prompt-engineering/slideout.css">
     <link rel="stylesheet" href="/styles/prompt-engineering/idea-cards.css">
     <link rel="stylesheet" href="/styles/prompt-engineering/results.css">
     <style>
@@ -1676,6 +1679,111 @@
 
         #insights-section .tag {
             font-size: 15px;
+        }
+
+        /* History Section Styles */
+        #history-section {
+            padding: 0;
+        }
+
+        #history-section .control-bar {
+            position: relative;
+            padding: 0.5rem 1.5rem;
+            border-bottom: 1px solid oklch(0.922 0 0);
+            background: oklch(1 0 0);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            min-height: 40px;
+        }
+
+        #history-section .search-box {
+            display: flex;
+            align-items: center;
+            background: oklch(0.97 0 0);
+            border-radius: 0.375rem;
+            padding: 0.25rem 0.5rem;
+            min-width: 200px;
+            flex: 0 0 auto;
+        }
+
+        #history-section .search-box input {
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 0.875rem;
+            font-family: 'Lato', sans-serif;
+            padding: 0.125rem 0.25rem;
+            flex: 1;
+            color: oklch(0.145 0 0);
+        }
+
+        #history-section .search-box input::placeholder {
+            color: oklch(0.556 0 0);
+        }
+
+        #history-section .table-container {
+            overflow-x: auto;
+        }
+
+        #history-section .notion-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        #history-section .notion-table th {
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+            font-weight: 500;
+            font-size: 14px;
+            color: oklch(0.556 0 0);
+            border-bottom: 1px solid oklch(0.922 0 0);
+            cursor: pointer;
+            user-select: none;
+        }
+
+        #history-section .notion-table th:hover {
+            background: oklch(0.97 0 0);
+        }
+
+        #history-section .notion-table td {
+            padding: 0.5rem 0.75rem;
+            font-size: 15px;
+            border-bottom: 1px solid oklch(0.97 0 0);
+        }
+
+        #history-section .notion-table .name-cell {
+            width: 60%;
+            min-width: 250px;
+        }
+
+        #history-section .notion-table th[data-column="created_at"],
+        #history-section .notion-table td[data-column="created_at"] {
+            width: 40%;
+        }
+
+        #history-section .notion-table tbody tr:hover {
+            background: oklch(0.98 0 0);
+        }
+
+        #history-section .name-content {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        #history-section .doc-icon {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            color: oklch(0.556 0 0);
+        }
+
+        #history-section .sort-indicator {
+            margin-left: 0.25rem;
+            font-size: 12px;
+            color: oklch(0.556 0 0);
         }
 
         /* Control Bar */
@@ -5037,6 +5145,9 @@
                 </a>
                 <a href="#" class="nav-menu-item" id="navInsights" onclick="navigateToView('insights'); return false;">
                     <span>Insights</span>
+                </a>
+                <a href="#" class="nav-menu-item" id="navHistory" onclick="navigateToView('history'); return false;">
+                    <span>History</span>
                 </a>
                 <a href="/founder_admin.html" class="nav-menu-item founder-admin hidden" id="navFounderAdmin">
                     <span>Admin</span>
@@ -10774,8 +10885,10 @@
         function navigateToView(viewName) {
             const vizSection = document.getElementById('visualizations-section');
             const insightsSection = document.getElementById('insights-section');
+            const historySection = document.getElementById('history-section');
             const navVisualizations = document.getElementById('navVisualizations');
             const navInsights = document.getElementById('navInsights');
+            const navHistory = document.getElementById('navHistory');
             const mainContainer = document.getElementById('mainContainer');
             
             // Store scroll position when leaving visualizations view
@@ -10805,10 +10918,21 @@
                     insightsSection.style.overflow = 'hidden';
                 }
             }
+            if (historySection) {
+                historySection.classList.remove('active');
+                if (!historySection.classList.contains('active')) {
+                    historySection.style.display = 'none';
+                    historySection.style.height = '0';
+                    historySection.style.minHeight = '0';
+                    historySection.style.maxHeight = '0';
+                    historySection.style.overflow = 'hidden';
+                }
+            }
             
             // Remove active class from all nav items
             if (navVisualizations) navVisualizations.classList.remove('active');
             if (navInsights) navInsights.classList.remove('active');
+            if (navHistory) navHistory.classList.remove('active');
             
             // Show selected section and update nav - CSS class will handle the showing
             if (viewName === 'visualizations') {
@@ -10908,11 +11032,56 @@
                 if (typeof initInsightsPage === 'function' && !window.insightsInitialized) {
                     initInsightsPage();
                 }
+            } else if (viewName === 'history') {
+                // Sync historyCurrentClientId with currentClientId when navigating to history
+                if (currentClientId && historyCurrentClientId !== currentClientId) {
+                    historyCurrentClientId = currentClientId;
+                }
+                
+                if (historySection) {
+                    historySection.classList.add('active');
+                    // Reset styles for active section
+                    historySection.style.display = '';
+                    historySection.style.height = '';
+                    historySection.style.minHeight = '';
+                    historySection.style.maxHeight = '';
+                    historySection.style.overflow = '';
+                }
+                if (navHistory) navHistory.classList.add('active');
+                // Remove min-height constraint for history to allow natural sizing
+                if (mainContainer) {
+                    mainContainer.style.minHeight = 'auto';
+                    mainContainer.style.height = 'auto';
+                    mainContainer.setAttribute('data-view', 'history');
+                }
+                
+                // Reload history for the current client
+                // Reset the initialized flag to force reload with current client data
+                window.historyInitialized = false;
+                if (typeof initHistoryPage === 'function') {
+                    initHistoryPage();
+                }
+                
+                // Scroll to top to ensure history section is visible
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                // Also scroll the container if it's scrollable
+                if (mainContainer && mainContainer.scrollTop > 0) {
+                    mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+                // Initialize history page if not already loaded
+                if (typeof initHistoryPage === 'function' && !window.historyInitialized) {
+                    initHistoryPage();
+                }
             }
             
             // Update URL hash without reload
             const urlParams = new URLSearchParams(window.location.search);
-            const hash = viewName === 'visualizations' ? '#/' : '#/insights';
+            let hash = '#/';
+            if (viewName === 'insights') {
+                hash = '#/insights';
+            } else if (viewName === 'history') {
+                hash = '#/history';
+            }
             const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + hash;
             window.history.pushState({ view: viewName }, '', newUrl);
         }
@@ -10922,6 +11091,8 @@
             const hash = window.location.hash;
             if (hash === '#/insights') {
                 navigateToView('insights');
+            } else if (hash === '#/history') {
+                navigateToView('history');
             } else {
                 navigateToView('visualizations');
             }
@@ -10932,6 +11103,8 @@
             const hash = window.location.hash;
             if (hash === '#/insights') {
                 navigateToView('insights');
+            } else if (hash === '#/history') {
+                navigateToView('history');
             } else {
                 navigateToView('visualizations');
             }
@@ -10942,14 +11115,18 @@
             const hash = window.location.hash;
             const navVisualizations = document.getElementById('navVisualizations');
             const navInsights = document.getElementById('navInsights');
+            const navHistory = document.getElementById('navHistory');
             
             // Remove active class from all items
             if (navVisualizations) navVisualizations.classList.remove('active');
             if (navInsights) navInsights.classList.remove('active');
+            if (navHistory) navHistory.classList.remove('active');
             
             // Set active based on hash
-            if (hash === '#/insights' || hash === '#/insights') {
+            if (hash === '#/insights') {
                 if (navInsights) navInsights.classList.add('active');
+            } else if (hash === '#/history') {
+                if (navHistory) navHistory.classList.add('active');
             } else {
                 // Default to visualizations
                 if (navVisualizations) navVisualizations.classList.add('active');
@@ -11030,8 +11207,10 @@
                 updateNavLinks();
                 // Check hash on page load for routing
                 const hash = window.location.hash;
-                if (hash === '#/insights' || hash === '#/insights') {
+                if (hash === '#/insights') {
                     navigateToView('insights');
+                } else if (hash === '#/history') {
+                    navigateToView('history');
                 } else {
                     navigateToView('visualizations');
                 }
@@ -11043,6 +11222,8 @@
             const hash = window.location.hash;
             if (hash === '#/insights') {
                 navigateToView('insights');
+            } else if (hash === '#/history') {
+                navigateToView('history');
             } else {
                 navigateToView('visualizations');
             }
@@ -11050,6 +11231,14 @@
 
         // Insights Page JavaScript
         let insightsCurrentClientId = null;
+        
+        // History Page JavaScript
+        let historyCurrentClientId = null;
+        let historyAllActions = [];
+        let historySearchTerm = '';
+        let historyCurrentSortBy = 'created_at';
+        let historySortOrder = 'desc';
+        window.historyInitialized = false;
         let insightsCurrentInsightId = null;
         let insightsFilters = []; // Changed to array to support multiple filters
         let insightsCurrentSortBy = 'name';
@@ -14394,6 +14583,18 @@
                             console.log('[openAIExpertInsight] Streaming completed', metadata);
                             renderer.finalizeStreamingItem(streamingItem, metadata);
                             
+                            // Attach idea card listeners to the slideoutContent container
+                            // This must happen after finalizeStreamingItem so idea cards are in the DOM
+                            // Attach to slideoutContent (parent container) so listeners persist even if streamingItem is removed
+                            const slideoutContent = document.getElementById('slideoutContent');
+                            if (slideoutContent) {
+                                if (renderer.attachIdeaCardListeners) {
+                                    renderer.attachIdeaCardListeners(slideoutContent);
+                                } else if (window.ActionRenderer && window.ActionRenderer.attachIdeaCardListeners) {
+                                    window.ActionRenderer.attachIdeaCardListeners(slideoutContent);
+                                }
+                            }
+                            
                             // Extract content from streaming item
                             const contentElement = streamingItem.querySelector('.prompt-result-content');
                             if (contentElement) {
@@ -14435,6 +14636,16 @@
                                 contentDiv.innerHTML = `<p style="color: oklch(0.577 0.245 27.325);">Error: ${escapeHtml(error.message || 'Unknown error occurred')}</p>`;
                             }
                             renderer.finalizeStreamingItem(streamingItem, {});
+                            
+                            // Attach idea card listeners even on error (in case partial content was rendered)
+                            const slideoutContent = document.getElementById('slideoutContent');
+                            if (slideoutContent) {
+                                if (renderer.attachIdeaCardListeners) {
+                                    renderer.attachIdeaCardListeners(slideoutContent);
+                                } else if (window.ActionRenderer && window.ActionRenderer.attachIdeaCardListeners) {
+                                    window.ActionRenderer.attachIdeaCardListeners(slideoutContent);
+                                }
+                            }
                         }
                     );
                 } catch (error) {
@@ -16478,6 +16689,457 @@
         // Keep backward compatibility
         window.AIInsightsPanel = SlideoutPanel;
 
+        // History Page Functions
+        async function initHistoryPage() {
+            // Check if already initialized
+            if (window.historyInitialized) {
+                return;
+            }
+            
+            // Wait for auth to be available
+            let attempts = 0;
+            while (typeof getAuthHeaders === 'undefined' && attempts < 10) {
+                await new Promise(resolve => setTimeout(resolve, 100));
+                attempts++;
+            }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            historyCurrentClientId = urlParams.get('client_uuid') || currentClientId;
+            
+            const authTokenFromUrl = urlParams.get('auth_token');
+            if (authTokenFromUrl) {
+                console.log('[DEBUG] Found auth_token in URL, storing in localStorage');
+                localStorage.setItem('visualizd_auth_token', authTokenFromUrl);
+            }
+
+            if (!historyCurrentClientId) {
+                // Wait for currentClientId to be set (with timeout)
+                let retryAttempts = 0;
+                const maxRetries = 50; // 5 seconds max wait
+                while (!currentClientId && retryAttempts < maxRetries) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    retryAttempts++;
+                }
+                
+                if (currentClientId) {
+                    historyCurrentClientId = currentClientId;
+                } else {
+                    console.error('[DEBUG] currentClientId never became available');
+                    const tbody = document.getElementById('historyPageTableBody');
+                    if (tbody) {
+                        tbody.innerHTML = '<tr><td colspan="2" class="empty-state"><h3>No client specified</h3><p style="font-size: 12px; color: #999;">Please select a client first</p></td></tr>';
+                    }
+                    window.historyInitialized = true;
+                    return;
+                }
+            }
+
+            console.log('[DEBUG] Client ID is valid, proceeding to load history...');
+            
+            await loadHistoryPage();
+            window.historyInitialized = true;
+        }
+
+        async function loadHistoryPage() {
+            if (!historyCurrentClientId) {
+                console.error('[DEBUG] No client ID, cannot load history');
+                return;
+            }
+
+            const tbody = document.getElementById('historyPageTableBody');
+            if (!tbody) {
+                console.error('[DEBUG] historyPageTableBody element not found');
+                return;
+            }
+            
+            console.log('[DEBUG] Table body element found, showing loading state');
+            tbody.innerHTML = '<tr><td colspan="2" class="loading">Loading history...</td></tr>';
+
+            try {
+                const headers = getAuthHeadersSafe();
+                const url = `${API_BASE_URL}/api/clients/${historyCurrentClientId}/actions`;
+                
+                const response = await fetch(url, { headers });
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        if (typeof Auth !== 'undefined') {
+                            Auth.showLogin();
+                        }
+                        return;
+                    }
+                    const error = await response.json().catch(() => ({ detail: response.statusText }));
+                    throw new Error(error.detail || `Failed to load history: ${response.statusText}`);
+                }
+
+                const actions = await response.json();
+                console.log('[DEBUG] History loaded:', actions.length, 'items');
+                
+                historyAllActions = actions;
+                renderHistoryTable();
+                
+            } catch (error) {
+                console.error('[DEBUG] Error loading history:', error);
+                if (tbody) {
+                    tbody.innerHTML = `<tr><td colspan="2" class="error">Error loading history: ${escapeHtml(error.message)}</td></tr>`;
+                }
+            }
+        }
+
+        function renderHistoryTable() {
+            const tbody = document.getElementById('historyPageTableBody');
+            if (!tbody) {
+                return;
+            }
+
+            // Filter by search term
+            let filtered = historyAllActions;
+            if (historySearchTerm) {
+                const searchLower = historySearchTerm.toLowerCase();
+                filtered = historyAllActions.filter(action => {
+                    const promptPurpose = (action.prompt_purpose || '').toLowerCase();
+                    const contentPreview = (action.content_preview || '').toLowerCase();
+                    return promptPurpose.includes(searchLower) || contentPreview.includes(searchLower);
+                });
+            }
+
+            // Sort
+            filtered.sort((a, b) => {
+                let aVal, bVal;
+                if (historyCurrentSortBy === 'name') {
+                    aVal = (a.prompt_purpose || '').toLowerCase();
+                    bVal = (b.prompt_purpose || '').toLowerCase();
+                } else if (historyCurrentSortBy === 'created_at') {
+                    aVal = new Date(a.created_at).getTime();
+                    bVal = new Date(b.created_at).getTime();
+                } else {
+                    return 0;
+                }
+                
+                if (historySortOrder === 'asc') {
+                    return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
+                } else {
+                    return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
+                }
+            });
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="2" class="empty-state"><h3>No history found</h3><p style="font-size: 12px; color: #999;">' + (historySearchTerm ? 'Try a different search term' : 'No AI expert outputs yet') + '</p></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(action => {
+                const createdDate = new Date(action.created_at).toLocaleDateString();
+                // Format prompt purpose as name (convert underscores/hyphens to title case)
+                let promptName = action.prompt_purpose || 'Unknown';
+                const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'PPC', 'SEM', 'SERP', 'SaaS', 'B2B', 'B2C', 'GDPR', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];
+                promptName = promptName
+                    .replace(/_/g, ' ')
+                    .replace(/-/g, ' ')
+                    .split(' ')
+                    .map(word => {
+                        const upperWord = word.toUpperCase();
+                        if (abbreviations.includes(upperWord)) {
+                            return upperWord;
+                        }
+                        return word.charAt(0).toUpperCase() + word.substr(1).toLowerCase();
+                    })
+                    .join(' ');
+                
+                // Highlight search terms if there's a search term
+                const highlightedName = historySearchTerm ? highlightSearchTerms(promptName, historySearchTerm) : escapeHtml(promptName);
+
+                return `
+                    <tr data-action-id="${action.id}" onclick="openHistoryAction('${action.id}')" style="cursor: pointer;">
+                        <td class="name-cell">
+                            <div class="name-content" style="position: relative;">
+                                <svg class="doc-icon" viewBox="0 0 16 16" fill="currentColor">
+                                    <path d="M2.5 2.5h11l.5.5v10l-.5.5h-11l-.5-.5V3l.5-.5zM3 4v8h10V4H3zm2 1h6v1H5V5zm0 2h6v1H5V7zm0 2h4v1H5V9z"/>
+                                </svg>
+                                <span>${highlightedName}</span>
+                            </div>
+                        </td>
+                        <td>${createdDate}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function handleHistorySearch() {
+            const input = document.getElementById('historySearchInput');
+            if (!input) return;
+            
+            historySearchTerm = input.value.trim();
+            updateHistorySearchClearButton();
+            renderHistoryTable();
+        }
+
+        function clearHistorySearch() {
+            const input = document.getElementById('historySearchInput');
+            if (input) {
+                input.value = '';
+                historySearchTerm = '';
+                updateHistorySearchClearButton();
+                renderHistoryTable();
+            }
+        }
+
+        function updateHistorySearchClearButton() {
+            const input = document.getElementById('historySearchInput');
+            const clearBtn = document.getElementById('historySearchClear');
+            if (input && clearBtn) {
+                clearBtn.style.display = input.value.trim() ? 'flex' : 'none';
+            }
+        }
+
+        function sortHistoryBy(column) {
+            if (historyCurrentSortBy === column) {
+                historySortOrder = historySortOrder === 'asc' ? 'desc' : 'asc';
+            } else {
+                historyCurrentSortBy = column;
+                historySortOrder = column === 'created_at' ? 'desc' : 'asc';
+            }
+            
+            // Update sort indicators
+            document.querySelectorAll('#history-section .sort-indicator').forEach(indicator => {
+                indicator.textContent = '';
+            });
+            
+            const header = document.querySelector(`#history-section th[data-column="${column}"]`);
+            if (header) {
+                const indicator = header.querySelector('.sort-indicator');
+                if (indicator) {
+                    indicator.textContent = historySortOrder === 'asc' ? '↑' : '↓';
+                }
+            }
+            
+            renderHistoryTable();
+        }
+
+        async function openHistoryAction(actionId) {
+            if (!historyCurrentClientId) {
+                alert('No client selected');
+                return;
+            }
+            
+            try {
+                const headers = getAuthHeadersSafe();
+                const url = `${API_BASE_URL}/api/clients/${historyCurrentClientId}/actions/${actionId}`;
+                const response = await fetch(url, { headers });
+                
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        if (typeof Auth !== 'undefined') {
+                            Auth.showLogin();
+                        }
+                        return;
+                    }
+                    const error = await response.json().catch(() => ({ detail: response.statusText }));
+                    throw new Error(error.detail || 'Failed to load action');
+                }
+                
+                const action = await response.json();
+                
+                // Get prompt name for display
+                let promptName = 'AI Expert Output';
+                if (action.prompt_purpose) {
+                    const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'PPC', 'SEM', 'SERP', 'SaaS', 'B2B', 'B2C', 'GDPR', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];
+                    promptName = action.prompt_purpose
+                        .replace(/_/g, ' ')
+                        .replace(/-/g, ' ')
+                        .split(' ')
+                        .map(word => {
+                            const upperWord = word.toUpperCase();
+                            if (abbreviations.includes(upperWord)) {
+                                return upperWord;
+                            }
+                            return word.charAt(0).toUpperCase() + word.substr(1).toLowerCase();
+                        })
+                        .join(' ');
+                }
+                
+                // Get content from actions.actions.content
+                const content = action.actions?.content || '';
+                
+                // Open slideout with the content and full action data
+                if (window.SlideoutPanel && window.SlideoutPanel.openHistoryAction) {
+                    window.SlideoutPanel.openHistoryAction(actionId, promptName, content, action);
+                } else {
+                    // Fallback: use simple rendering
+                    const panel = document.getElementById('slideoutPanel');
+                    const overlay = document.getElementById('slideoutOverlay');
+                    const titleEl = document.getElementById('slideoutTitle');
+                    const contentEl = document.getElementById('slideoutContent');
+                    
+                    if (!panel || !overlay || !titleEl || !contentEl) {
+                        alert('Slideout panel not available');
+                        return;
+                    }
+                    
+                    titleEl.textContent = promptName;
+                    const formattedContent = content
+                        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+                        .replace(/\n\n/g, '</p><p>')
+                        .replace(/\n/g, '<br>');
+                    contentEl.innerHTML = `<div class="prompt-result-content"><p>${formattedContent}</p></div>`;
+                    
+                    panel.classList.add('open');
+                    overlay.classList.add('visible');
+                    document.body.classList.add('slideout-open');
+                }
+                
+            } catch (error) {
+                console.error('[openHistoryAction] Error:', error);
+                alert('Error loading action: ' + error.message);
+            }
+        }
+
+        // Add openHistoryAction method to SlideoutPanel
+        if (window.SlideoutPanel) {
+            window.SlideoutPanel.openHistoryAction = async function(actionId, promptName, content, actionData) {
+                // Use the same rendering approach as prompt engineering page
+                const panel = document.getElementById('slideoutPanel');
+                const overlay = document.getElementById('slideoutOverlay');
+                const titleEl = document.getElementById('slideoutTitle');
+                const contentEl = document.getElementById('slideoutContent');
+                
+                if (!panel || !overlay || !titleEl || !contentEl) {
+                    console.error('[openHistoryAction] Slideout elements not found');
+                    return;
+                }
+                
+                // Open the panel
+                panel.classList.add('open');
+                overlay.classList.add('visible');
+                document.body.classList.add('slideout-open');
+                
+                // Set title
+                titleEl.textContent = promptName;
+                
+                // Clear content
+                contentEl.innerHTML = '';
+                
+                // Try to use ActionRenderer.renderActionItem if available (same as prompt engineering)
+                if (window.ActionRenderer && window.ActionRenderer.renderActionItem) {
+                    // Use ActionRenderer to render the action item with proper styling
+                    // Use the action data from API, ensuring all required fields are present
+                    const actionObject = actionData || {
+                        id: actionId,
+                        actions: {
+                            content: content,
+                            model: null,
+                            tokens_used: null
+                        },
+                        created_at: new Date().toISOString(),
+                        prompt_name: promptName,
+                        prompt_version: null,
+                        prompt_system_message: null,
+                        prompt_text_sent: ''
+                    };
+                    
+                    // Ensure actions.content is set
+                    if (!actionObject.actions) {
+                        actionObject.actions = {};
+                    }
+                    if (!actionObject.actions.content && content) {
+                        actionObject.actions.content = content;
+                    }
+                    
+                    // Render using ActionRenderer (same as prompt engineering page)
+                    const renderedHTML = window.ActionRenderer.renderActionItem(
+                        actionObject,
+                        // onCopy callback
+                        async (actionId) => {
+                            const action = actionObject;
+                            const textToCopy = action.actions?.content || '';
+                            try {
+                                await navigator.clipboard.writeText(textToCopy);
+                                console.log('[openHistoryAction] Content copied to clipboard');
+                            } catch (err) {
+                                console.error('[openHistoryAction] Failed to copy:', err);
+                            }
+                        },
+                        // onDelete callback (not applicable for client history, but required by renderActionItem)
+                        null
+                    );
+                    
+                    contentEl.innerHTML = renderedHTML;
+                    
+                    // Attach system message toggle listeners
+                    if (window.ActionRenderer.attachSystemMessageToggles) {
+                        window.ActionRenderer.attachSystemMessageToggles(contentEl);
+                    }
+                    
+                    // Attach idea card listeners if available
+                    if (window.ActionRenderer.attachIdeaCardListeners) {
+                        window.ActionRenderer.attachIdeaCardListeners(contentEl);
+                    }
+                    
+                    // Attach copy button listeners
+                    const copyButton = contentEl.querySelector('.btn-copy-output');
+                    if (copyButton) {
+                        copyButton.addEventListener('click', async (e) => {
+                            e.stopPropagation();
+                            const textToCopy = actionObject.actions?.content || '';
+                            try {
+                                await navigator.clipboard.writeText(textToCopy);
+                                console.log('[openHistoryAction] Content copied to clipboard');
+                            } catch (err) {
+                                console.error('[openHistoryAction] Failed to copy:', err);
+                            }
+                        });
+                    }
+                    
+                    // Hide delete button and navigation buttons for client history (not applicable)
+                    const deleteButton = contentEl.querySelector('.btn-delete-output');
+                    const navPrevButton = contentEl.querySelector('.btn-nav-prev');
+                    const navNextButton = contentEl.querySelector('.btn-nav-next');
+                    if (deleteButton) deleteButton.style.display = 'none';
+                    if (navPrevButton) navPrevButton.style.display = 'none';
+                    if (navNextButton) navNextButton.style.display = 'none';
+                    
+                } else if (window.MarkdownConverter && window.MarkdownConverter.convertMarkdown) {
+                    // Fallback: Use MarkdownConverter if ActionRenderer not available
+                    const { convertMarkdown } = window.MarkdownConverter;
+                    const formattedContent = convertMarkdown(content);
+                    contentEl.innerHTML = `
+                        <div class="prompt-output-item">
+                            <div class="prompt-output-header">
+                                <div class="prompt-output-meta">
+                                    <div style="margin-bottom: 4px;">
+                                        <strong>${escapeHtml(promptName)}</strong>
+                                        <span style="color: var(--muted); font-size: 12px; margin-left: 12px;">${new Date().toLocaleString()}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="prompt-result-content">${formattedContent}</div>
+                        </div>
+                    `;
+                } else {
+                    // Final fallback: simple HTML rendering with basic markdown formatting
+                    const formattedContent = content
+                        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+                        .replace(/\n\n/g, '</p><p>')
+                        .replace(/\n/g, '<br>');
+                    contentEl.innerHTML = `
+                        <div class="prompt-output-item">
+                            <div class="prompt-output-header">
+                                <div class="prompt-output-meta">
+                                    <div style="margin-bottom: 4px;">
+                                        <strong>${escapeHtml(promptName)}</strong>
+                                        <span style="color: var(--muted); font-size: 12px; margin-left: 12px;">${new Date().toLocaleString()}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="prompt-result-content"><p>${formattedContent}</p></div>
+                        </div>
+                    `;
+                }
+            };
+        }
+
         // Insights Panel Management
         let insightsAutoFilter = true;
         let insightsCurrentFilters = {};
@@ -17720,6 +18382,47 @@
             </div>
         </div>
     </div> <!-- End insights-section -->
+
+    <!-- History Section -->
+    <div id="history-section" class="spa-section">
+        <div class="control-bar" style="position: relative;">
+            <h1 style="margin: 0; font-size: 20px; font-weight: 600; color: #37352f; margin-right: 0.5rem;">History</h1>
+            <div class="search-box insights-section-search">
+                <input
+                    type="text"
+                    id="historySearchInput"
+                    placeholder="Search history..."
+                    oninput="handleHistorySearch()"
+                    onfocus="updateHistorySearchClearButton()"
+                >
+                <button
+                    id="historySearchClear"
+                    onclick="clearHistorySearch()"
+                    title="Clear search"
+                    style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 0; display: none; color: #666; font-size: 20px; line-height: 1; width: 24px; height: 24px; align-items: center; justify-content: center; border-radius: 3px;"
+                >&times;</button>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table class="notion-table">
+                <thead>
+                    <tr>
+                        <th class="name-cell sorted draggable" data-column="name" draggable="true" onclick="sortHistoryBy('name')">
+                            <span>Name</span>
+                            <span class="sort-indicator">↓</span>
+                        </th>
+                        <th class="draggable" data-column="created_at" draggable="true" onclick="sortHistoryBy('created_at')">
+                            <span>Created</span>
+                            <span class="sort-indicator"></span>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody id="historyPageTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div> <!-- End history-section -->
 </body>
 </html>
 

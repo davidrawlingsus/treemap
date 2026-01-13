@@ -2,7 +2,7 @@
 Action schemas for LLM-generated actions.
 """
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional, Optional
+from typing import List, Dict, Any, Optional
 from datetime import datetime
 from uuid import UUID
 
@@ -29,6 +29,7 @@ class ActionResponse(BaseModel):
     prompt_name: Optional[str] = None
     prompt_version: Optional[int] = None
     prompt_system_message: Optional[str] = None
+    prompt_purpose: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -50,5 +51,39 @@ class ActionResponse(BaseModel):
             data['prompt_name'] = action.prompt.name
             data['prompt_version'] = action.prompt.version
             data['prompt_system_message'] = action.prompt.system_message
+            data['prompt_purpose'] = action.prompt.prompt_purpose
         return cls(**data)
+
+
+class ClientActionResponse(BaseModel):
+    """Response schema for a client action (simplified for history view)"""
+    id: UUID
+    prompt_id: UUID
+    prompt_purpose: Optional[str] = None
+    created_at: datetime
+    content_preview: Optional[str] = None  # First 200 chars of content
+    
+    class Config:
+        from_attributes = True
+    
+    @classmethod
+    def from_action_with_prompt(cls, action):
+        """Create ClientActionResponse from Action with prompt relationship loaded"""
+        content_preview = None
+        if action.actions and isinstance(action.actions, dict):
+            content = action.actions.get("content", "")
+            if content:
+                content_preview = content[:200] + ("..." if len(content) > 200 else "")
+        
+        prompt_purpose = None
+        if hasattr(action, 'prompt') and action.prompt:
+            prompt_purpose = action.prompt.prompt_purpose
+        
+        return cls(
+            id=action.id,
+            prompt_id=action.prompt_id,
+            prompt_purpose=prompt_purpose,
+            created_at=action.created_at,
+            content_preview=content_preview
+        )
 

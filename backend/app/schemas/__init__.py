@@ -89,6 +89,7 @@ from .prompt import (
 from .action import (
     ActionCreate,
     ActionResponse,
+    ClientActionResponse,
 )
 
 # Resolve forward references after all schemas are imported
@@ -168,5 +169,6 @@ __all__ = [
     # Actions
     "ActionCreate",
     "ActionResponse",
+    "ClientActionResponse",
 ]
 

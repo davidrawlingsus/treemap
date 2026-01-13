@@ -57,6 +57,16 @@
                 console.error('[CLIENT_PROMPT_RENDERER] MarkdownConverter missing convertMarkdown function');
                 return null;
             }
+            
+            // Helper function to get attachIdeaCardListeners (lazy load if ActionRenderer not available)
+            const getAttachIdeaCardListeners = function() {
+                if (window.ActionRenderer && window.ActionRenderer.attachIdeaCardListeners) {
+                    return window.ActionRenderer.attachIdeaCardListeners;
+                }
+                // Try to load action-renderer.js dynamically if not available
+                console.warn('[CLIENT_PROMPT_RENDERER] ActionRenderer not available, idea card listeners will not work');
+                return null;
+            };
 
             /**
              * Client Prompt Renderer - Minimal interface
@@ -70,7 +80,17 @@
                 finalizeStreamingItem,
                 
                 // Markdown conversion (for direct use if needed)
-                convertMarkdown
+                convertMarkdown,
+                
+                // Idea card listeners (needed for add button functionality)
+                // Returns the function if available, null otherwise
+                attachIdeaCardListeners: function(container) {
+                    const attachFn = getAttachIdeaCardListeners();
+                    if (attachFn) {
+                        return attachFn(container);
+                    }
+                    console.warn('[CLIENT_PROMPT_RENDERER] attachIdeaCardListeners not available - ActionRenderer not loaded');
+                }
             };
 
             rendererInitialized = true;
