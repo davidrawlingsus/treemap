@@ -677,3 +677,28 @@ def get_client_action(
     # Use the existing ActionResponse.from_orm_with_prompt method
     return ActionResponse.from_orm_with_prompt(action)
 
+
+@router.delete("/{client_id}/actions/{action_id}")
+def delete_action(
+    client_id: UUID,
+    action_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete an action"""
+    # Verify client access
+    verify_client_access(client_id, current_user, db)
+    
+    action = db.query(Action).filter(
+        Action.id == action_id,
+        Action.client_id == client_id
+    ).first()
+    
+    if not action:
+        raise HTTPException(status_code=404, detail="Action not found")
+    
+    db.delete(action)
+    db.commit()
+    
+    return {"message": "Action deleted successfully"}
+
