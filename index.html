@@ -5425,6 +5425,30 @@
                                                 <span>Name</span>
                                                 <span class="sort-indicator">↓</span>
                                             </th>
+                                            <th class="draggable" data-column="type" draggable="true" onclick="sortInsightsBy('type')">
+                                                <span class="drag-handle">⋮⋮</span>
+                                                <span class="column-icon">🏷️</span>
+                                                <span>Type</span>
+                                                <span class="sort-indicator"></span>
+                                            </th>
+                                            <th class="draggable" data-column="application" draggable="true" onclick="sortInsightsBy('application')">
+                                                <span class="drag-handle">⋮⋮</span>
+                                                <span class="column-icon">📍</span>
+                                                <span>Application</span>
+                                                <span class="sort-indicator"></span>
+                                            </th>
+                                            <th class="draggable" data-column="status" draggable="true" onclick="sortInsightsBy('status')">
+                                                <span class="drag-handle">⋮⋮</span>
+                                                <span class="column-icon">✓</span>
+                                                <span>Status</span>
+                                                <span class="sort-indicator"></span>
+                                            </th>
+                                            <th class="draggable" data-column="origin" draggable="true" onclick="sortInsightsBy('origin')">
+                                                <span class="drag-handle">⋮⋮</span>
+                                                <span class="column-icon">🔗</span>
+                                                <span>Origin</span>
+                                                <span class="sort-indicator"></span>
+                                            </th>
                                             <th class="draggable" data-column="created_at" draggable="true" onclick="sortInsightsBy('created_at')">
                                                 <span class="drag-handle">⋮⋮</span>
                                                 <span class="column-icon">📅</span>
@@ -11243,6 +11267,7 @@
         let historyCurrentClientId = null;
         let historyAllActions = [];
         let historySearchTerm = '';
+        let selectedHistoryIds = new Set();
         let historyCurrentSortBy = 'created_at';
         let historySortOrder = 'desc';
         window.historyInitialized = false;
@@ -11262,6 +11287,8 @@
         // Available filter fields
         const FILTER_FIELDS = [
             { id: 'status', label: 'Status', icon: '⁂', type: 'select' },
+            { id: 'type', label: 'Type', icon: '🏷️', type: 'select' },
+            { id: 'application', label: 'Application', icon: '📍', type: 'select' },
             { id: 'project', label: 'Project', icon: '≡', type: 'select' },
             { id: 'data_source', label: 'Data Source', icon: '≡', type: 'select' },
             { id: 'created_at', label: 'Created', icon: '📅', type: 'date' }
@@ -11520,9 +11547,22 @@
                 filtered = filtered.filter(insight => {
                     return insightsFilters.every(filter => {
                         let insightValue = null;
+                        let isSpecialFilter = false;
                         
                         if (filter.field === 'status') {
                             insightValue = insight.status || 'Not Started';
+                        } else if (filter.field === 'type') {
+                            insightValue = insight.type || '-';
+                        } else if (filter.field === 'application') {
+                            // Application is an array - check if filter value is in the array
+                            isSpecialFilter = true;
+                            if (insight.application && Array.isArray(insight.application) && insight.application.length > 0) {
+                                // Check if any application in the array matches the filter value
+                                return insight.application.some(app => 
+                                    app && app.trim().toLowerCase() === filter.value.toLowerCase()
+                                );
+                            }
+                            return false;
                         } else if (filter.field === 'project' || filter.field === 'data_source') {
                             const firstOrigin = insight.origins?.[0] || {};
                             if (filter.field === 'project') {
@@ -11531,6 +11571,7 @@
                                 insightValue = firstOrigin.data_source || '-';
                             }
                         } else if (filter.field === 'created_at') {
+                            isSpecialFilter = true;
                             const createdDate = new Date(insight.created_at);
                             const now = new Date();
                             let periodStart = null;
@@ -11560,7 +11601,8 @@
                             return false;
                         }
                         
-                        if (filter.operator === 'equals') {
+                        // For non-special filters, use the equals operator
+                        if (!isSpecialFilter && filter.operator === 'equals') {
                             return String(insightValue) === String(filter.value);
                         }
                         return false;
@@ -11589,12 +11631,8 @@
                 const insightName = toPascalCase(insight.name || '');
                 const highlightedInsightName = insightsSearchTerm ? highlightSearchTerms(insightName, insightsSearchTerm) : escapeHtml(insightName);
                 
-                // Build origin breadcrumb pills with PascalCase formatting
+                // Build origin breadcrumb pills with PascalCase formatting (excluding project)
                 const originPills = [];
-                if (projectName) {
-                    const pascalProject = toPascalCase(projectName);
-                    originPills.push(`<span class="tag tag-project insight-origin-pill" data-origin-type="project" data-project-name="${escapeHtml(projectName)}" onclick="event.stopPropagation(); navigateToProjectFromInsight('${escapeHtml(projectName)}')" style="cursor: pointer;">${escapeHtml(pascalProject)}</span>`);
-                }
                 if (dimensionName && dimensionRef) {
                     const pascalDimension = toPascalCase(dimensionName);
                     originPills.push(`<span class="tag tag-data-source insight-origin-pill" data-origin-type="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtml(dimensionName)}" data-data-source="${dataSource || ''}" onclick="event.stopPropagation(); navigateToDimensionFromInsight('${dimensionRef}', '${escapeHtml(dimensionName)}', '${dataSource || ''}')" style="cursor: pointer;">${escapeHtml(pascalDimension)}</span>`);
@@ -11632,6 +11670,8 @@
                             </button>
                         </div>
                     </td>`,
+                    type: `<td data-column="type">${escapeHtml(insight.type || '-')}</td>`,
+                    application: `<td data-column="application">${insight.application && insight.application.length > 0 ? escapeHtml(insight.application.join(', ')) : '-'}</td>`,
                     status: `<td data-column="status">
                         <select class="status-select" 
                                 onchange="console.log('[DEBUG status-select onchange] Triggered for insight:', '${insight.id}', 'new value:', this.value); updateInsightStatus('${insight.id}', this.value)" 
@@ -12533,6 +12573,19 @@
                 
                 if (fieldId === 'status') {
                     value = insight.status || 'Not Started';
+                } else if (fieldId === 'type') {
+                    value = insight.type;
+                } else if (fieldId === 'application') {
+                    // Application is an array, so we need to extract all unique values
+                    if (insight.application && Array.isArray(insight.application) && insight.application.length > 0) {
+                        insight.application.forEach(app => {
+                            if (app && app.trim()) {
+                                values.add(app.trim());
+                            }
+                        });
+                    }
+                    // Skip the rest of the logic for application since we've already added values
+                    return;
                 } else if (fieldId === 'project' || fieldId === 'data_source' || fieldId === 'dimension') {
                     const firstOrigin = insight.origins?.[0] || {};
                     if (fieldId === 'project') {
@@ -13346,7 +13399,7 @@
         const COLUMN_ORDER_KEY = 'insights_column_order';
         
         function getDefaultColumnOrder() {
-            return ['name', 'type', 'status', 'origin', 'created_at'];
+            return ['name', 'type', 'application', 'status', 'origin', 'created_at'];
         }
         
         function getColumnOrder() {
@@ -13548,6 +13601,11 @@
                 const tbody = table.querySelector('tbody');
                 
                 if (!thead || !tbody) return;
+                
+                // Skip history table - it has its own fixed column order
+                if (table.closest('#history-section')) {
+                    return;
+                }
                 
                 // Get all headers and map them by column
                 const allHeaders = Array.from(thead.querySelectorAll('th'));
@@ -16870,7 +16928,7 @@
             });
 
             if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="3" class="empty-state"><h3>No history found</h3><p style="font-size: 12px; color: #999;">' + (historySearchTerm ? 'Try a different search term' : 'No AI expert outputs yet') + '</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><h3>No history found</h3><p style="font-size: 12px; color: #999;">' + (historySearchTerm ? 'Try a different search term' : 'No AI expert outputs yet') + '</p></td></tr>';
                 return;
             }
 
@@ -16904,12 +16962,8 @@
                 const categoryName = origin.category || null;
                 const topicName = origin.topic_label || null;
                 
-                // Build origin breadcrumb pills with PascalCase formatting
+                // Build origin breadcrumb pills with PascalCase formatting (excluding project)
                 const originPills = [];
-                if (projectName) {
-                    const pascalProject = toPascalCase(projectName);
-                    originPills.push(`<span class="tag tag-project insight-origin-pill" data-origin-type="project" data-project-name="${escapeHtml(projectName)}" onclick="event.stopPropagation(); navigateToProjectFromInsight('${escapeHtml(projectName)}')" style="cursor: pointer;">${escapeHtml(pascalProject)}</span>`);
-                }
                 if (dimensionName && dimensionRef) {
                     const pascalDimension = toPascalCase(dimensionName);
                     originPills.push(`<span class="tag tag-data-source insight-origin-pill" data-origin-type="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtml(dimensionName)}" data-data-source="${dataSource || ''}" onclick="event.stopPropagation(); navigateToDimensionFromInsight('${dimensionRef}', '${escapeHtml(dimensionName)}', '${dataSource || ''}')" style="cursor: pointer;">${escapeHtml(pascalDimension)}</span>`);
@@ -16930,9 +16984,14 @@
                     ? originPills.join('<span style="margin: 0 4px; color: oklch(0.7 0 0);">|</span>')
                     : '-';
 
+                const checkboxCell = `<td class="checkbox-cell" onclick="event.stopPropagation(); const checkbox = this.querySelector('.history-checkbox'); if (checkbox && !event.target.matches('.history-checkbox')) { checkbox.checked = !checkbox.checked; checkbox.dispatchEvent(new Event('change')); }">
+                    <input type="checkbox" class="history-checkbox" data-action-id="${action.id}" onchange="handleHistoryCheckboxChange()" onclick="event.stopPropagation()">
+                </td>`;
+                
                 return `
                     <tr data-action-id="${action.id}" onclick="event.stopPropagation(); openHistoryAction('${action.id}'); return false;" style="cursor: pointer;">
-                        <td class="name-cell">
+                        ${checkboxCell}
+                        <td class="name-cell" data-column="name">
                             <div class="name-content" style="position: relative;">
                                 <svg class="doc-icon" viewBox="0 0 16 16" fill="currentColor">
                                     <path d="M2.5 2.5h11l.5.5v10l-.5.5h-11l-.5-.5V3l.5-.5zM3 4v8h10V4H3zm2 1h6v1H5V5zm0 2h6v1H5V7zm0 2h4v1H5V9z"/>
@@ -16943,10 +17002,99 @@
                         <td data-column="origin" style="white-space: nowrap;">
                             ${originContent}
                         </td>
-                        <td>${createdDate}</td>
+                        <td data-column="created_at">${createdDate}</td>
                     </tr>
                 `;
             }).join('');
+            
+            // Clear checkbox selections when table is re-rendered
+            selectedHistoryIds.clear();
+            updateHistoryDeleteButton();
+            updateHistorySelectAllCheckbox();
+        }
+
+        function handleHistoryCheckboxChange() {
+            selectedHistoryIds.clear();
+            const checkboxes = document.querySelectorAll('.history-checkbox:checked');
+            checkboxes.forEach(checkbox => {
+                const actionId = checkbox.getAttribute('data-action-id');
+                if (actionId) {
+                    selectedHistoryIds.add(actionId);
+                }
+            });
+            updateHistoryDeleteButton();
+            updateHistorySelectAllCheckbox();
+        }
+
+        function toggleSelectAllHistory(checked) {
+            const checkboxes = document.querySelectorAll('.history-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = checked;
+                const actionId = checkbox.getAttribute('data-action-id');
+                if (checked && actionId) {
+                    selectedHistoryIds.add(actionId);
+                } else if (actionId) {
+                    selectedHistoryIds.delete(actionId);
+                }
+            });
+            updateHistoryDeleteButton();
+        }
+
+        function updateHistorySelectAllCheckbox() {
+            const selectAllCheckbox = document.getElementById('historySelectAll');
+            if (!selectAllCheckbox) return;
+            
+            const checkboxes = document.querySelectorAll('.history-checkbox');
+            const checkedCount = document.querySelectorAll('.history-checkbox:checked').length;
+            selectAllCheckbox.checked = checkboxes.length > 0 && checkedCount === checkboxes.length;
+            selectAllCheckbox.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+        }
+
+        function updateHistoryDeleteButton() {
+            const deleteBtn = document.getElementById('historyDeleteBtn');
+            if (!deleteBtn) return;
+            
+            const shouldShow = selectedHistoryIds.size > 0;
+            
+            if (shouldShow) {
+                deleteBtn.removeAttribute('style');
+                deleteBtn.style.display = 'block';
+            } else {
+                deleteBtn.style.display = 'none';
+            }
+        }
+
+        async function deleteSelectedHistory() {
+            if (!historyCurrentClientId) return;
+            if (selectedHistoryIds.size === 0) return;
+
+            const count = selectedHistoryIds.size;
+            const message = count === 1 
+                ? 'Are you sure you want to delete this history item?'
+                : `Are you sure you want to delete ${count} history items?`;
+            
+            if (!confirm(message)) return;
+
+            try {
+                const deletePromises = Array.from(selectedHistoryIds).map(actionId =>
+                    fetch(`${API_BASE_URL}/api/clients/${historyCurrentClientId}/actions/${actionId}`, {
+                        method: 'DELETE',
+                        headers: getAuthHeadersSafe()
+                    }).then(response => {
+                        if (!response.ok) throw new Error(`Failed to delete action ${actionId}`);
+                        return actionId;
+                    })
+                );
+
+                await Promise.all(deletePromises);
+                selectedHistoryIds.clear();
+                loadHistoryPage();
+            } catch (error) {
+                console.error('Error deleting history items:', error);
+                alert('Error deleting history items: ' + error.message);
+                // Reload page to sync state even if some deletes failed
+                loadHistoryPage();
+            }
         }
 
         function handleHistorySearch() {
@@ -17301,7 +17449,7 @@
                 const params = new URLSearchParams({
                     page: '1',
                     page_size: '1000',
-                    sort_by: insightsSortBy === 'name' ? 'name' : insightsSortBy === 'created_at' ? 'created_at' : 'created_at',
+                    sort_by: (insightsSortBy === 'name' || insightsSortBy === 'type' || insightsSortBy === 'created_at' || insightsSortBy === 'updated_at') ? insightsSortBy : 'created_at',
                     sort_order: insightsSortOrder,
                 });
                 
@@ -17359,6 +17507,12 @@
                 if (insightsSortBy === 'name') {
                     aVal = a.name || '';
                     bVal = b.name || '';
+                } else if (insightsSortBy === 'type') {
+                    aVal = a.type || '';
+                    bVal = b.type || '';
+                } else if (insightsSortBy === 'application') {
+                    aVal = (a.application && a.application.length > 0) ? a.application.join(', ') : '';
+                    bVal = (b.application && b.application.length > 0) ? b.application.join(', ') : '';
                 } else if (insightsSortBy === 'created_at') {
                     aVal = new Date(a.created_at).getTime();
                     bVal = new Date(b.created_at).getTime();
@@ -18453,6 +18607,14 @@
                                 <span>Name</span>
                                 <span class="sort-indicator">↓</span>
                             </th>
+                            <th class="draggable" data-column="type" draggable="true" onclick="sortBy('type')">
+                                <span>Type</span>
+                                <span class="sort-indicator"></span>
+                            </th>
+                            <th class="draggable" data-column="application" draggable="true" onclick="sortBy('application')">
+                                <span>Application</span>
+                                <span class="sort-indicator"></span>
+                            </th>
                             <th class="draggable" data-column="status" draggable="true" onclick="sortBy('status')">
                                 <span>Status</span>
                                 <span class="sort-indicator"></span>
@@ -18521,12 +18683,16 @@
                     style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 0; display: none; color: #666; font-size: 20px; line-height: 1; width: 24px; height: 24px; align-items: center; justify-content: center; border-radius: 3px;"
                 >&times;</button>
             </div>
+            <button class="btn-delete" onclick="deleteSelectedHistory()" id="historyDeleteBtn" style="display: none;">Delete Selected</button>
         </div>
 
         <div class="table-container">
             <table class="notion-table">
                 <thead>
                     <tr>
+                        <th class="checkbox-cell">
+                            <input type="checkbox" id="historySelectAll" onchange="toggleSelectAllHistory(this.checked)" onclick="event.stopPropagation()">
+                        </th>
                         <th class="name-cell sorted draggable" data-column="name" draggable="true" onclick="sortHistoryBy('name')">
                             <span>Name</span>
                             <span class="sort-indicator">↓</span>
