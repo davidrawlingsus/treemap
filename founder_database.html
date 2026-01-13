@@ -329,6 +329,41 @@
             border-bottom: 1px solid var(--border);
         }
 
+        .data-table td {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            vertical-align: top;
+            word-wrap: break-word;
+        }
+
+        /* Clip pre tags (for JSON objects) - ensure they don't expand the cell */
+        .data-table td pre {
+            max-width: 300px;
+            width: 100%;
+            overflow: hidden;
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin: 0;
+            display: block;
+            box-sizing: border-box;
+        }
+
+        /* Allow flex containers to work properly (for business_summary with copy button) */
+        .data-table td > div {
+            white-space: normal;
+            overflow: visible;
+            max-width: none;
+        }
+
+        /* When td contains a div, allow it to expand */
+        .data-table td:has(> div) {
+            overflow: visible;
+            max-width: 400px;
+            white-space: normal;
+        }
+
         .data-table th {
             background: #f7fafc;
             font-weight: 600;
@@ -889,7 +924,18 @@
                                             ${columns.map(col => {
                                                 const value = row[col.name];
                                                 if (value === null) return '<td style="color: var(--muted);"><em>null</em></td>';
-                                                if (typeof value === 'object') return `<td><pre style="font-size: 11px; margin: 0;">${JSON.stringify(value, null, 2)}</pre></td>`;
+                                                if (typeof value === 'object') {
+                                                    const jsonString = JSON.stringify(value, null, 2);
+                                                    const truncatedJson = jsonString.substring(0, 200) + (jsonString.length > 200 ? '...' : '');
+                                                    // Escape HTML entities for safe display
+                                                    const escapedJson = truncatedJson
+                                                        .replace(/&/g, '&amp;')
+                                                        .replace(/</g, '&lt;')
+                                                        .replace(/>/g, '&gt;')
+                                                        .replace(/"/g, '&quot;')
+                                                        .replace(/'/g, '&#39;');
+                                                    return `<td style="max-width: 300px; overflow: hidden;"><pre style="font-size: 11px; margin: 0; max-width: 300px; width: 100%; overflow: hidden; white-space: pre-wrap; word-break: break-word; box-sizing: border-box;">${escapedJson}</pre></td>`;
+                                                }
                                                 
                                                 // Special handling for business_summary column with copy button
                                                 if (col.name === 'business_summary') {

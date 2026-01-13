@@ -5425,30 +5425,6 @@
                                                 <span>Name</span>
                                                 <span class="sort-indicator">↓</span>
                                             </th>
-                                            <th class="draggable" data-column="type" draggable="true" onclick="sortInsightsBy('type')">
-                                                <span class="drag-handle">⋮⋮</span>
-                                                <span class="column-icon">🏷️</span>
-                                                <span>Type</span>
-                                                <span class="sort-indicator"></span>
-                                            </th>
-                                            <th class="draggable" data-column="application" draggable="true" onclick="sortInsightsBy('application')">
-                                                <span class="drag-handle">⋮⋮</span>
-                                                <span class="column-icon">📍</span>
-                                                <span>Application</span>
-                                                <span class="sort-indicator"></span>
-                                            </th>
-                                            <th class="draggable" data-column="status" draggable="true" onclick="sortInsightsBy('status')">
-                                                <span class="drag-handle">⋮⋮</span>
-                                                <span class="column-icon">✓</span>
-                                                <span>Status</span>
-                                                <span class="sort-indicator"></span>
-                                            </th>
-                                            <th class="draggable" data-column="origin" draggable="true" onclick="sortInsightsBy('origin')">
-                                                <span class="drag-handle">⋮⋮</span>
-                                                <span class="column-icon">🔗</span>
-                                                <span>Origin</span>
-                                                <span class="sort-indicator"></span>
-                                            </th>
                                             <th class="draggable" data-column="created_at" draggable="true" onclick="sortInsightsBy('created_at')">
                                                 <span class="drag-handle">⋮⋮</span>
                                                 <span class="column-icon">📅</span>
@@ -17557,7 +17533,7 @@
                                 </button>
                             </div>
                         </td>
-                        <td>${createdDate}</td>
+                        <td data-column="created_at">${createdDate}</td>
                     </tr>
                 `;
             }).join('');
