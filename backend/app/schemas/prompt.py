@@ -46,7 +46,7 @@ class PromptResponse(BaseModel):
 class PromptMenuItem(BaseModel):
     """Minimal prompt info for menu display (client-facing)"""
     id: UUID
-    name: str
+    purpose: str
 
     class Config:
         from_attributes = True

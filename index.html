@@ -941,30 +941,36 @@
         /* Context Menu Styles */
         .context-menu {
             position: fixed;
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            background: oklch(1 0 0); /* White */
+            border: 1px solid oklch(0.922 0 0); /* Border color from style guide */
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             z-index: 10002;
-            min-width: 180px;
-            padding: 4px 0;
+            min-width: 200px;
+            padding: 0.25rem;
             display: none;
+            font-family: 'Lato', sans-serif;
         }
 
         .context-menu-item {
-            padding: 10px 16px;
+            padding: 0.5rem 0.75rem;
             cursor: pointer;
-            font-size: 14px;
-            color: #333;
-            transition: background-color 0.2s;
+            font-size: 0.875rem;
+            color: oklch(0.145 0 0); /* Near black */
+            transition: background 0.2s ease;
+            border-radius: 0.375rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
         }
 
         .context-menu-item:hover {
-            background-color: #f5f5f5;
+            background: oklch(0.97 0 0); /* Light grey */
         }
 
         .context-menu-item:active {
-            background-color: #e8e8e8;
+            background: oklch(0.94 0 0);
         }
 
         /* Insight Modal Styles */
@@ -3872,25 +3878,40 @@
             position: relative;
         }
 
-        .context-menu-item-with-submenu:hover .context-menu-submenu {
-            display: block;
+        .context-menu-item-chevron {
+            font-size: 0.75rem;
+            color: oklch(0.556 0 0); /* Muted color */
+            transition: color 0.2s ease;
+            flex-shrink: 0;
+            margin-left: auto;
+            line-height: 1;
+        }
+
+        .context-menu-item-with-submenu:hover .context-menu-item-chevron {
+            color: oklch(0.145 0 0);
         }
 
         .context-menu-submenu {
             position: absolute;
             left: 100%;
             top: 0;
-            margin-left: 4px;
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 6px;
+            margin-left: -4px; /* Negative margin to create overlap, eliminating gap */
+            background: oklch(1 0 0); /* White */
+            border: 1px solid oklch(0.922 0 0); /* Border color from style guide */
+            border-radius: 0.5rem;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            min-width: 200px;
-            max-width: 300px;
+            min-width: 220px;
+            max-width: 320px;
             max-height: 400px;
             overflow-y: auto;
             z-index: 10003;
-            padding: 4px 0;
+            padding: 0.25rem;
+            display: none;
+        }
+
+        .context-menu-item-with-submenu:hover .context-menu-submenu,
+        .context-menu-submenu:hover {
+            display: block !important;
         }
 
         .context-menu-submenu-item {
@@ -5415,8 +5436,9 @@
             Create Insight
         </div>
         <div class="context-menu-item context-menu-item-with-submenu" data-action="ai-expert" style="cursor: pointer; user-select: none; position: relative;">
-            AI Expert
-            <div id="aiExpertSubmenu" class="context-menu-submenu" style="display: none;">
+            <span>AI Expert</span>
+            <span class="context-menu-item-chevron">›</span>
+            <div id="aiExpertSubmenu" class="context-menu-submenu">
                 <!-- Populated dynamically with live prompts -->
             </div>
         </div>
@@ -14295,11 +14317,29 @@
                 try {
                     const prompts = await window.ClientPromptAPI.listPrompts(currentClientId);
                     const prompt = prompts.find(p => p.id === promptId);
-                    if (prompt) {
-                        promptName = prompt.name;
+                    if (prompt && prompt.purpose) {
+                        const purpose = prompt.purpose;
+                        // Common marketing abbreviations to keep in uppercase
+                        const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'PPC', 'SEM', 'SERP', 'SaaS', 'B2B', 'B2C', 'GDPR', 'CTA', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];
+                        
+                        // Replace underscores and hyphens with spaces, then apply Title Case with abbreviation preservation
+                        promptName = purpose
+                            .replace(/_/g, ' ')
+                            .replace(/-/g, ' ')
+                            .split(' ')
+                            .map(word => {
+                                // Check if word (case-insensitive) matches any abbreviation
+                                const upperWord = word.toUpperCase();
+                                if (abbreviations.includes(upperWord)) {
+                                    return upperWord;
+                                }
+                                // Apply Title Case
+                                return word.charAt(0).toUpperCase() + word.substr(1).toLowerCase();
+                            })
+                            .join(' ');
                     }
                 } catch (e) {
-                    console.warn('[openAIExpertInsight] Failed to fetch prompt name:', e);
+                    console.warn('[openAIExpertInsight] Failed to fetch prompt purpose:', e);
                 }
                 
                 // Open slideout in create mode - this sets up the panel structure
@@ -16748,6 +16788,12 @@
             currentContextData = contextData;
             contextMenuJustClicked = false;
             
+            // Ensure AI Expert submenu is closed when menu is first shown (remove inline style so CSS can control it)
+            const aiExpertSubmenu = document.getElementById('aiExpertSubmenu');
+            if (aiExpertSubmenu) {
+                aiExpertSubmenu.style.display = '';
+            }
+            
             // Show/hide "Exclude Category" menu item based on context type
             const excludeCategoryItem = contextMenu.querySelector('[data-action="exclude-category"]');
             if (excludeCategoryItem) {
@@ -16759,15 +16805,33 @@
             }
             
             // Populate AI Expert submenu with live prompts
-            const aiExpertSubmenu = document.getElementById('aiExpertSubmenu');
             if (aiExpertSubmenu && currentClientId && window.ClientPromptAPI) {
                 aiExpertSubmenu.innerHTML = '<div class="context-menu-submenu-item loading">Loading...</div>';
                 try {
                     const prompts = await window.ClientPromptAPI.listPrompts(currentClientId);
                     if (prompts && prompts.length > 0) {
-                        aiExpertSubmenu.innerHTML = prompts.map(prompt => 
-                            `<div class="context-menu-submenu-item" data-action="ai-expert-prompt" data-prompt-id="${prompt.id}">${escapeHtml(prompt.name)}</div>`
-                        ).join('');
+                        aiExpertSubmenu.innerHTML = prompts.map(prompt => {
+                            const purpose = prompt.purpose || '';
+                            // Common marketing abbreviations to keep in uppercase
+                            const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'PPC', 'SEM', 'SERP', 'SaaS', 'B2B', 'B2C', 'GDPR', 'CTA', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];
+                            
+                            // Replace underscores and hyphens with spaces, then apply Title Case with abbreviation preservation
+                            const titleCasePurpose = purpose
+                                .replace(/_/g, ' ')
+                                .replace(/-/g, ' ')
+                                .split(' ')
+                                .map(word => {
+                                    // Check if word (case-insensitive) matches any abbreviation
+                                    const upperWord = word.toUpperCase();
+                                    if (abbreviations.includes(upperWord)) {
+                                        return upperWord;
+                                    }
+                                    // Apply Title Case
+                                    return word.charAt(0).toUpperCase() + word.substr(1).toLowerCase();
+                                })
+                                .join(' ');
+                            return `<div class="context-menu-submenu-item" data-action="ai-expert-prompt" data-prompt-id="${prompt.id}">${escapeHtml(titleCasePurpose)}</div>`;
+                        }).join('');
                     } else {
                         aiExpertSubmenu.innerHTML = '<div class="context-menu-submenu-item loading">No prompts available</div>';
                     }
@@ -16790,6 +16854,68 @@
             if (rect.bottom > window.innerHeight) {
                 contextMenu.style.top = `${window.innerHeight - rect.height - 10}px`;
             }
+            
+            // Setup improved hover behavior for submenu
+            setupSubmenuHover();
+        }
+        
+        // Improved hover behavior for submenu with delay
+        let submenuHideTimeout = null;
+        let submenuEventListeners = { item: null, submenu: null };
+        
+        function setupSubmenuHover() {
+            const aiExpertItem = document.querySelector('[data-action="ai-expert"]');
+            const aiExpertSubmenu = document.getElementById('aiExpertSubmenu');
+            
+            if (!aiExpertItem || !aiExpertSubmenu) return;
+            
+            // Clear any existing timeout
+            if (submenuHideTimeout) {
+                clearTimeout(submenuHideTimeout);
+                submenuHideTimeout = null;
+            }
+            
+            // Remove existing listeners if any
+            if (submenuEventListeners.item) {
+                aiExpertItem.removeEventListener('mouseenter', submenuEventListeners.item.show);
+                aiExpertItem.removeEventListener('mouseleave', submenuEventListeners.item.hide);
+            }
+            if (submenuEventListeners.submenu) {
+                aiExpertSubmenu.removeEventListener('mouseenter', submenuEventListeners.submenu.show);
+                aiExpertSubmenu.removeEventListener('mouseleave', submenuEventListeners.submenu.hide);
+            }
+            
+            // Show submenu on mouseenter (parent item or submenu)
+            const showSubmenu = () => {
+                if (submenuHideTimeout) {
+                    clearTimeout(submenuHideTimeout);
+                    submenuHideTimeout = null;
+                }
+                aiExpertSubmenu.style.display = 'block';
+            };
+            
+            // Hide submenu on mouseleave with delay
+            const hideSubmenu = () => {
+                if (submenuHideTimeout) {
+                    clearTimeout(submenuHideTimeout);
+                }
+                submenuHideTimeout = setTimeout(() => {
+                    aiExpertSubmenu.style.display = '';
+                    submenuHideTimeout = null;
+                }, 150); // 150ms delay to allow mouse movement
+            };
+            
+            // Store listeners for cleanup
+            submenuEventListeners.item = { show: showSubmenu, hide: hideSubmenu };
+            submenuEventListeners.submenu = { show: showSubmenu, hide: hideSubmenu };
+            
+            // Add event listeners to parent item
+            aiExpertItem.addEventListener('mouseenter', showSubmenu);
+            aiExpertItem.addEventListener('mouseleave', hideSubmenu);
+            
+            // Add event listeners to submenu
+            aiExpertSubmenu.addEventListener('mouseenter', showSubmenu);
+            aiExpertSubmenu.addEventListener('mouseleave', hideSubmenu);
         }
 
         // Helper function to escape HTML
@@ -16803,6 +16929,16 @@
             const contextMenu = document.getElementById('contextMenu');
             if (contextMenu) {
                 contextMenu.style.display = 'none';
+            }
+            // Clear submenu hide timeout
+            if (submenuHideTimeout) {
+                clearTimeout(submenuHideTimeout);
+                submenuHideTimeout = null;
+            }
+            // Ensure submenu is closed when hiding context menu (remove inline style so CSS can control it)
+            const aiExpertSubmenu = document.getElementById('aiExpertSubmenu');
+            if (aiExpertSubmenu) {
+                aiExpertSubmenu.style.display = '';
             }
             currentContextData = null;
             contextMenuJustClicked = false;
@@ -16864,12 +17000,8 @@
                 console.log('Closest item:', item);
                 
                 if (action === 'ai-expert') {
-                    // Show/hide submenu on hover or click
-                    const submenu = document.getElementById('aiExpertSubmenu');
-                    if (submenu) {
-                        const isVisible = submenu.style.display !== 'none';
-                        submenu.style.display = isVisible ? 'none' : 'block';
-                    }
+                    // Submenu is controlled by hover only, no click action needed
+                    return; // Don't close menu when hovering over AI Expert
                 } else if (action === 'create-insight') {
                     console.log('Create insight action triggered');
                     if (currentContextData) {

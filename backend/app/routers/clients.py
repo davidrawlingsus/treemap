@@ -421,10 +421,10 @@ def list_client_prompts(
     # Get all prompts with status='live'
     prompts = db.query(Prompt).filter(
         Prompt.status == 'live'
-    ).order_by(Prompt.name).all()
+    ).order_by(Prompt.prompt_purpose).all()
     
-    # Return minimal info (id and name) for menu display
-    return [PromptMenuItem(id=p.id, name=p.name) for p in prompts]
+    # Return minimal info (id and purpose) for menu display
+    return [PromptMenuItem(id=p.id, purpose=p.prompt_purpose) for p in prompts]
 
 
 @router.post("/{client_id}/prompts/{prompt_id}/execute")
