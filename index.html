@@ -8285,32 +8285,11 @@
             }
 
             if (currentFilterType === 'metadata' && currentMetadataField) {
-                // Format field name nicely - use a shorter version for long question texts
-                let fieldLabel = currentMetadataField;
-                
-                // If it's a long question text (more than 50 chars), create a shorter version
-                if (fieldLabel.length > 50) {
-                    // Try to extract key words or use first part
-                    // Remove common question prefixes
-                    const shortened = fieldLabel
-                        .replace(/^(Thinking back to|What|Which|When|Where|How|Why|Will you|Did you|Do you|Are you|Have you)\s+/i, '')
-                        .replace(/\?$/, '')
-                        .trim();
-                    
-                    // If still too long, take first 40 chars and add ellipsis
-                    if (shortened.length > 40) {
-                        fieldLabel = shortened.substring(0, 40).trim() + '...';
-                    } else {
-                        fieldLabel = shortened;
-                    }
-                } else {
-                    // For shorter field names, format underscores nicely (e.g., "user_type" -> "User Type")
-                    fieldLabel = fieldLabel
-                        .split('_')
-                        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                        .join(' ');
-                }
-                
+                // Format field name nicely (e.g., "user_type" -> "User Type")
+                const fieldLabel = currentMetadataField
+                    .split('_')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ');
                 title.textContent = `Select ${fieldLabel} Values`;
             } else {
                 const typeLabels = {
@@ -8440,30 +8419,11 @@
                 const values = availableMetadataFields[fieldName];
                 const valueCount = values.length;
                 
-                // Format field name nicely - use shorter version for long question texts
-                let fieldLabel = fieldName;
-                
-                // If it's a long question text (more than 50 chars), create a shorter version
-                if (fieldLabel.length > 50) {
-                    // Remove common question prefixes and question mark
-                    const shortened = fieldLabel
-                        .replace(/^(Thinking back to|What|Which|When|Where|How|Why|Will you|Did you|Do you|Are you|Have you)\s+/i, '')
-                        .replace(/\?$/, '')
-                        .trim();
-                    
-                    // If still too long, take first 45 chars and add ellipsis
-                    if (shortened.length > 45) {
-                        fieldLabel = shortened.substring(0, 45).trim() + '...';
-                    } else {
-                        fieldLabel = shortened;
-                    }
-                } else {
-                    // For shorter field names, format underscores nicely (e.g., "user_type" -> "User Type")
-                    fieldLabel = fieldLabel
-                        .split('_')
-                        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                        .join(' ');
-                }
+                // Format field name nicely (e.g., "user_type" -> "User Type")
+                const fieldLabel = fieldName
+                    .split('_')
+                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ');
                 
                 const fieldItem = document.createElement('div');
                 fieldItem.style.cssText = 'padding: 12px; margin: 4px 0; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: background 0.2s;';
@@ -8585,31 +8545,11 @@
                     
                     let typeLabel;
                     if (rule.type === 'metadata' && rule.metadataField) {
-                        // Format metadata field name nicely - use shorter version for long question texts
-                        let fieldLabel = rule.metadataField;
-                        
-                        // If it's a long question text (more than 40 chars), create a shorter version
-                        if (fieldLabel.length > 40) {
-                            // Remove common question prefixes and question mark
-                            const shortened = fieldLabel
-                                .replace(/^(Thinking back to|What|Which|When|Where|How|Why|Will you|Did you|Do you|Are you|Have you)\s+/i, '')
-                                .replace(/\?$/, '')
-                                .trim();
-                            
-                            // If still too long, take first 35 chars and add ellipsis
-                            if (shortened.length > 35) {
-                                fieldLabel = shortened.substring(0, 35).trim() + '...';
-                            } else {
-                                fieldLabel = shortened;
-                            }
-                        } else {
-                            // For shorter field names, format underscores nicely
-                            fieldLabel = fieldLabel
-                                .split('_')
-                                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                                .join(' ');
-                        }
-                        
+                        // Format metadata field name nicely
+                        const fieldLabel = rule.metadataField
+                            .split('_')
+                            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                            .join(' ');
                         typeLabel = `Metadata: ${fieldLabel}`;
                     } else {
                         const typeLabels = {
@@ -15214,13 +15154,13 @@
                 try {
                     const prompts = await window.ClientPromptAPI.listPrompts(currentClientId);
                     const prompt = prompts.find(p => p.id === promptId);
-                    if (prompt && prompt.purpose) {
-                        const purpose = prompt.purpose;
+                    if (prompt && prompt.name) {
+                        const name = prompt.name;
                         // Common marketing abbreviations to keep in uppercase
                         const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'PPC', 'SEM', 'SERP', 'SaaS', 'B2B', 'B2C', 'GDPR', 'CTA', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];
                         
                         // Replace underscores and hyphens with spaces, then apply Title Case with abbreviation preservation
-                        promptName = purpose
+                        promptName = name
                             .replace(/_/g, ' ')
                             .replace(/-/g, ' ')
                             .split(' ')
@@ -15236,7 +15176,7 @@
                             .join(' ');
                     }
                 } catch (e) {
-                    console.warn('[openAIExpertInsight] Failed to fetch prompt purpose:', e);
+                    console.warn('[openAIExpertInsight] Failed to fetch prompt name:', e);
                 }
                 
                 // Open slideout in create mode - this sets up the panel structure
@@ -18383,12 +18323,12 @@
                     const prompts = await window.ClientPromptAPI.listPrompts(currentClientId);
                     if (prompts && prompts.length > 0) {
                         aiExpertSubmenu.innerHTML = prompts.map(prompt => {
-                            const purpose = prompt.purpose || '';
+                            const name = prompt.name || '';
                             // Common marketing abbreviations to keep in uppercase
                             const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'PPC', 'SEM', 'SERP', 'SaaS', 'B2B', 'B2C', 'GDPR', 'CTA', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];
                             
                             // Replace underscores and hyphens with spaces, then apply Title Case with abbreviation preservation
-                            const titleCasePurpose = purpose
+                            const titleCaseName = name
                                 .replace(/_/g, ' ')
                                 .replace(/-/g, ' ')
                                 .split(' ')
@@ -18402,7 +18342,7 @@
                                     return word.charAt(0).toUpperCase() + word.substr(1).toLowerCase();
                                 })
                                 .join(' ');
-                            return `<div class="context-menu-submenu-item" data-action="ai-expert-prompt" data-prompt-id="${prompt.id}">${escapeHtml(titleCasePurpose)}</div>`;
+                            return `<div class="context-menu-submenu-item" data-action="ai-expert-prompt" data-prompt-id="${prompt.id}">${escapeHtml(titleCaseName)}</div>`;
                         }).join('');
                     } else {
                         aiExpertSubmenu.innerHTML = '<div class="context-menu-submenu-item loading">No prompts available</div>';
