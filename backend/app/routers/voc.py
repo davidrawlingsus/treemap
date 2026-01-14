@@ -96,7 +96,8 @@ def get_voc_questions(
     query = db.query(
         ProcessVoc.dimension_ref,
         ProcessVoc.dimension_name,
-        func.count(ProcessVoc.id).label('response_count')
+        func.count(ProcessVoc.id).label('response_count'),
+        func.max(ProcessVoc.question_type).label('question_type')
     )
     
     if client_uuid:
@@ -129,7 +130,8 @@ def get_voc_questions(
         DimensionQuestionInfo(
             dimension_ref=row.dimension_ref,
             dimension_name=row.dimension_name,
-            response_count=row.response_count
+            response_count=row.response_count,
+            question_type=row.question_type
         )
         for row in results
     ]

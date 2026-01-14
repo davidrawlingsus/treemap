@@ -31,6 +31,7 @@ class ProcessVocResponse(BaseModel):
     topics: Optional[List[dict]] = None
     survey_metadata: Optional[dict] = None
     question_text: Optional[str] = None
+    question_type: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
     client_uuid: Optional[UUID] = None
@@ -54,6 +55,7 @@ class DimensionQuestionInfo(BaseModel):
     dimension_ref: str
     dimension_name: Optional[str] = None
     response_count: int = 0
+    question_type: Optional[str] = None
 
 
 class VocSourceInfo(BaseModel):

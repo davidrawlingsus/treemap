@@ -26,6 +26,7 @@
     <script src="/config.js"></script>
     <script src="/auth.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/topojson@3"></script>
     <!-- Tiptap WYSIWYG Editor - will be loaded as ES module when needed -->
     
     <!-- Prompt Engineering Rendering Modules (for AI Expert feature) -->
@@ -708,6 +709,14 @@
         .visualizations-grid > .chart-column,
         .visualizations-grid > .chart {
             min-width: 0; /* Prevent grid items from overflowing */
+        }
+        
+        .visualizations-grid.chart-fullwidth {
+            grid-template-columns: 1fr; /* Full width for multi-choice charts */
+        }
+        
+        .chart-fullwidth .chart {
+            width: 100%;
         }
 
         .chart-column {
@@ -5663,6 +5672,38 @@
             categories: d3.scaleOrdinal(categoryColors)
         };
         
+        // US state name to code mapping for geo visualizations
+        const stateNameToCode = {
+            'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR', 'California': 'CA',
+            'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE', 'Florida': 'FL', 'Georgia': 'GA',
+            'Hawaii': 'HI', 'Idaho': 'ID', 'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA',
+            'Kansas': 'KS', 'Kentucky': 'KY', 'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD',
+            'Massachusetts': 'MA', 'Michigan': 'MI', 'Minnesota': 'MN', 'Mississippi': 'MS', 'Missouri': 'MO',
+            'Montana': 'MT', 'Nebraska': 'NE', 'Nevada': 'NV', 'New Hampshire': 'NH', 'New Jersey': 'NJ',
+            'New Mexico': 'NM', 'New York': 'NY', 'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH',
+            'Oklahoma': 'OK', 'Oregon': 'OR', 'Pennsylvania': 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
+            'South Dakota': 'SD', 'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT', 'Vermont': 'VT',
+            'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV', 'Wisconsin': 'WI', 'Wyoming': 'WY',
+            'District of Columbia': 'DC'
+        };
+        
+        // Helper function to get state code from state name (case-insensitive)
+        function getStateCode(stateName) {
+            if (!stateName) return null;
+            const normalizedName = stateName.trim();
+            // Try exact match first
+            if (stateNameToCode[normalizedName]) {
+                return stateNameToCode[normalizedName];
+            }
+            // Try case-insensitive match
+            for (const [name, code] of Object.entries(stateNameToCode)) {
+                if (name.toLowerCase() === normalizedName.toLowerCase()) {
+                    return code;
+                }
+            }
+            return null;
+        }
+        
         // Helper function to adjust color brightness
         function adjustBrightness(color, percent) {
             const num = parseInt(color.replace("#",""), 16);
@@ -5703,6 +5744,7 @@
         let clientProjects = [];
         let clientSources = [];
         let dimensionNamesMap = {}; // Map of ref_key -> custom_name
+        let questionTypesMap = {}; // Map of dimension_ref -> question_type
 
         let headerUserInfoEl = null;
         let headerUserEmailEl = null;
@@ -7231,6 +7273,12 @@
             return dimensionNamesMap[refKey] || refKey.replace('ref_', 'Q');
         }
         
+        // Get question type for current dimension
+        function getCurrentQuestionType() {
+            if (!currentQuestionRefKey) return null;
+            return questionTypesMap[currentQuestionRefKey] || null;
+        }
+        
         // Detect survey format and setup question filter
         async function detectAndSetupQuestionFilter(savedState = null) {
             const questionSelect = document.getElementById('questionSelect');
@@ -7269,11 +7317,15 @@
                 
                 const questions = await response.json();
                 
-                // Build dimension names map from API response first
+                // Build dimension names map and question types map from API response first
                 dimensionNamesMap = {};
+                questionTypesMap = {};
                 questions.forEach(q => {
                     if (q.dimension_name) {
                         dimensionNamesMap[q.dimension_ref] = q.dimension_name;
+                    }
+                    if (q.question_type) {
+                        questionTypesMap[q.dimension_ref] = q.question_type;
                     }
                 });
                 
@@ -7836,8 +7888,6 @@
                 }).filter(row => row !== null);
             }
             
-            rawData = filteredData;
-            
             console.log(`After filtering: ${filteredData.length} rows`);
             
             if (filteredData.length === 0) {
@@ -7845,16 +7895,113 @@
                 // Still try to render to show empty state
             }
             
-            // Re-process and render
-            processData();
-            renderTreemap(hierarchyData);
-            renderBarChart();
-            renderTopicsChart();
+            rawData = filteredData;
             
-            // Update available options from unfiltered data so excluded items remain visible
-            // Use dimensionFilteredData (unfiltered by category/topic/metadata) instead of rawData (filtered)
-            extractAvailableFilterOptions(dimensionFilteredData);
-            updateFilterUI();
+            // Get current question type and render accordingly
+            const questionType = getCurrentQuestionType();
+            
+            if (questionType === 'multi_choice' || questionType === 'numeric') {
+                // Update chart title with question text if available
+                const chartTitleEl = document.querySelector('.chart[aria-label="Topics by Category"] .chart__title');
+                if (chartTitleEl) {
+                    let questionText = null;
+                    if (currentQuestionRefKey && fullRawData && fullRawData.length > 0) {
+                        const dimensionRow = fullRawData.find(row => 
+                            row.dimension_ref === currentQuestionRefKey && 
+                            row.question_text && 
+                            row.question_text.trim() !== ''
+                        );
+                        if (dimensionRow) {
+                            questionText = dimensionRow.question_text;
+                        }
+                    }
+                    chartTitleEl.textContent = questionText || 'Topics by Category';
+                }
+                
+                // Render horizontal bar chart for multi_choice and numeric
+                const data = questionType === 'multi_choice' 
+                    ? processMultiChoiceData() 
+                    : processNumericData();
+                renderHorizontalBarChart(data.values, 'barChart', data.totalCount, questionType === 'multi_choice');
+                // Update footer count
+                const totalCountEl = document.getElementById('totalCount');
+                if (totalCountEl) totalCountEl.textContent = data.totalCount;
+                // Hide other visualizations
+                const topicsChartLabels = document.getElementById('topicsChartLabels');
+                const topicsChartBars = document.getElementById('topicsChartBars');
+                if (topicsChartLabels) topicsChartLabels.innerHTML = '';
+                if (topicsChartBars) topicsChartBars.innerHTML = '';
+                const treemap = document.getElementById('treemap');
+                if (treemap) treemap.innerHTML = '';
+                // Hide treemap section
+                const treemapSection = document.querySelector('.treemap-section');
+                if (treemapSection) treemapSection.style.display = 'none';
+                // Show visualizations grid with full width layout
+                const visualizationsGrid = document.querySelector('.visualizations-grid');
+                if (visualizationsGrid) {
+                    visualizationsGrid.style.display = 'grid';
+                    visualizationsGrid.classList.add('chart-fullwidth');
+                }
+                // Hide the second chart column (All Topics chart)
+                const topicsChart = document.querySelector('.chart[aria-label="All Topics"]');
+                if (topicsChart) topicsChart.style.display = 'none';
+            } else if (questionType === 'geo') {
+                // Render geo map
+                const data = processGeoData();
+                renderGeoMap(data);
+                // Hide other visualizations
+                const barChartLabels = document.getElementById('barChartLabels');
+                const barChartBars = document.getElementById('barChartBars');
+                if (barChartLabels) barChartLabels.innerHTML = '';
+                if (barChartBars) barChartBars.innerHTML = '';
+                const topicsChartLabels = document.getElementById('topicsChartLabels');
+                const topicsChartBars = document.getElementById('topicsChartBars');
+                if (topicsChartLabels) topicsChartLabels.innerHTML = '';
+                if (topicsChartBars) topicsChartBars.innerHTML = '';
+                // Show treemap section (which contains the map)
+                const treemapSection = document.querySelector('.treemap-section');
+                if (treemapSection) treemapSection.style.display = 'block';
+                // Hide visualizations grid
+                const visualizationsGrid = document.querySelector('.visualizations-grid');
+                if (visualizationsGrid) visualizationsGrid.style.display = 'none';
+            } else {
+                // Default: open_text or unknown - use existing visualizations
+                // Reset chart title to default
+                const chartTitleEl = document.querySelector('.chart[aria-label="Topics by Category"] .chart__title');
+                if (chartTitleEl) {
+                    chartTitleEl.textContent = 'Topics by Category';
+                }
+                
+                // Show all visualization sections for open_text first
+                const treemapSection = document.querySelector('.treemap-section');
+                if (treemapSection) treemapSection.style.display = 'block';
+                const visualizationsGrid = document.querySelector('.visualizations-grid');
+                if (visualizationsGrid) {
+                    visualizationsGrid.style.display = 'grid';
+                    visualizationsGrid.classList.remove('chart-fullwidth'); // Remove full width class
+                }
+                // Show the second chart column (All Topics chart)
+                const topicsChart = document.querySelector('.chart[aria-label="All Topics"]');
+                if (topicsChart) topicsChart.style.display = '';
+                
+                // Process data
+                processData();
+                
+                // Wait for layout to recalculate before rendering treemap
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        // Double RAF ensures layout has completed after display change
+                        renderTreemap(hierarchyData);
+                        renderBarChart();
+                        renderTopicsChart();
+                    });
+                });
+                
+                // Update available options from unfiltered data so excluded items remain visible
+                // Use dimensionFilteredData (unfiltered by category/topic/metadata) instead of rawData (filtered)
+                extractAvailableFilterOptions(dimensionFilteredData);
+                updateFilterUI();
+            }
         }
         
         let currentFilterType = null;
@@ -10370,8 +10517,442 @@
                  verbatims: topic.verbatims
              })).sort((a, b) => b.count - a.count);
 
-             return { topics, totalTopicInstances };
-         }
+            return { topics, totalTopicInstances };
+        }
+
+        // Process data for multi_choice question type
+        function processMultiChoiceData() {
+            const valueMap = new Map();
+            let totalCount = 0;
+
+            // For multi_choice, we process raw rows directly from fullRawData filtered by dimension
+            const rowsToProcess = currentQuestionRefKey 
+                ? fullRawData.filter(row => row.dimension_ref === currentQuestionRefKey)
+                : fullRawData;
+            
+            rowsToProcess.forEach(row => {
+                // Raw process_voc row has value field directly
+                const value = row.value ? row.value.trim() : null;
+                if (!value) return;
+
+                totalCount++;
+                
+                if (!valueMap.has(value)) {
+                    valueMap.set(value, {
+                        value: value,
+                        count: 0
+                    });
+                }
+                valueMap.get(value).count++;
+            });
+
+            // Convert to array and sort by count
+            const values = Array.from(valueMap.values())
+                .map(item => ({
+                    value: item.value,
+                    count: item.count,
+                    percent: totalCount > 0 ? (item.count / totalCount) * 100 : 0
+                }))
+                .sort((a, b) => b.count - a.count);
+
+            return { values, totalCount };
+        }
+
+        // Process data for numeric question type
+        function processNumericData() {
+            const valueMap = new Map();
+            let totalCount = 0;
+
+            // For numeric, we process raw rows directly from fullRawData filtered by dimension
+            const rowsToProcess = currentQuestionRefKey 
+                ? fullRawData.filter(row => row.dimension_ref === currentQuestionRefKey)
+                : fullRawData;
+            
+            rowsToProcess.forEach(row => {
+                const value = row.value ? row.value.trim() : null;
+                if (!value) return;
+
+                // Try to parse as number
+                const numValue = parseFloat(value);
+                if (isNaN(numValue)) return; // Skip non-numeric values
+
+                totalCount++;
+
+                // Track by string value for display
+                if (!valueMap.has(value)) {
+                    valueMap.set(value, {
+                        value: value,
+                        numericValue: numValue,
+                        count: 0
+                    });
+                }
+                valueMap.get(value).count++;
+            });
+
+            // Convert to array and sort by count (frequency)
+            const values = Array.from(valueMap.values())
+                .map(item => ({
+                    value: item.value,
+                    numericValue: item.numericValue,
+                    count: item.count,
+                    percent: totalCount > 0 ? (item.count / totalCount) * 100 : 0
+                }))
+                .sort((a, b) => b.count - a.count);
+
+            return { values, totalCount };
+        }
+
+        // Process data for geo question type
+        function processGeoData() {
+            const stateMap = new Map();
+            let totalCount = 0;
+
+            // For geo, we process raw rows directly from fullRawData filtered by dimension
+            const rowsToProcess = currentQuestionRefKey 
+                ? fullRawData.filter(row => row.dimension_ref === currentQuestionRefKey)
+                : fullRawData;
+            
+            rowsToProcess.forEach(row => {
+                const value = row.value ? row.value.trim() : null;
+                if (!value) return;
+
+                totalCount++;
+                const stateCode = getStateCode(value);
+                
+                if (!stateCode) {
+                    // State code not found, still count it but use state name as key
+                    if (!stateMap.has(value)) {
+                        stateMap.set(value, {
+                            stateName: value,
+                            stateCode: null,
+                            count: 0
+                        });
+                    }
+                    stateMap.get(value).count++;
+                } else {
+                    // Use state code as key to avoid duplicates
+                    if (!stateMap.has(stateCode)) {
+                        stateMap.set(stateCode, {
+                            stateName: value,
+                            stateCode: stateCode,
+                            count: 0
+                        });
+                    }
+                    stateMap.get(stateCode).count++;
+                }
+            });
+
+            // Convert to array
+            const states = Array.from(stateMap.values())
+                .map(item => ({
+                    stateName: item.stateName,
+                    stateCode: item.stateCode,
+                    count: item.count,
+                    percent: totalCount > 0 ? (item.count / totalCount) * 100 : 0
+                }))
+                .sort((a, b) => b.count - a.count);
+
+            return { states, totalCount };
+        }
+
+        // Render horizontal bar chart for multi_choice and numeric question types
+        function renderHorizontalBarChart(data, containerId, totalCount, isMultiChoice = false) {
+            const labelsContainer = document.getElementById(`${containerId}Labels`);
+            const barsContainer = document.getElementById(`${containerId}Bars`);
+            
+            if (!labelsContainer || !barsContainer) {
+                console.error(`Containers not found for ${containerId}`);
+                return;
+            }
+            
+            labelsContainer.innerHTML = '';
+            barsContainer.innerHTML = '';
+            
+            if (!data || data.length === 0) {
+                labelsContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No data available</div>';
+                return;
+            }
+            
+            // Get max percent for scaling
+            const maxPercent = Math.max(...data.map(item => item.percent));
+            const scale = maxPercent > 0 ? 100 / maxPercent : 1;
+            
+            // Create gridlines
+            const gridlinesContainer = document.createElement('div');
+            gridlinesContainer.className = 'gridlines';
+            const ticks = [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+            ticks.forEach(tick => {
+                const line = document.createElement('div');
+                line.className = 'gridline';
+                line.style.left = `${tick}%`;
+                gridlinesContainer.appendChild(line);
+            });
+            barsContainer.appendChild(gridlinesContainer);
+            
+            // Create content container for bars
+            const barsContent = document.createElement('div');
+            barsContent.style.position = 'relative';
+            barsContent.style.zIndex = '1';
+            barsContainer.appendChild(barsContent);
+            
+            // Create axis labels
+            const axisContainer = document.createElement('div');
+            axisContainer.className = 'axis--bottom';
+            ticks.forEach(tick => {
+                const label = document.createElement('span');
+                label.className = 'axis__label';
+                label.style.left = `${tick}%`;
+                label.textContent = `${tick}%`;
+                axisContainer.appendChild(label);
+            });
+            barsContainer.appendChild(axisContainer);
+            
+            // Render each value as a horizontal bar
+            data.forEach((item, index) => {
+                const color = categoryColors[index % categoryColors.length];
+                const barWidth = (item.percent / maxPercent) * 100;
+                
+                // Labels column
+                const labelRow = document.createElement('div');
+                labelRow.className = 'topic';
+                labelRow.style.marginBottom = '6px';
+                
+                const labelWrapper = document.createElement('div');
+                labelWrapper.className = 'topic__label-wrapper';
+                
+                const bullet = document.createElement('div');
+                bullet.className = 'bullet';
+                bullet.style.backgroundColor = color;
+                
+                const label = document.createElement('span');
+                label.className = 'topic__label';
+                label.textContent = item.value;
+                label.title = item.value;
+                
+                labelWrapper.appendChild(bullet);
+                labelWrapper.appendChild(label);
+                labelRow.appendChild(labelWrapper);
+                labelsContainer.appendChild(labelRow);
+                
+                // Bars column
+                const barContainer = document.createElement('div');
+                barContainer.className = 'topic__bar-container';
+                barContainer.style.cursor = 'default';
+                
+                const barTrack = document.createElement('div');
+                barTrack.className = 'bar__track';
+                barTrack.style.position = 'relative';
+                barTrack.style.height = isMultiChoice ? '28px' : '14px'; // Double height for multi-choice
+                barTrack.style.background = '#F3F4F6';
+                barTrack.style.borderRadius = '9999px';
+                
+                const barFill = document.createElement('div');
+                barFill.className = 'bar__fill';
+                barFill.style.width = '0%'; // Start at 0 for animation
+                barFill.style.height = isMultiChoice ? '28px' : '14px'; // Double height for multi-choice
+                barFill.style.backgroundColor = color;
+                
+                const barValue = document.createElement('span');
+                barValue.className = 'bar__value';
+                barValue.textContent = `${item.count} (${item.percent.toFixed(1)}%)`;
+                
+                // Estimate if label fits inside (similar to existing bar charts)
+                const estimatedLabelWidth = 80; // pixels (larger because we show count and percent)
+                const containerWidth = barsContainer.clientWidth || 600; // fallback width
+                const barWidthPixels = (barWidth / 100) * containerWidth;
+                
+                if (barWidthPixels > estimatedLabelWidth + 16) {
+                    // Enough space inside
+                    barValue.className += ' bar__value--inside';
+                    barFill.appendChild(barValue);
+                } else {
+                    // Not enough space, place outside
+                    barValue.className += ' bar__value--outside';
+                    barValue.style.left = `${barWidth}%`;
+                    barTrack.appendChild(barValue);
+                }
+                
+                // Animate bar width
+                setTimeout(() => {
+                    barFill.style.width = `${barWidth}%`;
+                }, 50 + index * 20);
+                
+                barTrack.appendChild(barFill);
+                barContainer.appendChild(barTrack);
+                barsContent.appendChild(barContainer);
+            });
+        }
+
+        // Render US state choropleth map for geo question type
+        async function renderGeoMap(data) {
+            const container = document.querySelector('.treemap-svg-container');
+            const svg = d3.select('#treemap');
+            
+            if (!container || !svg.node()) {
+                console.error('Map container not found');
+                return;
+            }
+            
+            // Clear existing content
+            svg.selectAll('*').remove();
+            
+            // Get container dimensions
+            const width = container.clientWidth || 800;
+            const height = container.clientHeight || 600;
+            
+            svg.attr('width', width).attr('height', height);
+            
+            // Create a map of state codes to counts
+            const stateDataMap = new Map();
+            data.states.forEach(state => {
+                if (state.stateCode) {
+                    stateDataMap.set(state.stateCode, state.count);
+                }
+            });
+            
+            // Get min and max counts for color scale
+            const counts = Array.from(stateDataMap.values());
+            const minCount = counts.length > 0 ? Math.min(...counts) : 0;
+            const maxCount = counts.length > 0 ? Math.max(...counts) : 1;
+            
+            // Create heat map color scale (white/yellow to red)
+            // Use a heat color scheme: white/light yellow (low) -> orange -> red (high)
+            const colorScale = d3.scaleSequential()
+                .domain([minCount, maxCount])
+                .interpolator(d3.interpolateRgb('#fff7bc', '#d73027')); // Light yellow/white to red
+            
+            // Load US states TopoJSON
+            try {
+                const us = await d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json');
+                
+                // Create projection
+                const projection = d3.geoAlbersUsa()
+                    .scale(1070)
+                    .translate([width / 2, height / 2]);
+                
+                const path = d3.geoPath().projection(projection);
+                
+                // Convert TopoJSON to GeoJSON
+                const states = topojson.feature(us, us.objects.states);
+                
+                // Draw states
+                svg.append('g')
+                    .selectAll('path')
+                    .data(states.features)
+                    .enter()
+                    .append('path')
+                    .attr('d', path)
+                    .attr('fill', d => {
+                        const stateId = d.id;
+                        const count = stateDataMap.get(stateId) || 0;
+                        return count > 0 ? colorScale(count) : '#f0f0f0';
+                    })
+                    .attr('stroke', '#fff')
+                    .attr('stroke-width', 0.5)
+                    .style('cursor', 'pointer')
+                    .on('mouseover', function(event, d) {
+                        d3.select(this)
+                            .attr('stroke', '#333')
+                            .attr('stroke-width', 2);
+                        
+                        const stateId = d.id;
+                        const state = data.states.find(s => s.stateCode === stateId);
+                        const count = state ? state.count : 0;
+                        const percent = state ? state.percent : 0;
+                        const stateName = state ? state.stateName : stateId;
+                        
+                        // Show tooltip
+                        const tooltip = d3.select('body').append('div')
+                            .attr('class', 'geo-tooltip')
+                            .style('opacity', 0)
+                            .style('position', 'absolute')
+                            .style('background', 'rgba(0, 0, 0, 0.8)')
+                            .style('color', 'white')
+                            .style('padding', '8px 12px')
+                            .style('border-radius', '4px')
+                            .style('pointer-events', 'none')
+                            .style('font-size', '12px')
+                            .style('z-index', '10000');
+                        
+                        tooltip.html(`
+                            <strong>${stateName}</strong><br>
+                            Count: ${count}<br>
+                            ${percent.toFixed(1)}%
+                        `)
+                            .style('left', (event.pageX + 10) + 'px')
+                            .style('top', (event.pageY - 10) + 'px')
+                            .transition()
+                            .duration(200)
+                            .style('opacity', 1);
+                    })
+                    .on('mouseout', function() {
+                        d3.select(this)
+                            .attr('stroke', '#fff')
+                            .attr('stroke-width', 0.5);
+                        
+                        d3.selectAll('.geo-tooltip').remove();
+                    });
+                
+                // Add legend
+                const legendWidth = 200;
+                const legendHeight = 20;
+                const legendX = width - legendWidth - 20;
+                const legendY = height - legendHeight - 20;
+                
+                const legend = svg.append('g')
+                    .attr('transform', `translate(${legendX}, ${legendY})`);
+                
+                // Create gradient for legend
+                const gradientId = 'geo-legend-gradient';
+                const defs = svg.append('defs');
+                const gradient = defs.append('linearGradient')
+                    .attr('id', gradientId)
+                    .attr('x1', '0%')
+                    .attr('x2', '100%');
+                
+                const numStops = 10;
+                for (let i = 0; i <= numStops; i++) {
+                    const value = minCount + (maxCount - minCount) * (i / numStops);
+                    gradient.append('stop')
+                        .attr('offset', `${(i / numStops) * 100}%`)
+                        .attr('stop-color', colorScale(value));
+                }
+                
+                // Draw legend rectangle
+                legend.append('rect')
+                    .attr('width', legendWidth)
+                    .attr('height', legendHeight)
+                    .style('fill', `url(#${gradientId})`)
+                    .style('stroke', '#ccc')
+                    .style('stroke-width', 1);
+                
+                // Add legend labels
+                legend.append('text')
+                    .attr('x', 0)
+                    .attr('y', -5)
+                    .style('font-size', '11px')
+                    .style('fill', '#666')
+                    .text(`${minCount}`);
+                
+                legend.append('text')
+                    .attr('x', legendWidth)
+                    .attr('y', -5)
+                    .style('font-size', '11px')
+                    .style('fill', '#666')
+                    .style('text-anchor', 'end')
+                    .text(`${maxCount}`);
+                
+            } catch (error) {
+                console.error('Error loading US states map:', error);
+                svg.append('text')
+                    .attr('x', width / 2)
+                    .attr('y', height / 2)
+                    .attr('text-anchor', 'middle')
+                    .style('font-size', '14px')
+                    .style('fill', '#999')
+                    .text('Error loading map data');
+            }
+        }
 
         function renderTopicsChart() {
             const { topics, totalTopicInstances } = processTopicsData();

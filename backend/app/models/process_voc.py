@@ -25,6 +25,7 @@ class ProcessVoc(Base):
     topics = Column(JSONB, nullable=True)
     survey_metadata = Column(JSONB, nullable=True)
     question_text = Column(Text, nullable=True)
+    question_type = Column(String(50), nullable=True, default='open_text')
     created_at = Column(DateTime(timezone=True), server_default=func.current_timestamp())
     updated_at = Column(DateTime(timezone=True), server_default=func.current_timestamp(), onupdate=func.current_timestamp())
     client_uuid = Column(UUID(as_uuid=True), ForeignKey('clients.id'), nullable=True)
