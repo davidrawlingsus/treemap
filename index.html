@@ -7065,9 +7065,10 @@
                 filteredRows.forEach(row => {
                     const key = `${row.respondent_id}::${row.dimension_ref}`;
                     if (!grouped[key]) {
-                        // Build metadata object from survey_metadata.metadata if available,
-                        // otherwise fall back to individual columns for backwards compatibility
-                        const surveyMetadata = row.survey_metadata?.metadata || {};
+                        // Build metadata object from survey_metadata
+                        // Handle both structures: survey_metadata.metadata (nested) or survey_metadata (direct)
+                        // The database stores metadata directly in survey_metadata, not nested under 'metadata'
+                        const surveyMetadata = row.survey_metadata?.metadata || row.survey_metadata || {};
                         
                         // Merge survey metadata with other fields that aren't part of survey_metadata
                         // (These are always needed regardless of survey_metadata)
@@ -7077,7 +7078,7 @@
                             source_type: row.data_source || '',
                             created_at: row.created,
                             sentiment: row.overall_sentiment || 'neutral',
-                            // Merge in all fields from survey_metadata.metadata
+                            // Merge in all fields from survey_metadata (handles both nested and direct structures)
                             ...surveyMetadata
                         };
                         
@@ -7129,9 +7130,10 @@
                 filteredRows.forEach(row => {
                     const respondentId = row.respondent_id;
                     if (!grouped[respondentId]) {
-                        // Build metadata object from survey_metadata.metadata if available,
-                        // otherwise fall back to individual columns for backwards compatibility
-                        const surveyMetadata = row.survey_metadata?.metadata || {};
+                        // Build metadata object from survey_metadata
+                        // Handle both structures: survey_metadata.metadata (nested) or survey_metadata (direct)
+                        // The database stores metadata directly in survey_metadata, not nested under 'metadata'
+                        const surveyMetadata = row.survey_metadata?.metadata || row.survey_metadata || {};
                         
                         // Merge survey metadata with other fields that aren't part of survey_metadata
                         // (These are always needed regardless of survey_metadata)
@@ -7141,7 +7143,7 @@
                             source_type: row.data_source || '',
                             created_at: row.created,
                             sentiment: row.overall_sentiment || 'neutral',
-                            // Merge in all fields from survey_metadata.metadata
+                            // Merge in all fields from survey_metadata (handles both nested and direct structures)
                             ...surveyMetadata
                         };
                         
@@ -7617,6 +7619,7 @@
                             // Always add trimmed value (including empty string if original was empty)
                             // Empty strings will be filtered out later when building availableMetadataFields
                             const trimmedValue = strValue.trim();
+                            // Store the normalized value - this is what we'll compare against during filtering
                             metadataFields[key].add(trimmedValue);
                         }
                     });
@@ -7657,10 +7660,6 @@
                     }
                 }
             });
-            
-            // Debug: Log all available metadata fields
-            console.log('Available metadata fields for filtering:', Object.keys(availableMetadataFields));
-            console.log('Metadata fields detail:', availableMetadataFields);
             
             // Populate filter type list dynamically after extracting options
             populateFilterTypeList(sentimentValues);
@@ -7786,7 +7785,9 @@
                     
                     // Check each rule - all must pass
                     const ruleResults = filterRules.map(rule => {
-                        if (rule.values.size === 0) return { rule, passed: true, reason: 'empty values' }; // Skip empty rules
+                        if (rule.values.size === 0) {
+                            return { rule, passed: true, reason: 'empty values', matches: true }; // Skip empty rules
+                        }
                         
                         let matches = false;
                         let matchDetails = '';
@@ -7818,34 +7819,31 @@
                             const fieldValue = row.metadata?.[rule.metadataField];
                             
                             if (fieldValue !== null && fieldValue !== undefined && fieldValue !== '') {
-                                // Convert to string and trim for comparison
-                                const strValue = String(fieldValue).trim();
-                                matches = rule.values.has(strValue);
+                                // Normalize value for comparison - convert to string and trim
+                                // This MUST match exactly how values are stored in extractAvailableFilterOptions
+                                // (line 7621: const trimmedValue = strValue.trim(); metadataFields[key].add(trimmedValue);)
+                                const normalizedValue = String(fieldValue).trim();
                                 
-                                // Debug logging for first mismatch
-                                if (!matches && rule.mode === 'include' && !rule._debugLogged) {
-                                    // Log first mismatch to help debug
-                                    console.log(`❌ Metadata filter mismatch: field="${rule.metadataField}"`);
-                                    console.log(`  🔍 Filter values (${rule.values.size}):`, Array.from(rule.values));
-                                    console.log(`  📊 Row value: "${strValue}" (type: ${typeof fieldValue})`);
-                                    console.log(`  📋 Full row metadata:`, JSON.stringify(row.metadata, null, 2));
-                                    
-                                    // Check if any filter value is close to the row value
+                                // Direct Set lookup - this should work if values are stored the same way
+                                matches = rule.values.has(normalizedValue);
+                                
+                                // If direct lookup fails, try case-insensitive and other variations
+                                if (!matches) {
                                     const filterValuesArray = Array.from(rule.values);
-                                    const similarValues = filterValuesArray.filter(fv => {
+                                    matches = filterValuesArray.some(fv => {
                                         const fvStr = String(fv).trim();
-                                        return fvStr.toLowerCase() === strValue.toLowerCase() || 
-                                               fvStr === strValue ||
-                                               fvStr.includes(strValue) ||
-                                               strValue.includes(fvStr);
+                                        // Exact match
+                                        if (fvStr === normalizedValue) return true;
+                                        // Case-insensitive match
+                                        if (fvStr.toLowerCase() === normalizedValue.toLowerCase()) return true;
+                                        // Match with original value (handles number-to-string conversion)
+                                        if (String(fieldValue).trim() === fvStr) return true;
+                                        return false;
                                     });
-                                    if (similarValues.length > 0) {
-                                        console.log(`  ⚠️  Similar values found:`, similarValues);
-                                    }
-                                    rule._debugLogged = true;
                                 }
                             } else {
-                                // If field is null/undefined, check if empty string is in the filter values
+                                // If field is null/undefined/empty, it doesn't match any non-empty filter values
+                                // Only match if empty string is explicitly in the filter values
                                 matches = rule.values.has('');
                             }
                         }
@@ -7853,25 +7851,9 @@
                         // Apply include/exclude logic
                         const passed = rule.mode === 'include' ? matches : !matches;
                         
-                        if (!passed && !rule._debugLogged) {
-                            console.log(`❌ Filter rule failed:`, {
-                                type: rule.type,
-                                mode: rule.mode,
-                                metadataField: rule.metadataField,
-                                matches: matches,
-                                details: matchDetails
-                            });
-                            rule._debugLogged = true;
-                        }
                         
                         return { rule, passed, matches, matchDetails };
                     });
-                    
-                    // Log all rule results for first row
-                    if (!firstRowLogged) {
-                        console.log('Rule results for first row:', ruleResults);
-                        firstRowLogged = true;
-                    }
                     
                     // Check if all rules passed
                     const allPassed = ruleResults.every(r => r.passed);
@@ -7913,6 +7895,8 @@
                         text: row.text || '' // Explicitly preserve text
                     };
                 }).filter(row => row !== null);
+                
+                console.log(`Filter results: ${rowsPassed} rows passed, ${rowsFailed} rows failed`);
             }
             
             console.log(`After filtering: ${filteredData.length} rows`);
@@ -7923,6 +7907,7 @@
             }
             
             rawData = filteredData;
+            console.log(`✅ Updated rawData to filtered data: ${rawData.length} rows`);
             
             // Get current question type and render accordingly
             const questionType = getCurrentQuestionType();
@@ -8649,7 +8634,13 @@
         function processData() {
             const categoryMap = new Map();
             
-            console.log(`Processing ${rawData.length} rows...`);
+            console.log(`Processing ${rawData.length} rows for visualization...`);
+            console.log(`First row sample:`, rawData.length > 0 ? {
+                row_id: rawData[0].row_id,
+                hasTopics: !!rawData[0].topics,
+                topicsCount: rawData[0].topics?.length || 0,
+                metadataKeys: Object.keys(rawData[0].metadata || {})
+            } : 'No data');
             let rowsWithTopics = 0;
             let topicsFound = 0;
 
@@ -10552,14 +10543,14 @@
             const valueMap = new Map();
             let totalCount = 0;
 
-            // For multi_choice, we process raw rows directly from fullRawData filtered by dimension
-            const rowsToProcess = currentQuestionRefKey 
-                ? fullRawData.filter(row => row.dimension_ref === currentQuestionRefKey)
-                : fullRawData;
+            // Use rawData which contains the filtered data (after metadata filters are applied)
+            // rawData is already filtered by dimension and any active filters
+            // Note: rawData is grouped data with 'text' field, not raw process_voc rows with 'value' field
+            const rowsToProcess = rawData;
             
             rowsToProcess.forEach(row => {
-                // Raw process_voc row has value field directly
-                const value = row.value ? row.value.trim() : null;
+                // Grouped data has 'text' field, raw process_voc has 'value' field
+                const value = (row.text || row.value || '').trim();
                 if (!value) return;
 
                 totalCount++;
