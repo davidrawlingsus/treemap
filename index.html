@@ -5687,6 +5687,20 @@
             'District of Columbia': 'DC'
         };
         
+        // FIPS code to state code mapping for TopoJSON
+        const fipsToStateCode = {
+            '01': 'AL', '02': 'AK', '04': 'AZ', '05': 'AR', '06': 'CA',
+            '08': 'CO', '09': 'CT', '10': 'DE', '11': 'DC', '12': 'FL', '13': 'GA',
+            '15': 'HI', '16': 'ID', '17': 'IL', '18': 'IN', '19': 'IA',
+            '20': 'KS', '21': 'KY', '22': 'LA', '23': 'ME', '24': 'MD',
+            '25': 'MA', '26': 'MI', '27': 'MN', '28': 'MS', '29': 'MO',
+            '30': 'MT', '31': 'NE', '32': 'NV', '33': 'NH', '34': 'NJ',
+            '35': 'NM', '36': 'NY', '37': 'NC', '38': 'ND', '39': 'OH',
+            '40': 'OK', '41': 'OR', '42': 'PA', '44': 'RI', '45': 'SC',
+            '46': 'SD', '47': 'TN', '48': 'TX', '49': 'UT', '50': 'VT',
+            '51': 'VA', '53': 'WA', '54': 'WV', '55': 'WI', '56': 'WY'
+        };
+        
         // Helper function to get state code from state name (case-insensitive)
         function getStateCode(stateName) {
             if (!stateName) return null;
@@ -7591,6 +7605,7 @@
                 }
                 if (row && row.metadata) {
                     // Extract all metadata fields as-is from raw metadata (no computation, no mapping)
+                    // This ensures ALL fields from survey_metadata.metadata are available for filtering
                     Object.keys(row.metadata).forEach(key => {
                         if (!metadataFields[key]) {
                             metadataFields[key] = new Set();
@@ -7600,6 +7615,7 @@
                             // Convert to string for consistency (including empty strings)
                             const strValue = String(value);
                             // Always add trimmed value (including empty string if original was empty)
+                            // Empty strings will be filtered out later when building availableMetadataFields
                             const trimmedValue = strValue.trim();
                             metadataFields[key].add(trimmedValue);
                         }
@@ -7630,10 +7646,21 @@
                 if (key === 'sentiment') {
                     sentimentValues = Array.from(metadataFields[key]).sort();
                 } else {
-                    // All other metadata fields go into availableMetadataFields
-                    availableMetadataFields[key] = Array.from(metadataFields[key]).sort();
+                    // Filter out empty strings and get only non-empty values
+                    const nonEmptyValues = Array.from(metadataFields[key])
+                        .filter(val => val !== null && val !== undefined && String(val).trim() !== '')
+                        .sort();
+                    
+                    // Only include the field if it has at least one non-empty value
+                    if (nonEmptyValues.length > 0) {
+                        availableMetadataFields[key] = nonEmptyValues;
+                    }
                 }
             });
+            
+            // Debug: Log all available metadata fields
+            console.log('Available metadata fields for filtering:', Object.keys(availableMetadataFields));
+            console.log('Metadata fields detail:', availableMetadataFields);
             
             // Populate filter type list dynamically after extracting options
             populateFilterTypeList(sentimentValues);
@@ -10843,8 +10870,9 @@
                     .append('path')
                     .attr('d', path)
                     .attr('fill', d => {
-                        const stateId = d.id;
-                        const count = stateDataMap.get(stateId) || 0;
+                        const fipsCode = String(d.id); // TopoJSON uses FIPS codes
+                        const stateCode = fipsToStateCode[fipsCode]; // Convert FIPS to state code
+                        const count = stateCode ? (stateDataMap.get(stateCode) || 0) : 0;
                         return count > 0 ? colorScale(count) : '#f0f0f0';
                     })
                     .attr('stroke', '#fff')
@@ -10855,11 +10883,12 @@
                             .attr('stroke', '#333')
                             .attr('stroke-width', 2);
                         
-                        const stateId = d.id;
-                        const state = data.states.find(s => s.stateCode === stateId);
+                        const fipsCode = String(d.id);
+                        const stateCode = fipsToStateCode[fipsCode];
+                        const state = stateCode ? data.states.find(s => s.stateCode === stateCode) : null;
                         const count = state ? state.count : 0;
                         const percent = state ? state.percent : 0;
-                        const stateName = state ? state.stateName : stateId;
+                        const stateName = state ? state.stateName : (d.properties?.name || fipsCode);
                         
                         // Show tooltip
                         const tooltip = d3.select('body').append('div')
