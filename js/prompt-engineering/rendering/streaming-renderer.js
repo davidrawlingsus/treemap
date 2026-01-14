@@ -73,7 +73,7 @@
             </div>
         `;
 
-        // Append to container
+        // Append to container (newest items appear at bottom, which is the natural order)
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = itemHTML;
         const itemElement = tempDiv.firstElementChild;
@@ -89,9 +89,9 @@
             const currentScrollTop = container.scrollTop;
             const lastScrollTop = parseFloat(itemElement.dataset.lastScrollTop || '0');
             
-            // If user scrolled up manually, disable auto-scroll
-            if (currentScrollTop < lastScrollTop - 5) { // 5px threshold to account for minor adjustments
-                console.log('[STREAMING] User scrolled up manually, disabling auto-scroll for streaming item', {
+            // If user scrolled down manually (away from top), disable auto-scroll
+            if (currentScrollTop > lastScrollTop + 5) { // 5px threshold to account for minor adjustments
+                console.log('[STREAMING] User scrolled down manually, disabling auto-scroll for streaming item', {
                     streamingId,
                     currentScrollTop,
                     lastScrollTop
@@ -104,11 +104,10 @@
             // Clear timeout and set new one to detect when scrolling stops
             clearTimeout(scrollTimeout);
             scrollTimeout = setTimeout(() => {
-                // After scrolling stops, check if user is at bottom
-                const isAtBottom = _isAtBottom(container);
-                if (isAtBottom) {
-                    // Re-enable auto-scroll if user scrolled back to bottom
-                    console.log('[STREAMING] User scrolled back to bottom, re-enabling auto-scroll', { streamingId });
+                // After scrolling stops, check if user is at top
+                if (container.scrollTop <= 10) {
+                    // Re-enable auto-scroll if user scrolled back to top
+                    console.log('[STREAMING] User scrolled back to top, re-enabling auto-scroll', { streamingId });
                     itemElement.dataset.autoScrollEnabled = 'true';
                 }
             }, 150);
@@ -122,7 +121,7 @@
             if (scrollTimeout) clearTimeout(scrollTimeout);
         };
 
-        // Initial scroll to bottom
+        // Initial scroll to bottom to show the new streaming item
         requestAnimationFrame(() => {
             if (container) {
                 container.scrollTop = container.scrollHeight;
@@ -206,7 +205,8 @@
             streamingContentStore.set(contentElement, newText);
 
             // Render markdown and update innerHTML
-            contentElement.innerHTML = convertMarkdown(newText);
+            const markdownHTML = convertMarkdown(newText);
+            contentElement.innerHTML = markdownHTML;
         } catch (error) {
             console.error('[STREAMING] Error in appendToStreamingItem:', error);
             throw error;

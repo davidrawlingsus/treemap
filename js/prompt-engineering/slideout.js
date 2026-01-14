@@ -82,7 +82,10 @@
                 if (this.activeStreamingRequests.size === 0 && state.get('slideoutPromptId')) {
                     // Small delay to ensure slideout is fully opened
                     setTimeout(() => {
-                        this.displayAllResults(false, 'open-after-streaming');
+                        // Check again inside the callback - streaming might have started in the meantime
+                        if (this.activeStreamingRequests.size === 0) {
+                            this.displayAllResults(false, 'open-after-streaming');
+                        }
                     }, 100);
                 }
             }
@@ -149,6 +152,11 @@
                     console.warn('[SLIDEOUT] Failed to fetch prompt info:', e);
                 }
 
+                // Track this streaming request BEFORE creating the item
+                // This ensures open() method won't call displayAllResults() and clear the container
+                const streamingRequestId = `streaming-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                this.activeStreamingRequests.add(streamingRequestId);
+
                 // Create streaming result item
                 const streamingItem = UIRenderer.createStreamingResultItem(
                     content,
@@ -158,6 +166,8 @@
                 );
 
                 if (!streamingItem) {
+                    // Remove from active requests if creation failed
+                    this.activeStreamingRequests.delete(streamingRequestId);
                     throw new Error('Failed to create streaming result item');
                 }
 
@@ -166,10 +176,6 @@
                     userMessageLength: userMessage.length,
                     timestamp: new Date().toISOString()
                 });
-
-                // Track this streaming request
-                const streamingRequestId = `streaming-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                this.activeStreamingRequests.add(streamingRequestId);
 
                 // Execute with streaming
                 await PromptAPI.executeStream(
@@ -281,11 +287,14 @@
                 return;
             }
 
-            if (showLoading) {
+            // Don't show loading state if there are active streaming items - they're already visible
+            const hasStreamingItems = content.querySelectorAll('[data-streaming-id]').length > 0;
+            const activeStreamingCount = this.activeStreamingRequests.size;
+            if (showLoading && !hasStreamingItems && activeStreamingCount === 0) {
                 console.log('[SLIDEOUT] displayAllResults() - Showing loading state', { caller });
                 UIRenderer.renderLoading(content, 'Loading execution history...');
             } else {
-                console.log('[SLIDEOUT] displayAllResults() - Skipping loading state', { caller });
+                console.log('[SLIDEOUT] displayAllResults() - Skipping loading state', { caller, hasStreamingItems, activeStreamingCount });
             }
 
             try {
@@ -411,6 +420,11 @@
                     console.warn('[SLIDEOUT] Failed to fetch prompt info:', e);
                 }
 
+                // Track this streaming request BEFORE creating the item
+                // This ensures open() method won't call displayAllResults() and clear the container
+                const streamingRequestId = `streaming-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                this.activeStreamingRequests.add(streamingRequestId);
+
                 // Create streaming result item
                 const streamingItem = UIRenderer.createStreamingResultItem(
                     content,
@@ -420,6 +434,8 @@
                 );
 
                 if (!streamingItem) {
+                    // Remove from active requests if creation failed
+                    this.activeStreamingRequests.delete(streamingRequestId);
                     throw new Error('Failed to create streaming result item');
                 }
 
@@ -433,10 +449,6 @@
                     userMessageLength: userMessage.length,
                     timestamp: new Date().toISOString()
                 });
-
-                // Track this streaming request
-                const streamingRequestId = `streaming-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                this.activeStreamingRequests.add(streamingRequestId);
 
                 // Execute with streaming
                 await PromptAPI.executeStream(

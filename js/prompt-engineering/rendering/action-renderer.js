@@ -71,6 +71,18 @@
         const scrollTopBefore = container.scrollTop;
         const wasAtBottomBefore = _isAtBottom(container, SCROLL_BOTTOM_THRESHOLD);
 
+        // Preserve streaming items (items with data-streaming-id attribute) - don't clear them
+        const streamingItems = Array.from(container.querySelectorAll('[data-streaming-id]'));
+        
+        // Remove non-streaming items only (and any loading indicators)
+        const itemsToRemove = Array.from(container.querySelectorAll('.prompt-output-item')).filter(item => {
+            return !item.hasAttribute('data-streaming-id');
+        });
+        // Also remove loading indicators
+        const loadingIndicators = container.querySelectorAll('.ai-loading');
+        itemsToRemove.forEach(item => item.remove());
+        loadingIndicators.forEach(indicator => indicator.remove());
+
         // Use document fragment for better performance
         const fragment = document.createDocumentFragment();
         const tempDiv = document.createElement('div');
@@ -83,9 +95,13 @@
             fragment.appendChild(tempDiv.firstChild);
         }
 
-        // Clear and append fragment
-        container.innerHTML = '';
+        // Append new items first, then move streaming items to the end (so they appear at bottom)
         container.appendChild(fragment);
+        
+        // Move streaming items to the end (bottom) so they appear after historic results
+        streamingItems.forEach(item => {
+            container.appendChild(item);
+        });
 
         // Attach system message toggle listeners
         attachSystemMessageToggles(container);
@@ -546,12 +562,39 @@
     function renderLoading(container, message = 'Loading...') {
         if (!container) return;
 
-        container.innerHTML = `
-            <div class="ai-loading">
-                <div class="ai-loading-spinner"></div>
-                <p>${DOM.escapeHtml(message)}</p>
-            </div>
-        `;
+        // Preserve streaming items - don't clear them
+        const streamingItems = Array.from(container.querySelectorAll('[data-streaming-id]'));
+        
+        // Only clear if there are no streaming items
+        if (streamingItems.length === 0) {
+            container.innerHTML = `
+                <div class="ai-loading">
+                    <div class="ai-loading-spinner"></div>
+                    <p>${DOM.escapeHtml(message)}</p>
+                </div>
+            `;
+        } else {
+            // If there are streaming items, just show loading message without clearing
+            // Find or create a loading indicator that doesn't interfere with streaming
+            let loadingIndicator = container.querySelector('.ai-loading');
+            if (!loadingIndicator) {
+                loadingIndicator = document.createElement('div');
+                loadingIndicator.className = 'ai-loading';
+                loadingIndicator.style.position = 'absolute';
+                loadingIndicator.style.top = '0';
+                loadingIndicator.style.left = '0';
+                loadingIndicator.style.right = '0';
+                loadingIndicator.style.zIndex = '1000';
+                loadingIndicator.style.background = 'rgba(255, 255, 255, 0.9)';
+                loadingIndicator.style.padding = '12px';
+                loadingIndicator.style.textAlign = 'center';
+                container.insertBefore(loadingIndicator, container.firstChild);
+            }
+            loadingIndicator.innerHTML = `
+                <div class="ai-loading-spinner" style="width: 24px; height: 24px; margin: 0 auto 8px;"></div>
+                <p style="margin: 0; font-size: 13px; color: var(--muted);">${DOM.escapeHtml(message)}</p>
+            `;
+        }
     }
 
     /**
