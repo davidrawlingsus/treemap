@@ -215,12 +215,21 @@
             const newCards = Array.from(tempDiv.querySelectorAll('.pe-idea-card'));
             const existingCards = Array.from(contentElement.querySelectorAll('.pe-idea-card'));
             
-            // Create signatures to compare cards by their IDs
-            const newCardSignatures = new Set(newCards.map(card => card.getAttribute('data-idea-id')).filter(Boolean));
-            const existingCardSignatures = new Set(existingCards.map(card => card.getAttribute('data-idea-id')).filter(Boolean));
+            // Create signatures to compare cards by their IDs (if available) or by title
+            const getCardSignature = (card) => {
+                const id = card.getAttribute('data-idea-id');
+                if (id) return `id:${id}`;
+                // Fallback to title for cards without IDs
+                const title = card.querySelector('.pe-idea-card__title')?.textContent?.trim();
+                return title ? `title:${title}` : null;
+            };
             
-            // Check if the cards have actually changed (count or IDs differ)
+            const newCardSignatures = new Set(newCards.map(getCardSignature).filter(Boolean));
+            const existingCardSignatures = new Set(existingCards.map(getCardSignature).filter(Boolean));
+            
+            // Check if the cards have actually changed (count or signatures differ)
             const cardsChanged = newCards.length !== existingCards.length ||
+                                newCardSignatures.size !== existingCardSignatures.size ||
                                 !Array.from(newCardSignatures).every(sig => existingCardSignatures.has(sig));
             
             if (!cardsChanged && existingCards.length > 0) {
@@ -231,47 +240,71 @@
                 
                 if (lastExistingCard && lastNewCard) {
                     // Get all content after the last card in the new HTML
+                    // We need to find the last card in the DOM tree and get everything after it
                     const nodesAfterLastCard = [];
                     let foundLastCard = false;
                     
-                    for (let node of tempDiv.childNodes) {
-                        if (foundLastCard) {
-                            nodesAfterLastCard.push(node.cloneNode(true));
-                        } else if (node === lastNewCard) {
-                            foundLastCard = true;
+                    // Use a recursive walker to find the last card and collect nodes after it
+                    function walkNodes(parent) {
+                        for (let node of parent.childNodes) {
+                            if (foundLastCard) {
+                                // We've found the last card, collect this node
+                                nodesAfterLastCard.push(node.cloneNode(true));
+                            } else if (node === lastNewCard) {
+                                // Found it! Mark and continue to collect siblings
+                                foundLastCard = true;
+                            } else if (node.nodeType === Node.ELEMENT_NODE) {
+                                // Check children
+                                walkNodes(node);
+                                // If we found it in children, collect remaining siblings
+                                if (foundLastCard) {
+                                    let sibling = node.nextSibling;
+                                    while (sibling) {
+                                        nodesAfterLastCard.push(sibling.cloneNode(true));
+                                        sibling = sibling.nextSibling;
+                                    }
+                                    return; // Done with this level
+                                }
+                            }
                         }
                     }
                     
-                    // Remove content after the last existing card
-                    let currentNode = lastExistingCard.nextSibling;
-                    while (currentNode) {
-                        const nextNode = currentNode.nextSibling;
-                        contentElement.removeChild(currentNode);
-                        currentNode = nextNode;
+                    walkNodes(tempDiv);
+                    
+                    // Only proceed if we actually found the last card
+                    if (foundLastCard) {
+                        // Remove content after the last existing card
+                        let currentNode = lastExistingCard.nextSibling;
+                        while (currentNode) {
+                            const nextNode = currentNode.nextSibling;
+                            contentElement.removeChild(currentNode);
+                            currentNode = nextNode;
+                        }
+                        
+                        // Append new content after the last card
+                        nodesAfterLastCard.forEach(node => {
+                            contentElement.appendChild(node);
+                        });
+                        
+                        return; // Skip full re-render
                     }
-                    
-                    // Append new content after the last card
-                    nodesAfterLastCard.forEach(node => {
-                        contentElement.appendChild(node);
-                    });
-                    
-                    return; // Skip full re-render
+                    // If we didn't find the last card, fall through to full re-render
                 }
             }
             
             // Cards have changed OR no cards exist - do full re-render with preservation
             const preservedCards = new Map();
             existingCards.forEach(card => {
-                const cardId = card.getAttribute('data-idea-id');
-                if (cardId) {
-                    preservedCards.set(cardId, card);
+                const signature = getCardSignature(card);
+                if (signature) {
+                    preservedCards.set(signature, card);
                 }
             });
             
-            // Replace new cards with preserved cards where IDs match
+            // Replace new cards with preserved cards where signatures match
             newCards.forEach(newCard => {
-                const cardId = newCard.getAttribute('data-idea-id');
-                const preservedCard = preservedCards.get(cardId);
+                const signature = getCardSignature(newCard);
+                const preservedCard = signature ? preservedCards.get(signature) : null;
                 
                 if (preservedCard && newCard.parentNode) {
                     newCard.parentNode.replaceChild(preservedCard, newCard);
