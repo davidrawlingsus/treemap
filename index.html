@@ -1605,6 +1605,71 @@
         .insights-panel-container.collapsed .insights-panel-toggle-icon {
             transform: rotate(-90deg);
         }
+        
+        .insights-panel-add-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s, opacity 0.2s;
+            border-radius: 4px;
+            width: 24px;
+            height: 24px;
+        }
+        
+        .insights-panel-add-btn:hover {
+            background: #f0f0f0;
+            opacity: 0.8;
+        }
+        
+        .insights-panel-add-btn img {
+            display: block;
+        }
+
+        .insights-add-dropdown {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .insights-add-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            min-width: 180px;
+            background: #fff;
+            border: 1px solid #e8e8e8;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            padding: 6px;
+            display: none;
+            z-index: 10;
+        }
+
+        .insights-add-dropdown-menu.open {
+            display: block;
+        }
+
+        .insights-add-dropdown-item {
+            width: 100%;
+            background: none;
+            border: none;
+            padding: 8px 10px;
+            text-align: left;
+            font-size: 13px;
+            color: #333;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .insights-add-dropdown-item:hover {
+            background: #f5f5f5;
+        }
 
         .insights-panel-body {
             transition: max-height 0.3s ease-out;
@@ -5400,7 +5465,7 @@
                 <div class="insights-panel-container">
                     <div class="insights-panel-header">
                         <div class="insights-panel-header-left">
-                            <h2>Recent Insights</h2>
+                            <h2>Insights</h2>
                             <span id="insightsFilterBadge" class="insights-filter-badge" style="display: none;"></span>
                         </div>
                         <div class="insights-panel-header-search">
@@ -5415,11 +5480,15 @@
                             </div>
                         </div>
                         <div class="insights-panel-header-right">
-                            <button class="insights-panel-toggle" onclick="toggleInsightsPanel()" id="insightsPanelToggle">
-                                <svg id="insightsPanelToggleIcon" class="insights-panel-toggle-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M4 6 L8 10 L12 6" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                            </button>
+                            <div class="insights-add-dropdown">
+                                <button class="insights-panel-add-btn" onclick="toggleInsightsAddDropdown(event)" id="insightsPanelAddBtn" title="Add Insight">
+                                    <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/add.png" alt="Add Insight" width="20" height="20">
+                                </button>
+                                <div class="insights-add-dropdown-menu" id="insightsAddDropdownMenu">
+                                    <button class="insights-add-dropdown-item" onclick="handleInsightsAddOption('manual')">Manual Insight</button>
+                                    <button class="insights-add-dropdown-item" onclick="handleInsightsAddOption('overview')">AI Overview</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div class="insights-panel-body" id="insightsPanelBody">
@@ -8769,6 +8838,131 @@
         function findTopicInCategory(categoryData, topicName) {
             if (!categoryData || !categoryData.children) return null;
             return categoryData.children.find(topic => topic.name === topicName) || null;
+        }
+
+        // Helper function to extract all verbatims from a data structure and return clean array with only text and id
+        function extractCleanVerbatims(data) {
+            if (!data) return [];
+            
+            // Helper function to extract all verbatims from the data structure
+            function extractAllVerbatims(obj) {
+                const verbatims = [];
+                
+                if (Array.isArray(obj)) {
+                    obj.forEach(item => {
+                        verbatims.push(...extractAllVerbatims(item));
+                    });
+                } else if (obj && typeof obj === 'object') {
+                    // If this object has verbatims directly
+                    if (obj.verbatims && Array.isArray(obj.verbatims)) {
+                        verbatims.push(...obj.verbatims);
+                    }
+                    // If this object has children (like a category with topics)
+                    if (obj.children && Array.isArray(obj.children)) {
+                        obj.children.forEach(child => {
+                            verbatims.push(...extractAllVerbatims(child));
+                        });
+                    }
+                }
+                
+                return verbatims;
+            }
+            
+            // Extract all verbatims
+            const allVerbatims = extractAllVerbatims(data);
+            
+            // Create clean array with only text and id
+            const cleanVerbatims = allVerbatims.map(v => {
+                // Use row_id if available, otherwise use index, otherwise null
+                const uniqueId = v.row_id !== undefined ? v.row_id : (v.index !== undefined ? v.index : null);
+                
+                return {
+                    text: v.text || '',
+                    id: uniqueId
+                };
+            }).filter(v => v.text); // Remove any verbatims without text
+            
+            return cleanVerbatims;
+        }
+
+        function getCurrentQuestionTextForOverview() {
+            let questionText = null;
+            if (currentQuestionRefKey) {
+                const dimensionRow = fullRawData.find(row =>
+                    row.dimension_ref === currentQuestionRefKey &&
+                    row.question_text &&
+                    row.question_text.trim() !== ''
+                );
+                if (dimensionRow) {
+                    questionText = dimensionRow.question_text;
+                }
+            }
+            if (questionText) return questionText;
+            if (currentQuestionRefKey) {
+                return getDimensionDisplayName(currentQuestionRefKey);
+            }
+            return 'All Dimensions';
+        }
+
+        function buildOverviewSummaryFromHierarchy() {
+            if (!hierarchyData || !hierarchyData.children) {
+                throw new Error('Hierarchy data is not available');
+            }
+
+            const categoryTotals = new Map();
+            let totalTopicCount = 0;
+
+            hierarchyData.children.forEach(category => {
+                let categoryCount = 0;
+                (category.children || []).forEach(topic => {
+                    const topicCount = Number(topic.value ?? topic.verbatims?.length ?? 0);
+                    categoryCount += topicCount;
+                    totalTopicCount += topicCount;
+                });
+                categoryTotals.set(category.name, categoryCount);
+            });
+
+            const toPercent = (count, total) => {
+                if (!total) return 0;
+                return Math.round((count / total) * 1000) / 10;
+            };
+
+            const categories = hierarchyData.children.map(category => {
+                const categoryCount = categoryTotals.get(category.name) || 0;
+                const topics = (category.children || []).map(topic => {
+                    const topicCount = Number(topic.value ?? topic.verbatims?.length ?? 0);
+                    const verbatims = (topic.verbatims || [])
+                        .map(verbatim => ({
+                            id: verbatim.row_id ?? verbatim.index ?? null,
+                            text: verbatim.text || ''
+                        }))
+                        .filter(verbatim => verbatim.text);
+
+                    const topVerbatims = verbatims
+                        .sort((a, b) => (b.text.length || 0) - (a.text.length || 0))
+                        .slice(0, 5);
+
+                    return {
+                        name: topic.name,
+                        count: topicCount,
+                        percentage: toPercent(topicCount, totalTopicCount),
+                        top_verbatims: topVerbatims
+                    };
+                });
+
+                return {
+                    name: category.name,
+                    count: categoryCount,
+                    percentage: toPercent(categoryCount, totalTopicCount),
+                    topics
+                };
+            });
+
+            return {
+                question: getCurrentQuestionTextForOverview(),
+                total_topic_count: totalTopicCount,
+                categories
+            };
         }
 
         // Helper function to get full data structure for context (category or topic with verbatims)
@@ -14330,6 +14524,45 @@
             console.error('Error in checkAuth:', error);
         });
         
+        async function getPromptRendererWithRetry() {
+            const diagnostics = {
+                FounderAdmin: !!window.FounderAdmin,
+                MarkdownConverter: !!window.MarkdownConverter,
+                StreamingRenderer: !!window.StreamingRenderer,
+                PromptUIRenderer: !!window.PromptUIRenderer,
+                ClientPromptRenderer: !!window.ClientPromptRenderer,
+                getClientPromptRenderer: !!window.getClientPromptRenderer
+            };
+            console.log('[getPromptRendererWithRetry] Module availability:', diagnostics);
+
+            let renderer = window.PromptUIRenderer || window.ClientPromptRenderer;
+            if (!renderer && window.getClientPromptRenderer) {
+                console.log('[getPromptRendererWithRetry] Attempting to initialize renderer...');
+                renderer = window.getClientPromptRenderer();
+            }
+
+            if (!renderer) {
+                console.log('[getPromptRendererWithRetry] Renderer not available, waiting 200ms and retrying...');
+                await new Promise(resolve => setTimeout(resolve, 200));
+                renderer = window.PromptUIRenderer || window.ClientPromptRenderer;
+                if (!renderer && window.getClientPromptRenderer) {
+                    renderer = window.getClientPromptRenderer();
+                }
+            }
+
+            if (!renderer) {
+                console.error('[getPromptRendererWithRetry] Rendering modules not available after retry:', {
+                    ...diagnostics,
+                    afterRetry: {
+                        PromptUIRenderer: !!window.PromptUIRenderer,
+                        ClientPromptRenderer: !!window.ClientPromptRenderer
+                    }
+                });
+            }
+
+            return renderer;
+        }
+
         // Slideout Panel - handles AI Insights, Verbatims, Insight Notes, and Create Insight
         const SlideoutPanel = {
             isOpen: false,
@@ -15095,44 +15328,8 @@
                     return;
                 }
                 
-                // Diagnostic: Check all dependencies
-                const diagnostics = {
-                    FounderAdmin: !!window.FounderAdmin,
-                    MarkdownConverter: !!window.MarkdownConverter,
-                    StreamingRenderer: !!window.StreamingRenderer,
-                    PromptUIRenderer: !!window.PromptUIRenderer,
-                    ClientPromptRenderer: !!window.ClientPromptRenderer,
-                    getClientPromptRenderer: !!window.getClientPromptRenderer
-                };
-                console.log('[openAIExpertInsight] Module availability:', diagnostics);
-                
-                // Try to get renderer, initializing if needed
-                let renderer = window.PromptUIRenderer || window.ClientPromptRenderer;
-                
-                // If still not available, try to initialize
-                if (!renderer && window.getClientPromptRenderer) {
-                    console.log('[openAIExpertInsight] Attempting to initialize renderer...');
-                    renderer = window.getClientPromptRenderer();
-                }
-                
-                // If still not available, wait a bit and try again (in case modules are still loading)
+                const renderer = await getPromptRendererWithRetry();
                 if (!renderer) {
-                    console.log('[openAIExpertInsight] Renderer not available, waiting 200ms and retrying...');
-                    await new Promise(resolve => setTimeout(resolve, 200));
-                    renderer = window.PromptUIRenderer || window.ClientPromptRenderer;
-                    if (!renderer && window.getClientPromptRenderer) {
-                        renderer = window.getClientPromptRenderer();
-                    }
-                }
-                
-                if (!renderer) {
-                    console.error('[openAIExpertInsight] Rendering modules not available after retry:', {
-                        ...diagnostics,
-                        afterRetry: {
-                            PromptUIRenderer: !!window.PromptUIRenderer,
-                            ClientPromptRenderer: !!window.ClientPromptRenderer
-                        }
-                    });
                     alert('Error: Prompt rendering modules not loaded. Please check the browser console for details and refresh the page.');
                     return;
                 }
@@ -15140,14 +15337,20 @@
                 console.log('[openAIExpertInsight] Using renderer:', renderer.constructor?.name || 'object');
                 
                 // Get JSON data for the context
-                const vocData = getFullDataForContext(contextData);
-                if (!vocData) {
+                const fullData = getFullDataForContext(contextData);
+                if (!fullData) {
                     alert('Error: Unable to retrieve data. Please try right-clicking again.');
                     return;
                 }
                 
-                // Store vocData for later use when saving insight
-                this.currentVocData = vocData;
+                // Extract clean verbatims (text and id only) for use in system prompts
+                const cleanVerbatims = extractCleanVerbatims(fullData);
+                
+                // Wrap in object to satisfy backend schema (voc_data must be a dict, not array)
+                const vocDataForAPI = { verbatims: cleanVerbatims };
+                
+                // Store cleaned vocData for later use when saving insight
+                this.currentVocData = cleanVerbatims;
                 
                 // Get prompt name for display
                 let promptName = 'AI Expert';
@@ -15224,7 +15427,7 @@
                     await window.ClientPromptAPI.executeStream(
                         currentClientId,
                         promptId,
-                        vocData,
+                        vocDataForAPI,
                         // onChunk
                         (chunk) => {
                             renderer.appendToStreamingItem(streamingItem, chunk);
@@ -15304,6 +15507,197 @@
                 } catch (error) {
                     console.error('[openAIExpertInsight] Failed to start streaming:', error);
                     alert('Error: ' + (error.message || 'Failed to start AI expert'));
+                }
+            },
+
+            async saveOverviewAsInsight(notesHTML, summaryPayload) {
+                if (!currentClientId) {
+                    console.error('[saveOverviewAsInsight] No client selected');
+                    return;
+                }
+
+                try {
+                    // Build insight name from dimension name
+                    const dimensionName = currentQuestionRefKey 
+                        ? getDimensionDisplayName(currentQuestionRefKey)
+                        : 'All Dimensions';
+                    const insightName = `Overview: ${dimensionName}`;
+
+                    // Create origin object with only data_source and dimension info
+                    const origin = {
+                        origin_type: 'category', // Using category as base type since we're at dimension level
+                        project_name: currentProjectName || null,
+                        data_source: currentDataSourceId || null,
+                        dimension_ref: currentQuestionRefKey || null,
+                        dimension_name: currentQuestionRefKey ? getDimensionDisplayName(currentQuestionRefKey) : null,
+                        category: null,
+                        topic_label: null,
+                        process_voc_id: null
+                    };
+
+                    const insightData = {
+                        name: insightName,
+                        type: 'Overview',
+                        application: 'Executive Summary', // Backend expects comma-separated string
+                        notes: notesHTML || null,
+                        origins: [origin],
+                        verbatims: null,
+                        voc_json: summaryPayload
+                    };
+
+                    console.log('[saveOverviewAsInsight] Saving insight:', insightData);
+
+                    const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights`, {
+                        method: 'POST',
+                        headers: {
+                            ...getAuthHeaders(),
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(insightData)
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json().catch(() => ({ detail: 'Failed to create insight' }));
+                        throw new Error(error.detail || 'Failed to create insight');
+                    }
+
+                    const newInsight = await response.json();
+                    this.currentOverviewInsightId = newInsight.id;
+                    console.log('[saveOverviewAsInsight] Insight saved with ID:', newInsight.id);
+
+                    // Refresh insights list
+                    if (typeof loadInsights === 'function') {
+                        loadInsights();
+                    }
+                } catch (error) {
+                    console.error('[saveOverviewAsInsight] Error saving overview insight:', error);
+                    // Don't alert user - this is auto-save, just log the error
+                }
+            },
+
+            async openAIOverviewSummary(summaryPayload, promptId) {
+                console.log('[openAIOverviewSummary] Called with promptId:', promptId);
+
+                if (!currentClientId) {
+                    alert('No client selected');
+                    return;
+                }
+                if (!window.ClientPromptAPI) {
+                    alert('Error: Client prompt API not loaded');
+                    return;
+                }
+
+                const renderer = await getPromptRendererWithRetry();
+                if (!renderer) {
+                    alert('Error: Prompt rendering modules not loaded. Please check the browser console for details and refresh the page.');
+                    return;
+                }
+
+                // Reset navigation stack for overview view
+                this.navigationStack = [];
+                this.updateBackButton();
+                this.currentMode = 'ai-overview';
+                this.currentOverviewInsightId = null; // Reset on new overview
+
+                const panel = document.getElementById('slideoutPanel');
+                const overlay = document.getElementById('slideoutOverlay');
+                const title = document.getElementById('slideoutTitle');
+                const subtitle = document.getElementById('slideoutSubtitle');
+                const content = document.getElementById('slideoutContent');
+                const searchBox = document.getElementById('slideoutSearch');
+                const settingsBtn = document.getElementById('slideoutSettingsBtn');
+
+                if (searchBox) searchBox.style.display = 'none';
+                const searchContainer = document.getElementById('slideoutSearchContainer');
+                if (searchContainer) searchContainer.style.display = 'none';
+                if (settingsBtn) settingsBtn.style.display = 'none';
+                if (subtitle) subtitle.style.display = 'none';
+
+                if (title) {
+                    title.textContent = 'Feedback Overview';
+                    title.removeAttribute('contenteditable');
+                    title.setAttribute('data-placeholder', '');
+                }
+
+                if (panel) panel.classList.add('open');
+                if (overlay) overlay.classList.add('visible');
+                this.isOpen = true;
+                document.body.classList.add('slideout-open');
+
+                if (typeof updateTreemapSearchZIndex === 'function') {
+                    updateTreemapSearchZIndex();
+                }
+
+                if (!content) {
+                    console.error('[openAIOverviewSummary] Content container not found');
+                    return;
+                }
+
+                content.innerHTML = '';
+                const streamingItem = renderer.createStreamingResultItem(
+                    content,
+                    'Feedback Overview',
+                    null,
+                    ''
+                );
+
+                if (!streamingItem) {
+                    console.error('[openAIOverviewSummary] Failed to create streaming item');
+                    alert('Error: Failed to initialize streaming display');
+                    return;
+                }
+
+                try {
+                    await window.ClientPromptAPI.executeStream(
+                        currentClientId,
+                        promptId,
+                        summaryPayload,
+                        (chunk) => {
+                            renderer.appendToStreamingItem(streamingItem, chunk);
+                        },
+                        async (metadata) => {
+                            console.log('[openAIOverviewSummary] Streaming completed', metadata);
+                            renderer.finalizeStreamingItem(streamingItem, metadata);
+
+                            const slideoutContent = document.getElementById('slideoutContent');
+                            if (slideoutContent) {
+                                if (renderer.attachIdeaCardListeners) {
+                                    renderer.attachIdeaCardListeners(slideoutContent);
+                                } else if (window.ActionRenderer && window.ActionRenderer.attachIdeaCardListeners) {
+                                    window.ActionRenderer.attachIdeaCardListeners(slideoutContent);
+                                }
+                            }
+
+                            // Extract HTML content from streaming item
+                            const contentElement = streamingItem.querySelector('.prompt-result-content');
+                            if (contentElement) {
+                                const renderedHTML = contentElement.innerHTML;
+                                
+                                // Auto-save as insight
+                                await this.saveOverviewAsInsight(renderedHTML, summaryPayload);
+                            }
+                        },
+                        (error) => {
+                            console.error('[openAIOverviewSummary] Streaming error:', error);
+                            const contentDiv = streamingItem.querySelector('.prompt-result-content');
+                            if (contentDiv) {
+                                contentDiv.innerHTML = `<p style="color: oklch(0.577 0.245 27.325);">Error: ${escapeHtml(error.message || 'Unknown error occurred')}</p>`;
+                            }
+                            renderer.finalizeStreamingItem(streamingItem, {});
+
+                            const slideoutContent = document.getElementById('slideoutContent');
+                            if (slideoutContent) {
+                                if (renderer.attachIdeaCardListeners) {
+                                    renderer.attachIdeaCardListeners(slideoutContent);
+                                } else if (window.ActionRenderer && window.ActionRenderer.attachIdeaCardListeners) {
+                                    window.ActionRenderer.attachIdeaCardListeners(slideoutContent);
+                                }
+                            }
+                        }
+                    );
+                } catch (error) {
+                    console.error('[openAIOverviewSummary] Failed to start streaming:', error);
+                    alert('Error: ' + (error.message || 'Failed to start AI overview'));
                 }
             },
             
@@ -16393,6 +16787,7 @@
                 this.currentMode = null;
                 this.currentInsightId = null;
                 this.currentInsightData = null;
+                this.currentOverviewInsightId = null;
                 this.createInsightContext = null;
                 this.createInsightOrigin = null;
                 this.navigationStack = [];  // Reset navigation stack
@@ -18003,6 +18398,110 @@
             }
         }
 
+        function toggleInsightsAddDropdown(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            const menu = document.getElementById('insightsAddDropdownMenu');
+            if (!menu) return;
+            const isOpen = menu.classList.contains('open');
+            menu.classList.toggle('open', !isOpen);
+        }
+
+        function closeInsightsAddDropdown() {
+            const menu = document.getElementById('insightsAddDropdownMenu');
+            if (menu) {
+                menu.classList.remove('open');
+            }
+        }
+
+        async function handleInsightsAddOption(option) {
+            closeInsightsAddDropdown();
+            if (option === 'manual') {
+                openAddInsightFromVisualizations();
+                return;
+            }
+            if (option === 'overview') {
+                await openAIOverviewFromVisualizations();
+            }
+        }
+
+        function openAddInsightFromVisualizations() {
+            console.log('[openAddInsightFromVisualizations] Function called');
+            
+            if (!currentClientId) {
+                alert('Please select a client first');
+                return;
+            }
+            
+            // Check if SlideoutPanel is available
+            if (typeof SlideoutPanel === 'undefined' || !SlideoutPanel.openCreateInsight) {
+                console.error('[openAddInsightFromVisualizations] SlideoutPanel not available');
+                alert('Error: Unable to open insight creation panel');
+                return;
+            }
+            
+            // Get current context from global variables
+            const contextData = {
+                dimension_ref: currentQuestionRefKey || null,
+                project_name: currentProjectName || null,
+                data_source: currentDataSourceId || null,
+                dimension_name: currentQuestionRefKey ? getDimensionDisplayName(currentQuestionRefKey) : null,
+            };
+            
+            console.log('[openAddInsightFromVisualizations] Context data:', contextData);
+            console.log('[openAddInsightFromVisualizations] Calling SlideoutPanel.openCreateInsight');
+            
+            SlideoutPanel.openCreateInsight(contextData);
+        }
+
+        async function openAIOverviewFromVisualizations() {
+            if (!currentClientId) {
+                alert('Please select a client first');
+                return;
+            }
+            if (!window.ClientPromptAPI) {
+                alert('Error: Client prompt API not loaded');
+                return;
+            }
+            if (!hierarchyData || !hierarchyData.children || hierarchyData.children.length === 0) {
+                alert('No visualization data available. Please load data first.');
+                return;
+            }
+
+            let overviewPromptId = null;
+            try {
+                const prompts = await window.ClientPromptAPI.listPrompts(currentClientId);
+                const overviewPrompt = (prompts || []).find(prompt => {
+                    const name = (prompt.name || '').trim().toLowerCase();
+                    return name === 'overview' || name.includes('overview');
+                });
+                if (overviewPrompt) {
+                    overviewPromptId = overviewPrompt.id;
+                }
+            } catch (error) {
+                console.error('[openAIOverviewFromVisualizations] Failed to load prompts:', error);
+            }
+
+            if (!overviewPromptId) {
+                alert('Unable to find the "overview" prompt. Please check your prompt list.');
+                return;
+            }
+
+            const summaryPayload = buildOverviewSummaryFromHierarchy();
+            await SlideoutPanel.openAIOverviewSummary(summaryPayload, overviewPromptId);
+        }
+
+        document.addEventListener('click', (event) => {
+            const dropdown = document.querySelector('.insights-add-dropdown');
+            const menu = document.getElementById('insightsAddDropdownMenu');
+            if (!menu || !dropdown) return;
+            if (!dropdown.contains(event.target)) {
+                menu.classList.remove('open');
+            }
+        });
+
         function updateInsightsAutoFilter() {
             if (!currentClientId) return;
             
@@ -18078,8 +18577,25 @@
                 }
             });
 
-            // Apply sorting
+            // Pin overviews for current dimension to top
+            // Check if insight is type='Overview' and matches current dimension
+            const isPinnedOverview = (insight) => {
+                if (insight.type !== 'Overview') return false;
+                if (!currentQuestionRefKey) return false; // No dimension selected, don't pin
+                const origin = insight.origins?.[0] || {};
+                return origin.dimension_ref === currentQuestionRefKey;
+            };
+
+            // Apply sorting with pinning
             filtered.sort((a, b) => {
+                const aIsPinned = isPinnedOverview(a);
+                const bIsPinned = isPinnedOverview(b);
+                
+                // Pinned items come first
+                if (aIsPinned && !bIsPinned) return -1;
+                if (!aIsPinned && bIsPinned) return 1;
+                
+                // Within pinned or non-pinned groups, apply normal sort
                 let aVal, bVal;
                 if (insightsSortBy === 'name') {
                     aVal = a.name || '';
@@ -18665,96 +19181,11 @@
                                 return;
                             }
                             
-                            // Helper function to extract metadata from verbatims and clean the data structure
-                            const coreFields = ['text', 'sentiment', 'index', 'row_id'];
-                            const excludedMetadataFields = ['created_at', 'start_date', 'date', 'submit_date'];
-                            const metadataFields = new Set();
-                            const metadataValues = {};
-                            
-                            // First pass: collect all metadata fields and values from verbatims
-                            function collectMetadata(obj) {
-                                if (Array.isArray(obj)) {
-                                    obj.forEach(item => collectMetadata(item));
-                                } else if (obj && typeof obj === 'object') {
-                                    if (obj.verbatims && Array.isArray(obj.verbatims)) {
-                                        obj.verbatims.forEach(v => {
-                                            Object.keys(v).forEach(key => {
-                                                if (!coreFields.includes(key) && !excludedMetadataFields.includes(key) && v[key] !== null && v[key] !== undefined && v[key] !== '') {
-                                                    metadataFields.add(key);
-                                                    if (!metadataValues[key]) {
-                                                        metadataValues[key] = new Set();
-                                                    }
-                                                    const value = v[key];
-                                                    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-                                                        metadataValues[key].add(value);
-                                                    }
-                                                }
-                                            });
-                                        });
-                                    } else {
-                                        Object.values(obj).forEach(val => collectMetadata(val));
-                                    }
-                                }
-                            }
-                            
-                            collectMetadata(fullData);
-                            
-                            // Build metadata object with unique values
-                            const metadata = {};
-                            Array.from(metadataFields).sort().forEach(key => {
-                                const uniqueValues = Array.from(metadataValues[key]).sort();
-                                if (uniqueValues.length === 1) {
-                                    metadata[key] = uniqueValues[0];
-                                } else {
-                                    metadata[key] = uniqueValues;
-                                }
-                            });
-                            
-                            // Second pass: clean the data structure - remove metadata from verbatims
-                            function cleanDataStructure(obj) {
-                                if (Array.isArray(obj)) {
-                                    return obj.map(item => cleanDataStructure(item));
-                                } else if (obj && typeof obj === 'object') {
-                                    if (obj.verbatims && Array.isArray(obj.verbatims)) {
-                                        // Clean verbatims - keep only text, sentiment, index
-                                        const cleaned = { ...obj };
-                                        cleaned.verbatims = obj.verbatims.map(v => {
-                                            const clean = {
-                                                text: v.text || '',
-                                                sentiment: v.sentiment || 'neutral',
-                                                index: v.index !== undefined ? v.index : (v.row_id !== undefined ? v.row_id : null)
-                                            };
-                                            return clean;
-                                        }).sort((a, b) => {
-                                            // Sort by text length (descending) - most verbose first
-                                            const lengthA = (a.text || '').length;
-                                            const lengthB = (b.text || '').length;
-                                            return lengthB - lengthA;
-                                        });
-                                        return cleaned;
-                                    } else {
-                                        // Recursively clean object properties
-                                        const cleaned = {};
-                                        Object.keys(obj).forEach(key => {
-                                            cleaned[key] = cleanDataStructure(obj[key]);
-                                        });
-                                        return cleaned;
-                                    }
-                                }
-                                return obj;
-                            }
-                            
-                            const cleanedData = cleanDataStructure(fullData);
-                            
-                            // Build final JSON structure with metadata at top level
-                            const jsonData = {
-                                ...currentContextData,
-                                metadata: metadata,
-                                data: cleanedData
-                            };
+                            // Extract clean verbatims (text and id only)
+                            const cleanVerbatims = extractCleanVerbatims(fullData);
                             
                             // Convert to formatted JSON string
-                            const jsonString = JSON.stringify(jsonData, null, 2);
+                            const jsonString = JSON.stringify(cleanVerbatims, null, 2);
                             
                             // Copy to clipboard
                             navigator.clipboard.writeText(jsonString).then(() => {
