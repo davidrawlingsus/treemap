@@ -166,6 +166,14 @@
     padding-left: 28px;
 }
 
+.prompt-result-content ol {
+    list-style-type: decimal;
+}
+
+.prompt-result-content ol li {
+    list-style-position: outside;
+}
+
 .prompt-result-content li {
     margin: 8px 0;
     line-height: 1.7;
