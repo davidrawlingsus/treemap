@@ -76,6 +76,13 @@
          * Setup event listeners for modals
          */
         setupEventListeners() {
+            // Prompt type change handler
+            if (this.elements.promptTypeInput) {
+                this.elements.promptTypeInput.addEventListener('change', () => {
+                    this.handlePromptTypeChange();
+                });
+            }
+
             // Prompt form submission
             if (this.elements.promptForm) {
                 this.elements.promptForm.addEventListener('submit', (e) => {
@@ -197,7 +204,7 @@
          * @param {string} mode - 'create' or 'edit'
          * @param {number} promptId - Prompt ID (for edit mode)
          */
-        openPromptModal(mode, promptId = null) {
+        async openPromptModal(mode, promptId = null) {
             state.set('currentMode', mode);
             state.set('currentPromptId', promptId);
 
@@ -228,11 +235,16 @@
                 // Populate form
                 if (this.elements.nameInput) this.elements.nameInput.value = prompt.name;
                 if (this.elements.versionInput) this.elements.versionInput.value = prompt.version;
+                if (this.elements.promptTypeInput) this.elements.promptTypeInput.value = prompt.prompt_type || 'system';
                 if (this.elements.promptPurposeInput) this.elements.promptPurposeInput.value = prompt.prompt_purpose;
                 if (this.elements.statusInput) this.elements.statusInput.value = prompt.status;
                 if (this.elements.llmModelInput) this.elements.llmModelInput.value = prompt.llm_model;
-                if (this.elements.systemMessageInput) this.elements.systemMessageInput.value = prompt.system_message;
+                if (this.elements.systemMessageInput) this.elements.systemMessageInput.value = prompt.system_message || '';
+                if (this.elements.promptMessageInput) this.elements.promptMessageInput.value = prompt.prompt_message || '';
                 if (this.elements.userMessageInput) this.elements.userMessageInput.value = '';
+
+                // Update UI based on prompt type (this will also load helper prompts)
+                await this.handlePromptTypeChange();
 
                 // Show "New Version" button
                 if (this.elements.newVersionButton) {
@@ -254,11 +266,17 @@
                 // Set default values
                 if (this.elements.nameInput) this.elements.nameInput.value = '';
                 if (this.elements.versionInput) this.elements.versionInput.value = '1';
+                if (this.elements.promptTypeInput) this.elements.promptTypeInput.value = 'system';
                 if (this.elements.promptPurposeInput) this.elements.promptPurposeInput.value = '';
                 if (this.elements.statusInput) this.elements.statusInput.value = 'test';
                 if (this.elements.llmModelInput) this.elements.llmModelInput.value = 'gpt-4o-mini';
                 if (this.elements.systemMessageInput) this.elements.systemMessageInput.value = '';
+                if (this.elements.promptMessageInput) this.elements.promptMessageInput.value = '';
                 if (this.elements.userMessageInput) this.elements.userMessageInput.value = '';
+                if (this.elements.helperPromptSelect) this.elements.helperPromptSelect.value = '';
+
+                // Update UI based on prompt type (this will also load helper prompts)
+                await this.handlePromptTypeChange();
 
                 // Hide "New Version" button
                 if (this.elements.newVersionButton) {
@@ -445,14 +463,30 @@
             // Get form values
             const nameValue = this.elements.nameInput?.value.trim() || '';
             const versionValue = parseInt(this.elements.versionInput?.value || '1');
+            const promptTypeValue = this.elements.promptTypeInput?.value || 'system';
             const promptPurposeValue = this.elements.promptPurposeInput?.value || '';
             const statusValue = this.elements.statusInput?.value || 'test';
             const llmModelValue = this.elements.llmModelInput?.value.trim() || '';
             const systemMessageValue = this.elements.systemMessageInput?.value.trim() || '';
+            // Get prompt message value even if textarea is hidden
+            const promptMessageValue = this.elements.promptMessageInput ? this.elements.promptMessageInput.value.trim() : '';
+            const helperPromptId = this.elements.helperPromptSelect?.value || '';
 
-            // Validation
-            if (!nameValue || !promptPurposeValue || !systemMessageValue || !llmModelValue) {
+            // Validation based on prompt type
+            if (!nameValue || !promptPurposeValue || !llmModelValue) {
                 this.showStatus('All required fields must be filled.', 'error');
+                this.enableSaveButtons();
+                return;
+            }
+
+            if (promptTypeValue === 'system' && !systemMessageValue) {
+                this.showStatus('System prompts require a system message.', 'error');
+                this.enableSaveButtons();
+                return;
+            }
+
+            if (promptTypeValue === 'helper' && !promptMessageValue) {
+                this.showStatus('Helper prompts require a prompt message.', 'error');
                 this.enableSaveButtons();
                 return;
             }
@@ -463,14 +497,24 @@
                 return;
             }
 
+            // Build payload based on prompt type
             const payload = {
                 name: nameValue,
                 version: versionValue,
+                prompt_type: promptTypeValue,
                 prompt_purpose: promptPurposeValue,
                 status: statusValue,
                 llm_model: llmModelValue,
-                system_message: systemMessageValue,
             };
+            
+            // Add type-specific fields - only include the relevant field for each type
+            if (promptTypeValue === 'system') {
+                payload.system_message = systemMessageValue;
+                // Don't include prompt_message for system prompts
+            } else if (promptTypeValue === 'helper') {
+                payload.prompt_message = promptMessageValue;
+                // Don't include system_message for helper prompts (backend will set it to None)
+            }
 
             try {
                 const currentMode = state.get('currentMode');
@@ -480,9 +524,44 @@
                 if (currentMode === 'edit' && currentPromptId) {
                     savedPrompt = await PromptAPI.update(currentPromptId, payload);
                     this.showStatus('Prompt updated successfully.', 'success');
+                    
+                    // Handle helper prompt linking for system prompts
+                    if (promptTypeValue === 'system') {
+                        try {
+                            // Get currently linked helpers
+                            const linkedHelpers = await PromptAPI.getLinkedHelperPrompts(savedPrompt.id);
+                            
+                            // Unlink all existing helpers first
+                            for (const link of linkedHelpers) {
+                                try {
+                                    await PromptAPI.unlinkHelperPrompt(savedPrompt.id, link.helper_prompt_id);
+                                } catch (error) {
+                                    console.warn('[MODALS] Failed to unlink helper prompt:', error);
+                                }
+                            }
+                            
+                            // Link new helper if one is selected
+                            if (helperPromptId) {
+                                await PromptAPI.linkHelperPrompt(savedPrompt.id, helperPromptId);
+                            }
+                        } catch (error) {
+                            console.warn('[MODALS] Failed to update helper prompt links:', error);
+                            // Don't fail the whole operation if linking fails
+                        }
+                    }
                 } else {
                     savedPrompt = await PromptAPI.create(payload);
                     this.showStatus('Prompt created successfully.', 'success');
+                    
+                    // Handle helper prompt linking for system prompts
+                    if (promptTypeValue === 'system' && helperPromptId) {
+                        try {
+                            await PromptAPI.linkHelperPrompt(savedPrompt.id, helperPromptId);
+                        } catch (error) {
+                            console.warn('[MODALS] Failed to link helper prompt:', error);
+                            // Don't fail the whole operation if linking fails
+                        }
+                    }
                 }
 
                 if (shouldExecute) {
@@ -516,9 +595,103 @@
                 }
             } catch (error) {
                 console.error('[MODALS] Prompt save failed:', error);
-                this.showStatus(error.message || 'Unable to save prompt.', 'error');
+                const errorMessage = error.response?.data?.detail || error.message || 'Unable to save prompt.';
+                this.showStatus(errorMessage, 'error');
             } finally {
                 this.enableSaveButtons();
+            }
+        },
+
+        /**
+         * Handle prompt type change
+         */
+        async handlePromptTypeChange() {
+            const promptType = this.elements.promptTypeInput?.value || 'system';
+            const systemMessageGroup = document.getElementById('systemMessageGroup');
+            const promptMessageGroup = document.getElementById('promptMessageGroup');
+            const helperPromptGroup = document.getElementById('helperPromptGroup');
+            const userMessageGroup = document.getElementById('userMessageGroup');
+
+            if (promptType === 'system') {
+                // Show system message field, hide prompt message field
+                if (systemMessageGroup) systemMessageGroup.style.display = 'block';
+                if (promptMessageGroup) promptMessageGroup.style.display = 'none';
+                if (helperPromptGroup) helperPromptGroup.style.display = 'block';
+                if (userMessageGroup) userMessageGroup.style.display = 'block';
+                
+                // Make system message required
+                if (this.elements.systemMessageInput) {
+                    this.elements.systemMessageInput.required = true;
+                }
+                if (this.elements.promptMessageInput) {
+                    this.elements.promptMessageInput.required = false;
+                }
+                
+                // Load helper prompts for the dropdown
+                const currentPromptId = state.get('currentPromptId');
+                await this.loadHelperPrompts(currentPromptId);
+            } else if (promptType === 'helper') {
+                // Show prompt message field, hide system message field
+                if (systemMessageGroup) systemMessageGroup.style.display = 'none';
+                if (promptMessageGroup) promptMessageGroup.style.display = 'block';
+                if (helperPromptGroup) helperPromptGroup.style.display = 'none';
+                if (userMessageGroup) userMessageGroup.style.display = 'none';
+                
+                // Make prompt message required
+                if (this.elements.systemMessageInput) {
+                    this.elements.systemMessageInput.required = false;
+                }
+                if (this.elements.promptMessageInput) {
+                    this.elements.promptMessageInput.required = true;
+                }
+            }
+        },
+
+        /**
+         * Load helper prompts into dropdown
+         * @param {string} currentPromptId - Current prompt ID (for editing, to show currently linked helper)
+         */
+        async loadHelperPrompts(currentPromptId = null) {
+            if (!this.elements.helperPromptSelect) {
+                console.warn('[MODALS] helperPromptSelect element not found');
+                return;
+            }
+
+            try {
+                console.log('[MODALS] Loading helper prompts...');
+                const helperPrompts = await PromptAPI.listHelperPrompts();
+                console.log('[MODALS] Loaded helper prompts:', helperPrompts.length);
+                
+                // Clear existing options except "None"
+                this.elements.helperPromptSelect.innerHTML = '<option value="">None</option>';
+                
+                // Add helper prompts
+                helperPrompts.forEach(helper => {
+                    const option = document.createElement('option');
+                    option.value = helper.id;
+                    option.textContent = `${helper.name} (v${helper.version})`;
+                    this.elements.helperPromptSelect.appendChild(option);
+                });
+
+                // If editing and we have a current prompt, load its linked helper
+                if (currentPromptId) {
+                    try {
+                        const linkedHelpers = await PromptAPI.getLinkedHelperPrompts(currentPromptId);
+                        if (linkedHelpers && linkedHelpers.length > 0) {
+                            // Select the first linked helper (assuming one helper per system prompt for now)
+                            const linkedHelperId = linkedHelpers[0].helper_prompt_id;
+                            if (this.elements.helperPromptSelect) {
+                                this.elements.helperPromptSelect.value = linkedHelperId;
+                                console.log('[MODALS] Selected linked helper:', linkedHelperId);
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('[MODALS] Failed to load linked helper prompts:', error);
+                    }
+                }
+            } catch (error) {
+                console.error('[MODALS] Failed to load helper prompts:', error);
+                this.showStatus('Failed to load helper prompts. Please refresh the page.', 'error');
             }
         },
 

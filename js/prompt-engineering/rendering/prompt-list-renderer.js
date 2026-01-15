@@ -60,6 +60,7 @@
                 const createdAt = latest.created_at ? new Date(latest.created_at).toLocaleDateString() : 'Unknown';
                 const purposeChip = `<span class="client-chip">${latest.prompt_purpose}</span>`;
                 const modelChip = `<span class="client-chip" style="background: #edf2f7; border-color: #cbd5e0; color: #4a5568;">${latest.llm_model}</span>`;
+                const typeBadge = getTypeBadge(latest.prompt_type || 'system');
 
                 // Build version selector if multiple versions exist
                 let versionSelector = '';
@@ -77,8 +78,12 @@
                     `;
                 }
 
-                const preview = latest.system_message.substring(0, PROMPT_PREVIEW_LENGTH);
-                const hasMore = latest.system_message.length > PROMPT_PREVIEW_LENGTH;
+                // Use appropriate message based on prompt type
+                const messageText = latest.prompt_type === 'helper' 
+                    ? (latest.prompt_message || '') 
+                    : (latest.system_message || '');
+                const preview = messageText.substring(0, PROMPT_PREVIEW_LENGTH);
+                const hasMore = messageText.length > PROMPT_PREVIEW_LENGTH;
 
                 return `
                     <article class="domain-card" data-prompt-name="${DOM.escapeHtmlForAttribute(name)}">
@@ -94,7 +99,7 @@
                             <button class="btn btn-secondary" data-action="edit-prompt" data-prompt-id="${latest.id}">Edit</button>
                         </div>
                         <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
-                            ${statusBadge} ${purposeChip} ${modelChip}
+                            ${statusBadge} ${typeBadge} ${purposeChip} ${modelChip}
                         </div>
                         <div class="description" style="font-family: monospace; font-size: 12px; max-height: 100px; overflow-y: auto; background: #f7fafc; padding: 8px; border-radius: 6px; white-space: pre-wrap; word-break: break-word;">${DOM.escapeHtml(preview)}${hasMore ? '...' : ''}</div>
                         ${versionSelector}
@@ -144,9 +149,26 @@
         return `<span class="client-chip" style="background: ${style.bg}; border-color: ${style.border}; color: ${style.color};">${status.toUpperCase()}</span>`;
     }
 
+    /**
+     * Get prompt type badge HTML
+     * @param {string} promptType - Prompt type ('system' or 'helper')
+     * @returns {string} HTML for type badge
+     */
+    function getTypeBadge(promptType) {
+        const styles = {
+            system: { bg: '#e6f3ff', border: '#b3d9ff', color: '#004085' },
+            helper: { bg: '#fff4e6', border: '#ffd9b3', color: '#663c00' }
+        };
+
+        const style = styles[promptType] || styles.system;
+        const label = promptType === 'helper' ? 'Helper' : 'System';
+        return `<span class="client-chip" style="background: ${style.bg}; border-color: ${style.border}; color: ${style.color};">${label}</span>`;
+    }
+
     // Export
     window.PromptListRenderer = {
         renderPrompts,
-        getStatusBadge
+        getStatusBadge,
+        getTypeBadge
     };
 })();

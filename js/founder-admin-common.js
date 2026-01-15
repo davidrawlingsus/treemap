@@ -174,7 +174,13 @@
                     let errorData = null;
                     try {
                         errorData = await response.json();
-                        errorMessage = errorData.detail || errorData.message || errorMessage;
+                        const detail = errorData.detail || errorData.message;
+                        // Ensure errorMessage is always a string, not an object
+                        if (typeof detail === 'string') {
+                            errorMessage = detail;
+                        } else if (detail) {
+                            errorMessage = JSON.stringify(detail);
+                        }
                     } catch (e) {
                         const errorText = await response.text();
                         if (errorText) errorMessage = errorText;
@@ -190,7 +196,9 @@
                         });
                     }
 
-                    throw new Error(errorMessage);
+                    // Ensure errorMessage is a string before creating Error
+                    const finalErrorMessage = typeof errorMessage === 'string' ? errorMessage : JSON.stringify(errorMessage);
+                    throw new Error(finalErrorMessage);
                 }
 
                 // Handle 204 No Content responses (common for DELETE operations)

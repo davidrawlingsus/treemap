@@ -134,6 +134,14 @@
                     <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Version number for this prompt</p>
                 </div>
                 <div class="form-group">
+                    <label for="promptTypeInput">Prompt Type</label>
+                    <select id="promptTypeInput" required>
+                        <option value="system" selected>System Prompt</option>
+                        <option value="helper">Helper Prompt</option>
+                    </select>
+                    <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">System prompts are main prompts, helper prompts provide additional instructions</p>
+                </div>
+                <div class="form-group">
                     <label for="promptPurposeInput">Purpose</label>
                     <div style="display: flex; gap: 8px; align-items: flex-start;">
                         <select id="promptPurposeInput" required style="flex: 1;">
@@ -181,15 +189,27 @@
                     </select>
                     <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Select the LLM model to use for this prompt</p>
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="systemMessageGroup">
                     <label for="systemMessageInput">System Message</label>
-                    <textarea id="systemMessageInput" placeholder="Enter the system prompt text here..." style="min-height: 300px; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; line-height: 1.6;" required></textarea>
-                    <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">The system message that will be sent to the LLM</p>
+                    <textarea id="systemMessageInput" placeholder="Enter the system prompt text here..." style="width: 100%; min-height: 300px; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; line-height: 1.6; box-sizing: border-box;"></textarea>
+                    <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">The system message that will be sent to the LLM (required for system prompts)</p>
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="helperPromptGroup" style="display: none;">
+                    <label for="helperPromptSelect">Helper Prompt</label>
+                    <select id="helperPromptSelect" style="width: 100%;">
+                        <option value="">None</option>
+                    </select>
+                    <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Select a helper prompt to append to the user message (optional)</p>
+                </div>
+                <div class="form-group" id="promptMessageGroup" style="display: none;">
+                    <label for="promptMessageInput">Prompt Message</label>
+                    <textarea id="promptMessageInput" placeholder="Enter the helper prompt message here..." style="width: 100%; min-height: 300px; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; line-height: 1.6; box-sizing: border-box;"></textarea>
+                    <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">The prompt message that will be appended to the user message (required for helper prompts)</p>
+                </div>
+                <div class="form-group" id="userMessageGroup">
                     <label for="userMessageInput">Prompt Messages</label>
-                    <textarea id="userMessageInput" placeholder="Enter user message (e.g., URL, verbatim JSON, etc.)" style="min-height: 200px; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; line-height: 1.6;" required></textarea>
-                    <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">The user input that will be sent with the system message to the LLM</p>
+                    <textarea id="userMessageInput" placeholder="Enter user message (e.g., URL, verbatim JSON, etc.)" style="width: 100%; min-height: 200px; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; font-size: 13px; line-height: 1.6; box-sizing: border-box;"></textarea>
+                    <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">The user input that will be sent with the system message to the LLM (for testing)</p>
                 </div>
             </form>
             <div id="addPurposeModal" class="modal-backdrop">

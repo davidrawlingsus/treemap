@@ -14,8 +14,8 @@ import json
 import logging
 
 from app.database import get_db
-from app.models import User, Prompt, Client, Action
-from app.schemas import PromptResponse, PromptCreate, PromptUpdate, ActionResponse
+from app.models import User, Prompt, Client, Action, PromptHelperPrompt
+from app.schemas import PromptResponse, PromptCreate, PromptUpdate, ActionResponse, PromptHelperPromptResponse
 from app.auth import get_current_active_founder
 from app.services.llm_service import LLMService
 
@@ -78,6 +78,19 @@ def list_prompts_for_founder(
 
 
 @router.get(
+    "/api/founder/prompts/helpers",
+    response_model=List[PromptResponse],
+)
+def list_helper_prompts(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """List all helper prompts."""
+    prompts = db.query(Prompt).filter(Prompt.prompt_type == 'helper').order_by(Prompt.name, Prompt.version.desc()).all()
+    return prompts
+
+
+@router.get(
     "/api/founder/prompts/{prompt_id}",
     response_model=PromptResponse,
 )
@@ -104,11 +117,37 @@ def create_prompt_for_founder(
     current_user: User = Depends(get_current_active_founder),
 ):
     """Create a new prompt."""
+    logger.info(f"Creating prompt: name={payload.name}, version={payload.version}, type={payload.prompt_type}")
+    
+    # Validation based on prompt type
+    if payload.prompt_type == 'system':
+        if not payload.system_message:
+            raise HTTPException(
+                status_code=400,
+                detail="System prompts require a system_message."
+            )
+    elif payload.prompt_type == 'helper':
+        if not payload.prompt_message:
+            logger.error(f"Helper prompt validation failed: prompt_message is empty or None")
+            raise HTTPException(
+                status_code=400,
+                detail="Helper prompts require a prompt_message."
+            )
+        # Allow system_message to be None or not provided for helper prompts
+        # We'll explicitly set it to None when creating
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="prompt_type must be 'system' or 'helper'."
+        )
+    
     try:
         prompt = Prompt(
             name=payload.name,
             version=payload.version,
-            system_message=payload.system_message,
+            prompt_type=payload.prompt_type,
+            system_message=payload.system_message if payload.prompt_type == 'system' else None,
+            prompt_message=payload.prompt_message if payload.prompt_type == 'helper' else None,
             prompt_purpose=payload.prompt_purpose,
             status=payload.status,
             llm_model=payload.llm_model,
@@ -116,6 +155,7 @@ def create_prompt_for_founder(
         db.add(prompt)
         db.commit()
         db.refresh(prompt)
+        logger.info(f"Successfully created prompt: id={prompt.id}, name={prompt.name}, type={prompt.prompt_type}")
         return prompt
     except IntegrityError:
         db.rollback()
@@ -149,14 +189,36 @@ def update_prompt_for_founder(
         prompt.name = payload.name
     if payload.version is not None:
         prompt.version = payload.version
+    if payload.prompt_type is not None:
+        prompt.prompt_type = payload.prompt_type
     if payload.system_message is not None:
         prompt.system_message = payload.system_message
+    if payload.prompt_message is not None:
+        prompt.prompt_message = payload.prompt_message
     if payload.prompt_purpose is not None:
         prompt.prompt_purpose = payload.prompt_purpose
     if payload.status is not None:
         prompt.status = payload.status
     if payload.llm_model is not None:
         prompt.llm_model = payload.llm_model
+    
+    # Validate after updates
+    if prompt.prompt_type == 'system' and not prompt.system_message:
+        raise HTTPException(
+            status_code=400,
+            detail="System prompts require a system_message."
+        )
+    if prompt.prompt_type == 'helper':
+        if not prompt.prompt_message:
+            raise HTTPException(
+                status_code=400,
+                detail="Helper prompts require a prompt_message."
+            )
+        if prompt.system_message:
+            raise HTTPException(
+                status_code=400,
+                detail="Helper prompts cannot have a system_message."
+            )
     
     try:
         db.commit()
@@ -271,14 +333,31 @@ def execute_prompt_for_founder(
         raise HTTPException(status_code=404, detail="Prompt not found.")
     
     try:
-        logger.info(f"Executing prompt {prompt_id} with model: {prompt.llm_model}, user_message length: {len(payload.user_message) if payload.user_message else 0}, stream: {stream}")
+        # Append helper prompts to user message if this is a system prompt with linked helpers
+        user_message = payload.user_message
+        if prompt.prompt_type == 'system':
+            helper_links = db.query(PromptHelperPrompt).filter(
+                PromptHelperPrompt.system_prompt_id == prompt.id
+            ).all()
+            
+            if helper_links:
+                helper_messages = []
+                for link in helper_links:
+                    helper_prompt = db.query(Prompt).filter(Prompt.id == link.helper_prompt_id).first()
+                    if helper_prompt and helper_prompt.prompt_message:
+                        helper_messages.append(helper_prompt.prompt_message)
+                
+                if helper_messages:
+                    user_message = (user_message + "\n\n" + "\n\n".join(helper_messages)) if user_message else "\n\n".join(helper_messages)
+        
+        logger.info(f"Executing prompt {prompt_id} with model: {prompt.llm_model}, user_message length: {len(user_message) if user_message else 0}, stream: {stream}")
         
         if stream:
             # Store prompt values before creating generator (to avoid session issues)
             prompt_id_value = prompt.id
             prompt_system_message = prompt.system_message
             prompt_llm_model = prompt.llm_model
-            user_message_value = payload.user_message
+            user_message_value = user_message
             
             # Streaming mode - return SSE response
             def generate_stream():
@@ -377,7 +456,7 @@ def execute_prompt_for_founder(
             # Non-streaming mode (backward compatible)
             result = llm_service.execute_prompt(
                 system_message=prompt.system_message,
-                user_message=payload.user_message,
+                user_message=user_message,
                 model=prompt.llm_model
             )
             
@@ -388,7 +467,7 @@ def execute_prompt_for_founder(
             
             # Combine system and user messages for prompt_text_sent
             # Format: "System: {system_message}\n\nUser: {user_message}"
-            prompt_text_sent = f"System: {prompt.system_message}\n\nUser: {payload.user_message}"
+            prompt_text_sent = f"System: {prompt.system_message}\n\nUser: {user_message}"
             
             # Create action record to save the execution result
             action = Action(
@@ -411,4 +490,100 @@ def execute_prompt_for_founder(
         db.rollback()
         logger.error(f"Failed to execute prompt: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to execute prompt: {str(exc)}")
+
+
+@router.get(
+    "/api/founder/prompts/{system_prompt_id}/helper-prompts",
+    response_model=List[PromptHelperPromptResponse],
+)
+def get_linked_helper_prompts(
+    system_prompt_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Get all helper prompts linked to a system prompt."""
+    links = db.query(PromptHelperPrompt).filter(
+        PromptHelperPrompt.system_prompt_id == system_prompt_id
+    ).all()
+    return links
+
+
+@router.post(
+    "/api/founder/prompts/{system_prompt_id}/helper-prompts/{helper_prompt_id}",
+    response_model=PromptHelperPromptResponse,
+    status_code=201,
+)
+def link_helper_prompt(
+    system_prompt_id: UUID,
+    helper_prompt_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Link a helper prompt to a system prompt."""
+    # Verify system prompt exists and is a system prompt
+    system_prompt = db.query(Prompt).filter(Prompt.id == system_prompt_id).first()
+    if not system_prompt:
+        raise HTTPException(status_code=404, detail="System prompt not found.")
+    if system_prompt.prompt_type != 'system':
+        raise HTTPException(status_code=400, detail="The specified prompt is not a system prompt.")
+    
+    # Verify helper prompt exists and is a helper prompt
+    helper_prompt = db.query(Prompt).filter(Prompt.id == helper_prompt_id).first()
+    if not helper_prompt:
+        raise HTTPException(status_code=404, detail="Helper prompt not found.")
+    if helper_prompt.prompt_type != 'helper':
+        raise HTTPException(status_code=400, detail="The specified prompt is not a helper prompt.")
+    
+    # Check if link already exists
+    existing_link = db.query(PromptHelperPrompt).filter(
+        PromptHelperPrompt.system_prompt_id == system_prompt_id,
+        PromptHelperPrompt.helper_prompt_id == helper_prompt_id
+    ).first()
+    
+    if existing_link:
+        raise HTTPException(status_code=400, detail="This helper prompt is already linked to the system prompt.")
+    
+    try:
+        link = PromptHelperPrompt(
+            system_prompt_id=system_prompt_id,
+            helper_prompt_id=helper_prompt_id
+        )
+        db.add(link)
+        db.commit()
+        db.refresh(link)
+        return link
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Failed to create link.")
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@router.delete(
+    "/api/founder/prompts/{system_prompt_id}/helper-prompts/{helper_prompt_id}",
+    status_code=204,
+)
+def unlink_helper_prompt(
+    system_prompt_id: UUID,
+    helper_prompt_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Unlink a helper prompt from a system prompt."""
+    link = db.query(PromptHelperPrompt).filter(
+        PromptHelperPrompt.system_prompt_id == system_prompt_id,
+        PromptHelperPrompt.helper_prompt_id == helper_prompt_id
+    ).first()
+    
+    if not link:
+        raise HTTPException(status_code=404, detail="Link not found.")
+    
+    try:
+        db.delete(link)
+        db.commit()
+        return None
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
 

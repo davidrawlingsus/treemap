@@ -400,7 +400,13 @@
         }
         
         // Get voc_json from stored action data (for history items) or currentVocData (for AI expert)
-        const vocJsonData = slideoutPanel.currentActionVocJson || slideoutPanel.currentVocData || null;
+        let vocJsonData = slideoutPanel.currentActionVocJson || slideoutPanel.currentVocData || null;
+        
+        // Ensure voc_json is an object (dict), not an array
+        // Backend expects Optional[Dict[str, Any]], but currentVocData might be an array
+        if (Array.isArray(vocJsonData)) {
+            vocJsonData = { verbatims: vocJsonData };
+        }
 
         // Get API base URL
         const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
@@ -447,7 +453,24 @@
 
         if (!response.ok) {
             const error = await response.json().catch(() => ({ detail: 'Failed to create insight' }));
-            throw new Error(error.detail || `Failed to create insight: ${response.statusText}`);
+            
+            // FastAPI validation errors come as an array of error objects
+            // Format: [{ "type": "...", "loc": [...], "msg": "...", "input": ... }]
+            let errorMessage = 'Failed to create insight';
+            if (Array.isArray(error.detail)) {
+                // Extract the first error message, or combine all messages
+                const errorMessages = error.detail.map(err => {
+                    const field = err.loc && err.loc.length > 1 ? err.loc[err.loc.length - 1] : 'field';
+                    return `${field}: ${err.msg}`;
+                });
+                errorMessage = errorMessages.join('; ') || errorMessage;
+            } else if (error.detail) {
+                errorMessage = typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail);
+            } else if (response.statusText) {
+                errorMessage = `Failed to create insight: ${response.statusText}`;
+            }
+            
+            throw new Error(errorMessage);
         }
 
         return await response.json();

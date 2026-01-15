@@ -502,6 +502,22 @@ def execute_client_prompt(
         voc_json = json.dumps(payload.voc_data, indent=2)
         user_message_parts.append(f"\n\nVoice of Customer Data:\n{voc_json}")
         
+        # Append helper prompts if linked to this system prompt
+        from app.models import PromptHelperPrompt
+        helper_links = db.query(PromptHelperPrompt).filter(
+            PromptHelperPrompt.system_prompt_id == prompt.id
+        ).all()
+        
+        if helper_links:
+            helper_messages = []
+            for link in helper_links:
+                helper_prompt = db.query(Prompt).filter(Prompt.id == link.helper_prompt_id).first()
+                if helper_prompt and helper_prompt.prompt_message:
+                    helper_messages.append(helper_prompt.prompt_message)
+            
+            if helper_messages:
+                user_message_parts.append("\n\n" + "\n\n".join(helper_messages))
+        
         user_message = "\n".join(user_message_parts)
         
         logger.info(

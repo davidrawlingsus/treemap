@@ -18219,6 +18219,10 @@
                 const categoryName = origin.category || null;
                 const topicName = origin.topic_label || null;
                 
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:18216',message:'History tab origin data',data:{dataSource,origin:JSON.stringify(origin),actionId:action.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                // #endregion
+                
                 // Build origin breadcrumb pills with PascalCase formatting (excluding project)
                 const originPills = [];
                 if (dimensionName && dimensionRef) {
@@ -18235,6 +18239,19 @@
                 if (topicName) {
                     const pascalTopic = toPascalCase(topicName);
                     originPills.push(`<span class="tag tag-topic insight-origin-pill" data-origin-type="topic" data-category="${categoryName ? escapeHtml(categoryName) : ''}" data-topic="${escapeHtml(topicName)}" data-data-source="${dataSource || ''}" data-dimension="${dimensionName || ''}" data-dimension-ref="${dimensionRef || ''}" onclick="event.stopPropagation(); navigateToTopicFromInsight('${escapeHtml(topicName)}', '${categoryName ? escapeHtml(categoryName) : ''}', '${dataSource || ''}', '${dimensionRef || ''}')" style="cursor: pointer;">${escapeHtml(pascalTopic)}</span>`);
+                }
+                // Display data source name if no other origin pills and data source exists
+                if (originPills.length === 0 && dataSource) {
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:18243',message:'Displaying data source name in history',data:{dataSource,formatted:toPascalCase(dataSource)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                    // #endregion
+                    // Fix common typo: "Faceboo Ads" -> "Facebook Ads"
+                    let correctedDataSource = dataSource;
+                    if (dataSource && typeof dataSource === 'string') {
+                        correctedDataSource = dataSource.replace(/Faceboo\s+Ads/gi, 'Facebook Ads');
+                    }
+                    const pascalDataSource = toPascalCase(correctedDataSource);
+                    originPills.push(`<span class="tag tag-data-source insight-origin-pill">${escapeHtml(pascalDataSource)}</span>`);
                 }
                 
                 const originContent = originPills.length > 0 

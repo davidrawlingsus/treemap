@@ -99,6 +99,53 @@
         },
 
         /**
+         * List all helper prompts
+         * @returns {Promise<Array>} Array of helper prompts
+         */
+        async listHelperPrompts() {
+            const cacheKey = getCacheKey('/api/founder/prompts/helpers', {});
+            const cached = getCached(cacheKey);
+            if (cached) return cached;
+            const result = await API.get('/api/founder/prompts/helpers');
+            setCache(cacheKey, result);
+            return result;
+        },
+
+        /**
+         * Link a helper prompt to a system prompt
+         * @param {string} systemPromptId - System prompt ID
+         * @param {string} helperPromptId - Helper prompt ID
+         * @returns {Promise<Object>} Link object
+         */
+        async linkHelperPrompt(systemPromptId, helperPromptId) {
+            const result = await API.post(`/api/founder/prompts/${systemPromptId}/helper-prompts/${helperPromptId}`);
+            // Clear cache since prompts list changed
+            cache.clear();
+            return result;
+        },
+
+        /**
+         * Unlink a helper prompt from a system prompt
+         * @param {string} systemPromptId - System prompt ID
+         * @param {string} helperPromptId - Helper prompt ID
+         * @returns {Promise<void>}
+         */
+        async unlinkHelperPrompt(systemPromptId, helperPromptId) {
+            await API.delete(`/api/founder/prompts/${systemPromptId}/helper-prompts/${helperPromptId}`);
+            // Clear cache since prompts list changed
+            cache.clear();
+        },
+
+        /**
+         * Get linked helper prompts for a system prompt
+         * @param {string} systemPromptId - System prompt ID
+         * @returns {Promise<Array>} Array of linked helper prompt links
+         */
+        async getLinkedHelperPrompts(systemPromptId) {
+            return API.get(`/api/founder/prompts/${systemPromptId}/helper-prompts`);
+        },
+
+        /**
          * Delete a prompt
          * @param {number} promptId - Prompt ID
          * @returns {Promise<void>}
