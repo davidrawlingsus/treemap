@@ -15672,6 +15672,17 @@
                     return;
                 }
                 
+                // Attach idea card listeners immediately so they work during streaming
+                // Event delegation means they'll work for idea cards added dynamically
+                const slideoutContent = document.getElementById('slideoutContent');
+                if (slideoutContent) {
+                    if (renderer.attachIdeaCardListeners) {
+                        renderer.attachIdeaCardListeners(slideoutContent);
+                    } else if (window.ActionRenderer && window.ActionRenderer.attachIdeaCardListeners) {
+                        window.ActionRenderer.attachIdeaCardListeners(slideoutContent);
+                    }
+                }
+                
                 // Start streaming
                 try {
                     await window.ClientPromptAPI.executeStream(
@@ -15687,17 +15698,8 @@
                             console.log('[openAIExpertInsight] Streaming completed', metadata);
                             renderer.finalizeStreamingItem(streamingItem, metadata);
                             
-                            // Attach idea card listeners to the slideoutContent container
-                            // This must happen after finalizeStreamingItem so idea cards are in the DOM
-                            // Attach to slideoutContent (parent container) so listeners persist even if streamingItem is removed
-                            const slideoutContent = document.getElementById('slideoutContent');
-                            if (slideoutContent) {
-                                if (renderer.attachIdeaCardListeners) {
-                                    renderer.attachIdeaCardListeners(slideoutContent);
-                                } else if (window.ActionRenderer && window.ActionRenderer.attachIdeaCardListeners) {
-                                    window.ActionRenderer.attachIdeaCardListeners(slideoutContent);
-                                }
-                            }
+                            // Note: Idea card listeners were already attached before streaming started
+                            // They use event delegation so they work for dynamically added idea cards
                             
                             // Extract content from streaming item
                             const contentElement = streamingItem.querySelector('.prompt-result-content');
@@ -15901,6 +15903,17 @@
                     return;
                 }
 
+                // Attach idea card listeners immediately so they work during streaming
+                // Event delegation means they'll work for idea cards added dynamically
+                const slideoutContentForSummary = document.getElementById('slideoutContent');
+                if (slideoutContentForSummary) {
+                    if (renderer.attachIdeaCardListeners) {
+                        renderer.attachIdeaCardListeners(slideoutContentForSummary);
+                    } else if (window.ActionRenderer && window.ActionRenderer.attachIdeaCardListeners) {
+                        window.ActionRenderer.attachIdeaCardListeners(slideoutContentForSummary);
+                    }
+                }
+
                 try {
                     await window.ClientPromptAPI.executeStream(
                         currentClientId,
@@ -15913,14 +15926,8 @@
                             console.log('[openAIOverviewSummary] Streaming completed', metadata);
                             renderer.finalizeStreamingItem(streamingItem, metadata);
 
-                            const slideoutContent = document.getElementById('slideoutContent');
-                            if (slideoutContent) {
-                                if (renderer.attachIdeaCardListeners) {
-                                    renderer.attachIdeaCardListeners(slideoutContent);
-                                } else if (window.ActionRenderer && window.ActionRenderer.attachIdeaCardListeners) {
-                                    window.ActionRenderer.attachIdeaCardListeners(slideoutContent);
-                                }
-                            }
+                            // Note: Idea card listeners were already attached before streaming started
+                            // They use event delegation so they work for dynamically added idea cards
 
                             // Extract HTML content from streaming item
                             const contentElement = streamingItem.querySelector('.prompt-result-content');

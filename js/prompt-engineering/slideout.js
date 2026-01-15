@@ -171,6 +171,12 @@
                     throw new Error('Failed to create streaming result item');
                 }
 
+                // Attach idea card listeners immediately so they work during streaming
+                // Event delegation means they'll work for idea cards added dynamically
+                if (content && UIRenderer.attachIdeaCardListeners) {
+                    UIRenderer.attachIdeaCardListeners(content);
+                }
+
                 console.log('[SLIDEOUT] Calling PromptAPI.executeStream() from executePrompt()', {
                     promptId,
                     userMessageLength: userMessage.length,
@@ -437,6 +443,12 @@
                     // Remove from active requests if creation failed
                     this.activeStreamingRequests.delete(streamingRequestId);
                     throw new Error('Failed to create streaming result item');
+                }
+
+                // Attach idea card listeners immediately so they work during streaming
+                // Event delegation means they'll work for idea cards added dynamically
+                if (content && UIRenderer.attachIdeaCardListeners) {
+                    UIRenderer.attachIdeaCardListeners(content);
                 }
 
                 // Clear the input immediately
