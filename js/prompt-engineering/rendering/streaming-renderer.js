@@ -204,9 +204,89 @@
             // Store in WeakMap instead of data attribute
             streamingContentStore.set(contentElement, newText);
 
-            // Render markdown and update innerHTML
+            // Render markdown to get new HTML
             const markdownHTML = convertMarkdown(newText);
-            contentElement.innerHTML = markdownHTML;
+            
+            // OPTIMIZATION: Detect if idea cards have changed to avoid unnecessary re-rendering
+            // that destroys button DOM elements (breaks click events during streaming)
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = markdownHTML;
+            
+            const newCards = Array.from(tempDiv.querySelectorAll('.pe-idea-card'));
+            const existingCards = Array.from(contentElement.querySelectorAll('.pe-idea-card'));
+            
+            // Create signatures to compare cards by their IDs
+            const newCardSignatures = new Set(newCards.map(card => card.getAttribute('data-idea-id')).filter(Boolean));
+            const existingCardSignatures = new Set(existingCards.map(card => card.getAttribute('data-idea-id')).filter(Boolean));
+            
+            // Check if the cards have actually changed (count or IDs differ)
+            const cardsChanged = newCards.length !== existingCards.length ||
+                                !Array.from(newCardSignatures).every(sig => existingCardSignatures.has(sig));
+            
+            if (!cardsChanged && existingCards.length > 0) {
+                // Cards haven't changed - preserve existing card DOM elements entirely
+                // and only update the streaming content that appears after the last card
+                const lastExistingCard = existingCards[existingCards.length - 1];
+                const lastNewCard = newCards[newCards.length - 1];
+                
+                if (lastExistingCard && lastNewCard) {
+                    // Get all content after the last card in the new HTML
+                    const nodesAfterLastCard = [];
+                    let foundLastCard = false;
+                    
+                    for (let node of tempDiv.childNodes) {
+                        if (foundLastCard) {
+                            nodesAfterLastCard.push(node.cloneNode(true));
+                        } else if (node === lastNewCard) {
+                            foundLastCard = true;
+                        }
+                    }
+                    
+                    // Remove content after the last existing card
+                    let currentNode = lastExistingCard.nextSibling;
+                    while (currentNode) {
+                        const nextNode = currentNode.nextSibling;
+                        contentElement.removeChild(currentNode);
+                        currentNode = nextNode;
+                    }
+                    
+                    // Append new content after the last card
+                    nodesAfterLastCard.forEach(node => {
+                        contentElement.appendChild(node);
+                    });
+                    
+                    return; // Skip full re-render
+                }
+            }
+            
+            // Cards have changed OR no cards exist - do full re-render with preservation
+            const preservedCards = new Map();
+            existingCards.forEach(card => {
+                const cardId = card.getAttribute('data-idea-id');
+                if (cardId) {
+                    preservedCards.set(cardId, card);
+                }
+            });
+            
+            // Replace new cards with preserved cards where IDs match
+            newCards.forEach(newCard => {
+                const cardId = newCard.getAttribute('data-idea-id');
+                const preservedCard = preservedCards.get(cardId);
+                
+                if (preservedCard && newCard.parentNode) {
+                    newCard.parentNode.replaceChild(preservedCard, newCard);
+                }
+            });
+            
+            // Clear existing content
+            while (contentElement.firstChild) {
+                contentElement.removeChild(contentElement.firstChild);
+            }
+            
+            // Append all nodes from tempDiv (this preserves the actual DOM elements we swapped in)
+            while (tempDiv.firstChild) {
+                contentElement.appendChild(tempDiv.firstChild);
+            }
         } catch (error) {
             console.error('[STREAMING] Error in appendToStreamingItem:', error);
             throw error;
