@@ -1719,6 +1719,22 @@
             max-width: 40%;
         }
 
+        /* Pinned overview rows styling */
+        .insights-table-section .notion-table tbody tr.pinned-overview {
+            background: rgba(185, 240, 64, 0.1); /* Subtle lime background */
+        }
+
+        .insights-table-section .notion-table tbody tr.pinned-overview:hover {
+            background: rgba(185, 240, 64, 0.15); /* Slightly more visible on hover */
+        }
+
+        .insights-table-section .notion-table tbody tr.pinned-overview .pin-icon {
+            width: 16px;
+            height: 16px;
+            flex-shrink: 0;
+            opacity: 0.8;
+        }
+
         /* Fixed width for Status column in insights section */
         #insights-section .notion-table th[data-column="status"],
         #insights-section .notion-table td[data-column="status"] {
@@ -7479,6 +7495,11 @@
                         window.AIInsightsPanel.setCurrentDimension(selectedRefKey);
                     }
                     
+                    // Re-render insights table so pinning updates for the new dimension
+                    if (typeof renderInsights === 'function') {
+                        renderInsights();
+                    }
+                    
                     // Show/hide dimension name editor based on selection
                     if (selectedRefKey && selectedRefKey !== '') {
                         dimensionNameEditor.style.display = 'none'; // Hidden for now
@@ -12583,6 +12604,11 @@
                     if (window.AIInsightsPanel) {
                         window.AIInsightsPanel.setCurrentDimension(dimensionRef);
                     }
+                    
+                    // Re-render insights table so pinning updates for the new dimension
+                    if (typeof renderInsights === 'function') {
+                        renderInsights();
+                    }
                 }
             }
         }
@@ -12660,6 +12686,11 @@
                         // Update AI Insights panel
                         if (window.AIInsightsPanel) {
                             window.AIInsightsPanel.setCurrentDimension(dimensionRef);
+                        }
+                        
+                        // Re-render insights table so pinning updates for the new dimension
+                        if (typeof renderInsights === 'function') {
+                            renderInsights();
                         }
                     } else {
                         console.warn('[InsightOriginNav] Dimension', dimensionRef, 'not available in current data source. Available:', availableQuestions);
@@ -15237,6 +15268,11 @@
                                 if (window.AIInsightsPanel) {
                                     window.AIInsightsPanel.setCurrentDimension(dimRef);
                                 }
+                                
+                                // Re-render insights table so pinning updates for the new dimension
+                                if (typeof renderInsights === 'function') {
+                                    renderInsights();
+                                }
                             }
                         } else if (clickType === 'category' || clickType === 'topic') {
                             // For create mode, we need to find the data source ID from the name
@@ -16005,6 +16041,11 @@
                                 if (window.AIInsightsPanel) {
                                     window.AIInsightsPanel.setCurrentDimension(dimRef);
                                 }
+                                
+                                // Re-render insights table so pinning updates for the new dimension
+                                if (typeof renderInsights === 'function') {
+                                    renderInsights();
+                                }
                             }
                         } else if (clickType === 'topic' && topName && catName) {
                             // Topic click: go directly to verbatims
@@ -16047,8 +16088,34 @@
                 console.log('[initializeInsightPanel] Initializing editor with notes:', insight.notes);
                 console.log('[initializeInsightPanel] Notes length:', insight.notes?.length);
                 console.log('[initializeInsightPanel] Notes contains img:', insight.notes?.includes('<img'));
+                
+                // Convert markdown to HTML if needed
+                // When insights are saved from streaming, they should already be HTML, but if the saved
+                // content contains markdown syntax and isn't already converted HTML, convert it
+                let notesContent = insight.notes || '';
+                if (notesContent && typeof notesContent === 'string') {
+                    // Check if content contains markdown syntax
+                    const hasMarkdownSyntax = /(\*\*|__|\*|_|#+\s|```|`|\[.*\]\(.*\))/.test(notesContent);
+                    
+                    // Check if content is already HTML (has multiple HTML tags)
+                    const htmlTagCount = (notesContent.match(/<[^>]+>/g) || []).length;
+                    const isAlreadyHTML = htmlTagCount >= 3; // If 3+ HTML tags, likely already converted
+                    
+                    // If markdown syntax is present but content isn't already HTML, convert it
+                    if (hasMarkdownSyntax && !isAlreadyHTML) {
+                        console.log('[initializeInsightPanel] Converting markdown to HTML');
+                        // Use MarkdownConverter if available (same one used during streaming)
+                        if (window.MarkdownConverter && window.MarkdownConverter.convertMarkdown) {
+                            notesContent = window.MarkdownConverter.convertMarkdown(notesContent);
+                        } else if (this.convertMarkdown) {
+                            // Fallback to SlideoutPanel's convertMarkdown
+                            notesContent = this.convertMarkdown(notesContent);
+                        }
+                    }
+                }
+                
                 try {
-                    await this.initializeInsightEditor(document.getElementById('insightNotesEditor'), insight.notes || '');
+                    await this.initializeInsightEditor(document.getElementById('insightNotesEditor'), notesContent);
                     console.log('[initializeInsightPanel] Editor initialization completed');
                 } catch (error) {
                     console.error('[initializeInsightPanel] Error initializing editor:', error);
@@ -18586,8 +18653,25 @@
             const isPinnedOverview = (insight) => {
                 if (insight.type !== 'Overview') return false;
                 if (!currentQuestionRefKey) return false; // No dimension selected, don't pin
+                
                 const origin = insight.origins?.[0] || {};
-                return origin.dimension_ref === currentQuestionRefKey;
+                
+                // Match by dimension_ref (primary)
+                if (origin.dimension_ref === currentQuestionRefKey) {
+                    return true;
+                }
+                
+                // Fallback: Match by dimension name if dimension_ref doesn't match
+                // Extract dimension name from insight name (format: "Overview: [Dimension Name]" or "Overview: - [Dimension Name]")
+                const insightDimensionName = insight.name?.replace(/^Overview:\s*-?\s*/, '').trim() || '';
+                const currentDimensionName = currentQuestionRefKey ? getDimensionDisplayName(currentQuestionRefKey) : null;
+                
+                // Match by dimension name if available
+                if (insightDimensionName && currentDimensionName && insightDimensionName === currentDimensionName) {
+                    return true;
+                }
+                
+                return false;
             };
 
             // Apply sorting with pinning
@@ -18637,13 +18721,23 @@
                 const insightName = toPascalCase(insight.name || '');
                 const highlightedName = insightsSearchTerm ? highlightSearchTerms(insightName, insightsSearchTerm) : escapeHtml(insightName);
 
+                // Check if this insight is pinned
+                const isPinned = isPinnedOverview(insight);
+                const pinnedClass = isPinned ? 'pinned-overview' : '';
+                const pinIconUrl = 'https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1768438528602-0zkm0h.svg';
+                
+                // Use pin icon for pinned items, doc icon for others
+                const iconHTML = isPinned
+                    ? `<img src="${pinIconUrl}" alt="Pinned" class="pin-icon" width="16" height="16">`
+                    : `<svg class="doc-icon" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M2.5 2.5h11l.5.5v10l-.5.5h-11l-.5-.5V3l.5-.5zM3 4v8h10V4H3zm2 1h6v1H5V5zm0 2h6v1H5V7zm0 2h4v1H5V9z"/>
+                    </svg>`;
+
                 return `
-                    <tr data-insight-id="${insight.id}" onclick="SlideoutPanel.openInsightNotes('${insight.id}')" style="cursor: pointer;">
+                    <tr data-insight-id="${insight.id}" class="${pinnedClass}" onclick="SlideoutPanel.openInsightNotes('${insight.id}')" style="cursor: pointer;">
                         <td class="name-cell">
                             <div class="name-content" style="position: relative;">
-                                <svg class="doc-icon" viewBox="0 0 16 16" fill="currentColor">
-                                    <path d="M2.5 2.5h11l.5.5v10l-.5.5h-11l-.5-.5V3l.5-.5zM3 4v8h10V4H3zm2 1h6v1H5V5zm0 2h6v1H5V7zm0 2h4v1H5V9z"/>
-                                </svg>
+                                ${iconHTML}
                                 <span>${highlightedName}</span>
                                 <button class="insight-open-btn-table" onclick="SlideoutPanel.openInsightNotes('${insight.id}')" title="Open in side peek" style="display: none;">
                                     <span style="font-size: 12px; margin-right: 4px;">OPEN</span>
