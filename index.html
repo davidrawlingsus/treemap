@@ -4156,6 +4156,7 @@
         .insight-attribute-row {
             display: flex;
             align-items: center;
+            gap: 0.5rem; /* 8px spacing between label and content */
             min-height: 32px;
             padding: 0.25rem 0; /* 4px */
         }
@@ -5112,6 +5113,7 @@
         .insight-attribute-row {
             display: flex;
             align-items: center;
+            gap: 0.5rem; /* 8px spacing between label and content */
             min-height: 32px;
             padding: 0.25rem 0;
         }
@@ -15517,10 +15519,14 @@
                 }
 
                 try {
-                    // Build insight name from dimension name
-                    const dimensionName = currentQuestionRefKey 
+                    // Build insight name from dimension name, stripping leading numbers
+                    let dimensionName = currentQuestionRefKey 
                         ? getDimensionDisplayName(currentQuestionRefKey)
                         : 'All Dimensions';
+                    
+                    // Strip leading numbers and spaces (e.g., "13 Trusted Personalities" -> "Trusted Personalities")
+                    dimensionName = dimensionName.replace(/^\d+\s+/, '').trim();
+                    
                     const insightName = `Overview: ${dimensionName}`;
 
                     // Create origin object with only data_source and dimension info
