@@ -18961,19 +18961,33 @@
             let overviewPromptId = null;
             try {
                 const prompts = await window.ClientPromptAPI.listPrompts(currentClientId);
+                console.log('[openAIOverviewFromVisualizations] Available prompts:', prompts);
+                
+                // Search for overview prompt with flexible matching
                 const overviewPrompt = (prompts || []).find(prompt => {
                     const name = (prompt.name || '').trim().toLowerCase();
-                    return name === 'overview' || name.includes('overview');
+                    // Match various forms: "overview", "ai overview", "Overview Summary", etc.
+                    return name === 'overview' || 
+                           name === 'ai overview' || 
+                           name.includes('overview') ||
+                           name.includes('ai_overview');
                 });
+                
                 if (overviewPrompt) {
                     overviewPromptId = overviewPrompt.id;
+                    console.log('[openAIOverviewFromVisualizations] Found overview prompt:', overviewPrompt);
+                } else {
+                    console.warn('[openAIOverviewFromVisualizations] No overview prompt found. Available prompts:', 
+                        prompts.map(p => p.name));
                 }
             } catch (error) {
                 console.error('[openAIOverviewFromVisualizations] Failed to load prompts:', error);
             }
 
             if (!overviewPromptId) {
-                alert('Unable to find the "overview" prompt. Please check your prompt list.');
+                const availablePrompts = await window.ClientPromptAPI.listPrompts(currentClientId).catch(() => []);
+                const promptNames = availablePrompts.map(p => p.name).join(', ');
+                alert(`Unable to find the "overview" prompt. Available prompts: ${promptNames || 'none'}. Please create a prompt with "overview" in its name.`);
                 return;
             }
 
@@ -19031,7 +19045,11 @@
                     // Filter out the "overview" prompt since it's already shown as a separate option
                     const expertPrompts = prompts.filter(prompt => {
                         const name = (prompt.name || '').trim().toLowerCase();
-                        return name !== 'overview' && !name.includes('overview');
+                        // Exclude overview prompts (various forms)
+                        return name !== 'overview' && 
+                               name !== 'ai overview' && 
+                               !name.includes('overview') && 
+                               !name.includes('ai_overview');
                     });
 
                     if (expertPrompts.length === 0) {
