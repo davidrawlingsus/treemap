@@ -1671,6 +1671,65 @@
             background: #f5f5f5;
         }
 
+        .ai-button-container {
+            position: relative;
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        .ai-dropdown-menu {
+            display: none;
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            min-width: 180px;
+            background: #fff;
+            border: 1px solid #e8e8e8;
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            padding: 6px;
+            z-index: 1001;
+        }
+
+        .ai-dropdown-menu.open {
+            display: block !important;
+        }
+
+        .ai-dropdown-item {
+            width: 100%;
+            background: none;
+            border: none;
+            padding: 8px 10px;
+            text-align: left;
+            font-size: 13px;
+            color: #333;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: background 0.2s, color 0.2s;
+            display: block;
+        }
+
+        .ai-dropdown-item:hover:not(.loading) {
+            background: #f5f5f5;
+        }
+
+        .ai-dropdown-item.loading {
+            color: #999;
+            font-style: italic;
+            cursor: default;
+        }
+
+        .ai-dropdown-divider {
+            height: 1px;
+            background: #e8e8e8;
+            margin: 4px 0;
+        }
+
+        #aiExpertOptionsContainer {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
         .insights-panel-body {
             transition: max-height 0.3s ease-out;
             padding: 0 24px calc(24px + 0.5rem) 24px;
@@ -5535,6 +5594,19 @@
                     </style>
                     <!-- Advanced Multi-Filter -->
                     <div class="filter-menu">
+                        <div class="ai-button-container">
+                            <button id="aiBtn" class="filter-button" type="button" aria-label="Open AI insights" onclick="toggleAIDropdown(event)">
+                                <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1768461403664-yqwfwo.png" alt="" aria-hidden="true">
+                            </button>
+                            <div class="ai-dropdown-menu" id="aiDropdownMenu">
+                                <button class="ai-dropdown-item" onclick="handleAIDropdownOption('manual')">Manual Insight</button>
+                                <button class="ai-dropdown-item" onclick="handleAIDropdownOption('overview')">AI Overview</button>
+                                <div class="ai-dropdown-divider"></div>
+                                <div id="aiExpertOptionsContainer">
+                                    <div class="ai-dropdown-item loading">Loading...</div>
+                                </div>
+                            </div>
+                        </div>
                         <button id="filterBtn" class="filter-button" type="button" aria-label="Open filters">
                             <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/filter_list.svg" alt="" aria-hidden="true">
                             <span id="filterBadge" class="filter-badge" aria-hidden="true"></span>
@@ -9118,6 +9190,37 @@
             }).filter(v => v.text); // Remove any verbatims without text
             
             return cleanVerbatims;
+        }
+
+        // Helper function to extract all verbatims from aggregated summary (hierarchyData)
+        function extractVerbatimsFromAggregatedSummary() {
+            if (!hierarchyData || !hierarchyData.children) {
+                return [];
+            }
+            
+            const allVerbatims = [];
+            
+            // Iterate through all categories and topics to collect all verbatims
+            hierarchyData.children.forEach(category => {
+                if (category && category.children && Array.isArray(category.children)) {
+                    category.children.forEach(topic => {
+                        if (topic && topic.verbatims && Array.isArray(topic.verbatims)) {
+                            topic.verbatims.forEach(verbatim => {
+                                // Extract clean verbatim with text and id
+                                const uniqueId = verbatim.row_id !== undefined ? verbatim.row_id : (verbatim.index !== undefined ? verbatim.index : null);
+                                if (verbatim.text) {
+                                    allVerbatims.push({
+                                        text: verbatim.text,
+                                        id: uniqueId
+                                    });
+                                }
+                            });
+                        }
+                    });
+                }
+            });
+            
+            return allVerbatims;
         }
 
         function getCurrentQuestionTextForOverview() {
@@ -15565,8 +15668,8 @@
                 this.renderVerbatimsList();
             },
             
-            async openAIExpertInsight(contextData, promptId) {
-                console.log('[openAIExpertInsight] Called with contextData:', contextData, 'promptId:', promptId);
+            async openAIExpertInsight(contextData, promptId, useFullAggregatedData = false) {
+                console.log('[openAIExpertInsight] Called with contextData:', contextData, 'promptId:', promptId, 'useFullAggregatedData:', useFullAggregatedData);
                 
                 if (!currentClientId) {
                     alert('No client selected');
@@ -15586,21 +15689,51 @@
                 
                 console.log('[openAIExpertInsight] Using renderer:', renderer.constructor?.name || 'object');
                 
-                // Get JSON data for the context
-                const fullData = getFullDataForContext(contextData);
-                if (!fullData) {
-                    alert('Error: Unable to retrieve data. Please try right-clicking again.');
-                    return;
+                let cleanVerbatims = [];
+                let vocDataForAPI = null;
+                
+                if (useFullAggregatedData) {
+                    // Use full aggregated VOC JSON (same as AI Overview)
+                    if (!hierarchyData || !hierarchyData.children || hierarchyData.children.length === 0) {
+                        alert('No visualization data available. Please load data first.');
+                        return;
+                    }
+                    
+                    // Build aggregated summary and extract all verbatims
+                    cleanVerbatims = extractVerbatimsFromAggregatedSummary();
+                    if (cleanVerbatims.length === 0) {
+                        alert('No verbatims available in the aggregated data.');
+                        return;
+                    }
+                    
+                    // Wrap in object to satisfy backend schema (voc_data must be a dict, not array)
+                    vocDataForAPI = { verbatims: cleanVerbatims };
+                    
+                    // Store cleaned vocData for later use when saving insight
+                    this.currentVocData = cleanVerbatims;
+                } else {
+                    // Use context-specific data (existing behavior)
+                    if (!contextData) {
+                        alert('Error: No context data provided.');
+                        return;
+                    }
+                    
+                    // Get JSON data for the context
+                    const fullData = getFullDataForContext(contextData);
+                    if (!fullData) {
+                        alert('Error: Unable to retrieve data. Please try right-clicking again.');
+                        return;
+                    }
+                    
+                    // Extract clean verbatims (text and id only) for use in system prompts
+                    cleanVerbatims = extractCleanVerbatims(fullData);
+                    
+                    // Wrap in object to satisfy backend schema (voc_data must be a dict, not array)
+                    vocDataForAPI = { verbatims: cleanVerbatims };
+                    
+                    // Store cleaned vocData for later use when saving insight
+                    this.currentVocData = cleanVerbatims;
                 }
-                
-                // Extract clean verbatims (text and id only) for use in system prompts
-                const cleanVerbatims = extractCleanVerbatims(fullData);
-                
-                // Wrap in object to satisfy backend schema (voc_data must be a dict, not array)
-                const vocDataForAPI = { verbatims: cleanVerbatims };
-                
-                // Store cleaned vocData for later use when saving insight
-                this.currentVocData = cleanVerbatims;
                 
                 // Get prompt name for display
                 let promptName = 'AI Expert';
@@ -15633,7 +15766,19 @@
                 }
                 
                 // Open slideout in create mode - this sets up the panel structure
-                await this.openCreateInsight(contextData, true);
+                // If using full aggregated data, pass minimal contextData with 'category' as origin_type
+                // (since we're at dimension level, similar to AI Overview)
+                const contextDataForCreate = useFullAggregatedData ? {
+                    type: 'category', // Must be 'verbatim', 'topic', or 'category' - use 'category' for dimension-level
+                    origin_type: 'category', // Explicitly set origin_type
+                    dimension_ref: currentQuestionRefKey || null,
+                    dimension_name: currentQuestionRefKey ? getDimensionDisplayName(currentQuestionRefKey) : null,
+                    category: null,
+                    topic_label: null,
+                    project_name: currentProjectName || null,
+                    data_source: currentDataSourceId || null
+                } : contextData;
+                await this.openCreateInsight(contextDataForCreate, true);
                 
                 // Wait a bit for the panel to fully initialize
                 await new Promise(resolve => setTimeout(resolve, 100));
@@ -15677,10 +15822,27 @@
                 const slideoutContent = document.getElementById('slideoutContent');
                 if (slideoutContent) {
                     if (renderer.attachIdeaCardListeners) {
+                        console.log('[openAIExpertInsight] Attaching idea card listeners to slideoutContent', {
+                            containerId: slideoutContent.id,
+                            hasAttachMethod: !!renderer.attachIdeaCardListeners,
+                            timestamp: new Date().toISOString()
+                        });
                         renderer.attachIdeaCardListeners(slideoutContent);
                     } else if (window.ActionRenderer && window.ActionRenderer.attachIdeaCardListeners) {
+                        console.log('[openAIExpertInsight] Attaching idea card listeners via ActionRenderer', {
+                            containerId: slideoutContent.id,
+                            hasAttachMethod: !!window.ActionRenderer.attachIdeaCardListeners,
+                            timestamp: new Date().toISOString()
+                        });
                         window.ActionRenderer.attachIdeaCardListeners(slideoutContent);
+                    } else {
+                        console.warn('[openAIExpertInsight] No attachIdeaCardListeners method available', {
+                            hasRenderer: !!renderer,
+                            hasActionRenderer: !!window.ActionRenderer
+                        });
                     }
+                } else {
+                    console.warn('[openAIExpertInsight] slideoutContent element not found');
                 }
                 
                 // Start streaming
@@ -15908,10 +16070,27 @@
                 const slideoutContentForSummary = document.getElementById('slideoutContent');
                 if (slideoutContentForSummary) {
                     if (renderer.attachIdeaCardListeners) {
+                        console.log('[openAIOverviewSummary] Attaching idea card listeners to slideoutContent', {
+                            containerId: slideoutContentForSummary.id,
+                            hasAttachMethod: !!renderer.attachIdeaCardListeners,
+                            timestamp: new Date().toISOString()
+                        });
                         renderer.attachIdeaCardListeners(slideoutContentForSummary);
                     } else if (window.ActionRenderer && window.ActionRenderer.attachIdeaCardListeners) {
+                        console.log('[openAIOverviewSummary] Attaching idea card listeners via ActionRenderer', {
+                            containerId: slideoutContentForSummary.id,
+                            hasAttachMethod: !!window.ActionRenderer.attachIdeaCardListeners,
+                            timestamp: new Date().toISOString()
+                        });
                         window.ActionRenderer.attachIdeaCardListeners(slideoutContentForSummary);
+                    } else {
+                        console.warn('[openAIOverviewSummary] No attachIdeaCardListeners method available', {
+                            hasRenderer: !!renderer,
+                            hasActionRenderer: !!window.ActionRenderer
+                        });
                     }
+                } else {
+                    console.warn('[openAIOverviewSummary] slideoutContent element not found');
                 }
 
                 try {
@@ -18808,6 +18987,140 @@
             if (!menu || !dropdown) return;
             if (!dropdown.contains(event.target)) {
                 menu.classList.remove('open');
+            }
+        });
+
+        // AI Button Dropdown Functions
+        function toggleAIDropdown(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            const menu = document.getElementById('aiDropdownMenu');
+            if (!menu) return;
+            const isOpen = menu.classList.contains('open');
+            menu.classList.toggle('open', !isOpen);
+            
+            // If opening, populate AI Expert options
+            if (!isOpen) {
+                populateAIExpertOptions();
+            }
+        }
+
+        function closeAIDropdown() {
+            const menu = document.getElementById('aiDropdownMenu');
+            if (menu) {
+                menu.classList.remove('open');
+            }
+        }
+
+        async function populateAIExpertOptions() {
+            const container = document.getElementById('aiExpertOptionsContainer');
+            if (!container) return;
+
+            if (!currentClientId || !window.ClientPromptAPI) {
+                container.innerHTML = '<div class="ai-dropdown-item loading">No prompts available</div>';
+                return;
+            }
+
+            container.innerHTML = '<div class="ai-dropdown-item loading">Loading...</div>';
+
+            try {
+                const prompts = await window.ClientPromptAPI.listPrompts(currentClientId);
+                if (prompts && prompts.length > 0) {
+                    // Filter out the "overview" prompt since it's already shown as a separate option
+                    const expertPrompts = prompts.filter(prompt => {
+                        const name = (prompt.name || '').trim().toLowerCase();
+                        return name !== 'overview' && !name.includes('overview');
+                    });
+
+                    if (expertPrompts.length === 0) {
+                        container.innerHTML = '<div class="ai-dropdown-item loading">No AI Expert prompts available</div>';
+                        return;
+                    }
+
+                    // Format prompt names with title case and abbreviation preservation
+                    const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'PPC', 'SEM', 'SERP', 'SaaS', 'B2B', 'B2C', 'GDPR', 'CTA', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];
+                    
+                    container.innerHTML = expertPrompts.map(prompt => {
+                        const name = prompt.name || '';
+                        const titleCaseName = name
+                            .replace(/_/g, ' ')
+                            .replace(/-/g, ' ')
+                            .split(' ')
+                            .map(word => {
+                                const upperWord = word.toUpperCase();
+                                if (abbreviations.includes(upperWord)) {
+                                    return upperWord;
+                                }
+                                return word.charAt(0).toUpperCase() + word.substr(1).toLowerCase();
+                            })
+                            .join(' ');
+                        
+                        // Escape HTML to prevent XSS
+                        const escapedName = titleCaseName
+                            .replace(/&/g, '&amp;')
+                            .replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;')
+                            .replace(/"/g, '&quot;')
+                            .replace(/'/g, '&#039;');
+                        
+                        return `<button class="ai-dropdown-item" onclick="handleAIDropdownOption('expert', '${prompt.id}')">${escapedName}</button>`;
+                    }).join('');
+                } else {
+                    container.innerHTML = '<div class="ai-dropdown-item loading">No prompts available</div>';
+                }
+            } catch (error) {
+                console.error('Error loading AI Expert prompts:', error);
+                container.innerHTML = '<div class="ai-dropdown-item loading">Error loading prompts</div>';
+            }
+        }
+
+        async function handleAIDropdownOption(option, promptId) {
+            closeAIDropdown();
+            
+            if (option === 'manual') {
+                openAddInsightFromVisualizations();
+                return;
+            }
+            
+            if (option === 'overview') {
+                await openAIOverviewFromVisualizations();
+                return;
+            }
+            
+            if (option === 'expert' && promptId) {
+                await openAIExpertFromButton(promptId);
+            }
+        }
+
+        async function openAIExpertFromButton(promptId) {
+            if (!currentClientId) {
+                alert('Please select a client first');
+                return;
+            }
+            
+            if (!window.ClientPromptAPI) {
+                alert('Error: Client prompt API not loaded');
+                return;
+            }
+            
+            if (!hierarchyData || !hierarchyData.children || hierarchyData.children.length === 0) {
+                alert('No visualization data available. Please load data first.');
+                return;
+            }
+
+            // Use full aggregated data (same as AI Overview)
+            await SlideoutPanel.openAIExpertInsight(null, promptId, true);
+        }
+
+        // Close AI dropdown when clicking outside
+        document.addEventListener('click', (event) => {
+            const aiButtonContainer = document.querySelector('.ai-button-container');
+            const aiMenu = document.getElementById('aiDropdownMenu');
+            if (!aiMenu || !aiButtonContainer) return;
+            if (!aiButtonContainer.contains(event.target)) {
+                aiMenu.classList.remove('open');
             }
         });
 
