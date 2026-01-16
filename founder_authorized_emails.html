@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-ZHSFGWQMSN"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-ZHSFGWQMSN');
+</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Founder Admin - Authorized Emails</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/config.js"></script>
+    <script src="/auth.js"></script>
+    <style>
+        :root {
+            --font-lato: 'Lato', sans-serif;
+            --brand-color: #B9F040;
+            --bg-black: #000000;
+            --text-white: #ffffff;
+            --bg: #f5f7fb;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --border-strong: #cbd5f5;
+            --primary: #B9F040;
+            --primary-dark: #a0d636;
+            --danger: #e53e3e;
+            --success: #38a169;
+            --text: #1a202c;
+            --muted: #718096;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-lato), "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .login-overlay {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.85);
+            z-index: 999;
+        }
+
+        .login-overlay.hidden {
+            display: none;
+        }
+
+        .login-card {
+            background: var(--surface);
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 25px 50px -12px rgba(56, 66, 106, 0.35);
+            width: min(380px, 92vw);
+        }
+
+        .login-card h2 {
+            margin-bottom: 12px;
+        }
+
+        .login-card p {
+            margin-bottom: 16px;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .login-card input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 15px;
+            margin-bottom: 12px;
+            transition: border 0.2s;
+        }
+
+        .login-card input:focus {
+            outline: none;
+            border-color: var(--brand-color);
+            box-shadow: 0 0 0 3px rgba(185, 240, 64, 0.25);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+            text-decoration: none;
+            font-family: var(--font-lato);
+        }
+
+        .btn-primary {
+            background: var(--brand-color);
+            color: var(--bg-black);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: #edf2f7;
+            color: var(--text);
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--brand-color);
+        }
+
+        .btn-ghost:hover {
+            background: rgba(185, 240, 64, 0.1);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #appShell {
+            display: none;
+            min-height: 100vh;
+            flex-direction: column;
+        }
+
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 24px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            position: sticky;
+            top: 0;
+            z-index: 5;
+        }
+
+        header h1 {
+            font-size: 26px;
+            font-weight: 600;
+            font-family: var(--font-lato);
+            margin: 0;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: var(--muted);
+            margin-top: 6px;
+            max-width: 640px;
+        }
+
+        .breadcrumbs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 12px;
+            font-family: var(--font-lato);
+        }
+
+        .breadcrumbs a {
+            color: var(--bg-black);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumbs a:hover {
+            color: var(--brand-color);
+            text-decoration: underline;
+        }
+
+        .breadcrumbs-separator {
+            color: var(--muted);
+            opacity: 0.5;
+        }
+
+        .founder-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        #founderEmail {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        main {
+            flex: 1;
+            padding: 32px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .content {
+            width: min(1100px, 100%);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .toolbar {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .status-message {
+            padding: 14px 18px;
+            border-radius: 10px;
+            font-size: 14px;
+            display: none;
+        }
+
+        .status-message.success {
+            background: #f0fff4;
+            border: 1px solid #c6f6d5;
+            color: var(--success);
+        }
+
+        .status-message.error {
+            background: #fff5f5;
+            border: 1px solid #fed7d7;
+            color: var(--danger);
+        }
+
+        .emails-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .email-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 22px;
+            box-shadow: 0 20px 45px -24px rgba(15, 23, 42, 0.35);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .email-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .email-header h2 {
+            font-size: 18px;
+            font-weight: 600;
+            word-break: break-word;
+        }
+
+        .email-meta {
+            font-size: 12px;
+            color: var(--muted);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .description {
+            font-size: 14px;
+            color: var(--muted);
+        }
+
+        .client-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .client-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(185, 240, 64, 0.35);
+            background: rgba(185, 240, 64, 0.12);
+            font-size: 12px;
+            color: var(--bg-black);
+            font-weight: 600;
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--muted);
+            border: 1px dashed var(--border);
+            border-radius: 12px;
+            padding: 48px 24px;
+            background: rgba(255, 255, 255, 0.7);
+        }
+
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.6);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+
+        .modal-backdrop.visible {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--surface);
+            border-radius: 16px;
+            box-shadow: 0 30px 60px -24px rgba(15, 23, 42, 0.45);
+            border: 1px solid var(--border-strong);
+            width: min(520px, 100%);
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal header {
+            position: static;
+            border-bottom: 1px solid var(--border);
+            padding: 20px 24px;
+            background: #f7f9ff;
+        }
+
+        .modal header h2 {
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .modal form {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            overflow-y: auto;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .form-group label {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--muted);
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 72px;
+        }
+
+        .client-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            max-height: 220px;
+            overflow-y: auto;
+            padding: 6px 2px;
+        }
+
+        .client-option {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            font-size: 13px;
+            padding: 6px 8px;
+            border: 1px solid transparent;
+            border-radius: 8px;
+        }
+
+        .client-option:hover {
+            border-color: rgba(185, 240, 64, 0.3);
+            background: rgba(185, 240, 64, 0.08);
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 18px 24px;
+            border-top: 1px solid var(--border);
+            background: #f8fafc;
+        }
+
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .founder-meta {
+                align-items: flex-start;
+            }
+
+            main {
+                padding: 24px;
+            }
+
+            .emails-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loginOverlay" class="login-overlay hidden">
+        <div class="login-container">
+            <div id="loginFormSection">
+                <h2>Sign in</h2>
+                <p class="login-subtext">
+                    Enter your work email and we'll email you a secure magic link.
+                </p>
+                <input type="email" id="loginEmail" placeholder="you@company.com" autocomplete="email">
+                <button id="loginButton" type="button">Send Magic Link</button>
+                <div id="loginError" class="login-error"></div>
+                <div id="loginSuccess" class="login-success"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="appShell">
+        <header>
+            <div>
+                <nav class="breadcrumbs">
+                    <a href="/founder_admin.html">Founder Admin</a>
+                    <span class="breadcrumbs-separator">›</span>
+                    <span>Authorized Emails</span>
+                </nav>
+                <h1>Authorized Emails</h1>
+                <div class="subtitle">
+                    Manage which individual email addresses can request access and which clients each email can view.
+                </div>
+            </div>
+            <div class="founder-meta">
+                <span id="founderEmail"></span>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-secondary" id="refreshButton">Refresh</button>
+                    <button class="btn btn-ghost" id="logoutButton">Logout</button>
+                </div>
+            </div>
+        </header>
+        <main>
+            <div class="content">
+                <div class="toolbar">
+                    <div>
+                        <h2 style="font-size: 18px; font-weight: 600;">Authorized Emails</h2>
+                        <p style="font-size: 14px; color: var(--muted); margin-top: 6px;">
+                            Grant specific email addresses access to client workspaces, independent of their domain.
+                        </p>
+                    </div>
+                    <button class="btn btn-primary" id="newEmailButton">New Email</button>
+                </div>
+                <div id="statusMessage" class="status-message"></div>
+                <div id="emailsContainer" class="emails-grid"></div>
+            </div>
+        </main>
+    </div>
+
+    <div id="modalBackdrop" class="modal-backdrop">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+            <header>
+                <h2 id="modalTitle">New Email</h2>
+            </header>
+            <form id="emailForm">
+                <div class="form-group">
+                    <label for="emailInput">Email Address</label>
+                    <input type="email" id="emailInput" placeholder="user@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="descriptionInput">Description</label>
+                    <textarea id="descriptionInput" placeholder="Optional notes for founders"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Client Access</label>
+                    <div id="clientOptions" class="client-list"></div>
+                    <p style="font-size: 12px; color: var(--muted);">
+                        This email address will inherit access to the selected clients.
+                    </p>
+                </div>
+            </form>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="cancelModalButton" type="button">Cancel</button>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" id="submitEmailButton" type="submit" form="emailForm">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+
+        const elements = {
+            appShell: document.getElementById('appShell'),
+            founderEmail: document.getElementById('founderEmail'),
+            logoutButton: document.getElementById('logoutButton'),
+            refreshButton: document.getElementById('refreshButton'),
+            newEmailButton: document.getElementById('newEmailButton'),
+            statusMessage: document.getElementById('statusMessage'),
+            emailsContainer: document.getElementById('emailsContainer'),
+            modalBackdrop: document.getElementById('modalBackdrop'),
+            modalTitle: document.getElementById('modalTitle'),
+            emailForm: document.getElementById('emailForm'),
+            emailInput: document.getElementById('emailInput'),
+            descriptionInput: document.getElementById('descriptionInput'),
+            clientOptions: document.getElementById('clientOptions'),
+            cancelModalButton: document.getElementById('cancelModalButton'),
+            submitEmailButton: document.getElementById('submitEmailButton'),
+        };
+
+        const state = {
+            founder: null,
+            emails: [],
+            clients: [],
+            currentMode: 'create',
+            currentEmailId: null,
+        };
+
+        const authHeaders = () => {
+            return Auth.getAuthHeaders();
+        };
+
+        function showStatus(message, type = 'success') {
+            if (!message) {
+                elements.statusMessage.style.display = 'none';
+                elements.statusMessage.textContent = '';
+                elements.statusMessage.classList.remove('success', 'error');
+                return;
+            }
+            elements.statusMessage.textContent = message;
+            elements.statusMessage.style.display = 'block';
+            elements.statusMessage.classList.remove('success', 'error');
+            elements.statusMessage.classList.add(type);
+        }
+
+        function renderFounderInfo() {
+            if (state.founder?.email) {
+                elements.founderEmail.textContent = state.founder.email;
+            } else {
+                elements.founderEmail.textContent = '';
+            }
+        }
+
+        function initializePage() {
+            Auth.hideLogin();
+            elements.appShell.style.display = 'flex';
+            renderFounderInfo();
+            loadInitialData();
+        }
+
+        // Check authentication on page load
+        Auth.checkAuth().then(authenticated => {
+            if (authenticated) {
+                const userInfo = Auth.getStoredUserInfo();
+                if (!userInfo?.is_founder) {
+                    Auth.showLogin();
+                    const errorEl = document.getElementById('loginError');
+                    if (errorEl) {
+                        errorEl.textContent = 'Access denied: founder privileges required.';
+                        errorEl.style.display = 'block';
+                    }
+                } else {
+                    state.founder = userInfo;
+                    initializePage();
+                }
+            }
+        });
+
+        // Listen for auth events
+        window.addEventListener('auth:authenticated', (e) => {
+            const userInfo = e.detail.user;
+            if (userInfo?.is_founder) {
+                state.founder = userInfo;
+                initializePage();
+            } else {
+                Auth.showLogin();
+                const errorEl = document.getElementById('loginError');
+                if (errorEl) {
+                    errorEl.textContent = 'Access denied: founder privileges required.';
+                    errorEl.style.display = 'block';
+                }
+            }
+        });
+
+        // Logout handler
+        elements.logoutButton.addEventListener('click', () => {
+            Auth.handleLogout();
+        });
+
+
+
+        async function loadInitialData() {
+            showStatus('Loading authorized emails…', 'success');
+            try {
+                await Promise.all([loadClients(), loadEmails()]);
+                showStatus();
+            } catch (error) {
+                console.error('Failed to load initial data', error);
+                showStatus(error.message || 'Unable to load data.', 'error');
+            }
+        }
+
+        async function loadClients() {
+            const response = await fetch(`${API_BASE_URL}/api/clients`, {
+                headers: authHeaders(),
+            });
+            if (!response.ok) {
+                throw new Error('Failed to load clients.');
+            }
+            state.clients = await response.json();
+        }
+
+        async function loadEmails() {
+            const response = await fetch(`${API_BASE_URL}/api/founder/authorized-emails`, {
+                headers: authHeaders(),
+            });
+            if (!response.ok) {
+                if (response.status === 401 || response.status === 403) {
+                    Auth.handleLogout();
+                    return;
+                }
+                throw new Error('Failed to load authorized emails.');
+            }
+            state.emails = await response.json();
+            renderEmails();
+        }
+
+        function renderEmails() {
+            if (!state.emails.length) {
+                elements.emailsContainer.innerHTML = `
+                    <div class="empty-state">
+                        <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">No authorized emails yet</h3>
+                        <p style="font-size: 14px;">Add your first email to grant individual access.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            elements.emailsContainer.innerHTML = state.emails
+                .map((email) => {
+                    const clientBadges = email.clients
+                        .map((client) => `<span class="client-chip">${client.name}</span>`)
+                        .join('') || '<span class="description">No clients mapped</span>';
+                    const updatedAt = email.updated_at ? new Date(email.updated_at).toLocaleString() : 'Unknown';
+                    const createdAt = email.created_at ? new Date(email.created_at).toLocaleDateString() : 'Unknown';
+
+                    return `
+                        <article class="email-card">
+                            <div class="email-header">
+                                <div>
+                                    <h2>${email.email}</h2>
+                                    <div class="email-meta">
+                                        <span>Created ${createdAt}</span>
+                                        <span>Updated ${updatedAt}</span>
+                                    </div>
+                                </div>
+                                <button class="btn btn-secondary" data-action="edit-email" data-email-id="${email.id}">Edit</button>
+                            </div>
+                            <div class="description">${email.description ? email.description : 'No description provided.'}</div>
+                            <div class="client-chips">${clientBadges}</div>
+                        </article>
+                    `;
+                })
+                .join('');
+
+            elements.emailsContainer.querySelectorAll('[data-action="edit-email"]').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const emailId = button.getAttribute('data-email-id');
+                    openEmailModal('edit', emailId);
+                });
+            });
+        }
+
+        function openEmailModal(mode, emailId = null) {
+            state.currentMode = mode;
+            state.currentEmailId = emailId;
+            elements.emailForm.reset();
+
+            let selectedIds = new Set();
+            if (mode === 'edit' && emailId) {
+                const email = state.emails.find((item) => item.id === emailId);
+                if (!email) {
+                    showStatus('Selected email could not be found.', 'error');
+                    return;
+                }
+                elements.modalTitle.textContent = `Edit ${email.email}`;
+                elements.emailInput.value = email.email;
+                elements.descriptionInput.value = email.description || '';
+                selectedIds = new Set(email.clients.map((client) => client.id));
+            } else {
+                elements.modalTitle.textContent = 'New Email';
+                elements.emailInput.value = '';
+                elements.descriptionInput.value = '';
+            }
+
+            renderClientOptions(selectedIds);
+            elements.submitEmailButton.textContent = mode === 'edit' ? 'Save Changes' : 'Create Email';
+            elements.modalBackdrop.classList.add('visible');
+            setTimeout(() => elements.emailInput.focus(), 50);
+        }
+
+        function closeEmailModal() {
+            state.currentMode = 'create';
+            state.currentEmailId = null;
+            elements.modalBackdrop.classList.remove('visible');
+        }
+
+        function renderClientOptions(selectedIds = new Set()) {
+            if (!state.clients.length) {
+                elements.clientOptions.innerHTML = '<p style="font-size: 13px; color: var(--muted);">No clients available yet.</p>';
+                return;
+            }
+
+            const clientsMarkup = state.clients
+                .map((client) => {
+                    const checked = selectedIds.has(client.id) ? 'checked' : '';
+                    return `
+                        <label class="client-option">
+                            <input type="checkbox" value="${client.id}" ${checked}>
+                            <span>${client.name}</span>
+                        </label>
+                    `;
+                })
+                .join('');
+
+            elements.clientOptions.innerHTML = clientsMarkup;
+        }
+
+        async function handleEmailFormSubmit(event) {
+            event.preventDefault();
+            elements.submitEmailButton.disabled = true;
+            const emailValue = elements.emailInput.value.trim();
+            const descriptionValue = elements.descriptionInput.value.trim();
+            const selectedClientIds = Array.from(
+                elements.clientOptions.querySelectorAll('input[type="checkbox"]:checked')
+            ).map((input) => input.value);
+
+            if (!emailValue || !emailValue.includes('@')) {
+                showStatus('A valid email address is required.', 'error');
+                elements.submitEmailButton.disabled = false;
+                return;
+            }
+
+            const payload = {
+                email: emailValue,
+                description: descriptionValue || null,
+                client_ids: selectedClientIds,
+            };
+
+            try {
+                if (state.currentMode === 'edit' && state.currentEmailId) {
+                    await updateEmail(state.currentEmailId, payload);
+                    showStatus('Email updated successfully.', 'success');
+                } else {
+                    await createEmail(payload);
+                    showStatus('Email created successfully.', 'success');
+                }
+                closeEmailModal();
+                await loadEmails();
+            } catch (error) {
+                console.error('Email save failed', error);
+                showStatus(error.message || 'Unable to save email.', 'error');
+            } finally {
+                elements.submitEmailButton.disabled = false;
+            }
+        }
+
+        async function createEmail(payload) {
+            const response = await fetch(`${API_BASE_URL}/api/founder/authorized-emails`, {
+                method: 'POST',
+                headers: authHeaders(),
+                body: JSON.stringify(payload),
+            });
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(error.detail || 'Failed to create email.');
+            }
+            return response.json();
+        }
+
+        async function updateEmail(emailId, payload) {
+            const response = await fetch(`${API_BASE_URL}/api/founder/authorized-emails/${emailId}`, {
+                method: 'PUT',
+                headers: authHeaders(),
+                body: JSON.stringify(payload),
+            });
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(error.detail || 'Failed to update email.');
+            }
+            return response.json();
+        }
+
+        elements.refreshButton.addEventListener('click', loadInitialData);
+        elements.newEmailButton.addEventListener('click', () => openEmailModal('create'));
+        elements.cancelModalButton.addEventListener('click', closeEmailModal);
+        elements.emailForm.addEventListener('submit', handleEmailFormSubmit);
+
+        elements.modalBackdrop.addEventListener('click', (event) => {
+            if (event.target === elements.modalBackdrop) {
+                closeEmailModal();
+            }
+        });
+    </script>
+</body>
+</html>

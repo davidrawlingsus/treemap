@@ -37,6 +37,18 @@ class Client(Base):
         cascade="all, delete-orphan",
         overlaps="authorized_domains,clients,client_links",
     )
+    authorized_emails = relationship(
+        "AuthorizedEmail",
+        secondary="authorized_email_clients",
+        back_populates="clients",
+        overlaps="authorized_email_links,client_links",
+    )
+    authorized_email_links = relationship(
+        "AuthorizedEmailClient",
+        back_populates="client",
+        cascade="all, delete-orphan",
+        overlaps="authorized_emails,clients,client_links",
+    )
 
     def __repr__(self):
         return f"<Client(id={self.id}, name={self.name}, slug={self.slug})>"

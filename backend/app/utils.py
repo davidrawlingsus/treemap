@@ -6,8 +6,8 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from app.services import EmailService
-from app.models import AuthorizedDomain
-from app.schemas import AuthorizedDomainResponse, ClientResponse
+from app.models import AuthorizedDomain, AuthorizedEmail
+from app.schemas import AuthorizedDomainResponse, AuthorizedEmailResponse, ClientResponse
 
 
 def find_frontend_path(main_file_path: Optional[Path] = None) -> Path:
@@ -88,6 +88,24 @@ def serialize_authorized_domain(domain: AuthorizedDomain) -> AuthorizedDomainRes
         description=domain.description,
         created_at=domain.created_at,
         updated_at=domain.updated_at,
+        clients=clients,
+    )
+
+
+def serialize_authorized_email(email: AuthorizedEmail) -> AuthorizedEmailResponse:
+    """Convert an AuthorizedEmail ORM object into a response model."""
+    clients = [
+        ClientResponse.model_validate(link.client)
+        for link in email.client_links
+        if link.client is not None
+    ]
+    clients.sort(key=lambda client: client.name.lower())
+    return AuthorizedEmailResponse(
+        id=email.id,
+        email=email.email,
+        description=email.description,
+        created_at=email.created_at,
+        updated_at=email.updated_at,
         clients=clients,
     )
 

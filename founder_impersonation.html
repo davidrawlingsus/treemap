@@ -494,6 +494,14 @@
                 <h3>Authorized Domains</h3>
                 <p class="muted" style="font-size: 12px;">Domains mapped to client access. Useful when preparing invites.</p>
                 <div id="domainList" class="domain-list"></div>
+
+                <h3 style="margin-top: 24px;">Authorized Emails</h3>
+                <p class="muted" style="font-size: 12px;">Individual emails granted direct client access, independent of domain.</p>
+                <div id="emailList" class="domain-list"></div>
+
+                <h3 style="margin-top: 24px;">Pending Authorized Emails</h3>
+                <p class="muted" style="font-size: 12px;">Authorized emails that haven't requested a magic link yet (no user account created).</p>
+                <div id="pendingEmailList" class="domain-list"></div>
             </div>
 
             <div class="content-area">
@@ -551,6 +559,8 @@
             applyFiltersButton: document.getElementById('applyFiltersButton'),
             clearFiltersButton: document.getElementById('clearFiltersButton'),
             domainList: document.getElementById('domainList'),
+            emailList: document.getElementById('emailList'),
+            pendingEmailList: document.getElementById('pendingEmailList'),
             usersTableBody: document.getElementById('usersTableBody'),
             impersonationEmpty: document.getElementById('impersonationEmpty'),
             impersonationDetails: document.getElementById('impersonationDetails'),
@@ -570,6 +580,7 @@
         }
 
         let domainCache = [];
+        let emailCache = [];
         let userRows = [];
         let lastTokenInfo = null;
         let founderInfo = null;
@@ -597,7 +608,7 @@
             elements.appShell.style.display = 'block';
             renderFounderInfo();
             console.log('[IMPERSONATION] Starting data load...');
-            Promise.all([loadAuthorizedDomains(), loadUsers()]).then(() => {
+            Promise.all([loadAuthorizedDomains(), loadAuthorizedEmails(), loadUsers()]).then(() => {
                 console.log('[IMPERSONATION] All data loaded successfully');
             }).catch((error) => {
                 console.error('[IMPERSONATION] Error during data load:', error);
@@ -732,6 +743,149 @@
             }).join('');
         }
 
+        async function loadAuthorizedEmails() {
+            console.log('[IMPERSONATION] loadAuthorizedEmails called');
+            try {
+                const url = `${API_BASE_URL}/api/founder/authorized-emails`;
+                const headers = authHeaders();
+                
+                console.log('[IMPERSONATION] Loading emails from URL:', url);
+                console.log('[IMPERSONATION] Request headers:', headers);
+
+                const resp = await fetch(url, {
+                    headers: headers,
+                });
+                
+                console.log('[IMPERSONATION] Emails response status:', resp.status);
+                console.log('[IMPERSONATION] Emails response ok:', resp.ok);
+                
+                if (!resp.ok) {
+                    let errorDetail = `${resp.status} ${resp.statusText}`;
+                    try {
+                        const errorText = await resp.text();
+                        console.error('[IMPERSONATION] Emails response error text:', errorText);
+                        try {
+                            const errorJson = JSON.parse(errorText);
+                            console.error('[IMPERSONATION] Emails response error JSON:', errorJson);
+                            errorDetail = errorJson.detail || errorJson.message || errorDetail;
+                        } catch (e) {
+                            errorDetail = errorText || errorDetail;
+                        }
+                    } catch (e) {
+                        console.error('[IMPERSONATION] Could not read emails error response:', e);
+                    }
+                    throw new Error(`Failed to load emails: ${errorDetail}`);
+                }
+                
+                const emails = await resp.json();
+                console.log('[IMPERSONATION] Emails loaded successfully:', emails.length, 'emails');
+                console.log('[IMPERSONATION] Email data:', emails);
+                emailCache = emails;
+                renderEmailList(emails);
+                populateClientFilterWithEmails(emails);
+            } catch (error) {
+                console.error('[IMPERSONATION] Failed to load authorized emails', error);
+                console.error('[IMPERSONATION] Error details:', {
+                    message: error.message,
+                    stack: error.stack,
+                    name: error.name
+                });
+                elements.emailList.innerHTML = `<div class="alert alert-error">Unable to load authorized emails. Check console for details.</div>`;
+            }
+        }
+
+        function renderEmailList(emails) {
+            if (!emails.length) {
+                elements.emailList.innerHTML = `<div class="muted">No authorized emails configured yet.</div>`;
+                return;
+            }
+            elements.emailList.innerHTML = emails.map(email => {
+                const clients = email.clients
+                    .map(client => `<span class="badge">${client.name}</span>`)
+                    .join('');
+                const description = email.description ? `<div class="muted" style="font-size: 12px;">${email.description}</div>` : '';
+                return `
+                    <div class="domain-card">
+                        <strong>${email.email}</strong>
+                        ${description}
+                        <div class="domain-clients">
+                            ${clients || '<span class="muted" style="font-size: 12px;">No clients mapped</span>'}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Update pending emails list
+            renderPendingEmails();
+        }
+
+        function renderPendingEmails() {
+            if (!emailCache.length) {
+                elements.pendingEmailList.innerHTML = `<div class="muted">No authorized emails configured yet.</div>`;
+                return;
+            }
+            
+            // Get set of existing user emails
+            const existingUserEmails = new Set(userRows.map(u => u.email.toLowerCase()));
+            
+            // Find authorized emails that don't have user accounts
+            const pendingEmails = emailCache.filter(email => !existingUserEmails.has(email.email.toLowerCase()));
+            
+            if (!pendingEmails.length) {
+                elements.pendingEmailList.innerHTML = `<div class="muted">All authorized emails have created accounts.</div>`;
+                return;
+            }
+            
+            elements.pendingEmailList.innerHTML = pendingEmails.map(email => {
+                const clients = email.clients
+                    .map(client => `<span class="badge">${client.name}</span>`)
+                    .join('');
+                const description = email.description ? `<div class="muted" style="font-size: 12px;">${email.description}</div>` : '';
+                return `
+                    <div class="domain-card">
+                        <strong>${email.email}</strong>
+                        <span class="muted" style="font-size: 11px; color: #f59e0b;">⚠ No account yet - awaiting first login</span>
+                        ${description}
+                        <div class="domain-clients">
+                            ${clients || '<span class="muted" style="font-size: 12px;">No clients mapped</span>'}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function populateClientFilterWithEmails(emails) {
+            const selected = elements.clientSelect.value;
+            const clientMap = new Map();
+            
+            // Get existing clients from domains
+            domainCache.forEach(domain => {
+                domain.clients.forEach(client => {
+                    clientMap.set(client.id, client.name);
+                });
+            });
+            
+            // Add clients from emails
+            emails.forEach(email => {
+                email.clients.forEach(client => {
+                    clientMap.set(client.id, client.name);
+                });
+            });
+            
+            elements.clientSelect.innerHTML = '<option value="">All clients</option>';
+            Array.from(clientMap.entries())
+                .sort((a, b) => a[1].localeCompare(b[1]))
+                .forEach(([id, name]) => {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = name;
+                    elements.clientSelect.appendChild(option);
+                });
+            if (clientMap.has(selected)) {
+                elements.clientSelect.value = selected;
+            }
+        }
+
         function populateDomainFilter(domains) {
             const current = elements.domainSelect.value;
             elements.domainSelect.innerHTML = '<option value="">All domains</option>';
@@ -749,25 +903,8 @@
         }
 
         function populateClientFilter(domains) {
-            const selected = elements.clientSelect.value;
-            const clientMap = new Map();
-            domains.forEach(domain => {
-                domain.clients.forEach(client => {
-                    clientMap.set(client.id, client.name);
-                });
-            });
-            elements.clientSelect.innerHTML = '<option value="">All clients</option>';
-            Array.from(clientMap.entries())
-                .sort((a, b) => a[1].localeCompare(b[1]))
-                .forEach(([id, name]) => {
-                    const option = document.createElement('option');
-                    option.value = id;
-                    option.textContent = name;
-                    elements.clientSelect.appendChild(option);
-                });
-            if (clientMap.has(selected)) {
-                elements.clientSelect.value = selected;
-            }
+            // This now delegates to the combined function
+            populateClientFilterWithEmails(emailCache);
         }
 
         async function loadUsers() {
@@ -817,6 +954,7 @@
                 console.log('[IMPERSONATION] Users loaded successfully:', userRows.length, 'users');
                 console.log('[IMPERSONATION] User data:', userRows);
                 renderUsers();
+                renderPendingEmails();
             } catch (error) {
                 console.error('[IMPERSONATION] Failed to load users', error);
                 console.error('[IMPERSONATION] Error details:', {
@@ -968,7 +1106,7 @@
 
         function attachEventListeners() {
             elements.refreshButton.addEventListener('click', async () => {
-                await Promise.all([loadAuthorizedDomains(), loadUsers()]);
+                await Promise.all([loadAuthorizedDomains(), loadAuthorizedEmails(), loadUsers()]);
                 clearImpersonationToken();
             });
             elements.applyFiltersButton.addEventListener('click', loadUsers);

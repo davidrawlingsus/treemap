@@ -52,6 +52,37 @@ class AuthorizedDomainResponse(AuthorizedDomainBase):
         from_attributes = True
 
 
+class AuthorizedEmailBase(BaseModel):
+    email: str = Field(..., description="Email address (e.g. user@example.com)")
+    description: Optional[str] = Field(
+        default=None, description="Optional description for internal reference"
+    )
+
+
+class AuthorizedEmailCreate(AuthorizedEmailBase):
+    client_ids: List[UUID] = Field(
+        default_factory=list,
+        description="Clients to associate with this authorized email",
+    )
+
+
+class AuthorizedEmailUpdate(AuthorizedEmailBase):
+    client_ids: Optional[List[UUID]] = Field(
+        default=None,
+        description="Optional list of clients to replace existing associations",
+    )
+
+
+class AuthorizedEmailResponse(AuthorizedEmailBase):
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+    clients: List[ClientResponse] = Field(default_factory=list)
+
+    class Config:
+        from_attributes = True
+
+
 class ClientCreate(BaseModel):
     name: str
     slug: str
@@ -61,4 +92,5 @@ class ClientCreate(BaseModel):
 
 # Resolve forward references
 AuthorizedDomainResponse.model_rebuild()
+AuthorizedEmailResponse.model_rebuild()
 

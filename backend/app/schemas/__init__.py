@@ -22,6 +22,10 @@ from .client import (
     AuthorizedDomainCreate,
     AuthorizedDomainUpdate,
     AuthorizedDomainResponse,
+    AuthorizedEmailBase,
+    AuthorizedEmailCreate,
+    AuthorizedEmailUpdate,
+    AuthorizedEmailResponse,
     ClientCreate,
     ClientResponse,
 )
@@ -117,6 +121,10 @@ __all__ = [
     "AuthorizedDomainCreate",
     "AuthorizedDomainUpdate",
     "AuthorizedDomainResponse",
+    "AuthorizedEmailBase",
+    "AuthorizedEmailCreate",
+    "AuthorizedEmailUpdate",
+    "AuthorizedEmailResponse",
     "ClientCreate",
     "ClientResponse",
     # Data Source

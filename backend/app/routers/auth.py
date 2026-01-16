@@ -9,7 +9,7 @@ from urllib.parse import quote
 import logging
 
 from app.database import get_db
-from app.models import User, Membership, AuthorizedDomain, Client
+from app.models import User, Membership, AuthorizedDomain, AuthorizedEmail, Client
 from app.schemas import Token, UserLogin, MagicLinkRequest, MagicLinkVerifyRequest, ImpersonateRequest, UserWithClients, ClientResponse
 from app.config import get_settings
 from app.auth import (
@@ -131,7 +131,9 @@ def login(credentials: UserLogin, db: Session = Depends(get_db)):
 def request_magic_link(payload: MagicLinkRequest, db: Session = Depends(get_db)):
     """
     Request a passwordless magic-link for the given email address.
-    The email must belong to an authorized domain mapped to at least one client.
+    The email must either:
+    1. Belong to an authorized domain mapped to at least one client, OR
+    2. Be an individually authorized email mapped to at least one client
     """
     settings = get_settings()
     email = payload.email.strip().lower()
@@ -139,7 +141,9 @@ def request_magic_link(payload: MagicLinkRequest, db: Session = Depends(get_db))
         raise HTTPException(status_code=400, detail="A valid email address is required")
 
     domain = email.split("@")[-1]
+    clients = []
 
+    # First, check if the email domain is authorized
     authorized_domain = (
         db.query(AuthorizedDomain)
         .options(joinedload(AuthorizedDomain.clients))
@@ -147,22 +151,37 @@ def request_magic_link(payload: MagicLinkRequest, db: Session = Depends(get_db))
         .first()
     )
 
-    if not authorized_domain:
-        logger.info("Magic-link denied for unauthorized domain: %s", domain)
-        raise HTTPException(
-            status_code=403,
-            detail="This email domain is not authorized. Please contact support.",
-        )
-
-    clients = [client for client in authorized_domain.clients if client.is_active]
+    if authorized_domain:
+        clients = [client for client in authorized_domain.clients if client.is_active]
+    
+    # If no authorized domain or no clients, check for individually authorized email
     if not clients:
-        logger.warning(
-            "Authorized domain %s has no active client associations", domain
+        authorized_email = (
+            db.query(AuthorizedEmail)
+            .options(joinedload(AuthorizedEmail.clients))
+            .filter(func.lower(AuthorizedEmail.email) == email)
+            .first()
         )
-        raise HTTPException(
-            status_code=403,
-            detail="No active clients are linked to this domain yet. Please contact support.",
-        )
+        
+        if authorized_email:
+            clients = [client for client in authorized_email.clients if client.is_active]
+    
+    # If still no clients found, reject the request
+    if not clients:
+        if authorized_domain or authorized_email:
+            logger.warning(
+                "Email %s is authorized but has no active client associations", email
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="No active clients are linked to your email yet. Please contact support.",
+            )
+        else:
+            logger.info("Magic-link denied for unauthorized email: %s", email)
+            raise HTTPException(
+                status_code=403,
+                detail="This email is not authorized. Please contact support.",
+            )
 
     user = (
         db.query(User)
