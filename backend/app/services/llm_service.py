@@ -324,13 +324,27 @@ class LLMService:
             # Stream chunks and accumulate content
             accumulated_content = ""
             tokens_used = 0
+            # #region agent log
+            import json
+            chunk_count = 0
+            stream_start_time = __import__('time').time()
+            with open('/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({"location":"llm_service.py:324","message":"Starting OpenAI stream","data":{"model":model,"stream_start_time":stream_start_time},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","hypothesisId":"H1"})+"\n")
+            # #endregion
             
             for chunk in stream:
+                # #region agent log
+                chunk_count += 1
+                # #endregion
                 if chunk.choices and len(chunk.choices) > 0:
                     delta = chunk.choices[0].delta
                     if hasattr(delta, 'content') and delta.content:
                         content_chunk = delta.content
                         accumulated_content += content_chunk
+                        # #region agent log
+                        with open('/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug.log', 'a') as f:
+                            f.write(json.dumps({"location":"llm_service.py:332","message":"OpenAI chunk yielded","data":{"chunk_count":chunk_count,"content_length":len(content_chunk),"total_content_length":len(accumulated_content),"time_since_start":__import__('time').time()-stream_start_time},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","hypothesisId":"H1"})+"\n")
+                        # #endregion
                         # Yield content chunk with no metadata
                         yield (content_chunk, None)
                 
@@ -338,6 +352,10 @@ class LLMService:
                 if hasattr(chunk, 'usage') and chunk.usage:
                     tokens_used = chunk.usage.total_tokens
             
+            # #region agent log
+            with open('/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({"location":"llm_service.py:343","message":"OpenAI stream complete","data":{"total_chunks":chunk_count,"total_content_length":len(accumulated_content),"tokens_used":tokens_used,"total_duration":__import__('time').time()-stream_start_time},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","hypothesisId":"H1,H2"})+"\n")
+            # #endregion
             # If we didn't get tokens from chunks, we'll need to estimate or get from final response
             # For now, yield final metadata
             yield ("", {
@@ -347,6 +365,11 @@ class LLMService:
             })
             
         except Exception as e:
+            # #region agent log
+            import json
+            with open('/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug.log', 'a') as f:
+                f.write(json.dumps({"location":"llm_service.py:349","message":"OpenAI stream exception","data":{"error_msg":str(e),"error_type":type(e).__name__},"timestamp":int(__import__('time').time()*1000),"sessionId":"debug-session","hypothesisId":"H1"})+"\n")
+            # #endregion
             logger.error(f"Failed to execute streaming prompt with OpenAI: {e}")
             raise RuntimeError(f"Failed to execute prompt: {str(e)}")
     

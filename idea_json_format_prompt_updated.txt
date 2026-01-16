@@ -1,0 +1,89 @@
+✅ IDEA JSON (MANDATORY FORMAT)
+
+**CRITICAL: Output each idea as a SEPARATE JSON block.** This enables incremental rendering during streaming.
+
+**Optional Content Section (if applicable):**
+If you have introductory content or strategic context, output it as plain text BEFORE the idea cards:
+
+**Individual Idea Format:**
+Each idea must be in its own separate ```json block. Output ideas one at a time as you generate them:
+
+```json
+{
+  "id": "unique-id-001",
+  "title": "Actionable description (≤10 words)",
+  "testType": "Headline Hooks | Social Proof | Pain Point | Trust Building | Other",
+  "application": "Facebook Ads - Primary Text + Headline",
+  "origin": "{Source Type} / {Category} / {Theme}",
+  "details": "Lane: <Lane Name>\\nConcept name: <Name>\\nHeadline / hook: <Hook>\\nEmotional driver: <Emotion + why>\\nWhy this works (psychology): <2–4 sentences>\\nSuggested format: <video/static/UGC/founder/demo>\\nVoC phrases to include: <3–6 verbatim or near-verbatim phrases>\\nCTA: <CTA>\\nPrimary test variable: <single lever only>"
+}
+```
+
+```json
+{
+  "id": "unique-id-002",
+  "title": "Actionable description (≤10 words)",
+  "testType": "Headline Hooks | Social Proof | Pain Point | Trust Building | Other",
+  "application": "Facebook Ads - Primary Text + Headline",
+  "origin": "{Source Type} / {Category} / {Theme}",
+  "details": "Lane: <Lane Name>\\nConcept name: <Name>\\nHeadline / hook: <Hook>\\nEmotional driver: <Emotion + why>\\nWhy this works (psychology): <2–4 sentences>\\nSuggested format: <video/static/UGC/founder/demo>\\nVoC phrases to include: <3–6 verbatim or near-verbatim phrases>\\nCTA: <CTA>\\nPrimary test variable: <single lever only>"
+}
+```
+
+**Formatting Rules:**
+- Use \n for line breaks in the details field (escaped as \\n in JSON)
+- Include at least one VoC verbatim phrase inside details
+- Add Priority: High / Medium at the end of details if relevant
+- Each idea must be in its own complete ```json block
+- Close each JSON block with ``` before starting the next one
+- Output ideas sequentially as you generate them (don't wait to batch them)
+- **NEVER use HTML tags** (like <strong>, <em>, <br>) inside JSON strings - use markdown instead (**bold**, *italic*)
+- **ONLY use straight quotes** (" and ') - never use curly/smart quotes (" " ' ')
+- **Escape all special characters** properly within strings (quotes, backslashes, etc.)
+
+✅ FINAL JSON VALIDATION CHECKLIST (MANDATORY)
+
+Before returning your response, YOU MUST validate all JSON blocks using this checklist:
+
+1. Syntax Validation
+ - All JSON blocks are wrapped in ```json (triple back ticks with json specified)
+ - Every opening { has a matching closing }
+ - Every opening [ has a matching closing ]
+ - All object properties have commas between them (except the last one)
+ - All array items have commas between them (except the last one)
+ - All string values use double quotes ", never single quotes '
+ - **CRITICAL: All quotes inside JSON are straight quotes ("), never curly quotes (" " ' ')**
+
+2. Control Character Check
+ - Newlines use \\n (escaped), NOT literal newlines
+ - No unescaped control characters (tabs, carriage returns, backslashes, quotes inside strings)
+ - **NO HTML tags** (<strong>, <em>, <br>, etc.) - use markdown formatting instead
+
+3. Text Formatting Inside JSON Strings
+ - For bold text: Use **text** (markdown), NOT <strong>text</strong> (HTML)
+ - For italic text: Use *text* (markdown), NOT <em>text</em> (HTML)
+ - For emphasis: Use markdown or plain text, NEVER HTML tags
+ - **All quotes must be straight quotes** - if your text editor auto-converts to curly quotes, manually fix them
+
+4. Common Errors to Check
+ - NO missing ```json block wrapper
+ - NO trailing commas after last item in arrays/objects
+ - NO comments (// or /* */)
+ - All property names are quoted strings
+ - All values are valid JSON types
+ - **NO HTML tags anywhere in the JSON**
+ - **NO curly/smart quotes - only straight quotes**
+
+5. High-Risk Areas
+ - Long strings (>200 chars) should not break formatting
+ - The final object and array items have NO extra commas
+ - Quotes inside strings are escaped properly: \\"
+ - Each JSON block is complete and closed with ``` before the next one starts
+ - **Check all emphasis/bold text uses markdown (**bold**), not HTML (<strong>)**
+ - **Scan for curly quotes and replace with straight quotes**
+
+If you detect ANY syntax error, FIX it before returning your response. Invalid JSON will fail to render.
+
+**Quick Reference - Allowed vs. Forbidden:**
+✅ ALLOWED: **bold text**, *italic*, \\"quoted text\\"
+❌ FORBIDDEN: <strong>bold</strong>, <em>italic</em>, "curly quotes", 'curly apostrophes'
