@@ -24,9 +24,12 @@
         <!-- Logo -->
         <div class="marketably-logo">
           <a href="https://marketably.ai" class="marketably-logo-link">
-            <span class="marketably-logo-text-white">market</span><span class="marketably-logo-text-brand">ably</span>
+            <img src="" alt="Client Logo" class="marketably-logo-image" id="headerLogoImage" style="display: none; max-height: 40px; width: auto;">
+            <div id="headerLogoText" class="marketably-logo-text-container">
+              <span class="marketably-logo-text-white">market</span><span class="marketably-logo-text-brand">ably</span>
+            </div>
           </a>
-          <span class="marketably-tagline">Feedback-Fueled Marketing</span>
+          <span class="marketably-tagline" id="headerTagline">Feedback-Fueled Marketing</span>
         </div>
         <div class="marketably-user-info hidden" id="headerUserInfo">
           <span class="marketably-user-email" id="headerUserEmail"></span>
@@ -316,6 +319,44 @@
     });
   }
 
+  function updateHeaderLogo(logoUrl, headerColor) {
+    const logoImage = document.getElementById('headerLogoImage');
+    const logoText = document.getElementById('headerLogoText');
+    const tagline = document.getElementById('headerTagline');
+    const header = document.querySelector('.marketably-header');
+    
+    if (!logoImage || !logoText || !header) {
+      console.warn('Header elements not found, retrying...');
+      setTimeout(() => updateHeaderLogo(logoUrl, headerColor), 100);
+      return;
+    }
+    
+    if (logoUrl) {
+      // Show client logo, hide text logo and tagline
+      logoImage.src = logoUrl;
+      logoImage.style.display = 'block';
+      logoText.style.display = 'none';
+      if (tagline) tagline.style.display = 'none';
+      
+      // Update header background color (use setProperty with !important to override CSS)
+      if (headerColor) {
+        header.style.setProperty('background', headerColor, 'important');
+        header.style.setProperty('background-color', headerColor, 'important');
+      }
+      
+      console.log(`[MARKETABLY HEADER] Updated to client logo: ${logoUrl}, color: ${headerColor}`);
+    } else {
+      // Show default text logo
+      logoImage.style.display = 'none';
+      logoText.style.display = 'inline';
+      if (tagline) tagline.style.display = 'block';
+      header.style.setProperty('background', '#212121', 'important');
+      header.style.setProperty('background-color', '#212121', 'important');
+      
+      console.log('[MARKETABLY HEADER] Showing default Marketably logo');
+    }
+  }
+
   function initHeader() {
     // Always add header to body at the beginning, so it's always visible
     // regardless of container visibility state
@@ -345,6 +386,9 @@
     document.body.appendChild(modal);
     console.log('Modal appended to body', modal);
   }
+  
+  // Expose updateHeaderLogo globally so index.html can call it
+  window.updateHeaderLogo = updateHeaderLogo;
 
 
   // Initialize when DOM is ready

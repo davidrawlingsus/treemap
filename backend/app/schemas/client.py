@@ -35,6 +35,8 @@ class ClientResponse(BaseModel):
     is_active: bool
     business_summary: Optional[str] = None
     client_url: Optional[str] = None
+    logo_url: Optional[str] = None
+    header_color: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime]
 
@@ -88,6 +90,11 @@ class ClientCreate(BaseModel):
     slug: str
     is_active: bool = True
     settings: dict = {}
+
+
+class ClientLogoUpdate(BaseModel):
+    logo_url: str = Field(..., description="URL of the client logo")
+    header_color: str = Field(..., description="Hex color for header background (e.g. #FFFFFF)")
 
 
 # Resolve forward references

@@ -71,6 +71,8 @@ class VocClientInfo(BaseModel):
     client_uuid: UUID
     client_name: Optional[str] = None
     data_source_count: int = 0
+    logo_url: Optional[str] = None
+    header_color: Optional[str] = None
 
 
 class VocProjectInfo(BaseModel):

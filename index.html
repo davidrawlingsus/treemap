@@ -5549,7 +5549,7 @@
             <div class="data-source-selector__content">
                 <div class="filter-panels">
                     <div class="filter-panel active" id="clientPanel" role="tabpanel" aria-labelledby="clientTab">
-                        <label for="clientSelect">Client:</label>
+                        <label for="clientSelect">Business:</label>
                         <select id="clientSelect">
                             <option value="">Loading...</option>
                         </select>
@@ -7058,6 +7058,13 @@
                 // Set the select value to match the current client
                 if (currentClientId) {
                     select.value = currentClientId;
+                    
+                    // Update header logo for initially selected client
+                    const selectedClient = allClients.find(c => c.client_uuid === currentClientId);
+                    if (selectedClient && typeof window.updateHeaderLogo === 'function') {
+                        window.updateHeaderLogo(selectedClient.logo_url, selectedClient.header_color);
+                    }
+                    
                     // If we restored from URL, trigger the client selection to load data (only once)
                     // Check if we're in login/selection mode (login container visible or main container hidden)
                     // Only auto-launch if we're NOT already in the process of launching (to prevent double loads)
@@ -7092,6 +7099,12 @@
                     // Sync Insights tab client ID to keep both tabs in sync
                     if (typeof insightsCurrentClientId !== 'undefined') {
                         insightsCurrentClientId = newClientId;
+                    }
+                    
+                    // Update header logo for the selected client
+                    const selectedClient = allClients.find(c => c.client_uuid === newClientId);
+                    if (selectedClient && typeof window.updateHeaderLogo === 'function') {
+                        window.updateHeaderLogo(selectedClient.logo_url, selectedClient.header_color);
                     }
                     
                     currentProjectName = null; // Reset project when client changes

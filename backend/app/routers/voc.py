@@ -275,10 +275,14 @@ def get_voc_clients(
     # Build a map of client_uuid -> info
     client_map = {}
     for row in results_with_uuid:
+        # Fetch logo_url and header_color from clients table
+        client = db.query(Client).filter(Client.id == row.client_uuid).first()
         client_map[row.client_uuid] = {
             'client_uuid': row.client_uuid,
             'client_name': row.client_name,
-            'data_source_count': row.data_source_count
+            'data_source_count': row.data_source_count,
+            'logo_url': client.logo_url if client else None,
+            'header_color': client.header_color if client else None
         }
     
     # Now get clients grouped by client_name (when client_uuid is null)
@@ -307,7 +311,9 @@ def get_voc_clients(
                     client_map[matching_client.id] = {
                         'client_uuid': matching_client.id,
                         'client_name': matching_client.name,
-                        'data_source_count': row.data_source_count
+                        'data_source_count': row.data_source_count,
+                        'logo_url': matching_client.logo_url,
+                        'header_color': matching_client.header_color
                     }
                 else:
                     # Merge data source counts if client already exists
@@ -323,7 +329,9 @@ def get_voc_clients(
         VocClientInfo(
             client_uuid=info['client_uuid'],
             client_name=info['client_name'],
-            data_source_count=info['data_source_count']
+            data_source_count=info['data_source_count'],
+            logo_url=info.get('logo_url'),
+            header_color=info.get('header_color')
         )
         for info in client_map.values()
     ]

@@ -15,6 +15,7 @@ from app.models import Client, DataSource, Insight, Membership, User, Prompt, Ac
 from app.schemas import (
     ClientCreate,
     ClientResponse,
+    ClientLogoUpdate,
     DataSourceResponse,
     InsightCreate,
     InsightUpdate,
@@ -92,6 +93,27 @@ def get_client(client_id: UUID, db: Session = Depends(get_db)):
     
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
+    
+    return client
+
+
+@router.put("/{client_id}/logo", response_model=ClientResponse)
+def update_client_logo(
+    client_id: UUID,
+    logo_data: ClientLogoUpdate,
+    db: Session = Depends(get_db)
+):
+    """Update client logo URL and header color"""
+    client = db.query(Client).filter(Client.id == client_id).first()
+    
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    client.logo_url = logo_data.logo_url
+    client.header_color = logo_data.header_color
+    
+    db.commit()
+    db.refresh(client)
     
     return client
 
@@ -542,6 +564,14 @@ def execute_client_prompt(
             def generate_stream():
                 accumulated_content = ""
                 final_metadata = None
+                # #region agent log
+                import json
+                import time
+                stream_start_time = time.time()
+                chunk_count = 0
+                with open('/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug.log', 'a') as f:
+                    f.write(json.dumps({"location":"clients.py:542","message":"Backend stream generator started","data":{"prompt_id":str(prompt_id_value),"client_id":str(client_id_value),"model":prompt_llm_model,"stream_start_time":stream_start_time},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H2"})+"\n")
+                # #endregion
                 
                 # Create separate database session for saving action
                 from app.database import SessionLocal
@@ -557,6 +587,11 @@ def execute_client_prompt(
                         if metadata is None:
                             # Content chunk
                             if chunk:
+                                # #region agent log
+                                chunk_count += 1
+                                with open('/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug.log', 'a') as f:
+                                    f.write(json.dumps({"location":"clients.py:557","message":"Backend yielding chunk","data":{"chunk_count":chunk_count,"chunk_length":len(chunk),"total_content_length":len(accumulated_content),"time_since_start":time.time()-stream_start_time},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H2"})+"\n")
+                                # #endregion
                                 accumulated_content += chunk
                                 # Send SSE message with chunk
                                 message = json.dumps({
@@ -565,6 +600,10 @@ def execute_client_prompt(
                                 })
                                 yield f"data: {message}\n\n"
                         else:
+                            # #region agent log
+                            with open('/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug.log', 'a') as f:
+                                f.write(json.dumps({"location":"clients.py:568","message":"Backend received final metadata","data":{"total_chunks":chunk_count,"tokens_used":metadata.get("tokens_used"),"total_duration":time.time()-stream_start_time},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H2"})+"\n")
+                            # #endregion
                             # Final metadata chunk
                             final_metadata = metadata
                             # Send final message
@@ -609,6 +648,10 @@ def execute_client_prompt(
                             save_db.close()
                     
                 except Exception as stream_error:
+                    # #region agent log
+                    with open('/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug.log', 'a') as f:
+                        f.write(json.dumps({"location":"clients.py:611","message":"Backend stream exception","data":{"error_msg":str(stream_error),"error_type":type(stream_error).__name__,"chunks_sent":chunk_count,"time_before_error":time.time()-stream_start_time},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H2"})+"\n")
+                    # #endregion
                     logger.error(f"Error during streaming: {stream_error}", exc_info=True)
                     error_message = json.dumps({
                         "type": "error",
