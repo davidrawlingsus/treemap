@@ -15578,20 +15578,20 @@
                               style="position: relative;">
                             <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation();" onchange="toggleMultiSelectOption('${insightId}', '${fieldName}', '${optionEscapedJs}')">
                             <span class="option-label">${escapeHtmlFn(option)}</span>
-                            <button class="multiselect-option-meatball" onclick="event.stopPropagation(); toggleTagMeatballMenu(event, '${escapeHtmlFn(option)}', '${fieldName}')" title="Tag options">
+                            <button class="multiselect-option-meatball" onclick="event.stopPropagation(); toggleTagMeatballMenu(event, '${optionEscapedJs}', '${fieldName}')" title="Tag options">
                                 ⋮
                             </button>
                             <div class="multiselect-option-meatball-menu" id="meatball-menu-${fieldName}-${escapeHtmlFn(option).replace(/[^a-zA-Z0-9]/g, '_')}">
                                 <div class="tag-edit-input-container">
                                     <input type="text" class="tag-edit-input" value="${escapeHtmlFn(option)}" 
                                            data-original-value="${escapeHtmlFn(option)}"
-                                           oninput="previewTagRename(event, '${escapeHtmlFn(option)}', '${fieldName}')"
-                                           onkeydown="handleTagRenameKeydown(event, '${escapeHtmlFn(option)}', '${fieldName}')"
-                                           onblur="saveTagRename(event, '${escapeHtmlFn(option)}', '${fieldName}')">
+                                           oninput="previewTagRename(event, '${optionEscapedJs}', '${fieldName}')"
+                                           onkeydown="handleTagRenameKeydown(event, '${optionEscapedJs}', '${fieldName}')"
+                                           onblur="saveTagRename(event, '${optionEscapedJs}', '${fieldName}')">
                                     <div class="tag-info-icon" title="Tag name">i</div>
                                 </div>
                                 <div class="meatball-menu-divider"></div>
-                                <div class="meatball-menu-delete" onclick="bulkDeleteTag('${escapeHtmlFn(option)}', '${fieldName}')">
+                                <div class="meatball-menu-delete" onclick="bulkDeleteTag('${optionEscapedJs}', '${fieldName}')">
                                     <div class="meatball-menu-delete-icon">
                                         <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
                                             <path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5ZM11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H2.506a.58.58 0 0 0-.01 0H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84L13.46 3.5H14.5a.5.5 0 0 0 0-1h-1.004a.58.58 0 0 0-.01 0H11ZM4.118 4 4.5 14.5a1 1 0 0 0 1 .5h6.23a1 1 0 0 0 .997-.5L13.118 4H4.118Z"/>
@@ -15601,52 +15601,52 @@
                                 </div>
                                 <div class="meatball-menu-divider"></div>
                                 <div class="meatball-menu-colors-title">Colors</div>
-                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${escapeHtmlFn(option)}', '${fieldName}', 'default')">
+                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${optionEscapedJs}', '${fieldName}', 'default')">
                                     <div class="meatball-menu-color-swatch" style="background: #d1d1d1;"></div>
                                     <span class="meatball-menu-color-label">Default</span>
                                     <span class="meatball-menu-color-checkmark" style="display: block;">✓</span>
                                 </div>
-                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${escapeHtmlFn(option)}', '${fieldName}', 'gray')">
+                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${optionEscapedJs}', '${fieldName}', 'gray')">
                                     <div class="meatball-menu-color-swatch" style="background: #9ca3af;"></div>
                                     <span class="meatball-menu-color-label">Gray</span>
                                     <span class="meatball-menu-color-checkmark" style="display: none;">✓</span>
                                 </div>
-                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${escapeHtmlFn(option)}', '${fieldName}', 'brown')">
+                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${optionEscapedJs}', '${fieldName}', 'brown')">
                                     <div class="meatball-menu-color-swatch" style="background: #92400e;"></div>
                                     <span class="meatball-menu-color-label">Brown</span>
                                     <span class="meatball-menu-color-checkmark" style="display: none;">✓</span>
                                 </div>
-                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${escapeHtmlFn(option)}', '${fieldName}', 'orange')">
+                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${optionEscapedJs}', '${fieldName}', 'orange')">
                                     <div class="meatball-menu-color-swatch" style="background: #f97316;"></div>
                                     <span class="meatball-menu-color-label">Orange</span>
                                     <span class="meatball-menu-color-checkmark" style="display: none;">✓</span>
                                 </div>
-                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${escapeHtmlFn(option)}', '${fieldName}', 'yellow')">
+                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${optionEscapedJs}', '${fieldName}', 'yellow')">
                                     <div class="meatball-menu-color-swatch" style="background: #eab308;"></div>
                                     <span class="meatball-menu-color-label">Yellow</span>
                                     <span class="meatball-menu-color-checkmark" style="display: none;">✓</span>
                                 </div>
-                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${escapeHtmlFn(option)}', '${fieldName}', 'green')">
+                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${optionEscapedJs}', '${fieldName}', 'green')">
                                     <div class="meatball-menu-color-swatch" style="background: #22c55e;"></div>
                                     <span class="meatball-menu-color-label">Green</span>
                                     <span class="meatball-menu-color-checkmark" style="display: none;">✓</span>
                                 </div>
-                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${escapeHtmlFn(option)}', '${fieldName}', 'blue')">
+                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${optionEscapedJs}', '${fieldName}', 'blue')">
                                     <div class="meatball-menu-color-swatch" style="background: #3b82f6;"></div>
                                     <span class="meatball-menu-color-label">Blue</span>
                                     <span class="meatball-menu-color-checkmark" style="display: none;">✓</span>
                                 </div>
-                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${escapeHtmlFn(option)}', '${fieldName}', 'purple')">
+                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${optionEscapedJs}', '${fieldName}', 'purple')">
                                     <div class="meatball-menu-color-swatch" style="background: #a855f7;"></div>
                                     <span class="meatball-menu-color-label">Purple</span>
                                     <span class="meatball-menu-color-checkmark" style="display: none;">✓</span>
                                 </div>
-                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${escapeHtmlFn(option)}', '${fieldName}', 'pink')">
+                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${optionEscapedJs}', '${fieldName}', 'pink')">
                                     <div class="meatball-menu-color-swatch" style="background: #ec4899;"></div>
                                     <span class="meatball-menu-color-label">Pink</span>
                                     <span class="meatball-menu-color-checkmark" style="display: none;">✓</span>
                                 </div>
-                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${escapeHtmlFn(option)}', '${fieldName}', 'red')">
+                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${optionEscapedJs}', '${fieldName}', 'red')">
                                     <div class="meatball-menu-color-swatch" style="background: #ef4444;"></div>
                                     <span class="meatball-menu-color-label">Red</span>
                                     <span class="meatball-menu-color-checkmark" style="display: none;">✓</span>
