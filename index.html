@@ -47,7 +47,7 @@
     <!-- Utility modules (ES modules) -->
     <script type="module">
         import { adjustBrightness } from '/js/utils/colors.js';
-        import { getStateCode, stateNameToCode, fipsToStateCode } from '/js/utils/format.js';
+        import { getStateCode, stateNameToCode, fipsToStateCode, getDimensionDisplayName as formatGetDimensionDisplayName, highlightSearchTerms as formatHighlightSearchTerms, toPascalCase as formatToPascalCase } from '/js/utils/format.js';
         import { debounce, escapeHtml, escapeHtmlForAttribute } from '/js/utils/dom.js';
         import { 
             saveState as storageSaveState, 
@@ -298,7 +298,7 @@
         
         // Make utilities available globally for backward compatibility
         window.adjustBrightness = adjustBrightness;
-        window.getStateCode = formatGetStateCode;
+        window.getStateCode = getStateCode;
         window.stateNameToCode = formatStateNameToCode;
         window.fipsToStateCode = formatFipsToStateCode;
         window.getDimensionDisplayName = formatGetDimensionDisplayName;
@@ -16089,7 +16089,25 @@
         // TAG_COLORS_STORAGE_KEY, TAG_COLOR_MAP, getTagColors, setTagColor, getTagColor available globally via window.*
 
         function getPillStyle(fieldName, tagValue) {
-            const color = getTagColor(fieldName, tagValue);
+            // Ensure getTagColor is available with fallback
+            const getTagColorFn = window.getTagColor || ((fieldName, tagValue) => {
+                const colors = window.getTagColors ? window.getTagColors() : {};
+                const colorName = colors[fieldName]?.[tagValue] || 'default';
+                const colorMap = window.TAG_COLOR_MAP || {
+                    'default': { bg: '#e0e0e0', color: '#333' },
+                    'gray': { bg: '#e0e0e0', color: '#333' },
+                    'brown': { bg: '#d7ccc8', color: '#333' },
+                    'orange': { bg: '#ffe0b2', color: '#333' },
+                    'yellow': { bg: '#fff9c4', color: '#333' },
+                    'green': { bg: '#c8e6c9', color: '#333' },
+                    'blue': { bg: '#bbdefb', color: '#333' },
+                    'purple': { bg: '#e1bee7', color: '#333' },
+                    'pink': { bg: '#f8bbd0', color: '#333' },
+                    'red': { bg: '#ffcdd2', color: '#333' }
+                };
+                return colorMap[colorName] || colorMap['default'];
+            });
+            const color = getTagColorFn(fieldName, tagValue);
             return `background: ${color.bg}; color: ${color.color};`;
         }
 
