@@ -6943,23 +6943,18 @@
             }
         }
         
-        // Vibrant color palette as per specification
-        const categoryColors = [
-            '#A97FFF', // Vibrant violet
-            '#77D9D6', // Aqua-teal
-            '#F8A04C', // Amber-orange
-            '#58B3F0', // Bright blue
-            '#6ED49B', // Fresh green
-            '#F47280', // Coral pink
-            '#9A7B6C', // Warm neutral
-            '#FFB366', // Peach
-            '#B794F6', // Lavender
-            '#4ECDC4', // Turquoise
-        ];
-        
-        const colorSchemes = {
-            categories: d3.scaleOrdinal(categoryColors)
-        };
+        // Color schemes - now imported from js/config/color-schemes.js module
+        // Available globally via window.colorSchemesGetColorSchemes() and window.colorSchemesCATEGORY_COLORS
+        const colorSchemes = (() => {
+            if (window.colorSchemesGetColorSchemes && typeof d3 !== 'undefined') {
+                return window.colorSchemesGetColorSchemes(d3);
+            }
+            // Fallback if module not loaded yet - recreate inline
+            const categoryColors = [
+                '#A97FFF', '#77D9D6', '#F8A04C', '#58B3F0', '#6ED49B', '#F47280', '#9A7B6C', '#FFB366', '#B794F6', '#4ECDC4'
+            ];
+            return { categories: d3?.scaleOrdinal(categoryColors) || null };
+        })();
         
         // State code mappings - now imported from js/utils/format.js module
         // Available globally via window.stateNameToCode and window.fipsToStateCode

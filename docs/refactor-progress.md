@@ -398,6 +398,19 @@ js/
 **Slice 20: Extract UI Interaction State and Dimension Config** - **DONE**
 
 **Slice 21: Extract Additional Format Utilities** - **DONE**
+
+**Slice 22: Extract Color Schemes Config** - **DONE**
+- **Status**: DONE
+- **Scope**: Color schemes configuration for D3 visualizations
+- **Files Affected**: Created `js/config/color-schemes.js`
+- **Extract**: `CATEGORY_COLORS` array and `getColorSchemes()` function
+- **Public API**: `colorSchemes.CATEGORY_COLORS`, `colorSchemes.getColorSchemes()`
+- **Testing Checklist**: 
+  - [ ] Verify treemap colors work correctly
+  - [ ] Verify category colors are displayed
+  - [ ] No console errors
+- **Completed**: 2025-01-XX
+- **Notes**: Created color-schemes module with category colors array and getColorSchemes function. Module functions exposed globally. Wrapper code in index.html initializes colorSchemes using module function with fallback. Local colorSchemes variable kept for backward compatibility during migration.
 - **Status**: DONE
 - **Scope**: Additional format utility functions
 - **Files Affected**: Updated `js/utils/format.js`
