@@ -16145,6 +16145,13 @@
 
         // Inline text editing for name field
         function createEditableNameCell(insightId, name, highlightedName) {
+            // Ensure escapeHtml is available with fallback
+            const escapeHtmlFn = window.escapeHtml || ((s) => {
+                if (s == null) return '';
+                const div = document.createElement('div');
+                div.textContent = s;
+                return div.innerHTML;
+            });
             return `<td class="name-cell" data-column="name">
                 <div class="name-content" style="position: relative;">
                     <svg class="doc-icon" viewBox="0 0 16 16" fill="currentColor">
@@ -16153,7 +16160,7 @@
                     <span class="insight-name-text" 
                           contenteditable="true" 
                           data-insight-id="${insightId}"
-                          data-original-name="${escapeHtml(name)}"
+                          data-original-name="${escapeHtmlFn(name)}"
                           onblur="saveInsightName('${insightId}')"
                           onkeydown="handleNameKeydown(event, '${insightId}')"
                           onclick="event.stopPropagation(); this.focus();">${highlightedName}</span>
