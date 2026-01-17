@@ -267,8 +267,19 @@ js/
 - **Completed**: 2025-01-XX
 - **Notes**: Created visualization-state module with getter/setter functions. Module functions exposed globally. Local variables kept for backward compatibility during migration. Full migration of all references to module functions will happen gradually in future slices.
 
-**Slice 12**: State extraction slices - **NOT STARTED**
-(Details to be filled as we progress)
+**Slice 12: Extract Filter State** - **DONE**
+- **Status**: DONE
+- **Scope**: Filter state variables (filterRules, dimensionFilters, availableMetadataFields, currentMetadataField)
+- **Files Affected**: Created `js/state/filter-state.js`
+- **Extract**: State management for filter rules, dimension filters, and metadata field filters
+- **Public API**: `filterState.getFilterRules()`, `filterState.setFilterRules()`, `filterState.getDimensionFilters()`, `filterState.setDimensionFilters()`, etc.
+- **Testing Checklist**: 
+  - [ ] Verify filters work correctly
+  - [ ] Verify dimension filtering works
+  - [ ] Verify metadata field filtering works
+  - [ ] No console errors
+- **Completed**: 2025-01-XX
+- **Notes**: Created filter-state module with getter/setter functions. Module functions exposed globally. Local variables kept for backward compatibility during migration. Full migration of all references to module functions will happen gradually in future slices.
 
 ### Phase 4: Router (Medium Risk)
 
@@ -383,6 +394,14 @@ js/
 - Created `js/state/visualization-state.js` - extracted visualization data state management
 - Extracted state variables: `rawData`, `fullRawData`, `dimensionFilteredData`, `hierarchyData`
 - Added visualization-state module imports to ES module script tag in index.html
+- Module functions exposed globally for backward compatibility
+- Local variables kept for backward compatibility during migration
+- Full migration of all references to module functions will happen gradually in future slices
+
+### 2025-01-XX - Slice 12: Extract Filter State
+- Created `js/state/filter-state.js` - extracted filter state management
+- Extracted state variables: `filterRules`, `dimensionFilters`, `availableMetadataFields`, `currentMetadataField`
+- Added filter-state module imports to ES module script tag in index.html
 - Module functions exposed globally for backward compatibility
 - Local variables kept for backward compatibility during migration
 - Full migration of all references to module functions will happen gradually in future slices
