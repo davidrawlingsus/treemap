@@ -295,6 +295,14 @@
             hasDimensionOption as dimensionConfigHasDimensionOption,
             addDimensionOption as dimensionConfigAddDimensionOption
         } from '/js/config/dimension-config.js';
+        import {
+            CATEGORY_COLORS as colorSchemesCATEGORY_COLORS,
+            getColorSchemes as colorSchemesGetColorSchemes
+        } from '/js/config/color-schemes.js';
+        
+        // Make color schemes config available globally
+        window.colorSchemesCATEGORY_COLORS = colorSchemesCATEGORY_COLORS;
+        window.colorSchemesGetColorSchemes = colorSchemesGetColorSchemes;
         
         // Make utilities available globally for backward compatibility
         window.adjustBrightness = adjustBrightness;
