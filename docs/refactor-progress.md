@@ -253,7 +253,21 @@ js/
 - **Completed**: 2025-01-XX
 - **Notes**: Created app-state module with getter/setter functions. Updated `saveState()` to use module. Local variables kept for backward compatibility during migration. Full migration of all references to module functions will happen gradually in future slices.
 
-**Slice 11-12**: State extraction slices - **NOT STARTED**
+**Slice 11: Extract Visualization Data State** - **DONE**
+- **Status**: DONE
+- **Scope**: Visualization data state variables (rawData, fullRawData, dimensionFilteredData, hierarchyData)
+- **Files Affected**: Created `js/state/visualization-state.js`
+- **Extract**: State management for visualization data arrays and hierarchy
+- **Public API**: `vizState.getRawData()`, `vizState.setRawData()`, `vizState.getFullRawData()`, `vizState.setFullRawData()`, `vizState.getDimensionFilteredData()`, `vizState.setDimensionFilteredData()`, `vizState.getHierarchyData()`, `vizState.setHierarchyData()`, etc.
+- **Testing Checklist**: 
+  - [ ] Verify data loads correctly
+  - [ ] Verify filtering works correctly
+  - [ ] Verify treemap rendering works
+  - [ ] No console errors
+- **Completed**: 2025-01-XX
+- **Notes**: Created visualization-state module with getter/setter functions. Module functions exposed globally. Local variables kept for backward compatibility during migration. Full migration of all references to module functions will happen gradually in future slices.
+
+**Slice 12**: State extraction slices - **NOT STARTED**
 (Details to be filled as we progress)
 
 ### Phase 4: Router (Medium Risk)
@@ -361,6 +375,15 @@ js/
 - Added app-state module imports to ES module script tag in index.html
 - Created getter/setter wrapper functions in index.html for backward compatibility
 - Updated `saveState()` function to use module's `getState()` function
+- Fixed state synchronization: `saveState()` now syncs local variables to module, and restoration code updates module
+- Local variables kept for backward compatibility during migration
+- Full migration of all references to module functions will happen gradually in future slices
+
+### 2025-01-XX - Slice 11: Extract Visualization Data State
+- Created `js/state/visualization-state.js` - extracted visualization data state management
+- Extracted state variables: `rawData`, `fullRawData`, `dimensionFilteredData`, `hierarchyData`
+- Added visualization-state module imports to ES module script tag in index.html
+- Module functions exposed globally for backward compatibility
 - Local variables kept for backward compatibility during migration
 - Full migration of all references to module functions will happen gradually in future slices
 

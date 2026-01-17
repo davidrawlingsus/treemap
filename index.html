@@ -120,6 +120,23 @@
             setVisualizationState as vizStateSetVisualizationState,
             resetVisualizationState as vizStateResetVisualizationState
         } from '/js/state/visualization-state.js';
+        import {
+            getFilterRules as filterStateGetFilterRules,
+            setFilterRules as filterStateSetFilterRules,
+            getDimensionFilters as filterStateGetDimensionFilters,
+            setDimensionFilters as filterStateSetDimensionFilters,
+            getDimensionFilter as filterStateGetDimensionFilter,
+            setDimensionFilter as filterStateSetDimensionFilter,
+            clearDimensionFilter as filterStateClearDimensionFilter,
+            clearAllDimensionFilters as filterStateClearAllDimensionFilters,
+            getAvailableMetadataFields as filterStateGetAvailableMetadataFields,
+            setAvailableMetadataFields as filterStateSetAvailableMetadataFields,
+            getCurrentMetadataField as filterStateGetCurrentMetadataField,
+            setCurrentMetadataField as filterStateSetCurrentMetadataField,
+            getFilterState as filterStateGetFilterState,
+            setFilterState as filterStateSetFilterState,
+            resetFilterState as filterStateResetFilterState
+        } from '/js/state/filter-state.js';
         
         // Make utilities available globally for backward compatibility
         window.adjustBrightness = adjustBrightness;
@@ -205,6 +222,23 @@
         window.vizStateGetVisualizationState = vizStateGetVisualizationState;
         window.vizStateSetVisualizationState = vizStateSetVisualizationState;
         window.vizStateResetVisualizationState = vizStateResetVisualizationState;
+        
+        // Make filter state functions available globally for backward compatibility
+        window.filterStateGetFilterRules = filterStateGetFilterRules;
+        window.filterStateSetFilterRules = filterStateSetFilterRules;
+        window.filterStateGetDimensionFilters = filterStateGetDimensionFilters;
+        window.filterStateSetDimensionFilters = filterStateSetDimensionFilters;
+        window.filterStateGetDimensionFilter = filterStateGetDimensionFilter;
+        window.filterStateSetDimensionFilter = filterStateSetDimensionFilter;
+        window.filterStateClearDimensionFilter = filterStateClearDimensionFilter;
+        window.filterStateClearAllDimensionFilters = filterStateClearAllDimensionFilters;
+        window.filterStateGetAvailableMetadataFields = filterStateGetAvailableMetadataFields;
+        window.filterStateSetAvailableMetadataFields = filterStateSetAvailableMetadataFields;
+        window.filterStateGetCurrentMetadataField = filterStateGetCurrentMetadataField;
+        window.filterStateSetCurrentMetadataField = filterStateSetCurrentMetadataField;
+        window.filterStateGetFilterState = filterStateGetFilterState;
+        window.filterStateSetFilterState = filterStateSetFilterState;
+        window.filterStateResetFilterState = filterStateResetFilterState;
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
