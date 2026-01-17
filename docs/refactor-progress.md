@@ -168,7 +168,22 @@ js/
 - **Completed**: 2025-01-XX
 - **Notes**: Created wrapper function in index.html that uses module function. API_BASE_URL is now set via getAPIBaseUrl() which calls the module function. All API calls continue to use API_BASE_URL constant which is set at initialization.
 
-**Slice 5-9**: API extraction slices - **NOT STARTED**
+**Slice 5: Extract Clients API** - **DONE**
+- **Status**: DONE
+- **Scope**: Client-related API calls
+- **Files Affected**: Created `js/services/api-clients.js`
+- **Extract**: `loadClients()` API fetch logic (filtering and sorting)
+- **Public API**: `clientsApi.loadClients({ accessibleClientIds, getAuthHeaders })`
+- **Testing Checklist**: 
+  - [ ] Verify clients load correctly
+  - [ ] Verify filtering by accessibleClientIds works
+  - [ ] Verify sorting works
+  - [ ] Verify UI updates correctly
+  - [ ] No console errors
+- **Completed**: 2025-01-XX
+- **Notes**: Extracted API fetch logic to module. DOM manipulation, state management, and UI updates remain in index.html wrapper function. Wrapper calls module API function and handles all DOM/state logic.
+
+**Slice 6-9**: API extraction slices - **NOT STARTED**
 (Details to be filled as we progress)
 
 ### Phase 3: State Management (Medium Risk)
@@ -243,6 +258,14 @@ js/
 - API_BASE_URL constant is now set by calling the module function at initialization
 - All existing API calls continue to use API_BASE_URL constant without changes
 
+### 2025-01-XX - Slice 5: Extract Clients API
+- Created `js/services/api-clients.js` - extracted clients API fetch logic
+- Extracted function: `loadClients()` API fetch, filtering, and sorting
+- Added clients API module imports to ES module script tag in index.html
+- Updated `loadClients()` function in index.html to use module for API fetching
+- DOM manipulation, state restoration, and UI updates remain in index.html wrapper function
+- AllClients array and state variables remain in index.html (will be moved to state module later)
+
 ## Known Risks & Technical Debt
 
 ### Globals to Address
@@ -271,6 +294,6 @@ js/
 
 ## Next 1-3 Recommended Actions
 
-1. **TEST SLICE 4** - Verify API configuration works correctly
+1. **TEST SLICE 5** - Verify clients API works correctly
 2. **STOP AND WAIT FOR USER TESTING** - Do not proceed until user confirms testing is complete
-3. **After testing** - Proceed to Slice 5: Extract Clients API
+3. **After testing** - Proceed to Slice 6: Extract Data Sources API

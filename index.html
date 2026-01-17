@@ -76,6 +76,9 @@
             getBaseUrl as apiConfigGetBaseUrl,
             API_BASE_URL as apiConfigAPI_BASE_URL
         } from '/js/services/api-config.js';
+        import {
+            loadClients as clientsApiLoadClients
+        } from '/js/services/api-clients.js';
         
         // Make utilities available globally for backward compatibility
         window.adjustBrightness = adjustBrightness;
@@ -117,6 +120,9 @@
             enumerable: true,
             configurable: true
         });
+        
+        // Make clients API available globally for wrapper functions
+        window.clientsApiLoadClients = clientsApiLoadClients;
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -7336,37 +7342,46 @@
         }
         const API_BASE_URL = getAPIBaseUrl();
         
-        // Load available clients
+        // Load available clients - wrapper that uses API module for fetching, handles DOM/state
         async function loadClients() {
             console.log('loadClients() called');
             try {
-                console.log(`Fetching clients from ${API_BASE_URL}/api/voc/clients`);
-                const response = await fetch(`${API_BASE_URL}/api/voc/clients`, {
-                    headers: getAuthHeaders()
-                });
-                console.log('Clients response status:', response.status);
-                if (!response.ok) {
-                    throw new Error('Failed to load clients');
-                }
-                console.log('Parsing clients JSON...');
-                allClients = await response.json();
-                console.log(`Loaded ${allClients.length} clients:`, allClients);
-
-                if (accessibleClientIds.size > 0) {
-                    allClients = allClients.filter(client => {
-                        // Check both client.id and client.client_uuid since accessibleClientIds uses client.id
-                        return (client.client_uuid && accessibleClientIds.has(client.client_uuid)) ||
-                               (client.id && accessibleClientIds.has(client.id));
+                // Fetch clients using API module
+                if (window.clientsApiLoadClients) {
+                    allClients = await window.clientsApiLoadClients({
+                        accessibleClientIds: accessibleClientIds,
+                        getAuthHeaders: getAuthHeaders
                     });
-                    console.log(`Filtered to ${allClients.length} authorized clients`);
-                }
+                    console.log(`Loaded ${allClients.length} clients:`, allClients);
+                } else {
+                    // Fallback if module not loaded yet
+                    console.log(`Fetching clients from ${API_BASE_URL}/api/voc/clients`);
+                    const response = await fetch(`${API_BASE_URL}/api/voc/clients`, {
+                        headers: getAuthHeaders()
+                    });
+                    console.log('Clients response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error('Failed to load clients');
+                    }
+                    console.log('Parsing clients JSON...');
+                    allClients = await response.json();
+                    console.log(`Loaded ${allClients.length} clients:`, allClients);
 
-                // Sort clients alphabetically by client_name
-                allClients.sort((a, b) => {
-                    const nameA = (a.client_name || '').toLowerCase();
-                    const nameB = (b.client_name || '').toLowerCase();
-                    return nameA.localeCompare(nameB);
-                });
+                    if (accessibleClientIds.size > 0) {
+                        allClients = allClients.filter(client => {
+                            return (client.client_uuid && accessibleClientIds.has(client.client_uuid)) ||
+                                   (client.id && accessibleClientIds.has(client.id));
+                        });
+                        console.log(`Filtered to ${allClients.length} authorized clients`);
+                    }
+
+                    // Sort clients alphabetically by client_name
+                    allClients.sort((a, b) => {
+                        const nameA = (a.client_name || '').toLowerCase();
+                        const nameB = (b.client_name || '').toLowerCase();
+                        return nameA.localeCompare(nameB);
+                    });
+                }
 
                 const select = document.getElementById('clientSelect');
                 console.log('Client select element:', select);
