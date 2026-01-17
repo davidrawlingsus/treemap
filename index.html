@@ -16212,8 +16212,18 @@
         function getPillStyle(fieldName, tagValue) {
             // Ensure getTagColor is available with fallback
             const getTagColorFn = window.getTagColor || ((fieldName, tagValue) => {
-                const colors = window.getTagColors ? window.getTagColors() : {};
-                const colorName = colors[fieldName]?.[tagValue] || 'default';
+                // Fallback if module not loaded yet - use same key format as setTagColor
+                const colors = window.getTagColors ? window.getTagColors() : (() => {
+                    try {
+                        const storageKey = window.TAG_COLORS_STORAGE_KEY || 'vizualizd_tag_colors';
+                        const stored = localStorage.getItem(storageKey);
+                        return stored ? JSON.parse(stored) : {};
+                    } catch (e) {
+                        return {};
+                    }
+                })();
+                const colorKey = `${fieldName}:${tagValue}`;
+                const colorName = colors[colorKey] || 'default';
                 const colorMap = window.TAG_COLOR_MAP || {
                     'default': { bg: '#e0e0e0', color: '#333' },
                     'gray': { bg: '#e0e0e0', color: '#333' },
