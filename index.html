@@ -2692,7 +2692,8 @@
         }
 
         .insight-pill:hover {
-            background: rgba(99, 71, 169, 0.15);
+            opacity: 0.8;
+            filter: brightness(1.1);
         }
 
         .pill-remove {
@@ -2825,6 +2826,165 @@
             align-items: center;
             justify-content: center;
             flex-shrink: 0;
+        }
+
+        .multiselect-option .option-label {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .multiselect-option-meatball {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            opacity: 0;
+            transition: opacity 0.15s ease, background 0.15s ease;
+            flex-shrink: 0;
+            color: oklch(0.556 0 0);
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .multiselect-option:hover .multiselect-option-meatball,
+        .multiselect-option-meatball-menu-open {
+            opacity: 1;
+        }
+
+        .multiselect-option-meatball:hover {
+            background: oklch(0.95 0 0);
+        }
+
+        .multiselect-option-meatball-menu {
+            position: fixed;
+            background: white;
+            border: 1px solid oklch(0.88 0 0);
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            min-width: 240px;
+            max-width: 300px;
+            z-index: 1002;
+            display: none;
+            padding: 12px;
+        }
+
+        .multiselect-option-meatball-menu.show {
+            display: block;
+        }
+
+        .tag-edit-input-container {
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .tag-edit-input {
+            width: 100%;
+            padding: 8px 32px 8px 10px;
+            border: 2px solid #0b85ff;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: 'Lato', sans-serif;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .tag-edit-input:focus {
+            border-color: #0b85ff;
+        }
+
+        .tag-info-icon {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: oklch(0.9 0 0);
+            color: oklch(0.556 0 0);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+            cursor: help;
+        }
+
+        .meatball-menu-divider {
+            height: 1px;
+            background: oklch(0.92 0 0);
+            margin: 12px 0;
+        }
+
+        .meatball-menu-delete {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.15s ease;
+            color: oklch(0.145 0 0);
+            font-size: 14px;
+        }
+
+        .meatball-menu-delete:hover {
+            background: oklch(0.98 0 0);
+        }
+
+        .meatball-menu-delete-icon {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .meatball-menu-colors-title {
+            font-size: 14px;
+            font-weight: 500;
+            color: oklch(0.145 0 0);
+            margin-bottom: 8px;
+        }
+
+        .meatball-menu-color-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.15s ease;
+            font-size: 14px;
+            color: oklch(0.145 0 0);
+        }
+
+        .meatball-menu-color-option:hover {
+            background: oklch(0.98 0 0);
+        }
+
+        .meatball-menu-color-swatch {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+            flex-shrink: 0;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+        }
+
+        .meatball-menu-color-checkmark {
+            margin-left: auto;
+            color: oklch(0.556 0 0);
+            font-size: 14px;
+        }
+
+        .meatball-menu-color-label {
+            flex: 1;
         }
 
         .multiselect-empty {
@@ -14452,14 +14612,14 @@
             const cellId = `multiselect-${fieldName}-${insightId}`;
             const selected = currentValues || [];
             
-            // Generate pills for selected values
-            // Pills should bubble click events to parent cell to open dropdown
-            const pills = selected.map(value => 
-                `<span class="insight-pill" data-value="${escapeHtml(value)}" onclick="if(!event.target.classList.contains('pill-remove')){event.stopPropagation(); openMultiSelect('${insightId}', '${fieldName}')}">
+            // Generate pills for selected values with colors
+            const pills = selected.map(value => {
+                const style = getPillStyle(fieldName, value);
+                return `<span class="insight-pill" data-value="${escapeHtml(value)}" style="${style}" onclick="if(!event.target.classList.contains('pill-remove')){event.stopPropagation(); openMultiSelect('${insightId}', '${fieldName}')}">
                     ${escapeHtml(value)}
                     <button class="pill-remove" onclick="event.stopPropagation(); event.preventDefault(); removeMultiSelectValue('${insightId}', '${fieldName}', '${escapeHtml(value)}')">×</button>
-                </span>`
-            ).join('');
+                </span>`;
+            }).join('');
 
             return `<div class="insight-multiselect-cell" id="${cellId}" data-insight-id="${insightId}" data-field="${fieldName}" onclick="event.stopPropagation(); openMultiSelect('${insightId}', '${fieldName}')">
                 <div class="insight-pills-container">
@@ -14572,9 +14732,82 @@
             filteredOptions.forEach(option => {
                 const isSelected = currentValues.includes(option);
                 html += `<div class="multiselect-option ${isSelected ? 'selected' : ''}" 
-                              onclick="toggleMultiSelectOption('${insightId}', '${fieldName}', '${escapeHtml(option)}')">
-                            <input type="checkbox" ${isSelected ? 'checked' : ''}>
-                            <span>${escapeHtml(option)}</span>
+                              onclick="if(!event.target.closest('.multiselect-option-meatball, .multiselect-option-meatball-menu')) toggleMultiSelectOption('${insightId}', '${fieldName}', '${escapeHtml(option)}')"
+                              style="position: relative;">
+                            <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation();">
+                            <span class="option-label">${escapeHtml(option)}</span>
+                            <button class="multiselect-option-meatball" onclick="event.stopPropagation(); toggleTagMeatballMenu(event, '${escapeHtml(option)}', '${fieldName}')" title="Tag options">
+                                ⋮
+                            </button>
+                            <div class="multiselect-option-meatball-menu" id="meatball-menu-${fieldName}-${escapeHtml(option).replace(/[^a-zA-Z0-9]/g, '_')}">
+                                <div class="tag-edit-input-container">
+                                    <input type="text" class="tag-edit-input" value="${escapeHtml(option)}" 
+                                           onkeydown="handleTagRenameKeydown(event, '${escapeHtml(option)}', '${fieldName}')"
+                                           onblur="saveTagRename(event, '${escapeHtml(option)}', '${fieldName}')">
+                                    <div class="tag-info-icon" title="Tag name">i</div>
+                                </div>
+                                <div class="meatball-menu-divider"></div>
+                                <div class="meatball-menu-delete" onclick="bulkDeleteTag('${escapeHtml(option)}', '${fieldName}')">
+                                    <div class="meatball-menu-delete-icon">
+                                        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+                                            <path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5ZM11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H2.506a.58.58 0 0 0-.01 0H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84L13.46 3.5H14.5a.5.5 0 0 0 0-1h-1.004a.58.58 0 0 0-.01 0H11ZM4.118 4 4.5 14.5a1 1 0 0 0 1 .5h6.23a1 1 0 0 0 .997-.5L13.118 4H4.118Z"/>
+                                        </svg>
+                                    </div>
+                                    <span>Delete</span>
+                                </div>
+                                <div class="meatball-menu-divider"></div>
+                                <div class="meatball-menu-colors-title">Colors</div>
+                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${escapeHtml(option)}', '${fieldName}', 'default')">
+                                    <div class="meatball-menu-color-swatch" style="background: #d1d1d1;"></div>
+                                    <span class="meatball-menu-color-label">Default</span>
+                                    <span class="meatball-menu-color-checkmark" style="display: block;">✓</span>
+                                </div>
+                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${escapeHtml(option)}', '${fieldName}', 'gray')">
+                                    <div class="meatball-menu-color-swatch" style="background: #9ca3af;"></div>
+                                    <span class="meatball-menu-color-label">Gray</span>
+                                    <span class="meatball-menu-color-checkmark" style="display: none;">✓</span>
+                                </div>
+                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${escapeHtml(option)}', '${fieldName}', 'brown')">
+                                    <div class="meatball-menu-color-swatch" style="background: #92400e;"></div>
+                                    <span class="meatball-menu-color-label">Brown</span>
+                                    <span class="meatball-menu-color-checkmark" style="display: none;">✓</span>
+                                </div>
+                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${escapeHtml(option)}', '${fieldName}', 'orange')">
+                                    <div class="meatball-menu-color-swatch" style="background: #f97316;"></div>
+                                    <span class="meatball-menu-color-label">Orange</span>
+                                    <span class="meatball-menu-color-checkmark" style="display: none;">✓</span>
+                                </div>
+                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${escapeHtml(option)}', '${fieldName}', 'yellow')">
+                                    <div class="meatball-menu-color-swatch" style="background: #eab308;"></div>
+                                    <span class="meatball-menu-color-label">Yellow</span>
+                                    <span class="meatball-menu-color-checkmark" style="display: none;">✓</span>
+                                </div>
+                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${escapeHtml(option)}', '${fieldName}', 'green')">
+                                    <div class="meatball-menu-color-swatch" style="background: #22c55e;"></div>
+                                    <span class="meatball-menu-color-label">Green</span>
+                                    <span class="meatball-menu-color-checkmark" style="display: none;">✓</span>
+                                </div>
+                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${escapeHtml(option)}', '${fieldName}', 'blue')">
+                                    <div class="meatball-menu-color-swatch" style="background: #3b82f6;"></div>
+                                    <span class="meatball-menu-color-label">Blue</span>
+                                    <span class="meatball-menu-color-checkmark" style="display: none;">✓</span>
+                                </div>
+                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${escapeHtml(option)}', '${fieldName}', 'purple')">
+                                    <div class="meatball-menu-color-swatch" style="background: #a855f7;"></div>
+                                    <span class="meatball-menu-color-label">Purple</span>
+                                    <span class="meatball-menu-color-checkmark" style="display: none;">✓</span>
+                                </div>
+                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${escapeHtml(option)}', '${fieldName}', 'pink')">
+                                    <div class="meatball-menu-color-swatch" style="background: #ec4899;"></div>
+                                    <span class="meatball-menu-color-label">Pink</span>
+                                    <span class="meatball-menu-color-checkmark" style="display: none;">✓</span>
+                                </div>
+                                <div class="meatball-menu-color-option" onclick="bulkChangeTagColor('${escapeHtml(option)}', '${fieldName}', 'red')">
+                                    <div class="meatball-menu-color-swatch" style="background: #ef4444;"></div>
+                                    <span class="meatball-menu-color-label">Red</span>
+                                    <span class="meatball-menu-color-checkmark" style="display: none;">✓</span>
+                                </div>
+                            </div>
                         </div>`;
             });
 
@@ -14598,6 +14831,242 @@
             }
 
             optionsList.innerHTML = html;
+        }
+
+        function toggleTagMeatballMenu(event, optionValue, fieldName) {
+            event.stopPropagation();
+            
+            // Close all other meatball menus
+            document.querySelectorAll('.multiselect-option-meatball-menu.show').forEach(menu => {
+                if (menu.id !== `meatball-menu-${fieldName}-${optionValue.replace(/[^a-zA-Z0-9]/g, '_')}`) {
+                    menu.classList.remove('show');
+                }
+            });
+            
+            // Toggle this menu
+            const menuId = `meatball-menu-${fieldName}-${optionValue.replace(/[^a-zA-Z0-9]/g, '_')}`;
+            const menu = document.getElementById(menuId);
+            if (menu) {
+                const wasOpen = menu.classList.contains('show');
+                
+                // Close all menus first
+                document.querySelectorAll('.multiselect-option-meatball-menu.show').forEach(m => m.classList.remove('show'));
+                
+                // If it wasn't open, open it and position it
+                if (!wasOpen) {
+                    const buttonRect = event.target.getBoundingClientRect();
+                    menu.style.display = 'block';
+                    menu.style.top = (buttonRect.bottom + 4) + 'px';
+                    menu.style.right = (window.innerWidth - buttonRect.right) + 'px';
+                    menu.classList.add('show');
+                    
+                    // Update color checkmarks based on current color
+                    const colors = getTagColors();
+                    const colorKey = `${fieldName}:${optionValue}`;
+                    const currentColor = colors[colorKey] || 'default';
+                    
+                    menu.querySelectorAll('.meatball-menu-color-checkmark').forEach(check => {
+                        check.style.display = 'none';
+                    });
+                    
+                    menu.querySelectorAll('.meatball-menu-color-option').forEach(option => {
+                        const colorName = option.getAttribute('onclick')?.match(/'([^']+)'\)$/)?.[1];
+                        if (colorName === currentColor) {
+                            const checkmark = option.querySelector('.meatball-menu-color-checkmark');
+                            if (checkmark) {
+                                checkmark.style.display = 'block';
+                            }
+                        }
+                    });
+                    
+                    // Focus the input field
+                    setTimeout(() => {
+                        const input = menu.querySelector('.tag-edit-input');
+                        if (input) {
+                            input.focus();
+                            input.select();
+                        }
+                    }, 0);
+                    
+                    // Close menu when clicking outside
+                    setTimeout(() => {
+                        const closeMenu = (e) => {
+                            if (!menu.contains(e.target) && !event.target.contains(e.target)) {
+                                menu.classList.remove('show');
+                                menu.style.display = 'none';
+                                document.removeEventListener('click', closeMenu);
+                            }
+                        };
+                        document.addEventListener('click', closeMenu);
+                    }, 0);
+                } else {
+                    menu.style.display = 'none';
+                }
+            }
+        }
+
+        function handleTagRenameKeydown(event, oldValue, fieldName) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                saveTagRename(event, oldValue, fieldName);
+            } else if (event.key === 'Escape') {
+                event.target.value = oldValue;
+                event.target.blur();
+            }
+        }
+
+        async function saveTagRename(event, oldValue, fieldName) {
+            const input = event.target;
+            const newValue = input.value.trim();
+            
+            if (!newValue || newValue === oldValue) {
+                input.value = oldValue;
+                return;
+            }
+            
+            // Find all insights that have this tag
+            const insightsWithTag = insightsAllInsights.filter(insight => {
+                const values = normalizeFieldToArray(insight[fieldName], fieldName);
+                return values.includes(oldValue);
+            });
+            
+            if (insightsWithTag.length === 0) {
+                input.value = oldValue;
+                return;
+            }
+            
+            // Migrate color preference if it exists
+            const colors = getTagColors();
+            const oldKey = `${fieldName}:${oldValue}`;
+            const newKey = `${fieldName}:${newValue}`;
+            if (colors[oldKey]) {
+                colors[newKey] = colors[oldKey];
+                delete colors[oldKey];
+                try {
+                    localStorage.setItem(TAG_COLORS_STORAGE_KEY, JSON.stringify(colors));
+                } catch (e) {
+                    console.error('Error migrating tag color:', e);
+                }
+            }
+            
+            // Update each insight
+            let successCount = 0;
+            for (const insight of insightsWithTag) {
+                const currentValues = normalizeFieldToArray(insight[fieldName], fieldName);
+                const updatedValues = currentValues.map(v => v === oldValue ? newValue : v);
+                
+                const success = await updateInsightField(insight.id, fieldName, updatedValues.join(', '));
+                if (success) {
+                    successCount++;
+                }
+            }
+            
+            // Refresh the table
+            loadInsightsPage();
+            
+            // Close the menu
+            document.querySelectorAll('.multiselect-option-meatball-menu.show').forEach(menu => {
+                menu.classList.remove('show');
+                menu.style.display = 'none';
+            });
+        }
+
+        async function bulkDeleteTag(tagValue, fieldName) {
+            if (!confirm(`Delete tag "${tagValue}" from all insights? This action cannot be undone.`)) {
+                return;
+            }
+            
+            // Find all insights that have this tag
+            const insightsWithTag = insightsAllInsights.filter(insight => {
+                const values = normalizeFieldToArray(insight[fieldName], fieldName);
+                return values.includes(tagValue);
+            });
+            
+            if (insightsWithTag.length === 0) {
+                alert('No insights found with this tag.');
+                return;
+            }
+            
+            // Remove color preference
+            const colors = getTagColors();
+            const colorKey = `${fieldName}:${tagValue}`;
+            delete colors[colorKey];
+            try {
+                localStorage.setItem(TAG_COLORS_STORAGE_KEY, JSON.stringify(colors));
+            } catch (e) {
+                console.error('Error removing tag color:', e);
+            }
+            
+            // Update each insight
+            let successCount = 0;
+            for (const insight of insightsWithTag) {
+                const currentValues = normalizeFieldToArray(insight[fieldName], fieldName);
+                const updatedValues = currentValues.filter(v => v !== tagValue);
+                
+                const success = await updateInsightField(insight.id, fieldName, updatedValues.join(', '));
+                if (success) {
+                    successCount++;
+                }
+            }
+            
+            // Refresh the table
+            loadInsightsPage();
+            
+            // Close the menu
+            document.querySelectorAll('.multiselect-option-meatball-menu.show').forEach(menu => {
+                menu.classList.remove('show');
+                menu.style.display = 'none';
+            });
+            
+            alert(`Successfully deleted tag from ${successCount} insight(s).`);
+        }
+
+        async function bulkChangeTagColor(tagValue, fieldName, colorName) {
+            // Save the color preference
+            setTagColor(fieldName, tagValue, colorName);
+            
+            // Update checkmarks in the menu
+            const menuId = `meatball-menu-${fieldName}-${tagValue.replace(/[^a-zA-Z0-9]/g, '_')}`;
+            const menu = document.getElementById(menuId);
+            if (menu) {
+                // Remove all checkmarks
+                menu.querySelectorAll('.meatball-menu-color-checkmark').forEach(check => {
+                    check.style.display = 'none';
+                });
+                
+                // Add checkmark to selected color
+                const colorOption = event.target.closest('.meatball-menu-color-option');
+                if (colorOption) {
+                    const checkmark = colorOption.querySelector('.meatball-menu-color-checkmark');
+                    if (checkmark) {
+                        checkmark.style.display = 'block';
+                    }
+                }
+            }
+            
+            // Update all pills with this tag across all insights
+            document.querySelectorAll(`.insight-pill[data-value="${escapeHtml(tagValue)}"]`).forEach(pill => {
+                const pillFieldName = pill.closest('.insight-multiselect-cell')?.dataset.field;
+                if (pillFieldName === fieldName) {
+                    const color = getTagColor(fieldName, tagValue);
+                    pill.style.background = color.bg;
+                    pill.style.color = color.color;
+                }
+            });
+            
+            // Also update pills in the dropdown if open
+            const dropdown = document.getElementById('active-multiselect-dropdown');
+            if (dropdown) {
+                const dropdownCell = dropdown.closest('.insight-multiselect-cell');
+                if (dropdownCell) {
+                    const insightId = dropdownCell.dataset.insightId;
+                    const currentValues = normalizeFieldToArray(
+                        insightsAllInsights.find(i => i.id === insightId)?.[fieldName] || [],
+                        fieldName
+                    );
+                    updateMultiSelectPills(insightId, fieldName, currentValues);
+                }
+            }
         }
 
         function filterMultiSelectOptions() {
@@ -14716,6 +15185,59 @@
             }
         }
 
+        // Tag color storage and management
+        const TAG_COLORS_STORAGE_KEY = 'vizualizd_tag_colors';
+        
+        const TAG_COLOR_MAP = {
+            'default': { bg: 'rgba(99, 71, 169, 0.1)', color: '#6347a9' },
+            'gray': { bg: 'rgba(156, 163, 175, 0.15)', color: '#6b7280' },
+            'brown': { bg: 'rgba(146, 64, 14, 0.15)', color: '#92400e' },
+            'orange': { bg: 'rgba(249, 115, 22, 0.15)', color: '#f97316' },
+            'yellow': { bg: 'rgba(234, 179, 8, 0.15)', color: '#ca8a04' },
+            'green': { bg: 'rgba(34, 197, 94, 0.15)', color: '#16a34a' },
+            'blue': { bg: 'rgba(59, 130, 246, 0.15)', color: '#2563eb' },
+            'purple': { bg: 'rgba(168, 85, 247, 0.15)', color: '#9333ea' },
+            'pink': { bg: 'rgba(236, 72, 153, 0.15)', color: '#db2777' },
+            'red': { bg: 'rgba(239, 68, 68, 0.15)', color: '#dc2626' }
+        };
+
+        function getTagColors() {
+            try {
+                const stored = localStorage.getItem(TAG_COLORS_STORAGE_KEY);
+                return stored ? JSON.parse(stored) : {};
+            } catch (e) {
+                console.error('Error loading tag colors:', e);
+                return {};
+            }
+        }
+
+        function setTagColor(fieldName, tagValue, colorName) {
+            const colors = getTagColors();
+            const key = `${fieldName}:${tagValue}`;
+            if (colorName === 'default') {
+                delete colors[key];
+            } else {
+                colors[key] = colorName;
+            }
+            try {
+                localStorage.setItem(TAG_COLORS_STORAGE_KEY, JSON.stringify(colors));
+            } catch (e) {
+                console.error('Error saving tag color:', e);
+            }
+        }
+
+        function getTagColor(fieldName, tagValue) {
+            const colors = getTagColors();
+            const key = `${fieldName}:${tagValue}`;
+            const colorName = colors[key] || 'default';
+            return TAG_COLOR_MAP[colorName] || TAG_COLOR_MAP['default'];
+        }
+
+        function getPillStyle(fieldName, tagValue) {
+            const color = getTagColor(fieldName, tagValue);
+            return `background: ${color.bg}; color: ${color.color};`;
+        }
+
         // Helper function to update pills display without re-rendering entire table
         function updateMultiSelectPills(insightId, fieldName, values) {
             const cell = document.getElementById(`multiselect-${fieldName}-${insightId}`);
@@ -14724,14 +15246,14 @@
             const pillsContainer = cell.querySelector('.insight-pills-container');
             if (!pillsContainer) return;
 
-            // Generate new pills HTML
-            // Pills are clickable (bubble to parent cell to open dropdown), × button removes the tag
-            const pills = values.map(value => 
-                `<span class="insight-pill" data-value="${escapeHtml(value)}">
+            // Generate new pills HTML with colors
+            const pills = values.map(value => {
+                const style = getPillStyle(fieldName, value);
+                return `<span class="insight-pill" data-value="${escapeHtml(value)}" style="${style}">
                     ${escapeHtml(value)}
                     <button class="pill-remove" onclick="event.stopPropagation(); event.preventDefault(); removeMultiSelectValue('${insightId}', '${fieldName}', '${escapeHtml(value)}')">×</button>
-                </span>`
-            ).join('');
+                </span>`;
+            }).join('');
 
             pillsContainer.innerHTML = pills || '<span class="empty-value">-</span>';
         }
