@@ -107,6 +107,19 @@
             setState as appStateSetState,
             resetState as appStateResetState
         } from '/js/state/app-state.js';
+        import {
+            getRawData as vizStateGetRawData,
+            setRawData as vizStateSetRawData,
+            getFullRawData as vizStateGetFullRawData,
+            setFullRawData as vizStateSetFullRawData,
+            getDimensionFilteredData as vizStateGetDimensionFilteredData,
+            setDimensionFilteredData as vizStateSetDimensionFilteredData,
+            getHierarchyData as vizStateGetHierarchyData,
+            setHierarchyData as vizStateSetHierarchyData,
+            getVisualizationState as vizStateGetVisualizationState,
+            setVisualizationState as vizStateSetVisualizationState,
+            resetVisualizationState as vizStateResetVisualizationState
+        } from '/js/state/visualization-state.js';
         
         // Make utilities available globally for backward compatibility
         window.adjustBrightness = adjustBrightness;
@@ -179,6 +192,19 @@
         window.appStateGetState = appStateGetState;
         window.appStateSetState = appStateSetState;
         window.appStateResetState = appStateResetState;
+        
+        // Make visualization state functions available globally for backward compatibility
+        window.vizStateGetRawData = vizStateGetRawData;
+        window.vizStateSetRawData = vizStateSetRawData;
+        window.vizStateGetFullRawData = vizStateGetFullRawData;
+        window.vizStateSetFullRawData = vizStateSetFullRawData;
+        window.vizStateGetDimensionFilteredData = vizStateGetDimensionFilteredData;
+        window.vizStateSetDimensionFilteredData = vizStateSetDimensionFilteredData;
+        window.vizStateGetHierarchyData = vizStateGetHierarchyData;
+        window.vizStateSetHierarchyData = vizStateSetHierarchyData;
+        window.vizStateGetVisualizationState = vizStateGetVisualizationState;
+        window.vizStateSetVisualizationState = vizStateSetVisualizationState;
+        window.vizStateResetVisualizationState = vizStateResetVisualizationState;
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');

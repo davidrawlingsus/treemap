@@ -14,9 +14,12 @@
 ## Current Architecture Snapshot
 
 ### Where Logic Currently Lives
-- **index.html**: 21,847 lines containing:
-  - ~291 inline JavaScript functions
-  - 30+ global state variables
+- **index.html**: 22,170 lines (started at 21,847)
+  - Net change: +323 lines (temporary growth due to wrapper functions during migration)
+  - Lines extracted to modules: 871 lines
+  - Net code extracted: ~548 lines (871 extracted - 323 wrapper overhead)
+  - ~291 inline JavaScript functions (reduced from original)
+  - 30+ global state variables (being migrated to state modules)
   - Large inline CSS section
   - All application logic embedded in HTML
 
