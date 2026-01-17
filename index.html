@@ -16030,14 +16030,18 @@
                     check.style.display = 'none';
                 });
                 
-                // Add checkmark to selected color
-                const colorOption = event.target.closest('.meatball-menu-color-option');
-                if (colorOption) {
-                    const checkmark = colorOption.querySelector('.meatball-menu-color-checkmark');
-                    if (checkmark) {
-                        checkmark.style.display = 'block';
+                // Find and show checkmark for the selected color by matching the colorName in onclick attribute
+                menu.querySelectorAll('.meatball-menu-color-option').forEach(option => {
+                    const onclickAttr = option.getAttribute('onclick') || '';
+                    // Match the color name in the onclick attribute: bulkChangeTagColor('...', '...', 'colorName')
+                    const matches = onclickAttr.match(/bulkChangeTagColor\([^,]+,\s*[^,]+,\s*'([^']+)'\)/);
+                    if (matches && matches[1] === colorName) {
+                        const checkmark = option.querySelector('.meatball-menu-color-checkmark');
+                        if (checkmark) {
+                            checkmark.style.display = 'block';
+                        }
                     }
-                }
+                });
             }
             
             // Update all pills with this tag across all insights
@@ -16047,31 +16051,27 @@
                 div.textContent = s;
                 return div.innerHTML;
             });
-            const getTagColorFn = window.getTagColor || ((fieldName, tagValue) => {
-                // Fallback if module not loaded yet
-                const colors = window.getTagColors ? window.getTagColors() : {};
-                const colorKey = `${fieldName}:${tagValue}`;
-                const colorName = colors[colorKey] || 'default';
-                const colorMap = window.TAG_COLOR_MAP || {
-                    'default': { bg: 'rgba(99, 71, 169, 0.1)', color: '#6347a9' },
-                    'gray': { bg: 'rgba(156, 163, 175, 0.15)', color: '#6b7280' },
-                    'brown': { bg: 'rgba(146, 64, 14, 0.15)', color: '#92400e' },
-                    'orange': { bg: 'rgba(249, 115, 22, 0.15)', color: '#f97316' },
-                    'yellow': { bg: 'rgba(234, 179, 8, 0.15)', color: '#ca8a04' },
-                    'green': { bg: 'rgba(34, 197, 94, 0.15)', color: '#16a34a' },
-                    'blue': { bg: 'rgba(59, 130, 246, 0.15)', color: '#2563eb' },
-                    'purple': { bg: 'rgba(168, 85, 247, 0.15)', color: '#9333ea' },
-                    'pink': { bg: 'rgba(236, 72, 153, 0.15)', color: '#db2777' },
-                    'red': { bg: 'rgba(239, 68, 68, 0.15)', color: '#dc2626' }
-                };
-                return colorMap[colorName] || colorMap['default'];
-            });
+            
+            // Use the colorName we just saved directly to get the color, rather than reading back from storage
+            const colorMap = window.TAG_COLOR_MAP || {
+                'default': { bg: 'rgba(99, 71, 169, 0.1)', color: '#6347a9' },
+                'gray': { bg: 'rgba(156, 163, 175, 0.15)', color: '#6b7280' },
+                'brown': { bg: 'rgba(146, 64, 14, 0.15)', color: '#92400e' },
+                'orange': { bg: 'rgba(249, 115, 22, 0.15)', color: '#f97316' },
+                'yellow': { bg: 'rgba(234, 179, 8, 0.15)', color: '#ca8a04' },
+                'green': { bg: 'rgba(34, 197, 94, 0.15)', color: '#16a34a' },
+                'blue': { bg: 'rgba(59, 130, 246, 0.15)', color: '#2563eb' },
+                'purple': { bg: 'rgba(168, 85, 247, 0.15)', color: '#9333ea' },
+                'pink': { bg: 'rgba(236, 72, 153, 0.15)', color: '#db2777' },
+                'red': { bg: 'rgba(239, 68, 68, 0.15)', color: '#dc2626' }
+            };
+            const selectedColor = colorMap[colorName] || colorMap['default'];
+            
             document.querySelectorAll(`.insight-pill[data-value="${escapeHtmlFn(tagValue)}"]`).forEach(pill => {
                 const pillFieldName = pill.closest('.insight-multiselect-cell')?.dataset.field;
                 if (pillFieldName === fieldName) {
-                    const color = getTagColorFn(fieldName, tagValue);
-                    pill.style.background = color.bg;
-                    pill.style.color = color.color;
+                    pill.style.background = selectedColor.bg;
+                    pill.style.color = selectedColor.color;
                 }
             });
             
