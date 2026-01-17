@@ -6730,13 +6730,27 @@
         
         // Save current state to localStorage - wrapper that uses state module
         function saveState() {
-            // Get state from module if available, otherwise use local variables
-            const state = window.appStateGetState ? window.appStateGetState() : {
-                clientId: currentClientId,
-                projectName: currentProjectName,
-                dataSourceId: currentDataSourceId,
-                questionRefKey: currentQuestionRefKey
-            };
+            // During migration: sync local variables to module first, then get state
+            // This ensures module and local variables stay in sync
+            if (window.appStateSetState) {
+                const localState = {
+                    clientId: currentClientId,
+                    projectName: currentProjectName,
+                    dataSourceId: currentDataSourceId,
+                    questionRefKey: currentQuestionRefKey
+                };
+                window.appStateSetState(localState);
+            }
+            // Get state - prefer module if it has values, otherwise use local variables
+            const moduleState = window.appStateGetState ? window.appStateGetState() : null;
+            const state = (moduleState && (moduleState.clientId || moduleState.projectName || moduleState.dataSourceId || moduleState.questionRefKey)) 
+                ? moduleState 
+                : {
+                    clientId: currentClientId,
+                    projectName: currentProjectName,
+                    dataSourceId: currentDataSourceId,
+                    questionRefKey: currentQuestionRefKey
+                };
             if (window.storageSaveState) {
                 window.storageSaveState(state);
             } else {
@@ -7233,6 +7247,7 @@
                 return;
             }
             currentClientId = clientId;
+            if (window.appStateSetCurrentClientId) window.appStateSetCurrentClientId(clientId);
             
             // Sync Insights tab client ID to keep both tabs in sync
             if (typeof insightsCurrentClientId !== 'undefined') {
@@ -7283,9 +7298,18 @@
                 };
                 
                 // Update globals if we have values from URL or saved state (but not if already set from handleAuthenticatedUser)
-                if (restoreState.projectName && !currentProjectName) currentProjectName = restoreState.projectName;
-                if (restoreState.dataSourceId && !currentDataSourceId) currentDataSourceId = restoreState.dataSourceId;
-                if (restoreState.questionRefKey && !currentQuestionRefKey) currentQuestionRefKey = restoreState.questionRefKey;
+                if (restoreState.projectName && !currentProjectName) {
+                    currentProjectName = restoreState.projectName;
+                    if (window.appStateSetCurrentProjectName) window.appStateSetCurrentProjectName(restoreState.projectName);
+                }
+                if (restoreState.dataSourceId && !currentDataSourceId) {
+                    currentDataSourceId = restoreState.dataSourceId;
+                    if (window.appStateSetCurrentDataSourceId) window.appStateSetCurrentDataSourceId(restoreState.dataSourceId);
+                }
+                if (restoreState.questionRefKey && !currentQuestionRefKey) {
+                    currentQuestionRefKey = restoreState.questionRefKey;
+                    if (window.appStateSetCurrentQuestionRefKey) window.appStateSetCurrentQuestionRefKey(restoreState.questionRefKey);
+                }
                 
                 if (select && (select.innerHTML === '' || select.innerHTML.includes('Loading'))) {
                     console.log('Client dropdown not populated, loading clients...');
@@ -7374,16 +7398,22 @@
                     // so it's available throughout the loading chain
                     if (savedState.projectName) {
                         currentProjectName = savedState.projectName;
+                        if (window.appStateSetCurrentProjectName) window.appStateSetCurrentProjectName(savedState.projectName);
                         console.log('Restored saved project:', currentProjectName);
                     }
                     if (savedState.dataSourceId) {
                         currentDataSourceId = savedState.dataSourceId;
+                        if (window.appStateSetCurrentDataSourceId) window.appStateSetCurrentDataSourceId(savedState.dataSourceId);
                         console.log('Restored saved data source:', currentDataSourceId);
                     }
                     if (savedState.questionRefKey) {
                         currentQuestionRefKey = savedState.questionRefKey;
+                        if (window.appStateSetCurrentQuestionRefKey) window.appStateSetCurrentQuestionRefKey(savedState.questionRefKey);
                         console.log('Restored saved dimension:', currentQuestionRefKey);
                     }
+                    // Update module with client ID too
+                    if (window.appStateSetCurrentClientId) window.appStateSetCurrentClientId(savedState.clientId);
+                    currentClientId = savedState.clientId;
                     selectClientAndLaunch(savedState.clientId);
                     return;
                 } else {
@@ -7512,18 +7542,22 @@
                     );
                     if (matchingClient) {
                         currentClientId = urlClientUuid;
+                        if (window.appStateSetCurrentClientId) window.appStateSetCurrentClientId(urlClientUuid);
                         console.log('Restored client from URL:', currentClientId);
                         // Restore other state from URL if present
                         if (urlProject) {
                             currentProjectName = urlProject;
+                            if (window.appStateSetCurrentProjectName) window.appStateSetCurrentProjectName(urlProject);
                             console.log('Restored project from URL:', currentProjectName);
                         }
                         if (urlSource) {
                             currentDataSourceId = urlSource;
+                            if (window.appStateSetCurrentDataSourceId) window.appStateSetCurrentDataSourceId(urlSource);
                             console.log('Restored data source from URL:', currentDataSourceId);
                         }
                         if (urlDimension) {
                             currentQuestionRefKey = urlDimension;
+                            if (window.appStateSetCurrentQuestionRefKey) window.appStateSetCurrentQuestionRefKey(urlDimension);
                             console.log('Restored dimension from URL:', currentQuestionRefKey);
                         }
                     }
@@ -7534,6 +7568,7 @@
                     );
                     if (matchingClient) {
                         currentClientId = savedState.clientId;
+                        if (window.appStateSetCurrentClientId) window.appStateSetCurrentClientId(savedState.clientId);
                         console.log('Restored client from saved state:', currentClientId);
                     }
                 }
