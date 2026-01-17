@@ -183,7 +183,22 @@ js/
 - **Completed**: 2025-01-XX
 - **Notes**: Extracted API fetch logic to module. DOM manipulation, state management, and UI updates remain in index.html wrapper function. Wrapper calls module API function and handles all DOM/state logic.
 
-**Slice 6-9**: API extraction slices - **NOT STARTED**
+**Slice 6: Extract Data Sources API** - **DONE**
+- **Status**: DONE
+- **Scope**: Data source API calls
+- **Files Affected**: Created `js/services/api-data-sources.js`
+- **Extract**: `loadClientProjects()`, `loadClientSources()` API fetch logic
+- **Public API**: `dataSourcesApi.loadProjects(clientId, getAuthHeaders)`, `dataSourcesApi.loadSources(clientId, projectName, getAuthHeaders)`
+- **Testing Checklist**: 
+  - [ ] Verify projects load correctly
+  - [ ] Verify sources load correctly
+  - [ ] Verify project filtering works
+  - [ ] Verify UI updates correctly
+  - [ ] No console errors
+- **Completed**: 2025-01-XX
+- **Notes**: Extracted API fetch logic to module. DOM manipulation, state management, and UI updates remain in index.html wrapper functions. Wrapper functions call module API functions and handle all DOM/state logic.
+
+**Slice 7-9**: API extraction slices - **NOT STARTED**
 (Details to be filled as we progress)
 
 ### Phase 3: State Management (Medium Risk)
@@ -266,6 +281,14 @@ js/
 - DOM manipulation, state restoration, and UI updates remain in index.html wrapper function
 - AllClients array and state variables remain in index.html (will be moved to state module later)
 
+### 2025-01-XX - Slice 6: Extract Data Sources API
+- Created `js/services/api-data-sources.js` - extracted data sources API fetch logic
+- Extracted functions: `loadProjects()`, `loadSources()`
+- Added data sources API module imports to ES module script tag in index.html
+- Updated `loadClientProjects()` and `loadClientSources()` functions in index.html to use modules for API fetching
+- DOM manipulation, state restoration, and UI updates remain in index.html wrapper functions
+- clientProjects and clientSources arrays remain in index.html (will be moved to state module later)
+
 ## Known Risks & Technical Debt
 
 ### Globals to Address
@@ -294,6 +317,6 @@ js/
 
 ## Next 1-3 Recommended Actions
 
-1. **TEST SLICE 5** - Verify clients API works correctly
+1. **TEST SLICE 6** - Verify data sources API works correctly
 2. **STOP AND WAIT FOR USER TESTING** - Do not proceed until user confirms testing is complete
-3. **After testing** - Proceed to Slice 6: Extract Data Sources API
+3. **After testing** - Proceed to Slice 7: Extract VOC Data API

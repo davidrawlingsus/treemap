@@ -79,6 +79,10 @@
         import {
             loadClients as clientsApiLoadClients
         } from '/js/services/api-clients.js';
+        import {
+            loadProjects as dataSourcesApiLoadProjects,
+            loadSources as dataSourcesApiLoadSources
+        } from '/js/services/api-data-sources.js';
         
         // Make utilities available globally for backward compatibility
         window.adjustBrightness = adjustBrightness;
@@ -123,6 +127,10 @@
         
         // Make clients API available globally for wrapper functions
         window.clientsApiLoadClients = clientsApiLoadClients;
+        
+        // Make data sources API available globally for wrapper functions
+        window.dataSourcesApiLoadProjects = dataSourcesApiLoadProjects;
+        window.dataSourcesApiLoadSources = dataSourcesApiLoadSources;
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -7586,7 +7594,7 @@
             }
         }
         
-        // Load projects for a specific client
+        // Load projects for a specific client - wrapper that uses API module for fetching, handles DOM/state
         async function loadClientProjects(clientId, savedState = null) {
             console.log(`loadClientProjects() called for client: ${clientId}`);
             try {
@@ -7596,17 +7604,24 @@
                     console.log(`Restoring saved project: ${currentProjectName}`);
                 }
                 
-                const url = `${API_BASE_URL}/api/voc/projects?client_uuid=${clientId}`;
-                console.log(`Fetching projects from: ${url}`);
-                const response = await fetch(url, {
-                    headers: getAuthHeaders()
-                });
-                console.log('Projects response status:', response.status);
-                if (!response.ok) {
-                    throw new Error('Failed to load projects');
+                // Fetch projects using API module
+                if (window.dataSourcesApiLoadProjects) {
+                    clientProjects = await window.dataSourcesApiLoadProjects(clientId, getAuthHeaders);
+                    console.log(`Loaded ${clientProjects.length} projects:`, clientProjects);
+                } else {
+                    // Fallback if module not loaded yet
+                    const url = `${API_BASE_URL}/api/voc/projects?client_uuid=${clientId}`;
+                    console.log(`Fetching projects from: ${url}`);
+                    const response = await fetch(url, {
+                        headers: getAuthHeaders()
+                    });
+                    console.log('Projects response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error('Failed to load projects');
+                    }
+                    clientProjects = await response.json();
+                    console.log(`Loaded ${clientProjects.length} projects:`, clientProjects);
                 }
-                clientProjects = await response.json();
-                console.log(`Loaded ${clientProjects.length} projects:`, clientProjects);
                 
                 const select = document.getElementById('projectSelect');
                 console.log('Project select element:', select);
@@ -7688,23 +7703,30 @@
             renderFavourites(); // Re-render favourites for new project
         }
         
-        // Load sources for a specific client
+        // Load sources for a specific client - wrapper that uses API module for fetching, handles DOM/state
         async function loadClientSources(clientId, savedState = null) {
             console.log(`loadClientSources() called for client: ${clientId}, project: ${currentProjectName || 'None'}`);
             try {
-                let url = `${API_BASE_URL}/api/voc/sources?client_uuid=${clientId}`;
-                if (currentProjectName) {
-                    url += `&project_name=${encodeURIComponent(currentProjectName)}`;
+                // Fetch sources using API module
+                if (window.dataSourcesApiLoadSources) {
+                    clientSources = await window.dataSourcesApiLoadSources(clientId, currentProjectName, getAuthHeaders);
+                } else {
+                    // Fallback if module not loaded yet
+                    let url = `${API_BASE_URL}/api/voc/sources?client_uuid=${clientId}`;
+                    if (currentProjectName) {
+                        url += `&project_name=${encodeURIComponent(currentProjectName)}`;
+                    }
+                    console.log(`Fetching sources from: ${url}`);
+                    const response = await fetch(url, {
+                        headers: getAuthHeaders()
+                    });
+                    console.log('Sources response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error('Failed to load sources');
+                    }
+                    clientSources = await response.json();
                 }
-                console.log(`Fetching sources from: ${url}`);
-                const response = await fetch(url, {
-                    headers: getAuthHeaders()
-                });
-                console.log('Sources response status:', response.status);
-                if (!response.ok) {
-                    throw new Error('Failed to load sources');
-                }
-                clientSources = await response.json();
+                console.log(`Loaded ${clientSources.length} sources:`, clientSources);
                 console.log(`Loaded ${clientSources.length} sources:`, clientSources);
                 
                 const select = document.getElementById('sourceSelect');
