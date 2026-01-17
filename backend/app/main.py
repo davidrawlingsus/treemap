@@ -149,10 +149,16 @@ async def startup_event():
 
 # CORS configuration - allow frontend to communicate with backend
 # Allow all Railway origins (they use *.up.railway.app pattern) for flexibility
+# Also allow the production frontend domain
+default_production_origin = "https://vizualizd.marketably.ai"
+all_cors_origins = cors_allow_origins.copy()
+if default_production_origin not in all_cors_origins:
+    all_cors_origins.append(default_production_origin)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"https?://(.*\.up\.railway\.app|localhost)(:\d+)?$",  # Allow all Railway URLs and localhost
-    allow_origins=cors_allow_origins,
+    allow_origins=all_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

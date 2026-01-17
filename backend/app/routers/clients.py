@@ -700,6 +700,14 @@ def execute_client_prompt(
     except HTTPException:
         raise
     except Exception as e:
+        # #region agent log
+        import json
+        import time
+        import traceback
+        error_trace = traceback.format_exc()
+        with open('/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug.log', 'a') as f:
+            f.write(json.dumps({"location":"clients.py:689","message":"Unhandled exception in execute_client_prompt","data":{"error_msg":str(e),"error_type":type(e).__name__,"traceback":error_trace},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"E"})+"\n")
+        # #endregion
         logger.error(f"Error executing prompt: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
