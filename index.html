@@ -13889,18 +13889,18 @@
                 const originPills = [];
                 if (dimensionName && dimensionRef) {
                     const pascalDimension = toPascalCase(dimensionName);
-                    originPills.push(`<span class="tag tag-data-source insight-origin-pill" data-origin-type="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtml(dimensionName)}" data-data-source="${dataSource || ''}" onclick="event.stopPropagation(); navigateToDimensionFromInsight('${dimensionRef}', '${escapeHtml(dimensionName)}', '${dataSource || ''}')" style="cursor: pointer;">${escapeHtml(pascalDimension)}</span>`);
+                    originPills.push(`<span class="tag tag-data-source insight-origin-pill" data-origin-type="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtmlFn(dimensionName)}" data-data-source="${dataSource || ''}" onclick="event.stopPropagation(); navigateToDimensionFromInsight('${dimensionRef}', '${escapeHtmlFn(dimensionName)}', '${dataSource || ''}')" style="cursor: pointer;">${escapeHtmlFn(pascalDimension)}</span>`);
                 } else if (dimensionName) {
                     const pascalDimension = toPascalCase(dimensionName);
-                    originPills.push(`<span class="tag tag-data-source insight-origin-pill">${escapeHtml(pascalDimension)}</span>`);
+                    originPills.push(`<span class="tag tag-data-source insight-origin-pill">${escapeHtmlFn(pascalDimension)}</span>`);
                 }
                 if (categoryName) {
                     const pascalCategory = toPascalCase(categoryName);
-                    originPills.push(`<span class="tag tag-category insight-origin-pill" data-origin-type="category" data-category="${escapeHtml(categoryName)}" data-topic="${topicName ? escapeHtml(topicName) : ''}" data-data-source="${dataSource || ''}" data-dimension="${dimensionName || ''}" data-dimension-ref="${dimensionRef || ''}" onclick="event.stopPropagation(); navigateToCategoryFromInsight('${escapeHtml(categoryName)}', '${topicName ? escapeHtml(topicName) : ''}', '${dataSource || ''}', '${dimensionRef || ''}')" style="cursor: pointer;">${escapeHtml(pascalCategory)}</span>`);
+                    originPills.push(`<span class="tag tag-category insight-origin-pill" data-origin-type="category" data-category="${escapeHtmlFn(categoryName)}" data-topic="${topicName ? escapeHtmlFn(topicName) : ''}" data-data-source="${dataSource || ''}" data-dimension="${dimensionName || ''}" data-dimension-ref="${dimensionRef || ''}" onclick="event.stopPropagation(); navigateToCategoryFromInsight('${escapeHtmlFn(categoryName)}', '${topicName ? escapeHtmlFn(topicName) : ''}', '${dataSource || ''}', '${dimensionRef || ''}')" style="cursor: pointer;">${escapeHtmlFn(pascalCategory)}</span>`);
                 }
                 if (topicName) {
                     const pascalTopic = toPascalCase(topicName);
-                    originPills.push(`<span class="tag tag-topic insight-origin-pill" data-origin-type="topic" data-category="${categoryName ? escapeHtml(categoryName) : ''}" data-topic="${escapeHtml(topicName)}" data-data-source="${dataSource || ''}" data-dimension="${dimensionName || ''}" data-dimension-ref="${dimensionRef || ''}" onclick="event.stopPropagation(); navigateToTopicFromInsight('${escapeHtml(topicName)}', '${categoryName ? escapeHtml(categoryName) : ''}', '${dataSource || ''}', '${dimensionRef || ''}')" style="cursor: pointer;">${escapeHtml(pascalTopic)}</span>`);
+                    originPills.push(`<span class="tag tag-topic insight-origin-pill" data-origin-type="topic" data-category="${categoryName ? escapeHtmlFn(categoryName) : ''}" data-topic="${escapeHtmlFn(topicName)}" data-data-source="${dataSource || ''}" data-dimension="${dimensionName || ''}" data-dimension-ref="${dimensionRef || ''}" onclick="event.stopPropagation(); navigateToTopicFromInsight('${escapeHtmlFn(topicName)}', '${categoryName ? escapeHtmlFn(categoryName) : ''}', '${dataSource || ''}', '${dimensionRef || ''}')" style="cursor: pointer;">${escapeHtmlFn(pascalTopic)}</span>`);
                 }
                 
                 const originContent = originPills.length > 0 
@@ -20719,18 +20719,18 @@
                 const originPills = [];
                 if (dimensionName && dimensionRef) {
                     const pascalDimension = toPascalCase(dimensionName);
-                    originPills.push(`<span class="tag tag-data-source insight-origin-pill" data-origin-type="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtml(dimensionName)}" data-data-source="${dataSource || ''}" onclick="event.stopPropagation(); navigateToDimensionFromInsight('${dimensionRef}', '${escapeHtml(dimensionName)}', '${dataSource || ''}')" style="cursor: pointer;">${escapeHtml(pascalDimension)}</span>`);
+                    originPills.push(`<span class="tag tag-data-source insight-origin-pill" data-origin-type="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtmlFn(dimensionName)}" data-data-source="${dataSource || ''}" onclick="event.stopPropagation(); navigateToDimensionFromInsight('${dimensionRef}', '${escapeHtmlFn(dimensionName)}', '${dataSource || ''}')" style="cursor: pointer;">${escapeHtmlFn(pascalDimension)}</span>`);
                 } else if (dimensionName) {
                     const pascalDimension = toPascalCase(dimensionName);
-                    originPills.push(`<span class="tag tag-data-source insight-origin-pill">${escapeHtml(pascalDimension)}</span>`);
+                    originPills.push(`<span class="tag tag-data-source insight-origin-pill">${escapeHtmlFn(pascalDimension)}</span>`);
                 }
                 if (categoryName) {
                     const pascalCategory = toPascalCase(categoryName);
-                    originPills.push(`<span class="tag tag-category insight-origin-pill" data-origin-type="category" data-category="${escapeHtml(categoryName)}" data-topic="${topicName ? escapeHtml(topicName) : ''}" data-data-source="${dataSource || ''}" data-dimension="${dimensionName || ''}" data-dimension-ref="${dimensionRef || ''}" onclick="event.stopPropagation(); navigateToCategoryFromInsight('${escapeHtml(categoryName)}', '${topicName ? escapeHtml(topicName) : ''}', '${dataSource || ''}', '${dimensionRef || ''}')" style="cursor: pointer;">${escapeHtml(pascalCategory)}</span>`);
+                    originPills.push(`<span class="tag tag-category insight-origin-pill" data-origin-type="category" data-category="${escapeHtmlFn(categoryName)}" data-topic="${topicName ? escapeHtmlFn(topicName) : ''}" data-data-source="${dataSource || ''}" data-dimension="${dimensionName || ''}" data-dimension-ref="${dimensionRef || ''}" onclick="event.stopPropagation(); navigateToCategoryFromInsight('${escapeHtmlFn(categoryName)}', '${topicName ? escapeHtmlFn(topicName) : ''}', '${dataSource || ''}', '${dimensionRef || ''}')" style="cursor: pointer;">${escapeHtmlFn(pascalCategory)}</span>`);
                 }
                 if (topicName) {
                     const pascalTopic = toPascalCase(topicName);
-                    originPills.push(`<span class="tag tag-topic insight-origin-pill" data-origin-type="topic" data-category="${categoryName ? escapeHtml(categoryName) : ''}" data-topic="${escapeHtml(topicName)}" data-data-source="${dataSource || ''}" data-dimension="${dimensionName || ''}" data-dimension-ref="${dimensionRef || ''}" onclick="event.stopPropagation(); navigateToTopicFromInsight('${escapeHtml(topicName)}', '${categoryName ? escapeHtml(categoryName) : ''}', '${dataSource || ''}', '${dimensionRef || ''}')" style="cursor: pointer;">${escapeHtml(pascalTopic)}</span>`);
+                    originPills.push(`<span class="tag tag-topic insight-origin-pill" data-origin-type="topic" data-category="${categoryName ? escapeHtmlFn(categoryName) : ''}" data-topic="${escapeHtmlFn(topicName)}" data-data-source="${dataSource || ''}" data-dimension="${dimensionName || ''}" data-dimension-ref="${dimensionRef || ''}" onclick="event.stopPropagation(); navigateToTopicFromInsight('${escapeHtmlFn(topicName)}', '${categoryName ? escapeHtmlFn(categoryName) : ''}', '${dataSource || ''}', '${dimensionRef || ''}')" style="cursor: pointer;">${escapeHtmlFn(pascalTopic)}</span>`);
                 }
                 // Display data source name if no other origin pills and data source exists
                 if (originPills.length === 0 && dataSource) {
