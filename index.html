@@ -150,6 +150,20 @@
             setAvailableOptionsState as availableOptionsSetAvailableOptionsState,
             resetAvailableOptionsState as availableOptionsResetAvailableOptionsState
         } from '/js/state/available-options-state.js';
+        import {
+            getCurrentView as viewStateGetCurrentView,
+            setCurrentView as viewStateSetCurrentView,
+            getViewStack as viewStateGetViewStack,
+            setViewStack as viewStateSetViewStack,
+            pushView as viewStatePushView,
+            popView as viewStatePopView,
+            clearViewStack as viewStateClearViewStack,
+            getCurrentSourceFormat as viewStateGetCurrentSourceFormat,
+            setCurrentSourceFormat as viewStateSetCurrentSourceFormat,
+            getViewState as viewStateGetViewState,
+            setViewState as viewStateSetViewState,
+            resetViewState as viewStateResetViewState
+        } from '/js/state/view-state.js';
         
         // Make utilities available globally for backward compatibility
         window.adjustBrightness = adjustBrightness;
@@ -265,6 +279,20 @@
         window.availableOptionsGetAvailableOptionsState = availableOptionsGetAvailableOptionsState;
         window.availableOptionsSetAvailableOptionsState = availableOptionsSetAvailableOptionsState;
         window.availableOptionsResetAvailableOptionsState = availableOptionsResetAvailableOptionsState;
+        
+        // Make view state functions available globally for backward compatibility
+        window.viewStateGetCurrentView = viewStateGetCurrentView;
+        window.viewStateSetCurrentView = viewStateSetCurrentView;
+        window.viewStateGetViewStack = viewStateGetViewStack;
+        window.viewStateSetViewStack = viewStateSetViewStack;
+        window.viewStatePushView = viewStatePushView;
+        window.viewStatePopView = viewStatePopView;
+        window.viewStateClearViewStack = viewStateClearViewStack;
+        window.viewStateGetCurrentSourceFormat = viewStateGetCurrentSourceFormat;
+        window.viewStateSetCurrentSourceFormat = viewStateSetCurrentSourceFormat;
+        window.viewStateGetViewState = viewStateGetViewState;
+        window.viewStateSetViewState = viewStateSetViewState;
+        window.viewStateResetViewState = viewStateResetViewState;
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');

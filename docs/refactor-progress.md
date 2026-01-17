@@ -281,6 +281,20 @@ js/
 - **Completed**: 2025-01-XX
 - **Notes**: Created filter-state module with getter/setter functions. Module functions exposed globally. Local variables kept for backward compatibility during migration. Full migration of all references to module functions will happen gradually in future slices.
 
+**Slice 13: Extract Available Options State** - **DONE**
+- **Status**: DONE
+- **Scope**: Available options state variables (availableQuestions, availableCategories, availableTopics, availableLocations)
+- **Files Affected**: Created `js/state/available-options-state.js`
+- **Extract**: State management for available filter options extracted from data
+- **Public API**: `availableOptions.getAvailableQuestions()`, `availableOptions.setAvailableQuestions()`, `availableOptions.getAvailableCategories()`, etc.
+- **Testing Checklist**: 
+  - [ ] Verify available options are populated correctly
+  - [ ] Verify filters show correct options
+  - [ ] Verify filtering works with available options
+  - [ ] No console errors
+- **Completed**: 2025-01-XX
+- **Notes**: Created available-options-state module with getter/setter functions. Module functions exposed globally. Local variables kept for backward compatibility during migration. Full migration of all references to module functions will happen gradually in future slices.
+
 ### Phase 4: Router (Medium Risk)
 
 **Slice 13**: SPA Router extraction - **NOT STARTED**
@@ -402,6 +416,14 @@ js/
 - Created `js/state/filter-state.js` - extracted filter state management
 - Extracted state variables: `filterRules`, `dimensionFilters`, `availableMetadataFields`, `currentMetadataField`
 - Added filter-state module imports to ES module script tag in index.html
+- Module functions exposed globally for backward compatibility
+- Local variables kept for backward compatibility during migration
+- Full migration of all references to module functions will happen gradually in future slices
+
+### 2025-01-XX - Slice 13: Extract Available Options State
+- Created `js/state/available-options-state.js` - extracted available options state management
+- Extracted state variables: `availableQuestions`, `availableCategories`, `availableTopics`, `availableLocations`
+- Added available-options-state module imports to ES module script tag in index.html
 - Module functions exposed globally for backward compatibility
 - Local variables kept for backward compatibility during migration
 - Full migration of all references to module functions will happen gradually in future slices
