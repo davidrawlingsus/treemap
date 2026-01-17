@@ -17960,6 +17960,7 @@
                     // Check if content is already HTML (has multiple HTML tags)
                     const htmlTagCount = (notesContent.match(/<[^>]+>/g) || []).length;
                     const isAlreadyHTML = htmlTagCount >= 3; // If 3+ HTML tags, likely already converted
+                    const hasLiteralNewlines = notesContent.includes('\n'); // Check for literal newlines
                     
                     // If markdown syntax is present but content isn't already HTML, convert it
                     if (hasMarkdownSyntax && !isAlreadyHTML) {
@@ -17971,6 +17972,26 @@
                             // Fallback to SlideoutPanel's convertMarkdown
                             notesContent = this.convertMarkdown(notesContent);
                         }
+                    }
+                    // If content is "already HTML" but has literal newlines, we need to convert those to <br> or <p> tags
+                    else if (isAlreadyHTML && hasLiteralNewlines) {
+                        console.log('[initializeInsightPanel] Converting literal newlines in HTML content');
+                        // Split on double newlines for paragraphs, single newlines for <br>
+                        notesContent = notesContent
+                            .split(/\n\n+/)
+                            .map(block => {
+                                const trimmed = block.trim();
+                                if (!trimmed) return '';
+                                // If block already starts with a block element, return as-is
+                                if (trimmed.match(/^<(h[1-6]|ul|ol|pre|li|table|div|p)/)) {
+                                    return trimmed;
+                                }
+                                // Convert single newlines within block to <br>
+                                const withBreaks = trimmed.replace(/\n/g, '<br>');
+                                return '<p>' + withBreaks + '</p>';
+                            })
+                            .filter(block => block) // Remove empty blocks
+                            .join('');
                     }
                 }
                 

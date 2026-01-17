@@ -427,14 +427,27 @@
         // Application field from idea card - comma-separated values (homepage, pdp, google ad, etc.)
         const applicationField = ideaData.application || null;
         // Details/description goes to notes (the WYSIWYG body) and description
-        const detailsContent = ideaData.details || ideaData.description || null;
+        let detailsContent = ideaData.details || ideaData.description || null;
+        
+        // Format details content - clean up escaped sequences and normalize text
+        // The insight panel initialization will detect markdown and convert to HTML for TipTap
+        if (detailsContent) {
+            // Convert literal \n sequences (from JSON \\n) to actual newlines
+            detailsContent = detailsContent.replace(/\\n/g, '\n');
+            // Convert escaped quotes (literal \") to regular quotes
+            detailsContent = detailsContent.replace(/\\"/g, '"');
+        }
+        
+        // Use the same cleaned content for both description and notes
+        // The panel's initialization code will convert markdown to HTML when loading
+        const descriptionText = detailsContent;
         
         const insightData = {
             name: ideaData.title || ideaData.name || 'Untitled Idea',
             type: badgeContent || '', // Type is the badge content (test type)
             application: applicationField || null, // Application is the application field (comma-separated)
-            description: detailsContent, // Keep description for backwards compatibility
-            notes: detailsContent, // Details go to notes (the WYSIWYG body/editor)
+            description: descriptionText, // Plain text version for backwards compatibility
+            notes: detailsContent, // Details go to notes (the WYSIWYG body/editor) - formatted as HTML
             origins: [slideoutPanel.createInsightOrigin],
             verbatims: null,
             metadata: null,

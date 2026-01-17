@@ -344,6 +344,11 @@
         // Inline code: `code` -> <code>code</code> (but not inside <pre>)
         html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
         
+        // Before splitting into paragraphs, ensure lines starting with <strong>Label:</strong> 
+        // followed by content get proper paragraph breaks (not just <br>)
+        // This improves readability in TipTap editor
+        html = html.replace(/(<strong>[^<]+:<\/strong>[^\n]*)\n([^<\n])/g, '$1</p><p>$2');
+        
         // Convert double newlines to paragraph breaks, single newlines to <br>
         // But preserve block elements and don't add breaks inside lists
         html = html.split('\n\n').map(block => {
@@ -352,7 +357,7 @@
             
             // Don't wrap block elements in paragraphs
             // Include div so our idea cards/callouts don't get wrapped in <p>
-            if (trimmed.match(/^<(h[1-3]|ul|ol|pre|li|table|div)/)) {
+            if (trimmed.match(/^<(h[1-3]|ul|ol|pre|li|table|div|p)/)) {
                 return block;
             }
             
