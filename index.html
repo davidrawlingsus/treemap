@@ -20044,6 +20044,14 @@
                     categoryName 
                 });
                 
+                // Ensure escapeHtml is available with fallback
+                const escapeHtmlFn = window.escapeHtml || ((s) => {
+                    if (s == null) return '';
+                    const div = document.createElement('div');
+                    div.textContent = s;
+                    return div.innerHTML;
+                });
+                
                 const content = document.getElementById('slideoutContent');
                 if (!content) {
                     console.error('slideoutContent element not found!');
@@ -20105,7 +20113,7 @@
                     card.className = 'verbatim-card';
                     
                     // Highlight search terms if there's a search
-                    const highlightedText = searchTerm ? highlightSearchTerms(v.text || 'No text available', searchTerm) : escapeHtml(v.text || 'No text available');
+                    const highlightedText = searchTerm ? highlightSearchTerms(v.text || 'No text available', searchTerm) : escapeHtmlFn(v.text || 'No text available');
                     
                     // Build metadata HTML based on settings
                     const metaItems = [];
@@ -20127,11 +20135,11 @@
                     if (shouldShowField('location')) {
                         let locationValue = '';
                         if (v.city && v.country) {
-                            locationValue = `${escapeHtml(v.city)}, ${escapeHtml(v.country)}`;
+                            locationValue = `${escapeHtmlFn(v.city)}, ${escapeHtmlFn(v.country)}`;
                         } else if (v.country) {
-                            locationValue = escapeHtml(v.country);
+                            locationValue = escapeHtmlFn(v.country);
                         } else if (v.city) {
-                            locationValue = escapeHtml(v.city);
+                            locationValue = escapeHtmlFn(v.city);
                         }
                         if (locationValue) {
                             metaItems.push(`<span class="verbatim-metadata-item">${locationValue}</span>`);
@@ -20172,7 +20180,7 @@
                                 }
                             }
                             
-                            metaItems.push(`<span class="verbatim-metadata-item">${escapeHtml(String(displayValue))}</span>`);
+                            metaItems.push(`<span class="verbatim-metadata-item">${escapeHtmlFn(String(displayValue))}</span>`);
                         }
                     });
                     
