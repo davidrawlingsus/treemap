@@ -94,6 +94,19 @@
             updateInsight as insightsApiUpdateInsight,
             deleteInsight as insightsApiDeleteInsight
         } from '/js/services/api-insights.js';
+        import {
+            getCurrentClientId as appStateGetCurrentClientId,
+            setCurrentClientId as appStateSetCurrentClientId,
+            getCurrentProjectName as appStateGetCurrentProjectName,
+            setCurrentProjectName as appStateSetCurrentProjectName,
+            getCurrentDataSourceId as appStateGetCurrentDataSourceId,
+            setCurrentDataSourceId as appStateSetCurrentDataSourceId,
+            getCurrentQuestionRefKey as appStateGetCurrentQuestionRefKey,
+            setCurrentQuestionRefKey as appStateSetCurrentQuestionRefKey,
+            getState as appStateGetState,
+            setState as appStateSetState,
+            resetState as appStateResetState
+        } from '/js/state/app-state.js';
         
         // Make utilities available globally for backward compatibility
         window.adjustBrightness = adjustBrightness;
@@ -153,6 +166,19 @@
         window.insightsApiCreateInsight = insightsApiCreateInsight;
         window.insightsApiUpdateInsight = insightsApiUpdateInsight;
         window.insightsApiDeleteInsight = insightsApiDeleteInsight;
+        
+        // Make app state functions available globally for backward compatibility
+        window.appStateGetCurrentClientId = appStateGetCurrentClientId;
+        window.appStateSetCurrentClientId = appStateSetCurrentClientId;
+        window.appStateGetCurrentProjectName = appStateGetCurrentProjectName;
+        window.appStateSetCurrentProjectName = appStateSetCurrentProjectName;
+        window.appStateGetCurrentDataSourceId = appStateGetCurrentDataSourceId;
+        window.appStateSetCurrentDataSourceId = appStateSetCurrentDataSourceId;
+        window.appStateGetCurrentQuestionRefKey = appStateGetCurrentQuestionRefKey;
+        window.appStateSetCurrentQuestionRefKey = appStateSetCurrentQuestionRefKey;
+        window.appStateGetState = appStateGetState;
+        window.appStateSetState = appStateSetState;
+        window.appStateResetState = appStateResetState;
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -6553,6 +6579,42 @@
         let dimensionFilters = {}; // Map of dimensionRef -> filterRules array
         let availableMetadataFields = {}; // Map of fieldName -> array of values
         let currentMetadataField = null; // Currently selected metadata field
+        // Core selection state - now managed by js/state/app-state.js module
+        // Wrapper functions for backward compatibility during migration
+        function getCurrentClientId() {
+            return window.appStateGetCurrentClientId ? window.appStateGetCurrentClientId() : null;
+        }
+        function setCurrentClientId(value) {
+            if (window.appStateSetCurrentClientId) {
+                window.appStateSetCurrentClientId(value);
+            }
+        }
+        function getCurrentProjectName() {
+            return window.appStateGetCurrentProjectName ? window.appStateGetCurrentProjectName() : null;
+        }
+        function setCurrentProjectName(value) {
+            if (window.appStateSetCurrentProjectName) {
+                window.appStateSetCurrentProjectName(value);
+            }
+        }
+        function getCurrentDataSourceId() {
+            return window.appStateGetCurrentDataSourceId ? window.appStateGetCurrentDataSourceId() : null;
+        }
+        function setCurrentDataSourceId(value) {
+            if (window.appStateSetCurrentDataSourceId) {
+                window.appStateSetCurrentDataSourceId(value);
+            }
+        }
+        function getCurrentQuestionRefKey() {
+            return window.appStateGetCurrentQuestionRefKey ? window.appStateGetCurrentQuestionRefKey() : null;
+        }
+        function setCurrentQuestionRefKey(value) {
+            if (window.appStateSetCurrentQuestionRefKey) {
+                window.appStateSetCurrentQuestionRefKey(value);
+            }
+        }
+        // For backward compatibility during migration, keep local variables that sync with module
+        // These will be replaced gradually with direct getter/setter calls
         let currentClientId = null;
         let currentProjectName = null;
         let currentDataSourceId = null;
@@ -6666,9 +6728,10 @@
         let hasAutoLaunched = false;
         let isInitializing = false;
         
-        // Save current state to localStorage - wrapper that uses globals
+        // Save current state to localStorage - wrapper that uses state module
         function saveState() {
-            const state = {
+            // Get state from module if available, otherwise use local variables
+            const state = window.appStateGetState ? window.appStateGetState() : {
                 clientId: currentClientId,
                 projectName: currentProjectName,
                 dataSourceId: currentDataSourceId,

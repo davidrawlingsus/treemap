@@ -236,7 +236,21 @@ js/
 
 ### Phase 3: State Management (Medium Risk)
 
-**Slice 10-12**: State extraction slices - **NOT STARTED**
+**Slice 10: Extract Core Selection State** - **DONE**
+- **Status**: DONE
+- **Scope**: Core selection state variables (clientId, projectName, dataSourceId, questionRefKey)
+- **Files Affected**: Created `js/state/app-state.js`
+- **Extract**: State management for `currentClientId`, `currentProjectName`, `currentDataSourceId`, `currentQuestionRefKey`
+- **Public API**: `appState.getCurrentClientId()`, `appState.setCurrentClientId()`, `appState.getState()`, `appState.setState()`, etc.
+- **Testing Checklist**: 
+  - [ ] Verify state is saved correctly
+  - [ ] Verify state is loaded correctly
+  - [ ] Verify client/project/source/question selection works
+  - [ ] No console errors
+- **Completed**: 2025-01-XX
+- **Notes**: Created app-state module with getter/setter functions. Updated `saveState()` to use module. Local variables kept for backward compatibility during migration. Full migration of all references to module functions will happen gradually in future slices.
+
+**Slice 11-12**: State extraction slices - **NOT STARTED**
 (Details to be filled as we progress)
 
 ### Phase 4: Router (Medium Risk)
@@ -337,6 +351,15 @@ js/
 - Updated `loadInsightsPage()`, `loadInsights()`, save insight function (in modal), `deleteInsight()`, and `handleCreateInsightSubmit()` functions in index.html to use modules for API fetching
 - DOM manipulation, state management (insightsAllInsights, allInsights, insightsFilters), and UI updates remain in index.html wrapper functions
 - Wrapper functions call module API functions and handle all DOM/state logic
+
+### 2025-01-XX - Slice 10: Extract Core Selection State
+- Created `js/state/app-state.js` - extracted core selection state management
+- Extracted state variables: `currentClientId`, `currentProjectName`, `currentDataSourceId`, `currentQuestionRefKey`
+- Added app-state module imports to ES module script tag in index.html
+- Created getter/setter wrapper functions in index.html for backward compatibility
+- Updated `saveState()` function to use module's `getState()` function
+- Local variables kept for backward compatibility during migration
+- Full migration of all references to module functions will happen gradually in future slices
 
 ## Known Risks & Technical Debt
 
