@@ -497,10 +497,9 @@ def execute_client_prompt(
     Automatically combines client's business_summary with voc_data to construct user message.
     """
     # #region agent log
-    import json
     import time
-    with open('/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug.log', 'a') as f:
-        f.write(json.dumps({"location":"clients.py:483","message":"execute_client_prompt entry","data":{"client_id":str(client_id),"prompt_id":str(prompt_id),"stream":stream,"voc_data_size":len(json.dumps(payload.voc_data))},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"D"})+"\n")
+    from app.config import write_debug_log
+    write_debug_log({"location":"clients.py:483","message":"execute_client_prompt entry","data":{"client_id":str(client_id),"prompt_id":str(prompt_id),"stream":stream,"voc_data_size":len(json.dumps(payload.voc_data))},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"D"})
     # #endregion
     # Verify client access
     verify_client_access(client_id, current_user, db)
@@ -571,12 +570,11 @@ def execute_client_prompt(
                 accumulated_content = ""
                 final_metadata = None
                 # #region agent log
-                import json
                 import time
+                from app.config import write_debug_log
                 stream_start_time = time.time()
                 chunk_count = 0
-                with open('/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug.log', 'a') as f:
-                    f.write(json.dumps({"location":"clients.py:542","message":"Backend stream generator started","data":{"prompt_id":str(prompt_id_value),"client_id":str(client_id_value),"model":prompt_llm_model,"stream_start_time":stream_start_time},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H2"})+"\n")
+                write_debug_log({"location":"clients.py:542","message":"Backend stream generator started","data":{"prompt_id":str(prompt_id_value),"client_id":str(client_id_value),"model":prompt_llm_model,"stream_start_time":stream_start_time},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H2"})
                 # #endregion
                 
                 # Create separate database session for saving action
@@ -586,8 +584,8 @@ def execute_client_prompt(
                 try:
                     # Stream chunks from LLM service
                     # #region agent log
-                    with open('/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug.log', 'a') as f:
-                        f.write(json.dumps({"location":"clients.py:582","message":"Calling LLM service execute_prompt_stream","data":{"model":prompt_llm_model,"user_message_length":len(user_message_value)},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"A,D"})+"\n")
+                    from app.config import write_debug_log
+                    write_debug_log({"location":"clients.py:582","message":"Calling LLM service execute_prompt_stream","data":{"model":prompt_llm_model,"user_message_length":len(user_message_value)},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"A,D"})
                     # #endregion
                     for chunk, metadata in llm_service.execute_prompt_stream(
                         system_message=prompt_system_message,
@@ -599,8 +597,8 @@ def execute_client_prompt(
                             if chunk:
                                 # #region agent log
                                 chunk_count += 1
-                                with open('/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug.log', 'a') as f:
-                                    f.write(json.dumps({"location":"clients.py:557","message":"Backend yielding chunk","data":{"chunk_count":chunk_count,"chunk_length":len(chunk),"total_content_length":len(accumulated_content),"time_since_start":time.time()-stream_start_time},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H2"})+"\n")
+                                from app.config import write_debug_log
+                                write_debug_log({"location":"clients.py:557","message":"Backend yielding chunk","data":{"chunk_count":chunk_count,"chunk_length":len(chunk),"total_content_length":len(accumulated_content),"time_since_start":time.time()-stream_start_time},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H2"})
                                 # #endregion
                                 accumulated_content += chunk
                                 # Send SSE message with chunk
@@ -611,8 +609,8 @@ def execute_client_prompt(
                                 yield f"data: {message}\n\n"
                         else:
                             # #region agent log
-                            with open('/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug.log', 'a') as f:
-                                f.write(json.dumps({"location":"clients.py:568","message":"Backend received final metadata","data":{"total_chunks":chunk_count,"tokens_used":metadata.get("tokens_used"),"total_duration":time.time()-stream_start_time},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H2"})+"\n")
+                            from app.config import write_debug_log
+                            write_debug_log({"location":"clients.py:568","message":"Backend received final metadata","data":{"total_chunks":chunk_count,"tokens_used":metadata.get("tokens_used"),"total_duration":time.time()-stream_start_time},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H2"})
                             # #endregion
                             # Final metadata chunk
                             final_metadata = metadata
@@ -624,8 +622,8 @@ def execute_client_prompt(
                                 "content": metadata.get("content", accumulated_content)
                             })
                             # #region agent log
-                            with open('/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug.log', 'a') as f:
-                                f.write(json.dumps({"location":"clients.py:614","message":"Backend yielding done message","data":{"total_chunks":chunk_count,"tokens_used":metadata.get("tokens_used"),"total_duration":time.time()-stream_start_time},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"C"})+"\n")
+                            from app.config import write_debug_log
+                            write_debug_log({"location":"clients.py:614","message":"Backend yielding done message","data":{"total_chunks":chunk_count,"tokens_used":metadata.get("tokens_used"),"total_duration":time.time()-stream_start_time},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"C"})
                             # #endregion
                             yield f"data: {message}\n\n"
                     
@@ -663,8 +661,8 @@ def execute_client_prompt(
                     
                 except Exception as stream_error:
                     # #region agent log
-                    with open('/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug.log', 'a') as f:
-                        f.write(json.dumps({"location":"clients.py:611","message":"Backend stream exception","data":{"error_msg":str(stream_error),"error_type":type(stream_error).__name__,"chunks_sent":chunk_count,"time_before_error":time.time()-stream_start_time},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H2"})+"\n")
+                    from app.config import write_debug_log
+                    write_debug_log({"location":"clients.py:611","message":"Backend stream exception","data":{"error_msg":str(stream_error),"error_type":type(stream_error).__name__,"chunks_sent":chunk_count,"time_before_error":time.time()-stream_start_time},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H2"})
                     # #endregion
                     logger.error(f"Error during streaming: {stream_error}", exc_info=True)
                     error_message = json.dumps({
@@ -701,12 +699,11 @@ def execute_client_prompt(
         raise
     except Exception as e:
         # #region agent log
-        import json
         import time
         import traceback
+        from app.config import write_debug_log
         error_trace = traceback.format_exc()
-        with open('/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug.log', 'a') as f:
-            f.write(json.dumps({"location":"clients.py:689","message":"Unhandled exception in execute_client_prompt","data":{"error_msg":str(e),"error_type":type(e).__name__,"traceback":error_trace},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"E"})+"\n")
+        write_debug_log({"location":"clients.py:689","message":"Unhandled exception in execute_client_prompt","data":{"error_msg":str(e),"error_type":type(e).__name__,"traceback":error_trace},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"E"})
         # #endregion
         logger.error(f"Error executing prompt: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

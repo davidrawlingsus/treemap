@@ -11,6 +11,49 @@ from pydantic_settings import BaseSettings
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 LOCAL_ENV_FILE = PROJECT_ROOT / ".env.local"
 
+
+def get_debug_log_path() -> Path:
+    """
+    Get the path to the debug log file.
+    Uses environment variable DEBUG_LOG_PATH if set, otherwise uses a default path.
+    Creates the directory if it doesn't exist.
+    """
+    debug_log_path_env = os.getenv("DEBUG_LOG_PATH")
+    if debug_log_path_env:
+        log_path = Path(debug_log_path_env)
+    else:
+        # Default: use .cursor/debug.log in project root or current working directory
+        base_path = PROJECT_ROOT if (PROJECT_ROOT / ".cursor").exists() else Path.cwd()
+        log_path = base_path / ".cursor" / "debug.log"
+    
+    # Create parent directory if it doesn't exist
+    try:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+    except (OSError, PermissionError):
+        # If we can't create the directory, that's okay - we'll handle it in write_debug_log
+        pass
+    
+    return log_path
+
+
+def write_debug_log(data: dict) -> None:
+    """
+    Safely write a debug log entry. Handles errors gracefully so logging failures
+    don't crash the application.
+    
+    Args:
+        data: Dictionary to write as JSON (one line, NDJSON format)
+    """
+    try:
+        log_path = get_debug_log_path()
+        with open(log_path, 'a') as f:
+            f.write(json.dumps(data) + "\n")
+    except (OSError, PermissionError, json.JSONEncodeError) as e:
+        # Silently fail - don't crash the app if logging fails
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.debug(f"Failed to write debug log: {e}")
+
 if LOCAL_ENV_FILE.exists():
     load_dotenv(LOCAL_ENV_FILE, override=True)
 
