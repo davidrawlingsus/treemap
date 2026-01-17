@@ -380,7 +380,22 @@ js/
 - **Completed**: 2025-01-XX
 - **Notes**: Created ui-controller module with simple toggle functions. Module functions exposed globally. Wrapper functions in index.html call module functions with fallback. These are simple, self-contained functions that don't depend on complex state.
 
-**Slice 19-20**: Controller extraction slices - **NOT STARTED**
+**Slice 19: Extract History State** - **DONE**
+- **Status**: DONE
+- **Scope**: History page state variables (historyCurrentClientId, historyAllActions, historySearchTerm, selectedHistoryIds, historyCurrentSortBy, historySortOrder, historyInitialized)
+- **Files Affected**: Created `js/state/history-state.js`
+- **Extract**: State management for history page (actions list, filters, sorting, search, selected items)
+- **Public API**: `historyState.getHistoryCurrentClientId()`, `historyState.setHistoryAllActions()`, etc.
+- **Testing Checklist**: 
+  - [ ] Verify history loads correctly
+  - [ ] Verify search works
+  - [ ] Verify sorting works
+  - [ ] Verify selection works
+  - [ ] No console errors
+- **Completed**: 2025-01-XX
+- **Notes**: Created history-state module with getter/setter functions and Set manipulation helpers. Module functions exposed globally. Local variables kept for backward compatibility during migration. Full migration of all references to module functions will happen gradually in future slices.
+
+**Slice 20**: Controller extraction slices - **NOT STARTED**
 (Details to be filled as we progress)
 
 ## Completed Work Log
@@ -543,6 +558,15 @@ js/
 - Module functions exposed globally for backward compatibility
 - Wrapper functions in index.html call module functions with fallback
 - These are simple, self-contained functions that don't depend on complex state
+
+### 2025-01-XX - Slice 19: Extract History State
+- Created `js/state/history-state.js` - extracted history page state management
+- Extracted state variables: `historyCurrentClientId`, `historyAllActions`, `historySearchTerm`, `selectedHistoryIds`, `historyCurrentSortBy`, `historySortOrder`, `historyInitialized`
+- Added history-state module imports to ES module script tag in index.html
+- Module functions exposed globally for backward compatibility
+- Added Set manipulation helpers (addSelectedHistoryId, removeSelectedHistoryId, hasSelectedHistoryId, clearSelectedHistoryIds)
+- Local variables kept for backward compatibility during migration
+- Full migration of all references to module functions will happen gradually in future slices
 
 ## Known Risks & Technical Debt
 

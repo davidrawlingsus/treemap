@@ -235,6 +235,29 @@
             setInsightsState as insightsStateSetInsightsState,
             resetInsightsState as insightsStateResetInsightsState
         } from '/js/state/insights-state.js';
+        import {
+            getHistoryCurrentClientId as historyStateGetHistoryCurrentClientId,
+            setHistoryCurrentClientId as historyStateSetHistoryCurrentClientId,
+            getHistoryAllActions as historyStateGetHistoryAllActions,
+            setHistoryAllActions as historyStateSetHistoryAllActions,
+            getHistorySearchTerm as historyStateGetHistorySearchTerm,
+            setHistorySearchTerm as historyStateSetHistorySearchTerm,
+            getSelectedHistoryIds as historyStateGetSelectedHistoryIds,
+            setSelectedHistoryIds as historyStateSetSelectedHistoryIds,
+            addSelectedHistoryId as historyStateAddSelectedHistoryId,
+            removeSelectedHistoryId as historyStateRemoveSelectedHistoryId,
+            hasSelectedHistoryId as historyStateHasSelectedHistoryId,
+            clearSelectedHistoryIds as historyStateClearSelectedHistoryIds,
+            getHistoryCurrentSortBy as historyStateGetHistoryCurrentSortBy,
+            setHistoryCurrentSortBy as historyStateSetHistoryCurrentSortBy,
+            getHistorySortOrder as historyStateGetHistorySortOrder,
+            setHistorySortOrder as historyStateSetHistorySortOrder,
+            getHistoryInitialized as historyStateGetHistoryInitialized,
+            setHistoryInitialized as historyStateSetHistoryInitialized,
+            getHistoryState as historyStateGetHistoryState,
+            setHistoryState as historyStateSetHistoryState,
+            resetHistoryState as historyStateResetHistoryState
+        } from '/js/state/history-state.js';
         
         // Make utilities available globally for backward compatibility
         window.adjustBrightness = adjustBrightness;
