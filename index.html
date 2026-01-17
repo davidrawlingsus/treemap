@@ -13001,8 +13001,8 @@
                 // Build cells in default order, we'll reorder them after rendering
                 const cells = {
                     name: createEditableNameCell(insight.id, insightName, highlightedInsightName),
-                    type: `<td data-column="type" onclick="event.stopPropagation();">${createMultiSelectCell(insight.id, 'type', insight.type ? [insight.type] : [], [])}</td>`,
-                    application: `<td data-column="application" onclick="event.stopPropagation();">${createMultiSelectCell(insight.id, 'application', insight.application || [], [])}</td>`,
+                    type: `<td data-column="type" onclick="event.stopPropagation();">${createMultiSelectCell(insight.id, 'type', normalizeFieldToArray(insight.type, 'type'), [])}</td>`,
+                    application: `<td data-column="application" onclick="event.stopPropagation();">${createMultiSelectCell(insight.id, 'application', normalizeFieldToArray(insight.application, 'application'), [])}</td>`,
                     status: `<td data-column="status">
                         <select class="status-select" 
                                 onchange="console.log('[DEBUG status-select onchange] Triggered for insight:', '${insight.id}', 'new value:', this.value); updateInsightStatus('${insight.id}', this.value)" 
@@ -14424,11 +14424,20 @@
                 }
 
                 const responseData = await response.json();
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:14426',message:'after API response',data:{fieldName,responseValue:responseData[fieldName],responseValueType:typeof responseData[fieldName],isArray:Array.isArray(responseData[fieldName])},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                // #endregion
                 
-                // Update local data
+                // Update local data - normalize field value to array for both type and application
                 const insightIndex = insightsAllInsights.findIndex(insight => insight.id === insightId);
                 if (insightIndex !== -1) {
-                    insightsAllInsights[insightIndex][fieldName] = responseData[fieldName];
+                    // Normalize the response value to array (backend returns string for type, array for application)
+                    // Both need to be normalized to handle comma-separated strings correctly
+                    const normalizedValue = normalizeFieldToArray(responseData[fieldName], fieldName);
+                    insightsAllInsights[insightIndex][fieldName] = normalizedValue;
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:14431',message:'after updating local data',data:{fieldName,storedValue:insightsAllInsights[insightIndex][fieldName],storedValueType:typeof insightsAllInsights[insightIndex][fieldName],isArray:Array.isArray(insightsAllInsights[insightIndex][fieldName])},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                    // #endregion
                 }
                 
                 return true;
@@ -14437,6 +14446,20 @@
                 alert(`Error updating ${fieldName}: ` + error.message);
                 return false;
             }
+        }
+
+        // Helper function to normalize field value to array (for both type and application)
+        function normalizeFieldToArray(fieldValue, fieldName) {
+            if (!fieldValue) return [];
+            if (Array.isArray(fieldValue)) return fieldValue;
+            if (typeof fieldValue === 'string') {
+                // For both type and application fields, split comma-separated strings
+                // Backend stores type as a single string, but we send comma-separated values
+                // So we need to split them when receiving from backend
+                const values = fieldValue.split(',').map(v => v.trim()).filter(v => v);
+                return values.length > 0 ? values : [];
+            }
+            return [];
         }
 
         // Collect all unique values for a field from all insights
@@ -14448,7 +14471,9 @@
                     if (Array.isArray(fieldValue)) {
                         fieldValue.forEach(v => v && values.add(v.trim()));
                     } else if (typeof fieldValue === 'string') {
-                        values.add(fieldValue.trim());
+                        // For both type and application, split comma-separated strings to get individual values
+                        const splitValues = fieldValue.split(',').map(v => v.trim()).filter(v => v);
+                        splitValues.forEach(v => values.add(v));
                     }
                 }
             });
@@ -14461,8 +14486,9 @@
             const selected = currentValues || [];
             
             // Generate pills for selected values
+            // Pills should bubble click events to parent cell to open dropdown
             const pills = selected.map(value => 
-                `<span class="insight-pill" data-value="${escapeHtml(value)}">
+                `<span class="insight-pill" data-value="${escapeHtml(value)}" onclick="event.stopPropagation(); openMultiSelect('${insightId}', '${fieldName}')">
                     ${escapeHtml(value)}
                     <button class="pill-remove" onclick="event.stopPropagation(); removeMultiSelectValue('${insightId}', '${fieldName}', '${escapeHtml(value)}')">×</button>
                 </span>`
@@ -14486,7 +14512,7 @@
             const insight = insightsAllInsights.find(i => i.id === insightId);
             if (!insight) return;
 
-            const currentValues = insight[fieldName] || [];
+            const currentValues = normalizeFieldToArray(insight[fieldName], fieldName);
             const availableOptions = getUniqueFieldValues(fieldName);
             
             // Add active class to show delete buttons
@@ -14590,7 +14616,7 @@
             const insight = insightsAllInsights.find(i => i.id === insightId);
             if (!insight) return;
 
-            const currentValues = insight[fieldName] || [];
+            const currentValues = normalizeFieldToArray(insight[fieldName], fieldName);
             const availableOptions = getUniqueFieldValues(fieldName);
             
             renderMultiSelectOptions(availableOptions, currentValues, insightId, fieldName);
@@ -14618,18 +14644,30 @@
         }
 
         async function toggleMultiSelectOption(insightId, fieldName, value) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:14620',message:'toggleMultiSelectOption entry',data:{insightId,fieldName,value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
             const insight = insightsAllInsights.find(i => i.id === insightId);
             if (!insight) return;
 
-            let currentValues = insight[fieldName] || [];
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:14624',message:'before processing currentValues',data:{fieldValue:insight[fieldName],fieldValueType:typeof insight[fieldName],isArray:Array.isArray(insight[fieldName])},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
+            let currentValues = normalizeFieldToArray(insight[fieldName], fieldName);
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:14625',message:'after currentValues assignment',data:{currentValues,currentValuesType:typeof currentValues,isArray:Array.isArray(currentValues)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
             
             if (currentValues.includes(value)) {
                 currentValues = currentValues.filter(v => v !== value);
             } else {
                 currentValues = [...currentValues, value];
             }
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:14630',message:'after toggle logic',data:{currentValues,currentValuesType:typeof currentValues,isArray:Array.isArray(currentValues)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
 
-            // Update via API
+            // Update via API - send as comma-separated string for both type and application
             const success = await updateInsightField(insightId, fieldName, currentValues.join(', '));
             
             if (success) {
@@ -14646,13 +14684,13 @@
             const insight = insightsAllInsights.find(i => i.id === insightId);
             if (!insight) return;
 
-            const currentValues = insight[fieldName] || [];
+            const currentValues = normalizeFieldToArray(insight[fieldName], fieldName);
             
             // Add new value if not already present
             if (!currentValues.includes(newValue)) {
                 const updatedValues = [...currentValues, newValue];
                 
-                // Update via API
+                // Update via API - send as comma-separated string for both type and application
                 const success = await updateInsightField(insightId, fieldName, updatedValues.join(', '));
                 
                 if (success) {
@@ -14674,14 +14712,29 @@
         }
 
         async function removeMultiSelectValue(insightId, fieldName, value) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:14676',message:'removeMultiSelectValue entry',data:{insightId,fieldName,value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
             const insight = insightsAllInsights.find(i => i.id === insightId);
             if (!insight) return;
 
-            const currentValues = insight[fieldName] || [];
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:14680',message:'before processing currentValues',data:{fieldValue:insight[fieldName],fieldValueType:typeof insight[fieldName],isArray:Array.isArray(insight[fieldName])},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
+            const currentValues = normalizeFieldToArray(insight[fieldName], fieldName);
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:14681',message:'after currentValues assignment',data:{currentValues,currentValuesType:typeof currentValues,isArray:Array.isArray(currentValues),currentValuesLength:currentValues.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
             const updatedValues = currentValues.filter(v => v !== value);
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:14682',message:'after filter',data:{updatedValues,updatedValuesType:typeof updatedValues,isArray:Array.isArray(updatedValues)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
 
-            // Update via API
+            // Update via API - send as comma-separated string for both type and application
             const success = await updateInsightField(insightId, fieldName, updatedValues.join(', '));
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:14684',message:'after updateInsightField',data:{success,valueSent:updatedValues.join(', ')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
             
             if (success) {
                 // Update just the pills display without closing dropdown
@@ -14702,6 +14755,7 @@
             if (!pillsContainer) return;
 
             // Generate new pills HTML
+            // Pills are clickable (bubble to parent cell to open dropdown), × button removes the tag
             const pills = values.map(value => 
                 `<span class="insight-pill" data-value="${escapeHtml(value)}">
                     ${escapeHtml(value)}
