@@ -43,6 +43,81 @@
     <link rel="stylesheet" href="/styles/prompt-engineering/slideout.css">
     <link rel="stylesheet" href="/styles/prompt-engineering/idea-cards.css">
     <link rel="stylesheet" href="/styles/prompt-engineering/results.css">
+    
+    <!-- Utility modules (ES modules) -->
+    <script type="module">
+        import { adjustBrightness } from '/js/utils/colors.js';
+        import { getStateCode, stateNameToCode, fipsToStateCode } from '/js/utils/format.js';
+        import { debounce, escapeHtml, escapeHtmlForAttribute } from '/js/utils/dom.js';
+        import { 
+            saveState as storageSaveState, 
+            loadState as storageLoadState,
+            getFilterStorageKey as storageGetFilterStorageKey,
+            loadFiltersFromStorage as storageLoadFiltersFromStorage,
+            saveFiltersToStorage as storageSaveFiltersToStorage,
+            getFavouritesStorageKey as storageGetFavouritesStorageKey,
+            getFavourites as storageGetFavourites,
+            saveFavourites as storageSaveFavourites,
+            getTagColors,
+            setTagColor,
+            getTagColor,
+            TAG_COLORS_STORAGE_KEY,
+            TAG_COLOR_MAP,
+            STATE_STORAGE_KEY
+        } from '/js/services/storage.js';
+        import {
+            getToken as authServiceGetToken,
+            getHeaders as authServiceGetHeaders,
+            getHeadersSafe as authServiceGetHeadersSafe,
+            isAuthAvailable as authServiceIsAuthAvailable,
+            getStoredUserInfo as authServiceGetStoredUserInfo
+        } from '/js/services/auth-service.js';
+        import {
+            getBaseUrl as apiConfigGetBaseUrl,
+            API_BASE_URL as apiConfigAPI_BASE_URL
+        } from '/js/services/api-config.js';
+        
+        // Make utilities available globally for backward compatibility
+        window.adjustBrightness = adjustBrightness;
+        window.getStateCode = getStateCode;
+        window.stateNameToCode = stateNameToCode;
+        window.fipsToStateCode = fipsToStateCode;
+        window.debounce = debounce;
+        window.escapeHtml = escapeHtml;
+        window.escapeHtmlForAttribute = escapeHtmlForAttribute;
+        
+        // Make storage functions and constants available globally
+        window.getTagColors = getTagColors;
+        window.setTagColor = setTagColor;
+        window.getTagColor = getTagColor;
+        window.TAG_COLORS_STORAGE_KEY = TAG_COLORS_STORAGE_KEY;
+        window.TAG_COLOR_MAP = TAG_COLOR_MAP;
+        window.STATE_STORAGE_KEY = STATE_STORAGE_KEY;
+        
+        // Make storage module functions available for wrapper functions
+        window.storageSaveState = storageSaveState;
+        window.storageLoadState = storageLoadState;
+        window.storageGetFilterStorageKey = storageGetFilterStorageKey;
+        window.storageLoadFiltersFromStorage = storageLoadFiltersFromStorage;
+        window.storageSaveFiltersToStorage = storageSaveFiltersToStorage;
+        window.storageGetFavouritesStorageKey = storageGetFavouritesStorageKey;
+        window.storageGetFavourites = storageGetFavourites;
+        window.storageSaveFavourites = storageSaveFavourites;
+        
+        // Make auth service functions available globally for backward compatibility
+        window.authServiceGetToken = authServiceGetToken;
+        window.authServiceGetHeaders = authServiceGetHeaders;
+        window.authServiceGetHeadersSafe = authServiceGetHeadersSafe;
+        
+        // Make API config available globally
+        window.apiConfigGetBaseUrl = apiConfigGetBaseUrl;
+        // API_BASE_URL will be set after module loads, but we can provide a getter function
+        Object.defineProperty(window, 'apiConfigAPI_BASE_URL', {
+            get: () => apiConfigGetBaseUrl(),
+            enumerable: true,
+            configurable: true
+        });
+    </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
@@ -6362,18 +6437,8 @@
         let width = 1200; // Will be updated when container is available
         let height = 600; // Will be updated when container is available
         
-        // Debounce function to limit resize calls
-        function debounce(func, wait) {
-            let timeout;
-            return function executedFunction(...args) {
-                const later = () => {
-                    clearTimeout(timeout);
-                    func(...args);
-                };
-                clearTimeout(timeout);
-                timeout = setTimeout(later, wait);
-            };
-        }
+        // Debounce function - now imported from js/utils/dom.js module
+        // Function is available globally via window.debounce
         
         function resetFilterSelectionSearch() {
             currentFilterSearchTerm = '';
@@ -6424,64 +6489,14 @@
             categories: d3.scaleOrdinal(categoryColors)
         };
         
-        // US state name to code mapping for geo visualizations
-        const stateNameToCode = {
-            'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR', 'California': 'CA',
-            'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE', 'Florida': 'FL', 'Georgia': 'GA',
-            'Hawaii': 'HI', 'Idaho': 'ID', 'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA',
-            'Kansas': 'KS', 'Kentucky': 'KY', 'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD',
-            'Massachusetts': 'MA', 'Michigan': 'MI', 'Minnesota': 'MN', 'Mississippi': 'MS', 'Missouri': 'MO',
-            'Montana': 'MT', 'Nebraska': 'NE', 'Nevada': 'NV', 'New Hampshire': 'NH', 'New Jersey': 'NJ',
-            'New Mexico': 'NM', 'New York': 'NY', 'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH',
-            'Oklahoma': 'OK', 'Oregon': 'OR', 'Pennsylvania': 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
-            'South Dakota': 'SD', 'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT', 'Vermont': 'VT',
-            'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV', 'Wisconsin': 'WI', 'Wyoming': 'WY',
-            'District of Columbia': 'DC'
-        };
+        // State code mappings - now imported from js/utils/format.js module
+        // Available globally via window.stateNameToCode and window.fipsToStateCode
         
-        // FIPS code to state code mapping for TopoJSON
-        const fipsToStateCode = {
-            '01': 'AL', '02': 'AK', '04': 'AZ', '05': 'AR', '06': 'CA',
-            '08': 'CO', '09': 'CT', '10': 'DE', '11': 'DC', '12': 'FL', '13': 'GA',
-            '15': 'HI', '16': 'ID', '17': 'IL', '18': 'IN', '19': 'IA',
-            '20': 'KS', '21': 'KY', '22': 'LA', '23': 'ME', '24': 'MD',
-            '25': 'MA', '26': 'MI', '27': 'MN', '28': 'MS', '29': 'MO',
-            '30': 'MT', '31': 'NE', '32': 'NV', '33': 'NH', '34': 'NJ',
-            '35': 'NM', '36': 'NY', '37': 'NC', '38': 'ND', '39': 'OH',
-            '40': 'OK', '41': 'OR', '42': 'PA', '44': 'RI', '45': 'SC',
-            '46': 'SD', '47': 'TN', '48': 'TX', '49': 'UT', '50': 'VT',
-            '51': 'VA', '53': 'WA', '54': 'WV', '55': 'WI', '56': 'WY'
-        };
+        // getStateCode function - now imported from js/utils/format.js module
+        // Available globally via window.getStateCode
         
-        // Helper function to get state code from state name (case-insensitive)
-        function getStateCode(stateName) {
-            if (!stateName) return null;
-            const normalizedName = stateName.trim();
-            // Try exact match first
-            if (stateNameToCode[normalizedName]) {
-                return stateNameToCode[normalizedName];
-            }
-            // Try case-insensitive match
-            for (const [name, code] of Object.entries(stateNameToCode)) {
-                if (name.toLowerCase() === normalizedName.toLowerCase()) {
-                    return code;
-                }
-            }
-            return null;
-        }
-        
-        // Helper function to adjust color brightness
-        function adjustBrightness(color, percent) {
-            const num = parseInt(color.replace("#",""), 16);
-            const amt = Math.round(2.55 * percent);
-            const R = (num >> 16) + amt;
-            const G = (num >> 8 & 0x00FF) + amt;
-            const B = (num & 0x0000FF) + amt;
-            return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 +
-                (G<255?G<1?0:G:255)*0x100 +
-                (B<255?B<1?0:B:255))
-                .toString(16).slice(1);
-        }
+        // adjustBrightness function - now imported from js/utils/colors.js module
+        // Available globally via window.adjustBrightness
 
         // Global state
         let rawData = [];
@@ -6608,39 +6623,49 @@
             applyHeaderUserState();
         }
         
-        // State persistence constants
-        const STATE_STORAGE_KEY = 'treemap_app_state';
+        // State persistence - now imported from js/services/storage.js module
+        // STATE_STORAGE_KEY available globally via window.STATE_STORAGE_KEY
         
         // Flag to prevent auto-launch loops
         let hasAutoLaunched = false;
         let isInitializing = false;
         
-        // Save current state to localStorage
+        // Save current state to localStorage - wrapper that uses globals
         function saveState() {
-            try {
-                const state = {
-                    clientId: currentClientId,
-                    projectName: currentProjectName,
-                    dataSourceId: currentDataSourceId,
-                    questionRefKey: currentQuestionRefKey
-                };
-                localStorage.setItem(STATE_STORAGE_KEY, JSON.stringify(state));
-            } catch (error) {
-                console.error('Error saving state:', error);
+            const state = {
+                clientId: currentClientId,
+                projectName: currentProjectName,
+                dataSourceId: currentDataSourceId,
+                questionRefKey: currentQuestionRefKey
+            };
+            if (window.storageSaveState) {
+                window.storageSaveState(state);
+            } else {
+                // Fallback if module not loaded yet
+                try {
+                    localStorage.setItem(window.STATE_STORAGE_KEY || 'treemap_app_state', JSON.stringify(state));
+                } catch (error) {
+                    console.error('Error saving state:', error);
+                }
             }
         }
         
-        // Load state from localStorage
+        // Load state from localStorage - wrapper that uses module function
         function loadState() {
-            try {
-                const stateJson = localStorage.getItem(STATE_STORAGE_KEY);
-                if (stateJson) {
-                    return JSON.parse(stateJson);
+            if (window.storageLoadState) {
+                return window.storageLoadState();
+            } else {
+                // Fallback if module not loaded yet
+                try {
+                    const stateJson = localStorage.getItem(window.STATE_STORAGE_KEY || 'treemap_app_state');
+                    if (stateJson) {
+                        return JSON.parse(stateJson);
+                    }
+                } catch (error) {
+                    console.error('Error loading state:', error);
                 }
-            } catch (error) {
-                console.error('Error loading state:', error);
+                return null;
             }
-            return null;
         }
         
         // Predefined dimension options
@@ -7300,8 +7325,16 @@
             }
         });
 
-        // API Configuration - loaded from server config
-        const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+        // API Configuration - now imported from js/services/api-config.js module
+        // Wrapper that uses module function
+        function getAPIBaseUrl() {
+            if (window.apiConfigGetBaseUrl) {
+                return window.apiConfigGetBaseUrl();
+            }
+            // Fallback if module not loaded yet
+            return window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+        }
+        const API_BASE_URL = getAPIBaseUrl();
         
         // Load available clients
         async function loadClients() {
@@ -10056,13 +10089,8 @@
             }
         }
 
-        // Escape HTML to prevent XSS and layout issues
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
+        // escapeHtml function - now imported from js/utils/dom.js module
+        // Available globally via window.escapeHtml
 
         // Highlight search terms in text (case-insensitive, supports multiple words)
         function highlightSearchTerms(text, searchTerm) {
@@ -10453,16 +10481,26 @@
             return `${verbatim.index || 'unknown'}_${textPrefix}`;
         }
 
+        // Favourites storage - wrappers that use globals
         function getFavouritesStorageKey() {
-            // Scope favorites by client and project (persist across sources within same client/project)
             const clientId = currentClientId || 'no-client';
             const projectName = currentProjectName || 'all-projects';
+            if (window.storageGetFavouritesStorageKey) {
+                return window.storageGetFavouritesStorageKey(clientId, projectName);
+            }
+            // Fallback if module not loaded yet
             return `verbatimFavourites_${clientId}_${projectName}`;
         }
 
         function getFavourites() {
+            const clientId = currentClientId || 'no-client';
+            const projectName = currentProjectName || 'all-projects';
+            if (window.storageGetFavourites) {
+                return window.storageGetFavourites(clientId, projectName);
+            }
+            // Fallback if module not loaded yet
             try {
-                const storageKey = getFavouritesStorageKey();
+                const storageKey = `verbatimFavourites_${clientId}_${projectName}`;
                 const saved = localStorage.getItem(storageKey);
                 return saved ? JSON.parse(saved) : [];
             } catch (e) {
@@ -10471,8 +10509,15 @@
         }
 
         function saveFavourites(favourites) {
-            const storageKey = getFavouritesStorageKey();
-            localStorage.setItem(storageKey, JSON.stringify(favourites));
+            const clientId = currentClientId || 'no-client';
+            const projectName = currentProjectName || 'all-projects';
+            if (window.storageSaveFavourites) {
+                window.storageSaveFavourites(clientId, projectName, favourites);
+            } else {
+                // Fallback if module not loaded yet
+                const storageKey = `verbatimFavourites_${clientId}_${projectName}`;
+                localStorage.setItem(storageKey, JSON.stringify(favourites));
+            }
         }
 
         function isFavourite(verbatim) {
@@ -12779,9 +12824,13 @@
         let insightsSearchTerm = '';
         let insightsAllInsights = [];
         let insightsCurrentInsightEditor = null;
-        // Get storage key scoped by client ID for filter persistence
+        // Get storage key scoped by client ID for filter persistence - wrapper that uses globals
         function getFilterStorageKey() {
             const clientId = insightsCurrentClientId || currentClientId || 'global';
+            if (window.storageGetFilterStorageKey) {
+                return window.storageGetFilterStorageKey(clientId);
+            }
+            // Fallback if module not loaded yet
             return `insights_filters_${clientId}`;
         }
         
@@ -12802,34 +12851,27 @@
         let selectedInsightIds = new Set();
         window.insightsInitialized = false;
 
+        // getAuthHeadersSafe - now imported from js/services/auth-service.js module
+        // Wrapper function that uses module
         function getAuthHeadersSafe() {
-            console.log('[DEBUG] getAuthHeadersSafe called');
+            if (window.authServiceGetHeadersSafe) {
+                return window.authServiceGetHeadersSafe();
+            }
+            // Fallback if module not loaded yet
             let headers = {};
-            
             if (typeof getAuthHeaders !== 'undefined') {
-                console.log('[DEBUG] getAuthHeaders function exists, calling it');
                 headers = getAuthHeaders();
-                console.log('[DEBUG] getAuthHeaders returned:', Object.keys(headers));
                 if (headers.Authorization || headers.authorization) {
-                    console.log('[DEBUG] Using headers from getAuthHeaders');
                     return headers;
                 }
-            } else {
-                console.log('[DEBUG] getAuthHeaders function is undefined');
             }
-            
             const token = localStorage.getItem('visualizd_auth_token');
-            console.log('[DEBUG] Token from localStorage:', token ? 'exists (' + token.substring(0, 20) + '...)' : 'not found');
             if (token) {
-                const headers = {
+                return {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 };
-                console.log('[DEBUG] Using token from localStorage');
-                return headers;
             }
-            
-            console.warn('[DEBUG] No auth token found, returning headers without Authorization');
             return { 'Content-Type': 'application/json' };
         }
 
@@ -13507,26 +13549,38 @@
             renderInsightsPage();
         }
 
-        // Load filters from localStorage (scoped by client ID)
+        // Load filters from localStorage (scoped by client ID) - wrapper that uses globals
         function loadFiltersFromStorage() {
-            const storageKey = getFilterStorageKey();
-            const saved = localStorage.getItem(storageKey);
-            if (saved) {
-                try {
-                    insightsFilters = JSON.parse(saved);
-                } catch (e) {
-                    console.warn('Failed to parse saved filters:', e);
+            const clientId = insightsCurrentClientId || currentClientId || 'global';
+            if (window.storageLoadFiltersFromStorage) {
+                insightsFilters = window.storageLoadFiltersFromStorage(clientId);
+            } else {
+                // Fallback if module not loaded yet
+                const storageKey = `insights_filters_${clientId}`;
+                const saved = localStorage.getItem(storageKey);
+                if (saved) {
+                    try {
+                        insightsFilters = JSON.parse(saved);
+                    } catch (e) {
+                        console.warn('Failed to parse saved filters:', e);
+                        insightsFilters = [];
+                    }
+                } else {
                     insightsFilters = [];
                 }
-            } else {
-                insightsFilters = [];
             }
         }
         
-        // Save filters to localStorage (scoped by client ID)
+        // Save filters to localStorage (scoped by client ID) - wrapper that uses globals
         function saveFiltersToStorage() {
-            const storageKey = getFilterStorageKey();
-            localStorage.setItem(storageKey, JSON.stringify(insightsFilters));
+            const clientId = insightsCurrentClientId || currentClientId || 'global';
+            if (window.storageSaveFiltersToStorage) {
+                window.storageSaveFiltersToStorage(clientId, insightsFilters);
+            } else {
+                // Fallback if module not loaded yet
+                const storageKey = `insights_filters_${clientId}`;
+                localStorage.setItem(storageKey, JSON.stringify(insightsFilters));
+            }
         }
         
         // Restore visible filter dropdowns for active filters
@@ -15286,53 +15340,8 @@
             }
         }
 
-        // Tag color storage and management
-        const TAG_COLORS_STORAGE_KEY = 'vizualizd_tag_colors';
-        
-        const TAG_COLOR_MAP = {
-            'default': { bg: 'rgba(99, 71, 169, 0.1)', color: '#6347a9' },
-            'gray': { bg: 'rgba(156, 163, 175, 0.15)', color: '#6b7280' },
-            'brown': { bg: 'rgba(146, 64, 14, 0.15)', color: '#92400e' },
-            'orange': { bg: 'rgba(249, 115, 22, 0.15)', color: '#f97316' },
-            'yellow': { bg: 'rgba(234, 179, 8, 0.15)', color: '#ca8a04' },
-            'green': { bg: 'rgba(34, 197, 94, 0.15)', color: '#16a34a' },
-            'blue': { bg: 'rgba(59, 130, 246, 0.15)', color: '#2563eb' },
-            'purple': { bg: 'rgba(168, 85, 247, 0.15)', color: '#9333ea' },
-            'pink': { bg: 'rgba(236, 72, 153, 0.15)', color: '#db2777' },
-            'red': { bg: 'rgba(239, 68, 68, 0.15)', color: '#dc2626' }
-        };
-
-        function getTagColors() {
-            try {
-                const stored = localStorage.getItem(TAG_COLORS_STORAGE_KEY);
-                return stored ? JSON.parse(stored) : {};
-            } catch (e) {
-                console.error('Error loading tag colors:', e);
-                return {};
-            }
-        }
-
-        function setTagColor(fieldName, tagValue, colorName) {
-            const colors = getTagColors();
-            const key = `${fieldName}:${tagValue}`;
-            if (colorName === 'default') {
-                delete colors[key];
-            } else {
-                colors[key] = colorName;
-            }
-            try {
-                localStorage.setItem(TAG_COLORS_STORAGE_KEY, JSON.stringify(colors));
-            } catch (e) {
-                console.error('Error saving tag color:', e);
-            }
-        }
-
-        function getTagColor(fieldName, tagValue) {
-            const colors = getTagColors();
-            const key = `${fieldName}:${tagValue}`;
-            const colorName = colors[key] || 'default';
-            return TAG_COLOR_MAP[colorName] || TAG_COLOR_MAP['default'];
-        }
+        // Tag color storage and management - now imported from js/services/storage.js module
+        // TAG_COLORS_STORAGE_KEY, TAG_COLOR_MAP, getTagColors, setTagColor, getTagColor available globally via window.*
 
         function getPillStyle(fieldName, tagValue) {
             const color = getTagColor(fieldName, tagValue);
@@ -20922,11 +20931,8 @@
             // Type filter removed
         }
 
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
+        // escapeHtml function - now imported from js/utils/dom.js module
+        // Available globally via window.escapeHtml
 
         function openCreateInsightModal() {
             // Build origin from current view context
@@ -21128,11 +21134,8 @@
         }
 
         // Helper function to escape HTML
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
+        // escapeHtml function - now imported from js/utils/dom.js module
+        // Available globally via window.escapeHtml
 
         function hideContextMenu() {
             const contextMenu = document.getElementById('contextMenu');
