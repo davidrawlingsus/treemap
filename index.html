@@ -16411,7 +16411,14 @@
             
             tables.forEach(table => {
                 const thead = table.querySelector('thead tr');
-                if (!thead) return;
+                const tbody = table.querySelector('tbody');
+                if (!thead || !tbody) return;
+                
+                // Skip insights panel table on visualizations tab - it has a different structure (only 2 columns)
+                // The insights panel table has id "insightsTableBody" and is in the visualizations-section
+                if (tbody.id === 'insightsTableBody' && table.closest('#visualizations-section')) {
+                    return;
+                }
                 
                 const headers = Array.from(thead.querySelectorAll('th[data-column]'));
                 headers.forEach(header => {
