@@ -137,6 +137,19 @@
             setFilterState as filterStateSetFilterState,
             resetFilterState as filterStateResetFilterState
         } from '/js/state/filter-state.js';
+        import {
+            getAvailableQuestions as availableOptionsGetAvailableQuestions,
+            setAvailableQuestions as availableOptionsSetAvailableQuestions,
+            getAvailableCategories as availableOptionsGetAvailableCategories,
+            setAvailableCategories as availableOptionsSetAvailableCategories,
+            getAvailableTopics as availableOptionsGetAvailableTopics,
+            setAvailableTopics as availableOptionsSetAvailableTopics,
+            getAvailableLocations as availableOptionsGetAvailableLocations,
+            setAvailableLocations as availableOptionsSetAvailableLocations,
+            getAvailableOptionsState as availableOptionsGetAvailableOptionsState,
+            setAvailableOptionsState as availableOptionsSetAvailableOptionsState,
+            resetAvailableOptionsState as availableOptionsResetAvailableOptionsState
+        } from '/js/state/available-options-state.js';
         
         // Make utilities available globally for backward compatibility
         window.adjustBrightness = adjustBrightness;
@@ -239,6 +252,19 @@
         window.filterStateGetFilterState = filterStateGetFilterState;
         window.filterStateSetFilterState = filterStateSetFilterState;
         window.filterStateResetFilterState = filterStateResetFilterState;
+        
+        // Make available options state functions available globally for backward compatibility
+        window.availableOptionsGetAvailableQuestions = availableOptionsGetAvailableQuestions;
+        window.availableOptionsSetAvailableQuestions = availableOptionsSetAvailableQuestions;
+        window.availableOptionsGetAvailableCategories = availableOptionsGetAvailableCategories;
+        window.availableOptionsSetAvailableCategories = availableOptionsSetAvailableCategories;
+        window.availableOptionsGetAvailableTopics = availableOptionsGetAvailableTopics;
+        window.availableOptionsSetAvailableTopics = availableOptionsSetAvailableTopics;
+        window.availableOptionsGetAvailableLocations = availableOptionsGetAvailableLocations;
+        window.availableOptionsSetAvailableLocations = availableOptionsSetAvailableLocations;
+        window.availableOptionsGetAvailableOptionsState = availableOptionsGetAvailableOptionsState;
+        window.availableOptionsSetAvailableOptionsState = availableOptionsSetAvailableOptionsState;
+        window.availableOptionsResetAvailableOptionsState = availableOptionsResetAvailableOptionsState;
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
