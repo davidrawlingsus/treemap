@@ -11755,12 +11755,12 @@
             barsContainer.appendChild(axisContainer);
 
             // Render each category
-            const categoryColors = window.colorSchemesCATEGORY_COLORS || [
+            const categoryColorsLocal = window.colorSchemesCATEGORY_COLORS || [
                 '#A97FFF', '#77D9D6', '#F8A04C', '#58B3F0', '#6ED49B', '#F47280', '#9A7B6C', '#FFB366', '#B794F6', '#4ECDC4'
             ];
             categories.forEach((category, catIndex) => {
                 const categoryId = `cat-${catIndex}`;
-                const baseColor = colorPalette[category.name] || categoryColors[catIndex % categoryColors.length];
+                const baseColor = colorPalette[category.name] || categoryColorsLocal[catIndex % categoryColorsLocal.length];
 
                 // Helper function to collect all verbatims from category (shared by header and bar)
                 const collectAllCategoryVerbatims = () => {
@@ -12321,8 +12321,11 @@
             barsContainer.appendChild(axisContainer);
             
             // Render each value as a horizontal bar
+            const categoryColorsLocal = window.colorSchemesCATEGORY_COLORS || [
+                '#A97FFF', '#77D9D6', '#F8A04C', '#58B3F0', '#6ED49B', '#F47280', '#9A7B6C', '#FFB366', '#B794F6', '#4ECDC4'
+            ];
             data.forEach((item, index) => {
-                const color = categoryColors[index % categoryColors.length];
+                const color = categoryColorsLocal[index % categoryColorsLocal.length];
                 const barWidth = (item.percent / maxPercent) * 100;
                 
                 // Labels column
@@ -12617,8 +12620,11 @@
             barsContainer.appendChild(axisContainer);
 
              // Render each topic as a simple row
+             const categoryColorsLocal = window.colorSchemesCATEGORY_COLORS || [
+                 '#A97FFF', '#77D9D6', '#F8A04C', '#58B3F0', '#6ED49B', '#F47280', '#9A7B6C', '#FFB366', '#B794F6', '#4ECDC4'
+             ];
              topics.forEach((topic, index) => {
-                 const baseColor = colorPalette[topic.category] || categoryColors[index % categoryColors.length];
+                 const baseColor = colorPalette[topic.category] || categoryColorsLocal[index % categoryColorsLocal.length];
                  
                 // Labels column
                 const labelRow = document.createElement('div');
