@@ -15680,7 +15680,12 @@
             clearTimeout(insightsSaveNotesTimeout);
             
             const statusEl = document.getElementById('insightNotesSaveStatus');
-            if (statusEl) statusEl.textContent = 'Saving...';
+            if (statusEl) {
+                statusEl.textContent = 'Saving...';
+                statusEl.style.color = 'oklch(0.556 0 0)';
+                statusEl.style.opacity = '1';
+                statusEl.style.pointerEvents = 'auto';
+            }
             
             insightsSaveNotesTimeout = setTimeout(async () => {
                 await saveInsightNotes(insightId, content);
@@ -15779,9 +15784,17 @@
                 if (statusEl) {
                     statusEl.textContent = 'Saved';
                     statusEl.style.color = '#B9F040';
+                    statusEl.style.opacity = '1';
+                    statusEl.style.pointerEvents = 'auto';
                     setTimeout(() => {
                         if (statusEl) {
-                            statusEl.textContent = '';
+                            statusEl.style.opacity = '0';
+                            setTimeout(() => {
+                                if (statusEl) {
+                                    statusEl.textContent = '';
+                                    statusEl.style.pointerEvents = 'none';
+                                }
+                            }, 200); // Wait for fade out animation
                         }
                     }, 2000);
                 }
@@ -15790,6 +15803,8 @@
                 if (statusEl) {
                     statusEl.textContent = 'Error saving';
                     statusEl.style.color = 'oklch(0.577 0.245 27.325)';
+                    statusEl.style.opacity = '1';
+                    statusEl.style.pointerEvents = 'auto';
                 }
             }
         }
@@ -17634,7 +17649,12 @@
                 }
                 
                 const statusEl = document.getElementById('insightNotesSaveStatus');
-                if (statusEl) statusEl.textContent = 'Creating...';
+                if (statusEl) {
+                    statusEl.textContent = 'Creating...';
+                    statusEl.style.color = 'oklch(0.556 0 0)';
+                    statusEl.style.opacity = '1';
+                    statusEl.style.pointerEvents = 'auto';
+                }
                 
                 // Collect pinned verbatims
                 const pinnedVerbatimsArray = [];
@@ -17686,6 +17706,8 @@
                     if (statusEl) {
                         statusEl.textContent = 'Created!';
                         statusEl.style.color = '#B9F040';
+                        statusEl.style.opacity = '1';
+                        statusEl.style.pointerEvents = 'auto';
                     }
                     
                     // Always refresh insights list so new insight appears when navigating to insights tab
@@ -17729,6 +17751,8 @@
                     if (statusEl) {
                         statusEl.textContent = 'Error creating';
                         statusEl.style.color = 'oklch(0.577 0.245 27.325)';
+                        statusEl.style.opacity = '1';
+                        statusEl.style.pointerEvents = 'auto';
                     }
                     alert('Error creating insight: ' + error.message);
                 }
@@ -17822,8 +17846,8 @@
                             </div>
                             
                             <!-- Notes Section -->
-                            <div style="padding: 1.5rem; flex-shrink: 0;">
-                                <div id="insightNotesSaveStatus" style="font-size: 0.75rem; font-family: 'Lato', sans-serif; color: oklch(0.556 0 0); margin-bottom: 0.5rem; min-height: 1rem;"></div>
+                            <div style="padding: 1.5rem; flex-shrink: 0; position: relative;">
+                                <div id="insightNotesSaveStatus" style="position: absolute; top: 1.5rem; right: 1.5rem; font-size: 0.75rem; font-family: 'Lato', sans-serif; color: oklch(0.556 0 0); opacity: 0; pointer-events: none; transition: opacity 0.2s ease-in-out; z-index: 10;"></div>
                                 <div id="insightNotesEditor" style="min-height: 200px; outline: none; font-size: 0.875rem; font-family: 'Lato', sans-serif; line-height: 1.5; color: oklch(0.145 0 0);"></div>
                             </div>
                             
@@ -18573,7 +18597,12 @@
                 clearTimeout(this.saveTimeout);
                 
                 const statusEl = document.getElementById('insightNotesSaveStatus');
-                if (statusEl) statusEl.textContent = 'Saving...';
+                if (statusEl) {
+                    statusEl.textContent = 'Saving...';
+                    statusEl.style.color = 'oklch(0.556 0 0)';
+                    statusEl.style.opacity = '1';
+                    statusEl.style.pointerEvents = 'auto';
+                }
                 
                 this.saveTimeout = setTimeout(async () => {
                     await this.saveInsightNotes(insightId, content);
@@ -18674,9 +18703,17 @@
                     if (statusEl) {
                         statusEl.textContent = 'Saved';
                         statusEl.style.color = '#B9F040'; /* Brand lime green */
+                        statusEl.style.opacity = '1';
+                        statusEl.style.pointerEvents = 'auto';
                         setTimeout(() => {
                             if (statusEl) {
-                                statusEl.textContent = '';
+                                statusEl.style.opacity = '0';
+                                setTimeout(() => {
+                                    if (statusEl) {
+                                        statusEl.textContent = '';
+                                        statusEl.style.pointerEvents = 'none';
+                                    }
+                                }, 200); // Wait for fade out animation
                             }
                         }, 2000);
                     }
@@ -18685,6 +18722,8 @@
                     if (statusEl) {
                         statusEl.textContent = 'Error saving';
                         statusEl.style.color = 'oklch(0.577 0.245 27.325)'; /* Destructive red from style guide */
+                        statusEl.style.opacity = '1';
+                        statusEl.style.pointerEvents = 'auto';
                     }
                 }
             },
