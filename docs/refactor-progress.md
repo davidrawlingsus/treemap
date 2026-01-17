@@ -14,12 +14,12 @@
 ## Current Architecture Snapshot
 
 ### Where Logic Currently Lives
-- **index.html**: 22,170 lines (started at 21,847)
-  - Net change: +323 lines (temporary growth due to wrapper functions during migration)
-  - Lines extracted to modules: 871 lines
-  - Net code extracted: ~548 lines (871 extracted - 323 wrapper overhead)
-  - ~291 inline JavaScript functions (reduced from original)
-  - 30+ global state variables (being migrated to state modules)
+- **index.html**: 22,621 lines (started at ~21,847)
+  - Net change: +774 lines (temporary growth due to wrapper functions during migration)
+  - Lines extracted to modules: 2,626 lines
+  - Net code extracted: ~1,852 lines (2,626 extracted - 774 wrapper overhead)
+  - ~110 inline JavaScript functions (reduced from original)
+  - Global state variables (10 state modules created, migration in progress)
   - Large inline CSS section
   - All application logic embedded in HTML
 
@@ -641,8 +641,50 @@ js/
 - TypeScript migration - consider after structure solidifies
 - Test automation - add after each slice is stable
 
-## Next 1-3 Recommended Actions
+## Current Status & Next Steps
 
-1. **TEST SLICE 6** - Verify data sources API works correctly
-2. **STOP AND WAIT FOR USER TESTING** - Do not proceed until user confirms testing is complete
-3. **After testing** - Proceed to Slice 9: Extract History API (if applicable) or continue with next priority slice
+### ✅ Completed (21 Slices)
+- **Phase 1: Foundation** - Utilities, Storage, Auth, API Config (Slices 1-4)
+- **Phase 2: API Services** - Clients, Data Sources, VOC Data, Insights APIs (Slices 5-8)
+- **Phase 3: State Management** - All major state modules extracted (Slices 10-20)
+- **Phase 4: Additional Utilities** - Format utilities (Slice 21)
+
+### 📊 Progress Summary
+- **Slices Completed**: 21
+- **Modules Created**: 20+ (utils, services, state, controllers, config)
+- **Lines Extracted**: 2,626 lines to modules
+- **Current index.html**: 22,621 lines
+- **Status**: ✅ **STABLE - Ready to resume**
+
+### 🔧 Recent Fixes
+- Fixed `debounce` and `escapeHtml` fallbacks in `renderTreemap` and `renderInsights`
+- Fixed `escapeHtml` fallback in `SlideoutPanel.renderVerbatims`
+- All fixes committed and pushed to git
+
+### 🎯 Next Recommended Actions (When Resuming)
+
+**Option A: Continue with Renderers (Higher Impact)**
+1. Extract `renderInsights()` - simpler insights table rendering
+2. Extract `renderHistoryTable()` - history table rendering
+3. Extract `renderVerbatims()` - verbatim card rendering
+4. Extract `renderTreemap()` - complex D3 treemap (highest risk)
+
+**Option B: Continue with Router (Medium Risk)**
+1. Extract SPA navigation logic (`navigateToView`, hash routing, etc.)
+
+**Option C: Continue with Controllers (Medium-High Risk)**
+1. Extract filter controllers
+2. Extract insights CRUD controllers
+3. Extract history controllers
+
+**Option D: Cleanup Phase (Low Risk)**
+1. Remove wrapper functions once all references migrated
+2. Remove old local variable declarations
+3. Final cleanup pass
+
+### 📝 Resuming Work
+1. Read this document (`docs/refactor-progress.md`) for full context
+2. Check git log for recent changes
+3. Test current functionality before starting new slices
+4. Follow the "STOP BETWEEN SLICES FOR TESTING" rule
+5. Update this document after each slice
