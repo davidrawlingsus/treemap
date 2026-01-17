@@ -14742,6 +14742,8 @@
                             <div class="multiselect-option-meatball-menu" id="meatball-menu-${fieldName}-${escapeHtml(option).replace(/[^a-zA-Z0-9]/g, '_')}">
                                 <div class="tag-edit-input-container">
                                     <input type="text" class="tag-edit-input" value="${escapeHtml(option)}" 
+                                           data-original-value="${escapeHtml(option)}"
+                                           oninput="previewTagRename(event, '${escapeHtml(option)}', '${fieldName}')"
                                            onkeydown="handleTagRenameKeydown(event, '${escapeHtml(option)}', '${fieldName}')"
                                            onblur="saveTagRename(event, '${escapeHtml(option)}', '${fieldName}')">
                                     <div class="tag-info-icon" title="Tag name">i</div>
@@ -14879,10 +14881,12 @@
                         }
                     });
                     
-                    // Focus the input field
+                    // Focus the input field and reset preview tracking
                     setTimeout(() => {
                         const input = menu.querySelector('.tag-edit-input');
                         if (input) {
+                            // Reset preview tracking to original value
+                            input.dataset.currentPreviewValue = optionValue;
                             input.focus();
                             input.select();
                         }
@@ -14905,39 +14909,110 @@
             }
         }
 
+        function previewTagRename(event, oldValue, fieldName) {
+            const input = event.target;
+            const newValue = input.value;
+            const originalValue = input.dataset.originalValue || oldValue;
+            const currentPreviewValue = input.dataset.currentPreviewValue || originalValue;
+            
+            // Store current preview value for next iteration
+            input.dataset.currentPreviewValue = newValue || originalValue;
+            
+            // Update the option label in the dropdown immediately
+            const optionRow = input.closest('.multiselect-option');
+            if (optionRow) {
+                const labelSpan = optionRow.querySelector('.option-label');
+                if (labelSpan) {
+                    labelSpan.textContent = newValue || originalValue;
+                }
+            }
+            
+            // Find pills by matching the current preview value OR original value
+            // This handles the case where we've already updated some pills
+            const allPills = document.querySelectorAll('.insight-pill');
+            const matchingPills = Array.from(allPills).filter(pill => {
+                const pillCell = pill.closest('.insight-multiselect-cell');
+                if (!pillCell || pillCell.dataset.field !== fieldName) return false;
+                
+                const pillDataValue = pill.getAttribute('data-value');
+                // Match if pill value equals current preview OR original (for first update)
+                return pillDataValue === currentPreviewValue || pillDataValue === originalValue;
+            });
+            
+            // Update all matching pills
+            matchingPills.forEach(pill => {
+                pill.setAttribute('data-value', escapeHtml(newValue || originalValue));
+                
+                // Find and update the text content - pills have structure: <span>text<button>×</button></span>
+                const button = pill.querySelector('.pill-remove');
+                if (button && button.previousSibling) {
+                    // Update the text node before the button
+                    if (button.previousSibling.nodeType === Node.TEXT_NODE) {
+                        button.previousSibling.textContent = newValue || originalValue;
+                    } else {
+                        // If it's not a text node, create one
+                        const textNode = document.createTextNode(newValue || originalValue);
+                        pill.insertBefore(textNode, button);
+                        if (button.previousSibling.previousSibling) {
+                            button.previousSibling.previousSibling.remove();
+                        }
+                    }
+                } else if (button) {
+                    // Button exists but no text node before it, add one
+                    pill.insertBefore(document.createTextNode(newValue || originalValue), button);
+                } else {
+                    // No button, just update text content
+                    pill.textContent = newValue || originalValue;
+                }
+            });
+        }
+
         function handleTagRenameKeydown(event, oldValue, fieldName) {
+            const input = event.target;
+            const originalValue = input.dataset.originalValue || oldValue;
+            
             if (event.key === 'Enter') {
                 event.preventDefault();
-                saveTagRename(event, oldValue, fieldName);
+                saveTagRename(event, originalValue, fieldName);
             } else if (event.key === 'Escape') {
-                event.target.value = oldValue;
-                event.target.blur();
+                // Revert to original value
+                input.value = originalValue;
+                input.dataset.currentPreviewValue = originalValue;
+                previewTagRename(event, originalValue, fieldName);
+                input.blur();
             }
         }
 
         async function saveTagRename(event, oldValue, fieldName) {
             const input = event.target;
+            const originalValue = input.dataset.originalValue || oldValue;
             const newValue = input.value.trim();
             
-            if (!newValue || newValue === oldValue) {
-                input.value = oldValue;
+            if (!newValue || newValue === originalValue) {
+                // Revert to original if empty or unchanged
+                input.value = originalValue;
+                previewTagRename(event, originalValue, fieldName);
                 return;
             }
+            
+            // Update the stored original value for future edits
+            input.dataset.originalValue = newValue;
             
             // Find all insights that have this tag
             const insightsWithTag = insightsAllInsights.filter(insight => {
                 const values = normalizeFieldToArray(insight[fieldName], fieldName);
-                return values.includes(oldValue);
+                return values.includes(originalValue);
             });
             
             if (insightsWithTag.length === 0) {
-                input.value = oldValue;
+                input.value = originalValue;
+                previewTagRename(event, originalValue, fieldName);
                 return;
             }
             
             // Migrate color preference if it exists
             const colors = getTagColors();
-            const oldKey = `${fieldName}:${oldValue}`;
+            const oldKey = `${fieldName}:${originalValue}`;
             const newKey = `${fieldName}:${newValue}`;
             if (colors[oldKey]) {
                 colors[newKey] = colors[oldKey];
@@ -14953,7 +15028,7 @@
             let successCount = 0;
             for (const insight of insightsWithTag) {
                 const currentValues = normalizeFieldToArray(insight[fieldName], fieldName);
-                const updatedValues = currentValues.map(v => v === oldValue ? newValue : v);
+                const updatedValues = currentValues.map(v => v === originalValue ? newValue : v);
                 
                 const success = await updateInsightField(insight.id, fieldName, updatedValues.join(', '));
                 if (success) {
