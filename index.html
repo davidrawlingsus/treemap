@@ -5253,6 +5253,29 @@
             border-bottom: 1px solid rgba(55, 53, 47, 0.09);
         }
 
+        .notion-table th .resize-handle {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 4px;
+            height: 100%;
+            cursor: col-resize;
+            background: transparent;
+            z-index: 10;
+        }
+
+        .notion-table th .resize-handle:hover {
+            background: rgba(11, 133, 255, 0.3);
+        }
+
+        .notion-table th.resizing {
+            user-select: none;
+        }
+
+        .notion-table th.resizing .resize-handle {
+            background: rgba(11, 133, 255, 0.5);
+        }
+
         .notion-table th.draggable {
             cursor: grab;
         }
@@ -13185,6 +13208,9 @@
                 if (typeof initializeColumnDragAndDrop === 'function') {
                     initializeColumnDragAndDrop();
                 }
+                if (typeof applyColumnWidths === 'function') {
+                    applyColumnWidths();
+                }
             }, 0);
         }
 
@@ -15824,6 +15850,162 @@
                     header.addEventListener('dragleave', handleDragLeave);
                 });
             });
+            
+            // Initialize column resizing
+            initializeColumnResize();
+        }
+
+        // Column resize functionality
+        const COLUMN_WIDTHS_STORAGE_KEY = 'vizualizd_column_widths';
+        let resizing = false;
+        let currentResizeHeader = null;
+        let startX = 0;
+        let startWidth = 0;
+
+        function getColumnWidths() {
+            try {
+                const stored = localStorage.getItem(COLUMN_WIDTHS_STORAGE_KEY);
+                return stored ? JSON.parse(stored) : {};
+            } catch (e) {
+                console.error('Error loading column widths:', e);
+                return {};
+            }
+        }
+
+        function setColumnWidth(columnName, width) {
+            const widths = getColumnWidths();
+            widths[columnName] = width;
+            try {
+                localStorage.setItem(COLUMN_WIDTHS_STORAGE_KEY, JSON.stringify(widths));
+            } catch (e) {
+                console.error('Error saving column width:', e);
+            }
+        }
+
+        function applyColumnWidths() {
+            const widths = getColumnWidths();
+            const tables = document.querySelectorAll('.notion-table');
+            
+            tables.forEach(table => {
+                const thead = table.querySelector('thead tr');
+                if (!thead) return;
+                
+                const headers = Array.from(thead.querySelectorAll('th[data-column]'));
+                headers.forEach(header => {
+                    const columnName = header.getAttribute('data-column');
+                    if (columnName && widths[columnName]) {
+                        const width = widths[columnName];
+                        header.style.width = width + 'px';
+                        header.style.minWidth = width + 'px';
+                        header.style.maxWidth = width + 'px';
+                        
+                        // Apply to corresponding cells
+                        const tbody = table.querySelector('tbody');
+                        if (tbody) {
+                            const cells = tbody.querySelectorAll(`td[data-column="${columnName}"]`);
+                            cells.forEach(cell => {
+                                cell.style.width = width + 'px';
+                                cell.style.minWidth = width + 'px';
+                                cell.style.maxWidth = width + 'px';
+                            });
+                        }
+                    }
+                });
+            });
+        }
+
+        function initializeColumnResize() {
+            const tables = document.querySelectorAll('.notion-table');
+            
+            tables.forEach(table => {
+                const thead = table.querySelector('thead tr');
+                if (!thead) return;
+                
+                const headers = Array.from(thead.querySelectorAll('th[data-column]'));
+                headers.forEach(header => {
+                    // Skip if resize handle already exists
+                    if (header.querySelector('.resize-handle')) return;
+                    
+                    // Create resize handle
+                    const resizeHandle = document.createElement('div');
+                    resizeHandle.className = 'resize-handle';
+                    resizeHandle.style.position = 'absolute';
+                    resizeHandle.style.top = '0';
+                    resizeHandle.style.right = '0';
+                    resizeHandle.style.width = '4px';
+                    resizeHandle.style.height = '100%';
+                    resizeHandle.style.cursor = 'col-resize';
+                    resizeHandle.style.background = 'transparent';
+                    resizeHandle.style.zIndex = '10';
+                    
+                    resizeHandle.addEventListener('mousedown', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        startResize(header, e);
+                    });
+                    
+                    header.appendChild(resizeHandle);
+                });
+            });
+        }
+
+        function startResize(header, e) {
+            resizing = true;
+            currentResizeHeader = header;
+            startX = e.pageX;
+            startWidth = header.offsetWidth;
+            
+            header.classList.add('resizing');
+            document.body.style.cursor = 'col-resize';
+            document.body.style.userSelect = 'none';
+            
+            document.addEventListener('mousemove', handleResize);
+            document.addEventListener('mouseup', stopResize);
+        }
+
+        function handleResize(e) {
+            if (!resizing || !currentResizeHeader) return;
+            
+            const diff = e.pageX - startX;
+            const newWidth = Math.max(50, startWidth + diff); // Minimum width of 50px
+            
+            const columnName = currentResizeHeader.getAttribute('data-column');
+            if (!columnName) return;
+            
+            // Update header width
+            currentResizeHeader.style.width = newWidth + 'px';
+            currentResizeHeader.style.minWidth = newWidth + 'px';
+            currentResizeHeader.style.maxWidth = newWidth + 'px';
+            
+            // Update all corresponding cells
+            const table = currentResizeHeader.closest('.notion-table');
+            if (table) {
+                const cells = table.querySelectorAll(`td[data-column="${columnName}"]`);
+                cells.forEach(cell => {
+                    cell.style.width = newWidth + 'px';
+                    cell.style.minWidth = newWidth + 'px';
+                    cell.style.maxWidth = newWidth + 'px';
+                });
+            }
+        }
+
+        function stopResize() {
+            if (!resizing || !currentResizeHeader) return;
+            
+            const columnName = currentResizeHeader.getAttribute('data-column');
+            if (columnName) {
+                const width = currentResizeHeader.offsetWidth;
+                setColumnWidth(columnName, width);
+            }
+            
+            currentResizeHeader.classList.remove('resizing');
+            currentResizeHeader = null;
+            resizing = false;
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            
+            document.removeEventListener('mousemove', handleResize);
+            document.removeEventListener('mouseup', stopResize);
         }
         
         let draggedColumn = null;
@@ -16041,6 +16223,11 @@
             
             // Re-initialize drag and drop after reordering
             initializeColumnDragAndDrop();
+            
+            // Re-apply column widths after reordering
+            if (typeof applyColumnWidths === 'function') {
+                applyColumnWidths();
+            }
         }
 
         // Make insights functions globally accessible
@@ -16073,6 +16260,8 @@
         window.initInsightsPage = initInsightsPage;
         window.applyColumnOrder = applyColumnOrder;
         window.initializeColumnDragAndDrop = initializeColumnDragAndDrop;
+        window.applyColumnWidths = applyColumnWidths;
+        window.initializeColumnResize = initializeColumnResize;
         
         // Multi-select and inline editing functions
         window.updateInsightField = updateInsightField;
