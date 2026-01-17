@@ -349,6 +349,21 @@ js/
 
 ### Phase 6: Controllers (Highest Risk)
 
+**Slice 17: Extract Insights State** - **DONE**
+- **Status**: DONE
+- **Scope**: Insights page state variables (insightsCurrentClientId, insightsCurrentInsightId, insightsAllInsights, allInsights, insightsFilters, etc.)
+- **Files Affected**: Created `js/state/insights-state.js`
+- **Extract**: State management for insights page (list, filters, sorting, search, current insight)
+- **Public API**: `insightsState.getInsightsCurrentClientId()`, `insightsState.setInsightsAllInsights()`, etc.
+- **Testing Checklist**: 
+  - [ ] Verify insights load correctly
+  - [ ] Verify filtering works
+  - [ ] Verify sorting works
+  - [ ] Verify search works
+  - [ ] No console errors
+- **Completed**: 2025-01-XX
+- **Notes**: Created insights-state module with getter/setter functions. Module functions exposed globally. Local variables kept for backward compatibility during migration. Full migration of all references to module functions will happen gradually in future slices.
+
 **Slice 18: Extract UI Controller** - **DONE**
 - **Status**: DONE
 - **Scope**: Simple UI toggle controller functions
@@ -510,6 +525,14 @@ js/
 - Added api-cache-state module imports to ES module script tag in index.html
 - Module functions exposed globally for backward compatibility
 - Added map access helpers (getDimensionName, setDimensionName, getQuestionType, setQuestionType)
+- Local variables kept for backward compatibility during migration
+- Full migration of all references to module functions will happen gradually in future slices
+
+### 2025-01-XX - Slice 17: Extract Insights State
+- Created `js/state/insights-state.js` - extracted insights page state management
+- Extracted state variables: `insightsCurrentClientId`, `insightsCurrentInsightId`, `insightsAllInsights`, `allInsights`, `insightsFilters`, `insightsCurrentFilters`, `insightsCurrentSortBy`, `insightsSortBy`, `insightsSortOrder`, `insightsSearchTerm`, `insightsCurrentInsightEditor`, `insightsAutoFilter`
+- Added insights-state module imports to ES module script tag in index.html
+- Module functions exposed globally for backward compatibility
 - Local variables kept for backward compatibility during migration
 - Full migration of all references to module functions will happen gradually in future slices
 

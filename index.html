@@ -16685,6 +16685,12 @@
                     return;
                 }
                 
+                // Skip insights panel table on visualizations tab - it has a different structure (only 2 columns)
+                // The insights panel table has id "insightsTableBody" and is in the visualizations-section
+                if (tbody.id === 'insightsTableBody' && table.closest('#visualizations-section')) {
+                    return;
+                }
+                
                 // Get all headers and map them by column
                 const allHeaders = Array.from(thead.querySelectorAll('th'));
                 const headerMap = new Map();
