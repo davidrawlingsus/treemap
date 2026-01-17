@@ -88,6 +88,12 @@
             loadDimensionNames as vocDataApiLoadDimensionNames,
             loadQuestions as vocDataApiLoadQuestions
         } from '/js/services/api-voc-data.js';
+        import {
+            loadInsights as insightsApiLoadInsights,
+            createInsight as insightsApiCreateInsight,
+            updateInsight as insightsApiUpdateInsight,
+            deleteInsight as insightsApiDeleteInsight
+        } from '/js/services/api-insights.js';
         
         // Make utilities available globally for backward compatibility
         window.adjustBrightness = adjustBrightness;
@@ -141,6 +147,12 @@
         window.vocDataApiLoadVocData = vocDataApiLoadVocData;
         window.vocDataApiLoadDimensionNames = vocDataApiLoadDimensionNames;
         window.vocDataApiLoadQuestions = vocDataApiLoadQuestions;
+        
+        // Make insights API available globally for wrapper functions
+        window.insightsApiLoadInsights = insightsApiLoadInsights;
+        window.insightsApiCreateInsight = insightsApiCreateInsight;
+        window.insightsApiUpdateInsight = insightsApiUpdateInsight;
+        window.insightsApiDeleteInsight = insightsApiDeleteInsight;
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -13083,25 +13095,46 @@
                     sort_order: insightsSortOrder,
                 });
 
-                Object.entries(insightsFilters).forEach(([key, value]) => {
-                    if (value) {
-                        params.append(key, value);
-                    }
-                });
+                // Fetch insights using API module
+                let data;
+                if (window.insightsApiLoadInsights) {
+                    data = await window.insightsApiLoadInsights(insightsCurrentClientId, {
+                        page: '1',
+                        page_size: '1000',
+                        sort_by: backendSortBy,
+                        sort_order: insightsSortOrder,
+                        filters: insightsFilters
+                    }, getAuthHeadersSafe);
+                } else {
+                    // Fallback if module not loaded yet
+                    const queryParams = new URLSearchParams({
+                        page: '1',
+                        page_size: '1000',
+                        sort_by: backendSortBy,
+                        sort_order: insightsSortOrder,
+                    });
 
-                const headers = getAuthHeadersSafe();
-                const url = `${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights?${params.toString()}`;
-                
-                const response = await fetch(url, { headers });
+                    Object.entries(insightsFilters).forEach(([key, value]) => {
+                        if (value) {
+                            queryParams.append(key, value);
+                        }
+                    });
 
-                if (!response.ok) {
-                    if (response.status === 401) {
-                        throw new Error('Authentication required. Please log in.');
+                    const headers = getAuthHeadersSafe();
+                    const url = `${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights?${queryParams.toString()}`;
+                    
+                    const response = await fetch(url, { headers });
+
+                    if (!response.ok) {
+                        if (response.status === 401) {
+                            throw new Error('Authentication required. Please log in.');
+                        }
+                        throw new Error(`Failed to load insights: ${response.status} ${response.statusText}`);
                     }
-                    throw new Error(`Failed to load insights: ${response.status} ${response.statusText}`);
+
+                    data = await response.json();
                 }
-
-                const data = await response.json();
+                
                 insightsAllInsights = data.items || [];
                 
                 // Sort by origin client-side if needed (backend doesn't support project sorting)
@@ -14420,29 +14453,46 @@
             };
 
             try {
-                const headers = {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
+                // Get auth headers
+                const getAuthHeadersFn = () => {
+                    const headers = {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    };
+                    return headers;
                 };
                 
-                let response;
-                if (insightsCurrentInsightId) {
-                    response = await fetch(`${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights/${insightsCurrentInsightId}`, {
-                        method: 'PUT',
-                        headers: headers,
-                        body: JSON.stringify(insightData),
-                    });
+                // Save insight using API module
+                if (window.insightsApiUpdateInsight && insightsCurrentInsightId) {
+                    await window.insightsApiUpdateInsight(insightsCurrentClientId, insightsCurrentInsightId, insightData, getAuthHeadersFn);
+                } else if (window.insightsApiCreateInsight && !insightsCurrentInsightId) {
+                    await window.insightsApiCreateInsight(insightsCurrentClientId, insightData, getAuthHeadersFn);
                 } else {
-                    response = await fetch(`${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights`, {
-                        method: 'POST',
-                        headers: headers,
-                        body: JSON.stringify(insightData),
-                    });
-                }
-                
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-                    throw new Error(errorData.detail || `Failed to ${insightsCurrentInsightId ? 'update' : 'create'} insight`);
+                    // Fallback if module not loaded yet
+                    const headers = {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    };
+                    
+                    let response;
+                    if (insightsCurrentInsightId) {
+                        response = await fetch(`${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights/${insightsCurrentInsightId}`, {
+                            method: 'PUT',
+                            headers: headers,
+                            body: JSON.stringify(insightData),
+                        });
+                    } else {
+                        response = await fetch(`${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights`, {
+                            method: 'POST',
+                            headers: headers,
+                            body: JSON.stringify(insightData),
+                        });
+                    }
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+                        throw new Error(errorData.detail || `Failed to ${insightsCurrentInsightId ? 'update' : 'create'} insight`);
+                    }
                 }
                 
                 closeModal();
@@ -14472,11 +14522,17 @@
             if (!confirm('Are you sure you want to delete this insight?')) return;
 
             try {
-                const response = await fetch(`${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights/${insightId}`, {
-                    method: 'DELETE',
-                    headers: getAuthHeadersSafe()
-                });
-                if (!response.ok) throw new Error('Failed to delete insight');
+                // Delete insight using API module
+                if (window.insightsApiDeleteInsight) {
+                    await window.insightsApiDeleteInsight(insightsCurrentClientId, insightId, getAuthHeadersSafe);
+                } else {
+                    // Fallback if module not loaded yet
+                    const response = await fetch(`${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights/${insightId}`, {
+                        method: 'DELETE',
+                        headers: getAuthHeadersSafe()
+                    });
+                    if (!response.ok) throw new Error('Failed to delete insight');
+                }
                 loadInsightsPage();
             } catch (error) {
                 console.error('Error deleting insight:', error);
@@ -14763,9 +14819,11 @@
             // Generate pills for selected values with colors
             const pills = selected.map(value => {
                 const style = getPillStyle(fieldName, value);
+                // Escape single quotes and backslashes for JavaScript string in onclick handler
+                const valueEscapedJs = String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                 return `<span class="insight-pill" data-value="${escapeHtml(value)}" style="${style}" onclick="if(!event.target.classList.contains('pill-remove')){event.stopPropagation(); openMultiSelect('${insightId}', '${fieldName}')}">
                     ${escapeHtml(value)}
-                    <button class="pill-remove" onclick="event.stopPropagation(); event.preventDefault(); removeMultiSelectValue('${insightId}', '${fieldName}', '${escapeHtml(value)}')">×</button>
+                    <button class="pill-remove" onclick="event.stopPropagation(); event.preventDefault(); removeMultiSelectValue('${insightId}', '${fieldName}', '${valueEscapedJs}')">×</button>
                 </span>`;
             }).join('');
 
@@ -14838,7 +14896,10 @@
                 dropdown.style.position = 'fixed';
                 dropdown.style.left = cellRect.left + 'px';
                 dropdown.style.right = 'auto';
-                dropdown.style.width = cellRect.width + 'px';
+                // Use sensible fixed width instead of cell width
+                dropdown.style.width = '320px';
+                dropdown.style.minWidth = '280px';
+                dropdown.style.maxWidth = '400px';
                 
                 // Position above or below based on available space
                 if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
@@ -14879,10 +14940,12 @@
             // Show existing options
             filteredOptions.forEach(option => {
                 const isSelected = currentValues.includes(option);
+                // Escape single quotes and backslashes for JavaScript string in onchange handler
+                const optionEscapedJs = String(option).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                 html += `<div class="multiselect-option ${isSelected ? 'selected' : ''}" 
-                              onclick="if(!event.target.closest('.multiselect-option-meatball, .multiselect-option-meatball-menu')) toggleMultiSelectOption('${insightId}', '${fieldName}', '${escapeHtml(option)}')"
+                              onclick="if(!event.target.closest('.multiselect-option-meatball, .multiselect-option-meatball-menu')) toggleMultiSelectOption('${insightId}', '${fieldName}', '${optionEscapedJs}')"
                               style="position: relative;">
-                            <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation();">
+                            <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation();" onchange="toggleMultiSelectOption('${insightId}', '${fieldName}', '${optionEscapedJs}')">
                             <span class="option-label">${escapeHtml(option)}</span>
                             <button class="multiselect-option-meatball" onclick="event.stopPropagation(); toggleTagMeatballMenu(event, '${escapeHtml(option)}', '${fieldName}')" title="Tag options">
                                 ⋮
@@ -15427,9 +15490,11 @@
             // Generate new pills HTML with colors
             const pills = values.map(value => {
                 const style = getPillStyle(fieldName, value);
+                // Escape single quotes and backslashes for JavaScript string in onclick handler
+                const valueEscapedJs = String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
                 return `<span class="insight-pill" data-value="${escapeHtml(value)}" style="${style}">
                     ${escapeHtml(value)}
-                    <button class="pill-remove" onclick="event.stopPropagation(); event.preventDefault(); removeMultiSelectValue('${insightId}', '${fieldName}', '${escapeHtml(value)}')">×</button>
+                    <button class="pill-remove" onclick="event.stopPropagation(); event.preventDefault(); removeMultiSelectValue('${insightId}', '${fieldName}', '${valueEscapedJs}')">×</button>
                 </span>`;
             }).join('');
 
@@ -20761,17 +20826,32 @@
                 
                 // Merge auto-filters with manual filters
                 const allFilters = { ...insightsCurrentFilters, ...filters };
-                Object.entries(allFilters).forEach(([key, value]) => {
-                    if (value) params.append(key, value);
-                });
                 
-                const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights?${params.toString()}`, {
-                    headers: getAuthHeaders()
-                });
+                // Fetch insights using API module
+                let data;
+                if (window.insightsApiLoadInsights) {
+                    data = await window.insightsApiLoadInsights(currentClientId, {
+                        page: '1',
+                        page_size: '1000',
+                        sort_by: (insightsSortBy === 'name' || insightsSortBy === 'type' || insightsSortBy === 'created_at' || insightsSortBy === 'updated_at') ? insightsSortBy : 'created_at',
+                        sort_order: insightsSortOrder,
+                        filters: allFilters
+                    }, getAuthHeaders);
+                } else {
+                    // Fallback if module not loaded yet
+                    Object.entries(allFilters).forEach(([key, value]) => {
+                        if (value) params.append(key, value);
+                    });
+                    
+                    const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights?${params.toString()}`, {
+                        headers: getAuthHeaders()
+                    });
+                    
+                    if (!response.ok) throw new Error('Failed to load insights');
+                    
+                    data = await response.json();
+                }
                 
-                if (!response.ok) throw new Error('Failed to load insights');
-                
-                const data = await response.json();
                 allInsights = data.items || [];
                 renderInsights();
             } catch (error) {
@@ -21618,25 +21698,39 @@
                     return;
                 }
                 
-                const headers = {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
+                // Get auth headers
+                const getAuthHeadersFn = () => {
+                    return {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    };
                 };
                 
-                const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights`, {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify(insightData),
-                });
-                
-                if (!response.ok) {
-                    let errorData;
-                    try {
-                        errorData = await response.json();
-                    } catch (e) {
-                        errorData = { detail: response.statusText };
+                // Create insight using API module
+                if (window.insightsApiCreateInsight) {
+                    await window.insightsApiCreateInsight(currentClientId, insightData, getAuthHeadersFn);
+                } else {
+                    // Fallback if module not loaded yet
+                    const headers = {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    };
+                    
+                    const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights`, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(insightData),
+                    });
+                    
+                    if (!response.ok) {
+                        let errorData;
+                        try {
+                            errorData = await response.json();
+                        } catch (e) {
+                            errorData = { detail: response.statusText };
+                        }
+                        throw new Error(errorData.detail || `HTTP ${response.status}: Failed to create insight`);
                     }
-                    throw new Error(errorData.detail || `HTTP ${response.status}: Failed to create insight`);
                 }
                 
                 // Success - close modal and refresh insights panel

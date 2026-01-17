@@ -214,7 +214,24 @@ js/
 - **Completed**: 2025-01-XX
 - **Notes**: Extracted API fetch logic to module. DOM manipulation, state management, and UI updates remain in index.html wrapper functions. Wrapper functions call module API functions and handle all DOM/state logic.
 
-**Slice 8-9**: API extraction slices - **NOT STARTED**
+**Slice 8: Extract Insights API** - **DONE**
+- **Status**: DONE
+- **Scope**: Insights CRUD API calls
+- **Files Affected**: Created `js/services/api-insights.js`
+- **Extract**: `loadInsights()`, `createInsight()`, `updateInsight()`, `deleteInsight()` API fetch logic
+- **Public API**: `insightsApi.loadInsights(clientId, params, getAuthHeaders)`, `insightsApi.createInsight(clientId, insightData, getAuthHeaders)`, `insightsApi.updateInsight(clientId, insightId, insightData, getAuthHeaders)`, `insightsApi.deleteInsight(clientId, insightId, getAuthHeaders)`
+- **Testing Checklist**: 
+  - [ ] Verify insights load correctly
+  - [ ] Verify creating insights works
+  - [ ] Verify updating insights works
+  - [ ] Verify deleting insights works
+  - [ ] Verify filtering and sorting works
+  - [ ] Verify UI updates correctly
+  - [ ] No console errors
+- **Completed**: 2025-01-XX
+- **Notes**: Extracted API fetch logic to module. DOM manipulation, state management (insightsAllInsights, allInsights), and UI updates remain in index.html wrapper functions. Wrapper functions call module API functions and handle all DOM/state logic.
+
+**Slice 9**: API extraction slices - **NOT STARTED**
 (Details to be filled as we progress)
 
 ### Phase 3: State Management (Medium Risk)
@@ -313,6 +330,14 @@ js/
 - DOM manipulation, state management (fullRawData, dimensionNamesMap, questionTypesMap, availableQuestions), and UI updates remain in index.html wrapper functions
 - Wrapper functions call module API functions and handle all DOM/state logic
 
+### 2025-01-XX - Slice 8: Extract Insights API
+- Created `js/services/api-insights.js` - extracted insights CRUD API fetch logic
+- Extracted functions: `loadInsights()`, `createInsight()`, `updateInsight()`, `deleteInsight()`
+- Added insights API module imports to ES module script tag in index.html
+- Updated `loadInsightsPage()`, `loadInsights()`, save insight function (in modal), `deleteInsight()`, and `handleCreateInsightSubmit()` functions in index.html to use modules for API fetching
+- DOM manipulation, state management (insightsAllInsights, allInsights, insightsFilters), and UI updates remain in index.html wrapper functions
+- Wrapper functions call module API functions and handle all DOM/state logic
+
 ## Known Risks & Technical Debt
 
 ### Globals to Address
@@ -343,4 +368,4 @@ js/
 
 1. **TEST SLICE 6** - Verify data sources API works correctly
 2. **STOP AND WAIT FOR USER TESTING** - Do not proceed until user confirms testing is complete
-3. **After testing** - Proceed to Slice 8: Extract Insights API (if applicable) or continue with next priority slice
+3. **After testing** - Proceed to Slice 9: Extract History API (if applicable) or continue with next priority slice
