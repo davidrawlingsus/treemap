@@ -496,6 +496,12 @@ def execute_client_prompt(
     
     Automatically combines client's business_summary with voc_data to construct user message.
     """
+    # #region agent log
+    import json
+    import time
+    with open('/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug.log', 'a') as f:
+        f.write(json.dumps({"location":"clients.py:483","message":"execute_client_prompt entry","data":{"client_id":str(client_id),"prompt_id":str(prompt_id),"stream":stream,"voc_data_size":len(json.dumps(payload.voc_data))},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"D"})+"\n")
+    # #endregion
     # Verify client access
     verify_client_access(client_id, current_user, db)
     
@@ -579,6 +585,10 @@ def execute_client_prompt(
                 
                 try:
                     # Stream chunks from LLM service
+                    # #region agent log
+                    with open('/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug.log', 'a') as f:
+                        f.write(json.dumps({"location":"clients.py:582","message":"Calling LLM service execute_prompt_stream","data":{"model":prompt_llm_model,"user_message_length":len(user_message_value)},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"A,D"})+"\n")
+                    # #endregion
                     for chunk, metadata in llm_service.execute_prompt_stream(
                         system_message=prompt_system_message,
                         user_message=user_message_value,
@@ -613,6 +623,10 @@ def execute_client_prompt(
                                 "model": metadata.get("model"),
                                 "content": metadata.get("content", accumulated_content)
                             })
+                            # #region agent log
+                            with open('/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug.log', 'a') as f:
+                                f.write(json.dumps({"location":"clients.py:614","message":"Backend yielding done message","data":{"total_chunks":chunk_count,"tokens_used":metadata.get("tokens_used"),"total_duration":time.time()-stream_start_time},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"C"})+"\n")
+                            # #endregion
                             yield f"data: {message}\n\n"
                     
                     # Save the result to database after streaming completes
