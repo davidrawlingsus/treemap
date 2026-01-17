@@ -197,6 +197,20 @@
                     }
                 });
             }
+
+            // Client facing checkbox toggle
+            if (this.elements.clientFacingInput) {
+                this.elements.clientFacingInput.addEventListener('change', () => {
+                    this.handleClientFacingToggle();
+                });
+            }
+
+            // All clients checkbox toggle
+            if (this.elements.allClientsInput) {
+                this.elements.allClientsInput.addEventListener('change', () => {
+                    this.handleAllClientsToggle();
+                });
+            }
         },
 
         /**
@@ -242,6 +256,23 @@
                 if (this.elements.systemMessageInput) this.elements.systemMessageInput.value = prompt.system_message || '';
                 if (this.elements.promptMessageInput) this.elements.promptMessageInput.value = prompt.prompt_message || '';
                 if (this.elements.userMessageInput) this.elements.userMessageInput.value = '';
+                
+                // Set client_facing and all_clients checkboxes
+                if (this.elements.clientFacingInput) {
+                    this.elements.clientFacingInput.checked = prompt.client_facing || false;
+                }
+                if (this.elements.allClientsInput) {
+                    this.elements.allClientsInput.checked = prompt.all_clients || false;
+                }
+                
+                // Populate client selection and set selected clients (only if not all_clients)
+                await this.populateClientSelection();
+                if (prompt.client_facing && !prompt.all_clients && prompt.client_ids) {
+                    this.setSelectedClients(prompt.client_ids);
+                }
+                
+                // Show/hide groups based on client_facing and all_clients state
+                this.handleClientFacingToggle();
 
                 // Update UI based on prompt type (this will also load helper prompts)
                 await this.handlePromptTypeChange();
@@ -277,6 +308,9 @@
 
                 // Update UI based on prompt type (this will also load helper prompts)
                 await this.handlePromptTypeChange();
+                
+                // Populate client selection for new prompt (hidden by default)
+                await this.populateClientSelection();
 
                 // Hide "New Version" button
                 if (this.elements.newVersionButton) {
@@ -471,6 +505,22 @@
             // Get prompt message value even if textarea is hidden
             const promptMessageValue = this.elements.promptMessageInput ? this.elements.promptMessageInput.value.trim() : '';
             const helperPromptId = this.elements.helperPromptSelect?.value || '';
+            const clientFacingValue = this.elements.clientFacingInput?.checked || false;
+            const allClientsValue = this.elements.allClientsInput?.checked || false;
+            
+            // Get selected client IDs from checkboxes (only if not all_clients)
+            const clientIds = [];
+            if (!allClientsValue && this.elements.clientIdsContainer) {
+                const clientCheckboxes = this.elements.clientIdsContainer.querySelectorAll('input[type="checkbox"][data-client-id]');
+                clientCheckboxes.forEach(checkbox => {
+                    if (checkbox.checked) {
+                        const clientId = checkbox.getAttribute('data-client-id');
+                        if (clientId) {
+                            clientIds.push(clientId);
+                        }
+                    }
+                });
+            }
 
             // Validation based on prompt type
             if (!nameValue || !promptPurposeValue || !llmModelValue) {
@@ -504,6 +554,9 @@
                 prompt_type: promptTypeValue,
                 prompt_purpose: promptPurposeValue,
                 status: statusValue,
+                client_facing: clientFacingValue,
+                all_clients: clientFacingValue ? allClientsValue : false,
+                client_ids: clientFacingValue && !allClientsValue ? clientIds : [],
                 llm_model: llmModelValue,
             };
             
@@ -879,6 +932,116 @@
 
             this.showStatus('Purpose updated successfully.', 'success');
             setTimeout(() => this.hideStatus(), 2000);
+        },
+
+        /**
+         * Handle client facing checkbox toggle
+         */
+        handleClientFacingToggle() {
+            const isChecked = this.elements.clientFacingInput?.checked || false;
+            
+            // Show/hide "All Clients" checkbox
+            if (this.elements.allClientsGroup) {
+                this.elements.allClientsGroup.style.display = isChecked ? 'block' : 'none';
+            }
+            
+            // Hide client selection if client facing is unchecked
+            if (!isChecked && this.elements.clientSelectionGroup) {
+                this.elements.clientSelectionGroup.style.display = 'none';
+            } else if (isChecked) {
+                // When client facing is checked, also check "All Clients" toggle logic
+                this.handleAllClientsToggle();
+            }
+        },
+
+        /**
+         * Handle all clients checkbox toggle
+         */
+        handleAllClientsToggle() {
+            const allClientsChecked = this.elements.allClientsInput?.checked || false;
+            
+            // Show/hide client selection based on "All Clients" checkbox
+            if (this.elements.clientSelectionGroup) {
+                this.elements.clientSelectionGroup.style.display = allClientsChecked ? 'none' : 'block';
+            }
+        },
+
+        /**
+         * Populate client selection dropdown with clients from API
+         */
+        async populateClientSelection() {
+            if (!this.elements.clientIdsContainer) return;
+
+            try {
+                const clients = await PromptAPI.listClients();
+                
+                // Clear existing content
+                this.elements.clientIdsContainer.innerHTML = '';
+                
+                if (!clients || clients.length === 0) {
+                    this.elements.clientIdsContainer.innerHTML = '<p style="padding: 8px; color: var(--muted); font-size: 14px;">No clients available</p>';
+                    return;
+                }
+
+                // Sort clients alphabetically by name
+                const sortedClients = [...clients].sort((a, b) => {
+                    const nameA = (a.name || '').toLowerCase();
+                    const nameB = (b.name || '').toLowerCase();
+                    return nameA.localeCompare(nameB);
+                });
+
+                // Create checkbox for each client
+                sortedClients.forEach(client => {
+                    const label = document.createElement('label');
+                    label.style.display = 'flex';
+                    label.style.alignItems = 'center';
+                    label.style.gap = '8px';
+                    label.style.padding = '8px';
+                    label.style.cursor = 'pointer';
+                    label.style.borderRadius = '4px';
+                    
+                    label.addEventListener('mouseenter', () => {
+                        label.style.backgroundColor = 'var(--hover-bg, rgba(0, 0, 0, 0.02))';
+                    });
+                    label.addEventListener('mouseleave', () => {
+                        label.style.backgroundColor = 'transparent';
+                    });
+
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.setAttribute('data-client-id', client.id);
+                    checkbox.style.width = 'auto';
+                    checkbox.style.margin = '0';
+
+                    const span = document.createElement('span');
+                    span.textContent = client.name || client.id;
+
+                    label.appendChild(checkbox);
+                    label.appendChild(span);
+                    this.elements.clientIdsContainer.appendChild(label);
+                });
+            } catch (error) {
+                console.error('[MODALS] Failed to load clients:', error);
+                if (this.elements.clientIdsContainer) {
+                    this.elements.clientIdsContainer.innerHTML = '<p style="padding: 8px; color: var(--error, #d32f2f); font-size: 14px;">Failed to load clients</p>';
+                }
+            }
+        },
+
+        /**
+         * Set selected clients from an array of client IDs
+         * @param {Array<string>} clientIds - Array of client IDs to select
+         */
+        setSelectedClients(clientIds) {
+            if (!this.elements.clientIdsContainer || !clientIds || !Array.isArray(clientIds)) return;
+
+            const clientCheckboxes = this.elements.clientIdsContainer.querySelectorAll('input[type="checkbox"][data-client-id]');
+            const clientIdSet = new Set(clientIds.map(id => String(id)));
+
+            clientCheckboxes.forEach(checkbox => {
+                const clientId = checkbox.getAttribute('data-client-id');
+                checkbox.checked = clientIdSet.has(String(clientId));
+            });
         },
 
         /**

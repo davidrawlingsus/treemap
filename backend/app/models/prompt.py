@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Integer, Text, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, String, DateTime, Integer, Text, ForeignKey, UniqueConstraint, Boolean
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -17,6 +17,8 @@ class Prompt(Base):
     prompt_message = Column(Text, nullable=True)  # Required for helper prompts, NULL for system prompts
     prompt_purpose = Column(String(100), nullable=False)
     status = Column(String(50), nullable=False, default='test')  # live, test, archived
+    client_facing = Column(Boolean, nullable=False, default=False)  # Whether prompt appears in AI Expert menu
+    all_clients = Column(Boolean, nullable=False, default=False)  # If True, prompt is available to all clients (ignores client_ids)
     llm_model = Column(String(100), nullable=False, default='gpt-4o-mini')
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -35,6 +37,18 @@ class Prompt(Base):
         "PromptHelperPrompt",
         foreign_keys="[PromptHelperPrompt.helper_prompt_id]",
         back_populates="helper_prompt",
+        cascade="all, delete-orphan"
+    )
+    # Relationships for client-facing prompts (many-to-many with clients)
+    clients = relationship(
+        "Client",
+        secondary="prompt_clients",
+        back_populates="prompts",
+        overlaps="prompt_links"
+    )
+    prompt_client_links = relationship(
+        "PromptClient",
+        back_populates="prompt",
         cascade="all, delete-orphan"
     )
 
@@ -67,4 +81,26 @@ class PromptHelperPrompt(Base):
 
     def __repr__(self):
         return f"<PromptHelperPrompt(system_prompt_id={self.system_prompt_id}, helper_prompt_id={self.helper_prompt_id})>"
+
+
+class PromptClient(Base):
+    """Junction table linking prompts to clients (for client-facing prompts)"""
+    __tablename__ = "prompt_clients"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    prompt_id = Column(UUID(as_uuid=True), ForeignKey('prompts.id', ondelete='CASCADE'), nullable=False)
+    client_id = Column(UUID(as_uuid=True), ForeignKey('clients.id', ondelete='CASCADE'), nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationships
+    prompt = relationship("Prompt", back_populates="prompt_client_links", overlaps="clients,prompt_links")
+    client = relationship("Client", back_populates="prompt_links", overlaps="prompts,prompt_client_links")
+
+    # Unique constraint: one link per prompt-client pair
+    __table_args__ = (
+        UniqueConstraint('prompt_id', 'client_id', name='uq_prompt_client'),
+    )
+
+    def __repr__(self):
+        return f"<PromptClient(prompt_id={self.prompt_id}, client_id={self.client_id})>"
 

@@ -8,7 +8,7 @@ from app.models.process_voc import ProcessVoc
 from app.models.authorized_domain import AuthorizedDomain, AuthorizedDomainClient
 from app.models.authorized_email import AuthorizedEmail, AuthorizedEmailClient
 from app.models.insight import Insight
-from app.models.prompt import Prompt, PromptHelperPrompt
+from app.models.prompt import Prompt, PromptHelperPrompt, PromptClient
 from app.models.action import Action
 
 __all__ = [
@@ -26,6 +26,7 @@ __all__ = [
     "Insight",
     "Prompt",
     "PromptHelperPrompt",
+    "PromptClient",
     "Action",
 ]
 

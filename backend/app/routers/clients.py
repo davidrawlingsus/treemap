@@ -11,7 +11,7 @@ import logging
 import json
 
 from app.database import get_db
-from app.models import Client, DataSource, Insight, Membership, User, Prompt, Action
+from app.models import Client, DataSource, Insight, Membership, User, Prompt, Action, PromptClient
 from app.schemas import (
     ClientCreate,
     ClientResponse,
@@ -467,13 +467,23 @@ def list_client_prompts(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """List all live prompts available for a client"""
+    """List all client-facing prompts available for a client"""
     # Verify client access
     verify_client_access(client_id, current_user, db)
     
-    # Get all prompts with status='live'
-    prompts = db.query(Prompt).filter(
-        Prompt.status == 'live'
+    from sqlalchemy import or_
+    
+    # Get prompts with client_facing=True that are either:
+    # 1. Available to all clients (all_clients=True), OR
+    # 2. Specifically associated with this client via PromptClient
+    prompts = db.query(Prompt).outerjoin(
+        PromptClient, Prompt.id == PromptClient.prompt_id
+    ).filter(
+        Prompt.client_facing == True,
+        or_(
+            Prompt.all_clients == True,
+            PromptClient.client_id == client_id
+        )
     ).order_by(Prompt.name).all()
     
     # Return minimal info (id and name) for menu display

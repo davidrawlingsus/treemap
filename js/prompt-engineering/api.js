@@ -384,6 +384,24 @@
             // Clear actions cache
             cache.clear();
             return result;
+        },
+
+        /**
+         * List all clients
+         * @param {boolean} useCache - Whether to use cache (default: true)
+         * @returns {Promise<Array>} Array of clients
+         */
+        async listClients(useCache = true) {
+            const cacheKey = getCacheKey('/api/clients', {});
+            if (useCache) {
+                const cached = getCached(cacheKey);
+                if (cached) return cached;
+            }
+            const result = await API.get('/api/clients');
+            if (useCache) {
+                setCache(cacheKey, result);
+            }
+            return result;
         }
     };
 

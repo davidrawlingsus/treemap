@@ -14,7 +14,7 @@ import json
 import logging
 
 from app.database import get_db
-from app.models import User, Prompt, Client, Action, PromptHelperPrompt
+from app.models import User, Prompt, Client, Action, PromptHelperPrompt, PromptClient
 from app.schemas import PromptResponse, PromptCreate, PromptUpdate, ActionResponse, PromptHelperPromptResponse
 from app.auth import get_current_active_founder
 from app.services.llm_service import LLMService
@@ -74,7 +74,48 @@ def list_prompts_for_founder(
         query = query.filter(Prompt.prompt_purpose == prompt_purpose)
     
     prompts = query.order_by(Prompt.name, Prompt.version.desc()).all()
-    return prompts
+    
+    # Load client_ids for all prompts in a single query and build response
+    if prompts:
+        prompt_ids = [p.id for p in prompts]
+        prompt_client_links = db.query(PromptClient).filter(PromptClient.prompt_id.in_(prompt_ids)).all()
+        # Group by prompt_id
+        client_ids_by_prompt = {}
+        for pc in prompt_client_links:
+            if pc.prompt_id not in client_ids_by_prompt:
+                client_ids_by_prompt[pc.prompt_id] = []
+            client_ids_by_prompt[pc.prompt_id].append(pc.client_id)
+        
+        # Build response list with client_ids included
+        response_list = []
+        for prompt in prompts:
+            # Ensure client_facing and all_clients have default values if None (for old records)
+            client_facing = prompt.client_facing if prompt.client_facing is not None else False
+            all_clients = prompt.all_clients if prompt.all_clients is not None else False
+            client_ids = client_ids_by_prompt.get(prompt.id, [])
+            
+            # Create response object using PromptResponse schema
+            prompt_dict = {
+                'id': prompt.id,
+                'name': prompt.name,
+                'version': prompt.version,
+                'prompt_type': prompt.prompt_type,
+                'system_message': prompt.system_message,
+                'prompt_message': prompt.prompt_message,
+                'prompt_purpose': prompt.prompt_purpose,
+                'status': prompt.status,
+                'client_facing': client_facing,
+                'all_clients': all_clients,
+                'client_ids': client_ids,
+                'llm_model': prompt.llm_model,
+                'created_at': prompt.created_at,
+                'updated_at': prompt.updated_at,
+            }
+            response_list.append(PromptResponse(**prompt_dict))
+        
+        return response_list
+    
+    return []
 
 
 @router.get(
@@ -87,7 +128,48 @@ def list_helper_prompts(
 ):
     """List all helper prompts."""
     prompts = db.query(Prompt).filter(Prompt.prompt_type == 'helper').order_by(Prompt.name, Prompt.version.desc()).all()
-    return prompts
+    
+    # Load client_ids for all prompts in a single query and build response
+    if prompts:
+        prompt_ids = [p.id for p in prompts]
+        prompt_client_links = db.query(PromptClient).filter(PromptClient.prompt_id.in_(prompt_ids)).all()
+        # Group by prompt_id
+        client_ids_by_prompt = {}
+        for pc in prompt_client_links:
+            if pc.prompt_id not in client_ids_by_prompt:
+                client_ids_by_prompt[pc.prompt_id] = []
+            client_ids_by_prompt[pc.prompt_id].append(pc.client_id)
+        
+        # Build response list with client_ids included
+        response_list = []
+        for prompt in prompts:
+            # Ensure client_facing and all_clients have default values if None (for old records)
+            client_facing = prompt.client_facing if prompt.client_facing is not None else False
+            all_clients = prompt.all_clients if prompt.all_clients is not None else False
+            client_ids = client_ids_by_prompt.get(prompt.id, [])
+            
+            # Create response object using PromptResponse schema
+            prompt_dict = {
+                'id': prompt.id,
+                'name': prompt.name,
+                'version': prompt.version,
+                'prompt_type': prompt.prompt_type,
+                'system_message': prompt.system_message,
+                'prompt_message': prompt.prompt_message,
+                'prompt_purpose': prompt.prompt_purpose,
+                'status': prompt.status,
+                'client_facing': client_facing,
+                'all_clients': all_clients,
+                'client_ids': client_ids,
+                'llm_model': prompt.llm_model,
+                'created_at': prompt.created_at,
+                'updated_at': prompt.updated_at,
+            }
+            response_list.append(PromptResponse(**prompt_dict))
+        
+        return response_list
+    
+    return []
 
 
 @router.get(
@@ -103,7 +185,34 @@ def get_prompt_for_founder(
     prompt = db.query(Prompt).filter(Prompt.id == prompt_id).first()
     if not prompt:
         raise HTTPException(status_code=404, detail="Prompt not found.")
-    return prompt
+    
+    # Ensure client_facing and all_clients have default values if None (for old records)
+    client_facing = prompt.client_facing if prompt.client_facing is not None else False
+    all_clients = prompt.all_clients if prompt.all_clients is not None else False
+    
+    # Load client_ids for response
+    prompt_client_links = db.query(PromptClient).filter(PromptClient.prompt_id == prompt.id).all()
+    client_ids = [pc.client_id for pc in prompt_client_links]
+    
+    # Create response object using PromptResponse schema
+    prompt_dict = {
+        'id': prompt.id,
+        'name': prompt.name,
+        'version': prompt.version,
+        'prompt_type': prompt.prompt_type,
+        'system_message': prompt.system_message,
+        'prompt_message': prompt.prompt_message,
+        'prompt_purpose': prompt.prompt_purpose,
+        'status': prompt.status,
+        'client_facing': client_facing,
+        'all_clients': all_clients,
+        'client_ids': client_ids,
+        'llm_model': prompt.llm_model,
+        'created_at': prompt.created_at,
+        'updated_at': prompt.updated_at,
+    }
+    
+    return PromptResponse(**prompt_dict)
 
 
 @router.post(
@@ -142,6 +251,11 @@ def create_prompt_for_founder(
         )
     
     try:
+        # Default client_facing to False if not provided
+        client_facing = payload.client_facing if payload.client_facing is not None else False
+        all_clients = payload.all_clients if payload.all_clients is not None else False
+        client_ids = payload.client_ids if payload.client_ids is not None else []
+        
         prompt = Prompt(
             name=payload.name,
             version=payload.version,
@@ -150,13 +264,52 @@ def create_prompt_for_founder(
             prompt_message=payload.prompt_message if payload.prompt_type == 'helper' else None,
             prompt_purpose=payload.prompt_purpose,
             status=payload.status,
+            client_facing=client_facing,
+            all_clients=all_clients,
             llm_model=payload.llm_model,
         )
         db.add(prompt)
+        db.flush()  # Flush to get prompt.id
+        
+        # Create PromptClient records for each client_id (only if not all_clients)
+        if client_facing and not all_clients and client_ids:
+            for client_id in client_ids:
+                # Verify client exists
+                client = db.query(Client).filter(Client.id == client_id).first()
+                if client:
+                    prompt_client = PromptClient(
+                        prompt_id=prompt.id,
+                        client_id=client_id
+                    )
+                    db.add(prompt_client)
+        
         db.commit()
         db.refresh(prompt)
-        logger.info(f"Successfully created prompt: id={prompt.id}, name={prompt.name}, type={prompt.prompt_type}")
-        return prompt
+        
+        # Load client_ids for response
+        prompt_client_links = db.query(PromptClient).filter(PromptClient.prompt_id == prompt.id).all()
+        client_ids = [pc.client_id for pc in prompt_client_links]
+        
+        # Build response with all_clients included
+        prompt_dict = {
+            'id': prompt.id,
+            'name': prompt.name,
+            'version': prompt.version,
+            'prompt_type': prompt.prompt_type,
+            'system_message': prompt.system_message,
+            'prompt_message': prompt.prompt_message,
+            'prompt_purpose': prompt.prompt_purpose,
+            'status': prompt.status,
+            'client_facing': client_facing,
+            'all_clients': all_clients,
+            'client_ids': client_ids,
+            'llm_model': prompt.llm_model,
+            'created_at': prompt.created_at,
+            'updated_at': prompt.updated_at,
+        }
+        
+        logger.info(f"Successfully created prompt: id={prompt.id}, name={prompt.name}, type={prompt.prompt_type}, client_facing={client_facing}, all_clients={all_clients}")
+        return PromptResponse(**prompt_dict)
     except IntegrityError:
         db.rollback()
         raise HTTPException(
@@ -199,8 +352,28 @@ def update_prompt_for_founder(
         prompt.prompt_purpose = payload.prompt_purpose
     if payload.status is not None:
         prompt.status = payload.status
+    if payload.client_facing is not None:
+        prompt.client_facing = payload.client_facing
+    if payload.all_clients is not None:
+        prompt.all_clients = payload.all_clients
     if payload.llm_model is not None:
         prompt.llm_model = payload.llm_model
+    
+    # Update client associations if client_ids is provided
+    if payload.client_ids is not None:
+        # Delete existing PromptClient records
+        db.query(PromptClient).filter(PromptClient.prompt_id == prompt.id).delete()
+        # Create new PromptClient records (only if not all_clients)
+        if prompt.client_facing and not prompt.all_clients and payload.client_ids:
+            for client_id in payload.client_ids:
+                # Verify client exists
+                client = db.query(Client).filter(Client.id == client_id).first()
+                if client:
+                    prompt_client = PromptClient(
+                        prompt_id=prompt.id,
+                        client_id=client_id
+                    )
+                    db.add(prompt_client)
     
     # Validate after updates
     if prompt.prompt_type == 'system' and not prompt.system_message:
@@ -223,7 +396,34 @@ def update_prompt_for_founder(
     try:
         db.commit()
         db.refresh(prompt)
-        return prompt
+        
+        # Ensure client_facing and all_clients have default values if None (for old records)
+        client_facing = prompt.client_facing if prompt.client_facing is not None else False
+        all_clients = prompt.all_clients if prompt.all_clients is not None else False
+        
+        # Load client_ids for response
+        prompt_client_links = db.query(PromptClient).filter(PromptClient.prompt_id == prompt.id).all()
+        client_ids = [pc.client_id for pc in prompt_client_links]
+        
+        # Build response with all_clients included
+        prompt_dict = {
+            'id': prompt.id,
+            'name': prompt.name,
+            'version': prompt.version,
+            'prompt_type': prompt.prompt_type,
+            'system_message': prompt.system_message,
+            'prompt_message': prompt.prompt_message,
+            'prompt_purpose': prompt.prompt_purpose,
+            'status': prompt.status,
+            'client_facing': client_facing,
+            'all_clients': all_clients,
+            'client_ids': client_ids,
+            'llm_model': prompt.llm_model,
+            'created_at': prompt.created_at,
+            'updated_at': prompt.updated_at,
+        }
+        
+        return PromptResponse(**prompt_dict)
     except IntegrityError:
         db.rollback()
         raise HTTPException(

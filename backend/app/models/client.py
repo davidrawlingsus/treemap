@@ -51,6 +51,19 @@ class Client(Base):
         cascade="all, delete-orphan",
         overlaps="authorized_emails,clients,client_links",
     )
+    # Relationships for client-facing prompts (many-to-many with prompts)
+    prompts = relationship(
+        "Prompt",
+        secondary="prompt_clients",
+        back_populates="clients",
+        overlaps="prompt_client_links"
+    )
+    prompt_links = relationship(
+        "PromptClient",
+        back_populates="client",
+        cascade="all, delete-orphan",
+        overlaps="prompts,clients"
+    )
 
     def __repr__(self):
         return f"<Client(id={self.id}, name={self.name}, slug={self.slug})>"

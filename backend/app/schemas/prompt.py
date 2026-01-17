@@ -2,7 +2,7 @@
 Prompt engineering schemas.
 """
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 from uuid import UUID
 
@@ -16,6 +16,9 @@ class PromptCreate(BaseModel):
     prompt_message: Optional[str] = Field(None, description="The prompt message text (required for helper prompts)")
     prompt_purpose: str = Field(..., description="Purpose/type (e.g., 'summarize', 'headlines', 'ux-fixes')")
     status: str = Field(default="test", description="Status: 'live', 'test', or 'archived'")
+    client_facing: Optional[bool] = Field(default=False, description="Whether prompt appears in AI Expert menu")
+    all_clients: Optional[bool] = Field(default=False, description="If True, prompt is available to all clients (ignores client_ids)")
+    client_ids: Optional[List[UUID]] = Field(default=[], description="List of client IDs this prompt is available to (only used if all_clients=False)")
     llm_model: str = Field(default="gpt-4o-mini", description="LLM model identifier")
 
 
@@ -28,6 +31,9 @@ class PromptUpdate(BaseModel):
     prompt_message: Optional[str] = None
     prompt_purpose: Optional[str] = None
     status: Optional[str] = None
+    client_facing: Optional[bool] = None
+    all_clients: Optional[bool] = None
+    client_ids: Optional[List[UUID]] = None
     llm_model: Optional[str] = None
 
 
@@ -41,6 +47,9 @@ class PromptResponse(BaseModel):
     prompt_message: Optional[str] = None
     prompt_purpose: str
     status: str
+    client_facing: bool
+    all_clients: bool
+    client_ids: List[UUID] = Field(default_factory=list)
     llm_model: str
     created_at: datetime
     updated_at: Optional[datetime] = None

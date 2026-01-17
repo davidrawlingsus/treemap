@@ -26,6 +26,10 @@
         const jsonBlocks = [];
         text = text.replace(/```json\s*([\s\S]*?)```/gi, (match, jsonContent) => {
             try {
+                // Skip empty or whitespace-only JSON content
+                if (!jsonContent || !jsonContent.trim()) {
+                    return match;
+                }
                 // Try to parse the JSON
                 const jsonData = JSON.parse(jsonContent);
                 
@@ -56,7 +60,11 @@
                 }
             } catch (e) {
                 // If JSON parsing fails, treat as regular code block
-                console.warn('[MARKDOWN] Failed to parse JSON block for idea card:', e);
+                // During streaming, incomplete JSON blocks may be present - silently skip them
+                // Only log if it looks like a complete block (has closing backticks)
+                if (match.includes('```') && match.split('```').length >= 3) {
+                    console.warn('[MARKDOWN] Failed to parse JSON block for idea card:', e);
+                }
                 // Return the original match to be processed as regular code block
                 return match;
             }
