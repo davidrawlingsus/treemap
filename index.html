@@ -15872,17 +15872,36 @@
             }
             
             // Migrate color preference if it exists
-            const colors = getTagColors();
+            const getTagColorsFn = window.getTagColors || (() => {
+                try {
+                    const stored = localStorage.getItem(window.TAG_COLORS_STORAGE_KEY || 'vizualizd_tag_colors');
+                    return stored ? JSON.parse(stored) : {};
+                } catch (e) {
+                    return {};
+                }
+            });
+            const setTagColorFn = window.setTagColor || ((fieldName, tagValue, colorName) => {
+                try {
+                    const storageKey = window.TAG_COLORS_STORAGE_KEY || 'vizualizd_tag_colors';
+                    const colors = JSON.parse(localStorage.getItem(storageKey) || '{}');
+                    const key = `${fieldName}:${tagValue}`;
+                    if (colorName === 'default') {
+                        delete colors[key];
+                    } else {
+                        colors[key] = colorName;
+                    }
+                    localStorage.setItem(storageKey, JSON.stringify(colors));
+                } catch (e) {
+                    console.error('Error saving tag color:', e);
+                }
+            });
+            const colors = getTagColorsFn();
             const oldKey = `${fieldName}:${originalValue}`;
             const newKey = `${fieldName}:${newValue}`;
             if (colors[oldKey]) {
                 colors[newKey] = colors[oldKey];
                 delete colors[oldKey];
-                try {
-                    localStorage.setItem(TAG_COLORS_STORAGE_KEY, JSON.stringify(colors));
-                } catch (e) {
-                    console.error('Error migrating tag color:', e);
-                }
+                setTagColorFn(fieldName, newValue, colors[newKey]);
             }
             
             // Update each insight
