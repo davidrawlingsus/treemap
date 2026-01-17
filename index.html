@@ -1748,6 +1748,7 @@
         /* Override table width for insights panel to fit container */
         .insights-table-section .table-container {
             overflow-x: visible;
+            overflow-y: visible !important;
         }
 
         .insights-table-section .notion-table {
@@ -1801,17 +1802,12 @@
             min-width: 190px;
             max-width: 190px;
             text-align: center;
-        }
-
-        /* Center the status dropdown in the column */
-        #insights-section .notion-table td[data-column="status"] {
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            vertical-align: middle;
         }
 
         #insights-section .notion-table td[data-column="status"] .status-select {
-            margin: 0;
+            margin: 0 auto;
+            display: block;
         }
 
         /* Name column takes remaining space in insights section */
@@ -2428,6 +2424,7 @@
         /* Table */
         .table-container {
             overflow-x: auto;
+            overflow-y: visible !important;
             background: oklch(1 0 0);
         }
 
@@ -6005,30 +6002,6 @@
                                                 <span class="column-icon">Aa</span>
                                                 <span>Name</span>
                                                 <span class="sort-indicator">↓</span>
-                                            </th>
-                                            <th class="draggable" data-column="type" draggable="true" onclick="sortInsightsBy('type')">
-                                                <span class="drag-handle">⋮⋮</span>
-                                                <span class="column-icon">🏷️</span>
-                                                <span>Type</span>
-                                                <span class="sort-indicator"></span>
-                                            </th>
-                                            <th class="draggable" data-column="application" draggable="true" onclick="sortInsightsBy('application')">
-                                                <span class="drag-handle">⋮⋮</span>
-                                                <span class="column-icon">📱</span>
-                                                <span>Application</span>
-                                                <span class="sort-indicator"></span>
-                                            </th>
-                                            <th class="draggable" data-column="status" draggable="true" onclick="sortInsightsBy('status')">
-                                                <span class="drag-handle">⋮⋮</span>
-                                                <span class="column-icon">⚡</span>
-                                                <span>Status</span>
-                                                <span class="sort-indicator"></span>
-                                            </th>
-                                            <th class="draggable" data-column="origin" draggable="true" onclick="sortInsightsBy('origin')">
-                                                <span class="drag-handle">⋮⋮</span>
-                                                <span class="column-icon">📍</span>
-                                                <span>Origin</span>
-                                                <span class="sort-indicator"></span>
                                             </th>
                                             <th class="draggable" data-column="created_at" draggable="true" onclick="sortInsightsBy('created_at')">
                                                 <span class="drag-handle">⋮⋮</span>
@@ -14424,9 +14397,6 @@
                 }
 
                 const responseData = await response.json();
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:14426',message:'after API response',data:{fieldName,responseValue:responseData[fieldName],responseValueType:typeof responseData[fieldName],isArray:Array.isArray(responseData[fieldName])},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-                // #endregion
                 
                 // Update local data - normalize field value to array for both type and application
                 const insightIndex = insightsAllInsights.findIndex(insight => insight.id === insightId);
@@ -14435,9 +14405,6 @@
                     // Both need to be normalized to handle comma-separated strings correctly
                     const normalizedValue = normalizeFieldToArray(responseData[fieldName], fieldName);
                     insightsAllInsights[insightIndex][fieldName] = normalizedValue;
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:14431',message:'after updating local data',data:{fieldName,storedValue:insightsAllInsights[insightIndex][fieldName],storedValueType:typeof insightsAllInsights[insightIndex][fieldName],isArray:Array.isArray(insightsAllInsights[insightIndex][fieldName])},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-                    // #endregion
                 }
                 
                 return true;
@@ -14488,9 +14455,9 @@
             // Generate pills for selected values
             // Pills should bubble click events to parent cell to open dropdown
             const pills = selected.map(value => 
-                `<span class="insight-pill" data-value="${escapeHtml(value)}" onclick="event.stopPropagation(); openMultiSelect('${insightId}', '${fieldName}')">
+                `<span class="insight-pill" data-value="${escapeHtml(value)}" onclick="if(!event.target.classList.contains('pill-remove')){event.stopPropagation(); openMultiSelect('${insightId}', '${fieldName}')}">
                     ${escapeHtml(value)}
-                    <button class="pill-remove" onclick="event.stopPropagation(); removeMultiSelectValue('${insightId}', '${fieldName}', '${escapeHtml(value)}')">×</button>
+                    <button class="pill-remove" onclick="event.stopPropagation(); event.preventDefault(); removeMultiSelectValue('${insightId}', '${fieldName}', '${escapeHtml(value)}')">×</button>
                 </span>`
             ).join('');
 
@@ -14540,10 +14507,40 @@
                 <div class="multiselect-options" id="multiselect-options-list"></div>
             `;
             
+            // Initially append to cell for measurement
             cell.appendChild(dropdown);
             
             // Populate options
             renderMultiSelectOptions(availableOptions, currentValues, insightId, fieldName);
+            
+            // Move dropdown to body with fixed positioning to escape overflow constraints
+            setTimeout(() => {
+                const cellRect = cell.getBoundingClientRect();
+                const dropdownRect = dropdown.getBoundingClientRect();
+                const viewportHeight = window.innerHeight;
+                const spaceBelow = viewportHeight - cellRect.bottom;
+                const spaceAbove = cellRect.top;
+                const dropdownHeight = dropdownRect.height || 300; // fallback to max-height
+                
+                // Remove from cell and append to body
+                dropdown.remove();
+                document.body.appendChild(dropdown);
+                
+                // Switch to fixed positioning
+                dropdown.style.position = 'fixed';
+                dropdown.style.left = cellRect.left + 'px';
+                dropdown.style.right = 'auto';
+                dropdown.style.width = cellRect.width + 'px';
+                
+                // Position above or below based on available space
+                if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
+                    dropdown.style.top = (cellRect.top - dropdownHeight - 4) + 'px';
+                    dropdown.style.bottom = 'auto';
+                } else {
+                    dropdown.style.top = (cellRect.bottom + 4) + 'px';
+                    dropdown.style.bottom = 'auto';
+                }
+            }, 0);
             
             // Focus search
             const searchInput = dropdown.querySelector('.multiselect-search');
@@ -14644,28 +14641,16 @@
         }
 
         async function toggleMultiSelectOption(insightId, fieldName, value) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:14620',message:'toggleMultiSelectOption entry',data:{insightId,fieldName,value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-            // #endregion
             const insight = insightsAllInsights.find(i => i.id === insightId);
             if (!insight) return;
 
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:14624',message:'before processing currentValues',data:{fieldValue:insight[fieldName],fieldValueType:typeof insight[fieldName],isArray:Array.isArray(insight[fieldName])},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-            // #endregion
             let currentValues = normalizeFieldToArray(insight[fieldName], fieldName);
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:14625',message:'after currentValues assignment',data:{currentValues,currentValuesType:typeof currentValues,isArray:Array.isArray(currentValues)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-            // #endregion
             
             if (currentValues.includes(value)) {
                 currentValues = currentValues.filter(v => v !== value);
             } else {
                 currentValues = [...currentValues, value];
             }
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:14630',message:'after toggle logic',data:{currentValues,currentValuesType:typeof currentValues,isArray:Array.isArray(currentValues)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-            // #endregion
 
             // Update via API - send as comma-separated string for both type and application
             const success = await updateInsightField(insightId, fieldName, currentValues.join(', '));
@@ -14712,29 +14697,14 @@
         }
 
         async function removeMultiSelectValue(insightId, fieldName, value) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:14676',message:'removeMultiSelectValue entry',data:{insightId,fieldName,value},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
             const insight = insightsAllInsights.find(i => i.id === insightId);
             if (!insight) return;
 
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:14680',message:'before processing currentValues',data:{fieldValue:insight[fieldName],fieldValueType:typeof insight[fieldName],isArray:Array.isArray(insight[fieldName])},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
             const currentValues = normalizeFieldToArray(insight[fieldName], fieldName);
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:14681',message:'after currentValues assignment',data:{currentValues,currentValuesType:typeof currentValues,isArray:Array.isArray(currentValues),currentValuesLength:currentValues.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
             const updatedValues = currentValues.filter(v => v !== value);
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:14682',message:'after filter',data:{updatedValues,updatedValuesType:typeof updatedValues,isArray:Array.isArray(updatedValues)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
 
             // Update via API - send as comma-separated string for both type and application
             const success = await updateInsightField(insightId, fieldName, updatedValues.join(', '));
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:14684',message:'after updateInsightField',data:{success,valueSent:updatedValues.join(', ')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
             
             if (success) {
                 // Update just the pills display without closing dropdown
@@ -14759,7 +14729,7 @@
             const pills = values.map(value => 
                 `<span class="insight-pill" data-value="${escapeHtml(value)}">
                     ${escapeHtml(value)}
-                    <button class="pill-remove" onclick="event.stopPropagation(); removeMultiSelectValue('${insightId}', '${fieldName}', '${escapeHtml(value)}')">×</button>
+                    <button class="pill-remove" onclick="event.stopPropagation(); event.preventDefault(); removeMultiSelectValue('${insightId}', '${fieldName}', '${escapeHtml(value)}')">×</button>
                 </span>`
             ).join('');
 
@@ -14783,6 +14753,10 @@
         function closeMultiSelectOnClickOutside(event) {
             const dropdown = document.getElementById('active-multiselect-dropdown');
             if (dropdown && !dropdown.contains(event.target)) {
+                // Check if click is on pill-remove button - don't close if so
+                if (event.target.classList.contains('pill-remove')) {
+                    return;
+                }
                 // Prevent the click from propagating to other elements
                 event.preventDefault();
                 event.stopPropagation();
@@ -15464,6 +15438,7 @@
                     nonDraggableCells.forEach(cell => {
                         row.appendChild(cell);
                     });
+                    
                 });
             });
             
@@ -19976,6 +19951,7 @@
                 return;
             }
 
+            
             tbody.innerHTML = filtered.map(insight => {
                 const createdDate = new Date(insight.created_at).toLocaleDateString();
                 // Highlight search terms in insight name if there's a search term
