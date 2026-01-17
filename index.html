@@ -11755,6 +11755,9 @@
             barsContainer.appendChild(axisContainer);
 
             // Render each category
+            const categoryColors = window.colorSchemesCATEGORY_COLORS || [
+                '#A97FFF', '#77D9D6', '#F8A04C', '#58B3F0', '#6ED49B', '#F47280', '#9A7B6C', '#FFB366', '#B794F6', '#4ECDC4'
+            ];
             categories.forEach((category, catIndex) => {
                 const categoryId = `cat-${catIndex}`;
                 const baseColor = colorPalette[category.name] || categoryColors[catIndex % categoryColors.length];
@@ -15771,6 +15774,13 @@
         }
 
         function previewTagRename(event, oldValue, fieldName) {
+            // Ensure escapeHtml is available with fallback
+            const escapeHtmlFn = window.escapeHtml || ((s) => {
+                if (s == null) return '';
+                const div = document.createElement('div');
+                div.textContent = s;
+                return div.innerHTML;
+            });
             const input = event.target;
             const newValue = input.value;
             const originalValue = input.dataset.originalValue || oldValue;
@@ -15802,7 +15812,7 @@
             
             // Update all matching pills
             matchingPills.forEach(pill => {
-                pill.setAttribute('data-value', escapeHtml(newValue || originalValue));
+                pill.setAttribute('data-value', escapeHtmlFn(newValue || originalValue));
                 
                 // Find and update the text content - pills have structure: <span>text<button>×</button></span>
                 const button = pill.querySelector('.pill-remove');
@@ -16031,10 +16041,29 @@
                 div.textContent = s;
                 return div.innerHTML;
             });
+            const getTagColorFn = window.getTagColor || ((fieldName, tagValue) => {
+                // Fallback if module not loaded yet
+                const colors = window.getTagColors ? window.getTagColors() : {};
+                const colorKey = `${fieldName}:${tagValue}`;
+                const colorName = colors[colorKey] || 'default';
+                const colorMap = window.TAG_COLOR_MAP || {
+                    'default': { bg: 'rgba(99, 71, 169, 0.1)', color: '#6347a9' },
+                    'gray': { bg: 'rgba(156, 163, 175, 0.15)', color: '#6b7280' },
+                    'brown': { bg: 'rgba(146, 64, 14, 0.15)', color: '#92400e' },
+                    'orange': { bg: 'rgba(249, 115, 22, 0.15)', color: '#f97316' },
+                    'yellow': { bg: 'rgba(234, 179, 8, 0.15)', color: '#ca8a04' },
+                    'green': { bg: 'rgba(34, 197, 94, 0.15)', color: '#16a34a' },
+                    'blue': { bg: 'rgba(59, 130, 246, 0.15)', color: '#2563eb' },
+                    'purple': { bg: 'rgba(168, 85, 247, 0.15)', color: '#9333ea' },
+                    'pink': { bg: 'rgba(236, 72, 153, 0.15)', color: '#db2777' },
+                    'red': { bg: 'rgba(239, 68, 68, 0.15)', color: '#dc2626' }
+                };
+                return colorMap[colorName] || colorMap['default'];
+            });
             document.querySelectorAll(`.insight-pill[data-value="${escapeHtmlFn(tagValue)}"]`).forEach(pill => {
                 const pillFieldName = pill.closest('.insight-multiselect-cell')?.dataset.field;
                 if (pillFieldName === fieldName) {
-                    const color = getTagColor(fieldName, tagValue);
+                    const color = getTagColorFn(fieldName, tagValue);
                     pill.style.background = color.bg;
                     pill.style.color = color.color;
                 }
