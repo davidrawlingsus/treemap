@@ -1,0 +1,185 @@
+✅ IDEA JSON FORMAT (MANDATORY - CRITICAL REQUIREMENTS)
+
+🚨 **ABSOLUTE REQUIREMENT #1: EVERY JSON BLOCK MUST BE WRAPPED IN ```json ... ```**
+
+**YOUR JSON WILL NOT RENDER IF IT'S MISSING THE ```json WRAPPER!**
+
+❌ WRONG - This will appear as raw text (NOT ACCEPTABLE):
+{
+  "id": "test-001",
+  "title": "Test Idea"
+}
+
+✅ CORRECT - This will render as an idea card (REQUIRED):
+```json
+{
+  "id": "test-001",
+  "title": "Test Idea"
+}
+```
+
+---
+
+**CRITICAL: Output each idea as a SEPARATE JSON block.** This enables incremental rendering during streaming.
+
+**Optional Content Section (if applicable):**
+If you have introductory content or strategic context, output it as plain text BEFORE the idea cards (do NOT wrap this in JSON).
+
+---
+
+**Individual Idea Format:**
+Each idea MUST be in its own separate ```json block. Output ideas one at a time as you generate them (don't batch them).
+
+**Required Structure:**
+```json
+{
+  "id": "unique-id-001",
+  "title": "Actionable description (≤10 words)",
+  "testType": "A one or two word label that describes the type of test",
+  "application": "Where this is going to be tested, eg. Facebook Ads, Homepage, PDP etc",
+  "origin": "{Source Type} / {Category} / {Theme}",
+  "details": "The details of the proposed test. Use **Attribute Name:** format for labels. Always include **VoC evidence:** with 3–6 verbatim or near-verbatim phrases. Use \\n for line breaks between sections."
+}
+```
+
+**Example with Proper Formatting:**
+```json
+{
+  "id": "rank-001",
+  "title": "3 Types of People Who Finally Got Their Plate",
+  "testType": "Listicle Ranking",
+  "application": "Facebook Ads — Carousel or Video",
+  "origin": "VoC / Process Fear / Exclusivity Misconception",
+  "details": "Hook:\\nThere are 3 types of people who finally stopped putting off a private plate.\\n\\nType 1: The \\\"I Thought It Was Paperwork Hell\\\" Person\\n\\\"I thought it was loads of paperwork, hassle and expense.\\\"\\nTurns out? Absolute Reg does it all. You literally just choose your plate and they handle the DVLA nonsense.\\n\\n**VoC evidence:**\\n- \\\"I didn't think I was the type of person to be accepted\\\"\\n- \\\"I thought it was loads of paperwork, hassle and expense\\\"\\n- \\\"I thought it would take weeks\\\"\\n\\nPriority: High — Directly confronts exclusivity belief and paperwork fear."
+}
+```
+
+---
+
+**MANDATORY FORMATTING RULES:**
+
+1. **JSON Wrapper (CRITICAL)**
+   - ✅ MUST start with: ```json (triple backticks + "json")
+   - ✅ MUST end with: ``` (triple backticks)
+   - ❌ NEVER output bare JSON without the wrapper
+
+2. **Quotes (CRITICAL)**
+   - ✅ USE ONLY straight quotes: " and '
+   - ❌ NEVER use curly/smart quotes: " " ' '
+   - ✅ Escape quotes inside strings: \\"text\\"
+
+3. **Line Breaks in Details Field**
+   - ✅ USE: \\n (escaped backslash-n) for line breaks
+   - ❌ NEVER use: literal newlines, <br>, \\r\\n, or other line break formats
+   - ✅ Example: "Line 1\\nLine 2\\nLine 3"
+
+4. **Text Formatting Inside JSON Strings**
+   - ✅ USE markdown: **bold**, *italic*
+   - ❌ NEVER use HTML: <strong>, <em>, <br>, <p>, or any other HTML tags
+
+5. **JSON Syntax**
+   - ✅ All property names must be quoted strings: "id", "title", etc.
+   - ✅ All string values must use double quotes: "value"
+   - ✅ Commas between properties (except last one)
+   - ❌ NO trailing commas after the last property
+   - ❌ NO comments (// or /* */)
+   - ✅ Every { must have a matching }
+
+6. **Content Requirements**
+   - ✅ Include at least 3-6 VoC verbatim phrases in details (labeled as **VoC evidence:**)
+   - ✅ Label attributes with **Attribute Name:** format
+   - ✅ Add "Priority: High / Medium" at the end of details if relevant
+
+---
+
+✅ **PRE-RESPONSE VALIDATION CHECKLIST (MANDATORY)**
+
+Before you return ANY response containing JSON, you MUST verify ALL of the following:
+
+**STEP 1: JSON Wrapper Check**
+- [ ] Every JSON object starts with ```json (not just ```, and not missing entirely)
+- [ ] Every JSON block ends with ``` (triple backticks)
+- [ ] Count the ``` markers - you need an even number (opening + closing pairs)
+
+**STEP 2: Quote Character Check**
+- [ ] Search for curly quotes " " ' ' - if found, REPLACE with straight quotes
+- [ ] All JSON property names use straight double quotes: "id"
+- [ ] All JSON string values use straight double quotes: "value"
+- [ ] Quotes inside strings are escaped: \\"text\\"
+
+**STEP 3: HTML Tag Check**
+- [ ] Search for: <strong>, <em>, <br>, <p>, <div> - if found, REPLACE with markdown
+- [ ] Convert: <strong>text</strong> → **text**
+- [ ] Convert: <em>text</em> → *text*
+- [ ] Convert: <br> or <br/> → \\n
+
+**STEP 4: Line Break Check**
+- [ ] All line breaks in "details" field use \\n (backslash-n)
+- [ ] NO literal line breaks inside JSON strings
+- [ ] NO <br> tags anywhere
+
+**STEP 5: JSON Syntax Check**
+- [ ] Every { has a matching }
+- [ ] Every [ has a matching ]
+- [ ] No trailing commas after last property/item
+- [ ] All property names are quoted
+- [ ] Commas between properties (except last one)
+- [ ] No comments (// or /* */)
+
+**STEP 6: Content Check**
+- [ ] "details" field includes **VoC evidence:** with 3-6 phrases
+- [ ] All attributes in details are labeled with **Attribute Name:** format
+- [ ] Priority included if relevant
+
+**STEP 7: Final Format Verification**
+- [ ] Can you copy the entire JSON block (including ```json and ```) and paste it into a JSON validator?
+- [ ] Does JSON.parse() work on just the content between ```json and ```?
+
+---
+
+**🚨 COMMON MISTAKES THAT BREAK RENDERING:**
+
+1. **MISSING ```json WRAPPER** (MOST COMMON ERROR)
+   ❌ { "id": "test" }
+   ✅ ```json\n{ "id": "test" }\n```
+
+2. **Using HTML Instead of Markdown**
+   ❌ "details": "Text <strong>bold</strong> more text"
+   ✅ "details": "Text **bold** more text"
+
+3. **Curly/Smart Quotes**
+   ❌ "details": "I thought it was "too hard""
+   ✅ "details": "I thought it was \\"too hard\\""
+
+4. **Wrong Line Break Format**
+   ❌ "details": "Line 1\nLine 2"  (literal newline)
+   ❌ "details": "Line 1<br>Line 2"  (HTML tag)
+   ✅ "details": "Line 1\\nLine 2"  (escaped)
+
+5. **Trailing Comma**
+   ❌ { "id": "test", "title": "Test", }
+   ✅ { "id": "test", "title": "Test" }
+
+---
+
+**Quick Reference - Allowed vs. Forbidden:**
+
+✅ **ALLOWED:**
+- ```json wrapper around every JSON block
+- Straight quotes: "text", 'text'
+- Markdown in strings: **bold**, *italic*
+- Escaped line breaks: \\n
+- Escaped quotes: \\"text\\"
+
+❌ **FORBIDDEN:**
+- Bare JSON without ```json wrapper
+- HTML tags: <strong>, <em>, <br>, <p>, <div>
+- Curly quotes: " " ' '
+- Literal newlines inside JSON strings
+- Trailing commas
+- Comments in JSON
+
+---
+
+**FINAL REMINDER:**
+If your JSON is missing the ```json wrapper, it will appear as a plain text block instead of rendering as an idea card. ALWAYS wrap every JSON object in ```json ... ```.

@@ -395,8 +395,10 @@
         // Build details content - preserve line breaks
         let detailsHTML = '';
         if (details) {
-            // Convert newlines to <br> for better formatting
-            const formattedDetails = details.replace(/\n/g, '<br>');
+            // Convert both literal \n sequences (from JSON \\n) and actual newlines to <br>
+            let formattedDetails = details.replace(/\\n|\n/g, '<br>');
+            // Remove escaped quote sequences (literal \") that shouldn't be displayed
+            formattedDetails = formattedDetails.replace(/\\"/g, '"');
             detailsHTML = `<div class="pe-idea-card__details">${formattedDetails}</div>`;
         }
         
