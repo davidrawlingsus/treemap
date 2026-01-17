@@ -56,3 +56,77 @@ export function getStateCode(stateName) {
     }
     return null;
 }
+
+/**
+ * Get display name for a dimension (custom name if available, otherwise formatted ref_key)
+ * @param {string} refKey - The dimension reference key
+ * @param {Object} dimensionNamesMap - Map of ref_key -> custom_name (optional, will use global if not provided)
+ * @returns {string} Display name
+ */
+export function getDimensionDisplayName(refKey, dimensionNamesMap = null) {
+    // If dimensionNamesMap is provided, use it; otherwise try to get from global state
+    let map = dimensionNamesMap;
+    if (!map && typeof window !== 'undefined' && window.apiCacheGetDimensionNamesMap) {
+        map = window.apiCacheGetDimensionNamesMap();
+    }
+    return (map && map[refKey]) || refKey.replace('ref_', 'Q');
+}
+
+/**
+ * Highlight search terms in text (case-insensitive, supports multiple words)
+ * @param {string} text - Text to search in
+ * @param {string} searchTerm - Search term(s) to highlight
+ * @param {Function} escapeHtmlFn - HTML escaping function (optional, will use global if not provided)
+ * @returns {string} HTML with highlighted terms
+ */
+export function highlightSearchTerms(text, searchTerm, escapeHtmlFn = null) {
+    if (!text || !searchTerm) {
+        const escapeFn = escapeHtmlFn || (typeof window !== 'undefined' && window.escapeHtml) || ((s) => s);
+        return escapeFn(text || '');
+    }
+    
+    // Get escapeHtml function
+    const escapeHtml = escapeHtmlFn || (typeof window !== 'undefined' && window.escapeHtml) || ((s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'));
+    
+    // Escape the text first for safety
+    const escapedText = escapeHtml(text);
+    const trimmedSearch = searchTerm.trim();
+    if (!trimmedSearch) {
+        return escapedText;
+    }
+    
+    // Split search term into words (handle multiple words)
+    const searchWords = trimmedSearch.split(/\s+/).filter(word => word.length > 0);
+    
+    // Build regex pattern that matches any of the search words (case-insensitive)
+    const pattern = searchWords.map(word => {
+        // Escape special regex characters in the search word
+        const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return escapedWord;
+    }).join('|');
+    
+    const regex = new RegExp(`(${pattern})`, 'gi');
+    
+    // Replace matches with highlighted versions
+    return escapedText.replace(regex, '<mark class="search-highlight">$1</mark>');
+}
+
+/**
+ * Convert text to PascalCase
+ * @param {string} text - Text to convert
+ * @returns {string} PascalCase text
+ */
+export function toPascalCase(text) {
+    if (!text) return '';
+    return text
+        .split(/[\s_-]+/)
+        .map(word => {
+            // Keep US and USA as uppercase (case-insensitive check)
+            const upperWord = word.toUpperCase();
+            if (upperWord === 'US' || upperWord === 'USA') {
+                return upperWord;
+            }
+            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        })
+        .join(' ');
+}

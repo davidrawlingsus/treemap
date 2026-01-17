@@ -395,8 +395,21 @@ js/
 - **Completed**: 2025-01-XX
 - **Notes**: Created history-state module with getter/setter functions and Set manipulation helpers. Module functions exposed globally. Local variables kept for backward compatibility during migration. Full migration of all references to module functions will happen gradually in future slices.
 
-**Slice 20**: Controller extraction slices - **NOT STARTED**
-(Details to be filled as we progress)
+**Slice 20: Extract UI Interaction State and Dimension Config** - **DONE**
+- **Status**: DONE
+- **Scope**: UI interaction state variables and dimension configuration
+- **Files Affected**: Created `js/state/ui-interaction-state.js`, `js/config/dimension-config.js`
+- **Extract**: State management for UI interactions (filter UI, verbatim display, editing, selection, resize) and dimension configuration constants
+- **Public API**: `uiInteraction.getCurrentFilterType()`, `uiInteraction.setCurrentVerbatimsData()`, `dimensionConfig.getDimensionOptions()`, etc.
+- **Testing Checklist**: 
+  - [ ] Verify filter UI works correctly
+  - [ ] Verify verbatim display works
+  - [ ] Verify editing works
+  - [ ] Verify selection works
+  - [ ] Verify dimension options are available
+  - [ ] No console errors
+- **Completed**: 2025-01-XX
+- **Notes**: Created ui-interaction-state module with getter/setter functions and Set manipulation helpers. Created dimension-config module for predefined dimension options. Module functions exposed globally. Local variables kept for backward compatibility during migration. Full migration of all references to module functions will happen gradually in future slices.
 
 ## Completed Work Log
 
@@ -565,6 +578,17 @@ js/
 - Added history-state module imports to ES module script tag in index.html
 - Module functions exposed globally for backward compatibility
 - Added Set manipulation helpers (addSelectedHistoryId, removeSelectedHistoryId, hasSelectedHistoryId, clearSelectedHistoryIds)
+- Local variables kept for backward compatibility during migration
+- Full migration of all references to module functions will happen gradually in future slices
+
+### 2025-01-XX - Slice 20: Extract UI Interaction State and Dimension Config
+- Created `js/state/ui-interaction-state.js` - extracted UI interaction state management
+- Extracted state variables: `currentFilterType`, `currentFilterSelections`, `currentFilterSearchTerm`, `currentVerbatimsData`, `currentTopicName`, `currentCategoryName`, `currentEditingRefKey`, `selectedInsightIds`, `currentResizeHeader`, `currentContextData`
+- Created `js/config/dimension-config.js` - extracted dimension configuration constants
+- Extracted configuration: `DIMENSION_OPTIONS` array and helper functions
+- Added ui-interaction-state and dimension-config module imports to ES module script tag in index.html
+- Module functions exposed globally for backward compatibility
+- Added Set manipulation helpers for filter selections and insight IDs
 - Local variables kept for backward compatibility during migration
 - Full migration of all references to module functions will happen gradually in future slices
 

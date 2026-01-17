@@ -298,12 +298,15 @@
         
         // Make utilities available globally for backward compatibility
         window.adjustBrightness = adjustBrightness;
-        window.getStateCode = getStateCode;
-        window.stateNameToCode = stateNameToCode;
-        window.fipsToStateCode = fipsToStateCode;
-        window.debounce = debounce;
-        window.escapeHtml = escapeHtml;
-        window.escapeHtmlForAttribute = escapeHtmlForAttribute;
+        window.getStateCode = formatGetStateCode;
+        window.stateNameToCode = formatStateNameToCode;
+        window.fipsToStateCode = formatFipsToStateCode;
+        window.getDimensionDisplayName = formatGetDimensionDisplayName;
+        window.highlightSearchTerms = formatHighlightSearchTerms;
+        window.toPascalCase = formatToPascalCase;
+        window.debounce = domDebounce;
+        window.escapeHtml = domEscapeHtml;
+        window.escapeHtmlForAttribute = domEscapeHtmlForAttribute;
         
         // Make storage functions and constants available globally
         window.getTagColors = getTagColors;
@@ -8630,8 +8633,14 @@
             }
         }
         
-        // Get display name for a dimension (custom name if available, otherwise formatted ref_key)
+        // Get display name for a dimension - wrapper that uses format module
         function getDimensionDisplayName(refKey) {
+            if (window.formatGetDimensionDisplayName) {
+                // Get dimensionNamesMap from state module if available
+                const map = window.apiCacheGetDimensionNamesMap ? window.apiCacheGetDimensionNamesMap() : dimensionNamesMap;
+                return window.formatGetDimensionDisplayName(refKey, map);
+            }
+            // Fallback if module not loaded yet
             return dimensionNamesMap[refKey] || refKey.replace('ref_', 'Q');
         }
         
@@ -10646,8 +10655,12 @@
         // escapeHtml function - now imported from js/utils/dom.js module
         // Available globally via window.escapeHtml
 
-        // Highlight search terms in text (case-insensitive, supports multiple words)
+        // Highlight search terms in text - wrapper that uses format module
         function highlightSearchTerms(text, searchTerm) {
+            if (window.formatHighlightSearchTerms) {
+                return window.formatHighlightSearchTerms(text, searchTerm, window.escapeHtml);
+            }
+            // Fallback if module not loaded yet
             if (!text || !searchTerm) {
                 return escapeHtml(text || '');
             }
@@ -13869,8 +13882,12 @@
             loadInsightsPage();
         }
 
-        // Helper function to convert text to PascalCase
+        // Helper function to convert text to PascalCase - wrapper that uses format module
         function toPascalCase(text) {
+            if (window.formatToPascalCase) {
+                return window.formatToPascalCase(text);
+            }
+            // Fallback if module not loaded yet
             if (!text) return '';
             return text
                 .split(/[\s_-]+/)
