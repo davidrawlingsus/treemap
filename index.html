@@ -19050,10 +19050,6 @@
                 const categoryName = origin.category || null;
                 const topicName = origin.topic_label || null;
                 
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:18216',message:'History tab origin data',data:{dataSource,origin:JSON.stringify(origin),actionId:action.id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-                // #endregion
-                
                 // Build origin breadcrumb pills with PascalCase formatting (excluding project)
                 const originPills = [];
                 if (dimensionName && dimensionRef) {
@@ -19073,9 +19069,6 @@
                 }
                 // Display data source name if no other origin pills and data source exists
                 if (originPills.length === 0 && dataSource) {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:18243',message:'Displaying data source name in history',data:{dataSource,formatted:toPascalCase(dataSource)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-                    // #endregion
                     // Fix common typo: "Faceboo Ads" -> "Facebook Ads"
                     let correctedDataSource = dataSource;
                     if (dataSource && typeof dataSource === 'string') {
