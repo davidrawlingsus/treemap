@@ -10585,7 +10585,17 @@
                     const siblings = d.parent.children;
                     const index = siblings.indexOf(d);
                     const brightnessAdjust = -10 + (index % 3) * 10; // -10, 0, +10
-                    return adjustBrightness(baseColor, brightnessAdjust);
+                    const adjustBrightnessFn = window.adjustBrightness || ((color, amount) => {
+                        // Fallback implementation if module not loaded yet
+                        if (!color || !amount) return color;
+                        const num = parseInt(color.replace('#', ''), 16);
+                        const amt = Math.round(amount * 2.55);
+                        const R = Math.min(255, Math.max(0, (num >> 16) + amt));
+                        const G = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + amt));
+                        const B = Math.min(255, Math.max(0, (num & 0x0000FF) + amt));
+                        return '#' + (0x1000000 + (R << 16) + (G << 8) + B).toString(16).slice(1);
+                    });
+                    return adjustBrightnessFn(baseColor, brightnessAdjust);
                 })
                 .on('click', (event, d) => handleNodeClick(d))
                 .on('contextmenu', (event, d) => {
@@ -15940,7 +15950,23 @@
 
         async function bulkChangeTagColor(tagValue, fieldName, colorName) {
             // Save the color preference
-            setTagColor(fieldName, tagValue, colorName);
+            const setTagColorFn = window.setTagColor || ((fieldName, tagValue, colorName) => {
+                // Fallback if module not loaded yet
+                try {
+                    const storageKey = window.TAG_COLORS_STORAGE_KEY || 'vizualizd_tag_colors';
+                    const colors = JSON.parse(localStorage.getItem(storageKey) || '{}');
+                    const key = `${fieldName}:${tagValue}`;
+                    if (colorName === 'default') {
+                        delete colors[key];
+                    } else {
+                        colors[key] = colorName;
+                    }
+                    localStorage.setItem(storageKey, JSON.stringify(colors));
+                } catch (e) {
+                    console.error('Error saving tag color:', e);
+                }
+            });
+            setTagColorFn(fieldName, tagValue, colorName);
             
             // Update checkmarks in the menu
             const menuId = `meatball-menu-${fieldName}-${tagValue.replace(/[^a-zA-Z0-9]/g, '_')}`;
