@@ -206,6 +206,35 @@
             toggleInsightsAddDropdown as uiControllerToggleInsightsAddDropdown,
             closeInsightsAddDropdown as uiControllerCloseInsightsAddDropdown
         } from '/js/controllers/ui-controller.js';
+        import {
+            getInsightsCurrentClientId as insightsStateGetInsightsCurrentClientId,
+            setInsightsCurrentClientId as insightsStateSetInsightsCurrentClientId,
+            getInsightsCurrentInsightId as insightsStateGetInsightsCurrentInsightId,
+            setInsightsCurrentInsightId as insightsStateSetInsightsCurrentInsightId,
+            getInsightsAllInsights as insightsStateGetInsightsAllInsights,
+            setInsightsAllInsights as insightsStateSetInsightsAllInsights,
+            getAllInsights as insightsStateGetAllInsights,
+            setAllInsights as insightsStateSetAllInsights,
+            getInsightsFilters as insightsStateGetInsightsFilters,
+            setInsightsFilters as insightsStateSetInsightsFilters,
+            getInsightsCurrentFilters as insightsStateGetInsightsCurrentFilters,
+            setInsightsCurrentFilters as insightsStateSetInsightsCurrentFilters,
+            getInsightsCurrentSortBy as insightsStateGetInsightsCurrentSortBy,
+            setInsightsCurrentSortBy as insightsStateSetInsightsCurrentSortBy,
+            getInsightsSortBy as insightsStateGetInsightsSortBy,
+            setInsightsSortBy as insightsStateSetInsightsSortBy,
+            getInsightsSortOrder as insightsStateGetInsightsSortOrder,
+            setInsightsSortOrder as insightsStateSetInsightsSortOrder,
+            getInsightsSearchTerm as insightsStateGetInsightsSearchTerm,
+            setInsightsSearchTerm as insightsStateSetInsightsSearchTerm,
+            getInsightsCurrentInsightEditor as insightsStateGetInsightsCurrentInsightEditor,
+            setInsightsCurrentInsightEditor as insightsStateSetInsightsCurrentInsightEditor,
+            getInsightsAutoFilter as insightsStateGetInsightsAutoFilter,
+            setInsightsAutoFilter as insightsStateSetInsightsAutoFilter,
+            getInsightsState as insightsStateGetInsightsState,
+            setInsightsState as insightsStateSetInsightsState,
+            resetInsightsState as insightsStateResetInsightsState
+        } from '/js/state/insights-state.js';
         
         // Make utilities available globally for backward compatibility
         window.adjustBrightness = adjustBrightness;
@@ -377,6 +406,35 @@
         window.uiControllerToggleInsightsPanel = uiControllerToggleInsightsPanel;
         window.uiControllerToggleInsightsAddDropdown = uiControllerToggleInsightsAddDropdown;
         window.uiControllerCloseInsightsAddDropdown = uiControllerCloseInsightsAddDropdown;
+        
+        // Make insights state functions available globally for backward compatibility
+        window.insightsStateGetInsightsCurrentClientId = insightsStateGetInsightsCurrentClientId;
+        window.insightsStateSetInsightsCurrentClientId = insightsStateSetInsightsCurrentClientId;
+        window.insightsStateGetInsightsCurrentInsightId = insightsStateGetInsightsCurrentInsightId;
+        window.insightsStateSetInsightsCurrentInsightId = insightsStateSetInsightsCurrentInsightId;
+        window.insightsStateGetInsightsAllInsights = insightsStateGetInsightsAllInsights;
+        window.insightsStateSetInsightsAllInsights = insightsStateSetInsightsAllInsights;
+        window.insightsStateGetAllInsights = insightsStateGetAllInsights;
+        window.insightsStateSetAllInsights = insightsStateSetAllInsights;
+        window.insightsStateGetInsightsFilters = insightsStateGetInsightsFilters;
+        window.insightsStateSetInsightsFilters = insightsStateSetInsightsFilters;
+        window.insightsStateGetInsightsCurrentFilters = insightsStateGetInsightsCurrentFilters;
+        window.insightsStateSetInsightsCurrentFilters = insightsStateSetInsightsCurrentFilters;
+        window.insightsStateGetInsightsCurrentSortBy = insightsStateGetInsightsCurrentSortBy;
+        window.insightsStateSetInsightsCurrentSortBy = insightsStateSetInsightsCurrentSortBy;
+        window.insightsStateGetInsightsSortBy = insightsStateGetInsightsSortBy;
+        window.insightsStateSetInsightsSortBy = insightsStateSetInsightsSortBy;
+        window.insightsStateGetInsightsSortOrder = insightsStateGetInsightsSortOrder;
+        window.insightsStateSetInsightsSortOrder = insightsStateSetInsightsSortOrder;
+        window.insightsStateGetInsightsSearchTerm = insightsStateGetInsightsSearchTerm;
+        window.insightsStateSetInsightsSearchTerm = insightsStateSetInsightsSearchTerm;
+        window.insightsStateGetInsightsCurrentInsightEditor = insightsStateGetInsightsCurrentInsightEditor;
+        window.insightsStateSetInsightsCurrentInsightEditor = insightsStateSetInsightsCurrentInsightEditor;
+        window.insightsStateGetInsightsAutoFilter = insightsStateGetInsightsAutoFilter;
+        window.insightsStateSetInsightsAutoFilter = insightsStateSetInsightsAutoFilter;
+        window.insightsStateGetInsightsState = insightsStateGetInsightsState;
+        window.insightsStateSetInsightsState = insightsStateSetInsightsState;
+        window.insightsStateResetInsightsState = insightsStateResetInsightsState;
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');

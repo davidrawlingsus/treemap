@@ -349,7 +349,23 @@ js/
 
 ### Phase 6: Controllers (Highest Risk)
 
-**Slice 18-20**: Controller extraction slices - **NOT STARTED**
+**Slice 18: Extract UI Controller** - **DONE**
+- **Status**: DONE
+- **Scope**: Simple UI toggle controller functions
+- **Files Affected**: Created `js/controllers/ui-controller.js`
+- **Extract**: `toggleChart()`, `toggleTreemap()`, `toggleSettingsPanel()`, `toggleInsightsPanel()`, `toggleInsightsAddDropdown()`, `closeInsightsAddDropdown()`
+- **Public API**: `uiController.toggleChart()`, `uiController.toggleTreemap()`, etc.
+- **Testing Checklist**: 
+  - [ ] Verify chart toggle works
+  - [ ] Verify treemap toggle works
+  - [ ] Verify settings panel toggle works
+  - [ ] Verify insights panel toggle works
+  - [ ] Verify insights add dropdown toggle works
+  - [ ] No console errors
+- **Completed**: 2025-01-XX
+- **Notes**: Created ui-controller module with simple toggle functions. Module functions exposed globally. Wrapper functions in index.html call module functions with fallback. These are simple, self-contained functions that don't depend on complex state.
+
+**Slice 19-20**: Controller extraction slices - **NOT STARTED**
 (Details to be filled as we progress)
 
 ## Completed Work Log
@@ -496,6 +512,14 @@ js/
 - Added map access helpers (getDimensionName, setDimensionName, getQuestionType, setQuestionType)
 - Local variables kept for backward compatibility during migration
 - Full migration of all references to module functions will happen gradually in future slices
+
+### 2025-01-XX - Slice 18: Extract UI Controller
+- Created `js/controllers/ui-controller.js` - extracted simple UI toggle controller functions
+- Extracted functions: `toggleChart()`, `toggleTreemap()`, `toggleSettingsPanel()`, `toggleInsightsPanel()`, `toggleInsightsAddDropdown()`, `closeInsightsAddDropdown()`
+- Added ui-controller module imports to ES module script tag in index.html
+- Module functions exposed globally for backward compatibility
+- Wrapper functions in index.html call module functions with fallback
+- These are simple, self-contained functions that don't depend on complex state
 
 ## Known Risks & Technical Debt
 
