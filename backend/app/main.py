@@ -155,6 +155,8 @@ all_cors_origins = cors_allow_origins.copy()
 if default_production_origin not in all_cors_origins:
     all_cors_origins.append(default_production_origin)
 
+logger.info(f"CORS configuration: allowing origins from regex '.*\\.up\\.railway\\.app' and explicit origins: {all_cors_origins}")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"https?://(.*\.up\.railway\.app|localhost)(:\d+)?$",  # Allow all Railway URLs and localhost
