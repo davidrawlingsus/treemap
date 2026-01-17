@@ -20003,15 +20003,18 @@
                 `;
                 
                 // Render each category (now filtered to only show the selected one if categoryName provided)
+                const categoryColorsLocal = window.colorSchemesCATEGORY_COLORS || [
+                    '#A97FFF', '#77D9D6', '#F8A04C', '#58B3F0', '#6ED49B', '#F47280', '#9A7B6C', '#FFB366', '#B794F6', '#4ECDC4'
+                ];
                 categories.forEach((category, catIndex) => {
                     const categoryId = `chart-cat-${catIndex}`;
-                    const baseColor = colorPalette[category.name] || categoryColors[catIndex % categoryColors.length];
+                    const baseColor = colorPalette[category.name] || categoryColorsLocal[catIndex % categoryColorsLocal.length];
                     
                     // Category header
                     chartHTML += `
                         <div class="chart-category-group" style="border: 1px solid oklch(0.922 0 0); border-radius: 4px; padding: 0.75rem;">
                             <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
-                                <div style="flex: 1; font-weight: 600; font-size: 0.875rem; color: oklch(0.145 0 0);">${escapeHtml(category.name)}</div>
+                                <div style="flex: 1; font-weight: 600; font-size: 0.875rem; color: oklch(0.145 0 0);">${escapeHtmlFn(category.name)}</div>
                                 <div style="font-size: 0.875rem; color: oklch(0.556 0 0);">${category.percent.toFixed(1)}%</div>
                             </div>
                             
@@ -20034,7 +20037,7 @@
                                     return `
                                         <div class="chart-topic-row" 
                                              style="display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; margin-bottom: 0.5rem; cursor: pointer; border-radius: 4px; ${isTopicHighlighted ? 'background: oklch(0.97 0.05 120); border-left: 3px solid #B9F040; padding-left: 8px;' : ''}"
-                                             onclick="SlideoutPanel.navigateToVerbatimsFromChart('${escapeHtml(topic.name)}', '${escapeHtml(category.name)}')">
+                                             onclick="SlideoutPanel.navigateToVerbatimsFromChart('${escapeHtmlFn(topic.name).replace(/'/g, "\\'")}', '${escapeHtmlFn(category.name).replace(/'/g, "\\'")}')">
                                             <div style="width: 8px; height: 8px; border-radius: 50%; background: ${topicColor}; opacity: 0.6;"></div>
                                             <div style="flex: 1; font-size: 0.875rem; color: oklch(0.145 0 0);">${escapeHtml(topic.name)}</div>
                                             <div style="font-size: 0.75rem; color: oklch(0.556 0 0);">${topic.percent.toFixed(1)}%</div>
