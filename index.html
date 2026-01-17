@@ -13070,6 +13070,9 @@
 
         // SPA Routing Functions
         function navigateToView(viewName) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13072',message:'navigateToView called',data:{viewName},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
             const vizSection = document.getElementById('visualizations-section');
             const insightsSection = document.getElementById('insights-section');
             const historySection = document.getElementById('history-section');
@@ -13180,9 +13183,15 @@
                     });
                 }
             } else if (viewName === 'insights') {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13182',message:'Navigating to insights view',data:{currentClientId,insightsCurrentClientId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+                // #endregion
                 // Sync insightsCurrentClientId with currentClientId when navigating to insights
                 if (currentClientId && insightsCurrentClientId !== currentClientId) {
                     insightsCurrentClientId = currentClientId;
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13185',message:'Synced insightsCurrentClientId',data:{insightsCurrentClientId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                    // #endregion
                 }
                 
                 if (insightsSection) {
@@ -13205,8 +13214,15 @@
                 // Reload insights for the current client
                 // Reset the initialized flag to force reload with current client data
                 window.insightsInitialized = false;
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13208',message:'About to call initInsightsPage',data:{initInsightsPageExists:typeof initInsightsPage === 'function',insightsCurrentClientId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                // #endregion
                 if (typeof initInsightsPage === 'function') {
                     initInsightsPage();
+                } else {
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13210',message:'initInsightsPage function not found',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                    // #endregion
                 }
                 
                 // Scroll to top to ensure insights section is visible
@@ -13486,8 +13502,14 @@
         }
 
         async function initInsightsPage() {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13488',message:'initInsightsPage called',data:{insightsInitialized:window.insightsInitialized},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
             // Check if already initialized - this is reset to false when navigating to allow reload
             if (window.insightsInitialized) {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13490',message:'initInsightsPage already initialized, returning early',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                // #endregion
                 return;
             }
             
@@ -13508,6 +13530,9 @@
             }
 
             if (!insightsCurrentClientId) {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13510',message:'insightsCurrentClientId not set, waiting for currentClientId',data:{currentClientId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                // #endregion
                 // Wait for currentClientId to be set (with timeout)
                 let retryAttempts = 0;
                 const maxRetries = 50; // 5 seconds max wait
@@ -13518,8 +13543,14 @@
                 
                 if (currentClientId) {
                     insightsCurrentClientId = currentClientId;
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13520',message:'Set insightsCurrentClientId from currentClientId',data:{insightsCurrentClientId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                    // #endregion
                 } else {
                     console.error('[DEBUG] currentClientId never became available');
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13522',message:'currentClientId never became available',data:{retryAttempts},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                    // #endregion
                     const tbody = document.getElementById('insightsTableBody') || document.getElementById('insightsPageTableBody');
                     if (tbody) {
                         tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>No client specified</h3><p style="font-size: 12px; color: #999;">Please select a client first</p></td></tr>';
@@ -13538,7 +13569,13 @@
             updateFilterChips();
             updateActiveFiltersDisplay();
             
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13541',message:'About to call loadInsightsPage',data:{insightsCurrentClientId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+            // #endregion
             await loadInsightsPage();
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13542',message:'loadInsightsPage completed',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+            // #endregion
             window.insightsInitialized = true;
         }
         
@@ -13596,15 +13633,24 @@
         });
 
         async function loadInsightsPage() {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13598',message:'loadInsightsPage called',data:{insightsCurrentClientId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+            // #endregion
             
             if (!insightsCurrentClientId) {
                 console.error('[DEBUG] No client ID, cannot load insights');
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13600',message:'loadInsightsPage: No client ID, returning early',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                // #endregion
                 return;
             }
 
             const tbody = document.getElementById('insightsPageTableBody');
             if (!tbody) {
                 console.error('[DEBUG] insightsPageTableBody element not found');
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13606',message:'loadInsightsPage: tbody element not found, returning early',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                // #endregion
                 return;
             }
             
@@ -13612,6 +13658,9 @@
             tbody.innerHTML = '<tr><td colspan="9" class="loading">Loading insights...</td></tr>';
 
             try {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13614',message:'loadInsightsPage: Starting API call',data:{insightsCurrentClientId,insightsApiLoadInsightsExists:!!window.insightsApiLoadInsights},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+                // #endregion
                 // Map 'origin' to 'created_at' for backend sorting (backend doesn't support project sorting)
                 // We'll sort by origin client-side after loading
                 const backendSortBy = insightsCurrentSortBy === 'origin' ? 'created_at' : 
@@ -13628,6 +13677,9 @@
                 // Fetch insights using API module
                 let data;
                 if (window.insightsApiLoadInsights) {
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13630',message:'loadInsightsPage: Using API module',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+                    // #endregion
                     data = await window.insightsApiLoadInsights(insightsCurrentClientId, {
                         page: '1',
                         page_size: '1000',
@@ -13636,6 +13688,9 @@
                         filters: insightsFilters
                     }, getAuthHeadersSafe);
                 } else {
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13638',message:'loadInsightsPage: Using fallback fetch',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+                    // #endregion
                     // Fallback if module not loaded yet
                     const queryParams = new URLSearchParams({
                         page: '1',
@@ -13666,6 +13721,9 @@
                 }
                 
                 insightsAllInsights = data.items || [];
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13723',message:'loadInsightsPage: Data loaded, about to render',data:{insightsAllInsightsCount:insightsAllInsights.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+                // #endregion
                 
                 // Sort by origin client-side if needed (backend doesn't support project sorting)
                 if (insightsCurrentSortBy === 'origin') {
@@ -13691,19 +13749,41 @@
                 restoreFilterDropdowns();
                 
                 renderInsightsPage();
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13748',message:'loadInsightsPage: renderInsightsPage completed',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+                // #endregion
             } catch (error) {
                 console.error('Error loading insights:', error);
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13749',message:'loadInsightsPage: Error caught',data:{errorMessage:error.message,errorStack:error.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H'})}).catch(()=>{});
+                // #endregion
                 const errorTbody = document.getElementById('insightsPageTableBody');
                 if (errorTbody) {
+                    const escapeHtmlFn = window.escapeHtml || ((s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'));
                     const errorMessage = error.message || 'Unknown error occurred';
-                    errorTbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>Error loading insights</h3><p>' + escapeHtml(errorMessage) + '</p></td></tr>';
+                    errorTbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>Error loading insights</h3><p>' + escapeHtmlFn(errorMessage) + '</p></td></tr>';
                 }
             }
         }
 
         function renderInsightsPage() {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13704',message:'renderInsightsPage called',data:{insightsAllInsightsCount:insightsAllInsights?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'G'})}).catch(()=>{});
+            // #endregion
+            // Ensure escapeHtml is available with fallback
+            const escapeHtmlFn = window.escapeHtml || ((s) => {
+                if (s == null) return '';
+                const div = document.createElement('div');
+                div.textContent = s;
+                return div.innerHTML;
+            });
             const tbody = document.getElementById('insightsPageTableBody');
-            if (!tbody) return;
+            if (!tbody) {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:13706',message:'renderInsightsPage: tbody not found, returning early',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                // #endregion
+                return;
+            }
             
             let filtered = [...insightsAllInsights];
             
@@ -13803,7 +13883,7 @@
                 const categoryName = firstOrigin.category || null;
                 const topicName = firstOrigin.topic_label || null;
                 const insightName = toPascalCase(insight.name || '');
-                const highlightedInsightName = insightsSearchTerm ? highlightSearchTerms(insightName, insightsSearchTerm) : escapeHtml(insightName);
+                const highlightedInsightName = insightsSearchTerm ? highlightSearchTerms(insightName, insightsSearchTerm) : escapeHtmlFn(insightName);
                 
                 // Build origin breadcrumb pills with PascalCase formatting (excluding project)
                 const originPills = [];
@@ -20530,12 +20610,25 @@
             } catch (error) {
                 console.error('[DEBUG] Error loading history:', error);
                 if (tbody) {
-                    tbody.innerHTML = `<tr><td colspan="2" class="error">Error loading history: ${escapeHtml(error.message)}</td></tr>`;
+                    const escapeHtmlFn = window.escapeHtml || ((s) => {
+                        if (s == null) return '';
+                        const div = document.createElement('div');
+                        div.textContent = s;
+                        return div.innerHTML;
+                    });
+                    tbody.innerHTML = `<tr><td colspan="2" class="error">Error loading history: ${escapeHtmlFn(error.message)}</td></tr>`;
                 }
             }
         }
 
         function renderHistoryTable() {
+            // Ensure escapeHtml is available with fallback
+            const escapeHtmlFn = window.escapeHtml || ((s) => {
+                if (s == null) return '';
+                const div = document.createElement('div');
+                div.textContent = s;
+                return div.innerHTML;
+            });
             const tbody = document.getElementById('historyPageTableBody');
             if (!tbody) {
                 return;
@@ -20611,7 +20704,7 @@
                     .join(' ');
                 
                 // Highlight search terms if there's a search term
-                const highlightedName = historySearchTerm ? highlightSearchTerms(promptName, historySearchTerm) : escapeHtml(promptName);
+                const highlightedName = historySearchTerm ? highlightSearchTerms(promptName, historySearchTerm) : escapeHtmlFn(promptName);
                 
                 // Extract origin from action and build breadcrumb pills (similar to insights table)
                 const origin = action.origin || {};
