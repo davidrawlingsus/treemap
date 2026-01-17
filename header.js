@@ -324,6 +324,7 @@
     const logoText = document.getElementById('headerLogoText');
     const tagline = document.getElementById('headerTagline');
     const header = document.querySelector('.marketably-header');
+    const appNavigation = document.querySelector('.app-navigation');
     
     if (!logoImage || !logoText || !header) {
       console.warn('Header elements not found, retrying...');
@@ -332,26 +333,66 @@
     }
     
     if (logoUrl) {
-      // Show client logo, hide text logo and tagline
-      logoImage.src = logoUrl;
-      logoImage.style.display = 'block';
-      logoText.style.display = 'none';
-      if (tagline) tagline.style.display = 'none';
-      
-      // Update header background color (use setProperty with !important to override CSS)
-      if (headerColor) {
-        header.style.setProperty('background', headerColor, 'important');
-        header.style.setProperty('background-color', headerColor, 'important');
+      // Move logo to app-navigation on the right side
+      if (appNavigation) {
+        // Remove existing navigation logo if it exists
+        const existingNavLogo = appNavigation.querySelector('#navClientLogoContainer');
+        if (existingNavLogo) {
+          existingNavLogo.remove();
+        }
+        
+        // Create new logo element for navigation
+        const navLogoContainer = document.createElement('div');
+        navLogoContainer.className = 'nav-client-logo-container';
+        navLogoContainer.id = 'navClientLogoContainer';
+        
+        const navLogoLink = document.createElement('a');
+        navLogoLink.href = 'https://marketably.ai';
+        navLogoLink.className = 'nav-client-logo-link';
+        
+        const navLogoImg = document.createElement('img');
+        navLogoImg.src = logoUrl;
+        navLogoImg.alt = 'Client Logo';
+        navLogoImg.className = 'nav-client-logo-image';
+        navLogoImg.id = 'navClientLogo';
+        navLogoImg.style.cssText = 'display: block; max-height: 40px; width: auto;';
+        
+        navLogoLink.appendChild(navLogoImg);
+        navLogoContainer.appendChild(navLogoLink);
+        appNavigation.appendChild(navLogoContainer);
+        
+        // Hide client logo and show text logo in header (for fallback, but header will be hidden)
+        logoImage.src = logoUrl;
+        logoImage.style.display = 'none';
+        logoText.style.display = 'inline';
+        if (tagline) tagline.style.display = 'block';
+        
+        // Hide the entire marketably-header to save space
+        header.style.display = 'none';
+        
+        console.log(`[MARKETABLY HEADER] Moved client logo to app-navigation: ${logoUrl}`);
+      } else {
+        // app-navigation doesn't exist yet - retry after a delay
+        // This can happen if updateHeaderLogo is called before mainContainer is shown
+        console.warn('app-navigation not found, retrying...');
+        setTimeout(() => updateHeaderLogo(logoUrl, headerColor), 100);
       }
-      
-      console.log(`[MARKETABLY HEADER] Updated to client logo: ${logoUrl}, color: ${headerColor}`);
     } else {
-      // Show default text logo
+      // No client logo - show default Marketably header
       logoImage.style.display = 'none';
       logoText.style.display = 'inline';
       if (tagline) tagline.style.display = 'block';
       header.style.setProperty('background', '#212121', 'important');
       header.style.setProperty('background-color', '#212121', 'important');
+      header.style.display = 'block';
+      
+      // Remove logo from app-navigation if it exists
+      if (appNavigation) {
+        const existingNavLogo = appNavigation.querySelector('#navClientLogoContainer');
+        if (existingNavLogo) {
+          existingNavLogo.remove();
+        }
+      }
       
       console.log('[MARKETABLY HEADER] Showing default Marketably logo');
     }
