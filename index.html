@@ -15715,7 +15715,16 @@
                     menu.classList.add('show');
                     
                     // Update color checkmarks based on current color
-                    const colors = getTagColors();
+                    const getTagColorsFn = window.getTagColors || (() => {
+                        // Fallback if module not loaded yet
+                        try {
+                            const stored = localStorage.getItem(window.TAG_COLORS_STORAGE_KEY || 'vizualizd_tag_colors');
+                            return stored ? JSON.parse(stored) : {};
+                        } catch (e) {
+                            return {};
+                        }
+                    });
+                    const colors = getTagColorsFn();
                     const colorKey = `${fieldName}:${optionValue}`;
                     const currentColor = colors[colorKey] || 'default';
                     
@@ -15915,11 +15924,20 @@
             }
             
             // Remove color preference
-            const colors = getTagColors();
+            const getTagColorsFn = window.getTagColors || (() => {
+                try {
+                    const stored = localStorage.getItem(window.TAG_COLORS_STORAGE_KEY || 'vizualizd_tag_colors');
+                    return stored ? JSON.parse(stored) : {};
+                } catch (e) {
+                    return {};
+                }
+            });
+            const colors = getTagColorsFn();
             const colorKey = `${fieldName}:${tagValue}`;
             delete colors[colorKey];
             try {
-                localStorage.setItem(TAG_COLORS_STORAGE_KEY, JSON.stringify(colors));
+                const storageKey = window.TAG_COLORS_STORAGE_KEY || 'vizualizd_tag_colors';
+                localStorage.setItem(storageKey, JSON.stringify(colors));
             } catch (e) {
                 console.error('Error removing tag color:', e);
             }
