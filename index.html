@@ -258,6 +258,43 @@
             setHistoryState as historyStateSetHistoryState,
             resetHistoryState as historyStateResetHistoryState
         } from '/js/state/history-state.js';
+        import {
+            getCurrentFilterType as uiInteractionGetCurrentFilterType,
+            setCurrentFilterType as uiInteractionSetCurrentFilterType,
+            getCurrentFilterSelections as uiInteractionGetCurrentFilterSelections,
+            setCurrentFilterSelections as uiInteractionSetCurrentFilterSelections,
+            addCurrentFilterSelection as uiInteractionAddCurrentFilterSelection,
+            removeCurrentFilterSelection as uiInteractionRemoveCurrentFilterSelection,
+            clearCurrentFilterSelections as uiInteractionClearCurrentFilterSelections,
+            getCurrentFilterSearchTerm as uiInteractionGetCurrentFilterSearchTerm,
+            setCurrentFilterSearchTerm as uiInteractionSetCurrentFilterSearchTerm,
+            getCurrentVerbatimsData as uiInteractionGetCurrentVerbatimsData,
+            setCurrentVerbatimsData as uiInteractionSetCurrentVerbatimsData,
+            getCurrentTopicName as uiInteractionGetCurrentTopicName,
+            setCurrentTopicName as uiInteractionSetCurrentTopicName,
+            getCurrentCategoryName as uiInteractionGetCurrentCategoryName,
+            setCurrentCategoryName as uiInteractionSetCurrentCategoryName,
+            getCurrentEditingRefKey as uiInteractionGetCurrentEditingRefKey,
+            setCurrentEditingRefKey as uiInteractionSetCurrentEditingRefKey,
+            getSelectedInsightIds as uiInteractionGetSelectedInsightIds,
+            setSelectedInsightIds as uiInteractionSetSelectedInsightIds,
+            addSelectedInsightId as uiInteractionAddSelectedInsightId,
+            removeSelectedInsightId as uiInteractionRemoveSelectedInsightId,
+            clearSelectedInsightIds as uiInteractionClearSelectedInsightIds,
+            getCurrentResizeHeader as uiInteractionGetCurrentResizeHeader,
+            setCurrentResizeHeader as uiInteractionSetCurrentResizeHeader,
+            getCurrentContextData as uiInteractionGetCurrentContextData,
+            setCurrentContextData as uiInteractionSetCurrentContextData,
+            getUiInteractionState as uiInteractionGetUiInteractionState,
+            setUiInteractionState as uiInteractionSetUiInteractionState,
+            resetUiInteractionState as uiInteractionResetUiInteractionState
+        } from '/js/state/ui-interaction-state.js';
+        import {
+            DIMENSION_OPTIONS as dimensionConfigDIMENSION_OPTIONS,
+            getDimensionOptions as dimensionConfigGetDimensionOptions,
+            hasDimensionOption as dimensionConfigHasDimensionOption,
+            addDimensionOption as dimensionConfigAddDimensionOption
+        } from '/js/config/dimension-config.js';
         
         // Make utilities available globally for backward compatibility
         window.adjustBrightness = adjustBrightness;
@@ -481,6 +518,43 @@
         window.historyStateGetHistoryState = historyStateGetHistoryState;
         window.historyStateSetHistoryState = historyStateSetHistoryState;
         window.historyStateResetHistoryState = historyStateResetHistoryState;
+        
+        // Make UI interaction state functions available globally for backward compatibility
+        window.uiInteractionGetCurrentFilterType = uiInteractionGetCurrentFilterType;
+        window.uiInteractionSetCurrentFilterType = uiInteractionSetCurrentFilterType;
+        window.uiInteractionGetCurrentFilterSelections = uiInteractionGetCurrentFilterSelections;
+        window.uiInteractionSetCurrentFilterSelections = uiInteractionSetCurrentFilterSelections;
+        window.uiInteractionAddCurrentFilterSelection = uiInteractionAddCurrentFilterSelection;
+        window.uiInteractionRemoveCurrentFilterSelection = uiInteractionRemoveCurrentFilterSelection;
+        window.uiInteractionClearCurrentFilterSelections = uiInteractionClearCurrentFilterSelections;
+        window.uiInteractionGetCurrentFilterSearchTerm = uiInteractionGetCurrentFilterSearchTerm;
+        window.uiInteractionSetCurrentFilterSearchTerm = uiInteractionSetCurrentFilterSearchTerm;
+        window.uiInteractionGetCurrentVerbatimsData = uiInteractionGetCurrentVerbatimsData;
+        window.uiInteractionSetCurrentVerbatimsData = uiInteractionSetCurrentVerbatimsData;
+        window.uiInteractionGetCurrentTopicName = uiInteractionGetCurrentTopicName;
+        window.uiInteractionSetCurrentTopicName = uiInteractionSetCurrentTopicName;
+        window.uiInteractionGetCurrentCategoryName = uiInteractionGetCurrentCategoryName;
+        window.uiInteractionSetCurrentCategoryName = uiInteractionSetCurrentCategoryName;
+        window.uiInteractionGetCurrentEditingRefKey = uiInteractionGetCurrentEditingRefKey;
+        window.uiInteractionSetCurrentEditingRefKey = uiInteractionSetCurrentEditingRefKey;
+        window.uiInteractionGetSelectedInsightIds = uiInteractionGetSelectedInsightIds;
+        window.uiInteractionSetSelectedInsightIds = uiInteractionSetSelectedInsightIds;
+        window.uiInteractionAddSelectedInsightId = uiInteractionAddSelectedInsightId;
+        window.uiInteractionRemoveSelectedInsightId = uiInteractionRemoveSelectedInsightId;
+        window.uiInteractionClearSelectedInsightIds = uiInteractionClearSelectedInsightIds;
+        window.uiInteractionGetCurrentResizeHeader = uiInteractionGetCurrentResizeHeader;
+        window.uiInteractionSetCurrentResizeHeader = uiInteractionSetCurrentResizeHeader;
+        window.uiInteractionGetCurrentContextData = uiInteractionGetCurrentContextData;
+        window.uiInteractionSetCurrentContextData = uiInteractionSetCurrentContextData;
+        window.uiInteractionGetUiInteractionState = uiInteractionGetUiInteractionState;
+        window.uiInteractionSetUiInteractionState = uiInteractionSetUiInteractionState;
+        window.uiInteractionResetUiInteractionState = uiInteractionResetUiInteractionState;
+        
+        // Make dimension config available globally for backward compatibility
+        window.dimensionConfigDIMENSION_OPTIONS = dimensionConfigDIMENSION_OPTIONS;
+        window.dimensionConfigGetDimensionOptions = dimensionConfigGetDimensionOptions;
+        window.dimensionConfigHasDimensionOption = dimensionConfigHasDimensionOption;
+        window.dimensionConfigAddDimensionOption = dimensionConfigAddDimensionOption;
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
