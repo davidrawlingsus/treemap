@@ -295,6 +295,20 @@ js/
 - **Completed**: 2025-01-XX
 - **Notes**: Created available-options-state module with getter/setter functions. Module functions exposed globally. Local variables kept for backward compatibility during migration. Full migration of all references to module functions will happen gradually in future slices.
 
+**Slice 14: Extract View State** - **DONE**
+- **Status**: DONE
+- **Scope**: View navigation state variables (currentView, viewStack, currentSourceFormat)
+- **Files Affected**: Created `js/state/view-state.js`
+- **Extract**: State management for view navigation and source format
+- **Public API**: `viewState.getCurrentView()`, `viewState.setCurrentView()`, `viewState.pushView()`, `viewState.popView()`, etc.
+- **Testing Checklist**: 
+  - [ ] Verify view navigation works (drill down, back, root)
+  - [ ] Verify view stack is maintained correctly
+  - [ ] Verify source format is stored correctly
+  - [ ] No console errors
+- **Completed**: 2025-01-XX
+- **Notes**: Created view-state module with getter/setter functions and stack manipulation helpers. Module functions exposed globally. Local variables kept for backward compatibility during migration. Full migration of all references to module functions will happen gradually in future slices.
+
 ### Phase 4: Router (Medium Risk)
 
 **Slice 13**: SPA Router extraction - **NOT STARTED**
@@ -425,6 +439,15 @@ js/
 - Extracted state variables: `availableQuestions`, `availableCategories`, `availableTopics`, `availableLocations`
 - Added available-options-state module imports to ES module script tag in index.html
 - Module functions exposed globally for backward compatibility
+- Local variables kept for backward compatibility during migration
+- Full migration of all references to module functions will happen gradually in future slices
+
+### 2025-01-XX - Slice 14: Extract View State
+- Created `js/state/view-state.js` - extracted view navigation state management
+- Extracted state variables: `currentView`, `viewStack`, `currentSourceFormat`
+- Added view-state module imports to ES module script tag in index.html
+- Module functions exposed globally for backward compatibility
+- Added stack manipulation helpers (pushView, popView, clearViewStack)
 - Local variables kept for backward compatibility during migration
 - Full migration of all references to module functions will happen gradually in future slices
 

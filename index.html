@@ -164,6 +164,40 @@
             setViewState as viewStateSetViewState,
             resetViewState as viewStateResetViewState
         } from '/js/state/view-state.js';
+        import {
+            getAccessibleClients as authStateGetAccessibleClients,
+            setAccessibleClients as authStateSetAccessibleClients,
+            getAccessibleClientIds as authStateGetAccessibleClientIds,
+            setAccessibleClientIds as authStateSetAccessibleClientIds,
+            addAccessibleClientId as authStateAddAccessibleClientId,
+            removeAccessibleClientId as authStateRemoveAccessibleClientId,
+            hasAccessibleClientId as authStateHasAccessibleClientId,
+            clearAccessibleClientIds as authStateClearAccessibleClientIds,
+            getAuthenticatedUser as authStateGetAuthenticatedUser,
+            setAuthenticatedUser as authStateSetAuthenticatedUser,
+            getAuthState as authStateGetAuthState,
+            setAuthState as authStateSetAuthState,
+            resetAuthState as authStateResetAuthState
+        } from '/js/state/auth-state.js';
+        import {
+            getAllClients as apiCacheGetAllClients,
+            setAllClients as apiCacheSetAllClients,
+            getClientProjects as apiCacheGetClientProjects,
+            setClientProjects as apiCacheSetClientProjects,
+            getClientSources as apiCacheGetClientSources,
+            setClientSources as apiCacheSetClientSources,
+            getDimensionNamesMap as apiCacheGetDimensionNamesMap,
+            setDimensionNamesMap as apiCacheSetDimensionNamesMap,
+            getDimensionName as apiCacheGetDimensionName,
+            setDimensionName as apiCacheSetDimensionName,
+            getQuestionTypesMap as apiCacheGetQuestionTypesMap,
+            setQuestionTypesMap as apiCacheSetQuestionTypesMap,
+            getQuestionType as apiCacheGetQuestionType,
+            setQuestionType as apiCacheSetQuestionType,
+            getApiCacheState as apiCacheGetApiCacheState,
+            setApiCacheState as apiCacheSetApiCacheState,
+            resetApiCacheState as apiCacheResetApiCacheState
+        } from '/js/state/api-cache-state.js';
         
         // Make utilities available globally for backward compatibility
         window.adjustBrightness = adjustBrightness;
@@ -293,6 +327,40 @@
         window.viewStateGetViewState = viewStateGetViewState;
         window.viewStateSetViewState = viewStateSetViewState;
         window.viewStateResetViewState = viewStateResetViewState;
+        
+        // Make authentication state functions available globally for backward compatibility
+        window.authStateGetAccessibleClients = authStateGetAccessibleClients;
+        window.authStateSetAccessibleClients = authStateSetAccessibleClients;
+        window.authStateGetAccessibleClientIds = authStateGetAccessibleClientIds;
+        window.authStateSetAccessibleClientIds = authStateSetAccessibleClientIds;
+        window.authStateAddAccessibleClientId = authStateAddAccessibleClientId;
+        window.authStateRemoveAccessibleClientId = authStateRemoveAccessibleClientId;
+        window.authStateHasAccessibleClientId = authStateHasAccessibleClientId;
+        window.authStateClearAccessibleClientIds = authStateClearAccessibleClientIds;
+        window.authStateGetAuthenticatedUser = authStateGetAuthenticatedUser;
+        window.authStateSetAuthenticatedUser = authStateSetAuthenticatedUser;
+        window.authStateGetAuthState = authStateGetAuthState;
+        window.authStateSetAuthState = authStateSetAuthState;
+        window.authStateResetAuthState = authStateResetAuthState;
+        
+        // Make API cache state functions available globally for backward compatibility
+        window.apiCacheGetAllClients = apiCacheGetAllClients;
+        window.apiCacheSetAllClients = apiCacheSetAllClients;
+        window.apiCacheGetClientProjects = apiCacheGetClientProjects;
+        window.apiCacheSetClientProjects = apiCacheSetClientProjects;
+        window.apiCacheGetClientSources = apiCacheGetClientSources;
+        window.apiCacheSetClientSources = apiCacheSetClientSources;
+        window.apiCacheGetDimensionNamesMap = apiCacheGetDimensionNamesMap;
+        window.apiCacheSetDimensionNamesMap = apiCacheSetDimensionNamesMap;
+        window.apiCacheGetDimensionName = apiCacheGetDimensionName;
+        window.apiCacheSetDimensionName = apiCacheSetDimensionName;
+        window.apiCacheGetQuestionTypesMap = apiCacheGetQuestionTypesMap;
+        window.apiCacheSetQuestionTypesMap = apiCacheSetQuestionTypesMap;
+        window.apiCacheGetQuestionType = apiCacheGetQuestionType;
+        window.apiCacheSetQuestionType = apiCacheSetQuestionType;
+        window.apiCacheGetApiCacheState = apiCacheGetApiCacheState;
+        window.apiCacheSetApiCacheState = apiCacheSetApiCacheState;
+        window.apiCacheResetApiCacheState = apiCacheResetApiCacheState;
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
