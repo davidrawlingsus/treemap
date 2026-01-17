@@ -198,6 +198,14 @@
             setApiCacheState as apiCacheSetApiCacheState,
             resetApiCacheState as apiCacheResetApiCacheState
         } from '/js/state/api-cache-state.js';
+        import {
+            toggleChart as uiControllerToggleChart,
+            toggleTreemap as uiControllerToggleTreemap,
+            toggleSettingsPanel as uiControllerToggleSettingsPanel,
+            toggleInsightsPanel as uiControllerToggleInsightsPanel,
+            toggleInsightsAddDropdown as uiControllerToggleInsightsAddDropdown,
+            closeInsightsAddDropdown as uiControllerCloseInsightsAddDropdown
+        } from '/js/controllers/ui-controller.js';
         
         // Make utilities available globally for backward compatibility
         window.adjustBrightness = adjustBrightness;
@@ -361,6 +369,14 @@
         window.apiCacheGetApiCacheState = apiCacheGetApiCacheState;
         window.apiCacheSetApiCacheState = apiCacheSetApiCacheState;
         window.apiCacheResetApiCacheState = apiCacheResetApiCacheState;
+        
+        // Make UI controller functions available globally for backward compatibility
+        window.uiControllerToggleChart = uiControllerToggleChart;
+        window.uiControllerToggleTreemap = uiControllerToggleTreemap;
+        window.uiControllerToggleSettingsPanel = uiControllerToggleSettingsPanel;
+        window.uiControllerToggleInsightsPanel = uiControllerToggleInsightsPanel;
+        window.uiControllerToggleInsightsAddDropdown = uiControllerToggleInsightsAddDropdown;
+        window.uiControllerCloseInsightsAddDropdown = uiControllerCloseInsightsAddDropdown;
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -10794,16 +10810,24 @@
             }
         }
 
-        // Toggle chart visibility
+        // Toggle chart visibility - wrapper that uses UI controller module
         function toggleChart(button) {
+            if (window.uiControllerToggleChart) {
+                return window.uiControllerToggleChart(button);
+            }
+            // Fallback if module not loaded yet
             const chart = button.closest('.chart');
             if (chart) {
                 chart.classList.toggle('collapsed');
             }
         }
 
-        // Toggle treemap visibility
+        // Toggle treemap visibility - wrapper that uses UI controller module
         function toggleTreemap(button) {
+            if (window.uiControllerToggleTreemap) {
+                return window.uiControllerToggleTreemap(button);
+            }
+            // Fallback if module not loaded yet
             const container = button.closest('.treemap-container');
             if (container) {
                 container.classList.toggle('collapsed');
@@ -11204,8 +11228,12 @@
             document.getElementById('showIndex').checked = settings.showIndex;
         }
 
-        // Toggle settings panel
+        // Toggle settings panel - wrapper that uses UI controller module
         function toggleSettingsPanel() {
+            if (window.uiControllerToggleSettingsPanel) {
+                return window.uiControllerToggleSettingsPanel();
+            }
+            // Fallback if module not loaded yet
             const panel = document.getElementById('settingsPanel');
             const button = document.querySelector('.settings-button');
             const isActive = panel.classList.contains('active');
@@ -20809,7 +20837,12 @@
         // insightsSearchTerm, insightsFilters, and insightsSortOrder are already declared above (lines 9225, 9222, 9224)
         let insightsSortBy = 'name';
 
+        // Toggle insights panel - wrapper that uses UI controller module
         function toggleInsightsPanel() {
+            if (window.uiControllerToggleInsightsPanel) {
+                return window.uiControllerToggleInsightsPanel();
+            }
+            // Fallback if module not loaded yet
             const body = document.getElementById('insightsPanelBody');
             const container = document.querySelector('.insights-panel-container');
             if (body.classList.contains('collapsed')) {
@@ -20821,7 +20854,12 @@
             }
         }
 
+        // Toggle insights add dropdown - wrapper that uses UI controller module
         function toggleInsightsAddDropdown(event) {
+            if (window.uiControllerToggleInsightsAddDropdown) {
+                return window.uiControllerToggleInsightsAddDropdown(event);
+            }
+            // Fallback if module not loaded yet
             if (event) {
                 event.preventDefault();
                 event.stopPropagation();
@@ -20832,7 +20870,12 @@
             menu.classList.toggle('open', !isOpen);
         }
 
+        // Close insights add dropdown - wrapper that uses UI controller module
         function closeInsightsAddDropdown() {
+            if (window.uiControllerCloseInsightsAddDropdown) {
+                return window.uiControllerCloseInsightsAddDropdown();
+            }
+            // Fallback if module not loaded yet
             const menu = document.getElementById('insightsAddDropdownMenu');
             if (menu) {
                 menu.classList.remove('open');

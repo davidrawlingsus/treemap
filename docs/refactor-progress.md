@@ -309,6 +309,34 @@ js/
 - **Completed**: 2025-01-XX
 - **Notes**: Created view-state module with getter/setter functions and stack manipulation helpers. Module functions exposed globally. Local variables kept for backward compatibility during migration. Full migration of all references to module functions will happen gradually in future slices.
 
+**Slice 15: Extract Authentication State** - **DONE**
+- **Status**: DONE
+- **Scope**: Authentication state variables (accessibleClients, accessibleClientIds, authenticatedUser)
+- **Files Affected**: Created `js/state/auth-state.js`
+- **Extract**: State management for authentication and accessible clients
+- **Public API**: `authState.getAccessibleClients()`, `authState.setAccessibleClients()`, `authState.getAuthenticatedUser()`, etc.
+- **Testing Checklist**: 
+  - [ ] Verify accessible clients are stored correctly
+  - [ ] Verify client ID checking works
+  - [ ] Verify authenticated user is stored correctly
+  - [ ] No console errors
+- **Completed**: 2025-01-XX
+- **Notes**: Created auth-state module with getter/setter functions and Set manipulation helpers. Module functions exposed globally. Local variables kept for backward compatibility during migration. Full migration of all references to module functions will happen gradually in future slices.
+
+**Slice 16: Extract API Cache State** - **DONE**
+- **Status**: DONE
+- **Scope**: API cache state variables (allClients, clientProjects, clientSources, dimensionNamesMap, questionTypesMap)
+- **Files Affected**: Created `js/state/api-cache-state.js`
+- **Extract**: State management for cached API data
+- **Public API**: `apiCache.getAllClients()`, `apiCache.setAllClients()`, `apiCache.getDimensionName()`, etc.
+- **Testing Checklist**: 
+  - [ ] Verify cached clients/projects/sources are stored correctly
+  - [ ] Verify dimension names map works correctly
+  - [ ] Verify question types map works correctly
+  - [ ] No console errors
+- **Completed**: 2025-01-XX
+- **Notes**: Created api-cache-state module with getter/setter functions and map access helpers. Module functions exposed globally. Local variables kept for backward compatibility during migration. Full migration of all references to module functions will happen gradually in future slices.
+
 ### Phase 4: Router (Medium Risk)
 
 **Slice 13**: SPA Router extraction - **NOT STARTED**
@@ -448,6 +476,24 @@ js/
 - Added view-state module imports to ES module script tag in index.html
 - Module functions exposed globally for backward compatibility
 - Added stack manipulation helpers (pushView, popView, clearViewStack)
+- Local variables kept for backward compatibility during migration
+- Full migration of all references to module functions will happen gradually in future slices
+
+### 2025-01-XX - Slice 15: Extract Authentication State
+- Created `js/state/auth-state.js` - extracted authentication state management
+- Extracted state variables: `accessibleClients`, `accessibleClientIds`, `authenticatedUser`
+- Added auth-state module imports to ES module script tag in index.html
+- Module functions exposed globally for backward compatibility
+- Added Set manipulation helpers (addAccessibleClientId, removeAccessibleClientId, hasAccessibleClientId)
+- Local variables kept for backward compatibility during migration
+- Full migration of all references to module functions will happen gradually in future slices
+
+### 2025-01-XX - Slice 16: Extract API Cache State
+- Created `js/state/api-cache-state.js` - extracted API cache state management
+- Extracted state variables: `allClients`, `clientProjects`, `clientSources`, `dimensionNamesMap`, `questionTypesMap`
+- Added api-cache-state module imports to ES module script tag in index.html
+- Module functions exposed globally for backward compatibility
+- Added map access helpers (getDimensionName, setDimensionName, getQuestionType, setQuestionType)
 - Local variables kept for backward compatibility during migration
 - Full migration of all references to module functions will happen gradually in future slices
 
