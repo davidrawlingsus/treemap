@@ -10391,7 +10391,14 @@
             
             // Set up resize handler directly when treemap is rendered (if not already set up)
             if (!window._treemapResizeHandlerAttached) {
-                const treemapResizeHandler = debounce(() => {
+                const debounceFn = window.debounce || ((fn, delay) => {
+                    let timeout;
+                    return (...args) => {
+                        clearTimeout(timeout);
+                        timeout = setTimeout(() => fn(...args), delay);
+                    };
+                });
+                const treemapResizeHandler = debounceFn(() => {
                     if (hierarchyData) {
                         const container = document.querySelector('.treemap-svg-container');
                         if (container) {
@@ -10661,12 +10668,13 @@
                 return window.formatHighlightSearchTerms(text, searchTerm, window.escapeHtml);
             }
             // Fallback if module not loaded yet
+            const escapeHtmlFn = window.escapeHtml || ((s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'));
             if (!text || !searchTerm) {
-                return escapeHtml(text || '');
+                return escapeHtmlFn(text || '');
             }
             
             // Escape the text first for safety
-            const escapedText = escapeHtml(text);
+            const escapedText = escapeHtmlFn(text);
             const trimmedSearch = searchTerm.trim();
             if (!trimmedSearch) {
                 return escapedText;
@@ -21388,7 +21396,8 @@
             } catch (error) {
                 console.error('Error loading insights:', error);
                 if (tbody) {
-                    tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>Error loading insights</h3><p>' + escapeHtml(error.message) + '</p></td></tr>';
+                    const escapeHtmlFn = window.escapeHtml || ((s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'));
+                    tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>Error loading insights</h3><p>' + escapeHtmlFn(error.message) + '</p></td></tr>';
                 }
             }
         }
@@ -21490,7 +21499,8 @@
                 const createdDate = new Date(insight.created_at).toLocaleDateString();
                 // Highlight search terms in insight name if there's a search term
                 const insightName = toPascalCase(insight.name || '');
-                const highlightedName = insightsSearchTerm ? highlightSearchTerms(insightName, insightsSearchTerm) : escapeHtml(insightName);
+                const escapeHtmlFn = window.escapeHtml || ((s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'));
+                const highlightedName = insightsSearchTerm ? highlightSearchTerms(insightName, insightsSearchTerm) : escapeHtmlFn(insightName);
 
                 // Check if this insight is pinned
                 const isPinned = isPinnedOverview(insight);

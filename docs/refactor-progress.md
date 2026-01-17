@@ -396,6 +396,20 @@ js/
 - **Notes**: Created history-state module with getter/setter functions and Set manipulation helpers. Module functions exposed globally. Local variables kept for backward compatibility during migration. Full migration of all references to module functions will happen gradually in future slices.
 
 **Slice 20: Extract UI Interaction State and Dimension Config** - **DONE**
+
+**Slice 21: Extract Additional Format Utilities** - **DONE**
+- **Status**: DONE
+- **Scope**: Additional format utility functions
+- **Files Affected**: Updated `js/utils/format.js`
+- **Extract**: `getDimensionDisplayName()`, `highlightSearchTerms()`, `toPascalCase()`
+- **Public API**: `format.getDimensionDisplayName()`, `format.highlightSearchTerms()`, `format.toPascalCase()`
+- **Testing Checklist**: 
+  - [ ] Verify dimension display names work correctly
+  - [ ] Verify search term highlighting works
+  - [ ] Verify PascalCase conversion works
+  - [ ] No console errors
+- **Completed**: 2025-01-XX
+- **Notes**: Added functions to format.js module. Functions handle dependencies (dimensionNamesMap, escapeHtml) via parameters or global state. Module functions exposed globally. Wrapper functions in index.html call module functions with fallback. Local function definitions kept for backward compatibility during migration.
 - **Status**: DONE
 - **Scope**: UI interaction state variables and dimension configuration
 - **Files Affected**: Created `js/state/ui-interaction-state.js`, `js/config/dimension-config.js`
@@ -591,6 +605,15 @@ js/
 - Added Set manipulation helpers for filter selections and insight IDs
 - Local variables kept for backward compatibility during migration
 - Full migration of all references to module functions will happen gradually in future slices
+
+### 2025-01-XX - Slice 21: Extract Additional Format Utilities
+- Updated `js/utils/format.js` - added additional format utility functions
+- Extracted functions: `getDimensionDisplayName()`, `highlightSearchTerms()`, `toPascalCase()`
+- Functions handle dependencies (dimensionNamesMap, escapeHtml) via parameters or global state
+- Updated format module imports in ES module script tag in index.html
+- Module functions exposed globally for backward compatibility
+- Wrapper functions in index.html call module functions with fallback
+- Local function definitions kept for backward compatibility during migration
 
 ## Known Risks & Technical Debt
 
