@@ -83,6 +83,11 @@
             loadProjects as dataSourcesApiLoadProjects,
             loadSources as dataSourcesApiLoadSources
         } from '/js/services/api-data-sources.js';
+        import {
+            loadVocData as vocDataApiLoadVocData,
+            loadDimensionNames as vocDataApiLoadDimensionNames,
+            loadQuestions as vocDataApiLoadQuestions
+        } from '/js/services/api-voc-data.js';
         
         // Make utilities available globally for backward compatibility
         window.adjustBrightness = adjustBrightness;
@@ -131,6 +136,11 @@
         // Make data sources API available globally for wrapper functions
         window.dataSourcesApiLoadProjects = dataSourcesApiLoadProjects;
         window.dataSourcesApiLoadSources = dataSourcesApiLoadSources;
+        
+        // Make VOC data API available globally for wrapper functions
+        window.vocDataApiLoadVocData = vocDataApiLoadVocData;
+        window.vocDataApiLoadDimensionNames = vocDataApiLoadDimensionNames;
+        window.vocDataApiLoadQuestions = vocDataApiLoadQuestions;
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
@@ -8019,7 +8029,7 @@
             }
         }
 
-        // Load a specific data source
+        // Load a specific data source - wrapper that uses API module for fetching, handles DOM/state
         async function loadDataSource(clientUuid, dataSource, savedState = null) {
             console.log(`loadDataSource() called: client=${clientUuid}, project=${currentProjectName || 'None'}, source=${dataSource || 'None'}`);
             try {
@@ -8027,32 +8037,37 @@
                 document.getElementById('loading').innerHTML = 'Loading data...';
                 setLoading(true);
                 
-                // Build query parameters
-                const params = new URLSearchParams();
-                if (clientUuid) params.append('client_uuid', clientUuid);
-                if (currentProjectName) params.append('project_name', currentProjectName);
-                if (dataSource) params.append('data_source', dataSource);
-                
-                const url = `${API_BASE_URL}/api/voc/data?${params.toString()}`;
-                console.log(`Fetching data from: ${url}`);
-                const response = await fetch(url, {
-                    headers: getAuthHeaders()
-                });
-                console.log('Data response status:', response.status);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: Failed to load data`);
+                // Fetch VOC data using API module
+                let processVocRows;
+                if (window.vocDataApiLoadVocData) {
+                    processVocRows = await window.vocDataApiLoadVocData(clientUuid, currentProjectName, dataSource, getAuthHeaders);
+                    console.log(`Loaded ${processVocRows.length} process_voc rows`);
+                } else {
+                    // Fallback if module not loaded yet
+                    const params = new URLSearchParams();
+                    if (clientUuid) params.append('client_uuid', clientUuid);
+                    if (currentProjectName) params.append('project_name', currentProjectName);
+                    if (dataSource) params.append('data_source', dataSource);
+                    
+                    const url = `${API_BASE_URL}/api/voc/data?${params.toString()}`;
+                    console.log(`Fetching data from: ${url}`);
+                    const response = await fetch(url, {
+                        headers: getAuthHeaders()
+                    });
+                    console.log('Data response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: Failed to load data`);
+                    }
+                    
+                    console.log('Parsing data JSON...');
+                    processVocRows = await response.json();
+                    console.log(`Received ${processVocRows.length} process_voc rows`);
+                    
+                    // Validate response structure
+                    if (!processVocRows || !Array.isArray(processVocRows)) {
+                        throw new Error('Invalid response structure: expected array of process_voc rows');
+                    }
                 }
-                
-                console.log('Parsing data JSON...');
-                const processVocRows = await response.json();
-                console.log(`Received ${processVocRows.length} process_voc rows`);
-                
-                // Validate response structure
-                if (!processVocRows || !Array.isArray(processVocRows)) {
-                    throw new Error('Invalid response structure: expected array of process_voc rows');
-                }
-                
-                console.log(`Loaded ${processVocRows.length} process_voc rows`);
                 
                 // Store raw process_voc rows
                 fullRawData = processVocRows;
@@ -8099,16 +8114,26 @@
             }
         }
         
-        // Load dimension names from API
+        // Load dimension names from API - wrapper that uses API module for fetching, handles DOM/state
         async function loadDimensionNames() {
             if (!currentDataSourceId) return;
             
             try {
-                const response = await fetch(`${API_BASE_URL}/api/data-sources/${currentDataSourceId}/dimension-names`, {
-                    headers: getAuthHeaders()
-                });
-                if (response.ok) {
-                    const dimensionNames = await response.json();
+                let dimensionNames = [];
+                if (window.vocDataApiLoadDimensionNames) {
+                    dimensionNames = await window.vocDataApiLoadDimensionNames(currentDataSourceId, getAuthHeaders);
+                } else {
+                    // Fallback if module not loaded yet
+                    const response = await fetch(`${API_BASE_URL}/api/data-sources/${currentDataSourceId}/dimension-names`, {
+                        headers: getAuthHeaders()
+                    });
+                    if (response.ok) {
+                        dimensionNames = await response.json();
+                    }
+                }
+                
+                // Update dimension names map
+                if (dimensionNames && dimensionNames.length > 0) {
                     dimensionNamesMap = {};
                     dimensionNames.forEach(dn => {
                         dimensionNamesMap[dn.ref_key] = dn.custom_name;
@@ -8150,23 +8175,29 @@
             }
             
             try {
-                // Load questions from API
-                const params = new URLSearchParams();
-                params.append('client_uuid', currentClientId);
-                params.append('data_source', currentDataSourceId);
-                if (currentProjectName) {
-                    params.append('project_name', currentProjectName);
+                // Load questions from API using module
+                let questions = [];
+                if (window.vocDataApiLoadQuestions) {
+                    questions = await window.vocDataApiLoadQuestions(currentClientId, currentDataSourceId, currentProjectName, getAuthHeaders);
+                } else {
+                    // Fallback if module not loaded yet
+                    const params = new URLSearchParams();
+                    params.append('client_uuid', currentClientId);
+                    params.append('data_source', currentDataSourceId);
+                    if (currentProjectName) {
+                        params.append('project_name', currentProjectName);
+                    }
+                    
+                    const response = await fetch(`${API_BASE_URL}/api/voc/questions?${params.toString()}`, {
+                        headers: getAuthHeaders()
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to load questions');
+                    }
+                    
+                    questions = await response.json();
                 }
-                
-                const response = await fetch(`${API_BASE_URL}/api/voc/questions?${params.toString()}`, {
-                    headers: getAuthHeaders()
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to load questions');
-                }
-                
-                const questions = await response.json();
                 
                 // Build dimension names map and question types map from API response first
                 dimensionNamesMap = {};

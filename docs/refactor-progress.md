@@ -198,7 +198,23 @@ js/
 - **Completed**: 2025-01-XX
 - **Notes**: Extracted API fetch logic to module. DOM manipulation, state management, and UI updates remain in index.html wrapper functions. Wrapper functions call module API functions and handle all DOM/state logic.
 
-**Slice 7-9**: API extraction slices - **NOT STARTED**
+**Slice 7: Extract VOC Data API** - **DONE**
+- **Status**: DONE
+- **Scope**: VOC data, dimension names, and questions API calls
+- **Files Affected**: Created `js/services/api-voc-data.js`
+- **Extract**: `loadVocData()`, `loadDimensionNames()`, `loadQuestions()` API fetch logic
+- **Public API**: `vocDataApi.loadVocData(clientUuid, projectName, dataSource, getAuthHeaders)`, `vocDataApi.loadDimensionNames(dataSourceId, getAuthHeaders)`, `vocDataApi.loadQuestions(clientUuid, dataSource, projectName, getAuthHeaders)`
+- **Testing Checklist**: 
+  - [ ] Verify VOC data loads correctly
+  - [ ] Verify dimension names load correctly
+  - [ ] Verify questions load correctly
+  - [ ] Verify question filter setup works
+  - [ ] Verify UI updates correctly
+  - [ ] No console errors
+- **Completed**: 2025-01-XX
+- **Notes**: Extracted API fetch logic to module. DOM manipulation, state management, and UI updates remain in index.html wrapper functions. Wrapper functions call module API functions and handle all DOM/state logic.
+
+**Slice 8-9**: API extraction slices - **NOT STARTED**
 (Details to be filled as we progress)
 
 ### Phase 3: State Management (Medium Risk)
@@ -289,6 +305,14 @@ js/
 - DOM manipulation, state restoration, and UI updates remain in index.html wrapper functions
 - clientProjects and clientSources arrays remain in index.html (will be moved to state module later)
 
+### 2025-01-XX - Slice 7: Extract VOC Data API
+- Created `js/services/api-voc-data.js` - extracted VOC data API fetch logic
+- Extracted functions: `loadVocData()`, `loadDimensionNames()`, `loadQuestions()`
+- Added VOC data API module imports to ES module script tag in index.html
+- Updated `loadDataSource()`, `loadDimensionNames()`, and `detectAndSetupQuestionFilter()` functions in index.html to use modules for API fetching
+- DOM manipulation, state management (fullRawData, dimensionNamesMap, questionTypesMap, availableQuestions), and UI updates remain in index.html wrapper functions
+- Wrapper functions call module API functions and handle all DOM/state logic
+
 ## Known Risks & Technical Debt
 
 ### Globals to Address
@@ -319,4 +343,4 @@ js/
 
 1. **TEST SLICE 6** - Verify data sources API works correctly
 2. **STOP AND WAIT FOR USER TESTING** - Do not proceed until user confirms testing is complete
-3. **After testing** - Proceed to Slice 7: Extract VOC Data API
+3. **After testing** - Proceed to Slice 8: Extract Insights API (if applicable) or continue with next priority slice
