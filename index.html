@@ -435,6 +435,29 @@
         window.insightsStateGetInsightsState = insightsStateGetInsightsState;
         window.insightsStateSetInsightsState = insightsStateSetInsightsState;
         window.insightsStateResetInsightsState = insightsStateResetInsightsState;
+        
+        // Make history state functions available globally for backward compatibility
+        window.historyStateGetHistoryCurrentClientId = historyStateGetHistoryCurrentClientId;
+        window.historyStateSetHistoryCurrentClientId = historyStateSetHistoryCurrentClientId;
+        window.historyStateGetHistoryAllActions = historyStateGetHistoryAllActions;
+        window.historyStateSetHistoryAllActions = historyStateSetHistoryAllActions;
+        window.historyStateGetHistorySearchTerm = historyStateGetHistorySearchTerm;
+        window.historyStateSetHistorySearchTerm = historyStateSetHistorySearchTerm;
+        window.historyStateGetSelectedHistoryIds = historyStateGetSelectedHistoryIds;
+        window.historyStateSetSelectedHistoryIds = historyStateSetSelectedHistoryIds;
+        window.historyStateAddSelectedHistoryId = historyStateAddSelectedHistoryId;
+        window.historyStateRemoveSelectedHistoryId = historyStateRemoveSelectedHistoryId;
+        window.historyStateHasSelectedHistoryId = historyStateHasSelectedHistoryId;
+        window.historyStateClearSelectedHistoryIds = historyStateClearSelectedHistoryIds;
+        window.historyStateGetHistoryCurrentSortBy = historyStateGetHistoryCurrentSortBy;
+        window.historyStateSetHistoryCurrentSortBy = historyStateSetHistoryCurrentSortBy;
+        window.historyStateGetHistorySortOrder = historyStateGetHistorySortOrder;
+        window.historyStateSetHistorySortOrder = historyStateSetHistorySortOrder;
+        window.historyStateGetHistoryInitialized = historyStateGetHistoryInitialized;
+        window.historyStateSetHistoryInitialized = historyStateSetHistoryInitialized;
+        window.historyStateGetHistoryState = historyStateGetHistoryState;
+        window.historyStateSetHistoryState = historyStateSetHistoryState;
+        window.historyStateResetHistoryState = historyStateResetHistoryState;
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
