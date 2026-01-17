@@ -20020,7 +20020,7 @@
                             
                             <!-- Category bar -->
                             <div style="margin-bottom: 0.5rem; cursor: pointer;"
-                                 onclick="SlideoutPanel.navigateToVerbatimsFromChart(null, '${escapeHtml(category.name)}')">
+                                 onclick="SlideoutPanel.navigateToVerbatimsFromChart(null, '${escapeHtmlFn(category.name).replace(/'/g, "\\'")}')">
                                 <div style="position: relative; height: 24px; background: oklch(0.97 0 0); border-radius: 4px; overflow: hidden;">
                                     <div style="height: 100%; width: ${(category.percent / maxPercent) * 100}%; background: ${baseColor}; transition: width 0.3s ease;"></div>
                                     <div style="position: absolute; top: 50%; left: 8px; transform: translateY(-50%); font-size: 0.75rem; color: ${category.percent / maxPercent > 0.15 ? '#fff' : 'oklch(0.145 0 0)'}; font-weight: 500;">
