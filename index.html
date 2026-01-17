@@ -15962,7 +15962,13 @@
             }
             
             // Update all pills with this tag across all insights
-            document.querySelectorAll(`.insight-pill[data-value="${escapeHtml(tagValue)}"]`).forEach(pill => {
+            const escapeHtmlFn = window.escapeHtml || ((s) => {
+                if (s == null) return '';
+                const div = document.createElement('div');
+                div.textContent = s;
+                return div.innerHTML;
+            });
+            document.querySelectorAll(`.insight-pill[data-value="${escapeHtmlFn(tagValue)}"]`).forEach(pill => {
                 const pillFieldName = pill.closest('.insight-multiselect-cell')?.dataset.field;
                 if (pillFieldName === fieldName) {
                     const color = getTagColor(fieldName, tagValue);
