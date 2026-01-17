@@ -16244,6 +16244,14 @@
 
         // Helper function to update pills display without re-rendering entire table
         function updateMultiSelectPills(insightId, fieldName, values) {
+            // Ensure escapeHtml is available with fallback
+            const escapeHtmlFn = window.escapeHtml || ((s) => {
+                if (s == null) return '';
+                const div = document.createElement('div');
+                div.textContent = s;
+                return div.innerHTML;
+            });
+            
             const cell = document.getElementById(`multiselect-${fieldName}-${insightId}`);
             if (!cell) return;
 
@@ -16255,8 +16263,8 @@
                 const style = getPillStyle(fieldName, value);
                 // Escape single quotes and backslashes for JavaScript string in onclick handler
                 const valueEscapedJs = String(value).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-                return `<span class="insight-pill" data-value="${escapeHtml(value)}" style="${style}">
-                    ${escapeHtml(value)}
+                return `<span class="insight-pill" data-value="${escapeHtmlFn(value)}" style="${style}">
+                    ${escapeHtmlFn(value)}
                     <button class="pill-remove" onclick="event.stopPropagation(); event.preventDefault(); removeMultiSelectValue('${insightId}', '${fieldName}', '${valueEscapedJs}')">×</button>
                 </span>`;
             }).join('');
