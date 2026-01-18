@@ -355,10 +355,6 @@ export function renderTreemap(data, options = {}) {
                 .text(`(${percent}%)`);
         }
     });
-    
-        categoriesCount: root.children?.length || 0,
-        leavesCount: root.leaves().length
-    });
 }
 
 /**
