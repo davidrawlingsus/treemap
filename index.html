@@ -11395,6 +11395,287 @@
 
         // Chart functions extracted to js/renderers/chart-renderer.js module
         // See renderBarChart, renderTopicsChart, renderHorizontalBarChart, toggleCategory
+
+        // Process data for multi_choice question type
+        function processMultiChoiceData() {
+            const valueMap = new Map();
+            let totalCount = 0;
+
+            const rowsToProcess = rawData;
+            
+            rowsToProcess.forEach(row => {
+                const value = (row.text || row.value || '').trim();
+                if (!value) return;
+
+                totalCount++;
+                
+                if (!valueMap.has(value)) {
+                    valueMap.set(value, {
+                        value: value,
+                        count: 0
+                    });
+                }
+                valueMap.get(value).count++;
+            });
+
+            const values = Array.from(valueMap.values())
+                .map(item => ({
+                    value: item.value,
+                    count: item.count,
+                    percent: totalCount > 0 ? (item.count / totalCount) * 100 : 0
+                }))
+                .sort((a, b) => b.count - a.count);
+
+            return { values, totalCount };
+        }
+
+        // Process data for numeric question type
+        function processNumericData() {
+            const valueMap = new Map();
+            let totalCount = 0;
+
+            const rowsToProcess = currentQuestionRefKey 
+                ? fullRawData.filter(row => row.dimension_ref === currentQuestionRefKey)
+                : fullRawData;
+            
+            rowsToProcess.forEach(row => {
+                const value = row.value ? row.value.trim() : null;
+                if (!value) return;
+
+                const numValue = parseFloat(value);
+                if (isNaN(numValue)) return;
+
+                totalCount++;
+
+                if (!valueMap.has(value)) {
+                    valueMap.set(value, {
+                        value: value,
+                        numericValue: numValue,
+                        count: 0
+                    });
+                }
+                valueMap.get(value).count++;
+            });
+
+            const values = Array.from(valueMap.values())
+                .map(item => ({
+                    value: item.value,
+                    numericValue: item.numericValue,
+                    count: item.count,
+                    percent: totalCount > 0 ? (item.count / totalCount) * 100 : 0
+                }))
+                .sort((a, b) => b.count - a.count);
+
+            return { values, totalCount };
+        }
+
+        // Process data for geo question type
+        function processGeoData() {
+            const stateMap = new Map();
+            let totalCount = 0;
+
+            const rowsToProcess = currentQuestionRefKey 
+                ? fullRawData.filter(row => row.dimension_ref === currentQuestionRefKey)
+                : fullRawData;
+            
+            rowsToProcess.forEach(row => {
+                const value = row.value ? row.value.trim() : null;
+                if (!value) return;
+
+                totalCount++;
+                const stateCode = getStateCode(value);
+                
+                if (!stateCode) {
+                    if (!stateMap.has(value)) {
+                        stateMap.set(value, {
+                            stateName: value,
+                            stateCode: null,
+                            count: 0
+                        });
+                    }
+                    stateMap.get(value).count++;
+                } else {
+                    if (!stateMap.has(stateCode)) {
+                        stateMap.set(stateCode, {
+                            stateName: value,
+                            stateCode: stateCode,
+                            count: 0
+                        });
+                    }
+                    stateMap.get(stateCode).count++;
+                }
+            });
+
+            const states = Array.from(stateMap.values())
+                .map(item => ({
+                    stateName: item.stateName,
+                    stateCode: item.stateCode,
+                    count: item.count,
+                    percent: totalCount > 0 ? (item.count / totalCount) * 100 : 0
+                }))
+                .sort((a, b) => b.count - a.count);
+
+            return { states, totalCount };
+        }
+
+        // Render US state choropleth map for geo question type
+        async function renderGeoMap(data) {
+            const container = document.querySelector('.treemap-svg-container');
+            const svg = d3.select('#treemap');
+            
+            if (!container || !svg.node()) {
+                console.error('Map container not found');
+                return;
+            }
+            
+            svg.selectAll('*').remove();
+            
+            const width = container.clientWidth || 800;
+            const height = container.clientHeight || 600;
+            
+            svg.attr('width', width).attr('height', height);
+            
+            const stateDataMap = new Map();
+            data.states.forEach(state => {
+                if (state.stateCode) {
+                    stateDataMap.set(state.stateCode, state.count);
+                }
+            });
+            
+            const counts = Array.from(stateDataMap.values());
+            const minCount = counts.length > 0 ? Math.min(...counts) : 0;
+            const maxCount = counts.length > 0 ? Math.max(...counts) : 1;
+            
+            const colorScale = d3.scaleSequential()
+                .domain([minCount, maxCount])
+                .interpolator(d3.interpolateRgb('#fff7bc', '#d73027'));
+            
+            try {
+                const us = await d3.json('https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json');
+                
+                const projection = d3.geoAlbersUsa()
+                    .scale(1070)
+                    .translate([width / 2, height / 2]);
+                
+                const path = d3.geoPath().projection(projection);
+                
+                const states = topojson.feature(us, us.objects.states);
+                
+                svg.append('g')
+                    .selectAll('path')
+                    .data(states.features)
+                    .enter()
+                    .append('path')
+                    .attr('d', path)
+                    .attr('fill', d => {
+                        const fipsCode = String(d.id);
+                        const stateCode = fipsToStateCode[fipsCode];
+                        const count = stateCode ? (stateDataMap.get(stateCode) || 0) : 0;
+                        return count > 0 ? colorScale(count) : '#f0f0f0';
+                    })
+                    .attr('stroke', '#fff')
+                    .attr('stroke-width', 0.5)
+                    .style('cursor', 'pointer')
+                    .on('mouseover', function(event, d) {
+                        d3.select(this)
+                            .attr('stroke', '#333')
+                            .attr('stroke-width', 2);
+                        
+                        const fipsCode = String(d.id);
+                        const stateCode = fipsToStateCode[fipsCode];
+                        const state = stateCode ? data.states.find(s => s.stateCode === stateCode) : null;
+                        const count = state ? state.count : 0;
+                        const percent = state ? state.percent : 0;
+                        const stateName = state ? state.stateName : (d.properties?.name || fipsCode);
+                        
+                        const tooltip = d3.select('body').append('div')
+                            .attr('class', 'geo-tooltip')
+                            .style('opacity', 0)
+                            .style('position', 'absolute')
+                            .style('background', 'rgba(0, 0, 0, 0.8)')
+                            .style('color', 'white')
+                            .style('padding', '8px 12px')
+                            .style('border-radius', '4px')
+                            .style('pointer-events', 'none')
+                            .style('font-size', '12px')
+                            .style('z-index', '10000');
+                        
+                        tooltip.html(`
+                            <strong>${stateName}</strong><br>
+                            Count: ${count}<br>
+                            ${percent.toFixed(1)}%
+                        `)
+                            .style('left', (event.pageX + 10) + 'px')
+                            .style('top', (event.pageY - 10) + 'px')
+                            .transition()
+                            .duration(200)
+                            .style('opacity', 1);
+                    })
+                    .on('mouseout', function() {
+                        d3.select(this)
+                            .attr('stroke', '#fff')
+                            .attr('stroke-width', 0.5);
+                        
+                        d3.selectAll('.geo-tooltip').remove();
+                    });
+                
+                const legendWidth = 200;
+                const legendHeight = 20;
+                const legendX = width - legendWidth - 20;
+                const legendY = height - legendHeight - 20;
+                
+                const legend = svg.append('g')
+                    .attr('transform', `translate(${legendX}, ${legendY})`);
+                
+                const gradientId = 'geo-legend-gradient';
+                const defs = svg.append('defs');
+                const gradient = defs.append('linearGradient')
+                    .attr('id', gradientId)
+                    .attr('x1', '0%')
+                    .attr('x2', '100%');
+                
+                const numStops = 10;
+                for (let i = 0; i <= numStops; i++) {
+                    const value = minCount + (maxCount - minCount) * (i / numStops);
+                    gradient.append('stop')
+                        .attr('offset', `${(i / numStops) * 100}%`)
+                        .attr('stop-color', colorScale(value));
+                }
+                
+                legend.append('rect')
+                    .attr('width', legendWidth)
+                    .attr('height', legendHeight)
+                    .style('fill', `url(#${gradientId})`)
+                    .style('stroke', '#ccc')
+                    .style('stroke-width', 1);
+                
+                legend.append('text')
+                    .attr('x', 0)
+                    .attr('y', -5)
+                    .style('font-size', '11px')
+                    .style('fill', '#666')
+                    .text(`${minCount}`);
+                
+                legend.append('text')
+                    .attr('x', legendWidth)
+                    .attr('y', -5)
+                    .style('font-size', '11px')
+                    .style('fill', '#666')
+                    .style('text-anchor', 'end')
+                    .text(`${maxCount}`);
+                
+            } catch (error) {
+                console.error('Error loading US states map:', error);
+                svg.append('text')
+                    .attr('x', width / 2)
+                    .attr('y', height / 2)
+                    .attr('text-anchor', 'middle')
+                    .style('font-size', '14px')
+                    .style('fill', '#999')
+                    .text('Error loading map data');
+            }
+        }
+
         // Inline Dimension Editor Functions
         
         let currentEditingRefKey = null;
