@@ -7673,6 +7673,11 @@
                 insightsCurrentClientId = clientId;
             }
             
+            // Load insights for the visualizations panel (async, doesn't block)
+            if (typeof loadInsightsPage === 'function') {
+                loadInsightsPage().catch(err => console.warn('Failed to load insights for panel:', err));
+            }
+            
             saveState();
             hasAutoLaunched = true;
             const loginContainer = document.querySelector('.login-container');
@@ -8073,6 +8078,11 @@
                     // Sync Insights tab client ID to keep both tabs in sync
                     if (typeof insightsCurrentClientId !== 'undefined') {
                         insightsCurrentClientId = newClientId;
+                    }
+                    
+                    // Load insights for the visualizations panel (async, doesn't block)
+                    if (typeof loadInsightsPage === 'function') {
+                        loadInsightsPage().catch(err => console.warn('Failed to load insights for panel:', err));
                     }
                     
                     // Update header logo for the selected client
@@ -13680,6 +13690,11 @@
                         const dimensionCompare = aDimension.localeCompare(bDimension);
                         return insightsSortOrder === 'asc' ? dimensionCompare : -dimensionCompare;
                     });
+                }
+                
+                // Sync to module state so renderInsights() in visualizations panel has data
+                if (window.insightsStateSetAllInsights) {
+                    window.insightsStateSetAllInsights(insightsAllInsights);
                 }
                 
                 // Restore visible filter dropdowns after loading insights (so we have data for dropdown options)
