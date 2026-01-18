@@ -360,7 +360,23 @@ js/
 - **Completed**: 2025-01-XX
 - **Notes**: Extracted renderInsights function to module. Function uses state modules (getAllInsights, getInsightsSearchTerm, getInsightsCurrentFilters, etc.) for state access. Wrapper function in index.html calls module function with fallback. Module handles all rendering logic including filtering, sorting, search, and pinning of overview insights.
 
-**Slice 23-24**: Additional renderer extraction slices - **NOT STARTED**
+**Slice 23: Extract History Renderer** - **DONE**
+- **Status**: DONE
+- **Scope**: History table rendering logic
+- **Files Affected**: Created `js/renderers/history-renderer.js`
+- **Extract**: `renderHistoryTable()` function - table rendering with filtering, sorting, and origin pills
+- **Public API**: `historyRenderer.renderHistoryTable()` - renders history table using state modules
+- **Testing Checklist**: 
+  - [x] Verify history table renders correctly
+  - [x] Verify filtering works
+  - [x] Verify sorting works
+  - [x] Verify search works
+  - [x] Verify origin pills display correctly
+  - [x] No console errors
+- **Completed**: 2025-01-18
+- **Notes**: Extracted renderHistoryTable function to module. Function uses state modules (getHistoryAllActions, getHistorySearchTerm, etc.) for state access. Wrapper function in index.html syncs local state to module before calling. Also fixed duplicate export in color-schemes.js and mismatched variable names that were breaking ES module chain.
+
+**Slice 24**: Additional renderer extraction slices - **NOT STARTED**
 (Details to be filled as we progress)
 
 ### Phase 6: Controllers (Highest Risk)
@@ -656,6 +672,18 @@ js/
 - Module functions exposed globally for backward compatibility
 - All rendering logic including filtering, sorting, search, and pinning of overview insights handled by module
 
+### 2025-01-18 - Slice 23: Extract History Renderer
+- Created `js/renderers/history-renderer.js` - extracted history table rendering logic
+- Extracted function: `renderHistoryTable()` - renders history table with filtering, sorting, and origin pills
+- Added history-renderer module imports to ES module script tag in index.html
+- Module function uses state modules (getHistoryAllActions, getHistorySearchTerm, etc.) for state access
+- Module function uses format utils (highlightSearchTerms, toPascalCase) and dom utils (escapeHtml)
+- Replaced `renderHistoryTable()` function in index.html with wrapper that syncs state and calls module
+- Fixed duplicate export in `color-schemes.js` that was breaking entire ES module chain
+- Fixed mismatched variable names (formatStateNameToCode, domDebounce, etc.) in ES module script
+- Module functions exposed globally for backward compatibility
+- All rendering logic including filtering, sorting, and origin pill display handled by module
+
 ## Known Risks & Technical Debt
 
 ### Globals to Address
@@ -684,19 +712,19 @@ js/
 
 ## Current Status & Next Steps
 
-### ✅ Completed (22 Slices)
+### ✅ Completed (23 Slices)
 - **Phase 1: Foundation** - Utilities, Storage, Auth, API Config (Slices 1-4)
 - **Phase 2: API Services** - Clients, Data Sources, VOC Data, Insights APIs (Slices 5-8)
 - **Phase 3: State Management** - All major state modules extracted (Slices 10-20)
 - **Phase 4: Additional Utilities** - Format utilities (Slice 21)
-- **Phase 5: Renderers** - Insights renderer (Slice 22)
+- **Phase 5: Renderers** - Insights renderer (Slice 22), History renderer (Slice 23)
 
 ### 📊 Progress Summary
-- **Slices Completed**: 22
-- **Modules Created**: 21+ (utils, services, state, controllers, config, renderers)
-- **Lines Extracted**: ~2,760 lines to modules (estimate: 2,626 + ~134 from renderInsights)
-- **Current index.html**: ~22,644 lines (includes fallback code)
-- **Status**: ✅ **STABLE - Ready to resume**
+- **Slices Completed**: 23
+- **Modules Created**: 22+ (utils, services, state, controllers, config, renderers)
+- **Lines Extracted**: ~2,960 lines to modules (estimate: 2,760 + ~200 from renderHistoryTable)
+- **Current index.html**: ~22,500 lines (reduced due to history renderer extraction)
+- **Status**: ✅ **STABLE - Ready to continue**
 
 ### 🔧 Recent Fixes
 - Fixed `debounce` and `escapeHtml` fallbacks in `renderTreemap` and `renderInsights`
@@ -707,7 +735,7 @@ js/
 
 **Option A: Continue with Renderers (Higher Impact)**
 1. ~~Extract `renderInsights()` - simpler insights table rendering~~ ✅ **DONE**
-2. Extract `renderHistoryTable()` - history table rendering
+2. ~~Extract `renderHistoryTable()` - history table rendering~~ ✅ **DONE**
 3. Extract `renderVerbatims()` - verbatim card rendering
 4. Extract `renderTreemap()` - complex D3 treemap (highest risk)
 
