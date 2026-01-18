@@ -8523,7 +8523,6 @@
                     console.log(`Note: ${rowsWithoutTopics} row(s) without topics (expected behavior - some dimensions may not have topics)`);
                 }
                 if (result.length > 0) {
-                    console.log(`Sample grouped row:`, JSON.stringify(result[0], null, 2).substring(0, 300));
                 }
                 
                 return result;
@@ -8583,7 +8582,6 @@
                     console.log(`Note: ${rowsWithoutTopics} row(s) without topics${dimensionRef ? ` for dimension ${dimensionRef}` : ''} (expected behavior - some dimensions may not have topics)`);
                 }
                 if (result.length > 0) {
-                    console.log(`Sample grouped row:`, JSON.stringify(result[0], null, 2).substring(0, 300));
                 }
                 
                 return result;
@@ -9218,7 +9216,6 @@
                 
                 // Log sample of first row to see what metadata looks like
                 if (filteredData.length > 0) {
-                    console.log('Sample row metadata:', JSON.stringify(filteredData[0].metadata, null, 2));
                 }
                 
                 // Reset debug flags for all rules
@@ -9814,7 +9811,6 @@
                 });
             });
             
-            console.log('About to populate filter selection list with currentFilterSelections:', Array.from(currentFilterSelections));
             populateFilterSelectionList();
             updateFilterSelectionSearchClearButton();
             console.log('=== showFilterSelectionView() completed ===');
@@ -9910,7 +9906,6 @@
         function populateFilterSelectionList() {
             console.log('=== populateFilterSelectionList() called ===');
             console.log('currentFilterType:', currentFilterType);
-            console.log('currentFilterSelections:', Array.from(currentFilterSelections || []));
             
             const filterList = document.getElementById('filterSelectionList');
             if (!filterList) {
@@ -10170,7 +10165,6 @@
             
             // Log a sample row for debugging
             if (rawData.length > 0) {
-                console.log('Sample row:', JSON.stringify(rawData[0], null, 2).substring(0, 500));
             }
         }
 
@@ -12463,7 +12457,6 @@
             
             const authTokenFromUrl = urlParams.get('auth_token');
             if (authTokenFromUrl) {
-                console.log('[DEBUG] Found auth_token in URL, storing in localStorage');
                 localStorage.setItem('visualizd_auth_token', authTokenFromUrl);
             }
 
@@ -12479,7 +12472,6 @@
                 if (currentClientId) {
                     insightsCurrentClientId = currentClientId;
                 } else {
-                    console.error('[DEBUG] currentClientId never became available');
                     const tbody = document.getElementById('insightsTableBody') || document.getElementById('insightsPageTableBody');
                     if (tbody) {
                         tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>No client specified</h3><p style="font-size: 12px; color: #999;">Please select a client first</p></td></tr>';
@@ -12489,7 +12481,6 @@
                 }
             }
 
-            console.log('[DEBUG] Client ID is valid, proceeding to load insights...');
             
             // Load filters from storage on initialization
             loadFiltersFromStorage();
@@ -12524,7 +12515,6 @@
                     if (!clickedInsideDropdown && !clickedInsideButton && isDropdownVisible) {
                         dropdown.classList.remove('active');
                         dropdown.style.display = 'none';
-                        console.log('[DEBUG click-outside] Closed main filter dropdown');
                     }
                 }
                 
@@ -12545,7 +12535,6 @@
                         const header = inlineDropdown.querySelector('.inline-filter-header');
                         const options = inlineDropdown.querySelector('.inline-filter-options');
                         if (header && options && options.classList.contains('open')) {
-                            console.log('[DEBUG click-outside] Closing inline filter dropdown');
                             header.classList.remove('open');
                             options.classList.remove('open');
                             options.style.display = 'none';
@@ -12558,17 +12547,14 @@
         async function loadInsightsPage() {
             
             if (!insightsCurrentClientId) {
-                console.error('[DEBUG] No client ID, cannot load insights');
                 return;
             }
 
             const tbody = document.getElementById('insightsPageTableBody');
             if (!tbody) {
-                console.error('[DEBUG] insightsPageTableBody element not found');
                 return;
             }
             
-            console.log('[DEBUG] Table body element found, showing loading state');
             tbody.innerHTML = '<tr><td colspan="9" class="loading">Loading insights...</td></tr>';
 
             try {
@@ -12757,7 +12743,6 @@
                         return false;
                     });
                 });
-                console.log('[DEBUG] After filters:', filtered.length, 'insights remain');
             }
 
             if (filtered.length === 0) {
@@ -12809,7 +12794,6 @@
                     application: `<td data-column="application" onclick="event.stopPropagation();">${createMultiSelectCell(insight.id, 'application', normalizeFieldToArray(insight.application, 'application'), [])}</td>`,
                     status: `<td data-column="status">
                         <select class="status-select" 
-                                onchange="console.log('[DEBUG status-select onchange] Triggered for insight:', '${insight.id}', 'new value:', this.value); updateInsightStatus('${insight.id}', this.value)" 
                                 onclick="event.stopPropagation()"
                                 data-insight-id="${insight.id}"
                                 data-current-status="${insight.status || 'Not Started'}">
@@ -13299,7 +13283,6 @@
             // Find the dropdown in the insights section (not the insights panel)
             const insightsSection = document.getElementById('insights-section');
             const dropdown = insightsSection ? insightsSection.querySelector('#filterDropdown') : document.getElementById('filterDropdown');
-            console.log('[DEBUG] toggleFilterMenu called, dropdown:', dropdown);
             if (dropdown) {
                 const wasActive = dropdown.classList.contains('active');
                 // Close all other dropdowns first
@@ -13325,9 +13308,7 @@
                         if (searchInput) searchInput.focus();
                     }, 100);
                 }
-                console.log('[DEBUG] Dropdown active state:', dropdown.classList.contains('active'), 'display:', dropdown.style.display);
             } else {
-                console.error('[DEBUG] filterDropdown element not found!');
             }
         }
         
@@ -13363,36 +13344,28 @@
         
         // Open filter value dialog - now creates inline dropdown
         function openFilterValueDialog(fieldId) {
-            console.log('[DEBUG openFilterValueDialog] Called with fieldId:', fieldId);
             const field = FILTER_FIELDS.find(f => f.id === fieldId);
             if (!field) {
-                console.error('[DEBUG openFilterValueDialog] Field not found:', fieldId);
                 return;
             }
-            console.log('[DEBUG openFilterValueDialog] Found field:', field);
             
             // Close the main filter menu first
             const insightsSection = document.getElementById('insights-section');
             const mainDropdown = insightsSection ? insightsSection.querySelector('#filterDropdown') : document.getElementById('filterDropdown');
-            console.log('[DEBUG openFilterValueDialog] Main dropdown:', mainDropdown);
             if (mainDropdown) {
                 mainDropdown.classList.remove('active');
                 mainDropdown.style.display = 'none';
-                console.log('[DEBUG openFilterValueDialog] Closed main dropdown');
             }
             
             // Check if this filter dropdown already exists
             const existingDropdown = document.getElementById(`inline-filter-${fieldId}`);
-            console.log('[DEBUG openFilterValueDialog] Existing dropdown:', existingDropdown);
             if (existingDropdown) {
                 // Toggle it if it already exists
                 const header = existingDropdown.querySelector('.inline-filter-header');
                 const options = existingDropdown.querySelector('.inline-filter-options');
-                console.log('[DEBUG openFilterValueDialog] Toggling existing dropdown, header:', header, 'options:', options);
                 if (header && options) {
                     header.classList.toggle('open');
                     options.classList.toggle('open');
-                    console.log('[DEBUG openFilterValueDialog] Toggled classes. Header open:', header.classList.contains('open'), 'Options open:', options.classList.contains('open'));
                     // Update checkbox states to reflect current filter state (in case filters were loaded from storage)
                     updateInlineFilterOptions(fieldId);
                 }
@@ -13401,13 +13374,10 @@
             
             // Get unique values for this field from insights
             const values = field.type === 'select' ? getUniqueFieldValues(fieldId) : [];
-            console.log('[DEBUG openFilterValueDialog] Got values:', values);
             
             // Create inline filter dropdown
             const filterChipsContainer = document.getElementById('filterChips');
-            console.log('[DEBUG openFilterValueDialog] Filter chips container:', filterChipsContainer);
             if (!filterChipsContainer) {
-                console.error('[DEBUG openFilterValueDialog] Filter chips container not found!');
                 return;
             }
             
@@ -13415,7 +13385,6 @@
             inlineFilter.className = 'inline-filter-dropdown';
             inlineFilter.id = `inline-filter-${fieldId}`;
             inlineFilter.setAttribute('data-just-created', 'true'); // Flag to prevent immediate closing
-            console.log('[DEBUG openFilterValueDialog] Created inline filter element:', inlineFilter);
             
             let optionsHTML = '';
             if (field.type === 'select') {
@@ -13471,15 +13440,12 @@
             setTimeout(() => {
                 updateInlineFilterHeader(fieldId);
             }, 0);
-            console.log('[DEBUG openFilterValueDialog] Set innerHTML, optionsHTML length:', optionsHTML.length);
             
             // Debug: Check checkboxes after rendering
             setTimeout(() => {
                 const checkboxes = inlineFilter.querySelectorAll('.inline-filter-checkbox');
-                console.log('[DEBUG openFilterValueDialog] After rendering, found', checkboxes.length, 'checkboxes');
                 checkboxes.forEach((cb, idx) => {
                     const computedStyle = window.getComputedStyle(cb);
-                    console.log(`[DEBUG openFilterValueDialog] Checkbox ${idx}:`, {
                         checked: cb.checked,
                         value: cb.value,
                         type: cb.type,
@@ -13496,26 +13462,17 @@
             
             // Insert before the filter button container
             const filterButtonContainer = filterChipsContainer.nextElementSibling;
-            console.log('[DEBUG openFilterValueDialog] Filter button container:', filterButtonContainer);
             if (filterButtonContainer) {
                 filterChipsContainer.parentNode.insertBefore(inlineFilter, filterButtonContainer);
-                console.log('[DEBUG openFilterValueDialog] Inserted before button container');
             } else {
                 filterChipsContainer.parentNode.appendChild(inlineFilter);
-                console.log('[DEBUG openFilterValueDialog] Appended to parent');
             }
             
             // Ensure the dropdown is open after insertion
             // Use a longer delay to ensure click events have processed
             setTimeout(() => {
-                console.log('[DEBUG openFilterValueDialog] Checking dropdown state after insertion');
                 const header = inlineFilter.querySelector('.inline-filter-header');
                 const options = inlineFilter.querySelector('.inline-filter-options');
-                console.log('[DEBUG openFilterValueDialog] Header element:', header);
-                console.log('[DEBUG openFilterValueDialog] Options element:', options);
-                console.log('[DEBUG openFilterValueDialog] Header classes:', header ? header.className : 'null');
-                console.log('[DEBUG openFilterValueDialog] Options classes:', options ? options.className : 'null');
-                console.log('[DEBUG openFilterValueDialog] Options computed display:', options ? window.getComputedStyle(options).display : 'null');
                 
                 if (header && options) {
                     // Force the classes to be set
@@ -13523,13 +13480,7 @@
                     options.classList.add('open');
                     // Also set style directly as backup
                     options.style.display = 'block';
-                    console.log('[DEBUG openFilterValueDialog] Added open classes and set display');
-                    console.log('[DEBUG openFilterValueDialog] Header has open:', header.classList.contains('open'));
-                    console.log('[DEBUG openFilterValueDialog] Options has open:', options.classList.contains('open'));
-                    console.log('[DEBUG openFilterValueDialog] Options style.display:', options.style.display);
-                    console.log('[DEBUG openFilterValueDialog] Options computed display after:', window.getComputedStyle(options).display);
                 } else {
-                    console.error('[DEBUG openFilterValueDialog] Header or options not found!');
                 }
             }, 50);
         }
@@ -13539,29 +13490,23 @@
             if (e) {
                 e.stopPropagation();
             }
-            console.log('[DEBUG toggleInlineFilterDropdown] Called with fieldId:', fieldId);
             const dropdown = document.getElementById(`inline-filter-${fieldId}`);
-            console.log('[DEBUG toggleInlineFilterDropdown] Dropdown:', dropdown);
             if (!dropdown) return;
             
             const header = dropdown.querySelector('.inline-filter-header');
             const options = dropdown.querySelector('.inline-filter-options');
-            console.log('[DEBUG toggleInlineFilterDropdown] Header:', header, 'Options:', options);
             
             if (header && options) {
                 const isOpen = options.classList.contains('open');
-                console.log('[DEBUG toggleInlineFilterDropdown] Currently open:', isOpen);
                 
                 if (isOpen) {
                     header.classList.remove('open');
                     options.classList.remove('open');
                     options.style.display = 'none';
-                    console.log('[DEBUG toggleInlineFilterDropdown] Closed dropdown');
                 } else {
                     header.classList.add('open');
                     options.classList.add('open');
                     options.style.display = 'block';
-                    console.log('[DEBUG toggleInlineFilterDropdown] Opened dropdown');
                 }
             }
         }
@@ -14139,54 +14084,40 @@
         }
 
         async function updateInsightStatus(insightId, status) {
-            console.log('[DEBUG updateInsightStatus] Function called');
-            console.log('[DEBUG updateInsightStatus] Parameters:', { insightId, status, insightsCurrentClientId });
             
             if (!insightsCurrentClientId) {
-                console.error('[DEBUG updateInsightStatus] No insightsCurrentClientId:', insightsCurrentClientId);
                 alert('Error: No client selected. Please refresh the page.');
                 return;
             }
             
             if (!insightId) {
-                console.error('[DEBUG updateInsightStatus] No insightId provided:', insightId);
                 alert('Error: No insight ID provided.');
                 return;
             }
             
             if (!status) {
-                console.error('[DEBUG updateInsightStatus] No status provided:', status);
                 alert('Error: No status value provided.');
                 return;
             }
             
-            console.log('[DEBUG updateInsightStatus] Starting status update...');
-            console.log('[DEBUG updateInsightStatus] API_BASE_URL:', API_BASE_URL);
-            console.log('[DEBUG updateInsightStatus] Full URL will be:', `${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights/${insightId}`);
             
             try {
                 const headers = getAuthHeadersSafe();
-                console.log('[DEBUG updateInsightStatus] Headers retrieved:', headers ? Object.keys(headers) : 'No headers');
                 
                 const token = headers?.Authorization || headers?.authorization || localStorage.getItem('visualizd_auth_token');
-                console.log('[DEBUG updateInsightStatus] Token retrieved:', token ? `Token exists (${token.substring(0, 20)}...)` : 'No token found');
                 
                 if (!token) {
-                    console.error('[DEBUG updateInsightStatus] Authentication failed - no token');
                     throw new Error('Not authenticated');
                 }
                 
                 const requestBody = { status: status };
-                console.log('[DEBUG updateInsightStatus] Request body:', requestBody);
                 
                 const requestHeaders = {
                     'Authorization': token.startsWith('Bearer') ? token : `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 };
-                console.log('[DEBUG updateInsightStatus] Request headers:', { ...requestHeaders, 'Authorization': 'Bearer [REDACTED]' });
                 
                 const url = `${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights/${insightId}`;
-                console.log('[DEBUG updateInsightStatus] Making PUT request to:', url);
                 
                 const fetchStartTime = Date.now();
                 const response = await fetch(url, {
@@ -14196,17 +14127,11 @@
                 });
                 const fetchDuration = Date.now() - fetchStartTime;
                 
-                console.log('[DEBUG updateInsightStatus] Response received in', fetchDuration, 'ms');
-                console.log('[DEBUG updateInsightStatus] Response status:', response.status);
-                console.log('[DEBUG updateInsightStatus] Response statusText:', response.statusText);
-                console.log('[DEBUG updateInsightStatus] Response ok:', response.ok);
                 
                 if (!response.ok) {
                     const errorText = await response.text();
-                    console.error('[DEBUG updateInsightStatus] Response not OK. Error text:', errorText);
                     try {
                         const errorJson = JSON.parse(errorText);
-                        console.error('[DEBUG updateInsightStatus] Error JSON:', errorJson);
                         throw new Error(errorJson.detail || `Failed to update status: ${response.status} ${response.statusText}`);
                     } catch (parseError) {
                         throw new Error(`Failed to update status: ${response.status} ${response.statusText}. ${errorText}`);
@@ -14214,14 +14139,11 @@
                 }
                 
                 const responseData = await response.json();
-                console.log('[DEBUG updateInsightStatus] Response data:', responseData);
-                console.log('[DEBUG updateInsightStatus] Status update successful!');
                 
                 // Update local data without reloading
                 const insightIndex = insightsAllInsights.findIndex(insight => insight.id === insightId);
                 if (insightIndex !== -1) {
                     insightsAllInsights[insightIndex].status = status;
-                    console.log('[DEBUG updateInsightStatus] Updated local insight data');
                 }
                 
                 // Update the select element's data attribute and selected option
@@ -14229,13 +14151,8 @@
                 if (selectElement) {
                     selectElement.setAttribute('data-current-status', status);
                     selectElement.value = status;
-                    console.log('[DEBUG updateInsightStatus] Updated select element UI');
                 }
             } catch (error) {
-                console.error('[DEBUG updateInsightStatus] ERROR caught:', error);
-                console.error('[DEBUG updateInsightStatus] Error name:', error.name);
-                console.error('[DEBUG updateInsightStatus] Error message:', error.message);
-                console.error('[DEBUG updateInsightStatus] Error stack:', error.stack);
                 alert('Error updating status: ' + error.message);
             }
         }
@@ -16104,13 +16021,6 @@
         window.saveInsightName = saveInsightName;
         
         // Debug: Verify function is accessible
-        console.log('[DEBUG] ========== Function Exposure Check ==========');
-        console.log('[DEBUG] updateInsightStatus function exposed to window:', typeof window.updateInsightStatus);
-        console.log('[DEBUG] updateInsightStatus function:', window.updateInsightStatus);
-        console.log('[DEBUG] insightsCurrentClientId:', insightsCurrentClientId);
-        console.log('[DEBUG] API_BASE_URL:', API_BASE_URL);
-        console.log('[DEBUG] getAuthHeadersSafe function exists:', typeof getAuthHeadersSafe !== 'undefined');
-        console.log('[DEBUG] ============================================');
 
         // Close modal/panel handlers
         document.addEventListener('click', (e) => {
@@ -19580,7 +19490,6 @@
             
             const authTokenFromUrl = urlParams.get('auth_token');
             if (authTokenFromUrl) {
-                console.log('[DEBUG] Found auth_token in URL, storing in localStorage');
                 localStorage.setItem('visualizd_auth_token', authTokenFromUrl);
             }
 
@@ -19596,7 +19505,6 @@
                 if (currentClientId) {
                     historyCurrentClientId = currentClientId;
                 } else {
-                    console.error('[DEBUG] currentClientId never became available');
                     const tbody = document.getElementById('historyPageTableBody');
                     if (tbody) {
                         tbody.innerHTML = '<tr><td colspan="2" class="empty-state"><h3>No client specified</h3><p style="font-size: 12px; color: #999;">Please select a client first</p></td></tr>';
@@ -19606,7 +19514,6 @@
                 }
             }
 
-            console.log('[DEBUG] Client ID is valid, proceeding to load history...');
             
             await loadHistoryPage();
             window.historyInitialized = true;
@@ -19614,17 +19521,14 @@
 
         async function loadHistoryPage() {
             if (!historyCurrentClientId) {
-                console.error('[DEBUG] No client ID, cannot load history');
                 return;
             }
 
             const tbody = document.getElementById('historyPageTableBody');
             if (!tbody) {
-                console.error('[DEBUG] historyPageTableBody element not found');
                 return;
             }
             
-            console.log('[DEBUG] Table body element found, showing loading state');
             tbody.innerHTML = '<tr><td colspan="2" class="loading">Loading history...</td></tr>';
 
             try {
@@ -19645,13 +19549,11 @@
                 }
 
                 const actions = await response.json();
-                console.log('[DEBUG] History loaded:', actions.length, 'items');
                 
                 historyAllActions = actions;
                 renderHistoryTable();
                 
             } catch (error) {
-                console.error('[DEBUG] Error loading history:', error);
                 if (tbody) {
                     const escapeHtmlFn = window.escapeHtml || ((s) => {
                         if (s == null) return '';
