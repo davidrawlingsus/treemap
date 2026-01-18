@@ -9356,6 +9356,12 @@
             
             // Get current question type and render accordingly
             const questionType = getCurrentQuestionType();
+            console.log('[applyFiltersAndRender] Question type detection:', {
+                currentQuestionRefKey,
+                questionType,
+                questionTypesMapKeys: Object.keys(questionTypesMap),
+                questionTypesMap
+            });
             
             if (questionType === 'multi_choice' || questionType === 'numeric') {
                 // Update chart title with question text if available
@@ -9379,6 +9385,11 @@
                 const data = questionType === 'multi_choice' 
                     ? processMultiChoiceData() 
                     : processNumericData();
+                console.log('[applyFiltersAndRender] Multi-choice data:', {
+                    valuesCount: data.values?.length,
+                    totalCount: data.totalCount,
+                    sampleValues: data.values?.slice(0, 3)
+                });
                 renderHorizontalBarChart(data.values, 'barChart', data.totalCount, questionType === 'multi_choice');
                 // Update footer count
                 const totalCountEl = document.getElementById('totalCount');
@@ -11340,6 +11351,11 @@
         }
 
         function renderBarChart() {
+            console.log('[renderBarChart] Called with rawData:', {
+                length: rawData?.length,
+                sample: rawData?.[0],
+                hasTopics: rawData?.[0]?.topics?.length > 0
+            });
             if (window.chartRendererRenderBarChart) {
                 window.chartRendererRenderBarChart({
                     rawData,
@@ -11370,6 +11386,14 @@
         }
 
         function renderHorizontalBarChart(data, containerId, totalCount, isMultiChoice = false) {
+            console.log('[renderHorizontalBarChart] Called with:', {
+                dataLength: data?.length,
+                containerId,
+                totalCount,
+                isMultiChoice,
+                labelsEl: document.getElementById(`${containerId}Labels`),
+                barsEl: document.getElementById(`${containerId}Bars`)
+            });
             if (window.chartRendererRenderHorizontalBarChart) {
                 window.chartRendererRenderHorizontalBarChart(data, containerId, totalCount, isMultiChoice);
                 return;
