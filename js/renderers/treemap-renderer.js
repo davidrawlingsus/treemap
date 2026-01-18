@@ -5,22 +5,6 @@
 
 import { adjustBrightness } from '/js/utils/colors.js';
 
-// Debug logging helper
-function debugLog(location, message, data) {
-    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            location: `treemap-renderer.js:${location}`,
-            message,
-            data,
-            timestamp: Date.now(),
-            sessionId: 'debug-session',
-            runId: 'treemap-renderer'
-        })
-    }).catch(() => {});
-}
-
 // Module-level state for dimensions
 let width = 800;
 let height = 600;
@@ -87,7 +71,6 @@ function collectCategoryVerbatims(categoryData) {
  * @param {Object} options.hierarchyData - Reference to hierarchyData for resize handler
  */
 export function renderTreemap(data, options = {}) {
-    debugLog('renderTreemap:entry', 'Function called', { hasData: !!data });
     
     const {
         colorSchemes,
@@ -112,7 +95,6 @@ export function renderTreemap(data, options = {}) {
     if (!width || width < 100) width = 800;
     if (!height || height < 100) height = 600;
     
-    debugLog('renderTreemap:dimensions', 'Calculated dimensions', { width, height });
     
     const svg = d3.select('#treemap');
     svg.selectAll('*').remove();
@@ -141,7 +123,6 @@ export function renderTreemap(data, options = {}) {
         }, 250);
         window.addEventListener('resize', treemapResizeHandler);
         resizeHandlerAttached = true;
-        debugLog('renderTreemap:resizeHandler', 'Resize handler attached', {});
     }
 
     document.getElementById('verbatims').style.display = 'none';
@@ -162,7 +143,6 @@ export function renderTreemap(data, options = {}) {
             .style('font-size', '16px')
             .style('fill', '#999')
             .text('No data available for this dimension');
-        debugLog('renderTreemap:emptyData', 'No data to render', {});
         return;
     }
 
@@ -376,7 +356,6 @@ export function renderTreemap(data, options = {}) {
         }
     });
     
-    debugLog('renderTreemap:complete', 'Treemap rendered successfully', {
         categoriesCount: root.children?.length || 0,
         leavesCount: root.leaves().length
     });
