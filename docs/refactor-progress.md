@@ -344,7 +344,23 @@ js/
 
 ### Phase 5: Renderers (Higher Risk)
 
-**Slice 14-17**: Renderer extraction slices - **NOT STARTED**
+**Slice 22: Extract Insights Renderer** - **DONE**
+- **Status**: DONE
+- **Scope**: Insights table rendering logic
+- **Files Affected**: Created `js/renderers/insights-renderer.js`
+- **Extract**: `renderInsights()` function - table rendering with filtering, sorting, and pinning
+- **Public API**: `insightsRenderer.renderInsights(insights)` - renders insights table using state modules
+- **Testing Checklist**: 
+  - [ ] Verify insights table renders correctly
+  - [ ] Verify filtering works
+  - [ ] Verify sorting works
+  - [ ] Verify search works
+  - [ ] Verify pinning works
+  - [ ] No console errors
+- **Completed**: 2025-01-XX
+- **Notes**: Extracted renderInsights function to module. Function uses state modules (getAllInsights, getInsightsSearchTerm, getInsightsCurrentFilters, etc.) for state access. Wrapper function in index.html calls module function with fallback. Module handles all rendering logic including filtering, sorting, search, and pinning of overview insights.
+
+**Slice 23-24**: Additional renderer extraction slices - **NOT STARTED**
 (Details to be filled as we progress)
 
 ### Phase 6: Controllers (Highest Risk)
@@ -628,6 +644,18 @@ js/
 - Wrapper functions in index.html call module functions with fallback
 - Local function definitions kept for backward compatibility during migration
 
+### 2025-01-XX - Slice 22: Extract Insights Renderer
+- Created `js/renderers/insights-renderer.js` - extracted insights table rendering logic
+- Extracted function: `renderInsights()` - renders insights table with filtering, sorting, search, and pinning
+- Created `js/renderers/` directory for renderer modules
+- Added insights-renderer module imports to ES module script tag in index.html
+- Module function uses state modules (getAllInsights, getInsightsSearchTerm, getInsightsCurrentFilters, etc.) for state access
+- Module function uses format utils (getDimensionDisplayName, highlightSearchTerms, toPascalCase) and dom utils (escapeHtml)
+- Replaced `renderInsights()` function in index.html with wrapper that calls module function
+- Wrapper function includes fallback if module not loaded yet
+- Module functions exposed globally for backward compatibility
+- All rendering logic including filtering, sorting, search, and pinning of overview insights handled by module
+
 ## Known Risks & Technical Debt
 
 ### Globals to Address
@@ -656,17 +684,18 @@ js/
 
 ## Current Status & Next Steps
 
-### ✅ Completed (21 Slices)
+### ✅ Completed (22 Slices)
 - **Phase 1: Foundation** - Utilities, Storage, Auth, API Config (Slices 1-4)
 - **Phase 2: API Services** - Clients, Data Sources, VOC Data, Insights APIs (Slices 5-8)
 - **Phase 3: State Management** - All major state modules extracted (Slices 10-20)
 - **Phase 4: Additional Utilities** - Format utilities (Slice 21)
+- **Phase 5: Renderers** - Insights renderer (Slice 22)
 
 ### 📊 Progress Summary
-- **Slices Completed**: 21
-- **Modules Created**: 20+ (utils, services, state, controllers, config)
-- **Lines Extracted**: 2,626 lines to modules
-- **Current index.html**: 22,778 lines (includes fallback code)
+- **Slices Completed**: 22
+- **Modules Created**: 21+ (utils, services, state, controllers, config, renderers)
+- **Lines Extracted**: ~2,760 lines to modules (estimate: 2,626 + ~134 from renderInsights)
+- **Current index.html**: ~22,644 lines (includes fallback code)
 - **Status**: ✅ **STABLE - Ready to resume**
 
 ### 🔧 Recent Fixes
@@ -677,7 +706,7 @@ js/
 ### 🎯 Next Recommended Actions (When Resuming)
 
 **Option A: Continue with Renderers (Higher Impact)**
-1. Extract `renderInsights()` - simpler insights table rendering
+1. ~~Extract `renderInsights()` - simpler insights table rendering~~ ✅ **DONE**
 2. Extract `renderHistoryTable()` - history table rendering
 3. Extract `renderVerbatims()` - verbatim card rendering
 4. Extract `renderTreemap()` - complex D3 treemap (highest risk)
