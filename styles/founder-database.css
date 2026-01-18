@@ -1,0 +1,518 @@
+        :root {
+            --font-lato: 'Lato', sans-serif;
+            --brand-color: #B9F040;
+            --bg-black: #000000;
+            --text-white: #ffffff;
+            --bg: #f5f7fb;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --primary: #B9F040;
+            --primary-dark: #a0d636;
+            --danger: #e53e3e;
+            --text: #1a202c;
+            --muted: #718096;
+            --success: #48bb78;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-lato), "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .login-overlay {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(15, 23, 42, 0.85);
+            z-index: 999;
+        }
+
+        .login-overlay.hidden {
+            display: none;
+        }
+
+        .login-card {
+            background: var(--surface);
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 25px 50px -12px rgba(56, 66, 106, 0.35);
+            width: min(380px, 92vw);
+        }
+
+        .login-card h2 {
+            margin-bottom: 12px;
+        }
+
+        .login-card input {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 15px;
+            margin-bottom: 12px;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+            text-decoration: none;
+            font-family: var(--font-lato);
+        }
+
+        .btn-primary {
+            background: var(--brand-color);
+            color: var(--bg-black);
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: #edf2f7;
+            color: var(--text);
+        }
+
+        .btn-secondary:hover {
+            background: #e2e8f0;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c53030;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #appShell {
+            display: none;
+            min-height: 100vh;
+            flex-direction: column;
+        }
+
+        header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 24px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+
+        header h1 {
+            font-size: 26px;
+            font-weight: 600;
+            font-family: var(--font-lato);
+            margin: 0;
+        }
+
+        .breadcrumbs {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: var(--muted);
+            margin-bottom: 12px;
+            font-family: var(--font-lato);
+        }
+
+        .breadcrumbs a {
+            color: var(--bg-black);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumbs a:hover {
+            color: var(--brand-color);
+            text-decoration: underline;
+        }
+
+        .breadcrumbs-separator {
+            color: var(--muted);
+            opacity: 0.5;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            gap: 24px;
+            padding: 24px;
+            max-width: 1800px;
+            margin: 0 auto;
+            width: 100%;
+            overflow-x: hidden;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            height: fit-content;
+            position: sticky;
+            top: 24px;
+        }
+
+        .sidebar h2 {
+            font-size: 18px;
+            margin-bottom: 16px;
+        }
+
+        .table-list {
+            list-style: none;
+        }
+
+        .table-item {
+            padding: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-bottom: 6px;
+            transition: background 0.2s;
+        }
+
+        .table-item:hover {
+            background: #f7fafc;
+        }
+
+        .table-item.active {
+            background: var(--brand-color);
+            color: var(--bg-black);
+        }
+
+        .table-item-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .table-item-meta {
+            font-size: 12px;
+            opacity: 0.7;
+        }
+
+        .content-area {
+            flex: 1;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            min-width: 0;
+            overflow-x: hidden;
+        }
+
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .content-header h2 {
+            font-size: 22px;
+        }
+
+        .columns-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        .column-card {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px;
+            background: #f7fafc;
+        }
+
+        .column-card h3 {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .column-card .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-right: 6px;
+            margin-bottom: 6px;
+        }
+
+        .badge-primary {
+            background: var(--brand-color);
+            color: var(--bg-black);
+        }
+
+        .badge-type {
+            background: #edf2f7;
+            color: var(--text);
+        }
+
+        .badge-nullable {
+            background: #fed7d7;
+            color: var(--danger);
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            width: 100%;
+            margin-top: 16px;
+            -webkit-overflow-scrolling: touch;
+            max-width: 100%;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: max-content;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table td {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            vertical-align: top;
+            word-wrap: break-word;
+        }
+
+        /* Clip pre tags (for JSON objects) - ensure they don't expand the cell */
+        .data-table td pre {
+            max-width: 300px;
+            width: 100%;
+            overflow: hidden;
+            white-space: pre-wrap;
+            word-break: break-word;
+            margin: 0;
+            display: block;
+            box-sizing: border-box;
+        }
+
+        /* Allow flex containers to work properly (for business_summary with copy button) */
+        .data-table td > div {
+            white-space: normal;
+            overflow: visible;
+            max-width: none;
+        }
+
+        /* When td contains a div, allow it to expand */
+        .data-table td:has(> div) {
+            overflow: visible;
+            max-width: 400px;
+            white-space: normal;
+        }
+
+        .data-table th {
+            background: #f7fafc;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+
+        .data-table tr:hover {
+            background: #f7fafc;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 24px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border);
+        }
+
+        .pagination-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h3 {
+            font-size: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .alert-danger {
+            background: #fed7d7;
+            color: var(--danger);
+            border: 1px solid #fc8181;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--muted);
+        }
+
+        .empty-state h3 {
+            margin-bottom: 8px;
+        }
+
+        .column-row {
+            display: grid;
+            grid-template-columns: 2fr 1.5fr 100px 80px auto;
+            gap: 8px;
+            margin-bottom: 12px;
+            align-items: end;
+        }
+
+        .column-row input,
+        .column-row select {
+            padding: 8px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .column-row label {
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .column-row .form-group {
+            margin: 0;
+        }
+
+        .column-row .form-group input[type="checkbox"] {
+            width: auto;
+            cursor: pointer;
+            margin: 0;
+        }
+
+        .remove-column-btn {
+            background: var(--danger);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        .remove-column-btn:hover {
+            background: #c53030;
+        }
+
+        .copy-business-summary-btn:hover {
+            opacity: 1 !important;
+            background: #f7fafc;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                width: 100%;
+                position: relative;
+            }
+        }
