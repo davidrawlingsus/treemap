@@ -218,20 +218,8 @@ function createAxisLabels(container, ticks) {
  * @param {boolean} isMultiChoice - Whether this is a multi-choice chart
  */
 export function renderHorizontalBarChart(data, containerId, totalCount, isMultiChoice = false) {
-    console.log('[chart-renderer] renderHorizontalBarChart called:', {
-        dataLength: data?.length,
-        containerId,
-        totalCount,
-        isMultiChoice
-    });
-    
     const labelsContainer = document.getElementById(`${containerId}Labels`);
     const barsContainer = document.getElementById(`${containerId}Bars`);
-    
-    console.log('[chart-renderer] Containers:', {
-        labelsContainer: labelsContainer?.id,
-        barsContainer: barsContainer?.id
-    });
     
     if (!labelsContainer || !barsContainer) {
         console.error(`Containers not found for ${containerId}`);
@@ -352,20 +340,7 @@ export function renderBarChart(options = {}) {
         currentQuestionRefKey
     } = options;
     
-    console.log('[chart-renderer] renderBarChart received:', {
-        rawDataLength: rawData?.length,
-        rawDataSample: rawData?.[0],
-        hasTopics: rawData?.[0]?.topics?.length > 0
-    });
-    
     const { categories, totalTopicInstances } = processBarChartData(rawData);
-    
-    console.log('[chart-renderer] processBarChartData result:', {
-        categoriesCount: categories.length,
-        totalTopicInstances,
-        categoriesNames: categories.map(c => c.name)
-    });
-    
     const colorPalette = generateCategoryColorPalette();
     
     const totalCountEl = document.getElementById('totalCount');

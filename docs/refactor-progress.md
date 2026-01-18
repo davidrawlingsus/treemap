@@ -699,10 +699,24 @@ js/
 - Wrapper passes all dependencies (colorSchemes, currentProjectName, handlers, etc.)
 - Most complex renderer - highest risk extraction completed successfully
 
+### 2025-01-18 - Slice 26: Extract Chart Renderers (BIGGEST EXTRACTION)
+- Created `js/renderers/chart-renderer.js` (~750 lines) - extracted all chart rendering
+- Extracted functions:
+  - `renderBarChart()` - categorized bar chart with expandable topics
+  - `renderTopicsChart()` - flat topics bar chart
+  - `renderHorizontalBarChart()` - multi-choice/numeric horizontal bars
+  - `toggleCategory()` - category expand/collapse
+  - `generateCategoryColorPalette()`, `adjustColorLightness()` - color helpers
+  - `processBarChartData()`, `processTopicsData()` - data processing
+- **Reduced index.html by 1,031 lines** (22,344 → 21,313)
+- Fixed multi-choice label display bug (item.value vs item.label property mismatch)
+- Restored accidentally deleted functions: `processMultiChoiceData()`, `processNumericData()`, `processGeoData()`, `renderGeoMap()`
+
 ### 2025-01-18 - Bug Fixes
 - Fixed insights not loading in visualizations panel (insightsAllInsights not synced to module state)
 - Fixed dimension dropdown showing IDs instead of names (dimensionNamesMap not synced to api-cache-state)
 - Added state sync calls after data loading in multiple locations
+- Fixed multi-choice chart labels not displaying (property name mismatch in chart-renderer.js)
 
 ## Known Risks & Technical Debt
 
@@ -732,22 +746,24 @@ js/
 
 ## Current Status & Next Steps
 
-### ✅ Completed (26 Slices)
+### ✅ Completed (27 Slices)
 - **Phase 1: Foundation** - Utilities, Storage, Auth, API Config (Slices 1-4)
 - **Phase 2: API Services** - Clients, Data Sources, VOC Data, Insights APIs (Slices 5-8)
 - **Phase 3: State Management** - All major state modules extracted (Slices 10-20)
 - **Phase 4: Additional Utilities** - Format utilities (Slice 21)
-- **Phase 5: Renderers** - All 4 major renderers extracted (Slices 22-25)
+- **Phase 5: Renderers** - All 5 major renderers extracted (Slices 22-26)
   - Slice 22: Insights renderer ✅
   - Slice 23: History renderer ✅
   - Slice 24: Verbatims renderer ✅
-  - Slice 25: Treemap renderer ✅ (D3 visualization - most complex)
+  - Slice 25: Treemap renderer ✅ (D3 visualization)
+  - Slice 26: Chart renderers ✅ (**BIGGEST** - bar, topics, horizontal charts)
 
 ### 📊 Progress Summary
-- **Slices Completed**: 26
-- **Modules Created**: 26 (utils, services, state, controllers, config, renderers)
-- **Lines Extracted**: ~3,500+ lines to modules
-- **Current index.html**: 22,344 lines (down from 22,596)
+- **Slices Completed**: 27
+- **Modules Created**: 27 (utils, services, state, controllers, config, renderers)
+- **Lines Extracted**: ~4,500+ lines to modules
+- **Current index.html**: ~21,313 lines (down from original ~22,600)
+- **Net Reduction**: ~1,287 lines removed from index.html
 - **Status**: ✅ **STABLE - All renderers extracted**
 
 ### 🔧 Recent Bug Fixes (2025-01-18)
@@ -758,25 +774,26 @@ js/
 
 ### 🎯 Next Recommended Actions (When Resuming)
 
-**Option A: Extract Chart Renderers (Medium Risk)**
-1. Extract `renderBarChart()` - category bar chart
-2. Extract `renderTopicsChart()` - topics bar chart
-3. Extract `renderHorizontalBarChart()` - multi-choice/numeric chart
-
-**Option B: Extract Router (Medium Risk)**
-1. Extract `navigateToView()` - SPA navigation (~200 lines)
+**Option A: Extract Router (Medium Risk, ~200 lines)**
+1. Extract `navigateToView()` - SPA navigation
 2. Extract hash routing logic
+3. Note: Tightly coupled with init functions - consider leaving as-is
 
-**Option C: Extract Controllers (Medium-High Risk)**
-1. Extract filter controllers
+**Option B: Extract Controllers (Medium-High Risk)**
+1. Extract filter controllers (~300 lines of small functions)
 2. Extract insights CRUD controllers
 3. Extract history controllers
 
-**Option D: Cleanup Phase (Low Risk)**
+**Option C: Cleanup Phase (Low Risk) ← RECOMMENDED**
 1. Remove debug instrumentation (fetch calls to debug server)
 2. Remove wrapper function fallbacks (no longer needed)
 3. Remove duplicate local variable declarations
 4. Final cleanup pass
+
+**Note**: Router and remaining controllers are tightly coupled with local state.
+Given the significant progress (1,287 lines reduced), cleanup may provide better ROI than
+further extractions. The remaining functions are either small utilities or tightly coupled
+with local state that would require significant wrapper overhead.
 
 ### 📝 Resuming Work
 1. Read this document (`docs/refactor-progress.md`) for full context
