@@ -94,7 +94,6 @@
             };
 
             rendererInitialized = true;
-            console.log('[CLIENT_PROMPT_RENDERER] Renderer initialized successfully');
             return ClientPromptRenderer;
         } catch (error) {
             console.error('[CLIENT_PROMPT_RENDERER] Error initializing renderer:', error);

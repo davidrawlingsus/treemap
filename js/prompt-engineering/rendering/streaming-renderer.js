@@ -91,7 +91,6 @@
             
             // If user scrolled down manually (away from top), disable auto-scroll
             if (currentScrollTop > lastScrollTop + 5) { // 5px threshold to account for minor adjustments
-                console.log('[STREAMING] User scrolled down manually, disabling auto-scroll for streaming item', {
                     streamingId,
                     currentScrollTop,
                     lastScrollTop
@@ -107,7 +106,6 @@
                 // After scrolling stops, check if user is at top
                 if (container.scrollTop <= 10) {
                     // Re-enable auto-scroll if user scrolled back to top
-                    console.log('[STREAMING] User scrolled back to top, re-enabling auto-scroll', { streamingId });
                     itemElement.dataset.autoScrollEnabled = 'true';
                 }
             }, 150);
@@ -171,7 +169,6 @@
         
         // Only log when we're close to the top to avoid spam
         if (headerTopRelativeToContainer <= 50) {
-            console.log('[STREAMING] Header position check', {
                 headerTop: headerRect.top,
                 containerTop: containerRect.top,
                 headerTopRelativeToContainer,
@@ -339,7 +336,6 @@
         const isAtBottom = _isAtBottom(container);
         if (!isAtBottom) {
             // User is not at bottom, don't auto-scroll
-            console.log('[STREAMING] User not at bottom, skipping auto-scroll', {
                 streamingId: itemElement.dataset.streamingId,
                 scrollTop: container.scrollTop,
                 scrollHeight: container.scrollHeight,
@@ -363,7 +359,6 @@
                 // Use requestAnimationFrame to ensure DOM has updated
                 requestAnimationFrame(() => {
                     if (_isHeaderAtTop(itemElement, container)) {
-                        console.log('[STREAMING] Streaming header reached top of viewport after scroll, disabling auto-scroll', {
                             streamingId: itemElement.dataset.streamingId,
                             scrollBefore,
                             scrollAfter: container.scrollTop

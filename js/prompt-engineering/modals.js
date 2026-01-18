@@ -341,7 +341,6 @@
                     }
                     
                     slideoutManager.open('LLM Outputs');
-                    console.log('[MODAL] Displaying all results when opening slideout from modal');
                     await slideoutManager.displayAllResults(true, 'modals-openPromptModal');
                 }, 50);
             }
@@ -619,7 +618,6 @@
 
                 if (shouldExecute) {
                     const userMessage = this.elements.userMessageInput?.value.trim() || '';
-                    console.log('[MODALS] Prompt saved, executing...', {
                         promptId: savedPrompt.id,
                         promptName: savedPrompt.name,
                         userMessage: userMessage.substring(0, 100) + (userMessage.length > 100 ? '...' : ''),
@@ -628,17 +626,13 @@
                     });
 
                     if (this.onPromptSaved) {
-                        console.log('[MODALS] Calling onPromptSaved callback...');
                         await this.onPromptSaved();
-                        console.log('[MODALS] onPromptSaved callback completed');
                     }
                     if (this.onPromptExecuted) {
-                        console.log('[MODALS] Calling onPromptExecuted callback...', {
                             promptId: savedPrompt.id,
                             userMessageLength: userMessage.length
                         });
                         await this.onPromptExecuted(savedPrompt.id, userMessage);
-                        console.log('[MODALS] onPromptExecuted callback completed');
                     }
                 } else {
                     this.closePromptModal();
@@ -711,9 +705,7 @@
             }
 
             try {
-                console.log('[MODALS] Loading helper prompts...');
                 const helperPrompts = await PromptAPI.listHelperPrompts();
-                console.log('[MODALS] Loaded helper prompts:', helperPrompts.length);
                 
                 // Clear existing options except "None"
                 this.elements.helperPromptSelect.innerHTML = '<option value="">None</option>';
@@ -735,7 +727,6 @@
                             const linkedHelperId = linkedHelpers[0].helper_prompt_id;
                             if (this.elements.helperPromptSelect) {
                                 this.elements.helperPromptSelect.value = linkedHelperId;
-                                console.log('[MODALS] Selected linked helper:', linkedHelperId);
                             }
                         }
                     } catch (error) {

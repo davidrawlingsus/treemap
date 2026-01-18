@@ -112,7 +112,6 @@
             // Enhanced logging for execute endpoint
             const isExecuteRequest = endpoint.includes('/execute');
             if (isExecuteRequest) {
-                console.log('[API] Making execute request', {
                     url,
                     method: options.method || 'GET',
                     hasBody: !!options.body,
@@ -129,7 +128,6 @@
                 };
 
                 if (isExecuteRequest) {
-                    console.log('[API] Request headers', {
                         hasAuth: !!requestHeaders['Authorization'],
                         contentType: requestHeaders['Content-Type'],
                         headerKeys: Object.keys(requestHeaders)
@@ -145,7 +143,6 @@
                 });
 
                 if (isExecuteRequest) {
-                    console.log('[API] Response received', {
                         status: response.status,
                         statusText: response.statusText,
                         ok: response.ok,
@@ -204,7 +201,6 @@
                 // Handle 204 No Content responses (common for DELETE operations)
                 if (response.status === 204) {
                     if (isExecuteRequest) {
-                        console.log('[API] 204 No Content response, returning null', {
                             timestamp: new Date().toISOString()
                         });
                     }
@@ -227,7 +223,6 @@
                 const contentLength = response.headers.get('content-length');
                 if (contentLength === '0') {
                     if (isExecuteRequest) {
-                        console.log('[API] Empty response body, returning null', {
                             timestamp: new Date().toISOString()
                         });
                     }
@@ -240,7 +235,6 @@
                     const text = await response.text();
                     if (!text || text.trim() === '') {
                         if (isExecuteRequest) {
-                            console.log('[API] Empty response text, returning null', {
                                 timestamp: new Date().toISOString()
                             });
                         }
@@ -261,7 +255,6 @@
                 }
                 
                 if (isExecuteRequest) {
-                    console.log('[API] Response JSON parsed successfully', {
                         dataType: typeof jsonData,
                         dataPreview: jsonData ? (typeof jsonData === 'object' ? JSON.stringify(jsonData).substring(0, 200) + '...' : jsonData) : 'null',
                         timestamp: new Date().toISOString()

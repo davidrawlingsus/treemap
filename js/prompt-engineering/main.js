@@ -167,24 +167,19 @@
                 this.elements,
                 () => this.loadPrompts(), // onPromptSaved
                 async (promptId, userMessage) => { // onPromptExecuted
-                    console.log('[APP] onPromptExecuted callback called', {
                         promptId,
                         userMessage: userMessage ? userMessage.substring(0, 100) + (userMessage.length > 100 ? '...' : '') : 'empty',
                         userMessageLength: userMessage ? userMessage.length : 0,
                         timestamp: new Date().toISOString()
                     });
 
-                    console.log('[APP] Loading prompts...');
                     await this.loadPrompts();
-                    console.log('[APP] Prompts loaded');
 
                     if (this.slideoutManager) {
-                        console.log('[APP] Setting slideout prompt ID and opening...', { promptId });
                         this.slideoutManager.setPromptId(promptId);
                         this.slideoutManager.open('LLM Outputs');
                         
                         // Execute the prompt (userMessage can be empty - system message alone is valid)
-                        console.log('[APP] Executing prompt...', {
                             promptId,
                             userMessage: userMessage ? userMessage.substring(0, 100) + (userMessage.length > 100 ? '...' : '') : 'empty',
                             userMessageLength: userMessage ? userMessage.length : 0
@@ -193,7 +188,6 @@
                             // Pass userMessage even if empty - the backend can handle it
                             // Note: executePrompt() now uses streaming and will call displayAllResults() itself
                             await this.slideoutManager.executePrompt(userMessage || '');
-                            console.log('[APP] Prompt execution completed (streaming will refresh results automatically)');
                         } catch (error) {
                             console.error('[APP] Prompt execution failed in callback', {
                                 promptId,
@@ -202,26 +196,21 @@
                                 timestamp: new Date().toISOString()
                             });
                             // Still show existing results even if execution fails
-                            console.log('[APP] Displaying all results after error...');
                             await this.slideoutManager.displayAllResults(true, 'main-onPromptExecuted-error');
-                            console.log('[APP] Results displayed after error');
                         }
                         
                         // Note: We no longer call displayAllResults() here because executePrompt() 
                         // uses streaming and will refresh results automatically after streaming completes
                         // This prevents the double flash of the loading state
-                        console.log('[APP] Skipping displayAllResults() call - streaming will handle refresh');
                         
                         // Refresh filters after displaying results
                         if (this.filterManager) {
-                            console.log('[APP] Refreshing filters...');
                             this.filterManager.refreshFilters();
                         }
                     } else {
                         console.warn('[APP] slideoutManager not available');
                     }
 
-                    console.log('[APP] onPromptExecuted callback completed');
                 }
             );
 
@@ -389,7 +378,6 @@
                                     
                                     this.slideoutManager.setPromptId(promptId);
                                     this.slideoutManager.open('LLM Outputs');
-                                    console.log('[APP] Displaying all results when opening slideout from prompt list');
                                     await this.slideoutManager.displayAllResults(true, 'main-onEditClick');
                                 }
                             }, 50);

@@ -543,7 +543,6 @@
             try {
                 // Create insight
                 const newInsight = await createInsightFromIdeaCard(ideaData);
-                console.log('[ACTION_RENDERER] Insight created successfully:', newInsight);
 
                 // Update button to show success state
                 ideaContainer.classList.add('is-selected');
