@@ -42,8 +42,3 @@ export function getColorSchemes(d3 = window.d3) {
         categories: d3.scaleOrdinal(CATEGORY_COLORS)
     };
 }
-
-/**
- * Category colors array (exported for direct access if needed)
- */
-export { CATEGORY_COLORS };

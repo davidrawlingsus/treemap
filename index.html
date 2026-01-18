@@ -302,6 +302,9 @@
         import {
             renderInsights as insightsRendererRenderInsights
         } from '/js/renderers/insights-renderer.js';
+        import {
+            renderHistoryTable as historyRendererRenderHistoryTable
+        } from '/js/renderers/history-renderer.js';
         
         // Make color schemes config available globally
         window.colorSchemesCATEGORY_COLORS = colorSchemesCATEGORY_COLORS;
@@ -310,14 +313,14 @@
         // Make utilities available globally for backward compatibility
         window.adjustBrightness = adjustBrightness;
         window.getStateCode = getStateCode;
-        window.stateNameToCode = formatStateNameToCode;
-        window.fipsToStateCode = formatFipsToStateCode;
+        window.stateNameToCode = stateNameToCode;
+        window.fipsToStateCode = fipsToStateCode;
         window.getDimensionDisplayName = formatGetDimensionDisplayName;
         window.highlightSearchTerms = formatHighlightSearchTerms;
         window.toPascalCase = formatToPascalCase;
-        window.debounce = domDebounce;
-        window.escapeHtml = domEscapeHtml;
-        window.escapeHtmlForAttribute = domEscapeHtmlForAttribute;
+        window.debounce = debounce;
+        window.escapeHtml = escapeHtml;
+        window.escapeHtmlForAttribute = escapeHtmlForAttribute;
         
         // Make storage functions and constants available globally
         window.getTagColors = getTagColors;
@@ -504,8 +507,9 @@
         window.insightsStateSetInsightsSearchTerm = insightsStateSetInsightsSearchTerm;
         window.insightsStateGetInsightsCurrentInsightEditor = insightsStateGetInsightsCurrentInsightEditor;
         
-        // Make insights renderer available globally for backward compatibility
+        // Make renderers available globally for backward compatibility
         window.insightsRendererRenderInsights = insightsRendererRenderInsights;
+        window.historyRendererRenderHistoryTable = historyRendererRenderHistoryTable;
         window.insightsStateSetInsightsCurrentInsightEditor = insightsStateSetInsightsCurrentInsightEditor;
         window.insightsStateGetInsightsAutoFilter = insightsStateGetInsightsAutoFilter;
         window.insightsStateSetInsightsAutoFilter = insightsStateSetInsightsAutoFilter;
@@ -20797,159 +20801,28 @@
             }
         }
 
+        // renderHistoryTable wrapper - delegates to module after syncing state
         function renderHistoryTable() {
-            // Ensure escapeHtml is available with fallback
-            const escapeHtmlFn = window.escapeHtml || ((s) => {
-                if (s == null) return '';
-                const div = document.createElement('div');
-                div.textContent = s;
-                return div.innerHTML;
-            });
-            const tbody = document.getElementById('historyPageTableBody');
-            if (!tbody) {
-                return;
+            // Sync local state to module before calling renderer
+            if (window.historyStateSetHistoryAllActions) {
+                window.historyStateSetHistoryAllActions(historyAllActions);
             }
-
-            // Filter by search term
-            let filtered = historyAllActions;
-            if (historySearchTerm) {
-                const searchLower = historySearchTerm.toLowerCase();
-                filtered = historyAllActions.filter(action => {
-                    const promptPurpose = (action.prompt_purpose || '').toLowerCase();
-                    const contentPreview = (action.content_preview || '').toLowerCase();
-                    return promptPurpose.includes(searchLower) || contentPreview.includes(searchLower);
-                });
+            if (window.historyStateSetHistorySearchTerm) {
+                window.historyStateSetHistorySearchTerm(historySearchTerm);
             }
-
-            // Sort
-            filtered.sort((a, b) => {
-                let aVal, bVal;
-                if (historyCurrentSortBy === 'name') {
-                    aVal = (a.prompt_purpose || '').toLowerCase();
-                    bVal = (b.prompt_purpose || '').toLowerCase();
-                } else if (historyCurrentSortBy === 'created_at') {
-                    aVal = new Date(a.created_at).getTime();
-                    bVal = new Date(b.created_at).getTime();
-                } else if (historyCurrentSortBy === 'origin') {
-                    const aOrigin = a.origin || {};
-                    const bOrigin = b.origin || {};
-                    const aProject = aOrigin.project_name || '';
-                    const bProject = bOrigin.project_name || '';
-                    const aDimension = aOrigin.dimension_name || aOrigin.dimension_ref || '';
-                    const bDimension = bOrigin.dimension_name || bOrigin.dimension_ref || '';
-                    
-                    // Sort by project first, then dimension
-                    const projectCompare = aProject.localeCompare(bProject);
-                    if (projectCompare !== 0) {
-                        return historySortOrder === 'asc' ? projectCompare : -projectCompare;
-                    }
-                    const dimensionCompare = aDimension.localeCompare(bDimension);
-                    return historySortOrder === 'asc' ? dimensionCompare : -dimensionCompare;
-                } else {
-                    return 0;
-                }
-                
-                if (historySortOrder === 'asc') {
-                    return aVal > bVal ? 1 : aVal < bVal ? -1 : 0;
-                } else {
-                    return aVal < bVal ? 1 : aVal > bVal ? -1 : 0;
-                }
-            });
-
-            if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><h3>No history found</h3><p style="font-size: 12px; color: #999;">' + (historySearchTerm ? 'Try a different search term' : 'No AI expert outputs yet') + '</p></td></tr>';
-                return;
+            if (window.historyStateSetHistoryCurrentSortBy) {
+                window.historyStateSetHistoryCurrentSortBy(historyCurrentSortBy);
             }
-
-            tbody.innerHTML = filtered.map(action => {
-                const createdDate = new Date(action.created_at).toLocaleDateString();
-                // Format prompt purpose as name (convert underscores/hyphens to title case)
-                let promptName = action.prompt_purpose || 'Unknown';
-                const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'PPC', 'SEM', 'SERP', 'SaaS', 'B2B', 'B2C', 'GDPR', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];
-                promptName = promptName
-                    .replace(/_/g, ' ')
-                    .replace(/-/g, ' ')
-                    .split(' ')
-                    .map(word => {
-                        const upperWord = word.toUpperCase();
-                        if (abbreviations.includes(upperWord)) {
-                            return upperWord;
-                        }
-                        return word.charAt(0).toUpperCase() + word.substr(1).toLowerCase();
-                    })
-                    .join(' ');
-                
-                // Highlight search terms if there's a search term
-                const highlightedName = historySearchTerm ? highlightSearchTerms(promptName, historySearchTerm) : escapeHtmlFn(promptName);
-                
-                // Extract origin from action and build breadcrumb pills (similar to insights table)
-                const origin = action.origin || {};
-                const projectName = origin.project_name || null;
-                const dataSource = origin.data_source || null;
-                const dimensionName = origin.dimension_name || null;
-                const dimensionRef = origin.dimension_ref || null;
-                const categoryName = origin.category || null;
-                const topicName = origin.topic_label || null;
-                
-                // Build origin breadcrumb pills with PascalCase formatting (excluding project)
-                const originPills = [];
-                if (dimensionName && dimensionRef) {
-                    const pascalDimension = toPascalCase(dimensionName);
-                    originPills.push(`<span class="tag tag-data-source insight-origin-pill" data-origin-type="dimension" data-dimension-ref="${dimensionRef}" data-dimension-name="${escapeHtmlFn(dimensionName)}" data-data-source="${dataSource || ''}" onclick="event.stopPropagation(); navigateToDimensionFromInsight('${dimensionRef}', '${escapeHtmlFn(dimensionName)}', '${dataSource || ''}')" style="cursor: pointer;">${escapeHtmlFn(pascalDimension)}</span>`);
-                } else if (dimensionName) {
-                    const pascalDimension = toPascalCase(dimensionName);
-                    originPills.push(`<span class="tag tag-data-source insight-origin-pill">${escapeHtmlFn(pascalDimension)}</span>`);
-                }
-                if (categoryName) {
-                    const pascalCategory = toPascalCase(categoryName);
-                    originPills.push(`<span class="tag tag-category insight-origin-pill" data-origin-type="category" data-category="${escapeHtmlFn(categoryName)}" data-topic="${topicName ? escapeHtmlFn(topicName) : ''}" data-data-source="${dataSource || ''}" data-dimension="${dimensionName || ''}" data-dimension-ref="${dimensionRef || ''}" onclick="event.stopPropagation(); navigateToCategoryFromInsight('${escapeHtmlFn(categoryName)}', '${topicName ? escapeHtmlFn(topicName) : ''}', '${dataSource || ''}', '${dimensionRef || ''}')" style="cursor: pointer;">${escapeHtmlFn(pascalCategory)}</span>`);
-                }
-                if (topicName) {
-                    const pascalTopic = toPascalCase(topicName);
-                    originPills.push(`<span class="tag tag-topic insight-origin-pill" data-origin-type="topic" data-category="${categoryName ? escapeHtmlFn(categoryName) : ''}" data-topic="${escapeHtmlFn(topicName)}" data-data-source="${dataSource || ''}" data-dimension="${dimensionName || ''}" data-dimension-ref="${dimensionRef || ''}" onclick="event.stopPropagation(); navigateToTopicFromInsight('${escapeHtmlFn(topicName)}', '${categoryName ? escapeHtmlFn(categoryName) : ''}', '${dataSource || ''}', '${dimensionRef || ''}')" style="cursor: pointer;">${escapeHtmlFn(pascalTopic)}</span>`);
-                }
-                // Display data source name if no other origin pills and data source exists
-                if (originPills.length === 0 && dataSource) {
-                    // Fix common typo: "Faceboo Ads" -> "Facebook Ads"
-                    let correctedDataSource = dataSource;
-                    if (dataSource && typeof dataSource === 'string') {
-                        correctedDataSource = dataSource.replace(/Faceboo\s+Ads/gi, 'Facebook Ads');
-                    }
-                    const pascalDataSource = toPascalCase(correctedDataSource);
-                    originPills.push(`<span class="tag tag-data-source insight-origin-pill">${escapeHtml(pascalDataSource)}</span>`);
-                }
-                
-                const originContent = originPills.length > 0 
-                    ? originPills.join('<span style="margin: 0 4px; color: oklch(0.7 0 0);">|</span>')
-                    : '-';
-
-                const checkboxCell = `<td class="checkbox-cell" onclick="event.stopPropagation(); const checkbox = this.querySelector('.history-checkbox'); if (checkbox && !event.target.matches('.history-checkbox')) { checkbox.checked = !checkbox.checked; checkbox.dispatchEvent(new Event('change')); }">
-                    <input type="checkbox" class="history-checkbox" data-action-id="${action.id}" onchange="handleHistoryCheckboxChange()" onclick="event.stopPropagation()">
-                </td>`;
-                
-                return `
-                    <tr data-action-id="${action.id}" onclick="event.stopPropagation(); openHistoryAction('${action.id}'); return false;" style="cursor: pointer;">
-                        ${checkboxCell}
-                        <td class="name-cell" data-column="name">
-                            <div class="name-content" style="position: relative;">
-                                <svg class="doc-icon" viewBox="0 0 16 16" fill="currentColor">
-                                    <path d="M2.5 2.5h11l.5.5v10l-.5.5h-11l-.5-.5V3l.5-.5zM3 4v8h10V4H3zm2 1h6v1H5V5zm0 2h6v1H5V7zm0 2h4v1H5V9z"/>
-                                </svg>
-                                <span>${highlightedName}</span>
-                            </div>
-                        </td>
-                        <td data-column="origin" style="white-space: nowrap;">
-                            ${originContent}
-                        </td>
-                        <td data-column="created_at">${createdDate}</td>
-                    </tr>
-                `;
-            }).join('');
+            if (window.historyStateSetHistorySortOrder) {
+                window.historyStateSetHistorySortOrder(historySortOrder);
+            }
             
-            // Clear checkbox selections when table is re-rendered
-            selectedHistoryIds.clear();
-            updateHistoryDeleteButton();
-            updateHistorySelectAllCheckbox();
+            if (window.historyRendererRenderHistoryTable) {
+                window.historyRendererRenderHistoryTable();
+                selectedHistoryIds.clear();
+                return;
+            }
+            console.warn('historyRendererRenderHistoryTable not available');
         }
 
         function handleHistoryCheckboxChange() {
