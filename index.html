@@ -8677,6 +8677,10 @@
                     dimensionNames.forEach(dn => {
                         dimensionNamesMap[dn.ref_key] = dn.custom_name;
                     });
+                    // Sync to module state so getDimensionDisplayName works
+                    if (window.apiCacheSetDimensionNamesMap) {
+                        window.apiCacheSetDimensionNamesMap(dimensionNamesMap);
+                    }
                 }
             } catch (error) {
                 console.error('Error loading dimension names:', error);
@@ -8755,6 +8759,11 @@
                         questionTypesMap[q.dimension_ref] = q.question_type;
                     }
                 });
+                
+                // Sync to module state so getDimensionDisplayName works
+                if (window.apiCacheSetDimensionNamesMap) {
+                    window.apiCacheSetDimensionNamesMap(dimensionNamesMap);
+                }
                 
                 // Filter to only dimensions that have topics (response_count > 0)
                 availableQuestions = questions
@@ -12774,6 +12783,11 @@
                 
                 // Update local map
                 dimensionNamesMap[currentEditingRefKey] = customName;
+                
+                // Sync to module state
+                if (window.apiCacheSetDimensionNamesMap) {
+                    window.apiCacheSetDimensionNamesMap(dimensionNamesMap);
+                }
                 
                 // Update the dimension dropdown to show the new name
                 const questionSelect = document.getElementById('questionSelect');
