@@ -13196,7 +13196,7 @@
                     if (!field) return;
                     
                     // Get unique values for this field from insights
-                    const values = field.type === 'select' ? getUniqueFieldValues(fieldId) : [];
+                    const values = field.type === 'select' ? getUniqueFilterFieldValues(fieldId) : [];
                     
                     // Create inline filter dropdown
                     const filterChipsContainer = document.getElementById('filterChips');
@@ -13656,8 +13656,8 @@
             renderInsightsPage();
         }
         
-        // Get unique values for a field
-        function getUniqueFieldValues(fieldId) {
+        // Get unique values for a filter field (handles special field mappings)
+        function getUniqueFilterFieldValues(fieldId) {
             const values = new Set();
             
             insightsAllInsights.forEach(insight => {
