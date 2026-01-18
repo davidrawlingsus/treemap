@@ -13441,25 +13441,6 @@
                 updateInlineFilterHeader(fieldId);
             }, 0);
             
-            // Debug: Check checkboxes after rendering
-            setTimeout(() => {
-                const checkboxes = inlineFilter.querySelectorAll('.inline-filter-checkbox');
-                checkboxes.forEach((cb, idx) => {
-                    const computedStyle = window.getComputedStyle(cb);
-                        checked: cb.checked,
-                        value: cb.value,
-                        type: cb.type,
-                        computedDisplay: computedStyle.display,
-                        computedWidth: computedStyle.width,
-                        computedHeight: computedStyle.height,
-                        accentColor: computedStyle.accentColor || computedStyle.getPropertyValue('accent-color'),
-                        appearance: computedStyle.appearance || computedStyle.getPropertyValue('-webkit-appearance'),
-                        opacity: computedStyle.opacity,
-                        visibility: computedStyle.visibility
-                    });
-                });
-            }, 100);
-            
             // Insert before the filter button container
             const filterButtonContainer = filterChipsContainer.nextElementSibling;
             if (filterButtonContainer) {
