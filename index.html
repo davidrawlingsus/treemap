@@ -1905,6 +1905,7 @@
                 }
                 
                 if (select && (select.innerHTML === '' || select.innerHTML.includes('Loading'))) {
+                    console.log('Client dropdown not populated, loading clients...');
                     // Temporarily set hasAutoLaunched to prevent loadClients from triggering another launch
                     const wasAutoLaunched = hasAutoLaunched;
                     hasAutoLaunched = true;
@@ -1970,9 +1971,11 @@
                     client.client_uuid === urlClientUuid || client.id === urlClientUuid
                 );
                 if (matchingClient) {
+                    console.log('Found client_uuid in URL, auto-launching:', urlClientUuid);
                     selectClientAndLaunch(urlClientUuid);
                     return;
                 } else {
+                    console.log('Client_uuid in URL not found in accessible clients:', urlClientUuid);
                 }
             }
 
@@ -1983,19 +1986,23 @@
                     client.client_uuid === savedState.clientId || client.id === savedState.clientId
                 );
                 if (matchingClient) {
+                    console.log('Found saved client in state, auto-launching:', savedState.clientId);
                     // Restore the full state (project, source, dimension) before launching
                     // so it's available throughout the loading chain
                     if (savedState.projectName) {
                         currentProjectName = savedState.projectName;
                         if (window.appStateSetCurrentProjectName) window.appStateSetCurrentProjectName(savedState.projectName);
+                        console.log('Restored saved project:', currentProjectName);
                     }
                     if (savedState.dataSourceId) {
                         currentDataSourceId = savedState.dataSourceId;
                         if (window.appStateSetCurrentDataSourceId) window.appStateSetCurrentDataSourceId(savedState.dataSourceId);
+                        console.log('Restored saved data source:', currentDataSourceId);
                     }
                     if (savedState.questionRefKey) {
                         currentQuestionRefKey = savedState.questionRefKey;
                         if (window.appStateSetCurrentQuestionRefKey) window.appStateSetCurrentQuestionRefKey(savedState.questionRefKey);
+                        console.log('Restored saved dimension:', currentQuestionRefKey);
                     }
                     // Update module with client ID too
                     if (window.appStateSetCurrentClientId) window.appStateSetCurrentClientId(savedState.clientId);
@@ -2003,6 +2010,7 @@
                     selectClientAndLaunch(savedState.clientId);
                     return;
                 } else {
+                    console.log('Saved client not found in accessible clients:', savedState.clientId);
                 }
             }
 
@@ -2052,6 +2060,7 @@
         
         // Load available clients - wrapper that uses API module for fetching, handles DOM/state
         async function loadClients() {
+            console.log('loadClients() called');
             try {
                 // Fetch clients using API module
                 if (window.clientsApiLoadClients) {
@@ -2059,21 +2068,27 @@
                         accessibleClientIds: accessibleClientIds,
                         getAuthHeaders: getAuthHeaders
                     });
+                    console.log(`Loaded ${allClients.length} clients:`, allClients);
                 } else {
                     // Fallback if module not loaded yet
+                    console.log(`Fetching clients from ${API_BASE_URL}/api/voc/clients`);
                     const response = await fetch(`${API_BASE_URL}/api/voc/clients`, {
                         headers: getAuthHeaders()
                     });
+                    console.log('Clients response status:', response.status);
                     if (!response.ok) {
                         throw new Error('Failed to load clients');
                     }
+                    console.log('Parsing clients JSON...');
                     allClients = await response.json();
+                    console.log(`Loaded ${allClients.length} clients:`, allClients);
 
                     if (accessibleClientIds.size > 0) {
                         allClients = allClients.filter(client => {
                             return (client.client_uuid && accessibleClientIds.has(client.client_uuid)) ||
                                    (client.id && accessibleClientIds.has(client.id));
                         });
+                        console.log(`Filtered to ${allClients.length} authorized clients`);
                     }
 
                     // Sort clients alphabetically by client_name
@@ -2085,6 +2100,7 @@
                 }
 
                 const select = document.getElementById('clientSelect');
+                console.log('Client select element:', select);
                 if (!select) {
                     console.error('Client select element not found!');
                     return;
@@ -2092,6 +2108,7 @@
                 select.innerHTML = '';
                 
                 if (allClients.length === 0) {
+                    console.log('No clients available');
                     select.innerHTML = '<option value="">No clients available</option>';
                     select.disabled = true;
                     return;
@@ -2107,6 +2124,8 @@
                 
                 // Try to restore saved state
                 const savedState = loadState();
+                console.log('Saved state:', savedState);
+                console.log('URL params:', { urlClientUuid, urlProject, urlSource, urlDimension });
                 
                 // Priority: URL parameter > saved state > current
                 // Check if URL client_uuid matches any accessible client (by id or client_uuid)
@@ -2117,18 +2136,22 @@
                     if (matchingClient) {
                         currentClientId = urlClientUuid;
                         if (window.appStateSetCurrentClientId) window.appStateSetCurrentClientId(urlClientUuid);
+                        console.log('Restored client from URL:', currentClientId);
                         // Restore other state from URL if present
                         if (urlProject) {
                             currentProjectName = urlProject;
                             if (window.appStateSetCurrentProjectName) window.appStateSetCurrentProjectName(urlProject);
+                            console.log('Restored project from URL:', currentProjectName);
                         }
                         if (urlSource) {
                             currentDataSourceId = urlSource;
                             if (window.appStateSetCurrentDataSourceId) window.appStateSetCurrentDataSourceId(urlSource);
+                            console.log('Restored data source from URL:', currentDataSourceId);
                         }
                         if (urlDimension) {
                             currentQuestionRefKey = urlDimension;
                             if (window.appStateSetCurrentQuestionRefKey) window.appStateSetCurrentQuestionRefKey(urlDimension);
+                            console.log('Restored dimension from URL:', currentQuestionRefKey);
                         }
                     }
                 } else if (savedState && savedState.clientId) {
@@ -2139,6 +2162,7 @@
                     if (matchingClient) {
                         currentClientId = savedState.clientId;
                         if (window.appStateSetCurrentClientId) window.appStateSetCurrentClientId(savedState.clientId);
+                        console.log('Restored client from saved state:', currentClientId);
                     }
                 }
 
@@ -2148,10 +2172,12 @@
                         client.client_uuid === currentClientId || client.id === currentClientId
                     );
                     if (!matchingClient) {
+                        console.log('Stored client is not accessible, clearing');
                         currentClientId = null;
                     }
                 }
 
+                console.log('Populating client dropdown...');
                 allClients.forEach((client, index) => {
                     const option = document.createElement('option');
                     option.value = client.client_uuid;
@@ -2199,6 +2225,7 @@
                     // Auto-launch if we have URL params and we're in login/selection mode
                     // But NOT if we're already initialized and main container is visible (prevents double load)
                     if (urlClientUuid && urlClientUuid === currentClientId && !hasAutoLaunched && (isLoginVisible || !isMainVisible) && !isInitialized && !isMainVisible) {
+                        console.log('Auto-launching client from URL:', currentClientId);
                         // Use setTimeout to ensure DOM is ready and avoid calling during loadClients
                         setTimeout(() => {
                             // Double-check we haven't launched yet (race condition protection)
@@ -2265,9 +2292,12 @@
                 const shouldAutoLoad = !hasAutoLaunched || !isMainVisible || (isMainVisible && !isInitialized);
                 
                 if (currentClientId && shouldAutoLoad) {
+                    console.log(`Loading projects for client: ${currentClientId} with state:`, restoreState);
                     await loadClientProjects(currentClientId, restoreState);
                 } else if (currentClientId) {
+                    console.log('Skipping auto-load of projects (already loading from selectClientAndLaunch)');
                 } else {
+                    console.log('No client selected, skipping project load');
                 }
                 syncFilterTabState();
                 
@@ -2284,28 +2314,35 @@
         
         // Load projects for a specific client - wrapper that uses API module for fetching, handles DOM/state
         async function loadClientProjects(clientId, savedState = null) {
+            console.log(`loadClientProjects() called for client: ${clientId}`);
             try {
                 // Restore saved project name if available
                 if (savedState && savedState.projectName) {
                     currentProjectName = savedState.projectName;
+                    console.log(`Restoring saved project: ${currentProjectName}`);
                 }
                 
                 // Fetch projects using API module
                 if (window.dataSourcesApiLoadProjects) {
                     clientProjects = await window.dataSourcesApiLoadProjects(clientId, getAuthHeaders);
+                    console.log(`Loaded ${clientProjects.length} projects:`, clientProjects);
                 } else {
                     // Fallback if module not loaded yet
                     const url = `${API_BASE_URL}/api/voc/projects?client_uuid=${clientId}`;
+                    console.log(`Fetching projects from: ${url}`);
                     const response = await fetch(url, {
                         headers: getAuthHeaders()
                     });
+                    console.log('Projects response status:', response.status);
                     if (!response.ok) {
                         throw new Error('Failed to load projects');
                     }
                     clientProjects = await response.json();
+                    console.log(`Loaded ${clientProjects.length} projects:`, clientProjects);
                 }
                 
                 const select = document.getElementById('projectSelect');
+                console.log('Project select element:', select);
                 if (!select) {
                     console.error('Project select element not found!');
                     return;
@@ -2313,9 +2350,11 @@
                 select.innerHTML = '';
                 
                 if (clientProjects.length === 0) {
+                    console.log('No projects available');
                     select.innerHTML = '<option value="">No projects available</option>';
                     currentProjectName = null;
                 } else {
+                    console.log('Populating project dropdown...');
                     clientProjects.forEach((project) => {
                         const option = document.createElement('option');
                         option.value = project.project_name;
@@ -2335,23 +2374,29 @@
                     // Default to first project if no saved selection
                     if (!currentProjectName && clientProjects.length > 0) {
                         currentProjectName = clientProjects[0].project_name;
+                        console.log(`Defaulting to first project: ${currentProjectName}`);
                     }
                     
+                    console.log(`Current project name after validation: ${currentProjectName}`);
                     
                     // Set the select value to match the current project
                     if (currentProjectName) {
                         select.value = currentProjectName;
+                        console.log(`Set select value to: ${currentProjectName}`);
                     }
                 }
                 
                 // Add change listener (only once)
                 select.removeEventListener('change', handleProjectChange);
                 select.addEventListener('change', handleProjectChange);
+                console.log('Added change listener to project select');
                 
                 // Load sources for the selected client (and project if selected)
                 if (currentClientId) {
+                    console.log(`Loading sources for client: ${currentClientId}, project: ${currentProjectName || 'None'}`);
                     await loadClientSources(currentClientId, savedState);
                 } else {
+                    console.log('No client selected, skipping source load');
                 }
                 syncFilterTabState();
             } catch (error) {
@@ -2378,6 +2423,7 @@
         
         // Load sources for a specific client - wrapper that uses API module for fetching, handles DOM/state
         async function loadClientSources(clientId, savedState = null) {
+            console.log(`loadClientSources() called for client: ${clientId}, project: ${currentProjectName || 'None'}`);
             try {
                 // Fetch sources using API module
                 if (window.dataSourcesApiLoadSources) {
@@ -2388,16 +2434,21 @@
                     if (currentProjectName) {
                         url += `&project_name=${encodeURIComponent(currentProjectName)}`;
                     }
+                    console.log(`Fetching sources from: ${url}`);
                     const response = await fetch(url, {
                         headers: getAuthHeaders()
                     });
+                    console.log('Sources response status:', response.status);
                     if (!response.ok) {
                         throw new Error('Failed to load sources');
                     }
                     clientSources = await response.json();
                 }
+                console.log(`Loaded ${clientSources.length} sources:`, clientSources);
+                console.log(`Loaded ${clientSources.length} sources:`, clientSources);
                 
                 const select = document.getElementById('sourceSelect');
+                console.log('Source select element:', select);
                 if (!select) {
                     console.error('Source select element not found!');
                     return;
@@ -2405,9 +2456,11 @@
                 select.innerHTML = '';
                 
                 if (clientSources.length === 0) {
+                    console.log('No sources available');
                     select.innerHTML = '<option value="">No sources available</option>';
                     currentDataSourceId = null;
                 } else {
+                    console.log('Populating source dropdown...');
                     clientSources.forEach((source) => {
                         const option = document.createElement('option');
                         option.value = source.data_source;
@@ -2421,6 +2474,7 @@
                         const sourceExists = clientSources.some(s => s.data_source === savedState.dataSourceId);
                         if (sourceExists) {
                             currentDataSourceId = savedState.dataSourceId;
+                            console.log(`Restored saved data source: ${currentDataSourceId}`);
                         } else {
                             console.warn(`Saved data source "${savedState.dataSourceId}" not found in available sources, defaulting to first`);
                             currentDataSourceId = null;
@@ -2430,22 +2484,28 @@
                     // Default to first source if no saved selection
                     if (!currentDataSourceId && clientSources.length > 0) {
                         currentDataSourceId = clientSources[0].data_source;
+                        console.log(`Defaulting to first source: ${currentDataSourceId}`);
                     }
                     
+                    console.log(`Current data source ID after validation: ${currentDataSourceId}`);
                     
                     // Set the select value to match the current data source
                     if (currentDataSourceId) {
                         select.value = currentDataSourceId;
+                        console.log(`Set select value to: ${currentDataSourceId}`);
                     }
                 }
                 
                 // Add change listener (only once)
                 select.removeEventListener('change', handleSourceChange);
                 select.addEventListener('change', handleSourceChange);
+                console.log('Added change listener to source select');
                 syncFilterTabState();
                 
                 // Load data for the selected source
+                console.log(`About to load data: client=${clientId}, source=${currentDataSourceId || 'None'}`);
                 await loadDataSource(clientId, currentDataSourceId, savedState);
+                console.log('loadDataSource completed');
             } catch (error) {
                 console.error('Error loading sources:', error);
                 const select = document.getElementById('sourceSelect');
@@ -2538,12 +2598,14 @@
 
         // Group process_voc rows by respondent_id and merge topics
         function groupProcessVocRows(processVocRows, dimensionRef = null) {
+            console.log(`Grouping ${processVocRows.length} rows${dimensionRef ? ` for dimension ${dimensionRef}` : ' (all dimensions)'}`);
             
             // Filter by dimension if specified
             let filteredRows = dimensionRef 
                 ? processVocRows.filter(row => row.dimension_ref === dimensionRef)
                 : processVocRows;
             
+            console.log(`Filtered to ${filteredRows.length} rows`);
             
             // When "All Dimensions" is selected, we need to preserve dimension context with topics
             // to avoid mixing verbatims from different dimensions
@@ -2603,7 +2665,9 @@
                 });
                 
                 const result = Object.values(grouped);
+                console.log(`Grouped into ${result.length} unique respondent-dimension combinations with ${totalTopics} total topics`);
                 if (rowsWithoutTopics > 0) {
+                    console.log(`Note: ${rowsWithoutTopics} row(s) without topics (expected behavior - some dimensions may not have topics)`);
                 }
                 if (result.length > 0) {
                 }
@@ -2660,7 +2724,9 @@
                 });
                 
                 const result = Object.values(grouped);
+                console.log(`Grouped into ${result.length} unique respondents with ${totalTopics} total topics`);
                 if (rowsWithoutTopics > 0) {
+                    console.log(`Note: ${rowsWithoutTopics} row(s) without topics${dimensionRef ? ` for dimension ${dimensionRef}` : ''} (expected behavior - some dimensions may not have topics)`);
                 }
                 if (result.length > 0) {
                 }
@@ -2671,6 +2737,7 @@
 
         // Load a specific data source - wrapper that uses API module for fetching, handles DOM/state
         async function loadDataSource(clientUuid, dataSource, savedState = null) {
+            console.log(`loadDataSource() called: client=${clientUuid}, project=${currentProjectName || 'None'}, source=${dataSource || 'None'}`);
             try {
                 document.getElementById('loading').style.display = 'flex';
                 document.getElementById('loading').innerHTML = 'Loading data...';
@@ -2680,6 +2747,7 @@
                 let processVocRows;
                 if (window.vocDataApiLoadVocData) {
                     processVocRows = await window.vocDataApiLoadVocData(clientUuid, currentProjectName, dataSource, getAuthHeaders);
+                    console.log(`Loaded ${processVocRows.length} process_voc rows`);
                 } else {
                     // Fallback if module not loaded yet
                     const params = new URLSearchParams();
@@ -2688,14 +2756,18 @@
                     if (dataSource) params.append('data_source', dataSource);
                     
                     const url = `${API_BASE_URL}/api/voc/data?${params.toString()}`;
+                    console.log(`Fetching data from: ${url}`);
                     const response = await fetch(url, {
                         headers: getAuthHeaders()
                     });
+                    console.log('Data response status:', response.status);
                     if (!response.ok) {
                         throw new Error(`HTTP ${response.status}: Failed to load data`);
                     }
                     
+                    console.log('Parsing data JSON...');
                     processVocRows = await response.json();
+                    console.log(`Received ${processVocRows.length} process_voc rows`);
                     
                     // Validate response structure
                     if (!processVocRows || !Array.isArray(processVocRows)) {
@@ -2720,6 +2792,7 @@
                 // or if it returned early, we need to group and render the data ourselves
                 // filterByQuestion should have been called if questions were found, but as a fallback:
                 if (!rawData || rawData.length === 0) {
+                    console.log('No data grouped yet, grouping now...');
                     const groupedData = groupProcessVocRows(fullRawData, null);
                     rawData = groupedData;
                     dimensionFilteredData = groupedData; // Set to grouped data (has text field)
@@ -2871,6 +2944,7 @@
                     return nameA.localeCompare(nameB);
                 });
                 
+                console.log(`Found ${availableQuestions.length} dimensions with data`);
                 
                 if (availableQuestions.length === 0) {
                     // Hide question selector if no questions
@@ -3003,6 +3077,7 @@
             // Save current filters for the given dimension
             const key = dimensionRef || 'all';
             dimensionFilters[key] = serializeFilterRules(filterRules);
+            console.log(`Saved filters for dimension ${key}:`, dimensionFilters[key]);
         }
         
         function loadFiltersForDimension(dimensionRef) {
@@ -3011,8 +3086,10 @@
             const savedFilters = dimensionFilters[key];
             if (savedFilters) {
                 filterRules = deserializeFilterRules(savedFilters);
+                console.log(`Loaded filters for dimension ${key}:`, filterRules);
             } else {
                 filterRules = [];
+                console.log(`No saved filters for dimension ${key}, using empty filters`);
             }
         }
         
@@ -3034,6 +3111,7 @@
             rawData = groupedData;
             dimensionFilteredData = groupedData; // Keep grouped data for re-filtering (has text field)
             
+            console.log(`Filtered to ${rawData.length} grouped rows for question: ${refKey || 'all'}`);
             
             // Extract available filter options from the filtered data (dimension-specific)
             extractAvailableFilterOptions(rawData);
@@ -3057,13 +3135,17 @@
         async function init() {
             // Prevent multiple simultaneous initializations
             if (isInitializing) {
+                console.log('init() already in progress, skipping...');
                 return;
             }
             isInitializing = true;
+            console.log('init() called');
             try {
+                console.log('Loading dimension options...');
                 // Load dimension options from localStorage
                 loadDimensionOptions();
                 
+                console.log('Setting up container dimensions...');
                 // Set dimensions based on container
                 // Only set dimensions if container is visible, otherwise wait for view switch
                 const container = document.querySelector('.treemap-svg-container');
@@ -3073,12 +3155,15 @@
                 if (container && isVizSectionVisible) {
                     width = container.clientWidth;
                     height = container.clientHeight;
+                    console.log('Container dimensions set:', { width, height });
                 } else {
                     // Container is hidden, use defaults but they'll be recalculated when section becomes visible
+                    console.log('Container is hidden, using default dimensions (will recalculate when visible)');
                     width = 800;
                     height = 600;
                 }
                 
+                console.log('Loading clients...');
                 // Load clients from API (which will cascade to sources and data)
                 await loadClients();
                 
@@ -3261,10 +3346,12 @@
                 return;
             }
             
+            console.log(`Applying filters to ${dimensionFilteredData.length} rows`);
             
             // Apply all filter rules - all rules must pass (AND logic)
             if (filterRules.length > 0) {
                 filterRules.forEach((r, idx) => {
+                    console.log(`Filter rule ${idx + 1}:`, {
                         type: r.type,
                         mode: r.mode,
                         metadataField: r.metadataField,
@@ -3401,6 +3488,7 @@
                 }).filter(row => row !== null);
             }
             
+            console.log(`After filtering: ${filteredData.length} rows`);
             
             if (filteredData.length === 0) {
                 console.warn('No data remaining after applying filters!');
@@ -3408,6 +3496,7 @@
             }
             
             rawData = filteredData;
+            console.log(`✅ Updated rawData to filtered data: ${rawData.length} rows`);
             
             // Get current question type and render accordingly
             const questionType = getCurrentQuestionType();
@@ -3770,6 +3859,9 @@
         }
         
         function showFilterSelectionView() {
+            console.log('=== showFilterSelectionView() called ===');
+            console.log('currentFilterType:', currentFilterType);
+            console.log('currentMetadataField:', currentMetadataField);
             
             document.getElementById('filterTypeView').style.display = 'none';
             document.getElementById('metadataFieldView').style.display = 'none';
@@ -3817,19 +3909,23 @@
             }
             
             if (existingRule) {
+                console.log('Found existing rule:', {
                     type: existingRule.type,
                     mode: existingRule.mode,
                     values: Array.from(existingRule.values)
                 });
                 currentFilterSelections = new Set(existingRule.values);
+                console.log('Set currentFilterSelections to:', Array.from(currentFilterSelections));
                 // Set the mode radio button
                 const modeInput = document.querySelector(`input[name="filterMode"][value="${existingRule.mode}"]`);
                 if (modeInput) {
                     modeInput.checked = true;
+                    console.log('Set mode radio to:', existingRule.mode);
                 } else {
                     console.warn('Mode radio input not found for value:', existingRule.mode);
                 }
             } else {
+                console.log('No existing rule found for type:', currentFilterType);
                 currentFilterSelections.clear();
                 document.querySelector('input[name="filterMode"][value="include"]').checked = true;
                 // When mode is "include" and no existing rule, select all items by default
@@ -3837,6 +3933,7 @@
                 if (mode === 'include') {
                     const items = getAvailableItemsForType(currentFilterType);
                     currentFilterSelections = new Set(items);
+                    console.log('Set currentFilterSelections to all items:', Array.from(currentFilterSelections));
                 }
             }
             
@@ -3863,23 +3960,32 @@
             
             populateFilterSelectionList();
             updateFilterSelectionSearchClearButton();
+            console.log('=== showFilterSelectionView() completed ===');
         }
         
         function getAvailableItemsForType(type) {
+            console.log('getAvailableItemsForType called with type:', type);
             let items;
             if (type === 'category') {
                 items = availableCategories;
+                console.log('availableCategories:', items);
             } else if (type === 'topic') {
                 items = availableTopics;
+                console.log('availableTopics:', items);
             } else if (type === 'sentiment') {
                 items = availableMetadataFields['sentiment'] || [];
+                console.log('availableSentiment:', items);
             } else if (type === 'location') {
                 items = availableLocations; // Kept for backwards compatibility
+                console.log('availableLocations:', items);
             } else if (type === 'metadata' && currentMetadataField) {
                 items = availableMetadataFields[currentMetadataField] || [];
+                console.log('availableMetadata for', currentMetadataField, ':', items);
             } else {
                 items = [];
+                console.log('No items found for type:', type);
             }
+            console.log('Returning items:', items);
             return items;
         }
         
@@ -3945,6 +4051,8 @@
         }
         
         function populateFilterSelectionList() {
+            console.log('=== populateFilterSelectionList() called ===');
+            console.log('currentFilterType:', currentFilterType);
             
             const filterList = document.getElementById('filterSelectionList');
             if (!filterList) {
@@ -3954,12 +4062,15 @@
             filterList.innerHTML = '';
             
             const items = getVisibleFilterItems();
+            console.log('Visible items:', items);
+            console.log('Number of visible items:', items.length);
             
             if (items.length === 0) {
                 const message = currentFilterSearchTerm && currentFilterSearchTerm.trim().length > 0
                     ? 'No items match your search'
                     : 'No items found';
                 filterList.innerHTML = `<div style="padding: 12px; color: #999; text-align: center;">${message}</div>`;
+                console.log('No items to display');
                 return;
             }
             
@@ -3968,6 +4079,7 @@
                 const isChecked = currentFilterSelections.has(item);
                 if (isChecked) checkedCount++;
                 
+                console.log(`Item: "${item}", isChecked: ${isChecked}`);
                 
                 const label = document.createElement('label');
                 label.style.cssText = 'display: flex; align-items: center; padding: 8px 12px; cursor: pointer; border-radius: 4px; transition: background 0.2s;';
@@ -3994,13 +4106,18 @@
                 label.appendChild(text);
                 filterList.appendChild(label);
             });
+            console.log(`Total items: ${items.length}, Checked items: ${checkedCount}`);
+            console.log('=== populateFilterSelectionList() completed ===');
         }
         
         function updateFilterUI() {
+            console.log('=== updateFilterUI() called ===');
+            console.log('Current filterRules:', JSON.parse(JSON.stringify(filterRules.map(r => ({
                 type: r.type,
                 mode: r.mode,
                 values: Array.from(r.values)
             })))));
+            console.log('filterRules.length:', filterRules.length);
             
             // Update active filters list
             const activeFiltersList = document.getElementById('activeFiltersList');
@@ -4077,9 +4194,11 @@
             
             // Update badge - show total count of items across all filter rules
             const badge = document.getElementById('filterBadge');
+            console.log('Badge element:', badge);
             if (filterRules.length === 0) {
                 if (badge) {
                     badge.style.display = 'none';
+                    console.log('Badge hidden (no filters)');
                 }
             } else {
                 if (badge) {
@@ -4087,12 +4206,14 @@
                     const totalItems = filterRules.reduce((sum, rule) => sum + rule.values.size, 0);
                     badge.style.display = 'flex';
                     badge.textContent = totalItems;
+                    console.log('Badge updated to:', totalItems, 'Badge textContent:', badge.textContent, 'filterRules.length:', filterRules.length);
                     // Force a reflow to ensure the DOM updates
                     void badge.offsetWidth;
                 } else {
                     console.error('Badge element not found!');
                 }
             }
+            console.log('=== updateFilterUI() completed ===');
         }
 
         // Process raw data into hierarchy
@@ -4100,6 +4221,8 @@
         function processData() {
             const categoryMap = new Map();
             
+            console.log(`Processing ${rawData.length} rows for visualization...`);
+            console.log(`First row sample:`, rawData.length > 0 ? {
                 row_id: rawData[0].row_id,
                 hasTopics: !!rawData[0].topics,
                 topicsCount: rawData[0].topics?.length || 0,
@@ -4113,6 +4236,7 @@
                 if (!row || !row.topics || row.topics.length === 0) {
                     if (rawData.length > 0 && rawData.length <= 10) {
                         // Log for small datasets to help debug
+                        console.log(`Skipping row ${row?.row_id || 'unknown'}: hasTopics=${!!row?.topics}, topicsLength=${row?.topics?.length || 0}`);
                     }
                     return;
                 }
@@ -4183,6 +4307,8 @@
                 }))
             };
             
+            console.log(`Found ${rowsWithTopics} rows with topics, ${topicsFound} total topics`);
+            console.log(`Categories: ${categoryMap.size}, Hierarchy children: ${hierarchyData.children.length}`);
             
             // Log a sample row for debugging
             if (rawData.length > 0) {
@@ -6132,6 +6258,7 @@
                                         const currentHeight = parseInt(svg.getAttribute('height')) || 0;
                                         // Re-render if dimensions don't match (with some tolerance)
                                         if (Math.abs(newWidth - currentWidth) > 10 || Math.abs(newHeight - currentHeight) > 10) {
+                                            console.log('[navigateToView] Re-rendering treemap with correct dimensions:', {
                                                 old: { width: currentWidth, height: currentHeight },
                                                 new: { width: newWidth, height: newHeight }
                                             });
@@ -6346,10 +6473,12 @@
 
 
         // Start the application - check auth first
+        console.log('Starting application...');
         
         // Quick synchronous check - if no token, show login immediately to avoid flash
         const token = typeof Auth !== 'undefined' ? Auth.getAuthToken() : null;
         if (!token) {
+            console.log('No token found, showing login immediately');
             if (typeof Auth !== 'undefined') {
                 Auth.showLogin();
             } else {
@@ -6912,6 +7041,7 @@
 
         // Navigation functions for origin breadcrumb pills
         function navigateToProjectFromInsight(projectName) {
+            console.log('[InsightOriginNav] Navigating to project:', projectName);
             // Navigate to visualizations view
             navigateToView('visualizations');
             
@@ -6929,6 +7059,7 @@
         }
 
         async function navigateToDimensionFromInsight(dimensionRef, dimensionName, dataSource) {
+            console.log('[InsightOriginNav] Navigating to dimension:', dimensionRef, dimensionName, 'dataSource:', dataSource);
             
             // Navigate to visualizations view
             navigateToView('visualizations');
@@ -6980,6 +7111,7 @@
             
             // Switch data source if needed
             if (needsDataSourceSwitch) {
+                console.log('[InsightOriginNav] Switching data source from', currentDataSourceId, 'to', dataSource);
                 currentDataSourceId = dataSource;
                 currentQuestionRefKey = null; // Reset dimension when switching data source
                 dimensionFilters = {}; // Clear dimension filters
@@ -6990,6 +7122,7 @@
                 const sourceSelect = document.getElementById('sourceSelect');
                 if (sourceSelect) {
                     sourceSelect.value = dataSource;
+                    console.log('[InsightOriginNav] Updated source dropdown to:', dataSource);
                 }
                 
                 // Load the new data source - this will call detectAndSetupQuestionFilter
@@ -7013,6 +7146,7 @@
             
             // Switch dimension if needed
             if (needsDimensionSwitch && dimensionRef) {
+                console.log('[InsightOriginNav] Switching dimension from', currentQuestionRefKey, 'to', dimensionRef);
                 const questionSelect = document.getElementById('questionSelect');
                 if (questionSelect) {
                     // Check if the dimension is available
@@ -7047,6 +7181,7 @@
         }
 
         async function navigateToCategoryFromInsight(categoryName, topicName, dataSource, dimensionRef) {
+            console.log('[InsightOriginNav] Navigating to category:', categoryName, topicName, dataSource, dimensionRef);
             
             // Ensure we're in the correct context (data source and dimension)
             await ensureContextForInsightNavigation(dataSource, dimensionRef);
@@ -7059,6 +7194,7 @@
         }
 
         async function navigateToTopicFromInsight(topicName, categoryName, dataSource, dimensionRef) {
+            console.log('[InsightOriginNav] Navigating to topic:', topicName, categoryName, dataSource, dimensionRef);
             
             // Ensure we're in the correct context (data source and dimension)
             await ensureContextForInsightNavigation(dataSource, dimensionRef);
@@ -7079,6 +7215,7 @@
                     }
                 }
                 
+                console.log('[InsightOriginNav] Found', verbatims.length, 'verbatims for topic', topicName);
                 
                 // Navigate to verbatims view
                 window.SlideoutPanel.openVerbatims(verbatims, topicName, categoryName);
@@ -7793,11 +7930,15 @@
         }
 
         function openCreateModal() {
+            console.log('[openCreateModal] Function called');
+            console.log('[openCreateModal] Current file:', window.location.pathname);
+            console.log('[openCreateModal] SlideoutPanel available:', typeof SlideoutPanel !== 'undefined');
             
             insightsCurrentInsightId = null;
             
             // Check if we should use slideout panel
             if (typeof SlideoutPanel !== 'undefined' && SlideoutPanel.openCreateInsight) {
+                console.log('[openCreateModal] Using slideout panel method');
                 
                 const urlParams = new URLSearchParams(window.location.search);
                 const contextData = {
@@ -7807,6 +7948,8 @@
                     dimension_name: urlParams.get('dimension_name') || null,
                 };
                 
+                console.log('[openCreateModal] Context data:', contextData);
+                console.log('[openCreateModal] Calling SlideoutPanel.openCreateInsight');
                 
                 SlideoutPanel.openCreateInsight(contextData);
                 return;
@@ -7818,6 +7961,7 @@
             const modalTitle = document.getElementById('modalTitle');
             const form = document.getElementById('insightForm');
             
+            console.log('[openCreateModal] Modal elements:', { 
                 modal: !!modal, 
                 modalTitle: !!modalTitle, 
                 form: !!form 
@@ -7839,6 +7983,7 @@
                 dimension_name: urlParams.get('dimension_name') || null,
             };
             
+            console.log('[openCreateModal] Opening modal');
             modal.classList.add('active');
         }
 
@@ -7944,6 +8089,8 @@
         }
 
         async function editInsight(insightId) {
+            console.log('[editInsight] Function called with insightId:', insightId);
+            console.log('[editInsight] insightsCurrentClientId:', insightsCurrentClientId);
             
             if (!insightsCurrentClientId) {
                 console.error('[editInsight] No client selected');
@@ -7951,6 +8098,7 @@
             }
 
             // Use the same function as opening insight notes (slideout panel)
+            console.log('[editInsight] Calling openInsightNotes');
             openInsightNotes(insightId);
         }
 
@@ -9205,19 +9353,26 @@
         
         function createMediaPasteHandler(getEditor, insertAndUploadMedia) {
             return (view, event, slice) => {
+                console.log('[Paste Handler] Paste event triggered', { view, event, slice });
+                console.log('[Paste Handler] Clipboard data available:', !!event.clipboardData);
                 
                 // Get editor reference at execution time (getEditor can be a function or the editor itself)
                 const editor = typeof getEditor === 'function' ? getEditor() : getEditor;
+                console.log('[Paste Handler] Editor available:', !!editor, editor);
                 if (!editor) {
+                    console.log('[Paste Handler] No editor available, allowing default paste');
                     return false; // Editor not available, allow default paste
                 }
                 
                 const items = Array.from(event.clipboardData?.items || []);
+                console.log('[Paste Handler] Clipboard items:', items.length, items.map(item => ({ type: item.type, kind: item.kind })));
                 
                 const imageItem = items.find(item => item.type.startsWith('image/'));
                 const videoItem = items.find(item => item.type.startsWith('video/'));
+                console.log('[Paste Handler] Image item:', !!imageItem, 'Video item:', !!videoItem);
                 
                 if (imageItem) {
+                    console.log('[Paste Handler] Processing image paste');
                     event.preventDefault();
                     const file = imageItem.getAsFile();
                     if (file) {
@@ -9227,6 +9382,7 @@
                 }
                 
                 if (videoItem) {
+                    console.log('[Paste Handler] Processing video paste');
                     event.preventDefault();
                     const file = videoItem.getAsFile();
                     if (file) {
@@ -9238,27 +9394,35 @@
                 // Check for Loom URLs in both plain text and HTML clipboard data
                 const pastedText = event.clipboardData?.getData('text/plain');
                 const pastedHtml = event.clipboardData?.getData('text/html');
+                console.log('[Paste Handler] Pasted text:', pastedText);
+                console.log('[Paste Handler] Pasted HTML:', pastedHtml ? pastedHtml.substring(0, 200) + '...' : null);
                 
                 // Extract URL from pasted content (check plain text first, then HTML)
                 let textToCheck = pastedText?.trim();
                 if (!textToCheck && pastedHtml) {
+                    console.log('[Paste Handler] Extracting URL from HTML');
                     // Try to extract URL from HTML (look for href attributes first, then text content)
                     const tempDiv = document.createElement('div');
                     tempDiv.innerHTML = pastedHtml;
                     const linkElement = tempDiv.querySelector('a[href]');
                     if (linkElement) {
                         textToCheck = linkElement.href;
+                        console.log('[Paste Handler] Found URL in link href:', textToCheck);
                     } else {
                         // Fall back to text content if no link element found
                         textToCheck = tempDiv.textContent?.trim();
+                        console.log('[Paste Handler] Using HTML text content:', textToCheck);
                     }
                 }
                 
+                console.log('[Paste Handler] Text to check for Loom URL:', textToCheck);
                 
                 // Check if the pasted content contains a Loom URL (even if embedded in other text)
                 if (textToCheck) {
                     const loomEmbedUrl = convertLoomUrl(textToCheck);
+                    console.log('[Paste Handler] Loom embed URL:', loomEmbedUrl);
                     if (loomEmbedUrl) {
+                        console.log('[Paste Handler] Inserting Loom iframe');
                         event.preventDefault();
                         // Use TipTap's iframe node instead of raw HTML
                         editor.chain().focus().insertContent({
@@ -9273,12 +9437,18 @@
                             },
                         }).run();
                         const editorHtml = editor.getHTML();
+                        console.log('[Paste Handler] Editor HTML after insertion:', editorHtml);
+                        console.log('[Paste Handler] Editor HTML contains iframe:', editorHtml.includes('iframe'));
+                        console.log('[Paste Handler] Editor HTML contains embed URL:', editorHtml.includes(loomEmbedUrl));
                         return true;
                     } else {
+                        console.log('[Paste Handler] Not a Loom URL, allowing default paste');
                     }
                 } else {
+                    console.log('[Paste Handler] No text to check, allowing default paste');
                 }
                 
+                console.log('[Paste Handler] Returning false, allowing default paste behavior');
                 return false;
             };
         }
@@ -10013,7 +10183,9 @@
         
         const authCheck = typeof Auth !== 'undefined' ? Auth.checkAuth() : Promise.resolve(false);
         authCheck.then(authenticated => {
+            console.log('Auth check result:', authenticated);
             if (!authenticated) {
+                console.log('Not authenticated, showing login');
                 if (typeof Auth !== 'undefined') {
                     Auth.showLogin();
                 }
@@ -10031,13 +10203,16 @@
                 ClientPromptRenderer: !!window.ClientPromptRenderer,
                 getClientPromptRenderer: !!window.getClientPromptRenderer
             };
+            console.log('[getPromptRendererWithRetry] Module availability:', diagnostics);
 
             let renderer = window.PromptUIRenderer || window.ClientPromptRenderer;
             if (!renderer && window.getClientPromptRenderer) {
+                console.log('[getPromptRendererWithRetry] Attempting to initialize renderer...');
                 renderer = window.getClientPromptRenderer();
             }
 
             if (!renderer) {
+                console.log('[getPromptRendererWithRetry] Renderer not available, waiting 200ms and retrying...');
                 await new Promise(resolve => setTimeout(resolve, 200));
                 renderer = window.PromptUIRenderer || window.ClientPromptRenderer;
                 if (!renderer && window.getClientPromptRenderer) {
@@ -10109,6 +10284,7 @@
                     }
                 });
                 
+                console.log('Slideout Panel initialized');
             },
             
             handleExpandToggle() {
@@ -10138,6 +10314,7 @@
             
             setCurrentDimension(dimensionRef) {
                 this.currentDimensionRef = dimensionRef;
+                console.log('Current dimension set to:', dimensionRef);
                 
                 // Show/hide the AI Insights tab based on whether a dimension is selected
                 // TEMPORARILY DISABLED: Tab hidden until further notice
@@ -10204,6 +10381,7 @@
             },
             
             openVerbatims(verbatims, topicName, categoryName, skipUIUpdates = false, skipStackPush = false) {
+                console.log('[BreadcrumbNav] SlideoutPanel.openVerbatims called with:', { 
                     verbatimsCount: verbatims?.length, 
                     topicName, 
                     categoryName,
@@ -10225,6 +10403,7 @@
                             },
                             view: 'chart'
                         });
+                        console.log('[BreadcrumbNav] Pushed chart state to stack');
                     } else if (this.currentMode === 'insight-notes' && this.currentInsightId) {
                         // Save insight state
                         this.navigationStack.push({
@@ -10232,6 +10411,7 @@
                             data: { insightId: this.currentInsightId },
                             view: 'insight'
                         });
+                        console.log('[BreadcrumbNav] Pushed insight state to stack');
                     }
                 }
                 
@@ -10295,6 +10475,9 @@
             },
             
             async openCreateInsight(contextData, fromContextMenu = false) {
+                console.log('[SlideoutPanel.openCreateInsight] Called with contextData:', contextData);
+                console.log('[SlideoutPanel.openCreateInsight] currentClientId:', currentClientId);
+                console.log('[SlideoutPanel.openCreateInsight] fromContextMenu:', fromContextMenu);
                 
                 if (!currentClientId) {
                     console.error('[SlideoutPanel.openCreateInsight] No client selected');
@@ -10318,6 +10501,7 @@
                 const searchBox = document.getElementById('slideoutSearch');
                 const settingsBtn = document.getElementById('slideoutSettingsBtn');
                 
+                console.log('[SlideoutPanel.openCreateInsight] UI elements:', {
                     panel: !!panel,
                     overlay: !!overlay,
                     title: !!title,
@@ -10347,12 +10531,15 @@
                 }
                 
                 if (panel) {
+                    console.log('[SlideoutPanel.openCreateInsight] Adding "open" class to panel');
                     panel.classList.add('open');
+                    console.log('[SlideoutPanel.openCreateInsight] Panel classes after adding open:', panel.classList.toString());
                 } else {
                     console.error('[SlideoutPanel.openCreateInsight] Panel element not found!');
                 }
                 
                 if (overlay) {
+                    console.log('[SlideoutPanel.openCreateInsight] Adding "visible" class to overlay');
                     overlay.classList.add('visible');
                 } else {
                     console.error('[SlideoutPanel.openCreateInsight] Overlay element not found!');
@@ -10369,6 +10556,7 @@
                 
                 // Prevent body scroll
                 document.body.classList.add('slideout-open');
+                console.log('[SlideoutPanel.openCreateInsight] Body classes:', document.body.classList.toString());
                 
                 // Update search bar z-index when slideout opens
                 if (typeof updateTreemapSearchZIndex === 'function') {
@@ -10376,7 +10564,9 @@
                 }
                 
                 // Initialize panel with empty form, pre-populated with context
+                console.log('[SlideoutPanel.openCreateInsight] Calling initializeCreateInsightPanel');
                 await this.initializeCreateInsightPanel(content, contextData, fromContextMenu);
+                console.log('[SlideoutPanel.openCreateInsight] Panel initialization complete');
             },
             
             async openInsightNotes(insightId) {
@@ -10507,6 +10697,10 @@
             },
             
             async initializeCreateInsightPanel(container, contextData, fromContextMenu = false) {
+                console.log('[initializeCreateInsightPanel] Called');
+                console.log('[initializeCreateInsightPanel] Container:', container);
+                console.log('[initializeCreateInsightPanel] ContextData:', contextData);
+                console.log('[initializeCreateInsightPanel] fromContextMenu:', fromContextMenu);
                 
                 if (!container) {
                     console.error('[initializeCreateInsightPanel] Container is null or undefined!');
@@ -10533,6 +10727,7 @@
                 const dimensionName = contextData.dimension_name || null;
                 const dimensionRef = contextData.dimension_ref || null;
                 
+                console.log('[BreadcrumbNav] initializeCreateInsightPanel - Extracted breadcrumb data:', { categoryName, topicName, dataSourceName, dimensionName, dimensionRef });
                 
                 // Get verbatims for this context
                 let availableVerbatims = this.getVerbatimsFromContext(contextData);
@@ -10589,6 +10784,7 @@
                     ? breadcrumbParts.join('<span style="margin: 0 4px; color: oklch(0.7 0 0);">|</span>')
                     : '';
                 
+                console.log('[BreadcrumbNav] initializeCreateInsightPanel - Generated breadcrumb HTML');
                 
                 // Create panel structure with attributes (title is now in header)
                 // Use flexbox layout with scrollable content and fixed footer
@@ -10688,6 +10884,7 @@
                         const dimName = item.getAttribute('data-dimension') || null;
                         const dimRef = item.getAttribute('data-dimension-ref') || null;
                         
+                        console.log('[BreadcrumbNav] initializeCreateInsightPanel - Breadcrumb clicked:', { clickType, catName, topName, dsName, dimName, dimRef });
                         
                         if (clickType === 'dimension' && dimRef) {
                             // Dimension click: navigate to visualizations and filter by dimension
@@ -10794,6 +10991,7 @@
             },
             
             async openAIExpertInsight(contextData, promptId, useFullAggregatedData = false) {
+                console.log('[openAIExpertInsight] Called with contextData:', contextData, 'promptId:', promptId, 'useFullAggregatedData:', useFullAggregatedData);
                 
                 if (!currentClientId) {
                     alert('No client selected');
@@ -10811,6 +11009,7 @@
                     return;
                 }
                 
+                console.log('[openAIExpertInsight] Using renderer:', renderer.constructor?.name || 'object');
                 
                 let cleanVerbatims = [];
                 let vocDataForAPI = null;
@@ -10945,12 +11144,14 @@
                 const slideoutContent = document.getElementById('slideoutContent');
                 if (slideoutContent) {
                     if (renderer.attachIdeaCardListeners) {
+                        console.log('[openAIExpertInsight] Attaching idea card listeners to slideoutContent', {
                             containerId: slideoutContent.id,
                             hasAttachMethod: !!renderer.attachIdeaCardListeners,
                             timestamp: new Date().toISOString()
                         });
                         renderer.attachIdeaCardListeners(slideoutContent);
                     } else if (window.ActionRenderer && window.ActionRenderer.attachIdeaCardListeners) {
+                        console.log('[openAIExpertInsight] Attaching idea card listeners via ActionRenderer', {
                             containerId: slideoutContent.id,
                             hasAttachMethod: !!window.ActionRenderer.attachIdeaCardListeners,
                             timestamp: new Date().toISOString()
@@ -10978,6 +11179,7 @@
                         },
                         // onDone
                         async (metadata) => {
+                            console.log('[openAIExpertInsight] Streaming completed', metadata);
                             renderer.finalizeStreamingItem(streamingItem, metadata);
                             
                             // Note: Idea card listeners were already attached before streaming started
@@ -11083,6 +11285,7 @@
                         voc_json: summaryPayload
                     };
 
+                    console.log('[saveOverviewAsInsight] Saving insight:', insightData);
 
                     const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights`, {
                         method: 'POST',
@@ -11100,6 +11303,7 @@
 
                     const newInsight = await response.json();
                     this.currentOverviewInsightId = newInsight.id;
+                    console.log('[saveOverviewAsInsight] Insight saved with ID:', newInsight.id);
 
                     // Refresh insights list
                     if (typeof loadInsights === 'function') {
@@ -11112,6 +11316,7 @@
             },
 
             async openAIOverviewSummary(summaryPayload, promptId) {
+                console.log('[openAIOverviewSummary] Called with promptId:', promptId);
 
                 if (!currentClientId) {
                     alert('No client selected');
@@ -11187,12 +11392,14 @@
                 const slideoutContentForSummary = document.getElementById('slideoutContent');
                 if (slideoutContentForSummary) {
                     if (renderer.attachIdeaCardListeners) {
+                        console.log('[openAIOverviewSummary] Attaching idea card listeners to slideoutContent', {
                             containerId: slideoutContentForSummary.id,
                             hasAttachMethod: !!renderer.attachIdeaCardListeners,
                             timestamp: new Date().toISOString()
                         });
                         renderer.attachIdeaCardListeners(slideoutContentForSummary);
                     } else if (window.ActionRenderer && window.ActionRenderer.attachIdeaCardListeners) {
+                        console.log('[openAIOverviewSummary] Attaching idea card listeners via ActionRenderer', {
                             containerId: slideoutContentForSummary.id,
                             hasAttachMethod: !!window.ActionRenderer.attachIdeaCardListeners,
                             timestamp: new Date().toISOString()
@@ -11217,6 +11424,7 @@
                             renderer.appendToStreamingItem(streamingItem, chunk);
                         },
                         async (metadata) => {
+                            console.log('[openAIOverviewSummary] Streaming completed', metadata);
                             renderer.finalizeStreamingItem(streamingItem, metadata);
 
                             // Note: Idea card listeners were already attached before streaming started
@@ -11266,6 +11474,8 @@
                 const name = titleEl?.textContent.trim() || '';
                 const notes = this.currentInsightEditor ? this.currentInsightEditor.getHTML() : '';
                 
+                console.log('[saveNewInsight] Notes content:', notes);
+                console.log('[saveNewInsight] Notes contains blob URL:', notes.includes('blob:'));
                 
                 // Check for blob URLs and warn user
                 if (notes.includes('blob:')) {
@@ -11352,6 +11562,7 @@
                     const insightsSection = document.getElementById('insights-section');
                     const isInsightsViewActive = insightsSection && insightsSection.classList.contains('active');
                     
+                    console.log('[saveNewInsight] Insights section check:', {
                         element: !!insightsSection,
                         isActive: isInsightsViewActive,
                         hasLoadInsightsPage: typeof loadInsightsPage === 'function',
@@ -11360,11 +11571,13 @@
                     
                     // Always try to refresh insights page first (for insights tab)
                     if (typeof loadInsightsPage === 'function') {
+                        console.log('[saveNewInsight] Refreshing insights list via loadInsightsPage()');
                         loadInsightsPage();
                     }
                     
                     // Also refresh the other insights view if it exists (for compatibility)
                     if (typeof loadInsights === 'function') {
+                        console.log('[saveNewInsight] Refreshing insights list via loadInsights()');
                         loadInsights();
                     }
                     
@@ -11393,6 +11606,7 @@
             },
             
             async initializeInsightPanel(container, insight) {
+                console.log('[BreadcrumbNav] initializeInsightPanel called for insight:', insight.id);
                 if (!container) return;
                 
                 // Reset navigation stack when opening a new insight
@@ -11407,11 +11621,13 @@
                 const dimensionName = firstOrigin.dimension_name || null;
                 const dimensionRef = firstOrigin.dimension_ref || null;
                 
+                console.log('[BreadcrumbNav] Extracted breadcrumb data:', { categoryName, topicName, dataSourceId, dimensionName, dimensionRef });
                 
                 // Fetch data source name
                 let dataSourceName = null;
                 if (dataSourceId) {
                     dataSourceName = await this.fetchDataSourceName(dataSourceId);
+                    console.log('[BreadcrumbNav] Fetched data source name:', dataSourceName);
                 }
                 
                 // Set editable title in header
@@ -11453,6 +11669,7 @@
                     ? breadcrumbParts.join('<span style="margin: 0 4px; color: oklch(0.7 0 0);">|</span>')
                     : '';
                 
+                console.log('[BreadcrumbNav] Generated breadcrumb HTML');
                 
                 // Create panel structure with attributes (title is now in header)
                 container.innerHTML = `
@@ -11532,6 +11749,7 @@
                         const dimName = item.getAttribute('data-dimension') || null;
                         const dimRef = item.getAttribute('data-dimension-ref') || null;
                         
+                        console.log('[BreadcrumbNav] Breadcrumb clicked:', { clickType, catName, topName, dsId, dimName, dimRef });
                         
                         if (clickType === 'dimension' && dimRef) {
                             // Dimension click: navigate to visualizations and filter by dimension
@@ -11598,6 +11816,9 @@
                 // Set up editable application chip (with auto-save for edit mode)
                 
                 // Initialize editor with notes
+                console.log('[initializeInsightPanel] Initializing editor with notes:', insight.notes);
+                console.log('[initializeInsightPanel] Notes length:', insight.notes?.length);
+                console.log('[initializeInsightPanel] Notes contains img:', insight.notes?.includes('<img'));
                 
                 // Convert markdown to HTML if needed
                 // When insights are saved from streaming, they should already be HTML, but if the saved
@@ -11614,6 +11835,7 @@
                     
                     // If markdown syntax is present but content isn't already HTML, convert it
                     if (hasMarkdownSyntax && !isAlreadyHTML) {
+                        console.log('[initializeInsightPanel] Converting markdown to HTML');
                         // Use MarkdownConverter if available (same one used during streaming)
                         if (window.MarkdownConverter && window.MarkdownConverter.convertMarkdown) {
                             notesContent = window.MarkdownConverter.convertMarkdown(notesContent);
@@ -11624,6 +11846,7 @@
                     }
                     // If content is "already HTML" but has literal newlines, we need to convert those to <br> or <p> tags
                     else if (isAlreadyHTML && hasLiteralNewlines) {
+                        console.log('[initializeInsightPanel] Converting literal newlines in HTML content');
                         // Split on double newlines for paragraphs, single newlines for <br>
                         notesContent = notesContent
                             .split(/\n\n+/)
@@ -11645,6 +11868,7 @@
                 
                 try {
                     await this.initializeInsightEditor(document.getElementById('insightNotesEditor'), notesContent);
+                    console.log('[initializeInsightPanel] Editor initialization completed');
                 } catch (error) {
                     console.error('[initializeInsightPanel] Error initializing editor:', error);
                 }
@@ -11653,15 +11877,19 @@
                 if (this.currentInsightEditor) {
                     setTimeout(() => {
                         const html = this.currentInsightEditor.getHTML();
+                        console.log('[initializeInsightPanel] Editor HTML after initialization:', html);
+                        console.log('[initializeInsightPanel] Editor HTML contains img:', html.includes('<img'));
                         const editorElement = document.getElementById('insightNotesEditor');
                         if (editorElement) {
                             const images = editorElement.querySelectorAll('img');
+                            console.log('[initializeInsightPanel] Found', images.length, 'img elements in DOM');
                             if (images.length === 0) {
                                 console.warn('[initializeInsightPanel] ⚠️ No images found in DOM!');
                                 console.warn('[initializeInsightPanel] Editor element:', editorElement);
                                 console.warn('[initializeInsightPanel] Editor element innerHTML:', editorElement.innerHTML.substring(0, 1000));
                             }
                             images.forEach((img, idx) => {
+                                console.log(`[initializeInsightPanel] Image ${idx}:`, {
                                     src: img.src,
                                     complete: img.complete,
                                     naturalWidth: img.naturalWidth,
@@ -11679,6 +11907,9 @@
             },
             
             async initializeInsightEditor(editorElement, initialContent) {
+                console.log('[initializeInsightEditor] Called with initialContent:', initialContent);
+                console.log('[initializeInsightEditor] InitialContent contains img:', initialContent?.includes('<img'));
+                console.log('[initializeInsightEditor] InitialContent contains iframe:', initialContent?.includes('<iframe'));
                 
                 // Clean up existing editor if any
                 if (this.currentInsightEditor) {
@@ -11754,9 +11985,12 @@
                         
                         // Insert immediately with object URL
                         if (isVideo) {
+                            console.log('[insertAndUploadMedia] Inserting video with object URL');
                             editor.chain().focus().insertContent(`<video src="${objectURL}" controls width="100%" style="max-width: 100%; height: auto; border-radius: 0.5rem; margin: 1rem 0;"></video>`).run();
                         } else {
+                            console.log('[insertAndUploadMedia] Inserting image with object URL');
                             editor.chain().focus().setImage({ src: objectURL }).run();
+                            console.log('[insertAndUploadMedia] Image inserted, current HTML:', editor.getHTML());
                         }
                         
                         // Upload in background and replace URL when done
@@ -11826,7 +12060,9 @@
                                 style: 'min-height: 400px;'
                             },
                             handlePaste: (view, event, slice) => {
+                                console.log('[Editor Setup] Paste handler called for self.currentInsightEditor');
                                 const handler = createMediaPasteHandler(() => {
+                                    console.log('[Editor Setup] Getting editor, current value:', self.currentInsightEditor);
                                     return self.currentInsightEditor;
                                 }, insertAndUploadMedia);
                                 return handler(view, event, slice);
@@ -11837,6 +12073,9 @@
                             // Only auto-save if we're in edit mode, not create mode
                             if (this.currentMode === 'insight-notes' && this.currentInsightId) {
                                 const html = editor.getHTML();
+                                console.log('[onUpdate] Editor updated, mode:', this.currentMode, 'insightId:', this.currentInsightId);
+                                console.log('[onUpdate] HTML content:', html);
+                                console.log('[onUpdate] HTML contains img tags:', html.includes('<img'));
                                 
                                 // Check for blob URLs - warn if found
                                 if (html.includes('blob:')) {
@@ -11845,6 +12084,7 @@
                                 
                                 this.debouncedSaveInsightNotes(this.currentInsightId, html);
                             } else {
+                                console.log('[onUpdate] Not saving - mode:', this.currentMode, 'insightId:', this.currentInsightId);
                             }
                         },
                         onSelectionUpdate: ({ editor }) => {
@@ -11856,14 +12096,22 @@
                     });
                     
                     // Log immediately after editor creation
+                    console.log('[initializeInsightEditor] Editor created successfully');
+                    console.log('[initializeInsightEditor] Editor HTML immediately after creation:', this.currentInsightEditor.getHTML());
+                    console.log('[initializeInsightEditor] Editor HTML contains img:', this.currentInsightEditor.getHTML().includes('<img'));
                     
                     // Check DOM directly after editor is ready
                     setTimeout(() => {
                         const html = this.currentInsightEditor.getHTML();
+                        console.log('[initializeInsightEditor] Editor HTML after delay:', html);
+                        console.log('[initializeInsightEditor] Editor HTML contains iframe:', html.includes('<iframe'));
                         const images = editorElement.querySelectorAll('img');
                         const iframes = editorElement.querySelectorAll('iframe');
+                        console.log('[initializeInsightEditor] Found', images.length, 'img elements in DOM');
+                        console.log('[initializeInsightEditor] Found', iframes.length, 'iframe elements in DOM');
                         if (images.length > 0) {
                             images.forEach((img, idx) => {
+                                console.log(`[initializeInsightEditor] Image ${idx}:`, {
                                     src: img.src,
                                     complete: img.complete,
                                     naturalWidth: img.naturalWidth,
@@ -11873,6 +12121,7 @@
                                     style: img.style.cssText
                                 });
                                 // Test if image loads
+                                img.onload = () => console.log(`[initializeInsightEditor] Image ${idx} loaded successfully`);
                                 img.onerror = (e) => console.error(`[initializeInsightEditor] Image ${idx} failed to load:`, e);
                             });
                         } else {
@@ -12245,6 +12494,11 @@
             },
             
             async saveInsightNotes(insightId, content) {
+                console.log('[saveInsightNotes] Called with insightId:', insightId, 'currentClientId:', currentClientId);
+                console.log('[saveInsightNotes] Content length:', content?.length);
+                console.log('[saveInsightNotes] Content preview:', content?.substring(0, 200));
+                console.log('[saveInsightNotes] Content contains img:', content?.includes('<img'));
+                console.log('[saveInsightNotes] Full content:', content);
                 
                 if (!currentClientId || !insightId) {
                     console.warn('[saveInsightNotes] Missing clientId or insightId, aborting');
@@ -12255,6 +12509,7 @@
                 
                 try {
                     const payload = { notes: content };
+                    console.log('[saveInsightNotes] Sending payload:', JSON.stringify(payload).substring(0, 300));
                     
                     const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights/${insightId}`, {
                         method: 'PUT',
@@ -12265,6 +12520,7 @@
                         body: JSON.stringify(payload)
                     });
                     
+                    console.log('[saveInsightNotes] Response status:', response.status);
                     
                     if (!response.ok) {
                         const errorText = await response.text();
@@ -12273,12 +12529,18 @@
                     }
                     
                     const responseData = await response.json();
+                    console.log('[saveInsightNotes] Save successful, response:', responseData);
+                    console.log('[saveInsightNotes] Saved notes content (first 500 chars):', responseData.notes?.substring(0, 500));
+                    console.log('[saveInsightNotes] Saved notes contains img:', responseData.notes?.includes('<img'));
                     
                     // Check if image URL is complete
                     if (responseData.notes?.includes('<img')) {
                         const imgMatch = responseData.notes.match(/<img[^>]+src="([^"]+)"/);
                         if (imgMatch) {
                             const imgSrc = imgMatch[1];
+                            console.log('[saveInsightNotes] Image src found:', imgSrc);
+                            console.log('[saveInsightNotes] Image src length:', imgSrc.length);
+                            console.log('[saveInsightNotes] Image src ends with .png:', imgSrc.endsWith('.png'));
                             if (!imgSrc.endsWith('.png') && !imgSrc.endsWith('.jpg') && !imgSrc.endsWith('.gif')) {
                                 console.warn('[saveInsightNotes] ⚠️ Image URL appears truncated!');
                             }
@@ -12385,12 +12647,15 @@
             
             // Fetch data source name from API
             async fetchDataSourceName(dataSourceId) {
+                console.log('[BreadcrumbNav] fetchDataSourceName called with:', dataSourceId);
                 if (!dataSourceId) {
+                    console.log('[BreadcrumbNav] No data source ID provided');
                     return null;
                 }
                 
                 // Check cache first
                 if (this.dataSourceNameCache[dataSourceId]) {
+                    console.log('[BreadcrumbNav] Using cached data source name:', this.dataSourceNameCache[dataSourceId]);
                     return this.dataSourceNameCache[dataSourceId];
                 }
                 
@@ -12409,6 +12674,7 @@
                     
                     if (name) {
                         this.dataSourceNameCache[dataSourceId] = name;
+                        console.log('[BreadcrumbNav] Cached data source name:', name);
                     }
                     
                     return name;
@@ -12424,14 +12690,17 @@
                 if (backButton) {
                     if (this.navigationStack.length > 0) {
                         backButton.style.display = 'flex';
+                        console.log('[BreadcrumbNav] Back button shown, stack length:', this.navigationStack.length);
                     } else {
                         backButton.style.display = 'none';
+                        console.log('[BreadcrumbNav] Back button hidden');
                     }
                 }
             },
             
             // Navigate back through navigation stack
             async navigateBack() {
+                console.log('[BreadcrumbNav] navigateBack called, stack:', this.navigationStack);
                 
                 if (this.navigationStack.length === 0) {
                     console.warn('[BreadcrumbNav] Navigation stack is empty, cannot navigate back');
@@ -12439,6 +12708,7 @@
                 }
                 
                 const previousState = this.navigationStack.pop();
+                console.log('[BreadcrumbNav] Popped state:', previousState);
                 
                 // Get all UI elements
                 const content = document.getElementById('slideoutContent');
@@ -12557,6 +12827,7 @@
             
             // Navigate to chart view from breadcrumb
             async navigateToChart(categoryName, topicName, dataSourceId, dimensionName) {
+                console.log('[BreadcrumbNav] navigateToChart called:', { categoryName, topicName, dataSourceId, dimensionName });
                 
                 // Save current state to navigation stack
                 if (this.currentMode === 'insight-notes' && this.currentInsightId) {
@@ -12565,6 +12836,7 @@
                         data: { insightId: this.currentInsightId },
                         view: 'insight'
                     });
+                    console.log('[BreadcrumbNav] Pushed insight state to stack');
                 }
                 
                 // Navigate to chart view
@@ -12573,6 +12845,7 @@
             
             // Render chart view in slideout
             async renderChartView(categoryName, topicName, dataSourceId, dimensionName, skipUIUpdates = false) {
+                console.log('[BreadcrumbNav] renderChartView called:', { categoryName, topicName, dataSourceId, dimensionName, skipUIUpdates });
                 
                 this.currentMode = 'chart';
                 // Track current chart state
@@ -12743,12 +13016,14 @@
                     updatedSettingsBtn.classList.remove('transitioning');
                 }
                 
+                console.log('[BreadcrumbNav] Chart view rendered');
             },
             
             // Toggle category expansion in chart view
             
             // Navigate to verbatims from breadcrumb (direct navigation, skipping chart)
             async navigateToVerbatimsFromBreadcrumb(topicName, categoryName, dataSource, dimensionRef) {
+                console.log('[BreadcrumbNav] navigateToVerbatimsFromBreadcrumb called:', { topicName, categoryName, dataSource, dimensionRef });
                 
                 // Ensure we're in the correct context (data source and dimension)
                 if (dataSource || dimensionRef) {
@@ -12762,6 +13037,7 @@
                         data: { insightId: this.currentInsightId },
                         view: 'insight'
                     });
+                    console.log('[BreadcrumbNav] Pushed insight state to stack from breadcrumb');
                 }
                 
                 // Get verbatims from chart data (now that we're in the correct context)
@@ -12779,6 +13055,7 @@
                     }
                 }
                 
+                console.log('[BreadcrumbNav] Found verbatims from breadcrumb:', verbatims.length);
                 
                 // Navigate to verbatims view
                 this.openVerbatims(verbatims, topicName, categoryName);
@@ -12786,6 +13063,7 @@
             
             // Navigate to verbatims from chart view
             navigateToVerbatimsFromChart(topicName, categoryName) {
+                console.log('[BreadcrumbNav] navigateToVerbatimsFromChart called:', { topicName, categoryName });
                 
                 // Save current chart state to navigation stack (use current chart state, not navigation target)
                 this.navigationStack.push({
@@ -12798,6 +13076,7 @@
                     },
                     view: 'chart'
                 });
+                console.log('[BreadcrumbNav] Pushed current chart state to stack:', {
                     categoryName: this.currentChartCategoryName,
                     topicName: this.currentChartTopicName,
                     dataSourceId: this.currentChartDataSourceId,
@@ -12829,6 +13108,7 @@
                     }
                 }
                 
+                console.log('[BreadcrumbNav] Found verbatims:', verbatims.length);
                 
                 // Navigate to verbatims view - pass skipStackPush=true since we already pushed chart state
                 this.openVerbatims(verbatims, topicName || categoryName, categoryName, false, true);
@@ -12942,6 +13222,7 @@
             },
             
             renderVerbatims(verbatims, topicName, categoryName) {
+                console.log('SlideoutPanel.renderVerbatims called with:', { 
                     verbatimsCount: verbatims?.length, 
                     topicName, 
                     categoryName 
@@ -13001,6 +13282,7 @@
                     );
                 }
                 
+                console.log('Rendering', displayVerbatims.length, 'verbatim cards');
                 
                 // Render verbatim cards
                 content.innerHTML = '';
@@ -13115,6 +13397,7 @@
                     content.appendChild(card);
                 });
                 
+                console.log('Finished rendering', displayVerbatims.length, 'cards to slideoutContent');
                 
                 // Remove transitioning class from all elements (for smooth fade-in)
                 const updatedContent = document.getElementById('slideoutContent');
@@ -13169,6 +13452,7 @@
                     const { client_uuid, data_source, dimension_ref } = this.currentContext;
                     const url = `${API_BASE_URL}/api/dimensions/${client_uuid}/${data_source}/${dimension_ref}/summary${forceRegenerate ? '?force_regenerate=true' : ''}`;
                     
+                    console.log('Fetching AI summary from:', url);
                     
                     const response = await fetch(url, {
                         headers: getAuthHeaders()
@@ -13180,6 +13464,7 @@
                     }
                     
                     const data = await response.json();
+                    console.log('AI summary loaded:', data);
                     this.renderSummary(data);
                     
                 } catch (error) {
@@ -13731,6 +14016,7 @@
                             const textToCopy = action.actions?.content || '';
                             try {
                                 await navigator.clipboard.writeText(textToCopy);
+                                console.log('[openHistoryAction] Content copied to clipboard');
                             } catch (err) {
                                 console.error('[openHistoryAction] Failed to copy:', err);
                             }
@@ -13760,6 +14046,7 @@
                             const textToCopy = actionObject.actions?.content || '';
                             try {
                                 await navigator.clipboard.writeText(textToCopy);
+                                console.log('[openHistoryAction] Content copied to clipboard');
                             } catch (err) {
                                 console.error('[openHistoryAction] Failed to copy:', err);
                             }
@@ -13889,6 +14176,7 @@
         }
 
         function openAddInsightFromVisualizations() {
+            console.log('[openAddInsightFromVisualizations] Function called');
             
             if (!currentClientId) {
                 alert('Please select a client first');
@@ -13910,6 +14198,8 @@
                 dimension_name: currentQuestionRefKey ? getDimensionDisplayName(currentQuestionRefKey) : null,
             };
             
+            console.log('[openAddInsightFromVisualizations] Context data:', contextData);
+            console.log('[openAddInsightFromVisualizations] Calling SlideoutPanel.openCreateInsight');
             
             SlideoutPanel.openCreateInsight(contextData);
         }
@@ -13931,6 +14221,7 @@
             let overviewPromptId = null;
             try {
                 const prompts = await window.ClientPromptAPI.listPrompts(currentClientId);
+                console.log('[openAIOverviewFromVisualizations] Available prompts:', prompts);
                 
                 // Search for overview prompt with flexible matching
                 const overviewPrompt = (prompts || []).find(prompt => {
@@ -13944,6 +14235,7 @@
                 
                 if (overviewPrompt) {
                     overviewPromptId = overviewPrompt.id;
+                    console.log('[openAIOverviewFromVisualizations] Found overview prompt:', overviewPrompt);
                 } else {
                     console.warn('[openAIOverviewFromVisualizations] No overview prompt found. Available prompts:', 
                         prompts.map(p => p.name));
@@ -14504,6 +14796,7 @@
             const item = e.target.closest('.context-menu-item');
             const clickedInMenu = contextMenu && contextMenu.contains(e.target);
             
+            console.log('Click detected:', {
                 isMenuVisible,
                 clickedInMenu,
                 item: !!item,
@@ -14543,17 +14836,26 @@
                 contextMenuJustClicked = true;
                 
                 const action = item.getAttribute('data-action');
+                console.log('=== CONTEXT MENU CLICK ===');
+                console.log('Action:', action);
+                console.log('Current context data:', currentContextData);
+                console.log('Event target:', e.target);
+                console.log('Closest item:', item);
                 
                 if (action === 'ai-expert') {
                     // Submenu is controlled by hover only, no click action needed
                     return; // Don't close menu when hovering over AI Expert
                 } else if (action === 'create-insight') {
+                    console.log('Create insight action triggered');
                     if (currentContextData) {
+                        console.log('Context data exists:', currentContextData);
                         // Save context data before hiding menu (which clears it)
                         // Use JSON parse/stringify to ensure deep copy
                         const savedContextData = JSON.parse(JSON.stringify(currentContextData));
+                        console.log('Saved context data:', savedContextData);
                         // Use setTimeout to ensure click event completes
                         setTimeout(() => {
+                            console.log('About to open slideout panel with saved data:', savedContextData);
                             hideContextMenu();
                             SlideoutPanel.openCreateInsight(savedContextData, true);
                         }, 10);
@@ -14562,8 +14864,12 @@
                         alert('Error: No context data available. Please try right-clicking again.');
                     }
                 } else if (action === 'exclude-category') {
+                    console.log('=== EXCLUDE CATEGORY ACTION ===');
+                    console.log('Current context data:', currentContextData);
                     if (currentContextData && currentContextData.type === 'category' && currentContextData.category) {
                         const categoryName = currentContextData.category;
+                        console.log('Excluding category:', categoryName);
+                        console.log('Current filterRules before update:', JSON.parse(JSON.stringify(filterRules.map(r => ({
                             type: r.type,
                             mode: r.mode,
                             values: Array.from(r.values)
@@ -14571,10 +14877,12 @@
                         
                         // Find or create a category filter rule with mode 'exclude'
                         let existingRuleIndex = filterRules.findIndex(r => r.type === 'category');
+                        console.log('Existing category rule index:', existingRuleIndex);
                         
                         if (existingRuleIndex >= 0) {
                             // Update existing rule
                             const existingRule = filterRules[existingRuleIndex];
+                            console.log('Existing rule before update:', {
                                 type: existingRule.type,
                                 mode: existingRule.mode,
                                 values: Array.from(existingRule.values)
@@ -14582,18 +14890,22 @@
                             // If mode is 'include', we need to switch to exclude mode
                             if (existingRule.mode === 'include') {
                                 // Switch to exclude mode and clear existing selections
+                                console.log('Switching from include to exclude mode');
                                 existingRule.mode = 'exclude';
                                 existingRule.values = new Set([categoryName]);
                             } else {
                                 // Already in exclude mode, add the category to the set
+                                console.log('Adding category to existing exclude rule');
                                 existingRule.values.add(categoryName);
                             }
+                            console.log('Existing rule after update:', {
                                 type: existingRule.type,
                                 mode: existingRule.mode,
                                 values: Array.from(existingRule.values)
                             });
                         } else {
                             // Create new exclude rule
+                            console.log('Creating new exclude rule');
                             filterRules.push({
                                 type: 'category',
                                 mode: 'exclude',
@@ -14601,13 +14913,17 @@
                             });
                         }
                         
+                        console.log('FilterRules after update:', JSON.parse(JSON.stringify(filterRules.map(r => ({
                             type: r.type,
                             mode: r.mode,
                             values: Array.from(r.values)
                         })))));
+                        console.log('Category rule values after update:', Array.from(filterRules.find(r => r.type === 'category')?.values || []));
+                        console.log('availableCategories:', availableCategories);
                         
                         // Save filters for current dimension
                         saveFiltersForDimension(currentQuestionRefKey);
+                        console.log('Saved filters for dimension:', currentQuestionRefKey);
                         
                         // Check filter dropdown state before updating
                         const filterDropdown = document.getElementById('filterDropdown');
@@ -14617,6 +14933,7 @@
                         const isSelectionViewVisible = filterSelectionView && window.getComputedStyle(filterSelectionView).display !== 'none';
                         const isTypeViewVisible = filterTypeView && window.getComputedStyle(filterTypeView).display !== 'none';
                         
+                        console.log('Filter dropdown state:', {
                             filterDropdownExists: !!filterDropdown,
                             isDropdownVisible: isDropdownVisible,
                             filterSelectionViewExists: !!filterSelectionView,
@@ -14629,32 +14946,45 @@
                         
                         // Update filter UI to show the active filter (this updates the badge)
                         updateFilterUI();
+                        console.log('Called updateFilterUI()');
                         
                         // If filter dropdown is open and showing category filter selection view, refresh it
                         if (isDropdownVisible && isSelectionViewVisible) {
                             if (currentFilterType === 'category') {
+                                console.log('Filter dropdown is open showing category filter - refreshing view');
                                 // Refresh the filter selection view to show the newly added category as checked
                                 showFilterSelectionView();
+                                console.log('Called showFilterSelectionView()');
                             } else {
+                                console.log('Filter dropdown is open but showing different filter type:', currentFilterType);
+                                console.log('Setting currentFilterType to category and refreshing view');
                                 // Set currentFilterType to category and refresh the view
                                 currentFilterType = 'category';
                                 showFilterSelectionView();
+                                console.log('Called showFilterSelectionView() with category type');
                             }
                         } else if (isDropdownVisible && isTypeViewVisible) {
+                            console.log('Filter dropdown is open but showing type view - just updating active filters list');
                             // If showing type view, updateFilterUI already refreshed the active filters list
                         } else {
+                            console.log('Filter dropdown is not open or not showing selection view');
+                            console.log('isDropdownVisible:', isDropdownVisible, 'isSelectionViewVisible:', isSelectionViewVisible);
                         }
                         
                         // Apply filters and re-render charts
+                        console.log('Applying filters and re-rendering...');
                         applyFiltersAndRender();
+                        console.log('Filters applied and charts re-rendered');
                         
                         // Hide the context menu
                         hideContextMenu();
+                        console.log('Context menu hidden');
                     } else {
                         console.error('Invalid context data for exclude category action:', currentContextData);
                         alert('Error: Unable to exclude category. Please try right-clicking again.');
                     }
                 } else if (action === 'copy-json') {
+                    console.log('=== COPY JSON ACTION ===');
                     if (currentContextData) {
                         try {
                             // Get the full data structure
@@ -14674,6 +15004,7 @@
                             
                             // Copy to clipboard
                             navigator.clipboard.writeText(jsonString).then(() => {
+                                console.log('JSON copied to clipboard successfully');
                                 // Provide user feedback (simple console log, can be enhanced with UI notification)
                                 // Hide the context menu
                                 hideContextMenu();
@@ -14722,8 +15053,12 @@
 
         // Open create insight modal from context menu
         function openCreateInsightModalFromContext(contextData) {
+            console.log('=== OPENING CREATE INSIGHT MODAL ===');
+            console.log('Context data:', contextData);
             const modal = document.getElementById('createInsightModal');
             const form = document.getElementById('createInsightForm');
+            console.log('Modal element:', modal);
+            console.log('Form element:', form);
             
             if (!modal) {
                 console.error('Modal element not found!');
@@ -14746,6 +15081,7 @@
                 return;
             }
             
+            console.log('Creating origin from contextData:', contextData);
             
             // Pre-populate origin data
             const origin = {
@@ -14759,6 +15095,7 @@
                 process_voc_id: null,
             };
             
+            console.log('Created origin object:', origin);
             
             // Store origin for form submission
             window.currentInsightOrigin = origin;
@@ -14787,9 +15124,11 @@
             
             // Show modal
             modal.style.display = 'flex';
+            console.log('Modal should now be visible');
         }
 
         function closeCreateInsightModal() {
+            console.log('Closing create insight modal');
             const modal = document.getElementById('createInsightModal');
             if (modal) {
                 modal.style.display = 'none';
@@ -14885,6 +15224,7 @@
                 const insightsSection = document.getElementById('insights-section');
                 const isInsightsViewActive = insightsSection && insightsSection.classList.contains('active');
                 
+                console.log('[handleCreateInsightSubmit] Insights section check:', {
                     element: !!insightsSection,
                     isActive: isInsightsViewActive,
                     hasLoadInsightsPage: typeof loadInsightsPage === 'function',
@@ -14893,11 +15233,13 @@
                 
                 // Always try to refresh insights page first (for insights tab)
                 if (typeof loadInsightsPage === 'function') {
+                    console.log('[handleCreateInsightSubmit] Refreshing insights list via loadInsightsPage()');
                     loadInsightsPage();
                 }
                 
                 // Also refresh the other insights view if it exists (for compatibility)
                 if (typeof loadInsights === 'function') {
+                    console.log('[handleCreateInsightSubmit] Refreshing insights list via loadInsights()');
                     loadInsights();
                 }
                 

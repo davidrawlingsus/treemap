@@ -127,6 +127,7 @@
                 return;
             }
 
+            console.log('[SLIDEOUT] executePrompt() called', {
                 promptId,
                 userMessage: userMessage.substring(0, 100) + (userMessage.length > 100 ? '...' : ''),
                 userMessageLength: userMessage.length,
@@ -176,6 +177,7 @@
                     UIRenderer.attachIdeaCardListeners(content);
                 }
 
+                console.log('[SLIDEOUT] Calling PromptAPI.executeStream() from executePrompt()', {
                     promptId,
                     userMessageLength: userMessage.length,
                     timestamp: new Date().toISOString()
@@ -194,6 +196,7 @@
                     },
                     // onDone
                     (metadata) => {
+                        console.log('[SLIDEOUT] Streaming completed (executePrompt)', {
                             promptId,
                             tokens_used: metadata.tokens_used,
                             model: metadata.model,
@@ -208,15 +211,18 @@
                             UIRenderer.finalizeStreamingItem(streamingItem, metadata);
                             
                             // Refresh results to get the saved action (without showing loading state)
+                            console.log('[SLIDEOUT] Scheduling displayAllResults() after streaming (executePrompt)', {
                                 delay: 500,
                                 timestamp: new Date().toISOString()
                             });
                             setTimeout(() => {
+                                console.log('[SLIDEOUT] Calling displayAllResults() after streaming timeout (executePrompt)');
                                 this.displayAllResults(false, 'executePrompt-onDone');
                             }, REFRESH_DELAY_AFTER_STREAMING);
                         } else {
                             // Slideout was closed, but still refresh history if slideout is reopened
                             // The backend has already saved the action, so it will appear in history
+                            console.log('[SLIDEOUT] Streaming completed but slideout is closed, action saved to history', {
                                 promptId,
                                 timestamp: new Date().toISOString()
                             });
@@ -274,6 +280,7 @@
          * @param {string} caller - Name of the calling function for debugging
          */
         async displayAllResults(showLoading = true, caller = 'unknown') {
+            console.log('[SLIDEOUT] displayAllResults() called', {
                 showLoading,
                 caller,
                 timestamp: new Date().toISOString(),
@@ -290,12 +297,16 @@
             const hasStreamingItems = content.querySelectorAll('[data-streaming-id]').length > 0;
             const activeStreamingCount = this.activeStreamingRequests.size;
             if (showLoading && !hasStreamingItems && activeStreamingCount === 0) {
+                console.log('[SLIDEOUT] displayAllResults() - Showing loading state', { caller });
                 UIRenderer.renderLoading(content, 'Loading execution history...');
             } else {
+                console.log('[SLIDEOUT] displayAllResults() - Skipping loading state', { caller, hasStreamingItems, activeStreamingCount });
             }
 
             try {
+                console.log('[SLIDEOUT] displayAllResults() - Fetching all actions', { caller });
                 const allActions = await PromptAPI.getAllActions();
+                console.log('[SLIDEOUT] displayAllResults() - Fetched actions', {
                     caller,
                     actionCount: allActions?.length || 0,
                     timestamp: new Date().toISOString()
@@ -303,6 +314,7 @@
                 
                 state.set('allActions', allActions);
 
+                console.log('[SLIDEOUT] displayAllResults() - Rendering actions', { caller });
                 
                 // Render results with handlers
                 UIRenderer.renderActions(
@@ -333,12 +345,15 @@
                     }
                 );
 
+                console.log('[SLIDEOUT] displayAllResults() - Actions rendered', { caller });
 
                 // Notify that results are updated (for filters)
                 if (this.onResultsUpdate) {
+                    console.log('[SLIDEOUT] displayAllResults() - Notifying results update', { caller });
                     this.onResultsUpdate(allActions);
                 }
 
+                console.log('[SLIDEOUT] displayAllResults() - Completed successfully', { caller });
             } catch (error) {
                 console.error('[SLIDEOUT] displayAllResults() - Failed to load execution history', {
                     caller,
@@ -354,10 +369,12 @@
          * Handle chat submit
          */
         async handleChatSubmit() {
+            console.log('[SLIDEOUT] handleChatSubmit() called', {
                 timestamp: new Date().toISOString()
             });
 
             const promptId = state.get('slideoutPromptId');
+            console.log('[SLIDEOUT] promptId from state:', promptId);
 
             if (!promptId) {
                 console.warn('[SLIDEOUT] No promptId found in state, aborting');
@@ -365,6 +382,7 @@
             }
 
             const userMessage = this.elements.chatInput?.value.trim() || '';
+            console.log('[SLIDEOUT] userMessage:', {
                 message: userMessage.substring(0, 100) + (userMessage.length > 100 ? '...' : ''),
                 length: userMessage.length,
                 isEmpty: !userMessage
@@ -438,6 +456,7 @@
                     this.elements.chatInput.value = '';
                 }
 
+                console.log('[SLIDEOUT] Calling PromptAPI.executeStream()', {
                     promptId,
                     userMessageLength: userMessage.length,
                     timestamp: new Date().toISOString()
@@ -456,6 +475,7 @@
                     },
                     // onDone
                     (metadata) => {
+                        console.log('[SLIDEOUT] Streaming completed (handleChatSubmit)', {
                             promptId,
                             tokens_used: metadata.tokens_used,
                             model: metadata.model,
@@ -483,15 +503,18 @@
                             }, RESET_ICON_DELAY);
 
                             // Refresh results to get the saved action (without showing loading state)
+                            console.log('[SLIDEOUT] Scheduling displayAllResults() after streaming (handleChatSubmit)', {
                                 delay: 500,
                                 timestamp: new Date().toISOString()
                             });
                             setTimeout(() => {
+                                console.log('[SLIDEOUT] Calling displayAllResults() after streaming timeout (handleChatSubmit)');
                                 this.displayAllResults(false, 'handleChatSubmit-onDone');
                             }, REFRESH_DELAY_AFTER_STREAMING);
                         } else {
                             // Slideout was closed, but still refresh history if slideout is reopened
                             // The backend has already saved the action, so it will appear in history
+                            console.log('[SLIDEOUT] Streaming completed but slideout is closed, action saved to history', {
                                 promptId,
                                 timestamp: new Date().toISOString()
                             });

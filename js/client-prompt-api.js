@@ -70,6 +70,7 @@
          * @returns {Promise<void>} Resolves when streaming completes
          */
         async executeStream(clientId, promptId, vocData, onChunk, onDone, onError, origin = null) {
+            console.log('[CLIENT_PROMPT_API] executeStream() called', {
                 clientId,
                 promptId,
                 vocDataSize: JSON.stringify(vocData).length,

@@ -164,6 +164,7 @@
          * @returns {Promise<Object>} Execution result
          */
         async execute(promptId, userMessage = '') {
+            console.log('[PROMPT_API] execute() called', {
                 promptId,
                 userMessage: userMessage.substring(0, USER_MESSAGE_LOG_PREVIEW_LENGTH) + (userMessage.length > USER_MESSAGE_LOG_PREVIEW_LENGTH ? '...' : ''),
                 userMessageLength: userMessage.length,
@@ -176,6 +177,7 @@
                     user_message: userMessage
                 };
 
+                console.log('[PROMPT_API] Making POST request', {
                     endpoint,
                     payload: {
                         ...payload,
@@ -185,6 +187,7 @@
 
                 const result = await API.post(endpoint, payload);
 
+                console.log('[PROMPT_API] execute() success', {
                     promptId,
                     result: result ? (typeof result === 'object' ? JSON.stringify(result).substring(0, 200) + '...' : result) : 'null/undefined',
                     resultType: typeof result,
@@ -215,6 +218,7 @@
          * @returns {Promise<void>} Resolves when streaming completes
          */
         async executeStream(promptId, userMessage = '', onChunk, onDone, onError) {
+            console.log('[PROMPT_API] executeStream() called', {
                 promptId,
                 userMessage: userMessage.substring(0, USER_MESSAGE_LOG_PREVIEW_LENGTH) + (userMessage.length > USER_MESSAGE_LOG_PREVIEW_LENGTH ? '...' : ''),
                 userMessageLength: userMessage.length,
