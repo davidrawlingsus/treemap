@@ -722,8 +722,10 @@ js/
 - Removed 23 debug fetch calls from index.html (69 lines)
 - Removed debugLog function and 5 calls from treemap-renderer.js (21 lines)
 - Removed debug logging from chart-renderer.js (25 lines)
+- Removed 71 [DEBUG] console.log statements from index.html (98 lines)
+- Fixed orphaned code from multi-line debugLog removal
 - Verified no duplicate declarations or stale fallbacks
-- Total debug code removed: ~115 lines
+- Total debug code removed: ~215 lines
 
 ## Known Risks & Technical Debt
 
@@ -769,9 +771,9 @@ js/
 - **Slices Completed**: 27 + cleanup
 - **Modules Created**: 27 (utils, services, state, controllers, config, renderers)
 - **Lines Extracted**: ~4,500+ lines to modules
-- **Current index.html**: ~21,525 lines (down from original ~22,600)
-- **Net Reduction**: ~1,075 lines removed from index.html
-- **Debug Code Removed**: ~115 lines (cleanup phase)
+- **Current index.html**: ~21,427 lines (down from original ~22,600)
+- **Net Reduction**: ~1,173 lines removed from index.html
+- **Debug Code Removed**: ~215 lines total (debug fetch + console.log)
 - **Status**: ✅ **STABLE & CLEAN - Refactor complete**
 
 ### 🔧 Recent Bug Fixes (2025-01-18)
