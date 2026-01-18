@@ -1167,39 +1167,31 @@
         let dimensionFilters = {}; // Map of dimensionRef -> filterRules array
         let availableMetadataFields = {}; // Map of fieldName -> array of values
         let currentMetadataField = null; // Currently selected metadata field
-        // Core selection state - now managed by js/state/app-state.js module
-        // Wrapper functions for backward compatibility during migration
+        // Core selection state - managed by js/state/app-state.js module
+        // Wrapper functions that call module directly (modules always loaded)
         function getCurrentClientId() {
-            return window.appStateGetCurrentClientId ? window.appStateGetCurrentClientId() : null;
+            return window.appStateGetCurrentClientId();
         }
         function setCurrentClientId(value) {
-            if (window.appStateSetCurrentClientId) {
-                window.appStateSetCurrentClientId(value);
-            }
+            window.appStateSetCurrentClientId(value);
         }
         function getCurrentProjectName() {
-            return window.appStateGetCurrentProjectName ? window.appStateGetCurrentProjectName() : null;
+            return window.appStateGetCurrentProjectName();
         }
         function setCurrentProjectName(value) {
-            if (window.appStateSetCurrentProjectName) {
-                window.appStateSetCurrentProjectName(value);
-            }
+            window.appStateSetCurrentProjectName(value);
         }
         function getCurrentDataSourceId() {
-            return window.appStateGetCurrentDataSourceId ? window.appStateGetCurrentDataSourceId() : null;
+            return window.appStateGetCurrentDataSourceId();
         }
         function setCurrentDataSourceId(value) {
-            if (window.appStateSetCurrentDataSourceId) {
-                window.appStateSetCurrentDataSourceId(value);
-            }
+            window.appStateSetCurrentDataSourceId(value);
         }
         function getCurrentQuestionRefKey() {
-            return window.appStateGetCurrentQuestionRefKey ? window.appStateGetCurrentQuestionRefKey() : null;
+            return window.appStateGetCurrentQuestionRefKey();
         }
         function setCurrentQuestionRefKey(value) {
-            if (window.appStateSetCurrentQuestionRefKey) {
-                window.appStateSetCurrentQuestionRefKey(value);
-            }
+            window.appStateSetCurrentQuestionRefKey(value);
         }
         // For backward compatibility during migration, keep local variables that sync with module
         // These will be replaced gradually with direct getter/setter calls
@@ -1316,57 +1308,24 @@
         let hasAutoLaunched = false;
         let isInitializing = false;
         
-        // Save current state to localStorage - wrapper that uses state module
+        // Save current state to localStorage - uses storage module
         function saveState() {
-            // During migration: sync local variables to module first, then get state
-            // This ensures module and local variables stay in sync
-            if (window.appStateSetState) {
-                const localState = {
-                    clientId: currentClientId,
-                    projectName: currentProjectName,
-                    dataSourceId: currentDataSourceId,
-                    questionRefKey: currentQuestionRefKey
-                };
-                window.appStateSetState(localState);
-            }
-            // Get state - prefer module if it has values, otherwise use local variables
-            const moduleState = window.appStateGetState ? window.appStateGetState() : null;
-            const state = (moduleState && (moduleState.clientId || moduleState.projectName || moduleState.dataSourceId || moduleState.questionRefKey)) 
-                ? moduleState 
-                : {
-                    clientId: currentClientId,
-                    projectName: currentProjectName,
-                    dataSourceId: currentDataSourceId,
-                    questionRefKey: currentQuestionRefKey
-                };
-            if (window.storageSaveState) {
-                window.storageSaveState(state);
-            } else {
-                // Fallback if module not loaded yet
-                try {
-                    localStorage.setItem(window.STATE_STORAGE_KEY || 'treemap_app_state', JSON.stringify(state));
-                } catch (error) {
-                    console.error('Error saving state:', error);
-                }
-            }
+            // Sync local variables to module state
+            const localState = {
+                clientId: currentClientId,
+                projectName: currentProjectName,
+                dataSourceId: currentDataSourceId,
+                questionRefKey: currentQuestionRefKey
+            };
+            window.appStateSetState(localState);
+            // Get state from module and save to storage
+            const state = window.appStateGetState();
+            window.storageSaveState(state);
         }
         
-        // Load state from localStorage - wrapper that uses module function
+        // Load state from localStorage - uses storage module
         function loadState() {
-            if (window.storageLoadState) {
-                return window.storageLoadState();
-            } else {
-                // Fallback if module not loaded yet
-                try {
-                    const stateJson = localStorage.getItem(window.STATE_STORAGE_KEY || 'treemap_app_state');
-                    if (stateJson) {
-                        return JSON.parse(stateJson);
-                    }
-                } catch (error) {
-                    console.error('Error loading state:', error);
-                }
-                return null;
-            }
+            return window.storageLoadState();
         }
         
         // Predefined dimension options
@@ -1835,7 +1794,7 @@
                 return;
             }
             currentClientId = clientId;
-            if (window.appStateSetCurrentClientId) window.appStateSetCurrentClientId(clientId);
+            window.appStateSetCurrentClientId(clientId);
             
             // Sync Insights tab client ID to keep both tabs in sync
             if (typeof insightsCurrentClientId !== 'undefined') {
@@ -1893,15 +1852,15 @@
                 // Update globals if we have values from URL or saved state (but not if already set from handleAuthenticatedUser)
                 if (restoreState.projectName && !currentProjectName) {
                     currentProjectName = restoreState.projectName;
-                    if (window.appStateSetCurrentProjectName) window.appStateSetCurrentProjectName(restoreState.projectName);
+                    window.appStateSetCurrentProjectName(restoreState.projectName);
                 }
                 if (restoreState.dataSourceId && !currentDataSourceId) {
                     currentDataSourceId = restoreState.dataSourceId;
-                    if (window.appStateSetCurrentDataSourceId) window.appStateSetCurrentDataSourceId(restoreState.dataSourceId);
+                    window.appStateSetCurrentDataSourceId(restoreState.dataSourceId);
                 }
                 if (restoreState.questionRefKey && !currentQuestionRefKey) {
                     currentQuestionRefKey = restoreState.questionRefKey;
-                    if (window.appStateSetCurrentQuestionRefKey) window.appStateSetCurrentQuestionRefKey(restoreState.questionRefKey);
+                    window.appStateSetCurrentQuestionRefKey(restoreState.questionRefKey);
                 }
                 
                 if (select && (select.innerHTML === '' || select.innerHTML.includes('Loading'))) {
@@ -1991,21 +1950,21 @@
                     // so it's available throughout the loading chain
                     if (savedState.projectName) {
                         currentProjectName = savedState.projectName;
-                        if (window.appStateSetCurrentProjectName) window.appStateSetCurrentProjectName(savedState.projectName);
+                        window.appStateSetCurrentProjectName(savedState.projectName);
                         console.log('Restored saved project:', currentProjectName);
                     }
                     if (savedState.dataSourceId) {
                         currentDataSourceId = savedState.dataSourceId;
-                        if (window.appStateSetCurrentDataSourceId) window.appStateSetCurrentDataSourceId(savedState.dataSourceId);
+                        window.appStateSetCurrentDataSourceId(savedState.dataSourceId);
                         console.log('Restored saved data source:', currentDataSourceId);
                     }
                     if (savedState.questionRefKey) {
                         currentQuestionRefKey = savedState.questionRefKey;
-                        if (window.appStateSetCurrentQuestionRefKey) window.appStateSetCurrentQuestionRefKey(savedState.questionRefKey);
+                        window.appStateSetCurrentQuestionRefKey(savedState.questionRefKey);
                         console.log('Restored saved dimension:', currentQuestionRefKey);
                     }
                     // Update module with client ID too
-                    if (window.appStateSetCurrentClientId) window.appStateSetCurrentClientId(savedState.clientId);
+                    window.appStateSetCurrentClientId(savedState.clientId);
                     currentClientId = savedState.clientId;
                     selectClientAndLaunch(savedState.clientId);
                     return;
@@ -2135,22 +2094,22 @@
                     );
                     if (matchingClient) {
                         currentClientId = urlClientUuid;
-                        if (window.appStateSetCurrentClientId) window.appStateSetCurrentClientId(urlClientUuid);
+                        window.appStateSetCurrentClientId(urlClientUuid);
                         console.log('Restored client from URL:', currentClientId);
                         // Restore other state from URL if present
                         if (urlProject) {
                             currentProjectName = urlProject;
-                            if (window.appStateSetCurrentProjectName) window.appStateSetCurrentProjectName(urlProject);
+                            window.appStateSetCurrentProjectName(urlProject);
                             console.log('Restored project from URL:', currentProjectName);
                         }
                         if (urlSource) {
                             currentDataSourceId = urlSource;
-                            if (window.appStateSetCurrentDataSourceId) window.appStateSetCurrentDataSourceId(urlSource);
+                            window.appStateSetCurrentDataSourceId(urlSource);
                             console.log('Restored data source from URL:', currentDataSourceId);
                         }
                         if (urlDimension) {
                             currentQuestionRefKey = urlDimension;
-                            if (window.appStateSetCurrentQuestionRefKey) window.appStateSetCurrentQuestionRefKey(urlDimension);
+                            window.appStateSetCurrentQuestionRefKey(urlDimension);
                             console.log('Restored dimension from URL:', currentQuestionRefKey);
                         }
                     }
@@ -2161,7 +2120,7 @@
                     );
                     if (matchingClient) {
                         currentClientId = savedState.clientId;
-                        if (window.appStateSetCurrentClientId) window.appStateSetCurrentClientId(savedState.clientId);
+                        window.appStateSetCurrentClientId(savedState.clientId);
                         console.log('Restored client from saved state:', currentClientId);
                     }
                 }
@@ -4592,24 +4551,19 @@
             return null;
         }
 
-        // Render treemap - wrapper that delegates to module
+        // Render treemap - uses treemap renderer module
         function renderTreemap(data) {
-            if (window.treemapRendererRenderTreemap) {
-                window.treemapRendererRenderTreemap(data, {
-                    colorSchemes,
-                    currentProjectName,
-                    currentDataSourceId,
-                    currentQuestionRefKey,
-                    getDimensionDisplayName,
-                    showVerbatims,
-                    showContextMenu,
-                    handleNodeClick,
-                    hierarchyData
-                });
-                return;
-            }
-            // Fallback if module not loaded
-            console.warn('treemapRendererRenderTreemap not available');
+            window.treemapRendererRenderTreemap(data, {
+                colorSchemes,
+                currentProjectName,
+                currentDataSourceId,
+                currentQuestionRefKey,
+                getDimensionDisplayName,
+                showVerbatims,
+                showContextMenu,
+                handleNodeClick,
+                hierarchyData
+            });
         }
 
         // Handle node click for drill-down
@@ -4638,48 +4592,14 @@
         // escapeHtml function - now imported from js/utils/dom.js module
         // Available globally via window.escapeHtml
 
-        // Highlight search terms in text - wrapper that uses format module
+        // Highlight search terms in text - uses format module
         function highlightSearchTerms(text, searchTerm) {
-            if (window.formatHighlightSearchTerms) {
-                return window.formatHighlightSearchTerms(text, searchTerm, window.escapeHtml);
-            }
-            // Fallback if module not loaded yet
-            const escapeHtmlFn = window.escapeHtml || ((s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'));
-            if (!text || !searchTerm) {
-                return escapeHtmlFn(text || '');
-            }
-            
-            // Escape the text first for safety
-            const escapedText = escapeHtmlFn(text);
-            const trimmedSearch = searchTerm.trim();
-            if (!trimmedSearch) {
-                return escapedText;
-            }
-            
-            // Split search term into words (handle multiple words)
-            const searchWords = trimmedSearch.split(/\s+/).filter(word => word.length > 0);
-            
-            // Build regex pattern that matches any of the search words (case-insensitive)
-            const pattern = searchWords.map(word => {
-                // Escape special regex characters in the search word
-                const escapedWord = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                return escapedWord;
-            }).join('|');
-            
-            const regex = new RegExp(`(${pattern})`, 'gi');
-            
-            // Replace matches with highlighted versions
-            return escapedText.replace(regex, '<mark class="search-highlight">$1</mark>');
+            return window.formatHighlightSearchTerms(text, searchTerm, window.escapeHtml);
         }
 
-        // Render verbatims cards with current metadata settings
-        // renderVerbatims wrapper - delegates to module
+        // Render verbatims cards - uses verbatims renderer module
         function renderVerbatims(verbatims, topicName, categoryName) {
-            if (window.verbatimsRendererRenderVerbatims) {
-                window.verbatimsRendererRenderVerbatims(verbatims, topicName, categoryName, verbatimSearchTerm, currentCategoryName);
-                return;
-            }
-            console.warn('verbatimsRendererRenderVerbatims not available');
+            window.verbatimsRendererRenderVerbatims(verbatims, topicName, categoryName, verbatimSearchTerm, currentCategoryName);
         }
 
         // Show verbatims in slideout panel
@@ -5458,80 +5378,53 @@
         });
 
 
-        // Bar Chart functionality - wrappers that delegate to chart-renderer module
+        // Bar Chart functionality - uses chart-renderer module
         function generateCategoryColorPalette() {
-            if (window.chartRendererGenerateCategoryColorPalette) {
-                return window.chartRendererGenerateCategoryColorPalette();
-            }
-            return {};
+            return window.chartRendererGenerateCategoryColorPalette();
         }
 
         function adjustColorLightness(color, percent) {
-            if (window.chartRendererAdjustColorLightness) {
-                return window.chartRendererAdjustColorLightness(color, percent);
-            }
-            return color;
+            return window.chartRendererAdjustColorLightness(color, percent);
         }
 
         function processBarChartData() {
-            if (window.chartRendererProcessBarChartData) {
-                return window.chartRendererProcessBarChartData(rawData);
-            }
-            return { categories: [], totalTopicInstances: 0 };
+            return window.chartRendererProcessBarChartData(rawData);
         }
 
         function renderBarChart() {
-            if (window.chartRendererRenderBarChart) {
-                window.chartRendererRenderBarChart({
-                    rawData,
-                    showVerbatims,
-                    showContextMenu,
-                    getDimensionDisplayName,
-                    currentProjectName,
-                    currentDataSourceId,
-                    currentQuestionRefKey
-                });
-                return;
-            }
-            console.warn('chartRendererRenderBarChart not available');
+            window.chartRendererRenderBarChart({
+                rawData,
+                showVerbatims,
+                showContextMenu,
+                getDimensionDisplayName,
+                currentProjectName,
+                currentDataSourceId,
+                currentQuestionRefKey
+            });
         }
 
         function processTopicsData() {
-            if (window.chartRendererProcessTopicsData) {
-                return window.chartRendererProcessTopicsData(rawData);
-            }
-            return { topics: [], totalTopicInstances: 0 };
+            return window.chartRendererProcessTopicsData(rawData);
         }
 
         function toggleCategory(categoryId, toggleButton) {
-            if (window.chartRendererToggleCategory) {
-                window.chartRendererToggleCategory(categoryId, toggleButton);
-                return;
-            }
+            window.chartRendererToggleCategory(categoryId, toggleButton);
         }
 
         function renderHorizontalBarChart(data, containerId, totalCount, isMultiChoice = false) {
-            if (window.chartRendererRenderHorizontalBarChart) {
-                window.chartRendererRenderHorizontalBarChart(data, containerId, totalCount, isMultiChoice);
-                return;
-            }
-            console.warn('chartRendererRenderHorizontalBarChart not available');
+            window.chartRendererRenderHorizontalBarChart(data, containerId, totalCount, isMultiChoice);
         }
 
         function renderTopicsChart() {
-            if (window.chartRendererRenderTopicsChart) {
-                window.chartRendererRenderTopicsChart({
-                    rawData,
-                    showVerbatims,
-                    showContextMenu,
-                    getDimensionDisplayName,
-                    currentProjectName,
-                    currentDataSourceId,
-                    currentQuestionRefKey
-                });
-                return;
-            }
-            console.warn('chartRendererRenderTopicsChart not available');
+            window.chartRendererRenderTopicsChart({
+                rawData,
+                showVerbatims,
+                showContextMenu,
+                getDimensionDisplayName,
+                currentProjectName,
+                currentDataSourceId,
+                currentQuestionRefKey
+            });
         }
 
         // Chart functions extracted to js/renderers/chart-renderer.js module
@@ -13694,28 +13587,16 @@
             }
         }
 
-        // renderHistoryTable wrapper - delegates to module after syncing state
+        // renderHistoryTable - uses history renderer module after syncing state
         function renderHistoryTable() {
             // Sync local state to module before calling renderer
-            if (window.historyStateSetHistoryAllActions) {
-                window.historyStateSetHistoryAllActions(historyAllActions);
-            }
-            if (window.historyStateSetHistorySearchTerm) {
-                window.historyStateSetHistorySearchTerm(historySearchTerm);
-            }
-            if (window.historyStateSetHistoryCurrentSortBy) {
-                window.historyStateSetHistoryCurrentSortBy(historyCurrentSortBy);
-            }
-            if (window.historyStateSetHistorySortOrder) {
-                window.historyStateSetHistorySortOrder(historySortOrder);
-            }
+            window.historyStateSetHistoryAllActions(historyAllActions);
+            window.historyStateSetHistorySearchTerm(historySearchTerm);
+            window.historyStateSetHistoryCurrentSortBy(historyCurrentSortBy);
+            window.historyStateSetHistorySortOrder(historySortOrder);
             
-            if (window.historyRendererRenderHistoryTable) {
-                window.historyRendererRenderHistoryTable();
-                selectedHistoryIds.clear();
-                return;
-            }
-            console.warn('historyRendererRenderHistoryTable not available');
+            window.historyRendererRenderHistoryTable();
+            selectedHistoryIds.clear();
         }
 
         function handleHistoryCheckboxChange() {
@@ -14433,29 +14314,13 @@
                 const allFilters = { ...insightsCurrentFilters, ...filters };
                 
                 // Fetch insights using API module
-                let data;
-                if (window.insightsApiLoadInsights) {
-                    data = await window.insightsApiLoadInsights(currentClientId, {
-                        page: '1',
-                        page_size: '1000',
-                        sort_by: (insightsSortBy === 'name' || insightsSortBy === 'type' || insightsSortBy === 'created_at' || insightsSortBy === 'updated_at') ? insightsSortBy : 'created_at',
-                        sort_order: insightsSortOrder,
-                        filters: allFilters
-                    }, getAuthHeaders);
-                } else {
-                    // Fallback if module not loaded yet
-                    Object.entries(allFilters).forEach(([key, value]) => {
-                        if (value) params.append(key, value);
-                    });
-                    
-                    const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights?${params.toString()}`, {
-                        headers: getAuthHeaders()
-                    });
-                    
-                    if (!response.ok) throw new Error('Failed to load insights');
-                    
-                    data = await response.json();
-                }
+                const data = await window.insightsApiLoadInsights(currentClientId, {
+                    page: '1',
+                    page_size: '1000',
+                    sort_by: (insightsSortBy === 'name' || insightsSortBy === 'type' || insightsSortBy === 'created_at' || insightsSortBy === 'updated_at') ? insightsSortBy : 'created_at',
+                    sort_order: insightsSortOrder,
+                    filters: allFilters
+                }, getAuthHeaders);
                 
                 allInsights = data.items || [];
                 renderInsights();
@@ -14468,13 +14333,9 @@
             }
         }
 
-        // renderInsights function - now imported from js/renderers/insights-renderer.js module
+        // renderInsights - uses insights renderer module
         function renderInsights(insights) {
-            if (window.insightsRendererRenderInsights) {
-                return window.insightsRendererRenderInsights(insights);
-            }
-            // Fallback if module not loaded yet (should not happen in normal flow)
-            console.warn('insightsRendererRenderInsights not available, using fallback');
+            return window.insightsRendererRenderInsights(insights);
         }
 
         function handleInsightsSearch() {
