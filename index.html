@@ -1126,18 +1126,10 @@
             }
         }
         
-        // Color schemes - now imported from js/config/color-schemes.js module
-        // Available globally via window.colorSchemesGetColorSchemes() and window.colorSchemesCATEGORY_COLORS
-        const colorSchemes = (() => {
-            if (window.colorSchemesGetColorSchemes && typeof d3 !== 'undefined') {
-                return window.colorSchemesGetColorSchemes(d3);
-            }
-            // Fallback if module not loaded yet - recreate inline
-            const categoryColors = [
-                '#A97FFF', '#77D9D6', '#F8A04C', '#58B3F0', '#6ED49B', '#F47280', '#9A7B6C', '#FFB366', '#B794F6', '#4ECDC4'
-            ];
-            return { categories: d3?.scaleOrdinal(categoryColors) || null };
-        })();
+        // Color schemes - uses color-schemes.js module (with fallback for module load timing)
+        const colorSchemes = (typeof window.colorSchemesGetColorSchemes === 'function') 
+            ? window.colorSchemesGetColorSchemes(d3)
+            : { categories: d3.scaleOrdinal(['#A97FFF', '#77D9D6', '#F8A04C', '#58B3F0', '#6ED49B', '#F47280', '#9A7B6C', '#FFB366', '#B794F6', '#4ECDC4']) };
         
         // State code mappings - now imported from js/utils/format.js module
         // Available globally via window.stateNameToCode and window.fipsToStateCode
@@ -2007,56 +1999,21 @@
         });
 
         // API Configuration - now imported from js/services/api-config.js module
-        // Wrapper that uses module function
-        function getAPIBaseUrl() {
-            if (window.apiConfigGetBaseUrl) {
-                return window.apiConfigGetBaseUrl();
-            }
-            // Fallback if module not loaded yet
-            return window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
-        }
-        const API_BASE_URL = getAPIBaseUrl();
+        // API base URL from module (with fallback for module load timing)
+        const API_BASE_URL = (typeof window.apiConfigGetBaseUrl === 'function') 
+            ? window.apiConfigGetBaseUrl() 
+            : (window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000');
         
-        // Load available clients - wrapper that uses API module for fetching, handles DOM/state
+        // Load available clients - uses API module for fetching, handles DOM/state
         async function loadClients() {
             console.log('loadClients() called');
             try {
                 // Fetch clients using API module
-                if (window.clientsApiLoadClients) {
-                    allClients = await window.clientsApiLoadClients({
-                        accessibleClientIds: accessibleClientIds,
-                        getAuthHeaders: getAuthHeaders
-                    });
-                    console.log(`Loaded ${allClients.length} clients:`, allClients);
-                } else {
-                    // Fallback if module not loaded yet
-                    console.log(`Fetching clients from ${API_BASE_URL}/api/voc/clients`);
-                    const response = await fetch(`${API_BASE_URL}/api/voc/clients`, {
-                        headers: getAuthHeaders()
-                    });
-                    console.log('Clients response status:', response.status);
-                    if (!response.ok) {
-                        throw new Error('Failed to load clients');
-                    }
-                    console.log('Parsing clients JSON...');
-                    allClients = await response.json();
-                    console.log(`Loaded ${allClients.length} clients:`, allClients);
-
-                    if (accessibleClientIds.size > 0) {
-                        allClients = allClients.filter(client => {
-                            return (client.client_uuid && accessibleClientIds.has(client.client_uuid)) ||
-                                   (client.id && accessibleClientIds.has(client.id));
-                        });
-                        console.log(`Filtered to ${allClients.length} authorized clients`);
-                    }
-
-                    // Sort clients alphabetically by client_name
-                    allClients.sort((a, b) => {
-                        const nameA = (a.client_name || '').toLowerCase();
-                        const nameB = (b.client_name || '').toLowerCase();
-                        return nameA.localeCompare(nameB);
-                    });
-                }
+                allClients = await window.clientsApiLoadClients({
+                    accessibleClientIds: accessibleClientIds,
+                    getAuthHeaders: getAuthHeaders
+                });
+                console.log(`Loaded ${allClients.length} clients:`, allClients);
 
                 const select = document.getElementById('clientSelect');
                 console.log('Client select element:', select);
@@ -2282,23 +2239,8 @@
                 }
                 
                 // Fetch projects using API module
-                if (window.dataSourcesApiLoadProjects) {
-                    clientProjects = await window.dataSourcesApiLoadProjects(clientId, getAuthHeaders);
-                    console.log(`Loaded ${clientProjects.length} projects:`, clientProjects);
-                } else {
-                    // Fallback if module not loaded yet
-                    const url = `${API_BASE_URL}/api/voc/projects?client_uuid=${clientId}`;
-                    console.log(`Fetching projects from: ${url}`);
-                    const response = await fetch(url, {
-                        headers: getAuthHeaders()
-                    });
-                    console.log('Projects response status:', response.status);
-                    if (!response.ok) {
-                        throw new Error('Failed to load projects');
-                    }
-                    clientProjects = await response.json();
-                    console.log(`Loaded ${clientProjects.length} projects:`, clientProjects);
-                }
+                clientProjects = await window.dataSourcesApiLoadProjects(clientId, getAuthHeaders);
+                console.log(`Loaded ${clientProjects.length} projects:`, clientProjects);
                 
                 const select = document.getElementById('projectSelect');
                 console.log('Project select element:', select);
@@ -2385,25 +2327,7 @@
             console.log(`loadClientSources() called for client: ${clientId}, project: ${currentProjectName || 'None'}`);
             try {
                 // Fetch sources using API module
-                if (window.dataSourcesApiLoadSources) {
-                    clientSources = await window.dataSourcesApiLoadSources(clientId, currentProjectName, getAuthHeaders);
-                } else {
-                    // Fallback if module not loaded yet
-                    let url = `${API_BASE_URL}/api/voc/sources?client_uuid=${clientId}`;
-                    if (currentProjectName) {
-                        url += `&project_name=${encodeURIComponent(currentProjectName)}`;
-                    }
-                    console.log(`Fetching sources from: ${url}`);
-                    const response = await fetch(url, {
-                        headers: getAuthHeaders()
-                    });
-                    console.log('Sources response status:', response.status);
-                    if (!response.ok) {
-                        throw new Error('Failed to load sources');
-                    }
-                    clientSources = await response.json();
-                }
-                console.log(`Loaded ${clientSources.length} sources:`, clientSources);
+                clientSources = await window.dataSourcesApiLoadSources(clientId, currentProjectName, getAuthHeaders);
                 console.log(`Loaded ${clientSources.length} sources:`, clientSources);
                 
                 const select = document.getElementById('sourceSelect');
@@ -2703,36 +2627,8 @@
                 setLoading(true);
                 
                 // Fetch VOC data using API module
-                let processVocRows;
-                if (window.vocDataApiLoadVocData) {
-                    processVocRows = await window.vocDataApiLoadVocData(clientUuid, currentProjectName, dataSource, getAuthHeaders);
-                    console.log(`Loaded ${processVocRows.length} process_voc rows`);
-                } else {
-                    // Fallback if module not loaded yet
-                    const params = new URLSearchParams();
-                    if (clientUuid) params.append('client_uuid', clientUuid);
-                    if (currentProjectName) params.append('project_name', currentProjectName);
-                    if (dataSource) params.append('data_source', dataSource);
-                    
-                    const url = `${API_BASE_URL}/api/voc/data?${params.toString()}`;
-                    console.log(`Fetching data from: ${url}`);
-                    const response = await fetch(url, {
-                        headers: getAuthHeaders()
-                    });
-                    console.log('Data response status:', response.status);
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: Failed to load data`);
-                    }
-                    
-                    console.log('Parsing data JSON...');
-                    processVocRows = await response.json();
-                    console.log(`Received ${processVocRows.length} process_voc rows`);
-                    
-                    // Validate response structure
-                    if (!processVocRows || !Array.isArray(processVocRows)) {
-                        throw new Error('Invalid response structure: expected array of process_voc rows');
-                    }
-                }
+                const processVocRows = await window.vocDataApiLoadVocData(clientUuid, currentProjectName, dataSource, getAuthHeaders);
+                console.log(`Loaded ${processVocRows.length} process_voc rows`);
                 
                 // Store raw process_voc rows
                 fullRawData = processVocRows;
@@ -2784,18 +2680,7 @@
             if (!currentDataSourceId) return;
             
             try {
-                let dimensionNames = [];
-                if (window.vocDataApiLoadDimensionNames) {
-                    dimensionNames = await window.vocDataApiLoadDimensionNames(currentDataSourceId, getAuthHeaders);
-                } else {
-                    // Fallback if module not loaded yet
-                    const response = await fetch(`${API_BASE_URL}/api/data-sources/${currentDataSourceId}/dimension-names`, {
-                        headers: getAuthHeaders()
-                    });
-                    if (response.ok) {
-                        dimensionNames = await response.json();
-                    }
-                }
+                const dimensionNames = await window.vocDataApiLoadDimensionNames(currentDataSourceId, getAuthHeaders);
                 
                 // Update dimension names map
                 if (dimensionNames && dimensionNames.length > 0) {
@@ -2815,13 +2700,8 @@
         
         // Get display name for a dimension - wrapper that uses format module
         function getDimensionDisplayName(refKey) {
-            if (window.formatGetDimensionDisplayName) {
-                // Get dimensionNamesMap from state module if available
-                const map = window.apiCacheGetDimensionNamesMap ? window.apiCacheGetDimensionNamesMap() : dimensionNamesMap;
-                return window.formatGetDimensionDisplayName(refKey, map);
-            }
-            // Fallback if module not loaded yet
-            return dimensionNamesMap[refKey] || refKey.replace('ref_', 'Q');
+            const map = window.apiCacheGetDimensionNamesMap();
+            return window.formatGetDimensionDisplayName(refKey, map);
         }
         
         // Get question type for current dimension
@@ -2851,28 +2731,7 @@
             
             try {
                 // Load questions from API using module
-                let questions = [];
-                if (window.vocDataApiLoadQuestions) {
-                    questions = await window.vocDataApiLoadQuestions(currentClientId, currentDataSourceId, currentProjectName, getAuthHeaders);
-                } else {
-                    // Fallback if module not loaded yet
-                    const params = new URLSearchParams();
-                    params.append('client_uuid', currentClientId);
-                    params.append('data_source', currentDataSourceId);
-                    if (currentProjectName) {
-                        params.append('project_name', currentProjectName);
-                    }
-                    
-                    const response = await fetch(`${API_BASE_URL}/api/voc/questions?${params.toString()}`, {
-                        headers: getAuthHeaders()
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('Failed to load questions');
-                    }
-                    
-                    questions = await response.json();
-                }
+                const questions = await window.vocDataApiLoadQuestions(currentClientId, currentDataSourceId, currentProjectName, getAuthHeaders);
                 
                 // Build dimension names map and question types map from API response first
                 dimensionNamesMap = {};
@@ -4806,28 +4665,14 @@
             }
         }
 
-        // Toggle chart visibility - wrapper that uses UI controller module
+        // Toggle chart visibility - uses UI controller module
         function toggleChart(button) {
-            if (window.uiControllerToggleChart) {
-                return window.uiControllerToggleChart(button);
-            }
-            // Fallback if module not loaded yet
-            const chart = button.closest('.chart');
-            if (chart) {
-                chart.classList.toggle('collapsed');
-            }
+            return window.uiControllerToggleChart(button);
         }
 
-        // Toggle treemap visibility - wrapper that uses UI controller module
+        // Toggle treemap visibility - uses UI controller module
         function toggleTreemap(button) {
-            if (window.uiControllerToggleTreemap) {
-                return window.uiControllerToggleTreemap(button);
-            }
-            // Fallback if module not loaded yet
-            const container = button.closest('.treemap-container');
-            if (container) {
-                container.classList.toggle('collapsed');
-            }
+            return window.uiControllerToggleTreemap(button);
         }
 
         // Load metadata settings from localStorage
@@ -4861,43 +4706,23 @@
             return `${verbatim.index || 'unknown'}_${textPrefix}`;
         }
 
-        // Favourites storage - wrappers that use globals
+        // Favourites storage - uses storage module
         function getFavouritesStorageKey() {
             const clientId = currentClientId || 'no-client';
             const projectName = currentProjectName || 'all-projects';
-            if (window.storageGetFavouritesStorageKey) {
-                return window.storageGetFavouritesStorageKey(clientId, projectName);
-            }
-            // Fallback if module not loaded yet
-            return `verbatimFavourites_${clientId}_${projectName}`;
+            return window.storageGetFavouritesStorageKey(clientId, projectName);
         }
 
         function getFavourites() {
             const clientId = currentClientId || 'no-client';
             const projectName = currentProjectName || 'all-projects';
-            if (window.storageGetFavourites) {
-                return window.storageGetFavourites(clientId, projectName);
-            }
-            // Fallback if module not loaded yet
-            try {
-                const storageKey = `verbatimFavourites_${clientId}_${projectName}`;
-                const saved = localStorage.getItem(storageKey);
-                return saved ? JSON.parse(saved) : [];
-            } catch (e) {
-                return [];
-            }
+            return window.storageGetFavourites(clientId, projectName);
         }
 
         function saveFavourites(favourites) {
             const clientId = currentClientId || 'no-client';
             const projectName = currentProjectName || 'all-projects';
-            if (window.storageSaveFavourites) {
-                window.storageSaveFavourites(clientId, projectName, favourites);
-            } else {
-                // Fallback if module not loaded yet
-                const storageKey = `verbatimFavourites_${clientId}_${projectName}`;
-                localStorage.setItem(storageKey, JSON.stringify(favourites));
-            }
+            window.storageSaveFavourites(clientId, projectName, favourites);
         }
 
         function isFavourite(verbatim) {
@@ -5224,23 +5049,9 @@
             document.getElementById('showIndex').checked = settings.showIndex;
         }
 
-        // Toggle settings panel - wrapper that uses UI controller module
+        // Toggle settings panel - uses UI controller module
         function toggleSettingsPanel() {
-            if (window.uiControllerToggleSettingsPanel) {
-                return window.uiControllerToggleSettingsPanel();
-            }
-            // Fallback if module not loaded yet
-            const panel = document.getElementById('settingsPanel');
-            const button = document.querySelector('.settings-button');
-            const isActive = panel.classList.contains('active');
-            
-            if (isActive) {
-                panel.classList.remove('active');
-                button.classList.remove('active');
-            } else {
-                panel.classList.add('active');
-                button.classList.add('active');
-            }
+            return window.uiControllerToggleSettingsPanel();
         }
 
         // Update metadata settings and refresh cards
@@ -6428,14 +6239,10 @@
         let insightsSearchTerm = '';
         let insightsAllInsights = [];
         let insightsCurrentInsightEditor = null;
-        // Get storage key scoped by client ID for filter persistence - wrapper that uses globals
+        // Get storage key scoped by client ID for filter persistence
         function getFilterStorageKey() {
             const clientId = insightsCurrentClientId || currentClientId || 'global';
-            if (window.storageGetFilterStorageKey) {
-                return window.storageGetFilterStorageKey(clientId);
-            }
-            // Fallback if module not loaded yet
-            return `insights_filters_${clientId}`;
+            return window.storageGetFilterStorageKey(clientId);
         }
         
         // Available filter fields
@@ -6458,25 +6265,7 @@
         // getAuthHeadersSafe - now imported from js/services/auth-service.js module
         // Wrapper function that uses module
         function getAuthHeadersSafe() {
-            if (window.authServiceGetHeadersSafe) {
-                return window.authServiceGetHeadersSafe();
-            }
-            // Fallback if module not loaded yet
-            let headers = {};
-            if (typeof getAuthHeaders !== 'undefined') {
-                headers = getAuthHeaders();
-                if (headers.Authorization || headers.authorization) {
-                    return headers;
-                }
-            }
-            const token = localStorage.getItem('visualizd_auth_token');
-            if (token) {
-                return {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                };
-            }
-            return { 'Content-Type': 'application/json' };
+            return window.authServiceGetHeadersSafe();
         }
 
         async function initInsightsPage() {
@@ -6612,44 +6401,13 @@
                 });
 
                 // Fetch insights using API module
-                let data;
-                if (window.insightsApiLoadInsights) {
-                    data = await window.insightsApiLoadInsights(insightsCurrentClientId, {
-                        page: '1',
-                        page_size: '1000',
-                        sort_by: backendSortBy,
-                        sort_order: insightsSortOrder,
-                        filters: insightsFilters
-                    }, getAuthHeadersSafe);
-                } else {
-                    // Fallback if module not loaded yet
-                    const queryParams = new URLSearchParams({
-                        page: '1',
-                        page_size: '1000',
-                        sort_by: backendSortBy,
-                        sort_order: insightsSortOrder,
-                    });
-
-                    Object.entries(insightsFilters).forEach(([key, value]) => {
-                        if (value) {
-                            queryParams.append(key, value);
-                        }
-                    });
-
-                    const headers = getAuthHeadersSafe();
-                    const url = `${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights?${queryParams.toString()}`;
-                    
-                    const response = await fetch(url, { headers });
-
-                    if (!response.ok) {
-                        if (response.status === 401) {
-                            throw new Error('Authentication required. Please log in.');
-                        }
-                        throw new Error(`Failed to load insights: ${response.status} ${response.statusText}`);
-                    }
-
-                    data = await response.json();
-                }
+                const data = await window.insightsApiLoadInsights(insightsCurrentClientId, {
+                    page: '1',
+                    page_size: '1000',
+                    sort_by: backendSortBy,
+                    sort_order: insightsSortOrder,
+                    filters: insightsFilters
+                }, getAuthHeadersSafe);
                 
                 insightsAllInsights = data.items || [];
                 
@@ -6686,7 +6444,7 @@
                 console.error('Error loading insights:', error);
                 const errorTbody = document.getElementById('insightsPageTableBody');
                 if (errorTbody) {
-                    const escapeHtmlFn = window.escapeHtml || ((s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'));
+                    const escapeHtmlFn = window.escapeHtml;
                     const errorMessage = error.message || 'Unknown error occurred';
                     errorTbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>Error loading insights</h3><p>' + escapeHtmlFn(errorMessage) + '</p></td></tr>';
                 }
@@ -6694,13 +6452,7 @@
         }
 
         function renderInsightsPage() {
-            // Ensure escapeHtml is available with fallback
-            const escapeHtmlFn = window.escapeHtml || ((s) => {
-                if (s == null) return '';
-                const div = document.createElement('div');
-                div.textContent = s;
-                return div.innerHTML;
-            });
+            const escapeHtmlFn = window.escapeHtml;
             const tbody = document.getElementById('insightsPageTableBody');
             if (!tbody) {
                 return;
@@ -6914,22 +6666,7 @@
 
         // Helper function to convert text to PascalCase - wrapper that uses format module
         function toPascalCase(text) {
-            if (window.formatToPascalCase) {
-                return window.formatToPascalCase(text);
-            }
-            // Fallback if module not loaded yet
-            if (!text) return '';
-            return text
-                .split(/[\s_-]+/)
-                .map(word => {
-                    // Keep US and USA as uppercase (case-insensitive check)
-                    const upperWord = word.toUpperCase();
-                    if (upperWord === 'US' || upperWord === 'USA') {
-                        return upperWord;
-                    }
-                    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
-                })
-                .join(' ');
+            return window.formatToPascalCase(text);
         }
 
         // Navigation functions for origin breadcrumb pills
@@ -7183,38 +6920,16 @@
             renderInsightsPage();
         }
 
-        // Load filters from localStorage (scoped by client ID) - wrapper that uses globals
+        // Load filters from localStorage (scoped by client ID)
         function loadFiltersFromStorage() {
             const clientId = insightsCurrentClientId || currentClientId || 'global';
-            if (window.storageLoadFiltersFromStorage) {
-                insightsFilters = window.storageLoadFiltersFromStorage(clientId);
-            } else {
-                // Fallback if module not loaded yet
-                const storageKey = `insights_filters_${clientId}`;
-                const saved = localStorage.getItem(storageKey);
-                if (saved) {
-                    try {
-                        insightsFilters = JSON.parse(saved);
-                    } catch (e) {
-                        console.warn('Failed to parse saved filters:', e);
-                        insightsFilters = [];
-                    }
-                } else {
-                    insightsFilters = [];
-                }
-            }
+            insightsFilters = window.storageLoadFiltersFromStorage(clientId);
         }
         
-        // Save filters to localStorage (scoped by client ID) - wrapper that uses globals
+        // Save filters to localStorage (scoped by client ID)
         function saveFiltersToStorage() {
             const clientId = insightsCurrentClientId || currentClientId || 'global';
-            if (window.storageSaveFiltersToStorage) {
-                window.storageSaveFiltersToStorage(clientId, insightsFilters);
-            } else {
-                // Fallback if module not loaded yet
-                const storageKey = `insights_filters_${clientId}`;
-                localStorage.setItem(storageKey, JSON.stringify(insightsFilters));
-            }
+            window.storageSaveFiltersToStorage(clientId, insightsFilters);
         }
         
         // Restore visible filter dropdowns for active filters
@@ -7248,7 +6963,7 @@
                     
                     let optionsHTML = '';
                     if (field.type === 'select') {
-                        const escapeHtmlFn = window.escapeHtml || ((s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'));
+                        const escapeHtmlFn = window.escapeHtml;
                         optionsHTML = values.map(value => {
                             const isSelected = insightsFilters.some(f => f.field === fieldId && f.value === value);
                             const escapedValue = escapeHtmlFn(value);
@@ -7428,7 +7143,7 @@
             
             let optionsHTML = '';
             if (field.type === 'select') {
-                const escapeHtmlFn = window.escapeHtml || ((s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'));
+                const escapeHtmlFn = window.escapeHtml;
                 optionsHTML = values.map(value => {
                     const isSelected = insightsFilters.some(f => f.field === fieldId && f.value === value);
                     const escapedValue = escapeHtmlFn(value);
@@ -7795,7 +7510,7 @@
             }
             
             section.style.display = 'block';
-            const escapeHtmlFn = window.escapeHtml || ((s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'));
+            const escapeHtmlFn = window.escapeHtml;
             list.innerHTML = insightsFilters.map((filter, index) => {
                 const field = FILTER_FIELDS.find(f => f.id === filter.field);
                 const label = field ? field.label : filter.field;
@@ -7941,36 +7656,10 @@
                 };
                 
                 // Save insight using API module
-                if (window.insightsApiUpdateInsight && insightsCurrentInsightId) {
+                if (insightsCurrentInsightId) {
                     await window.insightsApiUpdateInsight(insightsCurrentClientId, insightsCurrentInsightId, insightData, getAuthHeadersFn);
-                } else if (window.insightsApiCreateInsight && !insightsCurrentInsightId) {
-                    await window.insightsApiCreateInsight(insightsCurrentClientId, insightData, getAuthHeadersFn);
                 } else {
-                    // Fallback if module not loaded yet
-                    const headers = {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    };
-                    
-                    let response;
-                    if (insightsCurrentInsightId) {
-                        response = await fetch(`${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights/${insightsCurrentInsightId}`, {
-                            method: 'PUT',
-                            headers: headers,
-                            body: JSON.stringify(insightData),
-                        });
-                    } else {
-                        response = await fetch(`${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights`, {
-                            method: 'POST',
-                            headers: headers,
-                            body: JSON.stringify(insightData),
-                        });
-                    }
-                    
-                    if (!response.ok) {
-                        const errorData = await response.json().catch(() => ({ detail: response.statusText }));
-                        throw new Error(errorData.detail || `Failed to ${insightsCurrentInsightId ? 'update' : 'create'} insight`);
-                    }
+                    await window.insightsApiCreateInsight(insightsCurrentClientId, insightData, getAuthHeadersFn);
                 }
                 
                 closeModal();
@@ -8001,16 +7690,7 @@
 
             try {
                 // Delete insight using API module
-                if (window.insightsApiDeleteInsight) {
-                    await window.insightsApiDeleteInsight(insightsCurrentClientId, insightId, getAuthHeadersSafe);
-                } else {
-                    // Fallback if module not loaded yet
-                    const response = await fetch(`${API_BASE_URL}/api/clients/${insightsCurrentClientId}/insights/${insightId}`, {
-                        method: 'DELETE',
-                        headers: getAuthHeadersSafe()
-                    });
-                    if (!response.ok) throw new Error('Failed to delete insight');
-                }
+                await window.insightsApiDeleteInsight(insightsCurrentClientId, insightId, getAuthHeadersSafe);
                 loadInsightsPage();
             } catch (error) {
                 console.error('Error deleting insight:', error);
@@ -8263,13 +7943,7 @@
 
         // Create multi-select dropdown with pills
         function createMultiSelectCell(insightId, fieldName, currentValues, availableOptions) {
-            // Ensure escapeHtml is available with fallback
-            const escapeHtmlFn = window.escapeHtml || ((s) => {
-                if (s == null) return '';
-                const div = document.createElement('div');
-                div.textContent = s;
-                return div.innerHTML;
-            });
+            const escapeHtmlFn = window.escapeHtml;
             const cellId = `multiselect-${fieldName}-${insightId}`;
             const selected = currentValues || [];
             
@@ -8381,13 +8055,7 @@
         }
 
         function renderMultiSelectOptions(availableOptions, currentValues, insightId, fieldName) {
-            // Ensure escapeHtml is available with fallback
-            const escapeHtmlFn = window.escapeHtml || ((s) => {
-                if (s == null) return '';
-                const div = document.createElement('div');
-                div.textContent = s;
-                return div.innerHTML;
-            });
+            const escapeHtmlFn = window.escapeHtml;
             const optionsList = document.getElementById('multiselect-options-list');
             if (!optionsList) return;
 
@@ -8538,16 +8206,7 @@
                     menu.classList.add('show');
                     
                     // Update color checkmarks based on current color
-                    const getTagColorsFn = window.getTagColors || (() => {
-                        // Fallback if module not loaded yet
-                        try {
-                            const stored = localStorage.getItem(window.TAG_COLORS_STORAGE_KEY || 'vizualizd_tag_colors');
-                            return stored ? JSON.parse(stored) : {};
-                        } catch (e) {
-                            return {};
-                        }
-                    });
-                    const colors = getTagColorsFn();
+                    const colors = window.getTagColors();
                     const colorKey = `${fieldName}:${optionValue}`;
                     const currentColor = colors[colorKey] || 'default';
                     
@@ -8594,13 +8253,7 @@
         }
 
         function previewTagRename(event, oldValue, fieldName) {
-            // Ensure escapeHtml is available with fallback
-            const escapeHtmlFn = window.escapeHtml || ((s) => {
-                if (s == null) return '';
-                const div = document.createElement('div');
-                div.textContent = s;
-                return div.innerHTML;
-            });
+            const escapeHtmlFn = window.escapeHtml;
             const input = event.target;
             const newValue = input.value;
             const originalValue = input.dataset.originalValue || oldValue;
@@ -8702,36 +8355,13 @@
             }
             
             // Migrate color preference if it exists
-            const getTagColorsFn = window.getTagColors || (() => {
-                try {
-                    const stored = localStorage.getItem(window.TAG_COLORS_STORAGE_KEY || 'vizualizd_tag_colors');
-                    return stored ? JSON.parse(stored) : {};
-                } catch (e) {
-                    return {};
-                }
-            });
-            const setTagColorFn = window.setTagColor || ((fieldName, tagValue, colorName) => {
-                try {
-                    const storageKey = window.TAG_COLORS_STORAGE_KEY || 'vizualizd_tag_colors';
-                    const colors = JSON.parse(localStorage.getItem(storageKey) || '{}');
-                    const key = `${fieldName}:${tagValue}`;
-                    if (colorName === 'default') {
-                        delete colors[key];
-                    } else {
-                        colors[key] = colorName;
-                    }
-                    localStorage.setItem(storageKey, JSON.stringify(colors));
-                } catch (e) {
-                    console.error('Error saving tag color:', e);
-                }
-            });
-            const colors = getTagColorsFn();
+            const colors = window.getTagColors();
             const oldKey = `${fieldName}:${originalValue}`;
             const newKey = `${fieldName}:${newValue}`;
             if (colors[oldKey]) {
                 colors[newKey] = colors[oldKey];
                 delete colors[oldKey];
-                setTagColorFn(fieldName, newValue, colors[newKey]);
+                window.setTagColor(fieldName, newValue, colors[newKey]);
             }
             
             // Update each insight
@@ -8773,23 +8403,7 @@
             }
             
             // Remove color preference
-            const getTagColorsFn = window.getTagColors || (() => {
-                try {
-                    const stored = localStorage.getItem(window.TAG_COLORS_STORAGE_KEY || 'vizualizd_tag_colors');
-                    return stored ? JSON.parse(stored) : {};
-                } catch (e) {
-                    return {};
-                }
-            });
-            const colors = getTagColorsFn();
-            const colorKey = `${fieldName}:${tagValue}`;
-            delete colors[colorKey];
-            try {
-                const storageKey = window.TAG_COLORS_STORAGE_KEY || 'vizualizd_tag_colors';
-                localStorage.setItem(storageKey, JSON.stringify(colors));
-            } catch (e) {
-                console.error('Error removing tag color:', e);
-            }
+            window.setTagColor(fieldName, tagValue, 'default');
             
             // Update each insight
             let successCount = 0;
@@ -8817,23 +8431,7 @@
 
         async function bulkChangeTagColor(tagValue, fieldName, colorName) {
             // Save the color preference
-            const setTagColorFn = window.setTagColor || ((fieldName, tagValue, colorName) => {
-                // Fallback if module not loaded yet
-                try {
-                    const storageKey = window.TAG_COLORS_STORAGE_KEY || 'vizualizd_tag_colors';
-                    const colors = JSON.parse(localStorage.getItem(storageKey) || '{}');
-                    const key = `${fieldName}:${tagValue}`;
-                    if (colorName === 'default') {
-                        delete colors[key];
-                    } else {
-                        colors[key] = colorName;
-                    }
-                    localStorage.setItem(storageKey, JSON.stringify(colors));
-                } catch (e) {
-                    console.error('Error saving tag color:', e);
-                }
-            });
-            setTagColorFn(fieldName, tagValue, colorName);
+            window.setTagColor(fieldName, tagValue, colorName);
             
             // Update checkmarks in the menu
             const menuId = `meatball-menu-${fieldName}-${tagValue.replace(/[^a-zA-Z0-9]/g, '_')}`;
@@ -8859,12 +8457,7 @@
             }
             
             // Update all pills with this tag across all insights
-            const escapeHtmlFn = window.escapeHtml || ((s) => {
-                if (s == null) return '';
-                const div = document.createElement('div');
-                div.textContent = s;
-                return div.innerHTML;
-            });
+            const escapeHtmlFn = window.escapeHtml;
             
             // Use the colorName we just saved directly to get the color, rather than reading back from storage
             const colorMap = window.TAG_COLOR_MAP || {
@@ -9024,47 +8617,13 @@
         // TAG_COLORS_STORAGE_KEY, TAG_COLOR_MAP, getTagColors, setTagColor, getTagColor available globally via window.*
 
         function getPillStyle(fieldName, tagValue) {
-            // Ensure getTagColor is available with fallback
-            const getTagColorFn = window.getTagColor || ((fieldName, tagValue) => {
-                // Fallback if module not loaded yet - use same key format as setTagColor
-                const colors = window.getTagColors ? window.getTagColors() : (() => {
-                    try {
-                        const storageKey = window.TAG_COLORS_STORAGE_KEY || 'vizualizd_tag_colors';
-                        const stored = localStorage.getItem(storageKey);
-                        return stored ? JSON.parse(stored) : {};
-                    } catch (e) {
-                        return {};
-                    }
-                })();
-                const colorKey = `${fieldName}:${tagValue}`;
-                const colorName = colors[colorKey] || 'default';
-                const colorMap = window.TAG_COLOR_MAP || {
-                    'default': { bg: '#e0e0e0', color: '#333' },
-                    'gray': { bg: '#e0e0e0', color: '#333' },
-                    'brown': { bg: '#d7ccc8', color: '#333' },
-                    'orange': { bg: '#ffe0b2', color: '#333' },
-                    'yellow': { bg: '#fff9c4', color: '#333' },
-                    'green': { bg: '#c8e6c9', color: '#333' },
-                    'blue': { bg: '#bbdefb', color: '#333' },
-                    'purple': { bg: '#e1bee7', color: '#333' },
-                    'pink': { bg: '#f8bbd0', color: '#333' },
-                    'red': { bg: '#ffcdd2', color: '#333' }
-                };
-                return colorMap[colorName] || colorMap['default'];
-            });
-            const color = getTagColorFn(fieldName, tagValue);
+            const color = window.getTagColor(fieldName, tagValue);
             return `background: ${color.bg}; color: ${color.color};`;
         }
 
         // Helper function to update pills display without re-rendering entire table
         function updateMultiSelectPills(insightId, fieldName, values) {
-            // Ensure escapeHtml is available with fallback
-            const escapeHtmlFn = window.escapeHtml || ((s) => {
-                if (s == null) return '';
-                const div = document.createElement('div');
-                div.textContent = s;
-                return div.innerHTML;
-            });
+            const escapeHtmlFn = window.escapeHtml;
             
             const cell = document.getElementById(`multiselect-${fieldName}-${insightId}`);
             if (!cell) return;
@@ -9116,13 +8675,7 @@
 
         // Inline text editing for name field
         function createEditableNameCell(insightId, name, highlightedName) {
-            // Ensure escapeHtml is available with fallback
-            const escapeHtmlFn = window.escapeHtml || ((s) => {
-                if (s == null) return '';
-                const div = document.createElement('div');
-                div.textContent = s;
-                return div.innerHTML;
-            });
+            const escapeHtmlFn = window.escapeHtml;
             return `<td class="name-cell" data-column="name">
                 <div class="name-content" style="position: relative;">
                     <svg class="doc-icon" viewBox="0 0 16 16" fill="currentColor">
@@ -13122,12 +12675,7 @@
                 });
                 
                 // Ensure escapeHtml is available with fallback
-                const escapeHtmlFn = window.escapeHtml || ((s) => {
-                    if (s == null) return '';
-                    const div = document.createElement('div');
-                    div.textContent = s;
-                    return div.innerHTML;
-                });
+                const escapeHtmlFn = window.escapeHtml;
                 
                 const content = document.getElementById('slideoutContent');
                 if (!content) {
@@ -13576,12 +13124,7 @@
                 
             } catch (error) {
                 if (tbody) {
-                    const escapeHtmlFn = window.escapeHtml || ((s) => {
-                        if (s == null) return '';
-                        const div = document.createElement('div');
-                        div.textContent = s;
-                        return div.innerHTML;
-                    });
+                    const escapeHtmlFn = window.escapeHtml;
                     tbody.innerHTML = `<tr><td colspan="2" class="error">Error loading history: ${escapeHtmlFn(error.message)}</td></tr>`;
                 }
             }
@@ -14000,49 +13543,19 @@
         // insightsSearchTerm, insightsFilters, and insightsSortOrder are already declared above (lines 9225, 9222, 9224)
         let insightsSortBy = 'name';
 
-        // Toggle insights panel - wrapper that uses UI controller module
+        // Toggle insights panel - uses UI controller module
         function toggleInsightsPanel() {
-            if (window.uiControllerToggleInsightsPanel) {
-                return window.uiControllerToggleInsightsPanel();
-            }
-            // Fallback if module not loaded yet
-            const body = document.getElementById('insightsPanelBody');
-            const container = document.querySelector('.insights-panel-container');
-            if (body.classList.contains('collapsed')) {
-                body.classList.remove('collapsed');
-                if (container) container.classList.remove('collapsed');
-            } else {
-                body.classList.add('collapsed');
-                if (container) container.classList.add('collapsed');
-            }
+            return window.uiControllerToggleInsightsPanel();
         }
 
-        // Toggle insights add dropdown - wrapper that uses UI controller module
+        // Toggle insights add dropdown - uses UI controller module
         function toggleInsightsAddDropdown(event) {
-            if (window.uiControllerToggleInsightsAddDropdown) {
-                return window.uiControllerToggleInsightsAddDropdown(event);
-            }
-            // Fallback if module not loaded yet
-            if (event) {
-                event.preventDefault();
-                event.stopPropagation();
-            }
-            const menu = document.getElementById('insightsAddDropdownMenu');
-            if (!menu) return;
-            const isOpen = menu.classList.contains('open');
-            menu.classList.toggle('open', !isOpen);
+            return window.uiControllerToggleInsightsAddDropdown(event);
         }
 
-        // Close insights add dropdown - wrapper that uses UI controller module
+        // Close insights add dropdown - uses UI controller module
         function closeInsightsAddDropdown() {
-            if (window.uiControllerCloseInsightsAddDropdown) {
-                return window.uiControllerCloseInsightsAddDropdown();
-            }
-            // Fallback if module not loaded yet
-            const menu = document.getElementById('insightsAddDropdownMenu');
-            if (menu) {
-                menu.classList.remove('open');
-            }
+            return window.uiControllerCloseInsightsAddDropdown();
         }
 
         async function handleInsightsAddOption(option) {
@@ -14327,7 +13840,7 @@
             } catch (error) {
                 console.error('Error loading insights:', error);
                 if (tbody) {
-                    const escapeHtmlFn = window.escapeHtml || ((s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;'));
+                    const escapeHtmlFn = window.escapeHtml;
                     tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>Error loading insights</h3><p>' + escapeHtmlFn(error.message) + '</p></td></tr>';
                 }
             }
@@ -15051,31 +14564,7 @@
                 };
                 
                 // Create insight using API module
-                if (window.insightsApiCreateInsight) {
-                    await window.insightsApiCreateInsight(currentClientId, insightData, getAuthHeadersFn);
-                } else {
-                    // Fallback if module not loaded yet
-                    const headers = {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    };
-                    
-                    const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/insights`, {
-                        method: 'POST',
-                        headers: headers,
-                        body: JSON.stringify(insightData),
-                    });
-                    
-                    if (!response.ok) {
-                        let errorData;
-                        try {
-                            errorData = await response.json();
-                        } catch (e) {
-                            errorData = { detail: response.statusText };
-                        }
-                        throw new Error(errorData.detail || `HTTP ${response.status}: Failed to create insight`);
-                    }
-                }
+                await window.insightsApiCreateInsight(currentClientId, insightData, getAuthHeadersFn);
                 
                 // Success - close modal and refresh insights panel
                 closeCreateInsightModal();
