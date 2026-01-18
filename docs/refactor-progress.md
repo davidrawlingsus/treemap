@@ -684,6 +684,26 @@ js/
 - Module functions exposed globally for backward compatibility
 - All rendering logic including filtering, sorting, and origin pill display handled by module
 
+### 2025-01-18 - Slice 24: Extract Verbatims Renderer
+- Created `js/renderers/verbatims-renderer.js` - extracted verbatim card rendering logic
+- Extracted function: `renderVerbatims()` - renders verbatim cards with filtering, metadata display
+- Module handles search filtering, metadata settings, and "create insight" button
+- Wrapper function in index.html passes state (verbatimSearchTerm, currentCategoryName)
+- Module functions exposed globally for backward compatibility
+
+### 2025-01-18 - Slice 25: Extract Treemap Renderer
+- Created `js/renderers/treemap-renderer.js` (~350 lines) - extracted D3 treemap visualization
+- Extracted function: `renderTreemap()` - complex D3 treemap with all event handlers
+- Reduced index.html by 252 lines (22,596 → 22,344)
+- Module handles category/topic rendering, click events, context menus, resize handling
+- Wrapper passes all dependencies (colorSchemes, currentProjectName, handlers, etc.)
+- Most complex renderer - highest risk extraction completed successfully
+
+### 2025-01-18 - Bug Fixes
+- Fixed insights not loading in visualizations panel (insightsAllInsights not synced to module state)
+- Fixed dimension dropdown showing IDs instead of names (dimensionNamesMap not synced to api-cache-state)
+- Added state sync calls after data loading in multiple locations
+
 ## Known Risks & Technical Debt
 
 ### Globals to Address
@@ -712,45 +732,51 @@ js/
 
 ## Current Status & Next Steps
 
-### ✅ Completed (23 Slices)
+### ✅ Completed (26 Slices)
 - **Phase 1: Foundation** - Utilities, Storage, Auth, API Config (Slices 1-4)
 - **Phase 2: API Services** - Clients, Data Sources, VOC Data, Insights APIs (Slices 5-8)
 - **Phase 3: State Management** - All major state modules extracted (Slices 10-20)
 - **Phase 4: Additional Utilities** - Format utilities (Slice 21)
-- **Phase 5: Renderers** - Insights renderer (Slice 22), History renderer (Slice 23)
+- **Phase 5: Renderers** - All 4 major renderers extracted (Slices 22-25)
+  - Slice 22: Insights renderer ✅
+  - Slice 23: History renderer ✅
+  - Slice 24: Verbatims renderer ✅
+  - Slice 25: Treemap renderer ✅ (D3 visualization - most complex)
 
 ### 📊 Progress Summary
-- **Slices Completed**: 23
-- **Modules Created**: 22+ (utils, services, state, controllers, config, renderers)
-- **Lines Extracted**: ~2,960 lines to modules (estimate: 2,760 + ~200 from renderHistoryTable)
-- **Current index.html**: ~22,500 lines (reduced due to history renderer extraction)
-- **Status**: ✅ **STABLE - Ready to continue**
+- **Slices Completed**: 26
+- **Modules Created**: 26 (utils, services, state, controllers, config, renderers)
+- **Lines Extracted**: ~3,500+ lines to modules
+- **Current index.html**: 22,344 lines (down from 22,596)
+- **Status**: ✅ **STABLE - All renderers extracted**
 
-### 🔧 Recent Fixes
-- Fixed `debounce` and `escapeHtml` fallbacks in `renderTreemap` and `renderInsights`
-- Fixed `escapeHtml` fallback in `SlideoutPanel.renderVerbatims`
-- All fixes committed and pushed to git
+### 🔧 Recent Bug Fixes (2025-01-18)
+- Fixed insights not loading in visualizations panel (state sync issue)
+- Fixed dimension dropdown showing IDs instead of names (dimensionNamesMap sync)
+- Fixed duplicate export in `color-schemes.js` breaking ES module chain
+- Fixed mismatched variable names in ES module script
 
 ### 🎯 Next Recommended Actions (When Resuming)
 
-**Option A: Continue with Renderers (Higher Impact)**
-1. ~~Extract `renderInsights()` - simpler insights table rendering~~ ✅ **DONE**
-2. ~~Extract `renderHistoryTable()` - history table rendering~~ ✅ **DONE**
-3. Extract `renderVerbatims()` - verbatim card rendering
-4. Extract `renderTreemap()` - complex D3 treemap (highest risk)
+**Option A: Extract Chart Renderers (Medium Risk)**
+1. Extract `renderBarChart()` - category bar chart
+2. Extract `renderTopicsChart()` - topics bar chart
+3. Extract `renderHorizontalBarChart()` - multi-choice/numeric chart
 
-**Option B: Continue with Router (Medium Risk)**
-1. Extract SPA navigation logic (`navigateToView`, hash routing, etc.)
+**Option B: Extract Router (Medium Risk)**
+1. Extract `navigateToView()` - SPA navigation (~200 lines)
+2. Extract hash routing logic
 
-**Option C: Continue with Controllers (Medium-High Risk)**
+**Option C: Extract Controllers (Medium-High Risk)**
 1. Extract filter controllers
 2. Extract insights CRUD controllers
 3. Extract history controllers
 
 **Option D: Cleanup Phase (Low Risk)**
-1. Remove wrapper functions once all references migrated
-2. Remove old local variable declarations
-3. Final cleanup pass
+1. Remove debug instrumentation (fetch calls to debug server)
+2. Remove wrapper function fallbacks (no longer needed)
+3. Remove duplicate local variable declarations
+4. Final cleanup pass
 
 ### 📝 Resuming Work
 1. Read this document (`docs/refactor-progress.md`) for full context
