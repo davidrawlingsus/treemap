@@ -16,6 +16,7 @@ from app.schemas import (
     ClientCreate,
     ClientResponse,
     ClientLogoUpdate,
+    ClientSettingsUpdate,
     DataSourceResponse,
     InsightCreate,
     InsightUpdate,
@@ -115,6 +116,41 @@ def update_client_logo(
     db.commit()
     db.refresh(client)
     
+    return client
+
+
+@router.put("/{client_id}/settings", response_model=ClientResponse)
+def update_client_settings(
+    client_id: UUID,
+    settings_data: ClientSettingsUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update client settings (logo, business context, tone of voice)"""
+    # Verify client access
+    verify_client_access(client_id, current_user, db)
+    
+    client = db.query(Client).filter(Client.id == client_id).first()
+    
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    # Update only provided fields
+    if settings_data.client_url is not None:
+        client.client_url = settings_data.client_url
+    if settings_data.logo_url is not None:
+        client.logo_url = settings_data.logo_url
+    if settings_data.header_color is not None:
+        client.header_color = settings_data.header_color
+    if settings_data.business_summary is not None:
+        client.business_summary = settings_data.business_summary
+    if settings_data.tone_of_voice is not None:
+        client.tone_of_voice = settings_data.tone_of_voice
+    
+    db.commit()
+    db.refresh(client)
+    
+    logger.info(f"Updated settings for client {client_id}")
     return client
 
 

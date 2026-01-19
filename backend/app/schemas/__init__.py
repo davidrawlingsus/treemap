@@ -29,6 +29,7 @@ from .client import (
     ClientCreate,
     ClientResponse,
     ClientLogoUpdate,
+    ClientSettingsUpdate,
 )
 
 from .data_source import (
@@ -129,6 +130,7 @@ __all__ = [
     "ClientCreate",
     "ClientResponse",
     "ClientLogoUpdate",
+    "ClientSettingsUpdate",
     # Data Source
     "DataSourceCreate",
     "DataSourceResponse",

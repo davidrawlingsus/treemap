@@ -262,6 +262,17 @@
             resetHistoryState as historyStateResetHistoryState
         } from '/js/state/history-state.js';
         import {
+            getSettingsInitialized as settingsStateGetSettingsInitialized,
+            setSettingsInitialized as settingsStateSetSettingsInitialized,
+            getSettingsCurrentClientId as settingsStateGetSettingsCurrentClientId,
+            setSettingsCurrentClientId as settingsStateSetSettingsCurrentClientId,
+            resetSettingsState as settingsStateResetSettingsState
+        } from '/js/state/settings-state.js';
+        import {
+            fetchClientSettings as settingsApiFetchClientSettings,
+            updateClientSettings as settingsApiUpdateClientSettings
+        } from '/js/services/api-settings.js';
+        import {
             getCurrentFilterType as uiInteractionGetCurrentFilterType,
             setCurrentFilterType as uiInteractionSetCurrentFilterType,
             getCurrentFilterSelections as uiInteractionGetCurrentFilterSelections,
@@ -569,6 +580,15 @@
         window.historyStateSetHistoryState = historyStateSetHistoryState;
         window.historyStateResetHistoryState = historyStateResetHistoryState;
         
+        // Make settings state and API functions available globally for backward compatibility
+        window.settingsStateGetSettingsInitialized = settingsStateGetSettingsInitialized;
+        window.settingsStateSetSettingsInitialized = settingsStateSetSettingsInitialized;
+        window.settingsStateGetSettingsCurrentClientId = settingsStateGetSettingsCurrentClientId;
+        window.settingsStateSetSettingsCurrentClientId = settingsStateSetSettingsCurrentClientId;
+        window.settingsStateResetSettingsState = settingsStateResetSettingsState;
+        window.settingsApiFetchClientSettings = settingsApiFetchClientSettings;
+        window.settingsApiUpdateClientSettings = settingsApiUpdateClientSettings;
+        
         // Make UI interaction state functions available globally for backward compatibility
         window.uiInteractionGetCurrentFilterType = uiInteractionGetCurrentFilterType;
         window.uiInteractionSetCurrentFilterType = uiInteractionSetCurrentFilterType;
@@ -651,6 +671,9 @@
                 </a>
                 <a href="#" class="nav-menu-item" id="navHistory" onclick="navigateToView('history'); return false;">
                     <span>History</span>
+                </a>
+                <a href="#" class="nav-menu-item" id="navSettings" onclick="navigateToView('settings'); return false;">
+                    <span>Settings</span>
                 </a>
                 <a href="/founder_admin.html" class="nav-menu-item founder-admin hidden" id="navFounderAdmin">
                     <span>Admin</span>
@@ -5877,9 +5900,11 @@
             const vizSection = document.getElementById('visualizations-section');
             const insightsSection = document.getElementById('insights-section');
             const historySection = document.getElementById('history-section');
+            const settingsSection = document.getElementById('settings-section');
             const navVisualizations = document.getElementById('navVisualizations');
             const navInsights = document.getElementById('navInsights');
             const navHistory = document.getElementById('navHistory');
+            const navSettings = document.getElementById('navSettings');
             const mainContainer = document.getElementById('mainContainer');
             
             // Store scroll position when leaving visualizations view
@@ -5919,11 +5944,22 @@
                     historySection.style.overflow = 'hidden';
                 }
             }
+            if (settingsSection) {
+                settingsSection.classList.remove('active');
+                if (!settingsSection.classList.contains('active')) {
+                    settingsSection.style.display = 'none';
+                    settingsSection.style.height = '0';
+                    settingsSection.style.minHeight = '0';
+                    settingsSection.style.maxHeight = '0';
+                    settingsSection.style.overflow = 'hidden';
+                }
+            }
             
             // Remove active class from all nav items
             if (navVisualizations) navVisualizations.classList.remove('active');
             if (navInsights) navInsights.classList.remove('active');
             if (navHistory) navHistory.classList.remove('active');
+            if (navSettings) navSettings.classList.remove('active');
             
             // Show selected section and update nav - CSS class will handle the showing
             if (viewName === 'visualizations') {
@@ -6064,6 +6100,35 @@
                 if (typeof initHistoryPage === 'function' && !window.historyInitialized) {
                     initHistoryPage();
                 }
+            } else if (viewName === 'settings') {
+                if (settingsSection) {
+                    settingsSection.classList.add('active');
+                    // Reset styles for active section
+                    settingsSection.style.display = '';
+                    settingsSection.style.height = '';
+                    settingsSection.style.minHeight = '';
+                    settingsSection.style.maxHeight = '';
+                    settingsSection.style.overflow = '';
+                }
+                if (navSettings) navSettings.classList.add('active');
+                // Remove min-height constraint for settings to allow natural sizing
+                if (mainContainer) {
+                    mainContainer.style.minHeight = 'auto';
+                    mainContainer.style.height = 'auto';
+                    mainContainer.setAttribute('data-view', 'settings');
+                }
+                
+                // Initialize settings page
+                window.settingsInitialized = false;
+                if (typeof initSettingsPage === 'function') {
+                    initSettingsPage();
+                }
+                
+                // Scroll to top to ensure settings section is visible
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (mainContainer && mainContainer.scrollTop > 0) {
+                    mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
+                }
             }
             
             // Update URL hash without reload
@@ -6073,6 +6138,8 @@
                 hash = '#/insights';
             } else if (viewName === 'history') {
                 hash = '#/history';
+            } else if (viewName === 'settings') {
+                hash = '#/settings';
             }
             const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '') + hash;
             window.history.pushState({ view: viewName }, '', newUrl);
@@ -6085,6 +6152,8 @@
                 navigateToView('insights');
             } else if (hash === '#/history') {
                 navigateToView('history');
+            } else if (hash === '#/settings') {
+                navigateToView('settings');
             } else {
                 navigateToView('visualizations');
             }
@@ -6097,6 +6166,8 @@
                 navigateToView('insights');
             } else if (hash === '#/history') {
                 navigateToView('history');
+            } else if (hash === '#/settings') {
+                navigateToView('settings');
             } else {
                 navigateToView('visualizations');
             }
@@ -6108,17 +6179,21 @@
             const navVisualizations = document.getElementById('navVisualizations');
             const navInsights = document.getElementById('navInsights');
             const navHistory = document.getElementById('navHistory');
+            const navSettings = document.getElementById('navSettings');
             
             // Remove active class from all items
             if (navVisualizations) navVisualizations.classList.remove('active');
             if (navInsights) navInsights.classList.remove('active');
             if (navHistory) navHistory.classList.remove('active');
+            if (navSettings) navSettings.classList.remove('active');
             
             // Set active based on hash
             if (hash === '#/insights') {
                 if (navInsights) navInsights.classList.add('active');
             } else if (hash === '#/history') {
                 if (navHistory) navHistory.classList.add('active');
+            } else if (hash === '#/settings') {
+                if (navSettings) navSettings.classList.add('active');
             } else {
                 // Default to visualizations
                 if (navVisualizations) navVisualizations.classList.add('active');
@@ -6203,6 +6278,8 @@
                     navigateToView('insights');
                 } else if (hash === '#/history') {
                     navigateToView('history');
+                } else if (hash === '#/settings') {
+                    navigateToView('settings');
                 } else {
                     navigateToView('visualizations');
                 }
@@ -6216,6 +6293,8 @@
                 navigateToView('insights');
             } else if (hash === '#/history') {
                 navigateToView('history');
+            } else if (hash === '#/settings') {
+                navigateToView('settings');
             } else {
                 navigateToView('visualizations');
             }
@@ -6223,6 +6302,180 @@
 
         // Insights Page JavaScript
         let insightsCurrentClientId = null;
+        
+        // Settings Page JavaScript
+        // Uses state from /js/state/settings-state.js and API from /js/services/api-settings.js
+        
+        async function initSettingsPage() {
+            // Get client ID from URL params or global state
+            const urlParams = new URLSearchParams(window.location.search);
+            let effectiveClientId = urlParams.get('client_uuid') || currentClientId;
+            
+            // If no client ID yet, wait for it (with timeout)
+            if (!effectiveClientId) {
+                let retryAttempts = 0;
+                const maxAttempts = 20;
+                
+                while (!effectiveClientId && retryAttempts < maxAttempts) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    effectiveClientId = currentClientId;
+                    retryAttempts++;
+                }
+            }
+            
+            const currentSettingsClientId = window.settingsStateGetSettingsCurrentClientId();
+            if (window.settingsStateGetSettingsInitialized() && currentSettingsClientId === effectiveClientId) {
+                return;
+            }
+            
+            window.settingsStateSetSettingsCurrentClientId(effectiveClientId);
+            
+            if (!effectiveClientId) {
+                console.warn('[Settings] No client selected');
+                return;
+            }
+            
+            await loadClientSettings();
+            window.settingsStateSetSettingsInitialized(true);
+        }
+        
+        async function loadClientSettings() {
+            const clientId = window.settingsStateGetSettingsCurrentClientId();
+            if (!clientId) return;
+            
+            try {
+                const client = await window.settingsApiFetchClientSettings(clientId);
+                
+                // Populate form fields
+                const clientUrlEl = document.getElementById('settingsClientUrl');
+                const logoUrlEl = document.getElementById('settingsLogoUrl');
+                const headerColorEl = document.getElementById('settingsHeaderColor');
+                const headerColorPickerEl = document.getElementById('settingsHeaderColorPicker');
+                const businessSummaryEl = document.getElementById('settingsBusinessSummary');
+                const toneOfVoiceEl = document.getElementById('settingsToneOfVoice');
+                
+                if (clientUrlEl) clientUrlEl.value = client.client_url || '';
+                if (logoUrlEl) logoUrlEl.value = client.logo_url || '';
+                if (headerColorEl) headerColorEl.value = client.header_color || '#FFFFFF';
+                if (headerColorPickerEl) headerColorPickerEl.value = client.header_color || '#FFFFFF';
+                if (businessSummaryEl) businessSummaryEl.value = client.business_summary || '';
+                if (toneOfVoiceEl) toneOfVoiceEl.value = client.tone_of_voice || '';
+                
+                // Update logo preview
+                updateLogoPreview(client.logo_url);
+                
+            } catch (error) {
+                console.error('[Settings] Failed to load client settings:', error);
+            }
+        }
+        
+        function updateLogoPreview(logoUrl) {
+            const preview = document.getElementById('settingsLogoPreview');
+            if (!preview) return;
+            
+            if (logoUrl && logoUrl.trim()) {
+                preview.innerHTML = `<img src="${logoUrl}" alt="Logo preview" onerror="this.parentElement.innerHTML='<span class=\\'settings-logo-placeholder\\'>Failed to load image</span>'">`;
+            } else {
+                preview.innerHTML = '<span class="settings-logo-placeholder">No logo set</span>';
+            }
+        }
+        
+        async function saveClientSettings() {
+            const clientId = window.settingsStateGetSettingsCurrentClientId();
+            if (!clientId) {
+                showSettingsStatus('No client selected', true);
+                return;
+            }
+            
+            const saveBtn = document.getElementById('settingsSaveBtn');
+            const originalText = saveBtn.textContent;
+            saveBtn.textContent = 'Saving...';
+            saveBtn.disabled = true;
+            
+            try {
+                const settingsData = {
+                    client_url: document.getElementById('settingsClientUrl').value.trim() || null,
+                    logo_url: document.getElementById('settingsLogoUrl').value.trim() || null,
+                    header_color: document.getElementById('settingsHeaderColor').value.trim() || null,
+                    business_summary: document.getElementById('settingsBusinessSummary').value.trim() || null,
+                    tone_of_voice: document.getElementById('settingsToneOfVoice').value.trim() || null
+                };
+                
+                const updatedClient = await window.settingsApiUpdateClientSettings(clientId, settingsData);
+                
+                // Update the logo preview
+                updateLogoPreview(updatedClient.logo_url);
+                
+                // Update the header logo if visible
+                updateHeaderLogo(updatedClient.logo_url, updatedClient.header_color);
+                
+                showSettingsStatus('Settings saved successfully');
+                
+            } catch (error) {
+                console.error('[Settings] Failed to save settings:', error);
+                showSettingsStatus(error.message || 'Failed to save settings', true);
+            } finally {
+                saveBtn.textContent = originalText;
+                saveBtn.disabled = false;
+            }
+        }
+        
+        function showSettingsStatus(message, isError = false) {
+            const status = document.getElementById('settingsSaveStatus');
+            if (!status) return;
+            
+            status.textContent = message;
+            status.classList.toggle('error', isError);
+            status.classList.add('visible');
+            
+            setTimeout(() => {
+                status.classList.remove('visible');
+            }, 3000);
+        }
+        
+        function updateHeaderLogo(logoUrl, headerColor) {
+            // Update the nav client logo if it exists
+            const logoContainer = document.querySelector('.nav-client-logo-container');
+            if (logoContainer && logoUrl) {
+                const existingImg = logoContainer.querySelector('.nav-client-logo-image');
+                if (existingImg) {
+                    existingImg.src = logoUrl;
+                }
+            }
+            
+            // Update header background color if needed
+            const nav = document.querySelector('.app-navigation');
+            if (nav && headerColor) {
+                nav.style.backgroundColor = headerColor;
+            }
+        }
+        
+        // Sync color picker with text input
+        document.addEventListener('DOMContentLoaded', () => {
+            const colorPicker = document.getElementById('settingsHeaderColorPicker');
+            const colorText = document.getElementById('settingsHeaderColor');
+            const logoUrlInput = document.getElementById('settingsLogoUrl');
+            
+            if (colorPicker && colorText) {
+                colorPicker.addEventListener('input', (e) => {
+                    colorText.value = e.target.value.toUpperCase();
+                });
+                
+                colorText.addEventListener('input', (e) => {
+                    const value = e.target.value;
+                    if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+                        colorPicker.value = value;
+                    }
+                });
+            }
+            
+            // Update logo preview on URL change
+            if (logoUrlInput) {
+                logoUrlInput.addEventListener('blur', (e) => {
+                    updateLogoPreview(e.target.value);
+                });
+            }
+        });
         
         // History Page JavaScript
         let historyCurrentClientId = null;
@@ -14899,6 +15152,81 @@
             </table>
         </div>
     </div> <!-- End history-section -->
+
+    <!-- Settings Section -->
+    <div id="settings-section" class="spa-section">
+        <div class="control-bar" style="position: relative;">
+            <h1 style="margin: 0; font-size: 20px; font-weight: 600; color: #37352f;">Settings</h1>
+        </div>
+
+        <div class="settings-container">
+            <div class="settings-form">
+                <!-- Brand URL -->
+                <div class="settings-card">
+                    <h2 class="settings-card-title">Brand Website</h2>
+                    <p class="settings-card-description">Your company's main website URL.</p>
+                    
+                    <div class="settings-field">
+                        <label for="settingsClientUrl">Website URL</label>
+                        <input type="url" id="settingsClientUrl" placeholder="https://www.example.com">
+                    </div>
+                </div>
+
+                <!-- Logo Settings -->
+                <div class="settings-card">
+                    <h2 class="settings-card-title">Brand Logo</h2>
+                    <p class="settings-card-description">Your company logo displayed in the app header.</p>
+                    
+                    <div class="settings-logo-preview" id="settingsLogoPreview">
+                        <span class="settings-logo-placeholder">No logo set</span>
+                    </div>
+                    
+                    <div class="settings-field">
+                        <label for="settingsLogoUrl">Logo URL</label>
+                        <input type="url" id="settingsLogoUrl" placeholder="https://example.com/logo.png">
+                    </div>
+                    
+                    <div class="settings-field">
+                        <label for="settingsHeaderColor">Header Background Color</label>
+                        <div class="settings-color-input">
+                            <input type="color" id="settingsHeaderColorPicker" value="#FFFFFF">
+                            <input type="text" id="settingsHeaderColor" placeholder="#FFFFFF" maxlength="7">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Business Context -->
+                <div class="settings-card">
+                    <h2 class="settings-card-title">Business Context</h2>
+                    <p class="settings-card-description">A summary of your business that helps AI understand your company when generating insights and recommendations.</p>
+                    
+                    <div class="settings-field">
+                        <label for="settingsBusinessSummary">Business Summary</label>
+                        <textarea id="settingsBusinessSummary" rows="6" placeholder="Describe your business, products/services, target audience, and unique value proposition..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Tone of Voice -->
+                <div class="settings-card">
+                    <h2 class="settings-card-title">Tone of Voice</h2>
+                    <p class="settings-card-description">Define your brand's voice and communication style to ensure consistent messaging in generated ad copy and content.</p>
+                    
+                    <div class="settings-field">
+                        <label for="settingsToneOfVoice">Brand Voice Description</label>
+                        <textarea id="settingsToneOfVoice" rows="6" placeholder="Describe your brand's tone of voice. For example: professional yet approachable, using clear language, avoiding jargon, emphasizing trust and reliability..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Save Button -->
+                <div class="settings-actions">
+                    <button type="button" class="settings-save-btn" onclick="saveClientSettings()" id="settingsSaveBtn">
+                        Save Settings
+                    </button>
+                    <span class="settings-save-status" id="settingsSaveStatus"></span>
+                </div>
+            </div>
+        </div>
+    </div> <!-- End settings-section -->
 </body>
 </html>
 

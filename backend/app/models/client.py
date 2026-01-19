@@ -21,6 +21,7 @@ class Client(Base):
     client_url = Column(String(500), nullable=True)
     logo_url = Column(String(500), nullable=True)
     header_color = Column(String(7), nullable=True)
+    tone_of_voice = Column(Text, nullable=True)
 
     # Relationships
     founder = relationship("User", foreign_keys=[founder_user_id], back_populates="founded_clients")

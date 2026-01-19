@@ -37,6 +37,7 @@ class ClientResponse(BaseModel):
     client_url: Optional[str] = None
     logo_url: Optional[str] = None
     header_color: Optional[str] = None
+    tone_of_voice: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime]
 
@@ -95,6 +96,15 @@ class ClientCreate(BaseModel):
 class ClientLogoUpdate(BaseModel):
     logo_url: str = Field(..., description="URL of the client logo")
     header_color: str = Field(..., description="Hex color for header background (e.g. #FFFFFF)")
+
+
+class ClientSettingsUpdate(BaseModel):
+    """Schema for updating client-facing settings (logo, business context, tone of voice)"""
+    client_url: Optional[str] = Field(default=None, description="Brand website URL")
+    logo_url: Optional[str] = Field(default=None, description="URL of the client logo")
+    header_color: Optional[str] = Field(default=None, description="Hex color for header background (e.g. #FFFFFF)")
+    business_summary: Optional[str] = Field(default=None, description="Business context/summary for AI prompts")
+    tone_of_voice: Optional[str] = Field(default=None, description="Brand tone of voice for consistent ad copy")
 
 
 # Resolve forward references
