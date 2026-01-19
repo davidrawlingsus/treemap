@@ -1,6 +1,7 @@
 /**
  * Prompt List Renderer Module
  * Handles rendering of the prompts list with version history
+ * Supports both card and table views with sorting
  */
 
 (function() {
@@ -17,8 +18,20 @@
     // Constants
     const PROMPT_PREVIEW_LENGTH = 200; // characters
 
+    // Table columns configuration
+    const TABLE_COLUMNS = [
+        { key: 'name', label: 'Name', sortable: true },
+        { key: 'version', label: 'Version', sortable: true },
+        { key: 'status', label: 'Status', sortable: true },
+        { key: 'prompt_type', label: 'Type', sortable: true },
+        { key: 'prompt_purpose', label: 'Purpose', sortable: true },
+        { key: 'llm_model', label: 'Model', sortable: true },
+        { key: 'updated_at', label: 'Updated', sortable: true },
+        { key: 'actions', label: '', sortable: false }
+    ];
+
     /**
-     * Render prompts list
+     * Render prompts list (dispatches to card or table view)
      * @param {HTMLElement} container - Container element
      * @param {Function} onEditClick - Callback when edit button is clicked
      * @param {Function} onVersionChange - Callback when version selector changes
@@ -26,7 +39,23 @@
     function renderPrompts(container, onEditClick, onVersionChange) {
         if (!container) return;
 
+        const viewMode = state.get('viewMode') || 'cards';
+        
+        if (viewMode === 'table') {
+            renderPromptsTable(container, onEditClick);
+        } else {
+            renderPromptsCards(container, onEditClick, onVersionChange);
+        }
+    }
+
+    /**
+     * Render prompts as cards (original view)
+     */
+    function renderPromptsCards(container, onEditClick, onVersionChange) {
         const prompts = state.get('prompts');
+
+        // Ensure container has card view class
+        container.className = 'domains-grid';
 
         if (!prompts || prompts.length === 0) {
             container.innerHTML = `
@@ -131,6 +160,186 @@
                 if (onVersionChange) onVersionChange(promptId);
             });
         });
+    }
+
+    /**
+     * Render prompts as a sortable table
+     */
+    function renderPromptsTable(container, onEditClick) {
+        const prompts = state.get('prompts');
+        const sortColumn = state.get('tableSortColumn') || 'updated_at';
+        const sortDirection = state.get('tableSortDirection') || 'desc';
+
+        // Change container class for table view
+        container.className = 'prompts-table-container';
+
+        if (!prompts || prompts.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">No prompts yet</h3>
+                    <p style="font-size: 14px;">Create your first prompt to start transforming insights into actions.</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Sort prompts
+        const sortedPrompts = sortPrompts([...prompts], sortColumn, sortDirection);
+
+        // Build table HTML
+        const tableHtml = `
+            <table class="prompts-table">
+                <thead>
+                    <tr>
+                        ${TABLE_COLUMNS.map(col => {
+                            if (!col.sortable) {
+                                return `<th class="prompts-table-th">${col.label}</th>`;
+                            }
+                            const isActive = sortColumn === col.key;
+                            const arrow = isActive ? (sortDirection === 'asc' ? '↑' : '↓') : '';
+                            return `
+                                <th class="prompts-table-th sortable ${isActive ? 'active' : ''}" 
+                                    data-sort-column="${col.key}">
+                                    <span>${col.label}</span>
+                                    <span class="sort-indicator">${arrow}</span>
+                                </th>
+                            `;
+                        }).join('')}
+                    </tr>
+                </thead>
+                <tbody>
+                    ${sortedPrompts.map(prompt => renderTableRow(prompt)).join('')}
+                </tbody>
+            </table>
+        `;
+
+        container.innerHTML = tableHtml;
+
+        // Attach sort listeners
+        container.querySelectorAll('.prompts-table-th.sortable').forEach(th => {
+            th.addEventListener('click', () => {
+                const column = th.getAttribute('data-sort-column');
+                handleSortClick(column, container, onEditClick);
+            });
+        });
+
+        // Attach edit button listeners
+        container.querySelectorAll('[data-action="edit-prompt"]').forEach(button => {
+            button.addEventListener('click', () => {
+                const promptId = button.getAttribute('data-prompt-id');
+                if (onEditClick) onEditClick(promptId);
+            });
+        });
+    }
+
+    /**
+     * Render a single table row
+     */
+    function renderTableRow(prompt) {
+        const statusBadge = getStatusBadgeCompact(prompt.status);
+        const typeBadge = getTypeBadgeCompact(prompt.prompt_type || 'system');
+        const updatedAt = prompt.updated_at ? new Date(prompt.updated_at).toLocaleDateString() : '—';
+
+        return `
+            <tr class="prompts-table-row" data-prompt-id="${prompt.id}">
+                <td class="prompts-table-td prompts-table-name">
+                    <span class="prompt-name-text">${DOM.escapeHtml(prompt.name)}</span>
+                </td>
+                <td class="prompts-table-td prompts-table-version">v${prompt.version}</td>
+                <td class="prompts-table-td">${statusBadge}</td>
+                <td class="prompts-table-td">${typeBadge}</td>
+                <td class="prompts-table-td prompts-table-purpose">${DOM.escapeHtml(prompt.prompt_purpose || '—')}</td>
+                <td class="prompts-table-td prompts-table-model">${DOM.escapeHtml(prompt.llm_model || '—')}</td>
+                <td class="prompts-table-td prompts-table-date">${updatedAt}</td>
+                <td class="prompts-table-td prompts-table-actions">
+                    <button class="btn btn-secondary btn-sm" data-action="edit-prompt" data-prompt-id="${prompt.id}">Edit</button>
+                </td>
+            </tr>
+        `;
+    }
+
+    /**
+     * Sort prompts array
+     */
+    function sortPrompts(prompts, column, direction) {
+        const multiplier = direction === 'asc' ? 1 : -1;
+
+        return prompts.sort((a, b) => {
+            let aVal = a[column];
+            let bVal = b[column];
+
+            // Handle null/undefined
+            if (aVal == null) aVal = '';
+            if (bVal == null) bVal = '';
+
+            // Handle dates
+            if (column === 'updated_at' || column === 'created_at') {
+                aVal = aVal ? new Date(aVal).getTime() : 0;
+                bVal = bVal ? new Date(bVal).getTime() : 0;
+            }
+            // Handle numbers
+            else if (column === 'version') {
+                aVal = Number(aVal) || 0;
+                bVal = Number(bVal) || 0;
+            }
+            // Handle strings
+            else if (typeof aVal === 'string') {
+                aVal = aVal.toLowerCase();
+                bVal = bVal.toLowerCase();
+            }
+
+            if (aVal < bVal) return -1 * multiplier;
+            if (aVal > bVal) return 1 * multiplier;
+            return 0;
+        });
+    }
+
+    /**
+     * Handle sort column click
+     */
+    function handleSortClick(column, container, onEditClick) {
+        const currentColumn = state.get('tableSortColumn');
+        const currentDirection = state.get('tableSortDirection');
+
+        // Toggle direction if same column, otherwise default to desc
+        let newDirection = 'desc';
+        if (column === currentColumn) {
+            newDirection = currentDirection === 'desc' ? 'asc' : 'desc';
+        }
+
+        state.set('tableSortColumn', column);
+        state.set('tableSortDirection', newDirection);
+
+        // Re-render table
+        renderPromptsTable(container, onEditClick);
+    }
+
+    /**
+     * Compact status badge for table view
+     */
+    function getStatusBadgeCompact(status) {
+        const styles = {
+            live: { bg: '#f0fff4', border: '#c6f6d5', color: '#22543d' },
+            test: { bg: '#fffbf0', border: '#fbd38d', color: '#744210' },
+            archived: { bg: '#f7fafc', border: '#e2e8f0', color: '#4a5568' }
+        };
+
+        const style = styles[status] || styles.archived;
+        return `<span class="status-badge-compact" style="background: ${style.bg}; border: 1px solid ${style.border}; color: ${style.color};">${status}</span>`;
+    }
+
+    /**
+     * Compact type badge for table view
+     */
+    function getTypeBadgeCompact(promptType) {
+        const styles = {
+            system: { bg: '#e6f3ff', border: '#b3d9ff', color: '#004085' },
+            helper: { bg: '#fff4e6', border: '#ffd9b3', color: '#663c00' }
+        };
+
+        const style = styles[promptType] || styles.system;
+        const label = promptType === 'helper' ? 'Helper' : 'System';
+        return `<span class="type-badge-compact" style="background: ${style.bg}; border: 1px solid ${style.border}; color: ${style.color};">${label}</span>`;
     }
 
     /**

@@ -10,3 +10,167 @@
     border-color: var(--brand-color);
     box-shadow: 0 0 0 3px rgba(185, 240, 64, 0.1);
 }
+
+/* View Toggle */
+.view-toggle {
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--surface);
+}
+
+.view-toggle-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--muted);
+    transition: background 0.2s, color 0.2s;
+}
+
+.view-toggle-btn:hover {
+    background: var(--bg);
+    color: var(--text);
+}
+
+.view-toggle-btn.active {
+    background: var(--brand-color);
+    color: #000;
+}
+
+.view-toggle-btn + .view-toggle-btn {
+    border-left: 1px solid var(--border);
+}
+
+/* Prompts Table Container */
+.prompts-table-container {
+    background: var(--surface);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+}
+
+/* Prompts Table */
+.prompts-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.prompts-table-th {
+    text-align: left;
+    padding: 12px 16px;
+    background: var(--bg);
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.prompts-table-th.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s, color 0.2s;
+}
+
+.prompts-table-th.sortable:hover {
+    background: #e9ecef;
+    color: var(--text);
+}
+
+.prompts-table-th.sortable.active {
+    color: var(--text);
+    background: #e2e8f0;
+}
+
+.prompts-table-th .sort-indicator {
+    display: inline-block;
+    width: 16px;
+    text-align: center;
+    margin-left: 4px;
+    font-size: 10px;
+}
+
+.prompts-table-row {
+    transition: background 0.15s;
+}
+
+.prompts-table-row:hover {
+    background: var(--bg);
+}
+
+.prompts-table-row:not(:last-child) .prompts-table-td {
+    border-bottom: 1px solid var(--border);
+}
+
+.prompts-table-td {
+    padding: 12px 16px;
+    vertical-align: middle;
+}
+
+.prompts-table-name {
+    font-weight: 500;
+    color: var(--text);
+}
+
+.prompt-name-text {
+    display: inline-block;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.prompts-table-version {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.prompts-table-purpose,
+.prompts-table-model {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--muted);
+    font-size: 13px;
+}
+
+.prompts-table-date {
+    color: var(--muted);
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.prompts-table-actions {
+    text-align: right;
+    white-space: nowrap;
+}
+
+/* Compact badges for table view */
+.status-badge-compact,
+.type-badge-compact {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+/* Small button variant */
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+}

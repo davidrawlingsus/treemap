@@ -28,7 +28,10 @@
             models: new Set(), // Selected models
         },
         statusFilter: '',
-        purposeFilter: ''
+        purposeFilter: '',
+        viewMode: 'cards', // 'cards' or 'table'
+        tableSortColumn: 'updated_at', // Default sort column
+        tableSortDirection: 'desc' // 'asc' or 'desc'
     };
 
     // Create state manager

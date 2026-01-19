@@ -74,6 +74,7 @@
                 promptsContainer: DOM.getElement('promptsContainer'),
                 statusFilter: DOM.getElement('statusFilter'),
                 purposeFilter: DOM.getElement('purposeFilter'),
+                viewToggle: DOM.getElement('viewToggle', false),
                 // Modal elements
                 modalBackdrop: DOM.getElement('modalBackdrop'),
                 modalTitle: DOM.getElement('modalTitle'),
@@ -289,6 +290,29 @@
                 });
             }
 
+            // View toggle
+            if (this.elements.viewToggle) {
+                this.elements.viewToggle.addEventListener('click', (e) => {
+                    const btn = e.target.closest('.view-toggle-btn');
+                    if (!btn) return;
+
+                    const view = btn.getAttribute('data-view');
+                    if (!view) return;
+
+                    // Update state
+                    const state = window.PromptEngineeringState;
+                    state.set('viewMode', view);
+
+                    // Update active button
+                    this.elements.viewToggle.querySelectorAll('.view-toggle-btn').forEach(b => {
+                        b.classList.toggle('active', b.getAttribute('data-view') === view);
+                    });
+
+                    // Re-render prompts in new view
+                    this.renderPromptsList();
+                });
+            }
+
             // Filter dropdowns with debouncing
             const { debounce } = window.FounderAdmin;
             const debouncedLoadPrompts = debounce(() => {
@@ -354,7 +378,6 @@
         async loadPrompts() {
             const state = window.PromptEngineeringState;
             const PromptAPI = window.PromptAPI;
-            const UIRenderer = window.PromptUIRenderer;
 
             const statusFilter = this.elements.statusFilter?.value || '';
             const purposeFilter = this.elements.purposeFilter?.value || '';
@@ -366,39 +389,12 @@
             if (statusFilter) filters.status = statusFilter;
             if (purposeFilter) filters.prompt_purpose = purposeFilter;
 
-                try {
+            try {
                 const prompts = await PromptAPI.list(filters, true);
                 state.set('prompts', prompts);
 
-                // Render prompts
-                if (this.elements.promptsContainer) {
-                    UIRenderer.renderPrompts(
-                        this.elements.promptsContainer,
-                        (promptId) => {
-                            this.modalManager.openPromptModal('edit', promptId);
-                            // Open slideout with results after modal opens
-                            setTimeout(async () => {
-                                if (this.slideoutManager) {
-                                    // Find the prompt to get its name and version for filtering
-                                    const prompt = prompts.find(p => p.id === promptId);
-                                    
-                                    // Auto-apply filters for this prompt before opening slideout
-                                    if (this.filterManager && prompt) {
-                                        this.filterManager.applyPromptFilter(prompt.name, prompt.version);
-                                    }
-                                    
-                                    this.slideoutManager.setPromptId(promptId);
-                                    this.slideoutManager.open('LLM Outputs');
-                                    console.log('[APP] Displaying all results when opening slideout from prompt list');
-                                    await this.slideoutManager.displayAllResults(true, 'main-onEditClick');
-                                }
-                            }, 50);
-                        },
-                        (promptId) => {
-                            this.modalManager.openPromptModal('edit', promptId);
-                        }
-                    );
-                }
+                // Render prompts list
+                this.renderPromptsList();
 
                 // Update purpose filter dropdown with new purposes from prompts
                 this.updatePurposeFilter();
@@ -411,6 +407,44 @@
                 console.error('[APP] Failed to load prompts:', error);
                 throw error;
             }
+        },
+
+        /**
+         * Render prompts list (card or table view)
+         */
+        renderPromptsList() {
+            const UIRenderer = window.PromptUIRenderer;
+            const state = window.PromptEngineeringState;
+            const prompts = state.get('prompts');
+
+            if (!this.elements.promptsContainer) return;
+
+            UIRenderer.renderPrompts(
+                this.elements.promptsContainer,
+                (promptId) => {
+                    this.modalManager.openPromptModal('edit', promptId);
+                    // Open slideout with results after modal opens
+                    setTimeout(async () => {
+                        if (this.slideoutManager) {
+                            // Find the prompt to get its name and version for filtering
+                            const prompt = prompts.find(p => p.id === promptId);
+                            
+                            // Auto-apply filters for this prompt before opening slideout
+                            if (this.filterManager && prompt) {
+                                this.filterManager.applyPromptFilter(prompt.name, prompt.version);
+                            }
+                            
+                            this.slideoutManager.setPromptId(promptId);
+                            this.slideoutManager.open('LLM Outputs');
+                            console.log('[APP] Displaying all results when opening slideout from prompt list');
+                            await this.slideoutManager.displayAllResults(true, 'main-onEditClick');
+                        }
+                    }, 50);
+                },
+                (promptId) => {
+                    this.modalManager.openPromptModal('edit', promptId);
+                }
+            );
         },
 
         /**
