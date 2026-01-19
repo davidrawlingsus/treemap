@@ -37,6 +37,13 @@ const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:8000';
 
 console.log(`🔧 API_BASE_URL: ${API_BASE_URL}`);
 
+// Endpoint to get config (so frontend can fetch API URL dynamically)
+// This must be BEFORE express.static so it overrides the static config.js file
+app.get('/config.js', (req, res) => {
+  res.type('application/javascript');
+  res.send(`window.APP_CONFIG = { API_BASE_URL: '${API_BASE_URL}' };`);
+});
+
 // Serve static files from current directory
 app.use(express.static(__dirname));
 
@@ -47,12 +54,6 @@ app.get('/styles.css', (req, res) => {
 
 app.get('/header.js', (req, res) => {
   res.sendFile(path.join(__dirname, 'header.js'));
-});
-
-// Endpoint to get config (so frontend can fetch API URL dynamically)
-app.get('/config.js', (req, res) => {
-  res.type('application/javascript');
-  res.send(`window.APP_CONFIG = { API_BASE_URL: '${API_BASE_URL}' };`);
 });
 
 // Support magic-link redirect path (and other SPA routes in the future)
