@@ -672,6 +672,9 @@
                 <a href="#" class="nav-menu-item" id="navHistory" onclick="navigateToView('history'); return false;">
                     <span>History</span>
                 </a>
+                <a href="/founder_prompt_engineering.html" class="nav-menu-item founder-admin hidden" id="navPrompts">
+                    <span>Prompts</span>
+                </a>
                 <a href="#" class="nav-menu-item" id="navSettings" onclick="navigateToView('settings'); return false;">
                     <span>Settings</span>
                 </a>
@@ -1307,10 +1310,12 @@
 
         if (storedHeaderUser) {
             showHeaderUserInfo(storedHeaderUser);
-            // Show/hide founder admin nav item based on stored user info
+            // Show/hide founder admin nav items based on stored user info
             const adminNavItem = document.getElementById('navFounderAdmin');
-            if (adminNavItem && storedHeaderUser.is_founder) {
-                adminNavItem.classList.remove('hidden');
+            const promptsNavItem = document.getElementById('navPrompts');
+            if (storedHeaderUser.is_founder) {
+                if (adminNavItem) adminNavItem.classList.remove('hidden');
+                if (promptsNavItem) promptsNavItem.classList.remove('hidden');
             }
         } else {
             applyHeaderUserState();
@@ -1914,13 +1919,21 @@
             showHeaderUserInfo(userInfo);
             updateAccessibleClients(userInfo.accessible_clients || []);
             
-            // Show/hide founder admin nav item
+            // Show/hide founder admin nav items
             const adminNavItem = document.getElementById('navFounderAdmin');
+            const promptsNavItem = document.getElementById('navPrompts');
             if (adminNavItem) {
                 if (userInfo.is_founder) {
                     adminNavItem.classList.remove('hidden');
                 } else {
                     adminNavItem.classList.add('hidden');
+                }
+            }
+            if (promptsNavItem) {
+                if (userInfo.is_founder) {
+                    promptsNavItem.classList.remove('hidden');
+                } else {
+                    promptsNavItem.classList.add('hidden');
                 }
             }
 
@@ -2014,10 +2027,14 @@
             authenticatedUser = null;
             hideHeaderUserInfo();
             
-            // Hide admin nav item on logout
+            // Hide admin nav items on logout
             const adminNavItem = document.getElementById('navFounderAdmin');
+            const promptsNavItem = document.getElementById('navPrompts');
             if (adminNavItem) {
                 adminNavItem.classList.add('hidden');
+            }
+            if (promptsNavItem) {
+                promptsNavItem.classList.add('hidden');
             }
         });
 
@@ -11636,6 +11653,12 @@
                     const { TaskList } = await import('https://esm.sh/@tiptap/extension-task-list@2.1.13');
                     const { TaskItem } = await import('https://esm.sh/@tiptap/extension-task-item@2.1.13');
                     const { Image } = await import('https://esm.sh/@tiptap/extension-image@2.1.13');
+                    const HighlightModule = await import('https://esm.sh/@tiptap/extension-highlight@2.1.13');
+                    console.log('[Highlight Debug] HighlightModule:', HighlightModule);
+                    console.log('[Highlight Debug] HighlightModule keys:', Object.keys(HighlightModule));
+                    const Highlight = HighlightModule.Highlight || HighlightModule.default;
+                    console.log('[Highlight Debug] Highlight extension:', Highlight);
+                    console.log('[Highlight Debug] Highlight.name:', Highlight?.name);
                     
                     // Create a custom iframe extension for Loom embeds
                     const Iframe = Node.create({
@@ -11750,6 +11773,16 @@
                                     class: 'insight-image',
                                 },
                             }),
+                            (() => {
+                                const configuredHighlight = Highlight.configure({
+                                    HTMLAttributes: {
+                                        class: 'highlight-brand',
+                                    },
+                                });
+                                console.log('[Highlight Debug] Configured Highlight extension:', configuredHighlight);
+                                console.log('[Highlight Debug] Configured options:', configuredHighlight?.options);
+                                return configuredHighlight;
+                            })(),
                             Iframe,
                         ],
                         content: initialContent || '', // Set content directly in constructor
@@ -11870,6 +11903,7 @@
                         <div class="context-menu-item" data-action="heading-3">H3</div>
                         <div class="context-menu-divider"></div>
                         <div class="context-menu-item" data-action="bold">Bold</div>
+                        <div class="context-menu-item" data-action="highlight">Highlight</div>
                         <div class="context-menu-item" data-action="bulletList">Bullets</div>
                         <div class="context-menu-item" data-action="taskList">Checklist</div>
                         <div class="context-menu-item" data-action="blockquote">Callout</div>
@@ -11974,6 +12008,33 @@
                                 break;
                             case 'bold':
                                 editor.chain().focus().toggleBold().run();
+                                break;
+                            case 'highlight':
+                                console.log('[Highlight Debug] Before toggle:');
+                                console.log('[Highlight Debug] isActive:', editor.isActive('highlight'));
+                                console.log('[Highlight Debug] Current HTML:', editor.getHTML());
+                                
+                                editor.chain().focus().toggleHighlight().run();
+                                
+                                setTimeout(() => {
+                                    console.log('[Highlight Debug] After toggle:');
+                                    console.log('[Highlight Debug] isActive:', editor.isActive('highlight'));
+                                    console.log('[Highlight Debug] New HTML:', editor.getHTML());
+                                    
+                                    // Check what mark elements exist in the DOM
+                                    const editorEl = document.getElementById('insightNotesEditor');
+                                    if (editorEl) {
+                                        const marks = editorEl.querySelectorAll('mark');
+                                        console.log('[Highlight Debug] Found mark elements:', marks.length);
+                                        marks.forEach((mark, i) => {
+                                            console.log(`[Highlight Debug] Mark ${i}:`, {
+                                                className: mark.className,
+                                                outerHTML: mark.outerHTML,
+                                                computedBg: window.getComputedStyle(mark).backgroundColor
+                                            });
+                                        });
+                                    }
+                                }, 100);
                                 break;
                             case 'bulletList':
                                 editor.chain().focus().toggleBulletList().run();
@@ -12116,6 +12177,9 @@
                             break;
                         case 'bold':
                             isActive = editor.isActive('bold');
+                            break;
+                        case 'highlight':
+                            isActive = editor.isActive('highlight');
                             break;
                         case 'bulletList':
                             isActive = editor.isActive('bulletList');

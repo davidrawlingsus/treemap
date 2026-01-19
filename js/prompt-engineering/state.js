@@ -29,7 +29,7 @@
         },
         statusFilter: '',
         purposeFilter: '',
-        viewMode: 'cards', // 'cards' or 'table'
+        viewMode: 'table', // 'cards' or 'table'
         tableSortColumn: 'updated_at', // Default sort column
         tableSortDirection: 'desc' // 'asc' or 'desc'
     };

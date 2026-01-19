@@ -39,7 +39,7 @@
     function renderPrompts(container, onEditClick, onVersionChange) {
         if (!container) return;
 
-        const viewMode = state.get('viewMode') || 'cards';
+        const viewMode = state.get('viewMode') || 'table';
         
         if (viewMode === 'table') {
             renderPromptsTable(container, onEditClick);
