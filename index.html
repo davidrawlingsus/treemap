@@ -5996,33 +5996,51 @@
                     mainContainer.removeAttribute('data-view');
                 }
                 
-                // Recalculate treemap dimensions when switching to visualizations
-                // This fixes the issue where treemap is initialized with wrong size when page loads on insights tab
-                if (typeof hierarchyData !== 'undefined' && hierarchyData) {
+                // Re-render visualizations when switching to visualizations tab
+                // This fixes issues where charts don't render correctly when the section was hidden
+                if (typeof hierarchyData !== 'undefined' && hierarchyData && typeof rawData !== 'undefined' && rawData && rawData.length > 0) {
                     // Wait for DOM to update so container is visible before measuring
                     requestAnimationFrame(() => {
                         requestAnimationFrame(() => {
                             // Double RAF ensures layout has completed
                             const container = document.querySelector('.treemap-svg-container');
-                            if (container) {
+                            const barChartBars = document.getElementById('barChartBars');
+                            const topicsChartBars = document.getElementById('topicsChartBars');
+                            
+                            // Check if visualizations need re-rendering
+                            // This can happen if the section was hidden when data loaded
+                            const treemapNeedsRender = container && (() => {
                                 const newWidth = container.clientWidth;
                                 const newHeight = container.clientHeight;
-                                // Only re-render if dimensions are significantly different
-                                if (newWidth && newHeight && newWidth > 100 && newHeight > 100) {
-                                    const svg = document.getElementById('treemap');
-                                    if (svg) {
-                                        const currentWidth = parseInt(svg.getAttribute('width')) || 0;
-                                        const currentHeight = parseInt(svg.getAttribute('height')) || 0;
-                                        // Re-render if dimensions don't match (with some tolerance)
-                                        if (Math.abs(newWidth - currentWidth) > 10 || Math.abs(newHeight - currentHeight) > 10) {
-                                            console.log('[navigateToView] Re-rendering treemap with correct dimensions:', {
-                                                old: { width: currentWidth, height: currentHeight },
-                                                new: { width: newWidth, height: newHeight }
-                                            });
-                                            if (typeof renderTreemap === 'function') {
-                                                renderTreemap(hierarchyData);
-                                            }
-                                        }
+                                if (!newWidth || !newHeight || newWidth < 100 || newHeight < 100) return false;
+                                const svg = document.getElementById('treemap');
+                                if (!svg) return true;
+                                // Check if treemap is empty or has wrong dimensions
+                                const hasContent = svg.querySelector('g') !== null;
+                                if (!hasContent) return true;
+                                const currentWidth = parseInt(svg.getAttribute('width')) || 0;
+                                const currentHeight = parseInt(svg.getAttribute('height')) || 0;
+                                return Math.abs(newWidth - currentWidth) > 10 || Math.abs(newHeight - currentHeight) > 10;
+                            })();
+                            
+                            const chartsNeedRender = (barChartBars && !barChartBars.hasChildNodes()) ||
+                                                     (topicsChartBars && !topicsChartBars.hasChildNodes());
+                            
+                            if (treemapNeedsRender || chartsNeedRender) {
+                                console.log('[navigateToView] Re-rendering visualizations:', {
+                                    treemap: treemapNeedsRender,
+                                    charts: chartsNeedRender
+                                });
+                                
+                                if (treemapNeedsRender && typeof renderTreemap === 'function') {
+                                    renderTreemap(hierarchyData);
+                                }
+                                if (chartsNeedRender) {
+                                    if (typeof renderBarChart === 'function') {
+                                        renderBarChart();
+                                    }
+                                    if (typeof renderTopicsChart === 'function') {
+                                        renderTopicsChart();
                                     }
                                 }
                             }
@@ -8325,17 +8343,27 @@
         }
 
         function renderMultiSelectOptions(availableOptions, currentValues, insightId, fieldName) {
+            console.log('[MULTISELECT_RENDER] renderMultiSelectOptions called');
+            console.log('[MULTISELECT_RENDER] availableOptions:', availableOptions?.length, 'currentValues:', currentValues);
+            
             const escapeHtmlFn = window.escapeHtml;
             const optionsList = document.getElementById('multiselect-options-list');
-            if (!optionsList) return;
+            if (!optionsList) {
+                console.warn('[MULTISELECT_RENDER] Options list element not found');
+                return;
+            }
 
             const searchInput = document.querySelector('.multiselect-search');
             const searchTerm = searchInput?.value.toLowerCase().trim() || '';
+            
+            console.log('[MULTISELECT_RENDER] Search term:', JSON.stringify(searchTerm));
             
             // Filter options based on search
             const filteredOptions = availableOptions.filter(opt => 
                 opt.toLowerCase().includes(searchTerm)
             );
+            
+            console.log('[MULTISELECT_RENDER] Filtered options count:', filteredOptions.length, 'from', availableOptions?.length);
 
             let html = '';
             
@@ -8768,20 +8796,37 @@
         }
 
         function filterMultiSelectOptions() {
+            console.log('[MULTISELECT_FILTER] filterMultiSelectOptions called');
+            
             const dropdown = document.getElementById('active-multiselect-dropdown');
-            if (!dropdown) return;
+            if (!dropdown) {
+                console.warn('[MULTISELECT_FILTER] No dropdown found');
+                return;
+            }
+            console.log('[MULTISELECT_FILTER] Dropdown found:', dropdown);
 
-            const cell = dropdown.closest('.insight-multiselect-cell');
-            if (!cell) return;
-
-            const insightId = cell.dataset.insightId;
-            const fieldName = cell.dataset.field;
+            // Get insightId and fieldName from dropdown's dataset (since dropdown is moved to body)
+            const insightId = dropdown.dataset.insightId;
+            const fieldName = dropdown.dataset.fieldName;
+            
+            console.log('[MULTISELECT_FILTER] insightId:', insightId, 'fieldName:', fieldName);
+            
+            if (!insightId || !fieldName) {
+                console.warn('[MULTISELECT_FILTER] Missing insightId or fieldName in dropdown dataset');
+                return;
+            }
             
             const insight = insightsAllInsights.find(i => i.id === insightId);
-            if (!insight) return;
+            if (!insight) {
+                console.warn('[MULTISELECT_FILTER] Insight not found for id:', insightId);
+                return;
+            }
+            console.log('[MULTISELECT_FILTER] Found insight:', insight.id);
 
             const currentValues = normalizeFieldToArray(insight[fieldName], fieldName);
             const availableOptions = getUniqueFieldValues(fieldName);
+            
+            console.log('[MULTISELECT_FILTER] Rendering options. Available:', availableOptions.length, 'Current:', currentValues.length);
             
             renderMultiSelectOptions(availableOptions, currentValues, insightId, fieldName);
         }
