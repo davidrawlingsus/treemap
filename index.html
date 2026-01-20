@@ -361,9 +361,6 @@
         window.STATE_STORAGE_KEY = STATE_STORAGE_KEY;
         
         // Make storage module functions available for wrapper functions
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:moduleSetup',message:'Setting up window.storageLoadState',data:{beforeType:typeof window.storageLoadState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2-H5'})}).catch(()=>{});
-        // #endregion
         window.storageSaveState = storageSaveState;
         window.storageLoadState = storageLoadState;
         window.storageGetFilterStorageKey = storageGetFilterStorageKey;
@@ -1348,19 +1345,10 @@
         
         // Load state from localStorage - uses storage module with fallback
         function loadState() {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:loadState',message:'loadState called',data:{storageLoadStateType:typeof window.storageLoadState,hasModule:typeof window.storageLoadState === 'function'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1-H2'})}).catch(()=>{});
-            // #endregion
             // Fallback for when module hasn't loaded yet (race condition with Auth.checkAuth)
             if (typeof window.storageLoadState === 'function') {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:loadState:moduleCall',message:'Using module storageLoadState',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2'})}).catch(()=>{});
-                // #endregion
                 return window.storageLoadState();
             }
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:loadState:fallback',message:'Using localStorage fallback',data:{},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-            // #endregion
             // Direct localStorage fallback
             try {
                 const stateJson = localStorage.getItem('treemap_app_state');
@@ -1936,9 +1924,6 @@
         }
 
         function handleAuthenticatedUser(userInfo) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:handleAuthenticatedUser',message:'handleAuthenticatedUser called',data:{hasUserInfo:!!userInfo,storageLoadStateType:typeof window.storageLoadState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2-H5'})}).catch(()=>{});
-            // #endregion
             if (!userInfo) {
                 return;
             }
@@ -9970,9 +9955,6 @@
 
         // Removed: closeInsightNotesPanel button event listener - now using SlideoutPanel's close button
         
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:beforeAuthCheck',message:'About to call Auth.checkAuth',data:{storageLoadStateType:typeof window.storageLoadState},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2-H5'})}).catch(()=>{});
-        // #endregion
         const authCheck = typeof Auth !== 'undefined' ? Auth.checkAuth() : Promise.resolve(false);
         authCheck.then(authenticated => {
             console.log('Auth check result:', authenticated);
