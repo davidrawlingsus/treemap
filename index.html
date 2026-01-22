@@ -14436,19 +14436,40 @@
                 }
             }
             
-            // Position menu at cursor
+            // Position menu at cursor, ensuring it stays within viewport
+            // First, make menu visible but off-screen to measure its dimensions
+            contextMenu.style.visibility = 'hidden';
             contextMenu.style.display = 'block';
-            contextMenu.style.left = `${event.clientX}px`;
-            contextMenu.style.top = `${event.clientY}px`;
+            contextMenu.style.left = '0px';
+            contextMenu.style.top = '0px';
             
-            // Ensure menu stays within viewport
+            // Get menu dimensions after it's rendered
             const rect = contextMenu.getBoundingClientRect();
-            if (rect.right > window.innerWidth) {
-                contextMenu.style.left = `${window.innerWidth - rect.width - 10}px`;
+            const menuWidth = rect.width;
+            const menuHeight = rect.height;
+            
+            // Calculate position ensuring menu stays within viewport
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const margin = 10; // Margin from viewport edge
+            
+            let left = event.clientX;
+            let top = event.clientY;
+            
+            // If menu would overflow right edge, position it to the left of cursor
+            if (left + menuWidth > viewportWidth - margin) {
+                left = Math.max(margin, viewportWidth - menuWidth - margin);
             }
-            if (rect.bottom > window.innerHeight) {
-                contextMenu.style.top = `${window.innerHeight - rect.height - 10}px`;
+            
+            // If menu would overflow bottom edge, position it above cursor
+            if (top + menuHeight > viewportHeight - margin) {
+                top = Math.max(margin, viewportHeight - menuHeight - margin);
             }
+            
+            // Apply final position and make visible
+            contextMenu.style.left = `${left}px`;
+            contextMenu.style.top = `${top}px`;
+            contextMenu.style.visibility = 'visible';
             
             // Setup improved hover behavior for submenu
             setupSubmenuHover();
@@ -14487,6 +14508,40 @@
                     submenuHideTimeout = null;
                 }
                 aiExpertSubmenu.style.display = 'block';
+                
+                // Check if submenu would overflow viewport and flip to left if needed
+                const contextMenu = document.getElementById('contextMenu');
+                if (contextMenu) {
+                    const menuRect = contextMenu.getBoundingClientRect();
+                    const submenuRect = aiExpertSubmenu.getBoundingClientRect();
+                    const viewportWidth = window.innerWidth;
+                    const viewportHeight = window.innerHeight;
+                    const margin = 10;
+                    
+                    // Check horizontal overflow - flip to left side if needed
+                    if (submenuRect.right > viewportWidth - margin) {
+                        // Position submenu to the left of the main menu
+                        aiExpertSubmenu.style.left = 'auto';
+                        aiExpertSubmenu.style.right = '100%';
+                        aiExpertSubmenu.style.marginLeft = '0';
+                        aiExpertSubmenu.style.marginRight = '-4px';
+                    } else {
+                        // Reset to default right-side position
+                        aiExpertSubmenu.style.left = '100%';
+                        aiExpertSubmenu.style.right = 'auto';
+                        aiExpertSubmenu.style.marginLeft = '-4px';
+                        aiExpertSubmenu.style.marginRight = '0';
+                    }
+                    
+                    // Check vertical overflow - adjust top position if needed
+                    const newSubmenuRect = aiExpertSubmenu.getBoundingClientRect();
+                    if (newSubmenuRect.bottom > viewportHeight - margin) {
+                        const overflow = newSubmenuRect.bottom - viewportHeight + margin;
+                        aiExpertSubmenu.style.top = `${-overflow}px`;
+                    } else {
+                        aiExpertSubmenu.style.top = '0';
+                    }
+                }
             };
             
             // Hide submenu on mouseleave with delay
