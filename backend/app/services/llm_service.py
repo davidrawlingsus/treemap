@@ -237,11 +237,6 @@ class LLMService:
         try:
             from openai import OpenAI
             
-            # #region agent log
-            from app.config import write_debug_log
-            import time as time_module
-            write_debug_log({"location":"llm_service.py:240","message":"Creating OpenAI streaming client","data":{"timeout_seconds":180,"model":model},"timestamp":int(time_module.time()*1000),"sessionId":"debug-session","hypothesisId":"A"})
-            # #endregion
             client = OpenAI(
                 api_key=self.openai_api_key,
                 http_client=httpx.Client(timeout=180.0)  # Increased from 60s to 180s for long streams
@@ -329,27 +324,13 @@ class LLMService:
             # Stream chunks and accumulate content
             accumulated_content = ""
             tokens_used = 0
-            # #region agent log
-            import time
-            from app.config import write_debug_log
-            chunk_count = 0
-            stream_start_time = time.time()
-            write_debug_log({"location":"llm_service.py:324","message":"Starting OpenAI stream","data":{"model":model,"stream_start_time":stream_start_time},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H1"})
-            # #endregion
             
             for chunk in stream:
-                # #region agent log
-                chunk_count += 1
-                # #endregion
                 if chunk.choices and len(chunk.choices) > 0:
                     delta = chunk.choices[0].delta
                     if hasattr(delta, 'content') and delta.content:
                         content_chunk = delta.content
                         accumulated_content += content_chunk
-                        # #region agent log
-                        from app.config import write_debug_log
-                        write_debug_log({"location":"llm_service.py:332","message":"OpenAI chunk yielded","data":{"chunk_count":chunk_count,"content_length":len(content_chunk),"total_content_length":len(accumulated_content),"time_since_start":time.time()-stream_start_time},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H1"})
-                        # #endregion
                         # Yield content chunk with no metadata
                         yield (content_chunk, None)
                 
@@ -357,29 +338,15 @@ class LLMService:
                 if hasattr(chunk, 'usage') and chunk.usage:
                     tokens_used = chunk.usage.total_tokens
             
-            # #region agent log
-            from app.config import write_debug_log
-            write_debug_log({"location":"llm_service.py:343","message":"OpenAI stream complete","data":{"total_chunks":chunk_count,"total_content_length":len(accumulated_content),"tokens_used":tokens_used,"total_duration":time.time()-stream_start_time},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H1,H2"})
-            # #endregion
             # If we didn't get tokens from chunks, we'll need to estimate or get from final response
             # For now, yield final metadata
-            final_metadata = {
+            yield ("", {
                 "tokens_used": tokens_used if tokens_used > 0 else None,  # May be None if not provided
                 "model": model,
                 "content": accumulated_content  # Include full content for storage
-            }
-            # #region agent log
-            from app.config import write_debug_log
-            write_debug_log({"location":"llm_service.py:358","message":"OpenAI yielding final metadata","data":{"content_length":len(accumulated_content),"tokens_used":tokens_used},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H1"})
-            # #endregion
-            yield ("", final_metadata)
+            })
             
         except Exception as e:
-            # #region agent log
-            import time
-            from app.config import write_debug_log
-            write_debug_log({"location":"llm_service.py:349","message":"OpenAI stream exception","data":{"error_msg":str(e),"error_type":type(e).__name__},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H1"})
-            # #endregion
             logger.error(f"Failed to execute streaming prompt with OpenAI: {e}")
             raise RuntimeError(f"Failed to execute prompt: {str(e)}")
     
@@ -623,12 +590,6 @@ class LLMService:
             if not self.anthropic_api_key.startswith('sk-'):
                 logger.warning(f"Anthropic API key doesn't start with 'sk-'. Key format: {self.anthropic_api_key[:10]}...")
             
-            # #region agent log
-            from app.config import write_debug_log
-            import time as time_module
-            anthropic_stream_start = time_module.time()
-            write_debug_log({"location":"llm_service.py:616","message":"Creating Anthropic streaming client","data":{"timeout_seconds":180,"model":model},"timestamp":int(time_module.time()*1000),"sessionId":"debug-session","hypothesisId":"A"})
-            # #endregion
             client = Anthropic(
                 api_key=self.anthropic_api_key,
                 http_client=httpx.Client(timeout=180.0)  # Increased from 60s to 180s for long streams
@@ -710,10 +671,6 @@ class LLMService:
             tokens_used = 0
             input_tokens = 0
             output_tokens = 0
-            # #region agent log
-            anthropic_chunk_count = 0
-            write_debug_log({"location":"llm_service.py:710","message":"Starting Anthropic stream loop","data":{"model":successful_model or model},"timestamp":int(time_module.time()*1000),"sessionId":"debug-session","hypothesisId":"A"})
-            # #endregion
             
             for event in stream:
                 # Anthropic streaming events have different types
@@ -721,11 +678,6 @@ class LLMService:
                     if hasattr(event.delta, 'text') and event.delta.text:
                         content_chunk = event.delta.text
                         accumulated_content += content_chunk
-                        # #region agent log
-                        anthropic_chunk_count += 1
-                        if anthropic_chunk_count % 10 == 0:
-                            write_debug_log({"location":"llm_service.py:720","message":"Anthropic chunk yielded","data":{"chunk_count":anthropic_chunk_count,"chunk_length":len(content_chunk),"total_length":len(accumulated_content),"time_since_start":time_module.time()-anthropic_stream_start},"timestamp":int(time_module.time()*1000),"sessionId":"debug-session","hypothesisId":"A"})
-                        # #endregion
                         yield (content_chunk, None)
                 elif event.type == "message_delta":
                     # This event contains usage information
@@ -743,9 +695,6 @@ class LLMService:
             
             tokens_used = input_tokens + output_tokens
             
-            # #region agent log
-            write_debug_log({"location":"llm_service.py:740","message":"Anthropic stream complete","data":{"total_chunks":anthropic_chunk_count,"total_content_length":len(accumulated_content),"tokens_used":tokens_used,"total_duration":time_module.time()-anthropic_stream_start},"timestamp":int(time_module.time()*1000),"sessionId":"debug-session","hypothesisId":"A"})
-            # #endregion
             # Yield final metadata
             yield ("", {
                 "tokens_used": tokens_used if tokens_used > 0 else None,
@@ -754,9 +703,6 @@ class LLMService:
             })
             
         except Exception as e:
-            # #region agent log
-            write_debug_log({"location":"llm_service.py:752","message":"Anthropic stream exception","data":{"error_msg":str(e),"error_type":type(e).__name__,"chunks_sent":anthropic_chunk_count if 'anthropic_chunk_count' in dir() else 'N/A'},"timestamp":int(time_module.time()*1000),"sessionId":"debug-session","hypothesisId":"A"})
-            # #endregion
             logger.error(f"Failed to execute streaming prompt with Anthropic: {e}")
             raise RuntimeError(f"Failed to execute prompt with Anthropic: {str(e)}")
 
