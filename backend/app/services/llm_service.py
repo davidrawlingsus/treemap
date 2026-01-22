@@ -129,9 +129,10 @@ class LLMService:
         try:
             from openai import OpenAI
             
+            # Use longer timeout for LLM calls - responses can take time for complex prompts
             client = OpenAI(
                 api_key=self.openai_api_key,
-                http_client=httpx.Client(timeout=60.0)
+                http_client=httpx.Client(timeout=httpx.Timeout(300.0, connect=30.0))
             )
             
             # Build request parameters
@@ -237,9 +238,11 @@ class LLMService:
         try:
             from openai import OpenAI
             
+            # Use longer timeout for streaming - LLM responses can take several minutes
+            # especially for long prompts with lots of VOC data
             client = OpenAI(
                 api_key=self.openai_api_key,
-                http_client=httpx.Client(timeout=60.0)
+                http_client=httpx.Client(timeout=httpx.Timeout(300.0, connect=30.0))
             )
             
             # Build request parameters
@@ -392,9 +395,10 @@ class LLMService:
             if not self.anthropic_api_key.startswith('sk-'):
                 logger.warning(f"Anthropic API key doesn't start with 'sk-'. Key format: {self.anthropic_api_key[:10]}...")
             
+            # Use longer timeout for streaming - LLM responses can take several minutes
             client = Anthropic(
                 api_key=self.anthropic_api_key,
-                http_client=httpx.Client(timeout=60.0)
+                http_client=httpx.Client(timeout=httpx.Timeout(300.0, connect=30.0))
             )
             
             # Anthropic API uses messages.create with system parameter
@@ -613,9 +617,10 @@ class LLMService:
             if not self.anthropic_api_key.startswith('sk-'):
                 logger.warning(f"Anthropic API key doesn't start with 'sk-'. Key format: {self.anthropic_api_key[:10]}...")
             
+            # Use longer timeout for streaming - LLM responses can take several minutes
             client = Anthropic(
                 api_key=self.anthropic_api_key,
-                http_client=httpx.Client(timeout=60.0)
+                http_client=httpx.Client(timeout=httpx.Timeout(300.0, connect=30.0))
             )
             
             # Handle empty user message

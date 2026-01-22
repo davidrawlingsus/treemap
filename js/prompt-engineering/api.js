@@ -286,7 +286,10 @@
                             try {
                                 const data = JSON.parse(line.substring(6)); // Remove 'data: ' prefix
                                 
-                                if (data.type === 'chunk' && data.content) {
+                                if (data.type === 'started') {
+                                    // Stream started - ignore, just confirms connection is active
+                                    console.log('[PROMPT_API] Stream started:', data.message);
+                                } else if (data.type === 'chunk' && data.content) {
                                     // Content chunk
                                     if (onChunk) {
                                         onChunk(data.content);

@@ -623,6 +623,17 @@ def execute_client_prompt(
                 write_debug_log({"location":"clients.py:542","message":"Backend stream generator started","data":{"prompt_id":str(prompt_id_value),"client_id":str(client_id_value),"model":prompt_llm_model,"stream_start_time":stream_start_time},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H2"})
                 # #endregion
                 
+                # Send initial keepalive to establish connection and prevent early timeout
+                # SSE comment (starts with :) is ignored by clients but keeps connection alive
+                yield ": keepalive\n\n"
+                
+                # Send a "started" event so client knows stream is active
+                started_message = json.dumps({
+                    "type": "started",
+                    "message": "Stream connection established, waiting for LLM response..."
+                })
+                yield f"data: {started_message}\n\n"
+                
                 # Create separate database session for saving action
                 from app.database import SessionLocal
                 save_db = SessionLocal()
