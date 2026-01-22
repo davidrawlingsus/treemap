@@ -129,10 +129,9 @@ class LLMService:
         try:
             from openai import OpenAI
             
-            # Use longer timeout for LLM calls - responses can take time for complex prompts
             client = OpenAI(
                 api_key=self.openai_api_key,
-                http_client=httpx.Client(timeout=httpx.Timeout(300.0, connect=30.0))
+                http_client=httpx.Client(timeout=60.0)
             )
             
             # Build request parameters
@@ -238,11 +237,14 @@ class LLMService:
         try:
             from openai import OpenAI
             
-            # Use longer timeout for streaming - LLM responses can take several minutes
-            # especially for long prompts with lots of VOC data
+            # #region agent log
+            from app.config import write_debug_log
+            import time as time_module
+            write_debug_log({"location":"llm_service.py:240","message":"Creating OpenAI streaming client","data":{"timeout_seconds":180,"model":model},"timestamp":int(time_module.time()*1000),"sessionId":"debug-session","hypothesisId":"A"})
+            # #endregion
             client = OpenAI(
                 api_key=self.openai_api_key,
-                http_client=httpx.Client(timeout=httpx.Timeout(300.0, connect=30.0))
+                http_client=httpx.Client(timeout=180.0)  # Increased from 60s to 180s for long streams
             )
             
             # Build request parameters
@@ -361,11 +363,16 @@ class LLMService:
             # #endregion
             # If we didn't get tokens from chunks, we'll need to estimate or get from final response
             # For now, yield final metadata
-            yield ("", {
+            final_metadata = {
                 "tokens_used": tokens_used if tokens_used > 0 else None,  # May be None if not provided
                 "model": model,
                 "content": accumulated_content  # Include full content for storage
-            })
+            }
+            # #region agent log
+            from app.config import write_debug_log
+            write_debug_log({"location":"llm_service.py:358","message":"OpenAI yielding final metadata","data":{"content_length":len(accumulated_content),"tokens_used":tokens_used},"timestamp":int(time.time()*1000),"sessionId":"debug-session","hypothesisId":"H1"})
+            # #endregion
+            yield ("", final_metadata)
             
         except Exception as e:
             # #region agent log
@@ -395,10 +402,9 @@ class LLMService:
             if not self.anthropic_api_key.startswith('sk-'):
                 logger.warning(f"Anthropic API key doesn't start with 'sk-'. Key format: {self.anthropic_api_key[:10]}...")
             
-            # Use longer timeout for streaming - LLM responses can take several minutes
             client = Anthropic(
                 api_key=self.anthropic_api_key,
-                http_client=httpx.Client(timeout=httpx.Timeout(300.0, connect=30.0))
+                http_client=httpx.Client(timeout=60.0)
             )
             
             # Anthropic API uses messages.create with system parameter
@@ -617,10 +623,15 @@ class LLMService:
             if not self.anthropic_api_key.startswith('sk-'):
                 logger.warning(f"Anthropic API key doesn't start with 'sk-'. Key format: {self.anthropic_api_key[:10]}...")
             
-            # Use longer timeout for streaming - LLM responses can take several minutes
+            # #region agent log
+            from app.config import write_debug_log
+            import time as time_module
+            anthropic_stream_start = time_module.time()
+            write_debug_log({"location":"llm_service.py:616","message":"Creating Anthropic streaming client","data":{"timeout_seconds":180,"model":model},"timestamp":int(time_module.time()*1000),"sessionId":"debug-session","hypothesisId":"A"})
+            # #endregion
             client = Anthropic(
                 api_key=self.anthropic_api_key,
-                http_client=httpx.Client(timeout=httpx.Timeout(300.0, connect=30.0))
+                http_client=httpx.Client(timeout=180.0)  # Increased from 60s to 180s for long streams
             )
             
             # Handle empty user message
@@ -633,7 +644,7 @@ class LLMService:
             if not system_message or not isinstance(system_message, str):
                 system_content = ""
             else:
-                system_content = system_message.strip() if system_message.strip() else ""
+                system_content = system_message.strip() if system_message.strip() else "Please proceed."
             
             # Build messages list
             messages = [
@@ -699,6 +710,10 @@ class LLMService:
             tokens_used = 0
             input_tokens = 0
             output_tokens = 0
+            # #region agent log
+            anthropic_chunk_count = 0
+            write_debug_log({"location":"llm_service.py:710","message":"Starting Anthropic stream loop","data":{"model":successful_model or model},"timestamp":int(time_module.time()*1000),"sessionId":"debug-session","hypothesisId":"A"})
+            # #endregion
             
             for event in stream:
                 # Anthropic streaming events have different types
@@ -706,6 +721,11 @@ class LLMService:
                     if hasattr(event.delta, 'text') and event.delta.text:
                         content_chunk = event.delta.text
                         accumulated_content += content_chunk
+                        # #region agent log
+                        anthropic_chunk_count += 1
+                        if anthropic_chunk_count % 10 == 0:
+                            write_debug_log({"location":"llm_service.py:720","message":"Anthropic chunk yielded","data":{"chunk_count":anthropic_chunk_count,"chunk_length":len(content_chunk),"total_length":len(accumulated_content),"time_since_start":time_module.time()-anthropic_stream_start},"timestamp":int(time_module.time()*1000),"sessionId":"debug-session","hypothesisId":"A"})
+                        # #endregion
                         yield (content_chunk, None)
                 elif event.type == "message_delta":
                     # This event contains usage information
@@ -723,6 +743,9 @@ class LLMService:
             
             tokens_used = input_tokens + output_tokens
             
+            # #region agent log
+            write_debug_log({"location":"llm_service.py:740","message":"Anthropic stream complete","data":{"total_chunks":anthropic_chunk_count,"total_content_length":len(accumulated_content),"tokens_used":tokens_used,"total_duration":time_module.time()-anthropic_stream_start},"timestamp":int(time_module.time()*1000),"sessionId":"debug-session","hypothesisId":"A"})
+            # #endregion
             # Yield final metadata
             yield ("", {
                 "tokens_used": tokens_used if tokens_used > 0 else None,
@@ -731,6 +754,9 @@ class LLMService:
             })
             
         except Exception as e:
+            # #region agent log
+            write_debug_log({"location":"llm_service.py:752","message":"Anthropic stream exception","data":{"error_msg":str(e),"error_type":type(e).__name__,"chunks_sent":anthropic_chunk_count if 'anthropic_chunk_count' in dir() else 'N/A'},"timestamp":int(time_module.time()*1000),"sessionId":"debug-session","hypothesisId":"A"})
+            # #endregion
             logger.error(f"Failed to execute streaming prompt with Anthropic: {e}")
             raise RuntimeError(f"Failed to execute prompt with Anthropic: {str(e)}")
 

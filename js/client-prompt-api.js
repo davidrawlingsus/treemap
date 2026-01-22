@@ -70,6 +70,11 @@
          * @returns {Promise<void>} Resolves when streaming completes
          */
         async executeStream(clientId, promptId, vocData, onChunk, onDone, onError, origin = null) {
+            // #region agent log
+            const streamStartTime = Date.now();
+            const vocDataSize = JSON.stringify(vocData).length;
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'client-prompt-api.js:72',message:'executeStream entry',data:{clientId,promptId,vocDataSize,hasOrigin:!!origin},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,E'})}).catch(()=>{});
+            // #endregion
             console.log('[CLIENT_PROMPT_API] executeStream() called', {
                 clientId,
                 promptId,
@@ -88,6 +93,9 @@
                 if (origin) {
                     requestBody.origin = origin;
                 }
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'client-prompt-api.js:91',message:'Before fetch',data:{endpoint,bodySize:JSON.stringify(requestBody).length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+                // #endregion
                 const response = await fetch(endpoint, {
                     method: 'POST',
                     headers: authHeaders,
@@ -116,16 +124,35 @@
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let buffer = '';
+                // #region agent log
+                let chunkCount = 0;
+                let totalContentLength = 0;
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'client-prompt-api.js:120',message:'Starting stream read loop',data:{responseOk:response.ok,responseStatus:response.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+                // #endregion
 
                 while (true) {
+                    // #region agent log
+                    let readStartTime = Date.now();
+                    // #endregion
                     const { done, value } = await reader.read();
+                    // #region agent log
+                    let readDuration = Date.now() - readStartTime;
+                    chunkCount++;
+                    // #endregion
                     
                     if (done) {
+                        // #region agent log
+                        fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'client-prompt-api.js:130',message:'Stream done=true',data:{chunkCount,totalContentLength,timeSinceStart:Date.now()-streamStartTime},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+                        // #endregion
                         break;
                     }
 
                     // Decode chunk and add to buffer
                     buffer += decoder.decode(value, { stream: true });
+                    // #region agent log
+                    totalContentLength += value?.length || 0;
+                    if (chunkCount % 10 === 0) { fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'client-prompt-api.js:135',message:'Stream chunk received',data:{chunkCount,valueLength:value?.length,totalContentLength,readDuration,timeSinceStart:Date.now()-streamStartTime},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,E'})}).catch(()=>{}); }
+                    // #endregion
 
                     // Process complete SSE messages (lines ending with \n\n)
                     const lines = buffer.split('\n\n');
@@ -136,10 +163,7 @@
                             try {
                                 const data = JSON.parse(line.substring(6)); // Remove 'data: ' prefix
                                 
-                                if (data.type === 'started') {
-                                    // Stream started - ignore, just confirms connection is active
-                                    console.log('[CLIENT_PROMPT_API] Stream started:', data.message);
-                                } else if (data.type === 'chunk' && data.content) {
+                                if (data.type === 'chunk' && data.content) {
                                     // Content chunk
                                     if (onChunk) {
                                         onChunk(data.content);
@@ -177,6 +201,9 @@
                 }
 
             } catch (error) {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'client-prompt-api.js:177',message:'executeStream catch block',data:{errorMessage:error.message||String(error),errorName:error.name,errorType:error.constructor?.name,timeSinceStart:Date.now()-streamStartTime,chunkCount:typeof chunkCount!=='undefined'?chunkCount:'N/A',totalContentLength:typeof totalContentLength!=='undefined'?totalContentLength:'N/A'},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,D,E'})}).catch(()=>{});
+                // #endregion
                 console.error('[CLIENT_PROMPT_API] executeStream() error', {
                     clientId,
                     promptId,
