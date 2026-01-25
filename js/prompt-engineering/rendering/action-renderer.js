@@ -501,14 +501,21 @@
             return;
         }
         
+        // Initialize FB ad interactions (See more/less, VoC toggle)
+        if (window.MarkdownConverter?.initFBAdInteractions) {
+            window.MarkdownConverter.initFBAdInteractions(container);
+        }
+        
         // Use event delegation to handle dynamically added idea cards
+        // Handles both .pe-idea-card__add (regular idea cards) and .pe-fb-ad-wrapper__add (FB ad cards)
         container.addEventListener('click', async (e) => {
-            const button = e.target.closest('.pe-idea-card__add');
+            const button = e.target.closest('.pe-idea-card__add, .pe-fb-ad-wrapper__add');
             if (!button) return;
             
             e.stopPropagation();
             
-            const ideaContainer = button.closest('.pe-idea-card');
+            // Find the parent container (either .pe-idea-card or .pe-fb-ad-wrapper)
+            const ideaContainer = button.closest('.pe-idea-card') || button.closest('.pe-fb-ad-wrapper');
             if (!ideaContainer) return;
 
             // Check if already processing (prevent duplicate clicks)
@@ -546,6 +553,7 @@
                 console.log('[ACTION_RENDERER] Insight created successfully:', newInsight);
 
                 // Update button to show success state
+                // Works for both .pe-idea-card and .pe-fb-ad-wrapper containers
                 ideaContainer.classList.add('is-selected');
                 button.classList.add('is-selected');
                 button.innerHTML = `<img src="${DONE_CHECK_IMAGE_URL}" alt="Added" style="width: 70%; height: 70%; object-fit: contain;" />`;

@@ -212,16 +212,24 @@
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = markdownHTML;
             
-            const newCards = Array.from(tempDiv.querySelectorAll('.pe-idea-card'));
-            const existingCards = Array.from(contentElement.querySelectorAll('.pe-idea-card'));
+            // Handle both regular idea cards AND FB ad cards
+            const newCards = Array.from(tempDiv.querySelectorAll('.pe-idea-card, .pe-fb-ad-wrapper'));
+            const existingCards = Array.from(contentElement.querySelectorAll('.pe-idea-card, .pe-fb-ad-wrapper'));
             
-            // Create signatures to compare cards by their IDs (if available) or by title
+            // Create signatures to compare cards by their IDs (if available) or by title/headline
             const getCardSignature = (card) => {
+                // Check for idea-id attribute (works for both card types)
                 const id = card.getAttribute('data-idea-id');
                 if (id) return `id:${id}`;
-                // Fallback to title for cards without IDs
+                // Check for FB ad unique ID
+                const fbAdId = card.getAttribute('data-fb-ad-id');
+                if (fbAdId) return `fb:${fbAdId}`;
+                // Fallback to title for regular idea cards
                 const title = card.querySelector('.pe-idea-card__title')?.textContent?.trim();
-                return title ? `title:${title}` : null;
+                if (title) return `title:${title}`;
+                // Fallback to headline for FB ad cards
+                const headline = card.querySelector('.pe-fb-ad__headline')?.textContent?.trim();
+                return headline ? `headline:${headline}` : null;
             };
             
             const newCardSignatures = new Set(newCards.map(getCardSignature).filter(Boolean));
