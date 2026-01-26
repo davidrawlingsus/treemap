@@ -420,15 +420,8 @@
         const actionId = slideoutPanel?.currentActionId || null;
 
         // #region agent log
-        console.log('[DEBUG H1] ideaData received:', {
-            hasImageHash: 'image_hash' in ideaData,
-            imageHashValue: ideaData.image_hash,
-            hasImagePrompt: 'image_prompt' in ideaData,
-            imagePromptValue: ideaData.image_prompt,
-            allKeys: Object.keys(ideaData),
-            vocEvidence: ideaData.voc_evidence,
-            timestamp: Date.now()
-        });
+        console.log('[DEBUG H1] ideaData received - ALL KEYS:', Object.keys(ideaData).join(', '));
+        console.log('[DEBUG H1] ideaData full object:', JSON.stringify(ideaData, null, 2));
         // #endregion
         
         // Map Facebook ad fields
