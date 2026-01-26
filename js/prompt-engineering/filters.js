@@ -663,4 +663,249 @@
 
     // Export
     window.PromptFilterManager = FilterManager;
+
+    /**
+     * Column Filters for Prompts Table
+     * Handles filtering the prompts list by column values
+     */
+    const ColumnFilters = {
+        currentColumn: null,
+        
+        /**
+         * Open filter dropdown for a column
+         */
+        openFilterDropdown(columnKey, headerElement) {
+            this.currentColumn = columnKey;
+            const dropdown = document.getElementById('columnFilterDropdown');
+            const title = document.getElementById('filterDropdownTitle');
+            const searchInput = document.getElementById('filterSearchInput');
+            
+            if (!dropdown || !headerElement) return;
+            
+            // Get column label
+            const columns = window.PromptListRenderer?.TABLE_COLUMNS || [];
+            const column = columns.find(c => c.key === columnKey);
+            const label = column?.label || columnKey;
+            
+            title.textContent = `Filter by ${label}`;
+            
+            // Position dropdown below header
+            const rect = headerElement.getBoundingClientRect();
+            dropdown.style.display = 'flex';
+            dropdown.style.top = (rect.bottom + 4) + 'px';
+            dropdown.style.left = rect.left + 'px';
+            
+            // Populate options
+            this.populateFilterOptions();
+            
+            // Clear and focus search
+            if (searchInput) {
+                searchInput.value = '';
+                setTimeout(() => searchInput.focus(), 10);
+            }
+            
+            // Close on outside click
+            setTimeout(() => {
+                document.addEventListener('click', this.handleOutsideClick);
+            }, 10);
+        },
+        
+        /**
+         * Handle click outside dropdown
+         */
+        handleOutsideClick(e) {
+            const dropdown = document.getElementById('columnFilterDropdown');
+            if (dropdown && !dropdown.contains(e.target)) {
+                ColumnFilters.closeFilterDropdown();
+            }
+        },
+        
+        /**
+         * Close filter dropdown
+         */
+        closeFilterDropdown() {
+            const dropdown = document.getElementById('columnFilterDropdown');
+            if (dropdown) {
+                dropdown.style.display = 'none';
+            }
+            this.currentColumn = null;
+            document.removeEventListener('click', this.handleOutsideClick);
+        },
+        
+        /**
+         * Populate filter options for current column
+         */
+        populateFilterOptions() {
+            const optionsContainer = document.getElementById('filterDropdownOptions');
+            if (!optionsContainer || !this.currentColumn) return;
+            
+            const columnKey = this.currentColumn;
+            const uniqueValues = window.PromptListRenderer?.getColumnUniqueValues(columnKey) || [];
+            const columnFilters = state.get('columnFilters') || {};
+            const selectedValues = columnFilters[columnKey] || [];
+            
+            const searchInput = document.getElementById('filterSearchInput');
+            const searchTerm = searchInput?.value.toLowerCase().trim() || '';
+            
+            // Filter values by search term
+            const filteredValues = uniqueValues.filter(v => 
+                v.toLowerCase().includes(searchTerm)
+            );
+            
+            // Count prompts for each value
+            const prompts = state.get('prompts') || [];
+            const valueCounts = {};
+            filteredValues.forEach(value => {
+                valueCounts[value] = prompts.filter(p => {
+                    let pVal = p[columnKey];
+                    if (columnKey === 'client_facing') {
+                        pVal = pVal ? 'Yes' : 'No';
+                    }
+                    return String(pVal) === value;
+                }).length;
+            });
+            
+            let html = '';
+            filteredValues.forEach(value => {
+                const isSelected = selectedValues.includes(value);
+                const count = valueCounts[value] || 0;
+                const safeValue = DOM.escapeHtmlForAttribute(value);
+                html += `
+                    <div class="prompt-filter-option ${isSelected ? 'selected' : ''}" 
+                         data-value="${safeValue}"
+                         onclick="window.PromptFilters.toggleFilterValue('${safeValue}')">
+                        <input type="checkbox" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation();">
+                        <span class="prompt-filter-option-label">${DOM.escapeHtml(value)}</span>
+                        <span class="prompt-filter-option-count">${count}</span>
+                    </div>
+                `;
+            });
+            
+            if (filteredValues.length === 0) {
+                html = '<div style="padding: 12px; text-align: center; color: var(--muted); font-size: 13px;">No options found</div>';
+            }
+            
+            optionsContainer.innerHTML = html;
+        },
+        
+        /**
+         * Filter dropdown options by search term
+         */
+        filterDropdownOptions() {
+            this.populateFilterOptions();
+        },
+        
+        /**
+         * Toggle a filter value
+         */
+        toggleFilterValue(value) {
+            if (!this.currentColumn) return;
+            
+            const columnFilters = state.get('columnFilters') || {};
+            if (!columnFilters[this.currentColumn]) {
+                columnFilters[this.currentColumn] = [];
+            }
+            
+            const index = columnFilters[this.currentColumn].indexOf(value);
+            if (index === -1) {
+                columnFilters[this.currentColumn].push(value);
+            } else {
+                columnFilters[this.currentColumn].splice(index, 1);
+            }
+            
+            // Clean up empty arrays
+            if (columnFilters[this.currentColumn].length === 0) {
+                delete columnFilters[this.currentColumn];
+            }
+            
+            state.set('columnFilters', columnFilters);
+            
+            // Re-render options to update checkbox state
+            this.populateFilterOptions();
+            
+            // Re-render prompts table
+            this.triggerRerender();
+        },
+        
+        /**
+         * Remove a specific filter
+         */
+        removeFilter(columnKey, value) {
+            const columnFilters = state.get('columnFilters') || {};
+            if (columnFilters[columnKey]) {
+                const index = columnFilters[columnKey].indexOf(value);
+                if (index !== -1) {
+                    columnFilters[columnKey].splice(index, 1);
+                }
+                if (columnFilters[columnKey].length === 0) {
+                    delete columnFilters[columnKey];
+                }
+            }
+            state.set('columnFilters', columnFilters);
+            this.triggerRerender();
+        },
+        
+        /**
+         * Clear all column filters
+         */
+        clearAllFilters() {
+            state.set('columnFilters', {});
+            this.triggerRerender();
+        },
+        
+        /**
+         * Update active filters display (pills)
+         */
+        updateActiveFiltersDisplay() {
+            const container = document.getElementById('activeFiltersContainer');
+            const pillsContainer = document.getElementById('activeFiltersPills');
+            if (!container || !pillsContainer) return;
+            
+            const columnFilters = state.get('columnFilters') || {};
+            const columns = window.PromptListRenderer?.TABLE_COLUMNS || [];
+            
+            // Build pills HTML
+            let pills = [];
+            for (const [columnKey, values] of Object.entries(columnFilters)) {
+                const column = columns.find(c => c.key === columnKey);
+                const label = column?.label || columnKey;
+                
+                values.forEach(value => {
+                    const safeColumn = DOM.escapeHtmlForAttribute(columnKey);
+                    const safeValue = DOM.escapeHtmlForAttribute(value);
+                    pills.push(`
+                        <div class="prompt-filter-pill">
+                            <span class="prompt-filter-pill-field">${DOM.escapeHtml(label)}:</span>
+                            <span class="prompt-filter-pill-value">${DOM.escapeHtml(value)}</span>
+                            <button class="prompt-filter-pill-remove" onclick="window.PromptFilters.removeFilter('${safeColumn}', '${safeValue}')">&times;</button>
+                        </div>
+                    `);
+                });
+            }
+            
+            if (pills.length > 0) {
+                container.style.display = 'flex';
+                pillsContainer.innerHTML = pills.join('');
+            } else {
+                container.style.display = 'none';
+                pillsContainer.innerHTML = '';
+            }
+        },
+        
+        /**
+         * Trigger re-render of prompts table
+         */
+        triggerRerender() {
+            // Update active filters display
+            this.updateActiveFiltersDisplay();
+            
+            // Re-render the prompts list
+            if (window.PromptEngineeringApp && window.PromptEngineeringApp.renderPromptsList) {
+                window.PromptEngineeringApp.renderPromptsList();
+            }
+        }
+    };
+    
+    // Export column filters
+    window.PromptFilters = ColumnFilters;
 })();

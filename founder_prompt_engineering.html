@@ -127,6 +127,25 @@
                         <button class="btn btn-primary" id="newPromptButton">New Prompt</button>
                     </div>
                 </div>
+                <!-- Active Filters Pills -->
+                <div id="activeFiltersContainer" class="prompt-active-filters" style="display: none;">
+                    <span class="prompt-active-filters-label">Filters:</span>
+                    <div id="activeFiltersPills" class="prompt-filter-pills"></div>
+                    <button class="prompt-clear-filters-btn" onclick="window.PromptFilters.clearAllFilters()">Clear all</button>
+                </div>
+                
+                <!-- Filter Dropdown (triggered by clicking column headers) -->
+                <div id="columnFilterDropdown" class="prompt-filter-dropdown" style="display: none;">
+                    <div class="prompt-filter-dropdown-header">
+                        <span id="filterDropdownTitle">Filter by</span>
+                        <button class="prompt-filter-dropdown-close" onclick="window.PromptFilters.closeFilterDropdown()">&times;</button>
+                    </div>
+                    <div class="prompt-filter-dropdown-search">
+                        <input type="text" id="filterSearchInput" placeholder="Search..." oninput="window.PromptFilters.filterDropdownOptions()">
+                    </div>
+                    <div class="prompt-filter-dropdown-options" id="filterDropdownOptions"></div>
+                </div>
+                
                 <div id="statusMessage" class="status-message"></div>
                 <div id="promptsContainer" class="domains-grid"></div>
             </div>

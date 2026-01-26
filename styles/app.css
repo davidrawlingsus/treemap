@@ -4746,6 +4746,16 @@ body.slideout-open .treemap-search-container.search-active .treemap-search-clear
     cursor: default;
 }
 
+/* TipTap Editor Highlight Styling - Brand Green (lighter) */
+.highlight-brand,
+mark.highlight-brand {
+    background-color: #D5F886; /* Lighter brand green (#B9F040 lightened) */
+    border-radius: 0.125rem;
+    padding: 0.0625rem 0.125rem;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+}
+
 .ai-close-btn {
     background: none;
     border: none;

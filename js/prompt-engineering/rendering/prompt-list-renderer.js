@@ -20,14 +20,15 @@
 
     // Table columns configuration
     const TABLE_COLUMNS = [
-        { key: 'name', label: 'Name', sortable: true },
-        { key: 'version', label: 'Version', sortable: true },
-        { key: 'status', label: 'Status', sortable: true },
-        { key: 'prompt_type', label: 'Type', sortable: true },
-        { key: 'prompt_purpose', label: 'Purpose', sortable: true },
-        { key: 'llm_model', label: 'Model', sortable: true },
-        { key: 'updated_at', label: 'Updated', sortable: true },
-        { key: 'actions', label: '', sortable: false }
+        { key: 'name', label: 'Name', sortable: true, filterable: true },
+        { key: 'version', label: 'Version', sortable: true, filterable: false },
+        { key: 'status', label: 'Status', sortable: true, filterable: true },
+        { key: 'prompt_type', label: 'Type', sortable: true, filterable: true },
+        { key: 'prompt_purpose', label: 'Purpose', sortable: true, filterable: true },
+        { key: 'client_facing', label: 'Client Facing', sortable: true, filterable: true },
+        { key: 'llm_model', label: 'Model', sortable: true, filterable: true },
+        { key: 'updated_at', label: 'Updated', sortable: true, filterable: false },
+        { key: 'actions', label: '', sortable: false, filterable: false }
     ];
 
     /**
@@ -169,6 +170,7 @@
         const prompts = state.get('prompts');
         const sortColumn = state.get('tableSortColumn') || 'updated_at';
         const sortDirection = state.get('tableSortDirection') || 'desc';
+        const columnFilters = state.get('columnFilters') || {};
 
         // Change container class for table view
         container.className = 'prompts-table-container';
@@ -183,8 +185,11 @@
             return;
         }
 
+        // Apply column filters
+        const filteredPrompts = applyColumnFilters(prompts, columnFilters);
+
         // Sort prompts
-        const sortedPrompts = sortPrompts([...prompts], sortColumn, sortDirection);
+        const sortedPrompts = sortPrompts([...filteredPrompts], sortColumn, sortDirection);
 
         // Build table HTML
         const tableHtml = `
@@ -192,32 +197,50 @@
                 <thead>
                     <tr>
                         ${TABLE_COLUMNS.map(col => {
-                            if (!col.sortable) {
+                            if (!col.sortable && !col.filterable) {
                                 return `<th class="prompts-table-th">${col.label}</th>`;
                             }
                             const isActive = sortColumn === col.key;
                             const arrow = isActive ? (sortDirection === 'asc' ? '↑' : '↓') : '';
+                            const hasFilter = columnFilters[col.key] && columnFilters[col.key].length > 0;
+                            const filterableClass = col.filterable ? 'filterable' : '';
+                            const hasFilterClass = hasFilter ? 'has-filter' : '';
+                            const filterIcon = col.filterable ? '<span class="filter-icon">▼</span>' : '';
                             return `
-                                <th class="prompts-table-th sortable ${isActive ? 'active' : ''}" 
-                                    data-sort-column="${col.key}">
+                                <th class="prompts-table-th sortable ${filterableClass} ${hasFilterClass} ${isActive ? 'active' : ''}" 
+                                    data-sort-column="${col.key}"
+                                    data-filter-column="${col.filterable ? col.key : ''}">
                                     <span>${col.label}</span>
                                     <span class="sort-indicator">${arrow}</span>
+                                    ${filterIcon}
                                 </th>
                             `;
                         }).join('')}
                     </tr>
                 </thead>
                 <tbody>
-                    ${sortedPrompts.map(prompt => renderTableRow(prompt)).join('')}
+                    ${sortedPrompts.length > 0 
+                        ? sortedPrompts.map(prompt => renderTableRow(prompt)).join('')
+                        : '<tr><td colspan="' + TABLE_COLUMNS.length + '" style="text-align: center; padding: 24px; color: var(--muted);">No prompts match the current filters</td></tr>'
+                    }
                 </tbody>
             </table>
         `;
 
         container.innerHTML = tableHtml;
 
-        // Attach sort listeners
+        // Attach sort listeners (left click for sort)
         container.querySelectorAll('.prompts-table-th.sortable').forEach(th => {
-            th.addEventListener('click', () => {
+            th.addEventListener('click', (e) => {
+                // If clicking on filter icon, open filter dropdown
+                if (e.target.classList.contains('filter-icon')) {
+                    const filterColumn = th.getAttribute('data-filter-column');
+                    if (filterColumn && window.PromptFilters) {
+                        e.stopPropagation();
+                        window.PromptFilters.openFilterDropdown(filterColumn, th);
+                    }
+                    return;
+                }
                 const column = th.getAttribute('data-sort-column');
                 handleSortClick(column, container, onEditClick);
             });
@@ -230,6 +253,68 @@
                 if (onEditClick) onEditClick(promptId);
             });
         });
+        
+        // Update active filters display
+        if (window.PromptFilters) {
+            window.PromptFilters.updateActiveFiltersDisplay();
+        }
+    }
+
+    /**
+     * Apply column filters to prompts
+     */
+    function applyColumnFilters(prompts, columnFilters) {
+        if (!columnFilters || Object.keys(columnFilters).length === 0) {
+            return prompts;
+        }
+
+        return prompts.filter(prompt => {
+            for (const [column, values] of Object.entries(columnFilters)) {
+                if (!values || values.length === 0) continue;
+                
+                let promptValue = prompt[column];
+                
+                // Handle boolean fields
+                if (column === 'client_facing') {
+                    promptValue = promptValue ? 'Yes' : 'No';
+                }
+                
+                // Handle null/undefined
+                if (promptValue == null) promptValue = '';
+                
+                // Convert to string for comparison
+                promptValue = String(promptValue);
+                
+                // Check if prompt value matches any of the filter values
+                if (!values.includes(promptValue)) {
+                    return false;
+                }
+            }
+            return true;
+        });
+    }
+
+    /**
+     * Get unique values for a column from all prompts
+     */
+    function getColumnUniqueValues(column) {
+        const prompts = state.get('prompts') || [];
+        const values = new Set();
+        
+        prompts.forEach(prompt => {
+            let value = prompt[column];
+            
+            // Handle boolean fields
+            if (column === 'client_facing') {
+                value = value ? 'Yes' : 'No';
+            }
+            
+            if (value != null && value !== '') {
+                values.add(String(value));
+            }
+        });
+        
+        return Array.from(values).sort();
     }
 
     /**
@@ -238,6 +323,7 @@
     function renderTableRow(prompt) {
         const statusBadge = getStatusBadgeCompact(prompt.status);
         const typeBadge = getTypeBadgeCompact(prompt.prompt_type || 'system');
+        const clientFacingBadge = getClientFacingBadge(prompt.client_facing);
         const updatedAt = prompt.updated_at ? new Date(prompt.updated_at).toLocaleDateString() : '—';
 
         return `
@@ -249,6 +335,7 @@
                 <td class="prompts-table-td">${statusBadge}</td>
                 <td class="prompts-table-td">${typeBadge}</td>
                 <td class="prompts-table-td prompts-table-purpose">${DOM.escapeHtml(prompt.prompt_purpose || '—')}</td>
+                <td class="prompts-table-td">${clientFacingBadge}</td>
                 <td class="prompts-table-td prompts-table-model">${DOM.escapeHtml(prompt.llm_model || '—')}</td>
                 <td class="prompts-table-td prompts-table-date">${updatedAt}</td>
                 <td class="prompts-table-td prompts-table-actions">
@@ -343,6 +430,16 @@
     }
 
     /**
+     * Client facing badge for table view
+     */
+    function getClientFacingBadge(clientFacing) {
+        if (clientFacing) {
+            return `<span class="client-facing-badge yes" style="background: #f0fff4; border: 1px solid #c6f6d5; color: #22543d;">Yes</span>`;
+        }
+        return `<span class="client-facing-badge no" style="background: #f7fafc; border: 1px solid #e2e8f0; color: #718096;">No</span>`;
+    }
+
+    /**
      * Get status badge HTML
      * @param {string} status - Status value
      * @returns {string} HTML for status badge
@@ -378,6 +475,8 @@
     window.PromptListRenderer = {
         renderPrompts,
         getStatusBadge,
-        getTypeBadge
+        getTypeBadge,
+        getColumnUniqueValues,
+        TABLE_COLUMNS
     };
 })();

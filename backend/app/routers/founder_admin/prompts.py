@@ -563,18 +563,6 @@ def execute_prompt_for_founder(
             def generate_stream():
                 accumulated_content = ""
                 final_metadata = None
-                
-                # Send initial keepalive to establish connection and prevent early timeout
-                # SSE comment (starts with :) is ignored by clients but keeps connection alive
-                yield ": keepalive\n\n"
-                
-                # Send a "started" event so client knows stream is active
-                started_message = json.dumps({
-                    "type": "started",
-                    "message": "Stream connection established, waiting for LLM response..."
-                })
-                yield f"data: {started_message}\n\n"
-                
                 # Create a new database session for saving the result
                 from app.database import SessionLocal
                 save_db = SessionLocal()

@@ -27,6 +27,15 @@
             promptVersions: new Set(), // Selected prompt versions (format: "name:v1")
             models: new Set(), // Selected models
         },
+        // Column filters - map of column key to array of selected values
+        columnFilters: {
+            // name: [],
+            // status: [],
+            // prompt_type: [],
+            // prompt_purpose: [],
+            // client_facing: [],
+            // llm_model: []
+        },
         statusFilter: '',
         purposeFilter: '',
         viewMode: 'table', // 'cards' or 'table'
