@@ -10038,18 +10038,35 @@
         // #region agent log
         console.log('[DEBUG H1-A] Auth.checkAuth CALLED from regular script:', {windowFnExists:typeof window.appStateSetCurrentProjectName,timestamp:Date.now()});
         // #endregion
-        const authCheck = typeof Auth !== 'undefined' ? Auth.checkAuth() : Promise.resolve(false);
-        authCheck.then(authenticated => {
-            console.log('Auth check result:', authenticated);
-            if (!authenticated) {
-                console.log('Not authenticated, showing login');
-                if (typeof Auth !== 'undefined') {
-                    Auth.showLogin();
-                }
+        // Wait for module script to finish assigning window functions before auth check
+        // Module scripts are deferred, so they run after HTML parsing but we need to ensure
+        // window functions are available before handleAuthenticatedUser is called
+        function waitForModuleAndCheckAuth() {
+            if (typeof window.appStateSetCurrentProjectName === 'function') {
+                // #region agent log
+                console.log('[DEBUG H1-A] Module ready, proceeding with Auth.checkAuth:', {windowFnExists:typeof window.appStateSetCurrentProjectName,timestamp:Date.now()});
+                // #endregion
+                const authCheck = typeof Auth !== 'undefined' ? Auth.checkAuth() : Promise.resolve(false);
+                authCheck.then(authenticated => {
+                    console.log('Auth check result:', authenticated);
+                    if (!authenticated) {
+                        console.log('Not authenticated, showing login');
+                        if (typeof Auth !== 'undefined') {
+                            Auth.showLogin();
+                        }
+                    }
+                }).catch(error => {
+                    console.error('Error in checkAuth:', error);
+                });
+            } else {
+                // #region agent log
+                console.log('[DEBUG H1-A] Module not ready, waiting...', {windowFnExists:typeof window.appStateSetCurrentProjectName,timestamp:Date.now()});
+                // #endregion
+                // Module script hasn't run yet, wait a bit and try again
+                setTimeout(waitForModuleAndCheckAuth, 10);
             }
-        }).catch(error => {
-            console.error('Error in checkAuth:', error);
-        });
+        }
+        waitForModuleAndCheckAuth();
         
         async function getPromptRendererWithRetry() {
             const diagnostics = {

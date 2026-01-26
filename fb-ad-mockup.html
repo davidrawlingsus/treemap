@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Facebook Ad Mockup</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      background: #f0f2f5;
+      padding: 40px 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .fb-ad-container {
+      max-width: 500px;
+      width: 100%;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    .ad-header {
+      padding: 12px 12px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .profile-pic {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: 600;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .ad-info {
+      flex: 1;
+    }
+
+    .page-name {
+      font-weight: 600;
+      font-size: 15px;
+      color: #050505;
+    }
+
+    .sponsored-info {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+      color: #65676b;
+    }
+
+    .dot {
+      width: 3px;
+      height: 3px;
+      background: #65676b;
+      border-radius: 50%;
+    }
+
+    .more-btn {
+      padding: 8px;
+      cursor: pointer;
+      color: #65676b;
+      font-size: 20px;
+      line-height: 1;
+      background: none;
+      border: none;
+    }
+
+    .primary-text-wrapper {
+      padding: 8px 12px;
+      position: relative;
+    }
+
+    .primary-text {
+      font-size: 15px;
+      line-height: 1.3333;
+      color: #050505;
+      white-space: pre-wrap;
+    }
+
+    .primary-text.truncated {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .see-more-inline {
+      position: absolute;
+      bottom: 8px;
+      right: 12px;
+      background: linear-gradient(90deg, transparent 0%, white 30%, white 100%);
+      padding-left: 50px;
+      color: #65676b;
+      cursor: pointer;
+      font-weight: 400;
+      font-size: 15px;
+      border: none;
+      font-family: inherit;
+      line-height: 1.3333;
+    }
+
+    .see-more-inline:hover {
+      text-decoration: underline;
+    }
+
+    .see-more-inline.hidden {
+      display: none;
+    }
+
+    .see-less {
+      color: #65676b;
+      cursor: pointer;
+      font-weight: 400;
+      font-size: 15px;
+      display: block;
+      margin-top: 4px;
+      background: none;
+      border: none;
+      padding: 0;
+      font-family: inherit;
+      text-align: left;
+    }
+
+    .see-less:hover {
+      text-decoration: underline;
+    }
+
+    .see-less.hidden {
+      display: none;
+    }
+
+    .ad-media {
+      width: 100%;
+      aspect-ratio: 1.91 / 1;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 48px;
+      font-weight: 700;
+      position: relative;
+    }
+
+    .ad-media::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 420"><text x="50%" y="50%" text-anchor="middle" dominant-baseline="middle" font-family="Arial" font-size="64" font-weight="bold" fill="white" opacity="0.9">📘 EBOOK</text></svg>');
+      background-size: contain;
+      background-position: center;
+      background-repeat: no-repeat;
+    }
+
+    .ad-link-details {
+      background: #f8fafb;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .link-text {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .link-url {
+      font-size: 12px;
+      color: #65676b;
+      text-transform: uppercase;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .link-headline {
+      font-weight: 600;
+      font-size: 15px;
+      color: #050505;
+      line-height: 1.2;
+    }
+
+    .link-description {
+      font-size: 14px;
+      color: #65676b;
+      line-height: 1.3;
+    }
+
+    .cta-button {
+      background: #e2e5e9;
+      color: #050505;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+
+    .cta-button:hover {
+      background: #d4d7db;
+    }
+
+    .ad-footer {
+      padding: 4px 12px 8px;
+      display: flex;
+      justify-content: space-around;
+      border-top: 1px solid #e4e6eb;
+    }
+
+    .ad-action {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: #65676b;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 6px 0;
+    }
+
+    .ad-action:hover {
+      text-decoration: underline;
+    }
+
+    .icon {
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <div class="fb-ad-container">
+    <!-- Ad Header -->
+    <div class="ad-header">
+      <div class="profile-pic">FB</div>
+      <div class="ad-info">
+        <div class="page-name">Facebook Marketing Pro</div>
+        <div class="sponsored-info">
+          <span>Sponsored</span>
+          <span class="dot"></span>
+          <span>🌐</span>
+        </div>
+      </div>
+      <button class="more-btn">⋯</button>
+    </div>
+
+    <!-- Primary Text -->
+    <div class="primary-text-wrapper">
+      <div class="primary-text truncated" id="primaryText">🚀 Stop wasting money on ads that don't convert! After spending $2.3M on Facebook ads and testing 847 different audience combinations, we've finally cracked the code on what actually works in 2026.
+
+This FREE 47-page guide reveals:
+✅ The exact custom audience formula that generated $4.2M in sales
+✅ Why 93% of advertisers target the WRONG people (and how to fix it)
+✅ Our "Audience Stacking" method that cut our CPA by 67%
+✅ The 3 hidden Facebook targeting options most marketers don't know exist
+
+No fluff. No theory. Just the battle-tested strategies we use every single day.
+
+Download now — this won't be free forever. 👇</div>
+      <button class="see-more-inline" id="seeMoreBtn">... See more</button>
+      <button class="see-less hidden" id="seeLessBtn">See less</button>
+    </div>
+
+    <!-- Ad Media -->
+    <div class="ad-media"></div>
+
+    <!-- Link Details -->
+    <div class="ad-link-details">
+      <div class="link-text">
+        <div class="link-url">example.com</div>
+        <div class="link-headline">Free Facebook Audience Ebook</div>
+        <div class="link-description">Ultimate guide to Facebook Custom Audiences</div>
+      </div>
+      <button class="cta-button">Download</button>
+    </div>
+
+    <!-- Ad Footer -->
+    <div class="ad-footer">
+      <div class="ad-action">
+        <span class="icon">👍</span>
+        <span>Like</span>
+      </div>
+      <div class="ad-action">
+        <span class="icon">💬</span>
+        <span>Comment</span>
+      </div>
+      <div class="ad-action">
+        <span class="icon">↗</span>
+        <span>Share</span>
+      </div>
+    </div>
+  </div>
+  <script>
+    const primaryText = document.getElementById('primaryText');
+    const seeMoreBtn = document.getElementById('seeMoreBtn');
+    const seeLessBtn = document.getElementById('seeLessBtn');
+    let isExpanded = false;
+
+    function checkIfNeedsTruncation() {
+      primaryText.classList.remove('truncated');
+      const fullHeight = primaryText.scrollHeight;
+      
+      primaryText.classList.add('truncated');
+      const truncatedHeight = primaryText.clientHeight;
+      
+      if (fullHeight <= truncatedHeight + 5) {
+        seeMoreBtn.classList.add('hidden');
+        seeLessBtn.classList.add('hidden');
+        primaryText.classList.remove('truncated');
+      } else {
+        if (isExpanded) {
+          primaryText.classList.remove('truncated');
+          seeMoreBtn.classList.add('hidden');
+          seeLessBtn.classList.remove('hidden');
+        } else {
+          seeMoreBtn.classList.remove('hidden');
+          seeLessBtn.classList.add('hidden');
+        }
+      }
+    }
+
+    seeMoreBtn.addEventListener('click', () => {
+      isExpanded = true;
+      primaryText.classList.remove('truncated');
+      seeMoreBtn.classList.add('hidden');
+      seeLessBtn.classList.remove('hidden');
+    });
+
+    seeLessBtn.addEventListener('click', () => {
+      isExpanded = false;
+      primaryText.classList.add('truncated');
+      seeMoreBtn.classList.remove('hidden');
+      seeLessBtn.classList.add('hidden');
+    });
+
+    checkIfNeedsTruncation();
+    window.addEventListener('resize', checkIfNeedsTruncation);
+  </script>
+</body>
+</html>
