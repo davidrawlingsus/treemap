@@ -74,7 +74,20 @@ export async function initAdsPage() {
         setAdsCurrentClientId(clientId);
         setAdsLoading(false);
         
-        renderAdsGrid(container, ads);
+        // #region agent log
+        console.log('[DEBUG H6] About to call renderAdsGrid:', {adCount: ads.length, containerTagName: container.tagName, containerId: container.id, timestamp: Date.now()});
+        // #endregion
+        try {
+            renderAdsGrid(container, ads);
+            // #region agent log
+            console.log('[DEBUG H6] renderAdsGrid completed, container innerHTML length:', {htmlLength: container.innerHTML.length, timestamp: Date.now()});
+            // #endregion
+        } catch (renderError) {
+            // #region agent log
+            console.log('[DEBUG H6] renderAdsGrid THREW ERROR:', {error: renderError.message, stack: renderError.stack, timestamp: Date.now()});
+            // #endregion
+            throw renderError;
+        }
     } catch (error) {
         // #region agent log
         console.log('[DEBUG H3] Ads fetch FAILED:', {error: error.message, timestamp: Date.now()});
@@ -133,15 +146,48 @@ function renderEmpty(container, message) {
  * @param {Array} ads - Array of ad objects
  */
 export function renderAdsGrid(container, ads) {
+    // #region agent log
+    console.log('[DEBUG H6] renderAdsGrid ENTERED:', {adsLength: ads?.length, containerExists: !!container, timestamp: Date.now()});
+    // #endregion
     if (!ads || ads.length === 0) {
         renderEmpty(container);
         return;
     }
     
-    container.innerHTML = ads.map(ad => renderAdCard(ad)).join('');
+    // #region agent log
+    console.log('[DEBUG H6] renderAdsGrid - about to map ads to cards', {timestamp: Date.now()});
+    // #endregion
+    const cardsHtml = ads.map((ad, idx) => {
+        // #region agent log
+        console.log('[DEBUG H6] renderAdCard for ad ' + idx + ':', {adId: ad.id, timestamp: Date.now()});
+        // #endregion
+        return renderAdCard(ad);
+    }).join('');
+    // #region agent log
+    console.log('[DEBUG H6] renderAdsGrid - cards HTML generated, length:', {htmlLength: cardsHtml.length, timestamp: Date.now()});
+    // #endregion
+    container.innerHTML = cardsHtml;
+    // #region agent log
+    console.log('[DEBUG H6] renderAdsGrid - container.innerHTML SET, children count:', {childCount: container.children.length, timestamp: Date.now()});
+    // #endregion
     
     // Attach event delegation for interactive elements
     attachEventListeners(container);
+    
+    // #region agent log
+    const adsSection = document.getElementById('ads-section');
+    const computedStyle = adsSection ? window.getComputedStyle(adsSection) : null;
+    console.log('[DEBUG H7-CSS] After render - ads-section visibility:', {
+        adsSectionExists: !!adsSection,
+        display: computedStyle?.display,
+        visibility: computedStyle?.visibility,
+        height: computedStyle?.height,
+        overflow: computedStyle?.overflow,
+        hasActiveClass: adsSection?.classList.contains('active'),
+        classList: adsSection?.className,
+        timestamp: Date.now()
+    });
+    // #endregion
 }
 
 /**
