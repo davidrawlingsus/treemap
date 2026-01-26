@@ -380,9 +380,6 @@
     try {
       const userInfo = await fetchCurrentUser();
       setUserInfo(userInfo);
-      // #region agent log
-      console.log('[DEBUG H1-A] DISPATCHING auth:authenticated event:', {windowFnExists:typeof window.appStateSetCurrentProjectName,userEmail:userInfo?.email,timestamp:Date.now()});
-      // #endregion
       global.dispatchEvent(
         new CustomEvent('auth:authenticated', { detail: { user: userInfo } })
       );

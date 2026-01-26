@@ -114,12 +114,7 @@ export function renderAdsGrid(container, ads) {
         return;
     }
     
-    // #region agent log
-    const navLogoCheck = document.getElementById('navClientLogo');
-    console.log('[DEBUG H2-A] renderAdsGrid CALLED:', {adCount:ads.length,navLogoExists:!!navLogoCheck,navLogoSrc:navLogoCheck?.src||'none',timestamp:Date.now()});
-    // #endregion
-    
-    container.innerHTML = ads.map((ad, idx) => renderAdCard(ad, idx)).join('');
+    container.innerHTML = ads.map(ad => renderAdCard(ad)).join('');
     
     // Attach event delegation for interactive elements
     attachEventListeners(container);
@@ -130,7 +125,7 @@ export function renderAdsGrid(container, ads) {
  * @param {Object} ad - Ad object from API
  * @returns {string} HTML string
  */
-function renderAdCard(ad, cardIndex = 0) {
+function renderAdCard(ad) {
     const id = escapeHtml(ad.id || '');
     const status = escapeHtml(ad.status || 'draft');
     const statusClass = `ads-card__status--${status}`;
@@ -153,10 +148,6 @@ function renderAdCard(ad, cardIndex = 0) {
     const logoSrc = navLogo ? navLogo.src : '';
     const clientSelect = document.getElementById('clientSelect');
     const clientName = clientSelect?.selectedOptions?.[0]?.textContent?.trim() || 'Sponsored';
-    
-    // #region agent log
-    console.log('[DEBUG H2-A] renderAdCard for card '+cardIndex+':', {cardIndex,adId:id,navLogoExists:!!navLogo,logoSrc:logoSrc.substring(0,100),clientName,timestamp:Date.now()});
-    // #endregion
     
     // VoC evidence HTML
     const vocHtml = vocEvidence.length > 0 
