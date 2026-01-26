@@ -6193,15 +6193,8 @@
                 
                 // Initialize ads page
                 window.adsInitialized = false;
-                // #region agent log
-                console.log('[DEBUG H1] navigateToView ads - checking initAdsPage:', {initAdsPageExists: typeof initAdsPage === 'function', windowInitAdsPage: typeof window.initAdsPage, timestamp: Date.now()});
-                // #endregion
                 if (typeof initAdsPage === 'function') {
                     initAdsPage();
-                } else {
-                    // #region agent log
-                    console.log('[DEBUG H1] initAdsPage NOT AVAILABLE as function!', {timestamp: Date.now()});
-                    // #endregion
                 }
                 
                 // Scroll to top to ensure ads section is visible

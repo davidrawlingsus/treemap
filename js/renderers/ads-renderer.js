@@ -4,30 +4,18 @@
  * Follows renderer pattern - accepts container and data, handles DOM, does not modify global state directly.
  */
 
-// #region agent log
-console.log('[DEBUG H2] ads-renderer.js MODULE LOADING', {timestamp: Date.now()});
-// #endregion
 import { fetchFacebookAds, deleteFacebookAd } from '/js/services/api-facebook-ads.js';
 import { 
     getAdsCache, setAdsCache, setAdsLoading, setAdsError, 
     getAdsCurrentClientId, setAdsCurrentClientId, removeAdFromCache 
 } from '/js/state/ads-state.js';
 import { escapeHtml, escapeHtmlForAttribute } from '/js/utils/dom.js';
-// #region agent log
-console.log('[DEBUG H2] ads-renderer.js MODULE LOADED SUCCESSFULLY', {timestamp: Date.now()});
-// #endregion
 
 /**
  * Initialize the Ads page - load and render ads
  */
 export async function initAdsPage() {
-    // #region agent log
-    console.log('[DEBUG H1] initAdsPage CALLED', {timestamp: Date.now()});
-    // #endregion
     const container = document.getElementById('adsGrid');
-    // #region agent log
-    console.log('[DEBUG H5] adsGrid container check:', {containerExists: !!container, timestamp: Date.now()});
-    // #endregion
     if (!container) {
         console.error('[AdsRenderer] adsGrid container not found');
         return;
@@ -36,9 +24,6 @@ export async function initAdsPage() {
     // Get current client ID
     const clientId = window.appStateGet?.('currentClientId') || 
                      document.getElementById('clientSelect')?.value;
-    // #region agent log
-    console.log('[DEBUG H3] clientId check:', {clientId: clientId || 'NONE', timestamp: Date.now()});
-    // #endregion
     
     if (!clientId) {
         renderEmpty(container, 'Please select a client first');
@@ -61,37 +46,15 @@ export async function initAdsPage() {
     setAdsError(null);
     
     try {
-        // #region agent log
-        console.log('[DEBUG H3] Fetching ads for client:', {clientId, timestamp: Date.now()});
-        // #endregion
         const response = await fetchFacebookAds(clientId);
         const ads = response.items || [];
-        // #region agent log
-        console.log('[DEBUG H3] Ads fetched successfully:', {adCount: ads.length, timestamp: Date.now()});
-        // #endregion
         
         setAdsCache(ads);
         setAdsCurrentClientId(clientId);
         setAdsLoading(false);
         
-        // #region agent log
-        console.log('[DEBUG H6] About to call renderAdsGrid:', {adCount: ads.length, containerTagName: container.tagName, containerId: container.id, timestamp: Date.now()});
-        // #endregion
-        try {
-            renderAdsGrid(container, ads);
-            // #region agent log
-            console.log('[DEBUG H6] renderAdsGrid completed, container innerHTML length:', {htmlLength: container.innerHTML.length, timestamp: Date.now()});
-            // #endregion
-        } catch (renderError) {
-            // #region agent log
-            console.log('[DEBUG H6] renderAdsGrid THREW ERROR:', {error: renderError.message, stack: renderError.stack, timestamp: Date.now()});
-            // #endregion
-            throw renderError;
-        }
+        renderAdsGrid(container, ads);
     } catch (error) {
-        // #region agent log
-        console.log('[DEBUG H3] Ads fetch FAILED:', {error: error.message, timestamp: Date.now()});
-        // #endregion
         console.error('[AdsRenderer] Failed to load ads:', error);
         setAdsLoading(false);
         setAdsError(error.message);
@@ -146,48 +109,15 @@ function renderEmpty(container, message) {
  * @param {Array} ads - Array of ad objects
  */
 export function renderAdsGrid(container, ads) {
-    // #region agent log
-    console.log('[DEBUG H6] renderAdsGrid ENTERED:', {adsLength: ads?.length, containerExists: !!container, timestamp: Date.now()});
-    // #endregion
     if (!ads || ads.length === 0) {
         renderEmpty(container);
         return;
     }
     
-    // #region agent log
-    console.log('[DEBUG H6] renderAdsGrid - about to map ads to cards', {timestamp: Date.now()});
-    // #endregion
-    const cardsHtml = ads.map((ad, idx) => {
-        // #region agent log
-        console.log('[DEBUG H6] renderAdCard for ad ' + idx + ':', {adId: ad.id, timestamp: Date.now()});
-        // #endregion
-        return renderAdCard(ad);
-    }).join('');
-    // #region agent log
-    console.log('[DEBUG H6] renderAdsGrid - cards HTML generated, length:', {htmlLength: cardsHtml.length, timestamp: Date.now()});
-    // #endregion
-    container.innerHTML = cardsHtml;
-    // #region agent log
-    console.log('[DEBUG H6] renderAdsGrid - container.innerHTML SET, children count:', {childCount: container.children.length, timestamp: Date.now()});
-    // #endregion
+    container.innerHTML = ads.map(ad => renderAdCard(ad)).join('');
     
     // Attach event delegation for interactive elements
     attachEventListeners(container);
-    
-    // #region agent log
-    const adsSection = document.getElementById('ads-section');
-    const computedStyle = adsSection ? window.getComputedStyle(adsSection) : null;
-    console.log('[DEBUG H7-CSS] After render - ads-section visibility:', {
-        adsSectionExists: !!adsSection,
-        display: computedStyle?.display,
-        visibility: computedStyle?.visibility,
-        height: computedStyle?.height,
-        overflow: computedStyle?.overflow,
-        hasActiveClass: adsSection?.classList.contains('active'),
-        classList: adsSection?.className,
-        timestamp: Date.now()
-    });
-    // #endregion
 }
 
 /**
@@ -296,7 +226,7 @@ function renderFBAdMockup({ primaryText, headline, description, cta, displayUrl,
             <div class="pe-fb-ad__primary-text-wrapper" style="padding:8px 12px;margin:0;">
                 <div class="pe-fb-ad__primary-text" style="font-size:15px;line-height:1.4;color:#050505;margin:0;padding:0;">${primaryText}</div>
             </div>
-            <div class="pe-fb-ad__media" style="width:100%;aspect-ratio:1.91/1;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);margin:0;padding:0;"></div>
+            <div class="pe-fb-ad__media" style="width:100%;aspect-ratio:1.91/1;background:linear-gradient(to top right,transparent calc(50% - 1px),#9ca3af calc(50% - 1px),#9ca3af calc(50% + 1px),transparent calc(50% + 1px)),linear-gradient(to top left,transparent calc(50% - 1px),#9ca3af calc(50% - 1px),#9ca3af calc(50% + 1px),transparent calc(50% + 1px)),#e5e7eb;margin:0;padding:0;"></div>
             <div class="pe-fb-ad__link-details" style="background:#f8fafb;padding:10px 12px;margin:0;display:flex;align-items:center;justify-content:space-between;gap:12px;">
                 <div class="pe-fb-ad__link-text" style="flex:1;min-width:0;margin:0;padding:0;">
                     <div class="pe-fb-ad__link-url" style="font-size:12px;color:#65676b;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0;padding:0;">${escapeHtml(displayUrl)}</div>
