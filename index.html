@@ -763,7 +763,7 @@
                                 <button class="ai-dropdown-item" onclick="handleAIDropdownOption('overview')">AI Overview</button>
                                 <div class="ai-dropdown-divider"></div>
                                 <div id="aiExpertOptionsContainer">
-                                    <div class="ai-dropdown-item loading">Loading...</div>
+                                    <div class="ai-dropdown-item loading"><span class="ai-dropdown-spinner"></span>Loading prompts...</div>
                                 </div>
                             </div>
                         </div>
@@ -14133,11 +14133,11 @@
             if (!container) return;
 
             if (!currentClientId || !window.ClientPromptAPI) {
-                container.innerHTML = '<div class="ai-dropdown-item loading">No prompts available</div>';
+                container.innerHTML = '<div class="ai-dropdown-item empty">No prompts available</div>';
                 return;
             }
 
-            container.innerHTML = '<div class="ai-dropdown-item loading">Loading...</div>';
+            container.innerHTML = '<div class="ai-dropdown-item loading"><span class="ai-dropdown-spinner"></span>Loading prompts...</div>';
 
             try {
                 const prompts = await window.ClientPromptAPI.listPrompts(currentClientId);
@@ -14153,7 +14153,7 @@
                     });
 
                     if (expertPrompts.length === 0) {
-                        container.innerHTML = '<div class="ai-dropdown-item loading">No AI Expert prompts available</div>';
+                        container.innerHTML = '<div class="ai-dropdown-item empty">No AI Expert prompts available</div>';
                         return;
                     }
 
@@ -14186,11 +14186,11 @@
                         return `<button class="ai-dropdown-item" onclick="handleAIDropdownOption('expert', '${prompt.id}')">${escapedName}</button>`;
                     }).join('');
                 } else {
-                    container.innerHTML = '<div class="ai-dropdown-item loading">No prompts available</div>';
+                    container.innerHTML = '<div class="ai-dropdown-item empty">No prompts available</div>';
                 }
             } catch (error) {
                 console.error('Error loading AI Expert prompts:', error);
-                container.innerHTML = '<div class="ai-dropdown-item loading">Error loading prompts</div>';
+                container.innerHTML = '<div class="ai-dropdown-item empty">Error loading prompts</div>';
             }
         }
 

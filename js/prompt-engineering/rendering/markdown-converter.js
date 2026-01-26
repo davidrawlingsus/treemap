@@ -458,9 +458,9 @@
         let vocHTML = '';
         if (vocEvidence.length > 0) {
             const vocItems = vocEvidence.map(quote => 
-                `<div class="pe-fb-ad-wrapper__voc-item" style="font-size:13px;color:#4a5568;line-height:1.5;padding:6px 0;border-bottom:1px solid #e2e8f0;font-style:italic;">"${DOM.escapeHtml(quote)}"</div>`
+                `<div class="pe-fb-ad-wrapper__voc-item">"${DOM.escapeHtml(quote)}"</div>`
             ).join('');
-            vocHTML = `<div class="pe-fb-ad-wrapper__voc" style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #e2e8f0;"><div class="pe-fb-ad-wrapper__voc-label" style="font-size:12px;font-weight:600;color:#718096;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">VoC Evidence</div><div class="pe-fb-ad-wrapper__voc-list" style="display:block;">${vocItems}</div></div>`;
+            vocHTML = `<div class="pe-fb-ad-wrapper__voc"><div class="pe-fb-ad-wrapper__voc-label">VoC Evidence</div><div class="pe-fb-ad-wrapper__voc-list">${vocItems}</div></div>`;
         }
 
         // Generate unique ID for this ad card

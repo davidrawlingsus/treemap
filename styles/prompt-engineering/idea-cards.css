@@ -383,27 +383,43 @@
     color: var(--bg-black, #000000) !important;
 }
 
-/* VoC Evidence Section - free text list underneath ad */
+/* VoC Evidence Section - styled to match ads-card__voc-item */
 .pe-fb-ad-wrapper__voc {
-    /* Inline styles handle most layout */
+    margin-bottom: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border, #e2e8f0);
 }
 
 .pe-fb-ad-wrapper__voc-label {
-    /* Inline styles handle most styling */
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted, #718096);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
 }
 
 .pe-fb-ad-wrapper__voc-list {
-    /* Always visible - no longer a dropdown */
+    display: block;
+    list-style: none;
+    padding: 0;
+    margin: 0;
 }
 
 .pe-fb-ad-wrapper__voc-item {
-    /* Inline styles handle most styling */
     font-style: italic;
+    padding: 10px 12px;
+    background: #f8fafc;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    font-size: 0.875rem;
+    color: var(--text, #1a202c);
+    line-height: 1.5;
+    border-left: 3px solid var(--brand-color, #B9F040);
 }
 
 .pe-fb-ad-wrapper__voc-item:last-child {
-    border-bottom: none !important;
-    padding-bottom: 0 !important;
+    margin-bottom: 0;
 }
 
 /* The actual Facebook Ad Mock - isolated from parent styles */

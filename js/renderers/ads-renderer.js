@@ -175,19 +175,29 @@ function renderAdCard(ad) {
                 })}
             </div>
             
-            <div class="ads-card__details">
-                <button class="ads-card__toggle">
-                    <span>Image Prompt & VoC Evidence</span>
-                    <span class="ads-card__toggle-icon">▼</span>
-                </button>
-                <div class="ads-card__details-content">
-                    <div class="ads-card__details-inner">
-                        <div class="ads-card__detail-section">
-                            <div class="ads-card__detail-label">Image Prompt</div>
-                            <div class="ads-card__detail-value">${imageHash}</div>
+            <div class="ads-card__accordions">
+                <div class="ads-accordion">
+                    <button class="ads-accordion__trigger" data-accordion="image-prompt">
+                        <span class="ads-accordion__title">Image Prompt</span>
+                        <svg class="ads-accordion__chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <div class="ads-accordion__content">
+                        <div class="ads-accordion__body">
+                            <p class="ads-accordion__text">${imageHash}</p>
                         </div>
-                        <div class="ads-card__detail-section">
-                            <div class="ads-card__detail-label">VoC Evidence</div>
+                    </div>
+                </div>
+                <div class="ads-accordion">
+                    <button class="ads-accordion__trigger" data-accordion="voc-evidence">
+                        <span class="ads-accordion__title">VoC Evidence</span>
+                        <svg class="ads-accordion__chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                    <div class="ads-accordion__content">
+                        <div class="ads-accordion__body">
                             ${vocHtml}
                         </div>
                     </div>
@@ -327,12 +337,12 @@ function attachEventListeners(container) {
             return;
         }
         
-        // Handle toggle button
-        const toggleBtn = e.target.closest('.ads-card__toggle');
-        if (toggleBtn) {
-            const details = toggleBtn.closest('.ads-card__details');
-            if (details) {
-                details.classList.toggle('expanded');
+        // Handle accordion toggle
+        const accordionTrigger = e.target.closest('.ads-accordion__trigger');
+        if (accordionTrigger) {
+            const accordion = accordionTrigger.closest('.ads-accordion');
+            if (accordion) {
+                accordion.classList.toggle('expanded');
             }
             return;
         }
