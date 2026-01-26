@@ -4,18 +4,30 @@
  * Follows renderer pattern - accepts container and data, handles DOM, does not modify global state directly.
  */
 
+// #region agent log
+console.log('[DEBUG H2] ads-renderer.js MODULE LOADING', {timestamp: Date.now()});
+// #endregion
 import { fetchFacebookAds, deleteFacebookAd } from '/js/services/api-facebook-ads.js';
 import { 
     getAdsCache, setAdsCache, setAdsLoading, setAdsError, 
     getAdsCurrentClientId, setAdsCurrentClientId, removeAdFromCache 
 } from '/js/state/ads-state.js';
 import { escapeHtml, escapeHtmlForAttribute } from '/js/utils/dom.js';
+// #region agent log
+console.log('[DEBUG H2] ads-renderer.js MODULE LOADED SUCCESSFULLY', {timestamp: Date.now()});
+// #endregion
 
 /**
  * Initialize the Ads page - load and render ads
  */
 export async function initAdsPage() {
+    // #region agent log
+    console.log('[DEBUG H1] initAdsPage CALLED', {timestamp: Date.now()});
+    // #endregion
     const container = document.getElementById('adsGrid');
+    // #region agent log
+    console.log('[DEBUG H5] adsGrid container check:', {containerExists: !!container, timestamp: Date.now()});
+    // #endregion
     if (!container) {
         console.error('[AdsRenderer] adsGrid container not found');
         return;
@@ -24,6 +36,9 @@ export async function initAdsPage() {
     // Get current client ID
     const clientId = window.appStateGet?.('currentClientId') || 
                      document.getElementById('clientSelect')?.value;
+    // #region agent log
+    console.log('[DEBUG H3] clientId check:', {clientId: clientId || 'NONE', timestamp: Date.now()});
+    // #endregion
     
     if (!clientId) {
         renderEmpty(container, 'Please select a client first');
@@ -46,8 +61,14 @@ export async function initAdsPage() {
     setAdsError(null);
     
     try {
+        // #region agent log
+        console.log('[DEBUG H3] Fetching ads for client:', {clientId, timestamp: Date.now()});
+        // #endregion
         const response = await fetchFacebookAds(clientId);
         const ads = response.items || [];
+        // #region agent log
+        console.log('[DEBUG H3] Ads fetched successfully:', {adCount: ads.length, timestamp: Date.now()});
+        // #endregion
         
         setAdsCache(ads);
         setAdsCurrentClientId(clientId);
@@ -55,6 +76,9 @@ export async function initAdsPage() {
         
         renderAdsGrid(container, ads);
     } catch (error) {
+        // #region agent log
+        console.log('[DEBUG H3] Ads fetch FAILED:', {error: error.message, timestamp: Date.now()});
+        // #endregion
         console.error('[AdsRenderer] Failed to load ads:', error);
         setAdsLoading(false);
         setAdsError(error.message);
