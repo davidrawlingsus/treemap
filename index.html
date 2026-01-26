@@ -14549,6 +14549,7 @@
         // Improved hover behavior for submenu with delay
         let submenuHideTimeout = null;
         let submenuEventListeners = { item: null, submenu: null };
+        let submenuPositionDecided = false; // Track if position was already calculated for current menu display
         
         function setupSubmenuHover() {
             const aiExpertItem = document.querySelector('[data-action="ai-expert"]');
@@ -14580,10 +14581,14 @@
                 }
                 aiExpertSubmenu.style.display = 'block';
                 
+                // Only calculate position on first hover - don't recalculate when moving to submenu
+                if (submenuPositionDecided) {
+                    return;
+                }
+                
                 // Check if submenu would overflow viewport and flip to left if needed
                 const contextMenu = document.getElementById('contextMenu');
                 if (contextMenu) {
-                    const menuRect = contextMenu.getBoundingClientRect();
                     const submenuRect = aiExpertSubmenu.getBoundingClientRect();
                     const viewportWidth = window.innerWidth;
                     const viewportHeight = window.innerHeight;
@@ -14612,6 +14617,9 @@
                     } else {
                         aiExpertSubmenu.style.top = '0';
                     }
+                    
+                    // Mark that position has been decided for this menu display
+                    submenuPositionDecided = true;
                 }
             };
             
@@ -14622,6 +14630,13 @@
                 }
                 submenuHideTimeout = setTimeout(() => {
                     aiExpertSubmenu.style.display = '';
+                    // Reset position styles to CSS defaults so next calculation starts fresh
+                    aiExpertSubmenu.style.left = '';
+                    aiExpertSubmenu.style.right = '';
+                    aiExpertSubmenu.style.marginLeft = '';
+                    aiExpertSubmenu.style.marginRight = '';
+                    aiExpertSubmenu.style.top = '';
+                    submenuPositionDecided = false;
                     submenuHideTimeout = null;
                 }, 150); // 150ms delay to allow mouse movement
             };
@@ -14653,6 +14668,8 @@
                 clearTimeout(submenuHideTimeout);
                 submenuHideTimeout = null;
             }
+            // Reset submenu position decision flag for next menu display
+            submenuPositionDecided = false;
             // Ensure submenu is closed when hiding context menu (remove inline style so CSS can control it)
             const aiExpertSubmenu = document.getElementById('aiExpertSubmenu');
             if (aiExpertSubmenu) {
