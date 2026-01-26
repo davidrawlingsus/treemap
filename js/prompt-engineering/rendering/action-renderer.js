@@ -419,11 +419,6 @@
         const slideoutPanel = window.SlideoutPanel;
         const actionId = slideoutPanel?.currentActionId || null;
 
-        // #region agent log
-        console.log('[DEBUG H1] ideaData received - ALL KEYS:', Object.keys(ideaData).join(', '));
-        console.log('[DEBUG H1] media object:', ideaData.media);
-        // #endregion
-        
         // Map Facebook ad fields
         // Note: image_hash can be at top level OR nested inside media object
         const imageHash = ideaData.image_hash || ideaData.media?.image_hash || null;
@@ -440,14 +435,6 @@
             action_id: actionId,
             status: 'draft'
         };
-        
-        // #region agent log
-        console.log('[DEBUG H2] adData being sent:', {
-            imageHash: adData.image_hash,
-            vocEvidenceCount: adData.voc_evidence?.length,
-            timestamp: Date.now()
-        });
-        // #endregion
 
         // Create the Facebook ad via API
         const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/facebook-ads`, {
