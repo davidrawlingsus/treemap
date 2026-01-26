@@ -10,6 +10,7 @@ from .emails import router as emails_router
 from .voc_editor import router as voc_editor_router
 from .database import router as database_router
 from .prompts import router as prompts_router
+from .facebook_ads import router as facebook_ads_router
 
 # Create main router that includes all sub-routers
 router = APIRouter(tags=["founder-admin"])
@@ -21,4 +22,5 @@ router.include_router(emails_router)
 router.include_router(voc_editor_router)
 router.include_router(database_router)
 router.include_router(prompts_router)
+router.include_router(facebook_ads_router)
 

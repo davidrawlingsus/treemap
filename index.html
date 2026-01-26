@@ -25,6 +25,7 @@
     
     <!-- App styles (extracted from inline) -->
     <link rel="stylesheet" href="/styles/app.css">
+    <link rel="stylesheet" href="/styles/ads.css">
     
     <script src="/config.js"></script>
     <script src="/auth.js"></script>
@@ -335,6 +336,12 @@
             processBarChartData as chartRendererProcessBarChartData,
             processTopicsData as chartRendererProcessTopicsData
         } from '/js/renderers/chart-renderer.js';
+        import {
+            initAdsPage as adsRendererInitAdsPage
+        } from '/js/renderers/ads-renderer.js';
+        import {
+            clearAdsState as adsStateClearAdsState
+        } from '/js/state/ads-state.js';
         
         // Make color schemes config available globally
         window.colorSchemesCATEGORY_COLORS = colorSchemesCATEGORY_COLORS;
@@ -540,6 +547,8 @@
         // Make renderers available globally for backward compatibility
         window.insightsRendererRenderInsights = insightsRendererRenderInsights;
         window.historyRendererRenderHistoryTable = historyRendererRenderHistoryTable;
+        window.adsRendererInitAdsPage = adsRendererInitAdsPage;
+        window.initAdsPage = adsRendererInitAdsPage;
         window.verbatimsRendererRenderVerbatims = verbatimsRendererRenderVerbatims;
         window.treemapRendererRenderTreemap = treemapRendererRenderTreemap;
         window.chartRendererRenderBarChart = chartRendererRenderBarChart;
@@ -665,6 +674,9 @@
             <div class="nav-menu" id="navMenu">
                 <a href="#" class="nav-menu-item" id="navVisualizations" onclick="navigateToView('visualizations'); return false;">
                     <span>Visualizations</span>
+                </a>
+                <a href="#" class="nav-menu-item" id="navAds" onclick="navigateToView('ads'); return false;">
+                    <span>Ads</span>
                 </a>
                 <a href="#" class="nav-menu-item" id="navInsights" onclick="navigateToView('insights'); return false;">
                     <span>Insights</span>
@@ -5930,10 +5942,12 @@
             const vizSection = document.getElementById('visualizations-section');
             const insightsSection = document.getElementById('insights-section');
             const historySection = document.getElementById('history-section');
+            const adsSection = document.getElementById('ads-section');
             const settingsSection = document.getElementById('settings-section');
             const navVisualizations = document.getElementById('navVisualizations');
             const navInsights = document.getElementById('navInsights');
             const navHistory = document.getElementById('navHistory');
+            const navAds = document.getElementById('navAds');
             const navSettings = document.getElementById('navSettings');
             const mainContainer = document.getElementById('mainContainer');
             
@@ -5974,6 +5988,16 @@
                     historySection.style.overflow = 'hidden';
                 }
             }
+            if (adsSection) {
+                adsSection.classList.remove('active');
+                if (!adsSection.classList.contains('active')) {
+                    adsSection.style.display = 'none';
+                    adsSection.style.height = '0';
+                    adsSection.style.minHeight = '0';
+                    adsSection.style.maxHeight = '0';
+                    adsSection.style.overflow = 'hidden';
+                }
+            }
             if (settingsSection) {
                 settingsSection.classList.remove('active');
                 if (!settingsSection.classList.contains('active')) {
@@ -5989,6 +6013,7 @@
             if (navVisualizations) navVisualizations.classList.remove('active');
             if (navInsights) navInsights.classList.remove('active');
             if (navHistory) navHistory.classList.remove('active');
+            if (navAds) navAds.classList.remove('active');
             if (navSettings) navSettings.classList.remove('active');
             
             // Show selected section and update nav - CSS class will handle the showing
@@ -6148,6 +6173,35 @@
                 if (typeof initHistoryPage === 'function' && !window.historyInitialized) {
                     initHistoryPage();
                 }
+            } else if (viewName === 'ads') {
+                if (adsSection) {
+                    adsSection.classList.add('active');
+                    // Reset styles for active section
+                    adsSection.style.display = '';
+                    adsSection.style.height = '';
+                    adsSection.style.minHeight = '';
+                    adsSection.style.maxHeight = '';
+                    adsSection.style.overflow = '';
+                }
+                if (navAds) navAds.classList.add('active');
+                // Remove min-height constraint for ads to allow natural sizing
+                if (mainContainer) {
+                    mainContainer.style.minHeight = 'auto';
+                    mainContainer.style.height = 'auto';
+                    mainContainer.setAttribute('data-view', 'ads');
+                }
+                
+                // Initialize ads page
+                window.adsInitialized = false;
+                if (typeof initAdsPage === 'function') {
+                    initAdsPage();
+                }
+                
+                // Scroll to top to ensure ads section is visible
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (mainContainer && mainContainer.scrollTop > 0) {
+                    mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
+                }
             } else if (viewName === 'settings') {
                 if (settingsSection) {
                     settingsSection.classList.add('active');
@@ -6186,6 +6240,8 @@
                 hash = '#/insights';
             } else if (viewName === 'history') {
                 hash = '#/history';
+            } else if (viewName === 'ads') {
+                hash = '#/ads';
             } else if (viewName === 'settings') {
                 hash = '#/settings';
             }
@@ -6200,6 +6256,8 @@
                 navigateToView('insights');
             } else if (hash === '#/history') {
                 navigateToView('history');
+            } else if (hash === '#/ads') {
+                navigateToView('ads');
             } else if (hash === '#/settings') {
                 navigateToView('settings');
             } else {
@@ -6214,6 +6272,8 @@
                 navigateToView('insights');
             } else if (hash === '#/history') {
                 navigateToView('history');
+            } else if (hash === '#/ads') {
+                navigateToView('ads');
             } else if (hash === '#/settings') {
                 navigateToView('settings');
             } else {
@@ -15329,6 +15389,17 @@
             </table>
         </div>
     </div> <!-- End history-section -->
+
+    <!-- Ads Section -->
+    <div id="ads-section" class="spa-section">
+        <div class="ads-container">
+            <div class="ads-header">
+                <h2>Saved Ads</h2>
+                <p class="ads-subtitle">Facebook ads ready for export</p>
+            </div>
+            <div id="adsGrid" class="ads-grid"></div>
+        </div>
+    </div> <!-- End ads-section -->
 
     <!-- Settings Section -->
     <div id="settings-section" class="spa-section">

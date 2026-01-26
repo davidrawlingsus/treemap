@@ -1,0 +1,270 @@
+/**
+ * Ads Page Styles
+ * Uses CSS custom properties from app.css for theming consistency
+ */
+
+/* Container */
+.ads-container {
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+    background: #f5f7fb;
+    min-height: calc(100vh - 120px);
+}
+
+/* Header */
+.ads-header {
+    margin-bottom: 24px;
+}
+
+.ads-header h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0 0 8px 0;
+}
+
+.ads-subtitle {
+    font-size: 0.875rem;
+    color: var(--muted);
+    margin: 0;
+}
+
+/* Grid Layout */
+.ads-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+    gap: 24px;
+}
+
+/* Empty State */
+.ads-empty {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--muted);
+}
+
+.ads-empty__icon {
+    font-size: 3rem;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.ads-empty__title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0 0 8px 0;
+}
+
+.ads-empty__text {
+    font-size: 0.875rem;
+    margin: 0;
+}
+
+/* Loading State */
+.ads-loading {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--muted);
+}
+
+/* Error State */
+.ads-error {
+    text-align: center;
+    padding: 48px 24px;
+    color: var(--muted);
+}
+
+.ads-error__text {
+    margin-bottom: 16px;
+}
+
+.ads-error__retry {
+    padding: 8px 16px;
+    background: var(--brand-color);
+    color: var(--text);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.ads-error__retry:hover {
+    opacity: 0.9;
+}
+
+/* Ad Card */
+.ads-card {
+    background: #ffffff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.ads-card:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+}
+
+/* Card Header */
+.ads-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+}
+
+.ads-card__status {
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.ads-card__status--draft {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.ads-card__status--ready {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.ads-card__status--exported {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.ads-card__delete {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.ads-card__delete:hover {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+/* Ad Mockup Container */
+.ads-card__mockup {
+    padding: 16px;
+}
+
+/* Collapsible Details */
+.ads-card__details {
+    border-top: 1px solid var(--border);
+}
+
+.ads-card__toggle {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--bg);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text);
+    transition: background 0.2s ease;
+}
+
+.ads-card__toggle:hover {
+    background: var(--border);
+}
+
+.ads-card__toggle-icon {
+    font-size: 0.75rem;
+    transition: transform 0.2s ease;
+}
+
+.ads-card__details.expanded .ads-card__toggle-icon {
+    transform: rotate(180deg);
+}
+
+.ads-card__details-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.ads-card__details.expanded .ads-card__details-content {
+    max-height: 500px;
+}
+
+.ads-card__details-inner {
+    padding: 16px;
+}
+
+/* Detail Section */
+.ads-card__detail-section {
+    margin-bottom: 16px;
+}
+
+.ads-card__detail-section:last-child {
+    margin-bottom: 0;
+}
+
+.ads-card__detail-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+
+.ads-card__detail-value {
+    font-size: 0.875rem;
+    color: var(--text);
+    line-height: 1.5;
+}
+
+/* VoC Evidence List */
+.ads-card__voc-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.ads-card__voc-item {
+    font-style: italic;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.875rem;
+    color: var(--text);
+}
+
+.ads-card__voc-item:last-child {
+    border-bottom: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .ads-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .ads-container {
+        padding: 16px;
+    }
+}

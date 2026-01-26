@@ -10,6 +10,7 @@ from app.models.authorized_email import AuthorizedEmail, AuthorizedEmailClient
 from app.models.insight import Insight
 from app.models.prompt import Prompt, PromptHelperPrompt, PromptClient
 from app.models.action import Action
+from app.models.facebook_ad import FacebookAd
 
 __all__ = [
     "Client",
@@ -28,6 +29,7 @@ __all__ = [
     "PromptHelperPrompt",
     "PromptClient",
     "Action",
+    "FacebookAd",
 ]
 
 

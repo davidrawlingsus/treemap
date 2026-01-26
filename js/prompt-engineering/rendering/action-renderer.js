@@ -382,6 +382,90 @@
     }
 
     /**
+     * Check if idea data is in Facebook ad format
+     * @param {Object} ideaData - Idea data object
+     * @returns {boolean} True if Facebook ad format
+     */
+    function isFacebookAdFormat(ideaData) {
+        return !!(ideaData.primary_text && ideaData.headline && ideaData.call_to_action);
+    }
+
+    /**
+     * Create a Facebook ad from idea card data
+     * @param {Object} ideaData - Facebook ad data object
+     * @returns {Promise<Object>} Created ad object
+     */
+    async function createFacebookAdFromIdeaCard(ideaData) {
+        // Get current client ID
+        const currentClientId = getCurrentClientId();
+        if (!currentClientId) {
+            throw new Error('No client selected. Please select a client first.');
+        }
+
+        // Get API base URL
+        const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+
+        // Get auth headers
+        let getAuthHeaders;
+        if (typeof window.getAuthHeaders === 'function') {
+            getAuthHeaders = window.getAuthHeaders;
+        } else if (typeof window.Auth !== 'undefined' && typeof window.Auth.getAuthHeaders === 'function') {
+            getAuthHeaders = window.Auth.getAuthHeaders;
+        } else {
+            throw new Error('Authentication not available. Please log in again.');
+        }
+
+        // Get slideout panel context for action_id link
+        const slideoutPanel = window.SlideoutPanel;
+        const actionId = slideoutPanel?.currentActionId || null;
+
+        // Map Facebook ad fields
+        const adData = {
+            primary_text: ideaData.primary_text,
+            headline: ideaData.headline,
+            description: ideaData.description || null,
+            call_to_action: ideaData.call_to_action,
+            destination_url: ideaData.destination_url || null,
+            image_hash: ideaData.image_hash || null,
+            voc_evidence: ideaData.voc_evidence || [],
+            full_json: ideaData, // Preserve complete JSON for FB API
+            action_id: actionId,
+            status: 'draft'
+        };
+
+        // Create the Facebook ad via API
+        const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/facebook-ads`, {
+            method: 'POST',
+            headers: {
+                ...getAuthHeaders(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(adData)
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ detail: 'Failed to create Facebook ad' }));
+            
+            let errorMessage = 'Failed to create Facebook ad';
+            if (Array.isArray(error.detail)) {
+                const errorMessages = error.detail.map(err => {
+                    const field = err.loc && err.loc.length > 1 ? err.loc[err.loc.length - 1] : 'field';
+                    return `${field}: ${err.msg}`;
+                });
+                errorMessage = errorMessages.join('; ') || errorMessage;
+            } else if (error.detail) {
+                errorMessage = typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail);
+            } else if (response.statusText) {
+                errorMessage = `Failed to create Facebook ad: ${response.statusText}`;
+            }
+            
+            throw new Error(errorMessage);
+        }
+
+        return await response.json();
+    }
+
+    /**
      * Create an insight from idea card data
      * @param {Object} ideaData - Idea card data object
      * @returns {Promise<void>}
@@ -548,9 +632,35 @@
             button.style.cursor = 'wait';
 
             try {
-                // Create insight
-                const newInsight = await createInsightFromIdeaCard(ideaData);
-                console.log('[ACTION_RENDERER] Insight created successfully:', newInsight);
+                // Check if this is a Facebook ad format
+                const isFBAd = isFacebookAdFormat(ideaData);
+                let successMessage;
+                
+                if (isFBAd) {
+                    // Create Facebook ad
+                    const newAd = await createFacebookAdFromIdeaCard(ideaData);
+                    console.log('[ACTION_RENDERER] Facebook ad created successfully:', newAd);
+                    successMessage = 'Ad added to Ads tab';
+                    button.title = 'Added to Ads';
+                    
+                    // Clear ads cache so it reloads when user visits Ads tab
+                    if (window.adsStateModule?.clearAdsState) {
+                        window.adsStateModule.clearAdsState();
+                    }
+                } else {
+                    // Create insight
+                    const newInsight = await createInsightFromIdeaCard(ideaData);
+                    console.log('[ACTION_RENDERER] Insight created successfully:', newInsight);
+                    successMessage = 'Idea added to insights';
+                    button.title = 'Added to insights';
+                    
+                    // Refresh insights list if available
+                    if (typeof window.loadInsightsPage === 'function') {
+                        window.loadInsightsPage();
+                    } else if (typeof window.loadInsights === 'function') {
+                        window.loadInsights();
+                    }
+                }
 
                 // Update button to show success state
                 // Works for both .pe-idea-card and .pe-fb-ad-wrapper containers
@@ -559,18 +669,10 @@
                 button.innerHTML = `<img src="${DONE_CHECK_IMAGE_URL}" alt="Added" style="width: 70%; height: 70%; object-fit: contain;" />`;
                 button.style.opacity = '1';
                 button.style.cursor = 'default';
-                button.title = 'Added to insights';
-
-                // Refresh insights list if available
-                if (typeof window.loadInsightsPage === 'function') {
-                    window.loadInsightsPage();
-                } else if (typeof window.loadInsights === 'function') {
-                    window.loadInsights();
-                }
 
                 // Show brief success feedback
                 const successMsg = document.createElement('div');
-                successMsg.textContent = 'Idea added to insights';
+                successMsg.textContent = successMessage;
                 successMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #B9F040; color: #000; padding: 12px 20px; border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000; font-size: 14px; font-weight: 500;';
                 document.body.appendChild(successMsg);
                 setTimeout(() => {
@@ -580,7 +682,7 @@
                 }, 2000);
 
             } catch (error) {
-                console.error('[ACTION_RENDERER] Failed to create insight:', error);
+                console.error('[ACTION_RENDERER] Failed to create:', error);
                 
                 // Reset button state
                 button.disabled = false;
@@ -590,7 +692,7 @@
                 button.style.cursor = 'pointer';
 
                 // Show error message
-                alert('Error: ' + (error.message || 'Failed to add idea to insights'));
+                alert('Error: ' + (error.message || 'Failed to save'));
             }
         });
         

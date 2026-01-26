@@ -411,7 +411,7 @@
     /* Reset inherited typography that could break layout */
     margin: 0 !important;
     padding: 0 !important;
-    border: none !important;
+    /* border controlled by inline styles for flexibility */
     /* Establish fresh styling */
     display: block;
     width: 100%;
