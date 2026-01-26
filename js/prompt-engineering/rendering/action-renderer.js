@@ -419,6 +419,18 @@
         const slideoutPanel = window.SlideoutPanel;
         const actionId = slideoutPanel?.currentActionId || null;
 
+        // #region agent log
+        console.log('[DEBUG H1] ideaData received:', {
+            hasImageHash: 'image_hash' in ideaData,
+            imageHashValue: ideaData.image_hash,
+            hasImagePrompt: 'image_prompt' in ideaData,
+            imagePromptValue: ideaData.image_prompt,
+            allKeys: Object.keys(ideaData),
+            vocEvidence: ideaData.voc_evidence,
+            timestamp: Date.now()
+        });
+        // #endregion
+        
         // Map Facebook ad fields
         const adData = {
             primary_text: ideaData.primary_text,
@@ -426,12 +438,20 @@
             description: ideaData.description || null,
             call_to_action: ideaData.call_to_action,
             destination_url: ideaData.destination_url || null,
-            image_hash: ideaData.image_hash || null,
+            image_hash: ideaData.image_hash || ideaData.image_prompt || null,
             voc_evidence: ideaData.voc_evidence || [],
             full_json: ideaData, // Preserve complete JSON for FB API
             action_id: actionId,
             status: 'draft'
         };
+        
+        // #region agent log
+        console.log('[DEBUG H2] adData being sent:', {
+            imageHash: adData.image_hash,
+            vocEvidence: adData.voc_evidence,
+            timestamp: Date.now()
+        });
+        // #endregion
 
         // Create the Facebook ad via API
         const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/facebook-ads`, {
