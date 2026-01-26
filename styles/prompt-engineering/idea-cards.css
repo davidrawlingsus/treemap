@@ -408,8 +408,7 @@
 
 /* The actual Facebook Ad Mock - isolated from parent styles */
 .pe-fb-ad {
-    /* Reset inherited typography that could break layout */
-    margin: 0 !important;
+    /* Margin controlled by inline styles for flexibility */
     padding: 0 !important;
     /* border controlled by inline styles for flexibility */
     /* Establish fresh styling */
