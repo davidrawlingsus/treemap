@@ -437,6 +437,9 @@
 
         // Remove loading spinner and add action buttons
         if (actionsDiv) {
+            // #region agent log
+            try{fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'streaming-renderer.js:finalizeStreamingItem',message:'Adding action button images via innerHTML',data:{streamingId,buttonCount:4},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2-race-condition'})}).catch(()=>{});}catch(e){}
+            // #endregion agent log
             actionsDiv.innerHTML = `
                 <button class="btn-nav-prev" data-action-id="streaming-${streamingId}" title="Previous message">
                     <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1767496461750-8ikag.png" alt="Previous" width="16" height="16">
