@@ -421,17 +421,20 @@
 
         // #region agent log
         console.log('[DEBUG H1] ideaData received - ALL KEYS:', Object.keys(ideaData).join(', '));
-        console.log('[DEBUG H1] ideaData full object:', JSON.stringify(ideaData, null, 2));
+        console.log('[DEBUG H1] media object:', ideaData.media);
         // #endregion
         
         // Map Facebook ad fields
+        // Note: image_hash can be at top level OR nested inside media object
+        const imageHash = ideaData.image_hash || ideaData.media?.image_hash || null;
+        
         const adData = {
             primary_text: ideaData.primary_text,
             headline: ideaData.headline,
             description: ideaData.description || null,
             call_to_action: ideaData.call_to_action,
             destination_url: ideaData.destination_url || null,
-            image_hash: ideaData.image_hash || ideaData.image_prompt || null,
+            image_hash: imageHash,
             voc_evidence: ideaData.voc_evidence || [],
             full_json: ideaData, // Preserve complete JSON for FB API
             action_id: actionId,
@@ -441,7 +444,7 @@
         // #region agent log
         console.log('[DEBUG H2] adData being sent:', {
             imageHash: adData.image_hash,
-            vocEvidence: adData.voc_evidence,
+            vocEvidenceCount: adData.voc_evidence?.length,
             timestamp: Date.now()
         });
         // #endregion
