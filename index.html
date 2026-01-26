@@ -9,6 +9,14 @@
   gtag('js', new Date());
 
   gtag('config', 'G-ZHSFGWQMSN');
+  
+  // #region agent log - Track image loading errors
+  window.addEventListener('error', function(e) {
+    if (e.target && e.target.tagName === 'IMG') {
+      console.log('[DEBUG H2-ORB] IMG load error:', {src:e.target.src?.substring(0,150),alt:e.target.alt,id:e.target.id,timestamp:Date.now()});
+    }
+  }, true);
+  // #endregion
 </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
@@ -50,6 +58,9 @@
     
     <!-- Utility modules (ES modules) -->
     <script type="module">
+        // #region agent log
+        console.log('[DEBUG H1-A] Module script START executing:', {timestamp:Date.now()});
+        // #endregion
         import { adjustBrightness } from '/js/utils/colors.js';
         import { getStateCode, stateNameToCode, fipsToStateCode, getDimensionDisplayName as formatGetDimensionDisplayName, highlightSearchTerms as formatHighlightSearchTerms, toPascalCase as formatToPascalCase } from '/js/utils/format.js';
         import { debounce, escapeHtml, escapeHtmlForAttribute } from '/js/utils/dom.js';
@@ -414,6 +425,9 @@
         window.appStateSetCurrentClientId = appStateSetCurrentClientId;
         window.appStateGetCurrentProjectName = appStateGetCurrentProjectName;
         window.appStateSetCurrentProjectName = appStateSetCurrentProjectName;
+        // #region agent log
+        console.log('[DEBUG H1-A] Window functions ASSIGNED:', {appStateSetCurrentProjectName:typeof window.appStateSetCurrentProjectName,timestamp:Date.now()});
+        // #endregion
         window.appStateGetCurrentDataSourceId = appStateGetCurrentDataSourceId;
         window.appStateSetCurrentDataSourceId = appStateSetCurrentDataSourceId;
         window.appStateGetCurrentQuestionRefKey = appStateGetCurrentQuestionRefKey;
@@ -1126,6 +1140,9 @@
     </div>
 
     <script>
+        // #region agent log
+        console.log('[DEBUG H1-A] Regular script START executing:', {windowFnExists:typeof window.appStateSetCurrentProjectName,timestamp:Date.now()});
+        // #endregion
         // Configuration - dynamically set to container size
         let width = 1200; // Will be updated when container is available
         let height = 600; // Will be updated when container is available
@@ -1936,6 +1953,9 @@
         }
 
         function handleAuthenticatedUser(userInfo) {
+            // #region agent log
+            console.log('[DEBUG H1-A] handleAuthenticatedUser CALLED:', {windowFnExists:typeof window.appStateSetCurrentProjectName,userEmail:userInfo?.email,timestamp:Date.now()});
+            // #endregion
             if (!userInfo) {
                 return;
             }
@@ -10015,6 +10035,9 @@
 
         // Removed: closeInsightNotesPanel button event listener - now using SlideoutPanel's close button
         
+        // #region agent log
+        console.log('[DEBUG H1-A] Auth.checkAuth CALLED from regular script:', {windowFnExists:typeof window.appStateSetCurrentProjectName,timestamp:Date.now()});
+        // #endregion
         const authCheck = typeof Auth !== 'undefined' ? Auth.checkAuth() : Promise.resolve(false);
         authCheck.then(authenticated => {
             console.log('Auth check result:', authenticated);
