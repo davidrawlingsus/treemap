@@ -10,6 +10,12 @@ let adsLoading = false;
 let adsError = null;
 let adsCurrentClientId = null;
 
+// Filter/Sort/Search state
+let adsSearchTerm = '';
+let adsFilters = [];  // [{field: 'testType', value: 'Social Proof'}, ...]
+let adsSortBy = 'created_at';
+let adsSortOrder = 'desc';
+
 /**
  * Get cached ads
  * @returns {Array} Array of ad objects
@@ -81,6 +87,116 @@ export function clearAdsState() {
     adsCache = [];
     adsLoading = false;
     adsError = null;
+    adsSearchTerm = '';
+    adsFilters = [];
+    adsSortBy = 'created_at';
+    adsSortOrder = 'desc';
+}
+
+// ============ Search State ============
+
+/**
+ * Get search term
+ * @returns {string} Current search term
+ */
+export function getAdsSearchTerm() {
+    return adsSearchTerm;
+}
+
+/**
+ * Set search term
+ * @param {string} term - Search term
+ */
+export function setAdsSearchTerm(term) {
+    adsSearchTerm = term;
+}
+
+// ============ Filter State ============
+
+/**
+ * Get active filters
+ * @returns {Array} Array of filter objects [{field, value}, ...]
+ */
+export function getAdsFilters() {
+    return adsFilters;
+}
+
+/**
+ * Set filters
+ * @param {Array} filters - Array of filter objects
+ */
+export function setAdsFilters(filters) {
+    adsFilters = filters;
+}
+
+/**
+ * Add a filter
+ * @param {string} field - Field name (testType, origin)
+ * @param {string} value - Filter value
+ */
+export function addAdsFilter(field, value) {
+    // Don't add duplicates
+    const exists = adsFilters.some(f => f.field === field && f.value === value);
+    if (!exists) {
+        adsFilters = [...adsFilters, { field, value }];
+    }
+}
+
+/**
+ * Remove a filter
+ * @param {string} field - Field name
+ * @param {string} value - Filter value
+ */
+export function removeAdsFilter(field, value) {
+    adsFilters = adsFilters.filter(f => !(f.field === field && f.value === value));
+}
+
+/**
+ * Clear all filters
+ */
+export function clearAdsFilters() {
+    adsFilters = [];
+}
+
+// ============ Sort State ============
+
+/**
+ * Get sort field
+ * @returns {string} Current sort field
+ */
+export function getAdsSortBy() {
+    return adsSortBy;
+}
+
+/**
+ * Set sort field
+ * @param {string} field - Sort field name
+ */
+export function setAdsSortBy(field) {
+    adsSortBy = field;
+}
+
+/**
+ * Get sort order
+ * @returns {string} 'asc' or 'desc'
+ */
+export function getAdsSortOrder() {
+    return adsSortOrder;
+}
+
+/**
+ * Set sort order
+ * @param {string} order - 'asc' or 'desc'
+ */
+export function setAdsSortOrder(order) {
+    adsSortOrder = order;
+}
+
+/**
+ * Toggle sort order
+ */
+export function toggleAdsSortOrder() {
+    adsSortOrder = adsSortOrder === 'asc' ? 'desc' : 'asc';
 }
 
 /**
@@ -111,5 +227,20 @@ window.adsStateModule = {
     setAdsCurrentClientId,
     clearAdsState,
     removeAdFromCache,
-    addAdToCache
+    addAdToCache,
+    // Search
+    getAdsSearchTerm,
+    setAdsSearchTerm,
+    // Filters
+    getAdsFilters,
+    setAdsFilters,
+    addAdsFilter,
+    removeAdsFilter,
+    clearAdsFilters,
+    // Sort
+    getAdsSortBy,
+    setAdsSortBy,
+    getAdsSortOrder,
+    setAdsSortOrder,
+    toggleAdsSortOrder
 };

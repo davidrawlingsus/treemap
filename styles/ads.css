@@ -3,6 +3,207 @@
  * Uses CSS custom properties from app.css for theming consistency
  */
 
+/* ============ Control Bar Overrides ============ */
+
+#ads-section .control-bar {
+    padding: 8px 35px;
+    border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+    background: white;
+}
+
+#ads-section .search-box {
+    position: relative;
+    align-items: center;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 8px 36px 8px 12px;
+    min-width: 200px;
+    max-width: 360px;
+    width: 260px;
+    flex: 0 0 auto;
+}
+
+#ads-section .search-box input {
+    border: none;
+    background: transparent;
+    outline: none;
+    font-size: 14px;
+    padding: 0;
+    width: 100%;
+}
+
+#ads-section .search-box input::placeholder {
+    color: rgba(55, 53, 47, 0.4);
+}
+
+#ads-section .search-box:focus-within {
+    border-color: #B9F040 !important;
+    box-shadow: 0 0 0 3px rgba(185, 240, 64, 0.1) !important;
+}
+
+#ads-section .filter-button {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+#ads-section .filter-button:hover,
+#ads-section .filter-button:focus,
+#ads-section .filter-button:focus-visible {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* Sort Button */
+#ads-section .sort-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    background: transparent;
+    border: 1px solid rgba(55, 53, 47, 0.16);
+    border-radius: 6px;
+    font-size: 14px;
+    color: #37352f;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+#ads-section .sort-button:hover {
+    background: rgba(55, 53, 47, 0.03);
+    border-color: rgba(55, 53, 47, 0.3);
+}
+
+/* Sort Dropdown */
+#ads-section .sort-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    background: white;
+    border: 1px solid rgba(55, 53, 47, 0.16);
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    z-index: 1000;
+    min-width: 160px;
+    display: none;
+    overflow: hidden;
+    margin-top: 4px;
+}
+
+#ads-section .sort-dropdown.active {
+    display: block;
+}
+
+#ads-section .sort-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 10px 14px;
+    background: transparent;
+    border: none;
+    font-size: 14px;
+    color: #37352f;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s ease;
+}
+
+#ads-section .sort-option:hover {
+    background: rgba(55, 53, 47, 0.06);
+}
+
+#ads-section .sort-check {
+    color: #B9F040;
+    font-weight: 600;
+}
+
+/* Filter Dropdown Group */
+#ads-section .filter-dropdown-group {
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+}
+
+#ads-section .filter-dropdown-group:last-child {
+    border-bottom: none;
+}
+
+#ads-section .filter-dropdown-group-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: rgba(55, 53, 47, 0.5);
+    padding: 8px 14px 4px;
+}
+
+#ads-section .filter-dropdown-option {
+    display: block;
+    width: 100%;
+    padding: 8px 14px;
+    background: transparent;
+    border: none;
+    font-size: 14px;
+    color: #37352f;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s ease;
+}
+
+#ads-section .filter-dropdown-option:hover {
+    background: rgba(55, 53, 47, 0.06);
+}
+
+#ads-section .filter-dropdown-empty {
+    padding: 16px;
+    text-align: center;
+    color: rgba(55, 53, 47, 0.5);
+    font-size: 14px;
+}
+
+/* Active Filter Items */
+#ads-section .filter-active-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    background: rgba(185, 240, 64, 0.15);
+    border-radius: 4px;
+    margin-bottom: 6px;
+    font-size: 13px;
+}
+
+#ads-section .filter-active-item:last-child {
+    margin-bottom: 0;
+}
+
+#ads-section .filter-active-field {
+    color: rgba(55, 53, 47, 0.6);
+    font-size: 12px;
+}
+
+#ads-section .filter-active-value {
+    color: #37352f;
+    flex: 1;
+}
+
+#ads-section .filter-active-remove {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: rgba(55, 53, 47, 0.5);
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 2px;
+    transition: color 0.15s ease;
+}
+
+#ads-section .filter-active-remove:hover {
+    color: #dc2626;
+}
+
 /* Container */
 .ads-container {
     padding: 24px;
@@ -30,35 +231,48 @@
     margin: 0;
 }
 
-/* Masonry Layout using CSS Columns with explicit column counts */
-/* Breakpoints calculated for ~390px minimum card width */
+/* Masonry Layout - uses Masonry.js for tight packing with horizontal reading order */
 .ads-grid {
-    column-count: 2;
-    column-gap: 24px;
+    position: relative;
 }
 
-/* Responsive column counts for 390px min card width */
+/* Grid sizer element for Masonry to calculate column widths */
+.ads-grid-sizer,
+.ads-card {
+    width: calc(50% - 12px); /* 2 columns with 24px gap */
+}
+
+/* Gutter sizer for Masonry */
+.ads-gutter-sizer {
+    width: 24px;
+}
+
+/* Responsive column widths */
 @media (min-width: 1270px) {
-    .ads-grid {
-        column-count: 3;
+    .ads-grid-sizer,
+    .ads-card {
+        width: calc(33.333% - 16px); /* 3 columns */
     }
 }
 
 @media (min-width: 1680px) {
-    .ads-grid {
-        column-count: 4;
+    .ads-grid-sizer,
+    .ads-card {
+        width: calc(25% - 18px); /* 4 columns */
     }
 }
 
 @media (min-width: 2100px) {
-    .ads-grid {
-        column-count: 5;
+    .ads-grid-sizer,
+    .ads-card {
+        width: calc(20% - 19.2px); /* 5 columns */
     }
 }
 
 @media (min-width: 2510px) {
-    .ads-grid {
-        column-count: 6;
+    .ads-grid-sizer,
+    .ads-card {
+        width: calc(16.666% - 20px); /* 6 columns */
     }
 }
 
@@ -127,9 +341,7 @@
     overflow: hidden;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     transition: box-shadow 0.2s ease, transform 0.2s ease;
-    /* Masonry layout: prevent card from breaking across columns */
-    break-inside: avoid;
-    margin-bottom: 24px;
+    margin-bottom: 24px; /* Vertical gap for Masonry */
 }
 
 .ads-card:hover {
@@ -316,8 +528,9 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-    .ads-grid {
-        column-count: 1;
+    .ads-grid-sizer,
+    .ads-card {
+        width: 100%; /* Single column on mobile */
     }
     
     .ads-container {

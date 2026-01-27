@@ -33,6 +33,8 @@
     <script src="/js/utils/image-monitor.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/topojson@3"></script>
+    <!-- Masonry layout for Ads grid -->
+    <script src="https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js"></script>
     <!-- Tiptap WYSIWYG Editor - will be loaded as ES module when needed -->
     
     <!-- Prompt Engineering Rendering Modules (for AI Expert feature) -->
@@ -339,8 +341,9 @@
             processTopicsData as chartRendererProcessTopicsData
         } from '/js/renderers/chart-renderer.js';
         import {
-            initAdsPage as adsRendererInitAdsPage
-        } from '/js/renderers/ads-renderer.js';
+            initAdsPage as adsControllerInitAdsPage,
+            renderAdsPage as adsControllerRenderAdsPage
+        } from '/js/controllers/ads-controller.js';
         import {
             clearAdsState as adsStateClearAdsState
         } from '/js/state/ads-state.js';
@@ -549,8 +552,9 @@
         // Make renderers available globally for backward compatibility
         window.insightsRendererRenderInsights = insightsRendererRenderInsights;
         window.historyRendererRenderHistoryTable = historyRendererRenderHistoryTable;
-        window.adsRendererInitAdsPage = adsRendererInitAdsPage;
-        window.initAdsPage = adsRendererInitAdsPage;
+        window.adsControllerInitAdsPage = adsControllerInitAdsPage;
+        window.initAdsPage = adsControllerInitAdsPage;
+        window.renderAdsPage = adsControllerRenderAdsPage;
         window.verbatimsRendererRenderVerbatims = verbatimsRendererRenderVerbatims;
         window.treemapRendererRenderTreemap = treemapRendererRenderTreemap;
         window.chartRendererRenderBarChart = chartRendererRenderBarChart;
@@ -15420,11 +15424,79 @@
 
     <!-- Ads Section -->
     <div id="ads-section" class="spa-section">
-        <div class="ads-container">
-            <div class="ads-header">
-                <h2>Saved Ads</h2>
-                <p class="ads-subtitle">Facebook ads ready for export</p>
+        <div class="control-bar" style="position: relative;">
+            <h1 style="margin: 0; font-size: 20px; font-weight: 600; color: #37352f; margin-right: 0.5rem;">Saved Ads</h1>
+            <div class="search-box ads-section-search">
+                <input
+                    type="text"
+                    id="adsSearchInput"
+                    placeholder="Search ads..."
+                    oninput="handleAdsSearch()"
+                    onfocus="updateAdsSearchClearButton()"
+                >
+                <button
+                    id="adsSearchClear"
+                    onclick="clearAdsSearch()"
+                    title="Clear search"
+                    style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 0; display: none; color: #666; font-size: 20px; line-height: 1; width: 24px; height: 24px; align-items: center; justify-content: center; border-radius: 3px;"
+                >&times;</button>
             </div>
+            <div class="filter-chips" id="adsFilterChips"></div>
+            <div style="position: relative;">
+                <button class="filter-button" onclick="toggleAdsFilterMenu(event)" id="adsFilterMenuBtn" type="button" aria-label="Open filters">
+                    <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/filter_list.svg" alt="" aria-hidden="true">
+                    <span id="adsFilterBadge" class="filter-badge" aria-hidden="true"></span>
+                </button>
+                
+                <!-- Filter Dropdown Menu -->
+                <div class="filter-dropdown" id="adsFilterDropdown">
+                    <div class="filter-dropdown-search">
+                        <input type="text" id="adsFilterSearchInput" placeholder="Filter by..." oninput="filterAdsFilterOptions()">
+                    </div>
+                    <div class="filter-dropdown-list" id="adsFilterOptionsList">
+                        <!-- Filter options will be populated here -->
+                    </div>
+                    <div class="filter-active-filters" id="adsActiveFiltersSection" style="display: none;">
+                        <div class="filter-active-filters-title">Active filters</div>
+                        <div id="adsActiveFiltersList"></div>
+                    </div>
+                </div>
+            </div>
+            <div style="position: relative;">
+                <button class="sort-button" onclick="toggleAdsSortMenu(event)" id="adsSortMenuBtn" type="button" aria-label="Sort options">
+                    <span id="adsSortLabel">Newest first</span>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-left: 4px;">
+                        <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                
+                <!-- Sort Dropdown Menu -->
+                <div class="sort-dropdown" id="adsSortDropdown">
+                    <button class="sort-option" data-sort="desc" onclick="setAdsSortOrder('desc')">
+                        <span>Newest first</span>
+                        <span class="sort-check" id="adsSortCheckDesc">✓</span>
+                    </button>
+                    <button class="sort-option" data-sort="asc" onclick="setAdsSortOrder('asc')">
+                        <span>Oldest first</span>
+                        <span class="sort-check" id="adsSortCheckAsc"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Filter Value Selection Dialog -->
+        <div class="filter-dialog-overlay" id="adsFilterDialogOverlay" onclick="closeAdsFilterValueDialog()"></div>
+        <div class="filter-value-dialog" id="adsFilterValueDialog">
+            <div class="filter-value-dialog-header">
+                <div class="filter-value-dialog-title" id="adsFilterValueDialogTitle">Select value</div>
+                <button class="filter-value-dialog-close" onclick="closeAdsFilterValueDialog()">&times;</button>
+            </div>
+            <div class="filter-value-dialog-body" id="adsFilterValueDialogBody">
+                <!-- Filter value options will be populated here -->
+            </div>
+        </div>
+
+        <div class="ads-container">
             <div id="adsGrid" class="ads-grid"></div>
         </div>
     </div> <!-- End ads-section -->

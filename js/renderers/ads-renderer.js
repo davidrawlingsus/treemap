@@ -1,72 +1,21 @@
 /**
  * Ads Renderer Module
- * Renders Facebook ads in a grid layout with collapsible details.
- * Follows renderer pattern - accepts container and data, handles DOM, does not modify global state directly.
+ * Pure rendering functions for Facebook ads grid and cards.
+ * Follows renderer pattern - accepts container and data, handles DOM only.
  */
 
-import { fetchFacebookAds, deleteFacebookAd } from '/js/services/api-facebook-ads.js';
-import { 
-    getAdsCache, setAdsCache, setAdsLoading, setAdsError, 
-    getAdsCurrentClientId, setAdsCurrentClientId, removeAdFromCache 
-} from '/js/state/ads-state.js';
-import { escapeHtml, escapeHtmlForAttribute } from '/js/utils/dom.js';
+import { deleteFacebookAd } from '/js/services/api-facebook-ads.js';
+import { getAdsCache, removeAdFromCache, getAdsSearchTerm, getAdsFilters } from '/js/state/ads-state.js';
+import { escapeHtml } from '/js/utils/dom.js';
 
-/**
- * Initialize the Ads page - load and render ads
- */
-export async function initAdsPage() {
-    const container = document.getElementById('adsGrid');
-    if (!container) {
-        console.error('[AdsRenderer] adsGrid container not found');
-        return;
-    }
-    
-    // Get current client ID
-    const clientId = window.appStateGet?.('currentClientId') || 
-                     document.getElementById('clientSelect')?.value;
-    
-    if (!clientId) {
-        renderEmpty(container, 'Please select a client first');
-        return;
-    }
-    
-    // Check if we need to reload (client changed or no cache)
-    const cachedClientId = getAdsCurrentClientId();
-    const cachedAds = getAdsCache();
-    
-    if (cachedClientId === clientId && cachedAds.length > 0) {
-        // Use cached data
-        renderAdsGrid(container, cachedAds);
-        return;
-    }
-    
-    // Load fresh data
-    showLoading(container);
-    setAdsLoading(true);
-    setAdsError(null);
-    
-    try {
-        const response = await fetchFacebookAds(clientId);
-        const ads = response.items || [];
-        
-        setAdsCache(ads);
-        setAdsCurrentClientId(clientId);
-        setAdsLoading(false);
-        
-        renderAdsGrid(container, ads);
-    } catch (error) {
-        console.error('[AdsRenderer] Failed to load ads:', error);
-        setAdsLoading(false);
-        setAdsError(error.message);
-        renderError(container, error.message);
-    }
-}
+// Store Masonry instance for cleanup/relayout
+let masonryInstance = null;
 
 /**
  * Show loading state
  * @param {HTMLElement} container - Container element
  */
-function showLoading(container) {
+export function showLoading(container) {
     container.innerHTML = `
         <div class="ads-loading">
             <p>Loading ads...</p>
@@ -79,7 +28,7 @@ function showLoading(container) {
  * @param {HTMLElement} container - Container element
  * @param {string} message - Error message
  */
-function renderError(container, message) {
+export function renderError(container, message) {
     container.innerHTML = `
         <div class="ads-error">
             <p class="ads-error__text">${escapeHtml(message)}</p>
@@ -93,7 +42,7 @@ function renderError(container, message) {
  * @param {HTMLElement} container - Container element
  * @param {string} [message] - Optional custom message
  */
-function renderEmpty(container, message) {
+export function renderEmpty(container, message) {
     container.innerHTML = `
         <div class="ads-empty">
             <div class="ads-empty__icon">📢</div>
@@ -106,18 +55,58 @@ function renderEmpty(container, message) {
 /**
  * Render grid of ad cards
  * @param {HTMLElement} container - Container element
- * @param {Array} ads - Array of ad objects
+ * @param {Array} ads - Array of ad objects (already filtered/sorted)
  */
 export function renderAdsGrid(container, ads) {
+    const allAds = getAdsCache();
+    const hasFiltersOrSearch = getAdsSearchTerm() || getAdsFilters().length > 0;
+    
+    // Destroy existing Masonry instance before re-rendering
+    if (masonryInstance) {
+        masonryInstance.destroy();
+        masonryInstance = null;
+    }
+    
     if (!ads || ads.length === 0) {
-        renderEmpty(container);
+        if (hasFiltersOrSearch && allAds.length > 0) {
+            renderEmpty(container, 'No ads match your search or filters');
+        } else {
+            renderEmpty(container);
+        }
         return;
     }
     
-    container.innerHTML = ads.map(ad => renderAdCard(ad)).join('');
+    // Add sizer elements for Masonry + ad cards
+    container.innerHTML = `
+        <div class="ads-grid-sizer"></div>
+        <div class="ads-gutter-sizer"></div>
+        ${ads.map(ad => renderAdCard(ad)).join('')}
+    `;
     
     // Attach event delegation for interactive elements
     attachEventListeners(container);
+    
+    // Initialize Masonry for horizontal-first reading order
+    initMasonry(container);
+}
+
+/**
+ * Initialize Masonry layout on the container
+ * @param {HTMLElement} container - Grid container element
+ */
+function initMasonry(container) {
+    if (typeof Masonry === 'undefined') {
+        console.warn('[AdsRenderer] Masonry.js not loaded, falling back to CSS layout');
+        return;
+    }
+    
+    masonryInstance = new Masonry(container, {
+        itemSelector: '.ads-card',
+        columnWidth: '.ads-grid-sizer',
+        gutter: '.ads-gutter-sizer',
+        percentPosition: true,
+        horizontalOrder: true
+    });
 }
 
 /**
@@ -130,7 +119,6 @@ function renderAdCard(ad) {
     const status = escapeHtml(ad.status || 'draft');
     const statusClass = `ads-card__status--${status}`;
     
-    // Ad content
     const primaryText = ad.primary_text || '';
     const headline = escapeHtml(ad.headline || '');
     const description = escapeHtml(ad.description || '');
@@ -139,7 +127,6 @@ function renderAdCard(ad) {
     const displayUrl = extractDomain(destinationUrl);
     const vocEvidence = ad.voc_evidence || [];
     
-    // Format primary text for display
     const formattedPrimaryText = formatPrimaryText(primaryText);
     
     // Get client info for the mockup
@@ -148,7 +135,6 @@ function renderAdCard(ad) {
     const clientSelect = document.getElementById('clientSelect');
     const clientName = clientSelect?.selectedOptions?.[0]?.textContent?.trim() || 'Sponsored';
     
-    // VoC evidence HTML
     const vocHtml = vocEvidence.length > 0 
         ? `<ul class="ads-card__voc-list">
             ${vocEvidence.map(quote => `<li class="ads-card__voc-item">"${escapeHtml(quote)}"</li>`).join('')}
@@ -251,8 +237,6 @@ function renderFBAdMockup({ primaryText, headline, description, cta, displayUrl,
 
 /**
  * Format CTA value to sentence case (e.g., SHOP_NOW -> "Shop now")
- * @param {string} cta - CTA value
- * @returns {string} Formatted CTA text
  */
 function formatCTA(cta) {
     if (!cta) return 'Learn more';
@@ -263,8 +247,6 @@ function formatCTA(cta) {
 
 /**
  * Extract domain from URL for display
- * @param {string} url - Full URL
- * @returns {string} Domain only
  */
 function extractDomain(url) {
     if (!url) return 'example.com';
@@ -278,20 +260,16 @@ function extractDomain(url) {
 
 /**
  * Format primary text with proper HTML paragraphs
- * @param {string} text - Raw primary text
- * @returns {string} HTML formatted text
  */
 function formatPrimaryText(text) {
     if (!text) return '';
     
-    // Unescape JSON sequences and normalize line breaks
     let rawText = text
         .replace(/\\n/g, '\n')
         .replace(/\\"/g, '"')
         .replace(/\r\n/g, '\n')
         .replace(/\r/g, '\n');
     
-    // Split into paragraphs
     const paragraphs = rawText.split(/\n{2,}/);
     const formattedParagraphs = paragraphs
         .map(para => para.trim())
@@ -311,7 +289,6 @@ function formatPrimaryText(text) {
 
 /**
  * Attach event listeners using event delegation
- * @param {HTMLElement} container - Container element
  */
 function attachEventListeners(container) {
     container.addEventListener('click', async (e) => {
@@ -337,8 +314,6 @@ function attachEventListeners(container) {
 
 /**
  * Handle ad deletion
- * @param {string} adId - Ad UUID
- * @param {HTMLElement} container - Container element
  */
 async function handleDeleteAd(adId, container) {
     if (!confirm('Are you sure you want to delete this ad?')) {
@@ -349,14 +324,12 @@ async function handleDeleteAd(adId, container) {
         await deleteFacebookAd(adId);
         removeAdFromCache(adId);
         
-        // Re-render with updated cache
-        const ads = getAdsCache();
-        renderAdsGrid(container, ads);
+        // Re-render via controller
+        if (window.renderAdsPage) {
+            window.renderAdsPage();
+        }
     } catch (error) {
         console.error('[AdsRenderer] Failed to delete ad:', error);
         alert('Failed to delete ad: ' + error.message);
     }
 }
-
-// Expose globally for legacy compatibility
-window.initAdsPage = initAdsPage;

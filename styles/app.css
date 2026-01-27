@@ -1692,31 +1692,8 @@ body.slideout-open .treemap-search-container.search-active .treemap-search-clear
 
 .ai-dropdown-item.loading {
     color: #999;
+    font-style: italic;
     cursor: default;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px;
-}
-
-.ai-dropdown-item.empty {
-    color: #999;
-    cursor: default;
-    padding: 10px;
-    font-size: 13px;
-}
-
-.ai-dropdown-spinner {
-    width: 14px;
-    height: 14px;
-    border: 2px solid #e0e0e0;
-    border-top-color: #667eea;
-    border-radius: 50%;
-    animation: ai-dropdown-spin 0.8s linear infinite;
-}
-
-@keyframes ai-dropdown-spin {
-    to { transform: rotate(360deg); }
 }
 
 .ai-dropdown-divider {
