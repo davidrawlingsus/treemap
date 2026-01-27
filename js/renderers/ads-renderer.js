@@ -352,6 +352,13 @@ function attachEventListeners(container) {
             const accordion = accordionTrigger.closest('.ads-accordion');
             if (accordion) {
                 accordion.classList.toggle('expanded');
+                // Force CSS columns to recalculate layout after accordion animation
+                setTimeout(() => {
+                    container.style.columnCount = 'auto';
+                    // eslint-disable-next-line no-unused-expressions
+                    container.offsetHeight; // Force reflow
+                    container.style.columnCount = '';
+                }, 260); // Slightly longer than the 250ms accordion transition
             }
             return;
         }
