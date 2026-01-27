@@ -9,16 +9,20 @@ import {
     getAdsCache, setAdsCache, setAdsLoading, setAdsError, 
     getAdsCurrentClientId, setAdsCurrentClientId,
     getAdsSearchTerm, setAdsSearchTerm,
-    getAdsFilters, getAdsSortOrder, setAdsSortOrder
+    getAdsFilters, getAdsSortOrder, setAdsSortOrder,
+    getAdsViewMode, setAdsViewMode as stateSetViewMode
 } from '/js/state/ads-state.js';
 import { renderAdsGrid, showLoading, renderError } from '/js/renderers/ads-renderer.js';
+import { renderAdsKanban } from '/js/renderers/ads-kanban-renderer.js';
 import {
     populateAdsFilterOptions,
     openAdsFilterValueDialog as filterUIOpenDialog,
     toggleAdsInlineFilterDropdown as filterUIToggleDropdown,
     toggleAdsInlineFilterValue as filterUIToggleValue,
     removeAdsInlineFilter as filterUIRemoveInline,
-    updateAdsFilterBadge
+    updateAdsFilterBadge,
+    AD_STATUS_OPTIONS,
+    normalizeStatus
 } from '/js/controllers/ads-filter-ui.js';
 
 // ============ Page Initialization ============
@@ -86,11 +90,18 @@ export function renderAdsPage() {
     
     const ads = getAdsCache();
     const filteredAds = getFilteredAndSortedAds(ads);
+    const viewMode = getAdsViewMode();
     
     updateAdsFilterBadge();
     updateAdsSortUI();
+    updateViewToggleUI();
     
-    renderAdsGrid(container, filteredAds);
+    // Render based on view mode
+    if (viewMode === 'kanban') {
+        renderAdsKanban(container, filteredAds);
+    } else {
+        renderAdsGrid(container, filteredAds);
+    }
 }
 
 // ============ Filtering & Sorting Logic ============
@@ -116,6 +127,12 @@ function getFilteredAndSortedAds(ads) {
     
     filters.forEach(filter => {
         filtered = filtered.filter(ad => {
+            // Status is on the ad object, not in full_json
+            if (filter.field === 'status') {
+                const adStatus = normalizeStatus(ad.status);
+                return adStatus === filter.value.toLowerCase();
+            }
+            // Other fields are in full_json
             const value = ad.full_json?.[filter.field];
             if (!value) return false;
             return value.toLowerCase() === filter.value.toLowerCase();
@@ -136,8 +153,14 @@ function getFilteredAndSortedAds(ads) {
  */
 function getUniqueFilterValues(field) {
     const ads = getAdsCache();
-    const values = new Set();
     
+    // Status is a special case - return all possible status values
+    if (field === 'status') {
+        return AD_STATUS_OPTIONS.map(s => s.label);
+    }
+    
+    // Other fields come from full_json
+    const values = new Set();
     ads.forEach(ad => {
         const value = ad.full_json?.[field];
         if (value && typeof value === 'string' && value.trim()) {
@@ -159,6 +182,22 @@ function updateAdsSortUI() {
     if (sortLabel) sortLabel.textContent = sortOrder === 'desc' ? 'Newest first' : 'Oldest first';
     if (sortCheckDesc) sortCheckDesc.textContent = sortOrder === 'desc' ? '✓' : '';
     if (sortCheckAsc) sortCheckAsc.textContent = sortOrder === 'asc' ? '✓' : '';
+}
+
+// ============ View Toggle ============
+
+function updateViewToggleUI() {
+    const viewMode = getAdsViewMode();
+    const buttons = document.querySelectorAll('.ads-view-toggle__btn');
+    
+    buttons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.view === viewMode);
+    });
+}
+
+function setAdsViewMode(mode) {
+    stateSetViewMode(mode);
+    renderAdsPage();
 }
 
 // ============ Event Handlers ============
@@ -290,3 +329,4 @@ window.openAdsFilterValueDialog = openAdsFilterValueDialog;
 window.toggleAdsInlineFilterDropdown = toggleAdsInlineFilterDropdown;
 window.toggleAdsInlineFilterValue = toggleAdsInlineFilterValue;
 window.removeAdsInlineFilter = removeAdsInlineFilter;
+window.setAdsViewMode = setAdsViewMode;

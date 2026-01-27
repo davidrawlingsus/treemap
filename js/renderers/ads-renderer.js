@@ -4,8 +4,9 @@
  * Follows renderer pattern - accepts container and data, handles DOM only.
  */
 
-import { deleteFacebookAd } from '/js/services/api-facebook-ads.js';
-import { getAdsCache, removeAdFromCache, getAdsSearchTerm, getAdsFilters } from '/js/state/ads-state.js';
+import { deleteFacebookAd, updateFacebookAd } from '/js/services/api-facebook-ads.js';
+import { getAdsCache, removeAdFromCache, updateAdInCache, getAdsSearchTerm, getAdsFilters } from '/js/state/ads-state.js';
+import { AD_STATUS_OPTIONS, normalizeStatus, getStatusConfig } from '/js/controllers/ads-filter-ui.js';
 import { escapeHtml } from '/js/utils/dom.js';
 
 // Store Masonry instance for cleanup/relayout
@@ -116,8 +117,9 @@ function initMasonry(container) {
  */
 function renderAdCard(ad) {
     const id = escapeHtml(ad.id || '');
-    const status = escapeHtml(ad.status || 'draft');
-    const statusClass = `ads-card__status--${status}`;
+    const normalizedStatus = normalizeStatus(ad.status);
+    const statusConfig = getStatusConfig(normalizedStatus);
+    const statusClass = `ads-card__status--${normalizedStatus}`;
     
     const primaryText = ad.primary_text || '';
     const headline = escapeHtml(ad.headline || '');
@@ -141,10 +143,26 @@ function renderAdCard(ad) {
            </ul>`
         : '<p class="ads-card__detail-value">No VoC evidence available</p>';
     
+    // Render status dropdown options
+    const statusOptionsHtml = AD_STATUS_OPTIONS.map(opt => `
+        <button class="ads-card__status-option ${opt.id === normalizedStatus ? 'active' : ''}" 
+                data-status="${opt.id}">
+            ${escapeHtml(opt.label)}
+        </button>
+    `).join('');
+    
     return `
         <div class="ads-card" data-ad-id="${id}">
             <div class="ads-card__header">
-                <span class="ads-card__status ${statusClass}">${status}</span>
+                <div class="ads-card__status-wrapper">
+                    <button class="ads-card__status ${statusClass}" data-ad-id="${id}" title="Click to change status">
+                        ${escapeHtml(statusConfig.label)}
+                        <span class="ads-card__status-chevron">▼</span>
+                    </button>
+                    <div class="ads-card__status-dropdown">
+                        ${statusOptionsHtml}
+                    </div>
+                </div>
                 <button class="ads-card__delete" data-ad-id="${id}" title="Delete ad">×</button>
             </div>
             
@@ -300,6 +318,34 @@ function attachEventListeners(container) {
             return;
         }
         
+        // Handle status pill click (toggle dropdown)
+        const statusBtn = e.target.closest('.ads-card__status');
+        if (statusBtn && !e.target.closest('.ads-card__status-dropdown')) {
+            e.stopPropagation();
+            const wrapper = statusBtn.closest('.ads-card__status-wrapper');
+            // Close all other dropdowns first
+            container.querySelectorAll('.ads-card__status-wrapper.open').forEach(w => {
+                if (w !== wrapper) w.classList.remove('open');
+            });
+            wrapper?.classList.toggle('open');
+            return;
+        }
+        
+        // Handle status option selection
+        const statusOption = e.target.closest('.ads-card__status-option');
+        if (statusOption) {
+            e.stopPropagation();
+            const newStatus = statusOption.dataset.status;
+            const card = statusOption.closest('.ads-card');
+            const adId = card?.dataset.adId;
+            if (adId && newStatus) {
+                await handleStatusChange(adId, newStatus);
+            }
+            // Close dropdown
+            statusOption.closest('.ads-card__status-wrapper')?.classList.remove('open');
+            return;
+        }
+        
         // Handle accordion toggle
         const accordionTrigger = e.target.closest('.ads-accordion__trigger');
         if (accordionTrigger) {
@@ -308,6 +354,15 @@ function attachEventListeners(container) {
                 accordion.classList.toggle('expanded');
             }
             return;
+        }
+    });
+    
+    // Close status dropdowns when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.ads-card__status-wrapper')) {
+            container.querySelectorAll('.ads-card__status-wrapper.open').forEach(w => {
+                w.classList.remove('open');
+            });
         }
     });
 }
@@ -331,5 +386,28 @@ async function handleDeleteAd(adId, container) {
     } catch (error) {
         console.error('[AdsRenderer] Failed to delete ad:', error);
         alert('Failed to delete ad: ' + error.message);
+    }
+}
+
+/**
+ * Handle status change
+ * @param {string} adId - Ad UUID
+ * @param {string} newStatus - New status value
+ */
+async function handleStatusChange(adId, newStatus) {
+    try {
+        // Update via API
+        await updateFacebookAd(adId, { status: newStatus });
+        
+        // Update cache
+        updateAdInCache(adId, { status: newStatus });
+        
+        // Re-render via controller
+        if (window.renderAdsPage) {
+            window.renderAdsPage();
+        }
+    } catch (error) {
+        console.error('[AdsRenderer] Failed to update status:', error);
+        alert('Failed to update status: ' + error.message);
     }
 }

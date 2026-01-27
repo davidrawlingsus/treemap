@@ -16,6 +16,9 @@ let adsFilters = [];  // [{field: 'testType', value: 'Social Proof'}, ...]
 let adsSortBy = 'created_at';
 let adsSortOrder = 'desc';
 
+// View mode state
+let adsViewMode = 'grid'; // 'grid' | 'kanban'
+
 /**
  * Get cached ads
  * @returns {Array} Array of ad objects
@@ -91,6 +94,7 @@ export function clearAdsState() {
     adsFilters = [];
     adsSortBy = 'created_at';
     adsSortOrder = 'desc';
+    adsViewMode = 'grid';
 }
 
 // ============ Search State ============
@@ -215,6 +219,35 @@ export function addAdToCache(ad) {
     adsCache = [ad, ...adsCache];
 }
 
+/**
+ * Update an ad in cache
+ * @param {string} adId - Ad UUID
+ * @param {Object} updates - Fields to update
+ */
+export function updateAdInCache(adId, updates) {
+    adsCache = adsCache.map(ad => 
+        ad.id === adId ? { ...ad, ...updates } : ad
+    );
+}
+
+// ============ View Mode State ============
+
+/**
+ * Get current view mode
+ * @returns {string} 'grid' or 'kanban'
+ */
+export function getAdsViewMode() {
+    return adsViewMode;
+}
+
+/**
+ * Set view mode
+ * @param {string} mode - 'grid' or 'kanban'
+ */
+export function setAdsViewMode(mode) {
+    adsViewMode = mode;
+}
+
 // Expose state functions globally for legacy compatibility
 window.adsStateModule = {
     getAdsCache,
@@ -228,6 +261,7 @@ window.adsStateModule = {
     clearAdsState,
     removeAdFromCache,
     addAdToCache,
+    updateAdInCache,
     // Search
     getAdsSearchTerm,
     setAdsSearchTerm,
@@ -242,5 +276,8 @@ window.adsStateModule = {
     setAdsSortBy,
     getAdsSortOrder,
     setAdsSortOrder,
-    toggleAdsSortOrder
+    toggleAdsSortOrder,
+    // View mode
+    getAdsViewMode,
+    setAdsViewMode
 };

@@ -9,8 +9,39 @@ import {
 } from '/js/state/ads-state.js';
 import { escapeHtml, escapeHtmlForAttribute } from '/js/utils/dom.js';
 
+// Status options configuration
+export const AD_STATUS_OPTIONS = [
+    { id: 'draft', label: 'Draft', color: '#fef3c7', textColor: '#92400e' },
+    { id: 'queued', label: 'Queued', color: '#e0e7ff', textColor: '#3730a3' },
+    { id: 'testing', label: 'Testing', color: '#fce7f3', textColor: '#9d174d' },
+    { id: 'live', label: 'Live', color: '#d1fae5', textColor: '#065f46' },
+    { id: 'retired', label: 'Retired', color: '#f3f4f6', textColor: '#6b7280' }
+];
+
+/**
+ * Normalize status value - convert any unknown status to 'draft'
+ * @param {string} status - Raw status value
+ * @returns {string} Normalized status
+ */
+export function normalizeStatus(status) {
+    const validStatuses = AD_STATUS_OPTIONS.map(s => s.id);
+    const normalized = (status || 'draft').toLowerCase();
+    return validStatuses.includes(normalized) ? normalized : 'draft';
+}
+
+/**
+ * Get status config by ID
+ * @param {string} statusId - Status ID
+ * @returns {Object} Status config object
+ */
+export function getStatusConfig(statusId) {
+    const normalized = normalizeStatus(statusId);
+    return AD_STATUS_OPTIONS.find(s => s.id === normalized) || AD_STATUS_OPTIONS[0];
+}
+
 // Filter field configuration
 export const ADS_FILTER_FIELDS = [
+    { id: 'status', label: 'Status', icon: '📊', type: 'select' },
     { id: 'testType', label: 'Test Type', icon: '🧪', type: 'select' },
     { id: 'origin', label: 'Origin', icon: '📍', type: 'select' }
 ];
