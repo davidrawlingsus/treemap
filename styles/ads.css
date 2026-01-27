@@ -813,6 +813,50 @@
     }
 }
 
+/* Kanban Hover Preview */
+.ads-kanban__preview {
+    position: fixed;
+    z-index: 9999;
+    width: 380px;
+    max-width: calc(100vw - 24px);
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.1);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(4px);
+    transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.ads-kanban__preview.visible {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+/* Override image placeholder in preview - hide "Click to add" text */
+.ads-kanban__preview .pe-fb-ad__media:not(.has-image) {
+    cursor: default;
+}
+
+.ads-kanban__preview .pe-fb-ad__media-placeholder {
+    display: none;
+}
+
+/* Reduce image area height in preview when no image */
+.ads-kanban__preview .pe-fb-ad__media:not(.has-image) {
+    aspect-ratio: 2.5/1;
+}
+
+/* Make the preview FB ad fit nicely */
+.ads-kanban__preview .pe-fb-ad {
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+}
+
 /* Image Media Styles */
 .pe-fb-ad__media {
     transition: opacity 0.2s ease;

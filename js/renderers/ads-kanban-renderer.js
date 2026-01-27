@@ -5,9 +5,15 @@
  */
 
 import { updateFacebookAd } from '/js/services/api-facebook-ads.js';
-import { updateAdInCache, getAdsSearchTerm, getAdsFilters } from '/js/state/ads-state.js';
+import { updateAdInCache, getAdsSearchTerm, getAdsFilters, getAdsCache } from '/js/state/ads-state.js';
 import { AD_STATUS_OPTIONS, normalizeStatus, getStatusConfig } from '/js/controllers/ads-filter-ui.js';
 import { escapeHtml } from '/js/utils/dom.js';
+import { renderFBAdMockup, formatCTA, extractDomain, formatPrimaryText } from '/js/renderers/fb-ad-mockup.js';
+
+// Hover preview state
+let previewContainer = null;
+let hoverTimeout = null;
+const HOVER_DELAY = 400; // ms before showing preview
 
 /**
  * Render ads in Kanban board layout
@@ -38,6 +44,9 @@ export function renderAdsKanban(container, ads) {
     
     // Initialize drag and drop
     initKanbanDragDrop(container);
+    
+    // Initialize hover preview
+    initKanbanHoverPreview(container);
 }
 
 /**
@@ -123,6 +132,155 @@ function renderEmpty(container, message) {
 }
 
 /**
+ * Get or create the preview container element
+ * @returns {HTMLElement} The preview container
+ */
+function getPreviewContainer() {
+    if (!previewContainer) {
+        previewContainer = document.createElement('div');
+        previewContainer.className = 'ads-kanban__preview';
+        document.body.appendChild(previewContainer);
+    }
+    return previewContainer;
+}
+
+/**
+ * Show preview for an ad card
+ * @param {HTMLElement} card - The Kanban card element
+ */
+function showPreview(card) {
+    const adId = card.dataset.adId;
+    const ads = getAdsCache();
+    const ad = ads.find(a => a.id === adId);
+    
+    if (!ad) return;
+    
+    const preview = getPreviewContainer();
+    
+    // Get client info for the mockup
+    const navLogo = document.getElementById('navClientLogo');
+    const logoSrc = navLogo ? navLogo.src : '';
+    const clientSelect = document.getElementById('clientSelect');
+    const clientName = clientSelect?.selectedOptions?.[0]?.textContent?.trim() || 'Sponsored';
+    
+    // Render the FB ad mockup (read-only)
+    const mockupHtml = renderFBAdMockup({
+        adId: ad.id,
+        primaryText: formatPrimaryText(ad.primary_text || ''),
+        headline: escapeHtml(ad.headline || ''),
+        description: escapeHtml(ad.description || ''),
+        cta: formatCTA(ad.call_to_action),
+        displayUrl: extractDomain(ad.destination_url || ''),
+        logoSrc,
+        clientName,
+        imageUrl: ad.full_json?.image_url || null,
+        readOnly: true
+    });
+    
+    preview.innerHTML = mockupHtml;
+    
+    // Position the preview
+    positionPreview(card, preview);
+    
+    // Show with fade-in
+    preview.classList.add('visible');
+}
+
+/**
+ * Position preview next to the card, keeping it within viewport
+ * @param {HTMLElement} card - The Kanban card element
+ * @param {HTMLElement} preview - The preview container
+ */
+function positionPreview(card, preview) {
+    const cardRect = card.getBoundingClientRect();
+    const previewWidth = 380; // matches CSS max-width
+    const padding = 12;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    // Try to position to the right of the card
+    let left = cardRect.right + padding;
+    
+    // If not enough space on right, position to the left
+    if (left + previewWidth > viewportWidth - padding) {
+        left = cardRect.left - previewWidth - padding;
+    }
+    
+    // If still not enough space, center it over the card
+    if (left < padding) {
+        left = Math.max(padding, (viewportWidth - previewWidth) / 2);
+    }
+    
+    // Vertical positioning - align top with card, but keep within viewport
+    let top = cardRect.top;
+    
+    // Get preview height after content is rendered
+    preview.style.visibility = 'hidden';
+    preview.style.display = 'block';
+    const previewHeight = preview.offsetHeight;
+    preview.style.visibility = '';
+    
+    // Adjust if preview would go below viewport
+    if (top + previewHeight > viewportHeight - padding) {
+        top = Math.max(padding, viewportHeight - previewHeight - padding);
+    }
+    
+    preview.style.left = `${left}px`;
+    preview.style.top = `${top}px`;
+}
+
+/**
+ * Hide the preview
+ */
+function hidePreview() {
+    if (hoverTimeout) {
+        clearTimeout(hoverTimeout);
+        hoverTimeout = null;
+    }
+    
+    if (previewContainer) {
+        previewContainer.classList.remove('visible');
+    }
+}
+
+/**
+ * Initialize hover preview functionality
+ * @param {HTMLElement} container - Container element
+ */
+function initKanbanHoverPreview(container) {
+    const cards = container.querySelectorAll('.ads-kanban__card');
+    
+    cards.forEach(card => {
+        card.addEventListener('mouseenter', () => {
+            // Don't show preview if card is being dragged
+            if (card.classList.contains('dragging')) return;
+            
+            // Clear any existing timeout
+            if (hoverTimeout) {
+                clearTimeout(hoverTimeout);
+            }
+            
+            // Delay before showing preview
+            hoverTimeout = setTimeout(() => {
+                // Double-check not dragging after delay
+                if (!card.classList.contains('dragging')) {
+                    showPreview(card);
+                }
+            }, HOVER_DELAY);
+        });
+        
+        card.addEventListener('mouseleave', () => {
+            hidePreview();
+        });
+        
+        // Also hide on drag start
+        card.addEventListener('dragstart', () => {
+            hidePreview();
+        });
+    });
+}
+
+/**
  * Initialize drag and drop functionality for Kanban board
  * @param {HTMLElement} container - Container element
  */
@@ -137,6 +295,7 @@ function initKanbanDragDrop(container) {
         card.addEventListener('dragstart', (e) => {
             draggedCard = card;
             card.classList.add('dragging');
+            hidePreview(); // Hide preview when dragging starts
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', card.dataset.adId);
         });
