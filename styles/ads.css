@@ -842,3 +842,21 @@
 .pe-fb-ad__media:not(.has-image):hover .pe-fb-ad__media-placeholder {
     color: #37352f;
 }
+
+/* Ads Tab Specific: Make image container height flexible based on image aspect ratio */
+.ads-card__mockup .pe-fb-ad__media.has-image {
+    aspect-ratio: unset;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f5f7fb;
+}
+
+.ads-card__mockup .pe-fb-ad__media.has-image img {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: contain;
+    max-width: 100%;
+}
