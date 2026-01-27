@@ -11,6 +11,9 @@ import { escapeHtml } from '/js/utils/dom.js';
 // Store current image picker callback
 let imagePickerCallback = null;
 
+// Store Masonry instance for cleanup/relayout
+let masonryInstance = null;
+
 /**
  * Show loading state
  * @param {HTMLElement} container - Container element
@@ -58,17 +61,71 @@ export function renderEmpty(container) {
  * @param {Array} images - Array of image objects
  */
 export function renderImagesGrid(container, images) {
+    // Destroy existing Masonry instance before re-rendering
+    if (masonryInstance) {
+        masonryInstance.destroy();
+        masonryInstance = null;
+    }
+    
     if (!images || images.length === 0) {
         renderEmpty(container);
         return;
     }
     
-    // Container already has class="images-grid", so just add the cards directly
-    const cardsHtml = images.map(image => renderImageCard(image)).join('');
-    container.innerHTML = cardsHtml;
+    // Add sizer elements for Masonry + image cards
+    container.innerHTML = `
+        <div class="images-grid-sizer"></div>
+        <div class="images-gutter-sizer"></div>
+        ${images.map(image => renderImageCard(image)).join('')}
+    `;
     
     // Attach event listeners
     attachEventListeners(container);
+    
+    // Initialize Masonry for tiling layout
+    initMasonry(container);
+}
+
+/**
+ * Initialize Masonry layout on the container
+ * @param {HTMLElement} container - Grid container element
+ */
+function initMasonry(container) {
+    if (typeof Masonry === 'undefined') {
+        console.warn('[ImagesRenderer] Masonry.js not loaded, falling back to CSS layout');
+        return;
+    }
+    
+    masonryInstance = new Masonry(container, {
+        itemSelector: '.images-card',
+        columnWidth: '.images-grid-sizer',
+        gutter: '.images-gutter-sizer',
+        percentPosition: true,
+        horizontalOrder: true
+    });
+    
+    // Relayout after images load to handle different aspect ratios
+    const images = container.querySelectorAll('.images-card__image');
+    let loadedCount = 0;
+    const totalImages = images.length;
+    
+    if (totalImages === 0) return;
+    
+    images.forEach(img => {
+        if (img.complete) {
+            loadedCount++;
+            if (loadedCount === totalImages) {
+                masonryInstance.layout();
+            }
+        } else {
+            img.addEventListener('load', () => {
+                loadedCount++;
+                if (loadedCount === totalImages) {
+                    masonryInstance.layout();
+                }
+            });
+        }
+    });
 }
 
 /**

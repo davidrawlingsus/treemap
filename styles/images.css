@@ -84,31 +84,48 @@
     opacity: 0.9;
 }
 
-/* Grid Layout */
+/* Masonry Layout - uses Masonry.js for tiling with different aspect ratios */
 .images-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 20px;
-    padding: 0;
+    position: relative;
 }
 
-/* Ensure images-grid class works when applied directly to container */
-#imagesGrid.images-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 20px;
-    padding: 0;
+/* Grid sizer element for Masonry to calculate column widths */
+.images-grid-sizer,
+.images-card {
+    width: calc(50% - 12px); /* 2 columns with 24px gap */
 }
 
-@media (min-width: 768px) {
-    .images-grid {
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+/* Gutter sizer for Masonry */
+.images-gutter-sizer {
+    width: 24px;
+}
+
+/* Responsive column widths */
+@media (min-width: 1270px) {
+    .images-grid-sizer,
+    .images-card {
+        width: calc(33.333% - 16px); /* 3 columns */
     }
 }
 
-@media (min-width: 1200px) {
-    .images-grid {
-        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+@media (min-width: 1680px) {
+    .images-grid-sizer,
+    .images-card {
+        width: calc(25% - 18px); /* 4 columns */
+    }
+}
+
+@media (min-width: 2100px) {
+    .images-grid-sizer,
+    .images-card {
+        width: calc(20% - 19.2px); /* 5 columns */
+    }
+}
+
+@media (min-width: 2510px) {
+    .images-grid-sizer,
+    .images-card {
+        width: calc(16.666% - 20px); /* 6 columns */
     }
 }
 
@@ -121,6 +138,7 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     transition: box-shadow 0.2s ease, transform 0.2s ease;
     cursor: pointer;
+    margin-bottom: 24px; /* Vertical gap for Masonry */
 }
 
 .images-card:hover {
@@ -131,16 +149,19 @@
 .images-card__image-wrapper {
     position: relative;
     width: 100%;
-    aspect-ratio: 1.91 / 1; /* Facebook ad aspect ratio */
     overflow: hidden;
     background: #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 150px;
 }
 
 .images-card__image {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
+    height: auto;
     display: block;
+    object-fit: contain; /* Show full image without clipping */
 }
 
 .images-card__delete {
@@ -466,9 +487,9 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-    .images-grid {
-        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-        gap: 12px;
+    .images-grid-sizer,
+    .images-card {
+        width: 100%; /* Single column on mobile */
     }
     
     .images-container {
