@@ -2754,6 +2754,14 @@
                     filterRules = []; // Reset filters when loading new data
                     updateFilterUI();
                     
+                    // If the filter selection view is currently visible, refresh it with new data
+                    const filterSelectionView = document.getElementById('filterSelectionView');
+                    if (filterSelectionView && filterSelectionView.style.display === 'block') {
+                        // Clear temporary selections when data changes - they're no longer valid
+                        currentFilterSelections.clear();
+                        populateFilterSelectionList();
+                    }
+                    
                     // Process and render
                     processData();
                     renderTreemap(hierarchyData);
@@ -3009,10 +3017,6 @@
         }
         
         function filterByQuestion(refKey, previousRefKey = null) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:filterByQuestion:entry',message:'Dimension switch started',data:{newDimension:refKey,previousDimension:previousRefKey,categoriesBeforeSwitch:availableCategories.slice(0,10)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
-            // #endregion agent log
-            
             // Save current filters for the previous dimension before switching
             // Use previousRefKey if provided (from onchange handler), otherwise use currentQuestionRefKey
             const oldRefKey = previousRefKey !== null ? previousRefKey : currentQuestionRefKey;
@@ -3035,14 +3039,18 @@
             // Extract available filter options from the filtered data (dimension-specific)
             extractAvailableFilterOptions(rawData);
             
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:filterByQuestion:after-extract',message:'After extractAvailableFilterOptions',data:{newDimension:refKey,categoriesAfterExtract:availableCategories.slice(0,10),categoryCount:availableCategories.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-            // #endregion agent log
-            
             // Load saved filters for the new dimension (or empty if none)
             loadFiltersForDimension(refKey || null);
             
             updateFilterUI();
+            
+            // If the filter selection view is currently visible, refresh it with new dimension data
+            const filterSelectionView = document.getElementById('filterSelectionView');
+            if (filterSelectionView && filterSelectionView.style.display === 'block') {
+                // Clear temporary selections when dimension changes - they're no longer valid
+                currentFilterSelections.clear();
+                populateFilterSelectionList();
+            }
             
             // Update breadcrumb to show question selection
             updateBreadcrumb(refKey);
@@ -3052,10 +3060,6 @@
             
             // Re-render visualizations (this will apply the restored filters)
             applyFiltersAndRender();
-            
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:filterByQuestion:exit',message:'Dimension switch completed',data:{newDimension:refKey,categoriesAtEnd:availableCategories.slice(0,10)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
-            // #endregion agent log
         }
         
         // Initialize
@@ -3629,9 +3633,6 @@
                 const isVisible = filterDropdown.style.display !== 'none';
                 filterDropdown.style.display = isVisible ? 'none' : 'block';
                 if (!isVisible) {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:filterBtn-onclick',message:'Filter dropdown opened',data:{availableCategories:availableCategories.slice(0,10),categoryCount:availableCategories.length,currentDimension:currentQuestionRefKey},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
-                    // #endregion agent log
                     updateFilterUI();
                 }
             };
@@ -4025,6 +4026,7 @@
             }
             
             let checkedCount = 0;
+            
             items.forEach(item => {
                 const isChecked = currentFilterSelections.has(item);
                 if (isChecked) checkedCount++;
@@ -10444,7 +10446,7 @@
                 this.renderVerbatims(verbatims, topicName, categoryName);
             },
             
-            async openCreateInsight(contextData, fromContextMenu = false) {
+            async openCreateInsight(contextData, fromContextMenu = false, initialTitle = null) {
                 console.log('[SlideoutPanel.openCreateInsight] Called with contextData:', contextData);
                 console.log('[SlideoutPanel.openCreateInsight] currentClientId:', currentClientId);
                 console.log('[SlideoutPanel.openCreateInsight] fromContextMenu:', fromContextMenu);
@@ -10493,11 +10495,19 @@
                 if (settingsBtn) settingsBtn.style.display = 'none';
                 if (subtitle) subtitle.style.display = 'none';
                 
-                // Set editable title in header (empty for new insight)
+                // Set editable title in header
                 if (title) {
-                    title.textContent = '';
-                    title.setAttribute('data-placeholder', 'New Insight');
-                    title.setAttribute('contenteditable', 'true');
+                    if (initialTitle) {
+                        // AI Expert mode: set title directly to prevent "New Insight" flash
+                        title.textContent = initialTitle;
+                        title.setAttribute('data-placeholder', initialTitle);
+                        title.setAttribute('contenteditable', 'false'); // Not editable for AI Expert
+                    } else {
+                        // Normal create mode: empty with placeholder
+                        title.textContent = '';
+                        title.setAttribute('data-placeholder', 'New Insight');
+                        title.setAttribute('contenteditable', 'true');
+                    }
                 }
                 
                 if (panel) {
@@ -11070,7 +11080,8 @@
                     project_name: currentProjectName || null,
                     data_source: currentDataSourceId || null
                 } : contextData;
-                await this.openCreateInsight(contextDataForCreate, true);
+                // Pass promptName as initialTitle to set title BEFORE panel opens (prevents "New Insight" flash)
+                await this.openCreateInsight(contextDataForCreate, true, promptName);
                 
                 // Wait a bit for the panel to fully initialize
                 await new Promise(resolve => setTimeout(resolve, 100));
@@ -11088,12 +11099,6 @@
                 // Clear the content area (but keep the panel structure from openCreateInsight)
                 // The insight editor is in a separate section, so we can stream into content
                 content.innerHTML = '';
-                
-                // Update title
-                const titleEl = document.getElementById('slideoutTitle');
-                if (titleEl) {
-                    titleEl.textContent = promptName;
-                }
                 
                 // Create streaming result item in the content area
                 const streamingItem = renderer.createStreamingResultItem(
@@ -15332,14 +15337,49 @@
                                        target.contentEditable === 'true' ||
                                        target.isContentEditable;
                     
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:option-arrow-fix',message:'Option+Arrow detected',data:{key:e.key,altKey:e.altKey,isTextInput:isTextInput,targetTag:target.tagName,defaultPreventedBefore:e.defaultPrevented},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FIX'})}).catch(()=>{});
-                    // #endregion agent log
-                    
                     // If user is in a text input, prevent browser's tab navigation and implement word navigation
                     if (isTextInput) {
                         e.stopImmediatePropagation();
                         e.preventDefault();
+                        
+                        // Helper function to find word boundaries using regex
+                        const findWordBoundary = (text, pos, direction) => {
+                            // Word boundary regex: word characters (letters, digits, underscore) are words
+                            // Everything else (spaces, punctuation) are separators
+                            if (direction === 'left') {
+                                // Move left to find start of previous word
+                                if (pos <= 0) return 0;
+                                
+                                // Skip any whitespace/punctuation to the left
+                                let i = pos - 1;
+                                while (i >= 0 && !/\w/.test(text[i])) {
+                                    i--;
+                                }
+                                
+                                // Now find the start of the word
+                                while (i >= 0 && /\w/.test(text[i])) {
+                                    i--;
+                                }
+                                
+                                return i + 1;
+                            } else {
+                                // Move right to find start of next word
+                                if (pos >= text.length) return text.length;
+                                
+                                // Skip current word if we're in the middle of one
+                                let i = pos;
+                                while (i < text.length && /\w/.test(text[i])) {
+                                    i++;
+                                }
+                                
+                                // Skip whitespace/punctuation
+                                while (i < text.length && !/\w/.test(text[i])) {
+                                    i++;
+                                }
+                                
+                                return i;
+                            }
+                        };
                         
                         // Manually implement word-by-word navigation
                         if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
@@ -15348,60 +15388,53 @@
                             const end = input.selectionEnd;
                             const text = input.value;
                             
+                            let newPos;
                             if (e.key === 'ArrowLeft') {
-                                // Move to start of previous word
-                                let newPos = start;
-                                // Skip whitespace
-                                while (newPos > 0 && /\s/.test(text[newPos - 1])) {
-                                    newPos--;
-                                }
-                                // Find start of word
-                                while (newPos > 0 && !/\s/.test(text[newPos - 1])) {
-                                    newPos--;
-                                }
-                                input.setSelectionRange(newPos, newPos);
-                            } else if (e.key === 'ArrowRight') {
-                                // Move to start of next word
-                                let newPos = end;
-                                // Skip current word
-                                while (newPos < text.length && !/\s/.test(text[newPos])) {
-                                    newPos++;
-                                }
-                                // Skip whitespace
-                                while (newPos < text.length && /\s/.test(text[newPos])) {
-                                    newPos++;
-                                }
-                                input.setSelectionRange(newPos, newPos);
+                                newPos = findWordBoundary(text, start, 'left');
+                            } else {
+                                newPos = findWordBoundary(text, end, 'right');
                             }
+                            
+                            input.setSelectionRange(newPos, newPos);
+                            input.focus(); // Ensure focus is maintained
                         } else if (target.contentEditable === 'true' || target.isContentEditable) {
-                            // For contenteditable, use browser's native word navigation via execCommand
-                            // This should work even after preventDefault
+                            // For contenteditable, manually find word boundaries in text
                             const selection = window.getSelection();
                             if (selection.rangeCount > 0) {
                                 const range = selection.getRangeAt(0);
-                                if (e.key === 'ArrowLeft') {
-                                    // Move to start of previous word
-                                    range.collapse(true);
-                                    for (let i = 0; i < 1; i++) {
-                                        range.modify('move', 'backward', 'word');
+                                const textNode = range.startContainer;
+                                
+                                if (textNode.nodeType === Node.TEXT_NODE) {
+                                    const text = textNode.textContent;
+                                    const offset = range.startOffset;
+                                    
+                                    let newOffset;
+                                    if (e.key === 'ArrowLeft') {
+                                        newOffset = findWordBoundary(text, offset, 'left');
+                                    } else {
+                                        newOffset = findWordBoundary(text, offset, 'right');
                                     }
+                                    
+                                    range.setStart(textNode, newOffset);
+                                    range.setEnd(textNode, newOffset);
                                     selection.removeAllRanges();
                                     selection.addRange(range);
-                                } else if (e.key === 'ArrowRight') {
-                                    // Move to start of next word
-                                    range.collapse(false);
-                                    for (let i = 0; i < 1; i++) {
-                                        range.modify('move', 'forward', 'word');
+                                } else {
+                                    // Fallback: try using execCommand if available
+                                    if (document.execCommand) {
+                                        try {
+                                            if (e.key === 'ArrowLeft') {
+                                                document.execCommand('moveWordLeft', false, null);
+                                            } else {
+                                                document.execCommand('moveWordRight', false, null);
+                                            }
+                                        } catch (err) {
+                                            console.warn('execCommand word navigation not supported');
+                                        }
                                     }
-                                    selection.removeAllRanges();
-                                    selection.addRange(range);
                                 }
                             }
                         }
-                        
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:option-arrow-fix',message:'Implemented manual word navigation',data:{key:e.key,defaultPreventedAfter:e.defaultPrevented},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FIX'})}).catch(()=>{});
-                        // #endregion agent log
                         
                         return false;
                     }

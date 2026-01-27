@@ -387,5 +387,130 @@
     </div>
     
     <div id="slideoutOverlay" class="ai-insights-overlay"></div>
+    
+    <script>
+        // Fix: Prevent browser tab navigation when Option+Arrow is used in text inputs
+        // On macOS, Option+ArrowLeft/Right is a browser shortcut for tab switching,
+        // but users expect it to work for word-by-word navigation in text inputs
+        // We intercept this and manually implement word navigation to prevent tab switching
+        (function() {
+            const handleOptionArrow = (e) => {
+                // Only handle Option+Arrow (not Command+Arrow, which should still switch tabs)
+                if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && e.altKey && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
+                    const target = e.target;
+                    const isTextInput = target.tagName === 'INPUT' || 
+                                       target.tagName === 'TEXTAREA' || 
+                                       target.contentEditable === 'true' ||
+                                       target.isContentEditable;
+                    
+                    // If user is in a text input, prevent browser's tab navigation and implement word navigation
+                    if (isTextInput) {
+                        e.stopImmediatePropagation();
+                        e.preventDefault();
+                        
+                        // Helper function to find word boundaries using regex
+                        const findWordBoundary = (text, pos, direction) => {
+                            // Word boundary regex: word characters (letters, digits, underscore) are words
+                            // Everything else (spaces, punctuation) are separators
+                            if (direction === 'left') {
+                                // Move left to find start of previous word
+                                if (pos <= 0) return 0;
+                                
+                                // Skip any whitespace/punctuation to the left
+                                let i = pos - 1;
+                                while (i >= 0 && !/\w/.test(text[i])) {
+                                    i--;
+                                }
+                                
+                                // Now find the start of the word
+                                while (i >= 0 && /\w/.test(text[i])) {
+                                    i--;
+                                }
+                                
+                                return i + 1;
+                            } else {
+                                // Move right to find start of next word
+                                if (pos >= text.length) return text.length;
+                                
+                                // Skip current word if we're in the middle of one
+                                let i = pos;
+                                while (i < text.length && /\w/.test(text[i])) {
+                                    i++;
+                                }
+                                
+                                // Skip whitespace/punctuation
+                                while (i < text.length && !/\w/.test(text[i])) {
+                                    i++;
+                                }
+                                
+                                return i;
+                            }
+                        };
+                        
+                        // Manually implement word-by-word navigation
+                        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+                            const input = target;
+                            const start = input.selectionStart;
+                            const end = input.selectionEnd;
+                            const text = input.value;
+                            
+                            let newPos;
+                            if (e.key === 'ArrowLeft') {
+                                newPos = findWordBoundary(text, start, 'left');
+                            } else {
+                                newPos = findWordBoundary(text, end, 'right');
+                            }
+                            
+                            input.setSelectionRange(newPos, newPos);
+                            input.focus(); // Ensure focus is maintained
+                        } else if (target.contentEditable === 'true' || target.isContentEditable) {
+                            // For contenteditable, manually find word boundaries in text
+                            const selection = window.getSelection();
+                            if (selection.rangeCount > 0) {
+                                const range = selection.getRangeAt(0);
+                                const textNode = range.startContainer;
+                                
+                                if (textNode.nodeType === Node.TEXT_NODE) {
+                                    const text = textNode.textContent;
+                                    const offset = range.startOffset;
+                                    
+                                    let newOffset;
+                                    if (e.key === 'ArrowLeft') {
+                                        newOffset = findWordBoundary(text, offset, 'left');
+                                    } else {
+                                        newOffset = findWordBoundary(text, offset, 'right');
+                                    }
+                                    
+                                    range.setStart(textNode, newOffset);
+                                    range.setEnd(textNode, newOffset);
+                                    selection.removeAllRanges();
+                                    selection.addRange(range);
+                                } else {
+                                    // Fallback: try using execCommand if available
+                                    if (document.execCommand) {
+                                        try {
+                                            if (e.key === 'ArrowLeft') {
+                                                document.execCommand('moveWordLeft', false, null);
+                                            } else {
+                                                document.execCommand('moveWordRight', false, null);
+                                            }
+                                        } catch (err) {
+                                            console.warn('execCommand word navigation not supported');
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        
+                        return false;
+                    }
+                }
+            };
+            
+            // Register at both window and document level with capture phase for maximum priority
+            window.addEventListener('keydown', handleOptionArrow, true);
+            document.addEventListener('keydown', handleOptionArrow, true);
+        })();
+    </script>
 </body>
 </html>
