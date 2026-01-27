@@ -6,7 +6,7 @@
 /* Container */
 .ads-container {
     padding: 24px;
-    max-width: 1400px;
+    max-width: 2400px;
     margin: 0 auto;
     background: #f5f7fb;
     min-height: calc(100vh - 120px);
@@ -30,11 +30,36 @@
     margin: 0;
 }
 
-/* Newspaper/Masonry Layout using CSS Columns */
+/* Masonry Layout using CSS Columns with explicit column counts */
+/* Breakpoints calculated for ~390px minimum card width */
 .ads-grid {
-    column-width: 380px;
+    column-count: 2;
     column-gap: 24px;
-    column-fill: balance;
+}
+
+/* Responsive column counts for 390px min card width */
+@media (min-width: 1270px) {
+    .ads-grid {
+        column-count: 3;
+    }
+}
+
+@media (min-width: 1680px) {
+    .ads-grid {
+        column-count: 4;
+    }
+}
+
+@media (min-width: 2100px) {
+    .ads-grid {
+        column-count: 5;
+    }
+}
+
+@media (min-width: 2510px) {
+    .ads-grid {
+        column-count: 6;
+    }
 }
 
 /* Empty State */
@@ -102,12 +127,9 @@
     overflow: hidden;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     transition: box-shadow 0.2s ease, transform 0.2s ease;
-    /* Newspaper layout: prevent card from breaking across columns */
+    /* Masonry layout: prevent card from breaking across columns */
     break-inside: avoid;
-    page-break-inside: avoid;
     margin-bottom: 24px;
-    display: inline-block;
-    width: 100%;
 }
 
 .ads-card:hover {
