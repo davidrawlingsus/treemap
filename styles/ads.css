@@ -498,7 +498,7 @@
 
 /* Ad Mockup Container */
 .ads-card__mockup {
-    padding: 16px;
+    padding: 0 16px 16px 16px;
 }
 
 /* Accordions Container */
@@ -652,13 +652,13 @@
     border: none;
     background: transparent;
     border-radius: 4px;
-    color: rgba(55, 53, 47, 0.5);
+    color: rgba(55, 53, 47, 0.3);
     cursor: pointer;
     transition: background 0.15s ease, color 0.15s ease;
 }
 
 .ads-view-toggle__btn:hover {
-    color: rgba(55, 53, 47, 0.8);
+    color: rgba(55, 53, 47, 0.5);
 }
 
 .ads-view-toggle__btn.active {
