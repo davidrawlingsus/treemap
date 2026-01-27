@@ -650,21 +650,23 @@
     width: 32px;
     height: 32px;
     border: none;
-    background: transparent;
+    background: white;
     border-radius: 4px;
-    color: rgba(55, 53, 47, 0.3);
+    color: #37352f;
     cursor: pointer;
     transition: background 0.15s ease, color 0.15s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .ads-view-toggle__btn:hover {
-    color: rgba(55, 53, 47, 0.5);
+    color: rgba(55, 53, 47, 0.8);
 }
 
 .ads-view-toggle__btn.active {
-    background: white;
-    color: #37352f;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    background: transparent;
+    color: rgba(55, 53, 47, 0.3);
+    box-shadow: none;
+    cursor: default;
 }
 
 /* ============ Kanban Layout ============ */
