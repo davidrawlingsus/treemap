@@ -44,29 +44,7 @@ app.get('/config.js', (req, res) => {
   res.send(`window.APP_CONFIG = { API_BASE_URL: '${API_BASE_URL}' };`);
 });
 
-// Serve static files from current directory
-app.use(express.static(__dirname));
-
-// Also serve common static files explicitly
-app.get('/styles.css', (req, res) => {
-  res.sendFile(path.join(__dirname, 'styles.css'));
-});
-
-app.get('/header.js', (req, res) => {
-  res.sendFile(path.join(__dirname, 'header.js'));
-});
-
-// Support magic-link redirect path (and other SPA routes in the future)
-const sendIndex = (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-};
-
-// Serve index.html for root
-app.get('/', sendIndex);
-app.get('/magic-login', sendIndex);
-
-// client-insights.html removed - using SPA approach in index.html with hash routing
-
+// API routes must be BEFORE express.static to avoid conflicts
 // Media upload endpoint using Vercel Blob SDK
 app.post('/api/upload-media', upload.single('file'), async (req, res) => {
   try {
@@ -101,6 +79,75 @@ app.post('/api/upload-media', upload.single('file'), async (req, res) => {
     res.status(500).json({ error: error.message || 'Upload failed' });
   }
 });
+
+// Ad image upload endpoint using Vercel Blob SDK
+app.post('/api/upload-ad-image', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file provided' });
+    }
+
+    const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+    if (!blobToken) {
+      console.error('BLOB_READ_WRITE_TOKEN not found in environment variables');
+      return res.status(500).json({ error: 'Blob storage not configured' });
+    }
+
+    // Get client_id from query or body
+    const clientId = req.query.client_id || req.body.client_id;
+    if (!clientId) {
+      return res.status(400).json({ error: 'client_id is required' });
+    }
+
+    // Generate unique filename with client_id folder
+    const fileExtension = req.file.originalname.split('.').pop() || 'bin';
+    const uniqueFilename = `ad-images/${clientId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExtension}`;
+
+    console.log(`Uploading ad image to Vercel Blob: ${uniqueFilename}, size: ${req.file.size} bytes, type: ${req.file.mimetype}`);
+
+    // Upload to Vercel Blob using the SDK
+    const blob = await put(uniqueFilename, req.file.buffer, {
+      access: 'public',
+      contentType: req.file.mimetype,
+      token: blobToken,
+    });
+
+    console.log(`Ad image upload successful, URL: ${blob.url}`);
+    res.json({ 
+      url: blob.url,
+      filename: req.file.originalname,
+      file_size: req.file.size,
+      content_type: req.file.mimetype
+    });
+  } catch (error) {
+    console.error('Ad image upload error:', error);
+    res.status(500).json({ error: error.message || 'Upload failed' });
+  }
+});
+
+// Serve static files from current directory (AFTER API routes)
+// Note: express.static will return 405 (Method Not Allowed) for POST requests to files, not 501
+app.use(express.static(__dirname));
+
+// Also serve common static files explicitly
+app.get('/styles.css', (req, res) => {
+  res.sendFile(path.join(__dirname, 'styles.css'));
+});
+
+app.get('/header.js', (req, res) => {
+  res.sendFile(path.join(__dirname, 'header.js'));
+});
+
+// Support magic-link redirect path (and other SPA routes in the future)
+const sendIndex = (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+};
+
+// Serve index.html for root
+app.get('/', sendIndex);
+app.get('/magic-login', sendIndex);
+
+// client-insights.html removed - using SPA approach in index.html with hash routing
 
 app.listen(PORT, () => {
   console.log(`✅ Frontend server running on http://localhost:${PORT}`);

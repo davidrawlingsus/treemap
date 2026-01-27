@@ -7,7 +7,7 @@ echo ""
 echo "Press CTRL+C to stop"
 echo ""
 
-# Use Python's built-in HTTP server
-python3 -m http.server 3000
+# Use Node.js Express server (supports API routes)
+node server.js
 
 

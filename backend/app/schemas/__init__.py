@@ -106,6 +106,12 @@ from .facebook_ad import (
     FacebookAdListResponse,
 )
 
+from .ad_image import (
+    AdImageCreate,
+    AdImageResponse,
+    AdImageListResponse,
+)
+
 # Resolve forward references after all schemas are imported
 # This is necessary for Pydantic v2 when using forward references
 FounderUserMembership.model_rebuild()
@@ -196,5 +202,9 @@ __all__ = [
     "FacebookAdUpdate",
     "FacebookAdResponse",
     "FacebookAdListResponse",
+    # Ad Images
+    "AdImageCreate",
+    "AdImageResponse",
+    "AdImageListResponse",
 ]
 

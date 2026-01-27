@@ -174,7 +174,8 @@ function renderAdCard(ad) {
                     cta,
                     displayUrl,
                     logoSrc,
-                    clientName
+                    clientName,
+                    imageUrl: ad.full_json?.image_url || null
                 })}
             </div>
             
@@ -200,9 +201,10 @@ function renderAdCard(ad) {
 /**
  * Render Facebook ad mockup HTML
  * @param {Object} params - Ad parameters
+ * @param {string} [params.imageUrl] - Image URL for the ad
  * @returns {string} HTML string
  */
-function renderFBAdMockup({ primaryText, headline, description, cta, displayUrl, logoSrc, clientName }) {
+function renderFBAdMockup({ primaryText, headline, description, cta, displayUrl, logoSrc, clientName, imageUrl }) {
     const profilePicContent = logoSrc 
         ? `<img src="${escapeHtml(logoSrc)}" alt="Client Logo" style="width:40px;height:40px;border-radius:50%;object-fit:contain;background:#fff;">`
         : 'Ad';
@@ -226,7 +228,9 @@ function renderFBAdMockup({ primaryText, headline, description, cta, displayUrl,
             <div class="pe-fb-ad__primary-text-wrapper" style="padding:8px 12px;margin:0;">
                 <div class="pe-fb-ad__primary-text" style="font-size:15px;line-height:1.4;color:#050505;margin:0;padding:0;">${primaryText}</div>
             </div>
-            <div class="pe-fb-ad__media" style="width:100%;aspect-ratio:1.91/1;background:linear-gradient(to top right,transparent calc(50% - 1px),#9ca3af calc(50% - 1px),#9ca3af calc(50% + 1px),transparent calc(50% + 1px)),linear-gradient(to top left,transparent calc(50% - 1px),#9ca3af calc(50% - 1px),#9ca3af calc(50% + 1px),transparent calc(50% + 1px)),#e5e7eb;margin:0;padding:0;"></div>
+            <div class="pe-fb-ad__media ${imageUrl ? 'has-image' : ''}" style="width:100%;aspect-ratio:1.91/1;position:relative;cursor:pointer;margin:0;padding:0;${imageUrl ? `background-image:url('${escapeHtml(imageUrl)}');background-size:cover;background-position:center;` : 'background:linear-gradient(to top right,transparent calc(50% - 1px),#9ca3af calc(50% - 1px),#9ca3af calc(50% + 1px),transparent calc(50% + 1px)),linear-gradient(to top left,transparent calc(50% - 1px),#9ca3af calc(50% - 1px),#9ca3af calc(50% + 1px),transparent calc(50% + 1px)),#e5e7eb;'}">
+                ${imageUrl ? '' : '<div class="pe-fb-ad__media-placeholder" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#9ca3af;font-size:14px;pointer-events:none;">Click to add image</div>'}
+            </div>
             <div class="pe-fb-ad__link-details" style="background:#f8fafb;padding:10px 12px;margin:0;display:flex;align-items:center;justify-content:space-between;gap:12px;">
                 <div class="pe-fb-ad__link-text" style="flex:1;min-width:0;margin:0;padding:0;">
                     <div class="pe-fb-ad__link-url" style="font-size:12px;color:#65676b;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin:0;padding:0;">${escapeHtml(displayUrl)}</div>
@@ -346,18 +350,44 @@ function attachEventListeners(container) {
             return;
         }
         
+        // Handle image media click (open image picker)
+        const mediaElement = e.target.closest('.pe-fb-ad__media');
+        if (mediaElement) {
+            const card = mediaElement.closest('.ads-card');
+            const adId = card?.dataset.adId;
+            if (adId) {
+                await handleImageSelection(adId, mediaElement);
+            }
+            return;
+        }
+        
         // Handle accordion toggle
         const accordionTrigger = e.target.closest('.ads-accordion__trigger');
         if (accordionTrigger) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:350',message:'Accordion trigger clicked',data:{triggerId:accordionTrigger.dataset?.accordion},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+            // #endregion
             const accordion = accordionTrigger.closest('.ads-accordion');
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:353',message:'Accordion element found',data:{accordionFound:!!accordion,hadExpandedBefore:accordion?.classList?.contains('expanded')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+            // #endregion
             if (accordion) {
                 accordion.classList.toggle('expanded');
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:356',message:'After class toggle',data:{isExpandedNow:accordion.classList.contains('expanded')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
+                // #endregion
                 // Force CSS columns to recalculate layout after accordion animation
                 setTimeout(() => {
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:360',message:'setTimeout fired',data:{containerExists:!!container,containerTagName:container?.tagName,currentColumnCount:container?.style?.columnCount},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+                    // #endregion
                     container.style.columnCount = 'auto';
                     // eslint-disable-next-line no-unused-expressions
                     container.offsetHeight; // Force reflow
                     container.style.columnCount = '';
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:367',message:'Reflow trick completed',data:{finalColumnCount:container?.style?.columnCount,offsetHeight:container?.offsetHeight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
+                    // #endregion
                 }, 260); // Slightly longer than the 250ms accordion transition
             }
             return;
@@ -416,5 +446,74 @@ async function handleStatusChange(adId, newStatus) {
     } catch (error) {
         console.error('[AdsRenderer] Failed to update status:', error);
         alert('Failed to update status: ' + error.message);
+    }
+}
+
+/**
+ * Handle image selection for an ad
+ * @param {string} adId - Ad UUID
+ * @param {HTMLElement} mediaElement - Media element that was clicked
+ */
+async function handleImageSelection(adId, mediaElement) {
+    try {
+        // Import image picker
+        const { showImagePickerModal } = await import('/js/renderers/images-renderer.js');
+        const { fetchAdImages } = await import('/js/services/api-ad-images.js');
+        
+        // Get current client ID
+        const clientId = window.appStateGet?.('currentClientId') || 
+                         document.getElementById('clientSelect')?.value;
+        
+        if (!clientId) {
+            alert('Please select a client first');
+            return;
+        }
+        
+        // Fetch images for the client
+        const response = await fetchAdImages(clientId);
+        const images = response.items || [];
+        
+        if (images.length === 0) {
+            alert('No images available. Please upload images in the Images tab first.');
+            return;
+        }
+        
+        // Show picker modal
+        showImagePickerModal(async (imageUrl) => {
+            try {
+                // Get current ad to preserve full_json
+                const ads = getAdsCache();
+                const ad = ads.find(a => a.id === adId);
+                
+                if (!ad) {
+                    throw new Error('Ad not found');
+                }
+                
+                // Update via API - pass image_url which will be stored in full_json by backend
+                await updateFacebookAd(adId, { 
+                    image_url: imageUrl
+                });
+                
+                // Update cache - update full_json with image_url
+                const updatedFullJson = {
+                    ...ad.full_json,
+                    image_url: imageUrl
+                };
+                updateAdInCache(adId, { 
+                    full_json: updatedFullJson
+                });
+                
+                // Re-render via controller
+                if (window.renderAdsPage) {
+                    window.renderAdsPage();
+                }
+            } catch (error) {
+                console.error('[AdsRenderer] Failed to update image:', error);
+                alert('Failed to update image: ' + error.message);
+            }
+        });
+    } catch (error) {
+        console.error('[AdsRenderer] Failed to open image picker:', error);
+        alert('Failed to open image picker: ' + error.message);
     }
 }

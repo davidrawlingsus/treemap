@@ -26,6 +26,7 @@
     <!-- App styles (extracted from inline) -->
     <link rel="stylesheet" href="/styles/app.css">
     <link rel="stylesheet" href="/styles/ads.css">
+    <link rel="stylesheet" href="/styles/images.css">
     
     <script src="/config.js"></script>
     <script src="/auth.js"></script>
@@ -347,6 +348,14 @@
         import {
             clearAdsState as adsStateClearAdsState
         } from '/js/state/ads-state.js';
+        import {
+            initImagesPage as imagesControllerInitImagesPage,
+            renderImagesPage as imagesControllerRenderImagesPage
+        } from '/js/controllers/images-controller.js';
+        import {
+            showImageUploadModal as imagesRendererShowImageUploadModal,
+            showImagePickerModal as imagesRendererShowImagePickerModal
+        } from '/js/renderers/images-renderer.js';
         
         // Make color schemes config available globally
         window.colorSchemesCATEGORY_COLORS = colorSchemesCATEGORY_COLORS;
@@ -555,6 +564,10 @@
         window.adsControllerInitAdsPage = adsControllerInitAdsPage;
         window.initAdsPage = adsControllerInitAdsPage;
         window.renderAdsPage = adsControllerRenderAdsPage;
+        window.initImagesPage = imagesControllerInitImagesPage;
+        window.renderImagesPage = imagesControllerRenderImagesPage;
+        window.showImageUploadModal = imagesRendererShowImageUploadModal;
+        window.showImagePickerModal = imagesRendererShowImagePickerModal;
         window.verbatimsRendererRenderVerbatims = verbatimsRendererRenderVerbatims;
         window.treemapRendererRenderTreemap = treemapRendererRenderTreemap;
         window.chartRendererRenderBarChart = chartRendererRenderBarChart;
@@ -683,6 +696,9 @@
                 </a>
                 <a href="#" class="nav-menu-item" id="navAds" onclick="navigateToView('ads'); return false;">
                     <span>Ads</span>
+                </a>
+                <a href="#" class="nav-menu-item" id="navImages" onclick="navigateToView('images'); return false;">
+                    <span>Images</span>
                 </a>
                 <a href="#" class="nav-menu-item" id="navInsights" onclick="navigateToView('insights'); return false;">
                     <span>Insights</span>
@@ -5947,11 +5963,13 @@
             const insightsSection = document.getElementById('insights-section');
             const historySection = document.getElementById('history-section');
             const adsSection = document.getElementById('ads-section');
+            const imagesSection = document.getElementById('images-section');
             const settingsSection = document.getElementById('settings-section');
             const navVisualizations = document.getElementById('navVisualizations');
             const navInsights = document.getElementById('navInsights');
             const navHistory = document.getElementById('navHistory');
             const navAds = document.getElementById('navAds');
+            const navImages = document.getElementById('navImages');
             const navSettings = document.getElementById('navSettings');
             const mainContainer = document.getElementById('mainContainer');
             
@@ -6002,6 +6020,16 @@
                     adsSection.style.overflow = 'hidden';
                 }
             }
+            if (imagesSection) {
+                imagesSection.classList.remove('active');
+                if (!imagesSection.classList.contains('active')) {
+                    imagesSection.style.display = 'none';
+                    imagesSection.style.height = '0';
+                    imagesSection.style.minHeight = '0';
+                    imagesSection.style.maxHeight = '0';
+                    imagesSection.style.overflow = 'hidden';
+                }
+            }
             if (settingsSection) {
                 settingsSection.classList.remove('active');
                 if (!settingsSection.classList.contains('active')) {
@@ -6018,6 +6046,7 @@
             if (navInsights) navInsights.classList.remove('active');
             if (navHistory) navHistory.classList.remove('active');
             if (navAds) navAds.classList.remove('active');
+            if (navImages) navImages.classList.remove('active');
             if (navSettings) navSettings.classList.remove('active');
             
             // Show selected section and update nav - CSS class will handle the showing
@@ -6206,6 +6235,35 @@
                 if (mainContainer && mainContainer.scrollTop > 0) {
                     mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
                 }
+            } else if (viewName === 'images') {
+                if (imagesSection) {
+                    imagesSection.classList.add('active');
+                    // Reset styles for active section
+                    imagesSection.style.display = '';
+                    imagesSection.style.height = '';
+                    imagesSection.style.minHeight = '';
+                    imagesSection.style.maxHeight = '';
+                    imagesSection.style.overflow = '';
+                }
+                if (navImages) navImages.classList.add('active');
+                // Remove min-height constraint for images to allow natural sizing
+                if (mainContainer) {
+                    mainContainer.style.minHeight = 'auto';
+                    mainContainer.style.height = 'auto';
+                    mainContainer.setAttribute('data-view', 'images');
+                }
+                
+                // Initialize images page
+                window.imagesInitialized = false;
+                if (typeof initImagesPage === 'function') {
+                    initImagesPage();
+                }
+                
+                // Scroll to top to ensure images section is visible
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (mainContainer && mainContainer.scrollTop > 0) {
+                    mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
+                }
             } else if (viewName === 'settings') {
                 if (settingsSection) {
                     settingsSection.classList.add('active');
@@ -6246,6 +6304,8 @@
                 hash = '#/history';
             } else if (viewName === 'ads') {
                 hash = '#/ads';
+            } else if (viewName === 'images') {
+                hash = '#/images';
             } else if (viewName === 'settings') {
                 hash = '#/settings';
             }
@@ -6262,6 +6322,10 @@
                 navigateToView('history');
             } else if (hash === '#/ads') {
                 navigateToView('ads');
+            } else if (hash === '#/images') {
+                navigateToView('images');
+            } else if (hash === '#/images') {
+                navigateToView('images');
             } else if (hash === '#/settings') {
                 navigateToView('settings');
             } else {
@@ -6278,6 +6342,10 @@
                 navigateToView('history');
             } else if (hash === '#/ads') {
                 navigateToView('ads');
+            } else if (hash === '#/images') {
+                navigateToView('images');
+            } else if (hash === '#/images') {
+                navigateToView('images');
             } else if (hash === '#/settings') {
                 navigateToView('settings');
             } else {
@@ -6304,6 +6372,8 @@
                 if (navInsights) navInsights.classList.add('active');
             } else if (hash === '#/history') {
                 if (navHistory) navHistory.classList.add('active');
+            } else if (hash === '#/images') {
+                if (navImages) navImages.classList.add('active');
             } else if (hash === '#/settings') {
                 if (navSettings) navSettings.classList.add('active');
             } else {
@@ -6390,6 +6460,8 @@
                     navigateToView('insights');
                 } else if (hash === '#/history') {
                     navigateToView('history');
+                } else if (hash === '#/images') {
+                    navigateToView('images');
                 } else if (hash === '#/settings') {
                     navigateToView('settings');
                 } else {
@@ -6405,6 +6477,8 @@
                 navigateToView('insights');
             } else if (hash === '#/history') {
                 navigateToView('history');
+            } else if (hash === '#/images') {
+                navigateToView('images');
             } else if (hash === '#/settings') {
                 navigateToView('settings');
             } else {
@@ -15519,6 +15593,20 @@
             <div id="adsGrid" class="ads-grid"></div>
         </div>
     </div> <!-- End ads-section -->
+
+    <!-- Images Section -->
+    <div id="images-section" class="spa-section">
+        <div class="control-bar" style="position: relative;">
+            <h1 style="margin: 0; font-size: 20px; font-weight: 600; color: #37352f; margin-right: 0.5rem;">Image Inventory</h1>
+            <button class="images-upload-btn" onclick="window.showImageUploadModal()" style="margin-left: auto; padding: 8px 16px; background: var(--brand-color, #B9F040); color: #37352f; border: none; border-radius: 6px; font-weight: 500; cursor: pointer; transition: opacity 0.2s ease;">
+                Upload Image
+            </button>
+        </div>
+
+        <div class="images-container">
+            <div id="imagesGrid" class="images-grid"></div>
+        </div>
+    </div> <!-- End images-section -->
 
     <!-- Settings Section -->
     <div id="settings-section" class="spa-section">

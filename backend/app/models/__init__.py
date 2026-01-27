@@ -11,6 +11,7 @@ from app.models.insight import Insight
 from app.models.prompt import Prompt, PromptHelperPrompt, PromptClient
 from app.models.action import Action
 from app.models.facebook_ad import FacebookAd
+from app.models.ad_image import AdImage
 
 __all__ = [
     "Client",
@@ -30,6 +31,7 @@ __all__ = [
     "PromptClient",
     "Action",
     "FacebookAd",
+    "AdImage",
 ]
 
 

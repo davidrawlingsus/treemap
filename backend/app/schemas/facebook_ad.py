@@ -30,6 +30,7 @@ class FacebookAdUpdate(BaseModel):
     call_to_action: Optional[str] = None
     destination_url: Optional[str] = None
     image_hash: Optional[str] = None
+    image_url: Optional[str] = Field(None, description="Image URL from ad_images inventory")
     voc_evidence: Optional[List[str]] = None
     status: Optional[str] = None
 

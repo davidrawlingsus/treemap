@@ -11,6 +11,7 @@ from app.database import get_db
 from app.models import User, FacebookAd, Client
 from app.schemas import FacebookAdCreate, FacebookAdUpdate, FacebookAdResponse, FacebookAdListResponse
 from app.auth import get_current_active_founder
+import copy
 
 logger = logging.getLogger(__name__)
 
@@ -111,13 +112,23 @@ def update_facebook_ad(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_founder),
 ):
-    """Update a Facebook ad (e.g., change status)."""
+    """Update a Facebook ad (e.g., change status or image_url)."""
     ad = db.query(FacebookAd).filter(FacebookAd.id == ad_id).first()
     if not ad:
         raise HTTPException(status_code=404, detail="Facebook ad not found")
     
     # Update only provided fields
     update_data = ad_data.model_dump(exclude_unset=True)
+    
+    # Handle image_url - store it in full_json
+    image_url = update_data.pop('image_url', None)
+    if image_url is not None:
+        # Update full_json to include image_url
+        full_json = copy.deepcopy(ad.full_json) if ad.full_json else {}
+        full_json['image_url'] = image_url
+        ad.full_json = full_json
+    
+    # Update other fields
     for field, value in update_data.items():
         setattr(ad, field, value)
     
