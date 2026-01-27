@@ -36,7 +36,16 @@ function scheduleLayoutFromImageLoad() {
             return;
         }
         if (masonryInstance) {
+            // Disable transitions during layout to prevent visual glitch
+            const grid = masonryInstance.element;
+            grid.classList.add('images-grid--no-transition');
+            
             masonryInstance.layout();
+            
+            // Re-enable transitions after layout completes
+            setTimeout(() => {
+                grid.classList.remove('images-grid--no-transition');
+            }, 50);
         }
     }, IMAGE_LOAD_LAYOUT_DELAY_MS);
 }
@@ -229,13 +238,20 @@ function initMasonry(container) {
         return;
     }
     
+    // Disable transitions during initial layout to prevent visual glitch
+    container.classList.add('images-grid--no-transition');
+    
     masonryInstance = new Masonry(container, {
         itemSelector: '.images-card',
         columnWidth: '.images-grid-sizer',
         gutter: '.images-gutter-sizer',
         percentPosition: true,
-        horizontalOrder: true
+        horizontalOrder: true,
+        transitionDuration: 0 // No animation during initial layout
     });
+    
+    // Keep transitions disabled - they'll be re-enabled after the first debounced layout
+    // This prevents the "grow then snap back" effect during initial load
     
     // Relayout after images load to handle different aspect ratios
     const images = container.querySelectorAll('.images-card__image');
