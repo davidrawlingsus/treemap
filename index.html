@@ -346,6 +346,13 @@
             renderAdsPage as adsControllerRenderAdsPage
         } from '/js/controllers/ads-controller.js';
         import {
+            openAdsFindReplaceModal as adsFindReplaceOpenModal,
+            closeAdsFindReplaceModal as adsFindReplaceCloseModal,
+            handleAdsFindReplaceSearch as adsFindReplaceHandleSearch,
+            handleAdsFindReplaceReplace as adsFindReplaceHandleReplace,
+            handleAdsFindReplaceReplaceAll as adsFindReplaceHandleReplaceAll
+        } from '/js/controllers/ads-find-replace-controller.js';
+        import {
             clearAdsState as adsStateClearAdsState
         } from '/js/state/ads-state.js';
         import {
@@ -564,6 +571,11 @@
         window.adsControllerInitAdsPage = adsControllerInitAdsPage;
         window.initAdsPage = adsControllerInitAdsPage;
         window.renderAdsPage = adsControllerRenderAdsPage;
+        window.openAdsFindReplaceModal = adsFindReplaceOpenModal;
+        window.closeAdsFindReplaceModal = adsFindReplaceCloseModal;
+        window.handleAdsFindReplaceSearch = adsFindReplaceHandleSearch;
+        window.handleAdsFindReplaceReplace = adsFindReplaceHandleReplace;
+        window.handleAdsFindReplaceReplaceAll = adsFindReplaceHandleReplaceAll;
         window.initImagesPage = imagesControllerInitImagesPage;
         window.renderImagesPage = imagesControllerRenderImagesPage;
         window.showImageUploadModal = imagesRendererShowImageUploadModal;
@@ -15557,6 +15569,15 @@
                 </div>
             </div>
             
+            <!-- Find & Replace Button -->
+            <button class="ads-find-replace-button" onclick="openAdsFindReplaceModal()" type="button" aria-label="Find and replace" title="Find and replace text in ads">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 4px;">
+                    <path d="M7 12C9.76142 12 12 9.76142 12 7C12 4.23858 9.76142 2 7 2C4.23858 2 2 4.23858 2 7C2 9.76142 4.23858 12 7 12Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M10.5 10.5L14 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Find & Replace
+            </button>
+            
             <!-- View Toggle -->
             <div class="ads-view-toggle" id="adsViewToggle">
                 <button type="button" class="ads-view-toggle__btn active" data-view="grid" title="Grid view" onclick="setAdsViewMode('grid')">
@@ -15586,6 +15607,88 @@
             </div>
             <div class="filter-value-dialog-body" id="adsFilterValueDialogBody">
                 <!-- Filter value options will be populated here -->
+            </div>
+        </div>
+
+        <!-- Find & Replace Dialog -->
+        <div class="filter-dialog-overlay" id="adsFindReplaceOverlay" onclick="closeAdsFindReplaceModal()"></div>
+        <div class="ads-find-replace-dialog" id="adsFindReplaceDialog">
+            <div class="ads-find-replace-header">
+                <div class="ads-find-replace-title">Find & Replace</div>
+                <button class="ads-find-replace-close" onclick="closeAdsFindReplaceModal()">&times;</button>
+            </div>
+            <div class="ads-find-replace-body">
+                <!-- Field Selection -->
+                <div class="ads-find-replace-section">
+                    <div class="ads-find-replace-section-title">Search in fields:</div>
+                    <div class="ads-find-replace-fields">
+                        <label class="ads-find-replace-field-checkbox">
+                            <input type="checkbox" id="adsFindReplaceFieldPrimaryText" checked onchange="handleAdsFindReplaceSearch()">
+                            <span>Primary Text</span>
+                        </label>
+                        <label class="ads-find-replace-field-checkbox">
+                            <input type="checkbox" id="adsFindReplaceFieldHeadline" checked onchange="handleAdsFindReplaceSearch()">
+                            <span>Headline</span>
+                        </label>
+                        <label class="ads-find-replace-field-checkbox">
+                            <input type="checkbox" id="adsFindReplaceFieldDescription" checked onchange="handleAdsFindReplaceSearch()">
+                            <span>Description</span>
+                        </label>
+                        <label class="ads-find-replace-field-checkbox">
+                            <input type="checkbox" id="adsFindReplaceFieldCTA" checked onchange="handleAdsFindReplaceSearch()">
+                            <span>Call to Action</span>
+                        </label>
+                        <label class="ads-find-replace-field-checkbox">
+                            <input type="checkbox" id="adsFindReplaceFieldDestinationUrl" checked onchange="handleAdsFindReplaceSearch()">
+                            <span>Destination URL</span>
+                        </label>
+                        <label class="ads-find-replace-field-checkbox">
+                            <input type="checkbox" id="adsFindReplaceFieldFullJson" checked onchange="handleAdsFindReplaceSearch()">
+                            <span>Full JSON (price, title, etc.)</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Find Input -->
+                <div class="ads-find-replace-section">
+                    <label class="ads-find-replace-label" for="adsFindReplaceFindInput">Find:</label>
+                    <input 
+                        type="text" 
+                        id="adsFindReplaceFindInput" 
+                        class="ads-find-replace-input"
+                        placeholder="Enter text to find..."
+                        oninput="handleAdsFindReplaceSearch()"
+                    >
+                </div>
+
+                <!-- Replace Input -->
+                <div class="ads-find-replace-section">
+                    <label class="ads-find-replace-label" for="adsFindReplaceReplaceInput">Replace with:</label>
+                    <input 
+                        type="text" 
+                        id="adsFindReplaceReplaceInput" 
+                        class="ads-find-replace-input"
+                        placeholder="Enter replacement text..."
+                    >
+                </div>
+
+                <!-- Match Preview -->
+                <div class="ads-find-replace-section" id="adsFindReplacePreviewSection" style="display: none;">
+                    <div class="ads-find-replace-preview-header">
+                        <div class="ads-find-replace-match-count" id="adsFindReplaceMatchCount"></div>
+                    </div>
+                    <div class="ads-find-replace-preview-content" id="adsFindReplacePreviewContent">
+                        <!-- Preview will be populated here -->
+                    </div>
+                </div>
+
+                <!-- Error Message -->
+                <div class="ads-find-replace-error" id="adsFindReplaceError" style="display: none;"></div>
+            </div>
+            <div class="ads-find-replace-actions">
+                <button class="ads-find-replace-btn ads-find-replace-btn-secondary" onclick="closeAdsFindReplaceModal()">Cancel</button>
+                <button class="ads-find-replace-btn ads-find-replace-btn-primary" id="adsFindReplaceReplaceBtn" onclick="handleAdsFindReplaceReplace()" disabled>Replace</button>
+                <button class="ads-find-replace-btn ads-find-replace-btn-primary" id="adsFindReplaceReplaceAllBtn" onclick="handleAdsFindReplaceReplaceAll()" disabled>Replace All</button>
             </div>
         </div>
 

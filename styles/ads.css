@@ -860,3 +860,267 @@
     object-fit: contain;
     max-width: 100%;
 }
+
+/* ============ Find & Replace ============ */
+
+/* Find & Replace Button */
+.ads-find-replace-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    background: transparent;
+    border: 1px solid rgba(55, 53, 47, 0.16);
+    border-radius: 6px;
+    font-size: 14px;
+    color: #37352f;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+    white-space: nowrap;
+}
+
+.ads-find-replace-button:hover {
+    background: rgba(55, 53, 47, 0.03);
+    border-color: rgba(55, 53, 47, 0.3);
+}
+
+.ads-find-replace-button svg {
+    flex-shrink: 0;
+}
+
+/* Find & Replace Dialog */
+.ads-find-replace-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border: 1px solid rgba(55, 53, 47, 0.16);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    min-width: 500px;
+    max-width: 700px;
+    max-height: 80vh;
+    z-index: 2001;
+    display: none;
+    flex-direction: column;
+}
+
+.ads-find-replace-dialog.active {
+    display: flex;
+}
+
+.ads-find-replace-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.ads-find-replace-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: rgba(55, 53, 47, 0.9);
+}
+
+.ads-find-replace-close {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 24px;
+    color: rgba(55, 53, 47, 0.6);
+    padding: 0;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.15s ease;
+}
+
+.ads-find-replace-close:hover {
+    background: rgba(55, 53, 47, 0.06);
+    color: rgba(55, 53, 47, 0.9);
+}
+
+.ads-find-replace-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+}
+
+.ads-find-replace-section {
+    margin-bottom: 20px;
+}
+
+.ads-find-replace-section:last-child {
+    margin-bottom: 0;
+}
+
+.ads-find-replace-section-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: rgba(55, 53, 47, 0.7);
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.ads-find-replace-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.ads-find-replace-field-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    color: rgba(55, 53, 47, 0.8);
+    user-select: none;
+}
+
+.ads-find-replace-field-checkbox input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #B9F040;
+}
+
+.ads-find-replace-label {
+    display: block;
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(55, 53, 47, 0.8);
+    margin-bottom: 8px;
+}
+
+.ads-find-replace-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid rgba(55, 53, 47, 0.16);
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+    color: #37352f;
+    background: white;
+    box-sizing: border-box;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ads-find-replace-input:focus {
+    outline: none;
+    border-color: #B9F040;
+    box-shadow: 0 0 0 3px rgba(185, 240, 64, 0.1);
+}
+
+.ads-find-replace-preview-header {
+    margin-bottom: 12px;
+}
+
+.ads-find-replace-match-count {
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(55, 53, 47, 0.8);
+}
+
+.ads-find-replace-preview-content {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid rgba(55, 53, 47, 0.09);
+    border-radius: 6px;
+    padding: 12px;
+    background: #f8f9fa;
+}
+
+.ads-find-replace-preview-item {
+    padding: 8px;
+    margin-bottom: 8px;
+    background: white;
+    border-radius: 4px;
+    border-left: 3px solid #B9F040;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.ads-find-replace-preview-item:last-child {
+    margin-bottom: 0;
+}
+
+.ads-find-replace-preview-field {
+    font-weight: 600;
+    color: rgba(55, 53, 47, 0.7);
+    margin-bottom: 4px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.ads-find-replace-preview-text {
+    color: #37352f;
+}
+
+.ads-find-replace-preview-text .highlight {
+    background: rgba(185, 240, 64, 0.4);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
+.ads-find-replace-error {
+    padding: 12px;
+    background: #fee2e2;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    color: #991b1b;
+    font-size: 14px;
+    margin-top: 12px;
+}
+
+.ads-find-replace-actions {
+    padding: 16px 20px;
+    border-top: 1px solid rgba(55, 53, 47, 0.09);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.ads-find-replace-btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: opacity 0.2s ease, background 0.2s ease;
+}
+
+.ads-find-replace-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.ads-find-replace-btn-secondary {
+    background: rgba(55, 53, 47, 0.08);
+    color: #37352f;
+}
+
+.ads-find-replace-btn-secondary:hover:not(:disabled) {
+    background: rgba(55, 53, 47, 0.12);
+}
+
+.ads-find-replace-btn-primary {
+    background: #B9F040;
+    color: #37352f;
+}
+
+.ads-find-replace-btn-primary:hover:not(:disabled) {
+    background: #A5D837;
+}
