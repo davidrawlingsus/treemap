@@ -44,24 +44,25 @@ function initSizeSlider() {
     // Debounced handler for slider changes
     const handleSliderChange = debounce((value) => {
         // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'images-controller.js:handleSliderChange',message:'Slider change handler fired',data:{value,newCount:parseInt(value,10)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'images-controller.js:handleSliderChange',message:'Debounced handler FIRED',data:{value,newCount:parseInt(value,10)},timestamp:Date.now(),sessionId:'debug-session',runId:'run-new',hypothesisId:'H3'})}).catch(()=>{});
         // #endregion
         const count = parseInt(value, 10);
         setImagesColumnCount(count);
         valueDisplay.textContent = count;
         container.style.setProperty('--images-column-count', String(count));
-        cancelScheduledLayoutFromImageLoad();
         // #region agent log
-        const sizer = container.querySelector('.images-grid-sizer');
-        const sizerWidth = sizer ? window.getComputedStyle(sizer).width : 'N/A';
-        fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'images-controller.js:handleSliderChange',message:'CSS var updated, before relayout',data:{cssVar:container.style.getPropertyValue('--images-column-count'),sizerWidth},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'images-controller.js:handleSliderChange',message:'About to cancel + relayout',data:{cssVar:String(count)},timestamp:Date.now(),sessionId:'debug-session',runId:'run-new',hypothesisId:'H3'})}).catch(()=>{});
         // #endregion
+        cancelScheduledLayoutFromImageLoad();
         relayoutImagesGrid();
     }, 100);
     
     // Attach event listener
     slider.addEventListener('input', (e) => {
         const value = e.target.value;
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'images-controller.js:slider.input',message:'Raw slider input event',data:{value,timestamp:Date.now()},timestamp:Date.now(),sessionId:'debug-session',runId:'run-new',hypothesisId:'H3'})}).catch(()=>{});
+        // #endregion
         valueDisplay.textContent = value;
         handleSliderChange(value);
     });

@@ -3009,6 +3009,10 @@
         }
         
         function filterByQuestion(refKey, previousRefKey = null) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:filterByQuestion:entry',message:'Dimension switch started',data:{newDimension:refKey,previousDimension:previousRefKey,categoriesBeforeSwitch:availableCategories.slice(0,10)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
+            // #endregion agent log
+            
             // Save current filters for the previous dimension before switching
             // Use previousRefKey if provided (from onchange handler), otherwise use currentQuestionRefKey
             const oldRefKey = previousRefKey !== null ? previousRefKey : currentQuestionRefKey;
@@ -3031,6 +3035,10 @@
             // Extract available filter options from the filtered data (dimension-specific)
             extractAvailableFilterOptions(rawData);
             
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:filterByQuestion:after-extract',message:'After extractAvailableFilterOptions',data:{newDimension:refKey,categoriesAfterExtract:availableCategories.slice(0,10),categoryCount:availableCategories.length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion agent log
+            
             // Load saved filters for the new dimension (or empty if none)
             loadFiltersForDimension(refKey || null);
             
@@ -3044,6 +3052,10 @@
             
             // Re-render visualizations (this will apply the restored filters)
             applyFiltersAndRender();
+            
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:filterByQuestion:exit',message:'Dimension switch completed',data:{newDimension:refKey,categoriesAtEnd:availableCategories.slice(0,10)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
+            // #endregion agent log
         }
         
         // Initialize
@@ -3617,6 +3629,9 @@
                 const isVisible = filterDropdown.style.display !== 'none';
                 filterDropdown.style.display = isVisible ? 'none' : 'block';
                 if (!isVisible) {
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:filterBtn-onclick',message:'Filter dropdown opened',data:{availableCategories:availableCategories.slice(0,10),categoryCount:availableCategories.length,currentDimension:currentQuestionRefKey},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
+                    // #endregion agent log
                     updateFilterUI();
                 }
             };
@@ -3956,10 +3971,30 @@
             const items = getAvailableItemsForType(currentFilterType) || [];
             if (!items || items.length === 0) return [];
             
-            const searchTerm = currentFilterSearchTerm ? currentFilterSearchTerm.trim().toLowerCase() : '';
-            if (!searchTerm) return items;
+            // Apply special sorting for categories
+            let sortedItems = items;
+            if (currentFilterType === 'category') {
+                sortedItems = [...items].sort((a, b) => {
+                    const aStr = String(a || '').trim();
+                    const bStr = String(b || '').trim();
+                    const aLower = aStr.toLowerCase();
+                    const bLower = bStr.toLowerCase();
+                    
+                    const specialValues = ['nothing', 'none', 'not applicable'];
+                    const aIsSpecial = specialValues.includes(aLower);
+                    const bIsSpecial = specialValues.includes(bLower);
+                    
+                    if (aIsSpecial && bIsSpecial) return aStr.localeCompare(bStr);
+                    if (aIsSpecial) return -1;
+                    if (bIsSpecial) return 1;
+                    return aStr.localeCompare(bStr);
+                });
+            }
             
-            return items.filter(item => {
+            const searchTerm = currentFilterSearchTerm ? currentFilterSearchTerm.trim().toLowerCase() : '';
+            if (!searchTerm) return sortedItems;
+            
+            return sortedItems.filter(item => {
                 if (item === null || item === undefined) return false;
                 return String(item).toLowerCase().includes(searchTerm);
             });
@@ -15286,32 +15321,97 @@
         // Fix: Prevent browser tab navigation when Option+Arrow is used in text inputs
         // On macOS, Option+ArrowLeft/Right is a browser shortcut for tab switching,
         // but users expect it to work for word-by-word navigation in text inputs
-        document.addEventListener('keydown', (e) => {
-            // Only handle Option+Arrow (not Command+Arrow, which should still switch tabs)
-            if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && e.altKey && !e.metaKey && !e.ctrlKey) {
-                const isTextInput = e.target.tagName === 'INPUT' || 
-                                   e.target.tagName === 'TEXTAREA' || 
-                                   e.target.contentEditable === 'true' ||
-                                   e.target.isContentEditable;
-                
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:option-arrow-fix',message:'Option+Arrow in text input - preventing browser tab navigation',data:{key:e.key,altKey:e.altKey,isTextInput:isTextInput,targetTag:e.target.tagName,defaultPreventedBefore:e.defaultPrevented},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FIX'})}).catch(()=>{});
-                // #endregion agent log
-                
-                // If user is in a text input, prevent browser's tab navigation
-                // This allows the native text word-by-word navigation to work
-                if (isTextInput) {
-                    e.stopPropagation(); // Prevent other handlers from interfering
-                    e.preventDefault(); // Prevent browser's tab navigation
-                    // The native text word-by-word navigation will still work because
-                    // we're only preventing the browser-level tab switching behavior
+        // We intercept this and manually implement word navigation to prevent tab switching
+        (function() {
+            const handleOptionArrow = (e) => {
+                // Only handle Option+Arrow (not Command+Arrow, which should still switch tabs)
+                if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && e.altKey && !e.metaKey && !e.ctrlKey && !e.shiftKey) {
+                    const target = e.target;
+                    const isTextInput = target.tagName === 'INPUT' || 
+                                       target.tagName === 'TEXTAREA' || 
+                                       target.contentEditable === 'true' ||
+                                       target.isContentEditable;
                     
                     // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:option-arrow-fix',message:'Prevented default and stopped propagation',data:{defaultPreventedAfter:e.defaultPrevented},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FIX'})}).catch(()=>{});
+                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:option-arrow-fix',message:'Option+Arrow detected',data:{key:e.key,altKey:e.altKey,isTextInput:isTextInput,targetTag:target.tagName,defaultPreventedBefore:e.defaultPrevented},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FIX'})}).catch(()=>{});
                     // #endregion agent log
+                    
+                    // If user is in a text input, prevent browser's tab navigation and implement word navigation
+                    if (isTextInput) {
+                        e.stopImmediatePropagation();
+                        e.preventDefault();
+                        
+                        // Manually implement word-by-word navigation
+                        if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
+                            const input = target;
+                            const start = input.selectionStart;
+                            const end = input.selectionEnd;
+                            const text = input.value;
+                            
+                            if (e.key === 'ArrowLeft') {
+                                // Move to start of previous word
+                                let newPos = start;
+                                // Skip whitespace
+                                while (newPos > 0 && /\s/.test(text[newPos - 1])) {
+                                    newPos--;
+                                }
+                                // Find start of word
+                                while (newPos > 0 && !/\s/.test(text[newPos - 1])) {
+                                    newPos--;
+                                }
+                                input.setSelectionRange(newPos, newPos);
+                            } else if (e.key === 'ArrowRight') {
+                                // Move to start of next word
+                                let newPos = end;
+                                // Skip current word
+                                while (newPos < text.length && !/\s/.test(text[newPos])) {
+                                    newPos++;
+                                }
+                                // Skip whitespace
+                                while (newPos < text.length && /\s/.test(text[newPos])) {
+                                    newPos++;
+                                }
+                                input.setSelectionRange(newPos, newPos);
+                            }
+                        } else if (target.contentEditable === 'true' || target.isContentEditable) {
+                            // For contenteditable, use browser's native word navigation via execCommand
+                            // This should work even after preventDefault
+                            const selection = window.getSelection();
+                            if (selection.rangeCount > 0) {
+                                const range = selection.getRangeAt(0);
+                                if (e.key === 'ArrowLeft') {
+                                    // Move to start of previous word
+                                    range.collapse(true);
+                                    for (let i = 0; i < 1; i++) {
+                                        range.modify('move', 'backward', 'word');
+                                    }
+                                    selection.removeAllRanges();
+                                    selection.addRange(range);
+                                } else if (e.key === 'ArrowRight') {
+                                    // Move to start of next word
+                                    range.collapse(false);
+                                    for (let i = 0; i < 1; i++) {
+                                        range.modify('move', 'forward', 'word');
+                                    }
+                                    selection.removeAllRanges();
+                                    selection.addRange(range);
+                                }
+                            }
+                        }
+                        
+                        // #region agent log
+                        fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:option-arrow-fix',message:'Implemented manual word navigation',data:{key:e.key,defaultPreventedAfter:e.defaultPrevented},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FIX'})}).catch(()=>{});
+                        // #endregion agent log
+                        
+                        return false;
+                    }
                 }
-            }
-        }, true); // Use capture phase with highest priority to intercept before browser handles it
+            };
+            
+            // Register at both window and document level with capture phase for maximum priority
+            window.addEventListener('keydown', handleOptionArrow, true);
+            document.addEventListener('keydown', handleOptionArrow, true);
+        })();
     </script>
     
     <!-- Marketing site header -->

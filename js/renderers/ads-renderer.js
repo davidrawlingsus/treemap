@@ -787,9 +787,26 @@ async function handleStatusChange(adId, newStatus) {
         // Update cache
         updateAdInCache(adId, { status: newStatus });
         
+        // Save scroll position before re-render (page scrolls via window.scrollY)
+        const windowScrollYBefore = window.scrollY;
+        const mainContainer = document.getElementById('mainContainer');
+        const mainContainerScrollTopBefore = mainContainer ? mainContainer.scrollTop : 0;
+        
         // Re-render via controller
         if (window.renderAdsPage) {
             window.renderAdsPage();
+        }
+        
+        // Restore scroll position after DOM update
+        if (windowScrollYBefore > 0) {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    window.scrollTo({ top: windowScrollYBefore, behavior: 'auto' });
+                    if (mainContainer && mainContainerScrollTopBefore > 0) {
+                        mainContainer.scrollTop = mainContainerScrollTopBefore;
+                    }
+                });
+            });
         }
     } catch (error) {
         console.error('[AdsRenderer] Failed to update status:', error);
@@ -855,8 +872,10 @@ async function handleImageSelection(adId, mediaElement) {
                 });
                 
                 // Save scroll position before re-render to avoid disorienting jump
+                // The page scrolls via window.scrollY, not mainContainer.scrollTop
+                const windowScrollYBefore = window.scrollY;
                 const mainContainer = document.getElementById('mainContainer');
-                const scrollTop = mainContainer ? mainContainer.scrollTop : 0;
+                const mainContainerScrollTopBefore = mainContainer ? mainContainer.scrollTop : 0;
                 
                 // Re-render via controller
                 if (window.renderAdsPage) {
@@ -864,10 +883,15 @@ async function handleImageSelection(adId, mediaElement) {
                 }
                 
                 // Restore scroll position after DOM update
-                if (mainContainer && scrollTop > 0) {
+                // Use double requestAnimationFrame to ensure layout is complete
+                if (windowScrollYBefore > 0) {
                     requestAnimationFrame(() => {
                         requestAnimationFrame(() => {
-                            mainContainer.scrollTop = scrollTop;
+                            window.scrollTo({ top: windowScrollYBefore, behavior: 'auto' });
+                            // Also restore mainContainer if it was scrolled
+                            if (mainContainer && mainContainerScrollTopBefore > 0) {
+                                mainContainer.scrollTop = mainContainerScrollTopBefore;
+                            }
                         });
                     });
                 }
