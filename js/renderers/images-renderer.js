@@ -19,24 +19,13 @@ const IMAGE_LOAD_LAYOUT_DELAY_MS = 120;
 let lastSliderRelayoutTime = 0;
 const SLIDER_COOLDOWN_MS = 600; // Ignore image-load layouts for 600ms after slider change
 
-// #region agent log - layout call counter
-let layoutCallId = 0;
-// #endregion
-
-/** Debounced layout for image-load callbacks. Batches many load-triggered layouts into one to avoid "slide, revert, slide again". */
+/** Debounced layout for image-load callbacks. Batches many load-triggered layouts into one. */
 function scheduleLayoutFromImageLoad() {
     // Skip if we're in the cooldown period after a slider change
     const timeSinceSlider = Date.now() - lastSliderRelayoutTime;
     if (timeSinceSlider < SLIDER_COOLDOWN_MS) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'images-renderer.js:scheduleLayoutFromImageLoad',message:'SKIPPED - in cooldown',data:{timeSinceSlider,cooldown:SLIDER_COOLDOWN_MS},timestamp:Date.now(),sessionId:'debug-session',runId:'run-new',hypothesisId:'H1'})}).catch(()=>{});
-        // #endregion
         return;
     }
-    
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'images-renderer.js:scheduleLayoutFromImageLoad',message:'Scheduling layout',data:{timeSinceSlider,delay:IMAGE_LOAD_LAYOUT_DELAY_MS},timestamp:Date.now(),sessionId:'debug-session',runId:'run-new',hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
     
     if (imageLoadLayoutTimeout) clearTimeout(imageLoadLayoutTimeout);
     imageLoadLayoutTimeout = setTimeout(() => {
@@ -44,15 +33,9 @@ function scheduleLayoutFromImageLoad() {
         // Check cooldown again when executing (images might have loaded during cooldown)
         const timeSinceSliderExec = Date.now() - lastSliderRelayoutTime;
         if (timeSinceSliderExec < SLIDER_COOLDOWN_MS) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'images-renderer.js:scheduleLayoutFromImageLoad:exec',message:'SKIPPED exec - still in cooldown',data:{timeSinceSliderExec,cooldown:SLIDER_COOLDOWN_MS},timestamp:Date.now(),sessionId:'debug-session',runId:'run-new',hypothesisId:'H1'})}).catch(()=>{});
-            // #endregion
             return;
         }
         if (masonryInstance) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'images-renderer.js:scheduleLayoutFromImageLoad:exec',message:'EXECUTING debounced layout',data:{callId:++layoutCallId},timestamp:Date.now(),sessionId:'debug-session',runId:'run-new',hypothesisId:'H1'})}).catch(()=>{});
-            // #endregion
             masonryInstance.layout();
         }
     }, IMAGE_LOAD_LAYOUT_DELAY_MS);
@@ -254,15 +237,6 @@ function initMasonry(container) {
         horizontalOrder: true
     });
     
-    // #region agent log - Monkey-patch layout() to log ALL calls
-    const originalLayout = masonryInstance.layout.bind(masonryInstance);
-    masonryInstance.layout = function() {
-        const stack = new Error().stack.split('\n').slice(1, 5).join(' <- ');
-        fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'images-renderer.js:masonryInstance.layout',message:'*** LAYOUT() CALLED ***',data:{callId:++layoutCallId,stack:stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run-new',hypothesisId:'H-ALL'})}).catch(()=>{});
-        return originalLayout();
-    };
-    // #endregion
-    
     // Relayout after images load to handle different aspect ratios
     const images = container.querySelectorAll('.images-card__image');
     let loadedCount = 0;
@@ -320,29 +294,25 @@ function initMasonry(container) {
  * Forces Masonry to re-measure columnWidth before layout to ensure CSS variable changes are picked up
  */
 export function relayoutImagesGrid() {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'images-renderer.js:relayoutImagesGrid',message:'relayoutImagesGrid CALLED',data:{hasMasonry:!!masonryInstance,callId:++layoutCallId},timestamp:Date.now(),sessionId:'debug-session',runId:'run-new',hypothesisId:'H2'})}).catch(()=>{});
-    // #endregion
     if (masonryInstance) {
+        const grid = masonryInstance.element;
+        
+        // Disable transitions during slider-driven layout to prevent visual glitch
+        grid.classList.add('images-grid--no-transition');
+        
         // Force browser to recalculate CSS (reflow)
-        const sizer = masonryInstance.element?.querySelector('.images-grid-sizer');
+        const sizer = grid.querySelector('.images-grid-sizer');
         if (sizer) {
-            // Trigger reflow to ensure CSS variable is applied
             void sizer.offsetWidth;
-            // #region agent log
-            const computedWidth = window.getComputedStyle(sizer).width;
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'images-renderer.js:relayoutImagesGrid',message:'After reflow - sizer width',data:{computedWidth,callId:layoutCallId},timestamp:Date.now(),sessionId:'debug-session',runId:'run-new',hypothesisId:'H5'})}).catch(()=>{});
-            // #endregion
         }
-        // Use requestAnimationFrame to ensure layout happens after CSS recalculation
-        requestAnimationFrame(() => {
-            if (masonryInstance) {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'images-renderer.js:relayoutImagesGrid:rAF',message:'Inside rAF - calling layout()',data:{callId:layoutCallId},timestamp:Date.now(),sessionId:'debug-session',runId:'run-new',hypothesisId:'H2'})}).catch(()=>{});
-                // #endregion
-                masonryInstance.layout();
-            }
-        });
+        
+        // Perform layout immediately (no animation)
+        masonryInstance.layout();
+        
+        // Re-enable transitions after a short delay so subsequent layouts animate
+        setTimeout(() => {
+            grid.classList.remove('images-grid--no-transition');
+        }, 50);
     }
 }
 

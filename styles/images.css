@@ -90,6 +90,12 @@
     position: relative;
 }
 
+/* Disable Masonry transitions during slider-driven layout changes */
+/* This prevents "slide, revert, slide again" visual glitch */
+.images-grid--no-transition .images-card {
+    transition: none !important;
+}
+
 /* Grid sizer element for Masonry to calculate column widths */
 /* Use CSS custom property for dynamic column count */
 .images-grid-sizer,
