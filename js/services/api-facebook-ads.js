@@ -69,7 +69,7 @@ export async function fetchFacebookAds(clientId) {
  * @param {Object} adData.full_json - Complete JSON for FB API
  * @param {string} [adData.description] - Ad description
  * @param {string} [adData.destination_url] - Link URL
- * @param {string} [adData.image_hash] - Image prompt
+ * @param {null} [adData.image_hash] - Deprecated, always null
  * @param {Array<string>} [adData.voc_evidence] - VoC quotes
  * @param {string} [adData.insight_id] - Link to insight
  * @param {string} [adData.action_id] - Link to source action

@@ -420,16 +420,13 @@
         const actionId = slideoutPanel?.currentActionId || null;
 
         // Map Facebook ad fields
-        // Note: image_hash can be at top level OR nested inside media object
-        const imageHash = ideaData.image_hash || ideaData.media?.image_hash || null;
-        
         const adData = {
             primary_text: ideaData.primary_text,
             headline: ideaData.headline,
             description: ideaData.description || null,
             call_to_action: ideaData.call_to_action,
             destination_url: ideaData.destination_url || null,
-            image_hash: imageHash,
+            image_hash: null, // Image prompts removed - not using them
             voc_evidence: ideaData.voc_evidence || [],
             full_json: ideaData, // Preserve complete JSON for FB API
             action_id: actionId,

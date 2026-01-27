@@ -137,7 +137,6 @@ function renderAdCard(ad) {
     const cta = formatCTA(ad.call_to_action);
     const destinationUrl = ad.destination_url || '';
     const displayUrl = extractDomain(destinationUrl);
-    const imageHash = escapeHtml(ad.image_hash || 'No image prompt available');
     const vocEvidence = ad.voc_evidence || [];
     
     // Format primary text for display
@@ -176,19 +175,6 @@ function renderAdCard(ad) {
             </div>
             
             <div class="ads-card__accordions">
-                <div class="ads-accordion">
-                    <button class="ads-accordion__trigger" data-accordion="image-prompt">
-                        <span class="ads-accordion__title">Image Prompt</span>
-                        <svg class="ads-accordion__chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                    </button>
-                    <div class="ads-accordion__content">
-                        <div class="ads-accordion__body">
-                            <p class="ads-accordion__text">${imageHash}</p>
-                        </div>
-                    </div>
-                </div>
                 <div class="ads-accordion">
                     <button class="ads-accordion__trigger" data-accordion="voc-evidence">
                         <span class="ads-accordion__title">VoC Evidence</span>
