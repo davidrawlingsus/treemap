@@ -12,6 +12,13 @@ import { escapeHtml } from '/js/utils/dom.js';
 // Store Masonry instance for cleanup/relayout
 let masonryInstance = null;
 
+// Store event handler refs so we can remove before re-attaching on re-render (avoids duplicate handlers → multiple picker opens)
+let _adsContainerClickHandler = null;
+let _adsDocumentClickHandler = null;
+let _adsContainerInputHandler = null;
+let _adsContainerKeydownHandler = null;
+let _adsEventContainer = null;
+
 /**
  * Show loading state
  * @param {HTMLElement} container - Container element
@@ -168,6 +175,7 @@ function renderAdCard(ad) {
             
             <div class="ads-card__mockup">
                 ${renderFBAdMockup({
+                    adId: id,
                     primaryText: formattedPrimaryText,
                     headline,
                     description,
@@ -201,10 +209,11 @@ function renderAdCard(ad) {
 /**
  * Render Facebook ad mockup HTML
  * @param {Object} params - Ad parameters
+ * @param {string} params.adId - Ad UUID
  * @param {string} [params.imageUrl] - Image URL for the ad
  * @returns {string} HTML string
  */
-function renderFBAdMockup({ primaryText, headline, description, cta, displayUrl, logoSrc, clientName, imageUrl }) {
+function renderFBAdMockup({ adId, primaryText, headline, description, cta, displayUrl, logoSrc, clientName, imageUrl }) {
     const profilePicContent = logoSrc 
         ? `<img src="${escapeHtml(logoSrc)}" alt="Client Logo" style="width:40px;height:40px;border-radius:50%;object-fit:contain;background:#fff;">`
         : 'Ad';
@@ -214,7 +223,10 @@ function renderFBAdMockup({ primaryText, headline, description, cta, displayUrl,
 
     return `
         <div class="pe-fb-ad" style="margin:0;padding:0;border:1px solid #dce0e5;display:block;width:100%;background:#fff;border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,0.1);overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.3333;color:#050505;">
-            <div class="pe-fb-ad__header" style="padding:12px 12px 0;margin:0;display:flex;align-items:center;gap:8px;">
+            <div class="pe-fb-ad__header" style="padding:12px 12px 0;margin:0;display:flex;align-items:center;gap:8px;position:relative;">
+                <button class="pe-fb-ad__edit-icon" data-ad-id="${adId}" title="Edit ad text" type="button">
+                    <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/edit.png" alt="Edit" width="16" height="16">
+                </button>
                 <div class="pe-fb-ad__profile-pic" style="${profilePicStyle}">${profilePicContent}</div>
                 <div class="pe-fb-ad__info" style="flex:1;min-width:0;margin:0;padding:0;">
                     <div class="pe-fb-ad__page-name" style="font-weight:600;font-size:15px;color:#050505;margin:0;padding:0;">${escapeHtml(clientName)}</div>
@@ -252,6 +264,10 @@ function renderFBAdMockup({ primaryText, headline, description, cta, displayUrl,
                     <span style="font-size:16px;margin:0;padding:0;">↗</span>
                     <span style="margin:0;padding:0;">Share</span>
                 </div>
+            </div>
+            <div class="pe-fb-ad__edit-controls" data-ad-id="${adId}" style="padding: 10px 12px !important;">
+                <button class="pe-fb-ad__edit-cancel" data-ad-id="${adId}" type="button">Cancel</button>
+                <button class="pe-fb-ad__edit-save" data-ad-id="${adId}" type="button">Save</button>
             </div>
         </div>
     `;
@@ -310,10 +326,259 @@ function formatPrimaryText(text) {
 }
 
 /**
+ * Enable edit mode for an ad
+ * @param {string} adId - Ad UUID
+ * @param {HTMLElement} adCard - The ads-card element
+ */
+function enableEditMode(adId, adCard) {
+    const fbAd = adCard.querySelector('.pe-fb-ad');
+    if (!fbAd) return;
+    
+    // Store original values for revert
+    const primaryTextEl = fbAd.querySelector('.pe-fb-ad__primary-text');
+    const headlineEl = fbAd.querySelector('.pe-fb-ad__headline');
+    const descriptionEl = fbAd.querySelector('.pe-fb-ad__description');
+    
+    if (!primaryTextEl || !headlineEl || !descriptionEl) return;
+    
+    // Store original values (use innerHTML to preserve HTML structure like <div> and <br> tags)
+    fbAd.dataset.originalPrimaryText = primaryTextEl.innerHTML;
+    fbAd.dataset.originalHeadline = headlineEl.innerHTML;
+    fbAd.dataset.originalDescription = descriptionEl.innerHTML;
+    
+    // Make elements contenteditable (sponsored text is not editable)
+    primaryTextEl.contentEditable = 'true';
+    headlineEl.contentEditable = 'true';
+    descriptionEl.contentEditable = 'true';
+    
+    // Add edit mode class (CSS will show edit controls)
+    fbAd.classList.add('is-editing');
+    
+    // Recalculate Masonry layout after showing edit controls (adds height)
+    requestAnimationFrame(() => {
+        if (masonryInstance) {
+            masonryInstance.layout();
+        }
+    });
+    
+    // Focus first editable element
+    primaryTextEl.focus();
+}
+
+/**
+ * Disable edit mode and revert changes
+ * @param {HTMLElement} adCard - The ads-card element
+ */
+function disableEditMode(adCard) {
+    const fbAd = adCard.querySelector('.pe-fb-ad');
+    if (!fbAd) return;
+    
+    // Restore original values
+    const primaryTextEl = fbAd.querySelector('.pe-fb-ad__primary-text');
+    const headlineEl = fbAd.querySelector('.pe-fb-ad__headline');
+    const descriptionEl = fbAd.querySelector('.pe-fb-ad__description');
+    
+    if (primaryTextEl && fbAd.dataset.originalPrimaryText !== undefined) {
+        primaryTextEl.innerHTML = fbAd.dataset.originalPrimaryText;
+    }
+    if (headlineEl && fbAd.dataset.originalHeadline !== undefined) {
+        headlineEl.innerHTML = fbAd.dataset.originalHeadline;
+    }
+    if (descriptionEl && fbAd.dataset.originalDescription !== undefined) {
+        descriptionEl.innerHTML = fbAd.dataset.originalDescription;
+    }
+    
+    // Remove contenteditable
+    if (primaryTextEl) primaryTextEl.contentEditable = 'false';
+    if (headlineEl) headlineEl.contentEditable = 'false';
+    if (descriptionEl) descriptionEl.contentEditable = 'false';
+    
+    // Remove edit mode class (CSS will hide edit controls)
+    fbAd.classList.remove('is-editing');
+    
+    // Recalculate Masonry layout after hiding edit controls (removes height)
+    requestAnimationFrame(() => {
+        if (masonryInstance) {
+            masonryInstance.layout();
+        }
+    });
+    
+    // Clean up stored values
+    delete fbAd.dataset.originalPrimaryText;
+    delete fbAd.dataset.originalHeadline;
+    delete fbAd.dataset.originalDescription;
+}
+
+/**
+ * Extract plain text from contenteditable element, preserving line breaks
+ * @param {HTMLElement} element - Contenteditable element
+ * @returns {string} Plain text with line breaks
+ */
+function extractTextContent(element) {
+    if (!element) return '';
+    
+    // Preserve paragraph structure: <div> elements should become double newlines (\n\n)
+    // and <br> elements should become single newlines (\n)
+    // This matches what formatPrimaryText() expects: \n\n for paragraphs, \n for line breaks
+    
+    // Get the HTML and convert it to text with proper newline structure
+    let html = element.innerHTML || '';
+    
+    // Replace closing </div> tags with double newlines (paragraph breaks)
+    html = html.replace(/<\/div>/gi, '\n\n');
+    
+    // Replace <br> and <br/> with single newlines (line breaks)
+    html = html.replace(/<br\s*\/?>/gi, '\n');
+    
+    // Remove all remaining HTML tags
+    html = html.replace(/<[^>]+>/g, '');
+    
+    // Decode HTML entities
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    let text = tempDiv.textContent || tempDiv.innerText || '';
+    
+    // Normalize: collapse multiple consecutive newlines (3+) to double newlines
+    text = text.replace(/\n{3,}/g, '\n\n');
+    
+    // Trim leading/trailing whitespace but preserve structure
+    text = text.trim();
+    
+    return text;
+}
+
+/**
+ * Save ad edits to API
+ * @param {string} adId - Ad UUID
+ * @param {HTMLElement} adCard - The ads-card element
+ */
+async function saveAdEdits(adId, adCard) {
+    const fbAd = adCard.querySelector('.pe-fb-ad');
+    if (!fbAd) return;
+    
+    const primaryTextEl = fbAd.querySelector('.pe-fb-ad__primary-text');
+    const headlineEl = fbAd.querySelector('.pe-fb-ad__headline');
+    const descriptionEl = fbAd.querySelector('.pe-fb-ad__description');
+    
+    if (!primaryTextEl || !headlineEl || !descriptionEl) return;
+    
+    // Extract text content
+    // Note: Header text (sponsored) is editable but not saved as it's not stored in backend
+    const primaryText = extractTextContent(primaryTextEl);
+    const headline = extractTextContent(headlineEl);
+    const description = extractTextContent(descriptionEl);
+    
+    // Disable save button during save
+    const saveBtn = fbAd.querySelector('.pe-fb-ad__edit-save');
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+    }
+    
+    try {
+        // Update via API
+        await updateFacebookAd(adId, {
+            primary_text: primaryText,
+            headline: headline,
+            description: description
+        });
+        
+        // Update cache
+        updateAdInCache(adId, {
+            primary_text: primaryText,
+            headline: headline,
+            description: description
+        });
+        
+        // Exit edit mode
+        disableEditMode(adCard);
+        
+        // Re-render via controller to refresh the display
+        if (window.renderAdsPage) {
+            window.renderAdsPage();
+            
+            // Wait for DOM to update and new Masonry instance to be created, then recalculate layout
+            // Double requestAnimationFrame ensures layout happens after all DOM updates and Masonry init
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (masonryInstance) {
+                        masonryInstance.layout();
+                    }
+                });
+            });
+        }
+    } catch (error) {
+        console.error('[AdsRenderer] Failed to save ad edits:', error);
+        alert('Failed to save changes: ' + error.message);
+        
+        // Re-enable save button
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save';
+        }
+    }
+}
+
+/**
  * Attach event listeners using event delegation
  */
 function attachEventListeners(container) {
-    container.addEventListener('click', async (e) => {
+    // Remove old handlers if they exist (from previous render) to prevent duplicate handlers
+    if (_adsEventContainer) {
+        if (_adsContainerClickHandler) {
+            _adsEventContainer.removeEventListener('click', _adsContainerClickHandler);
+        }
+        if (_adsContainerInputHandler) {
+            _adsEventContainer.removeEventListener('input', _adsContainerInputHandler);
+        }
+        if (_adsContainerKeydownHandler) {
+            _adsEventContainer.removeEventListener('keydown', _adsContainerKeydownHandler);
+        }
+        if (_adsDocumentClickHandler) {
+            document.removeEventListener('click', _adsDocumentClickHandler);
+        }
+    }
+    
+    // Store container reference
+    _adsEventContainer = container;
+    
+    // Create and store new click handler
+    _adsContainerClickHandler = async (e) => {
+        // Handle edit icon click
+        const editIcon = e.target.closest('.pe-fb-ad__edit-icon');
+        if (editIcon) {
+            e.stopPropagation();
+            const adId = editIcon.dataset.adId;
+            const adCard = editIcon.closest('.ads-card');
+            if (adId && adCard) {
+                enableEditMode(adId, adCard);
+            }
+            return;
+        }
+        
+        // Handle save button click
+        const saveBtn = e.target.closest('.pe-fb-ad__edit-save');
+        if (saveBtn) {
+            e.stopPropagation();
+            const adId = saveBtn.dataset.adId;
+            const adCard = saveBtn.closest('.ads-card');
+            if (adId && adCard) {
+                await saveAdEdits(adId, adCard);
+            }
+            return;
+        }
+        
+        // Handle cancel button click
+        const cancelBtn = e.target.closest('.pe-fb-ad__edit-cancel');
+        if (cancelBtn) {
+            e.stopPropagation();
+            const adCard = cancelBtn.closest('.ads-card');
+            if (adCard) {
+                disableEditMode(adCard);
+            }
+            return;
+        }
+        
         // Handle delete button
         const deleteBtn = e.target.closest('.ads-card__delete');
         if (deleteBtn) {
@@ -353,6 +618,12 @@ function attachEventListeners(container) {
         // Handle image media click (open image picker)
         const mediaElement = e.target.closest('.pe-fb-ad__media');
         if (mediaElement) {
+            e.stopPropagation(); // Prevent event from bubbling to other handlers
+            // Don't allow image selection while in edit mode
+            const fbAd = mediaElement.closest('.pe-fb-ad');
+            if (fbAd && fbAd.classList.contains('is-editing')) {
+                return;
+            }
             const card = mediaElement.closest('.ads-card');
             const adId = card?.dataset.adId;
             if (adId) {
@@ -364,44 +635,121 @@ function attachEventListeners(container) {
         // Handle accordion toggle
         const accordionTrigger = e.target.closest('.ads-accordion__trigger');
         if (accordionTrigger) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:350',message:'Accordion trigger clicked',data:{triggerId:accordionTrigger.dataset?.accordion},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-            // #endregion
+            // Don't allow accordion toggle while in edit mode
+            const fbAd = accordionTrigger.closest('.pe-fb-ad');
+            if (fbAd && fbAd.classList.contains('is-editing')) {
+                return;
+            }
             const accordion = accordionTrigger.closest('.ads-accordion');
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:353',message:'Accordion element found',data:{accordionFound:!!accordion,hadExpandedBefore:accordion?.classList?.contains('expanded')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-            // #endregion
             if (accordion) {
                 accordion.classList.toggle('expanded');
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:356',message:'After class toggle',data:{isExpandedNow:accordion.classList.contains('expanded')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'E'})}).catch(()=>{});
-                // #endregion
                 // Force CSS columns to recalculate layout after accordion animation
                 setTimeout(() => {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:360',message:'setTimeout fired',data:{containerExists:!!container,containerTagName:container?.tagName,currentColumnCount:container?.style?.columnCount},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{});
-                    // #endregion
                     container.style.columnCount = 'auto';
                     // eslint-disable-next-line no-unused-expressions
                     container.offsetHeight; // Force reflow
                     container.style.columnCount = '';
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:367',message:'Reflow trick completed',data:{finalColumnCount:container?.style?.columnCount,offsetHeight:container?.offsetHeight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-                    // #endregion
                 }, 260); // Slightly longer than the 250ms accordion transition
             }
             return;
         }
-    });
+    };
     
-    // Close status dropdowns when clicking outside
-    document.addEventListener('click', (e) => {
+    // Attach click handler
+    container.addEventListener('click', _adsContainerClickHandler);
+    
+    // Create and store document click handler for closing dropdowns
+    _adsDocumentClickHandler = (e) => {
         if (!e.target.closest('.ads-card__status-wrapper')) {
             container.querySelectorAll('.ads-card__status-wrapper.open').forEach(w => {
                 w.classList.remove('open');
             });
         }
-    });
+    };
+    document.addEventListener('click', _adsDocumentClickHandler);
+    
+    // Create and store input handler
+    _adsContainerInputHandler = (e) => {
+        const fbAd = e.target.closest('.pe-fb-ad.is-editing');
+        if (fbAd && e.target.contentEditable === 'true') {
+            // Debounce layout updates to avoid excessive recalculations
+            clearTimeout(fbAd._layoutTimeout);
+            fbAd._layoutTimeout = setTimeout(() => {
+                if (masonryInstance) {
+                    masonryInstance.layout();
+                }
+            }, 150);
+        }
+    };
+    container.addEventListener('input', _adsContainerInputHandler);
+    
+    // Create and store keydown handler
+    _adsContainerKeydownHandler = (e) => {
+        const fbAd = e.target.closest('.pe-fb-ad.is-editing');
+        if (!fbAd) return;
+        
+        // Escape key - cancel editing
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            const adCard = fbAd.closest('.ads-card');
+            if (adCard) {
+                disableEditMode(adCard);
+            }
+            return;
+        }
+        
+        // Enter key in contenteditable - handle line breaks properly
+        if (e.key === 'Enter' && e.target.contentEditable === 'true') {
+            const isPrimaryText = e.target.classList.contains('pe-fb-ad__primary-text');
+            const isSingleLine = e.target.classList.contains('pe-fb-ad__headline') || 
+                                e.target.classList.contains('pe-fb-ad__description');
+            
+            // For primary text (multi-line), insert <br> instead of creating <div>
+            if (isPrimaryText) {
+                e.preventDefault();
+                // Insert a line break (<br>) instead of letting contenteditable create a <div>
+                if (document.execCommand) {
+                    document.execCommand('insertLineBreak', false, null);
+                } else {
+                    // Fallback: manually insert <br>
+                    const selection = window.getSelection();
+                    if (selection.rangeCount > 0) {
+                        const range = selection.getRangeAt(0);
+                        const br = document.createElement('br');
+                        range.deleteContents();
+                        range.insertNode(br);
+                        // Move cursor after the <br>
+                        range.setStartAfter(br);
+                        range.collapse(true);
+                        selection.removeAllRanges();
+                        selection.addRange(range);
+                    }
+                }
+                return;
+            }
+            
+            // For single-line fields, move to next field
+            if (isSingleLine && !e.shiftKey) {
+                e.preventDefault();
+                // Move focus to next field or blur
+                const fields = [
+                    fbAd.querySelector('.pe-fb-ad__primary-text'),
+                    fbAd.querySelector('.pe-fb-ad__headline'),
+                    fbAd.querySelector('.pe-fb-ad__description')
+                ].filter(Boolean);
+                
+                const currentIndex = fields.indexOf(e.target);
+                if (currentIndex < fields.length - 1) {
+                    fields[currentIndex + 1].focus();
+                } else {
+                    e.target.blur();
+                }
+                return;
+            }
+        }
+    };
+    container.addEventListener('keydown', _adsContainerKeydownHandler);
 }
 
 /**
@@ -478,6 +826,9 @@ async function handleImageSelection(adId, mediaElement) {
             return;
         }
         
+        const { setImagesCache } = await import('/js/state/images-state.js');
+        setImagesCache(images);
+        
         // Show picker modal
         showImagePickerModal(async (imageUrl) => {
             try {
@@ -503,9 +854,22 @@ async function handleImageSelection(adId, mediaElement) {
                     full_json: updatedFullJson
                 });
                 
+                // Save scroll position before re-render to avoid disorienting jump
+                const mainContainer = document.getElementById('mainContainer');
+                const scrollTop = mainContainer ? mainContainer.scrollTop : 0;
+                
                 // Re-render via controller
                 if (window.renderAdsPage) {
                     window.renderAdsPage();
+                }
+                
+                // Restore scroll position after DOM update
+                if (mainContainer && scrollTop > 0) {
+                    requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                            mainContainer.scrollTop = scrollTop;
+                        });
+                    });
                 }
             } catch (error) {
                 console.error('[AdsRenderer] Failed to update image:', error);

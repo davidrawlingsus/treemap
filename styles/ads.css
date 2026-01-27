@@ -1124,3 +1124,126 @@
 .ads-find-replace-btn-primary:hover:not(:disabled) {
     background: #A5D837;
 }
+
+/* ============ Ad Edit Mode ============ */
+
+/* Edit Icon */
+.pe-fb-ad__edit-icon {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    padding: 4px;
+    border: none;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease;
+    z-index: 10;
+}
+
+.pe-fb-ad__edit-icon:hover {
+    background: white;
+}
+
+.pe-fb-ad__edit-icon img {
+    width: 16px;
+    height: 16px;
+    display: block;
+}
+
+.pe-fb-ad__edit-icon:focus {
+    outline: 2px solid #B9F040;
+    outline-offset: 2px;
+}
+
+/* Hide edit icon when in edit mode */
+.pe-fb-ad.is-editing .pe-fb-ad__edit-icon {
+    display: none;
+}
+
+/* Edit Controls (Save/Cancel buttons) */
+.pe-fb-ad__edit-controls {
+    display: none;
+    padding: 20px 12px;
+    border-top: 1px solid #e4e6eb;
+    background: #f8fafb;
+    gap: 8px;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.pe-fb-ad.is-editing .pe-fb-ad__edit-controls {
+    display: flex;
+}
+
+.pe-fb-ad__edit-cancel,
+.pe-fb-ad__edit-save {
+    padding: 6px 12px !important;
+    border-radius: 4px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: opacity 0.2s ease, background 0.2s ease;
+    font-family: inherit;
+    margin: 0 !important;
+}
+
+.pe-fb-ad__edit-cancel {
+    border: 1px solid rgba(55, 53, 47, 0.16) !important;
+    background: white !important;
+    color: #37352f !important;
+}
+
+.pe-fb-ad__edit-cancel:hover {
+    background: rgba(55, 53, 47, 0.06);
+}
+
+.pe-fb-ad__edit-save {
+    border: none !important;
+    background: #B9F040 !important;
+    color: #37352f !important;
+    margin-right: 8px !important;
+}
+
+.pe-fb-ad__edit-save:hover {
+    background: #A5D837;
+}
+
+.pe-fb-ad__edit-save:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Edit Mode - Editable Elements */
+.pe-fb-ad.is-editing .pe-fb-ad__primary-text,
+.pe-fb-ad.is-editing .pe-fb-ad__headline,
+.pe-fb-ad.is-editing .pe-fb-ad__description {
+    outline: 2px solid #B9F040;
+    outline-offset: 2px;
+    background: rgba(185, 240, 64, 0.05);
+    border-radius: 4px;
+    padding: 4px !important;
+    min-height: 1.2em;
+}
+
+.pe-fb-ad.is-editing .pe-fb-ad__primary-text[contenteditable="true"]:focus,
+.pe-fb-ad.is-editing .pe-fb-ad__headline[contenteditable="true"]:focus,
+.pe-fb-ad.is-editing .pe-fb-ad__description[contenteditable="true"]:focus {
+    outline: 2px solid #A5D837;
+    background: rgba(185, 240, 64, 0.1);
+}
+
+/* Ensure primary text wrapper is editable */
+.pe-fb-ad.is-editing .pe-fb-ad__primary-text-wrapper {
+    padding: 8px 12px !important;
+}
+
+.pe-fb-ad.is-editing .pe-fb-ad__primary-text {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}

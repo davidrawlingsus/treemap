@@ -15282,6 +15282,36 @@
                 }
             });
         });
+        
+        // Fix: Prevent browser tab navigation when Option+Arrow is used in text inputs
+        // On macOS, Option+ArrowLeft/Right is a browser shortcut for tab switching,
+        // but users expect it to work for word-by-word navigation in text inputs
+        document.addEventListener('keydown', (e) => {
+            // Only handle Option+Arrow (not Command+Arrow, which should still switch tabs)
+            if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && e.altKey && !e.metaKey && !e.ctrlKey) {
+                const isTextInput = e.target.tagName === 'INPUT' || 
+                                   e.target.tagName === 'TEXTAREA' || 
+                                   e.target.contentEditable === 'true' ||
+                                   e.target.isContentEditable;
+                
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:option-arrow-fix',message:'Option+Arrow in text input - preventing browser tab navigation',data:{key:e.key,altKey:e.altKey,isTextInput:isTextInput,targetTag:e.target.tagName,defaultPreventedBefore:e.defaultPrevented},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FIX'})}).catch(()=>{});
+                // #endregion agent log
+                
+                // If user is in a text input, prevent browser's tab navigation
+                // This allows the native text word-by-word navigation to work
+                if (isTextInput) {
+                    e.stopPropagation(); // Prevent other handlers from interfering
+                    e.preventDefault(); // Prevent browser's tab navigation
+                    // The native text word-by-word navigation will still work because
+                    // we're only preventing the browser-level tab switching behavior
+                    
+                    // #region agent log
+                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'index.html:option-arrow-fix',message:'Prevented default and stopped propagation',data:{defaultPreventedAfter:e.defaultPrevented},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'FIX'})}).catch(()=>{});
+                    // #endregion agent log
+                }
+            }
+        }, true); // Use capture phase with highest priority to intercept before browser handles it
     </script>
     
     <!-- Marketing site header -->
@@ -15701,6 +15731,11 @@
     <div id="images-section" class="spa-section">
         <div class="control-bar" style="position: relative;">
             <h1 style="margin: 0; font-size: 20px; font-weight: 600; color: #37352f; margin-right: 0.5rem;">Image Inventory</h1>
+            <div class="images-size-toolbar">
+                <label for="imagesSizeSlider" class="images-size-label">Size</label>
+                <input type="range" id="imagesSizeSlider" class="images-size-slider" min="2" max="8" value="4" step="1">
+                <span class="images-size-value" id="imagesSizeValue">4</span>
+            </div>
             <button class="images-upload-btn" onclick="window.showImageUploadModal()" style="margin-left: auto; padding: 8px 16px; background: var(--brand-color, #B9F040); color: #37352f; border: none; border-radius: 6px; font-weight: 500; cursor: pointer; transition: opacity 0.2s ease;">
                 Upload Image
             </button>

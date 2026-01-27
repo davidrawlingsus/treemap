@@ -9,6 +9,7 @@ let imagesCache = [];
 let imagesLoading = false;
 let imagesError = null;
 let imagesCurrentClientId = null;
+let imagesColumnCount = null; // null means use default (4)
 
 /**
  * Get cached images
@@ -91,6 +92,45 @@ export function addImageToCache(image) {
 }
 
 /**
+ * Get column count preference
+ * @returns {number} Column count (default 4)
+ */
+export function getImagesColumnCount() {
+    if (imagesColumnCount !== null) {
+        return imagesColumnCount;
+    }
+    // Try to restore from localStorage
+    try {
+        const stored = localStorage.getItem('imagesColumnCount');
+        if (stored !== null) {
+            const count = parseInt(stored, 10);
+            if (count >= 2 && count <= 8) {
+                imagesColumnCount = count;
+                return count;
+            }
+        }
+    } catch (e) {
+        // localStorage not available or error
+    }
+    return 4; // Default
+}
+
+/**
+ * Set column count preference
+ * @param {number} count - Column count (2-8)
+ */
+export function setImagesColumnCount(count) {
+    const validCount = Math.max(2, Math.min(8, Math.round(count)));
+    imagesColumnCount = validCount;
+    // Persist to localStorage
+    try {
+        localStorage.setItem('imagesColumnCount', String(validCount));
+    } catch (e) {
+        // localStorage not available or error
+    }
+}
+
+/**
  * Clear all images state
  */
 export function clearImagesState() {
@@ -98,4 +138,5 @@ export function clearImagesState() {
     imagesLoading = false;
     imagesError = null;
     imagesCurrentClientId = null;
+    // Note: Don't clear imagesColumnCount - it's a user preference
 }

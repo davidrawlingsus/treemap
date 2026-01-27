@@ -7,9 +7,67 @@
 import { fetchAdImages } from '/js/services/api-ad-images.js';
 import { 
     getImagesCache, setImagesCache, setImagesLoading, setImagesError, 
-    getImagesCurrentClientId, setImagesCurrentClientId
+    getImagesCurrentClientId, setImagesCurrentClientId,
+    getImagesColumnCount, setImagesColumnCount
 } from '/js/state/images-state.js';
-import { renderImagesGrid, showLoading, renderError } from '/js/renderers/images-renderer.js';
+import { renderImagesGrid, showLoading, renderError, relayoutImagesGrid, cancelScheduledLayoutFromImageLoad } from '/js/renderers/images-renderer.js';
+import { debounce } from '/js/utils/dom.js';
+
+// ============ Slider Initialization ============
+
+// Track if slider has been initialized to avoid duplicate listeners
+let sliderInitialized = false;
+
+/**
+ * Initialize the size slider
+ */
+function initSizeSlider() {
+    if (sliderInitialized) {
+        return; // Already initialized
+    }
+    
+    const slider = document.getElementById('imagesSizeSlider');
+    const valueDisplay = document.getElementById('imagesSizeValue');
+    const container = document.querySelector('.images-container');
+    
+    if (!slider || !valueDisplay || !container) {
+        console.warn('[ImagesController] Slider elements not found');
+        return;
+    }
+    
+    // Restore saved column count
+    const savedCount = getImagesColumnCount();
+    slider.value = savedCount;
+    valueDisplay.textContent = savedCount;
+    container.style.setProperty('--images-column-count', String(savedCount));
+    
+    // Debounced handler for slider changes
+    const handleSliderChange = debounce((value) => {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'images-controller.js:handleSliderChange',message:'Slider change handler fired',data:{value,newCount:parseInt(value,10)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
+        const count = parseInt(value, 10);
+        setImagesColumnCount(count);
+        valueDisplay.textContent = count;
+        container.style.setProperty('--images-column-count', String(count));
+        cancelScheduledLayoutFromImageLoad();
+        // #region agent log
+        const sizer = container.querySelector('.images-grid-sizer');
+        const sizerWidth = sizer ? window.getComputedStyle(sizer).width : 'N/A';
+        fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'images-controller.js:handleSliderChange',message:'CSS var updated, before relayout',data:{cssVar:container.style.getPropertyValue('--images-column-count'),sizerWidth},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+        // #endregion
+        relayoutImagesGrid();
+    }, 100);
+    
+    // Attach event listener
+    slider.addEventListener('input', (e) => {
+        const value = e.target.value;
+        valueDisplay.textContent = value;
+        handleSliderChange(value);
+    });
+    
+    sliderInitialized = true;
+}
 
 // ============ Page Initialization ============
 
@@ -17,6 +75,9 @@ import { renderImagesGrid, showLoading, renderError } from '/js/renderers/images
  * Initialize the Images page - load and render images
  */
 export async function initImagesPage() {
+    // Initialize slider first (before any rendering)
+    initSizeSlider();
+    
     const container = document.getElementById('imagesGrid');
     if (!container) {
         console.error('[ImagesController] imagesGrid container not found');

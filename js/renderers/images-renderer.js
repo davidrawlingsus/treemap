@@ -14,6 +14,42 @@ let imagePickerCallback = null;
 // Store Masonry instance for cleanup/relayout
 let masonryInstance = null;
 
+let imageLoadLayoutTimeout = null;
+const IMAGE_LOAD_LAYOUT_DELAY_MS = 120;
+let lastSliderRelayoutTime = 0;
+const SLIDER_COOLDOWN_MS = 300; // Ignore image-load layouts for 300ms after slider change
+
+/** Debounced layout for image-load callbacks. Batches many load-triggered layouts into one to avoid "slide, revert, slide again". */
+function scheduleLayoutFromImageLoad() {
+    // Skip if we're in the cooldown period after a slider change
+    const timeSinceSlider = Date.now() - lastSliderRelayoutTime;
+    if (timeSinceSlider < SLIDER_COOLDOWN_MS) {
+        return;
+    }
+    
+    if (imageLoadLayoutTimeout) clearTimeout(imageLoadLayoutTimeout);
+    imageLoadLayoutTimeout = setTimeout(() => {
+        imageLoadLayoutTimeout = null;
+        // Check cooldown again when executing (images might have loaded during cooldown)
+        const timeSinceSliderExec = Date.now() - lastSliderRelayoutTime;
+        if (timeSinceSliderExec < SLIDER_COOLDOWN_MS) {
+            return;
+        }
+        if (masonryInstance) {
+            masonryInstance.layout();
+        }
+    }, IMAGE_LOAD_LAYOUT_DELAY_MS);
+}
+
+/** Cancel any pending image-load-triggered layout and mark slider relayout time. Call before slider-driven relayout to avoid a second layout. */
+export function cancelScheduledLayoutFromImageLoad() {
+    lastSliderRelayoutTime = Date.now();
+    if (imageLoadLayoutTimeout) {
+        clearTimeout(imageLoadLayoutTimeout);
+        imageLoadLayoutTimeout = null;
+    }
+}
+
 /**
  * Show loading state
  * @param {HTMLElement} container - Container element
@@ -61,10 +97,17 @@ export function renderEmpty(container) {
  * @param {Array} images - Array of image objects
  */
 export function renderImagesGrid(container, images) {
+    cancelScheduledLayoutFromImageLoad();
     // Destroy existing Masonry instance before re-rendering
     if (masonryInstance) {
         masonryInstance.destroy();
         masonryInstance = null;
+    }
+    
+    // Clean up existing intersection observer
+    if (window.imagesIntersectionObserver) {
+        window.imagesIntersectionObserver.disconnect();
+        window.imagesIntersectionObserver = null;
     }
     
     if (!images || images.length === 0) {
@@ -82,8 +125,89 @@ export function renderImagesGrid(container, images) {
     // Attach event listeners
     attachEventListeners(container);
     
+    // Initialize lazy loading with Intersection Observer
+    initLazyLoading(container);
+    
     // Initialize Masonry for tiling layout
     initMasonry(container);
+}
+
+/**
+ * Initialize lazy loading with Intersection Observer
+ * Only loads images when they're about to enter the viewport
+ * @param {HTMLElement} container - Grid container element
+ */
+function initLazyLoading(container) {
+    // Check if Intersection Observer is supported
+    if (typeof IntersectionObserver === 'undefined') {
+        // Fallback: load all images immediately
+        const images = container.querySelectorAll('.images-card__image[data-src]');
+        images.forEach(img => {
+            img.src = img.dataset.src;
+            img.removeAttribute('data-src');
+        });
+        return;
+    }
+    
+    // Create intersection observer with root margin for preloading
+    // Load images 100px before they enter viewport
+    window.imagesIntersectionObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const img = entry.target;
+                const src = img.dataset.src;
+                
+                if (src) {
+                    // Add loading class
+                    img.classList.add('images-card__image--loading');
+                    
+                    // Load the image
+                    const tempImg = new Image();
+                    tempImg.onload = () => {
+                        img.src = src;
+                        img.removeAttribute('data-src');
+                        img.classList.remove('images-card__image--loading');
+                        img.classList.add('images-card__image--loaded');
+                        
+                        // Fade in image
+                        requestAnimationFrame(() => {
+                            img.style.opacity = '1';
+                        });
+                        
+                        // Hide placeholder with fade out
+                        const placeholder = img.previousElementSibling;
+                        if (placeholder && placeholder.classList.contains('images-card__placeholder')) {
+                            placeholder.style.opacity = '0';
+                            setTimeout(() => {
+                                placeholder.style.display = 'none';
+                            }, 300);
+                        }
+                        
+                        // Trigger Masonry relayout (debounced to avoid cascade → "revert then slide again")
+                        if (masonryInstance) {
+                            scheduleLayoutFromImageLoad();
+                        }
+                    };
+                    tempImg.onerror = () => {
+                        img.classList.remove('images-card__image--loading');
+                        img.classList.add('images-card__image--error');
+                    };
+                    tempImg.src = src;
+                }
+                
+                // Stop observing once loaded
+                window.imagesIntersectionObserver.unobserve(img);
+            }
+        });
+    }, {
+        rootMargin: '100px' // Start loading 100px before image enters viewport
+    });
+    
+    // Observe all images with data-src
+    const images = container.querySelectorAll('.images-card__image[data-src]');
+    images.forEach(img => {
+        window.imagesIntersectionObserver.observe(img);
+    });
 }
 
 /**
@@ -112,20 +236,57 @@ function initMasonry(container) {
     if (totalImages === 0) return;
     
     images.forEach(img => {
-        if (img.complete) {
+        // Check if already loaded (not using lazy loading) or loaded via Intersection Observer
+        if (img.complete || img.classList.contains('images-card__image--loaded')) {
             loadedCount++;
             if (loadedCount === totalImages) {
-                masonryInstance.layout();
+                scheduleLayoutFromImageLoad();
             }
-        } else {
+        } else if (!img.dataset.src) {
+            // Image has src but not loaded yet
             img.addEventListener('load', () => {
                 loadedCount++;
                 if (loadedCount === totalImages) {
-                    masonryInstance.layout();
+                    scheduleLayoutFromImageLoad();
                 }
-            });
+            }, { once: true });
+        } else {
+            // Image is lazy loading - wait for load event after src is set
+            const checkLoad = () => {
+                if (img.complete) {
+                    loadedCount++;
+                    if (loadedCount === totalImages) {
+                        scheduleLayoutFromImageLoad();
+                    }
+                } else {
+                    img.addEventListener('load', () => {
+                        loadedCount++;
+                        if (loadedCount === totalImages) {
+                            scheduleLayoutFromImageLoad();
+                        }
+                    }, { once: true });
+                }
+            };
+            
+            // Check periodically if image has been loaded by Intersection Observer
+            const checkInterval = setInterval(() => {
+                if (img.classList.contains('images-card__image--loaded') || !img.dataset.src) {
+                    clearInterval(checkInterval);
+                    checkLoad();
+                }
+            }, 100);
         }
     });
+}
+
+/**
+ * Relayout the images grid (for use when column count changes)
+ * Safe to call even if Masonry instance doesn't exist
+ */
+export function relayoutImagesGrid() {
+    if (masonryInstance) {
+        masonryInstance.layout();
+    }
 }
 
 /**
@@ -141,7 +302,13 @@ function renderImageCard(image) {
     return `
         <div class="images-card" data-image-id="${id}">
             <div class="images-card__image-wrapper">
-                <img src="${url}" alt="${filename}" class="images-card__image" loading="lazy">
+                <div class="images-card__placeholder"></div>
+                <img 
+                    data-src="${url}" 
+                    alt="${filename}" 
+                    class="images-card__image" 
+                    loading="lazy"
+                >
                 <button class="images-card__delete" data-image-id="${id}" title="Delete image">×</button>
             </div>
             <div class="images-card__info">
@@ -400,6 +567,12 @@ async function handleBulkImageUpload(files, clientId, overlay, progress, progres
  * @param {Function} onSelect - Callback function with selected image URL
  */
 export function showImagePickerModal(onSelect) {
+    // Remove any existing overlays first to prevent stacking
+    const existingOverlays = document.querySelectorAll('.images-picker-overlay');
+    existingOverlays.forEach(overlay => {
+        overlay.remove();
+    });
+    
     imagePickerCallback = onSelect;
     
     const images = getImagesCache();
@@ -416,7 +589,7 @@ export function showImagePickerModal(onSelect) {
         <div class="images-picker-modal">
             <div class="images-picker-modal__header">
                 <h2>Select Image</h2>
-                <button class="images-picker-modal__close" onclick="this.closest('.images-picker-overlay').remove()">×</button>
+                <button class="images-picker-modal__close">×</button>
             </div>
             <div class="images-picker-modal__body">
                 <div class="images-picker-grid">
@@ -428,6 +601,9 @@ export function showImagePickerModal(onSelect) {
     
     document.body.appendChild(overlay);
     
+    // Initialize lazy loading for picker images
+    initPickerLazyLoading(overlay);
+    
     // Attach click handlers
     overlay.addEventListener('click', (e) => {
         const imageCard = e.target.closest('.images-picker-card');
@@ -438,13 +614,70 @@ export function showImagePickerModal(onSelect) {
             }
             overlay.remove();
             imagePickerCallback = null;
+            return;
         }
         
-        // Close on overlay or close button click
+        // Close on overlay background or close button click
         if (e.target.classList.contains('images-picker-modal__close') || e.target === overlay) {
             overlay.remove();
             imagePickerCallback = null;
         }
+    });
+}
+
+/**
+ * Initialize lazy loading for picker modal images
+ * @param {HTMLElement} overlay - Modal overlay element
+ */
+function initPickerLazyLoading(overlay) {
+    if (typeof IntersectionObserver === 'undefined') {
+        // Fallback: load all images immediately
+        const images = overlay.querySelectorAll('.images-picker-card__image[data-src]');
+        images.forEach(img => {
+            img.src = img.dataset.src;
+            img.removeAttribute('data-src');
+        });
+        return;
+    }
+    
+    const pickerObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const img = entry.target;
+                const src = img.dataset.src;
+                
+                if (src) {
+                    const tempImg = new Image();
+                    tempImg.onload = () => {
+                        img.src = src;
+                        img.removeAttribute('data-src');
+                        img.style.opacity = '1';
+                        
+                        // Hide placeholder
+                        const placeholder = img.previousElementSibling;
+                        if (placeholder && placeholder.classList.contains('images-picker-card__placeholder')) {
+                            placeholder.style.opacity = '0';
+                            setTimeout(() => {
+                                placeholder.style.display = 'none';
+                            }, 200);
+                        }
+                    };
+                    tempImg.onerror = () => {
+                        img.style.opacity = '0';
+                    };
+                    tempImg.src = src;
+                }
+                
+                pickerObserver.unobserve(img);
+            }
+        });
+    }, {
+        rootMargin: '50px'
+    });
+    
+    const images = overlay.querySelectorAll('.images-picker-card__image[data-src]');
+    images.forEach(img => {
+        pickerObserver.observe(img);
     });
 }
 
@@ -459,7 +692,12 @@ function renderPickerImageCard(image) {
     
     return `
         <div class="images-picker-card" data-image-url="${url}">
-            <img src="${url}" alt="${filename}" class="images-picker-card__image" loading="lazy">
+            <div class="images-picker-card__placeholder"></div>
+            <img 
+                data-src="${url}" 
+                alt="${filename}" 
+                class="images-picker-card__image"
+            >
             <div class="images-picker-card__overlay">
                 <div class="images-picker-card__filename">${filename}</div>
             </div>
