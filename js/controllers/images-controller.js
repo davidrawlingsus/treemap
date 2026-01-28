@@ -211,12 +211,12 @@ async function handleViewportDrop(files, clientId) {
     let failCount = 0;
     const errors = [];
     
-    // Show a simple toast/notification for progress
-    const toast = showUploadToast(`Uploading ${totalFiles} file(s)...`);
+    // Show progress banner at top of container
+    const banner = showUploadBanner('Uploading...', totalFiles);
     
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        updateUploadToast(toast, `Uploading ${i + 1} of ${totalFiles}...`);
+        updateUploadBanner(banner, i, totalFiles, false, `Uploading ${file.name}...`);
         
         try {
             const image = await uploadAdImage(clientId, file);
@@ -227,6 +227,9 @@ async function handleViewportDrop(files, clientId) {
             errors.push(`${file.name}: ${error.message}`);
             console.error(`[ImagesController] Failed to upload ${file.name}:`, error);
         }
+        
+        // Update progress after each file
+        updateUploadBanner(banner, i + 1, totalFiles);
     }
     
     // Re-render the grid
@@ -234,9 +237,9 @@ async function handleViewportDrop(files, clientId) {
     
     // Show results
     if (failCount === 0) {
-        updateUploadToast(toast, `Uploaded ${successCount} file(s)`, true);
+        updateUploadBanner(banner, totalFiles, totalFiles, true, `Uploaded ${successCount} file(s)`);
     } else {
-        updateUploadToast(toast, `Uploaded ${successCount}, failed ${failCount}`, true);
+        updateUploadBanner(banner, totalFiles, totalFiles, true, `Uploaded ${successCount}, failed ${failCount}`);
         if (errors.length > 0) {
             console.error('[ImagesController] Upload errors:', errors);
         }
@@ -244,52 +247,82 @@ async function handleViewportDrop(files, clientId) {
 }
 
 /**
- * Show upload progress toast
+ * Show upload progress banner
  * @param {string} message - Initial message
- * @returns {HTMLElement} Toast element
+ * @param {number} total - Total number of files
+ * @returns {HTMLElement} Banner element
  */
-function showUploadToast(message) {
-    // Remove any existing toast
-    const existing = document.getElementById('imagesUploadToast');
+function showUploadBanner(message, total) {
+    // Remove any existing banner
+    const existing = document.getElementById('imagesUploadBanner');
     if (existing) {
         existing.remove();
     }
     
-    const toast = document.createElement('div');
-    toast.id = 'imagesUploadToast';
-    toast.className = 'images-upload-toast';
-    toast.innerHTML = `
-        <div class="images-upload-toast__spinner"></div>
-        <span class="images-upload-toast__text">${message}</span>
+    const container = document.querySelector('.images-container');
+    if (!container) {
+        return null;
+    }
+    
+    const banner = document.createElement('div');
+    banner.id = 'imagesUploadBanner';
+    banner.className = 'images-upload-banner';
+    banner.innerHTML = `
+        <div class="images-upload-banner__content">
+            <div class="images-upload-banner__spinner"></div>
+            <span class="images-upload-banner__text">${message}</span>
+            <span class="images-upload-banner__count">0 / ${total}</span>
+        </div>
+        <div class="images-upload-banner__progress">
+            <div class="images-upload-banner__progress-bar"></div>
+        </div>
     `;
-    document.body.appendChild(toast);
+    
+    // Insert at top of container
+    container.insertBefore(banner, container.firstChild);
     
     // Trigger animation
     requestAnimationFrame(() => {
-        toast.classList.add('is-visible');
+        banner.classList.add('is-visible');
     });
     
-    return toast;
+    return banner;
 }
 
 /**
- * Update toast message
- * @param {HTMLElement} toast - Toast element
- * @param {string} message - New message
- * @param {boolean} done - If true, hide toast after delay
+ * Update banner progress
+ * @param {HTMLElement} banner - Banner element
+ * @param {number} current - Current file index (1-based)
+ * @param {number} total - Total number of files
+ * @param {boolean} done - If true, show completion state
+ * @param {string} [message] - Optional message override
  */
-function updateUploadToast(toast, message, done = false) {
-    const textEl = toast.querySelector('.images-upload-toast__text');
-    if (textEl) {
+function updateUploadBanner(banner, current, total, done = false, message = null) {
+    if (!banner) return;
+    
+    const textEl = banner.querySelector('.images-upload-banner__text');
+    const countEl = banner.querySelector('.images-upload-banner__count');
+    const progressBar = banner.querySelector('.images-upload-banner__progress-bar');
+    
+    if (message && textEl) {
         textEl.textContent = message;
     }
     
+    if (countEl) {
+        countEl.textContent = `${current} / ${total}`;
+    }
+    
+    if (progressBar) {
+        const percent = Math.round((current / total) * 100);
+        progressBar.style.width = `${percent}%`;
+    }
+    
     if (done) {
-        toast.classList.add('is-done');
+        banner.classList.add('is-done');
         setTimeout(() => {
-            toast.classList.remove('is-visible');
+            banner.classList.remove('is-visible');
             setTimeout(() => {
-                toast.remove();
+                banner.remove();
             }, 300);
         }, 2000);
     }
