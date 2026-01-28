@@ -177,3 +177,131 @@
     padding: 6px 12px;
     font-size: 12px;
 }
+
+/* Version History Modal */
+.version-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.version-history-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.version-history-item:hover {
+    border-color: var(--brand-color);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.version-history-item.current {
+    border-color: var(--brand-color);
+    background: rgba(185, 240, 64, 0.05);
+}
+
+.version-history-meta {
+    flex: 1;
+    min-width: 0;
+}
+
+.version-history-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.version-history-version {
+    font-weight: 600;
+    font-size: 16px;
+    color: var(--text);
+}
+
+.version-history-status {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.version-history-status.live {
+    background: #f0fff4;
+    border: 1px solid #c6f6d5;
+    color: #22543d;
+}
+
+.version-history-status.test {
+    background: #fffbf0;
+    border: 1px solid #fbd38d;
+    color: #744210;
+}
+
+.version-history-status.archived {
+    background: #f7fafc;
+    border: 1px solid #e2e8f0;
+    color: #4a5568;
+}
+
+.version-history-current-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    background: var(--brand-color);
+    color: #000;
+}
+
+.version-history-dates {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+
+.version-history-preview {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    background: var(--surface);
+    padding: 8px;
+    border-radius: 4px;
+    max-height: 60px;
+    overflow: hidden;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.version-history-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.version-history-empty {
+    text-align: center;
+    padding: 32px;
+    color: var(--muted);
+}
+
+.version-history-loading {
+    text-align: center;
+    padding: 32px;
+    color: var(--muted);
+}

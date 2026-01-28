@@ -25,6 +25,7 @@
         promptModal: null,
         addPurposeModal: null,
         managePurposesModal: null,
+        versionHistoryModal: null,
         statusMessage: null,
         elements: null,
         onPromptSaved: null,
@@ -58,6 +59,13 @@
 
             if (elements.managePurposesModal) {
                 this.managePurposesModal = new Modal('managePurposesModal', {
+                    closeOnBackdropClick: true,
+                    closeOnEscape: true
+                });
+            }
+
+            if (elements.versionHistoryModal) {
+                this.versionHistoryModal = new Modal('versionHistoryModal', {
                     closeOnBackdropClick: true,
                     closeOnEscape: true
                 });
@@ -154,6 +162,20 @@
             if (this.elements.deletePromptButton) {
                 this.elements.deletePromptButton.addEventListener('click', () => {
                     this.handleDeletePrompt();
+                });
+            }
+
+            // Version history button
+            if (this.elements.versionHistoryButton) {
+                this.elements.versionHistoryButton.addEventListener('click', () => {
+                    this.openVersionHistoryModal();
+                });
+            }
+
+            // Close version history button
+            if (this.elements.closeVersionHistoryButton) {
+                this.elements.closeVersionHistoryButton.addEventListener('click', () => {
+                    this.closeVersionHistoryModal();
                 });
             }
 
@@ -287,6 +309,11 @@
                     this.elements.deletePromptButton.style.display = 'inline-flex';
                 }
 
+                // Show version history button when editing any prompt
+                if (this.elements.versionHistoryButton) {
+                    this.elements.versionHistoryButton.style.display = 'inline-flex';
+                }
+
                 // Set prompt ID for slideout
                 state.set('slideoutPromptId', promptId);
             } else {
@@ -320,6 +347,11 @@
                 // Hide delete button
                 if (this.elements.deletePromptButton) {
                     this.elements.deletePromptButton.style.display = 'none';
+                }
+
+                // Hide version history button for new prompts
+                if (this.elements.versionHistoryButton) {
+                    this.elements.versionHistoryButton.style.display = 'none';
                 }
             }
 
@@ -371,6 +403,10 @@
 
             if (this.elements.deletePromptButton) {
                 this.elements.deletePromptButton.style.display = 'none';
+            }
+
+            if (this.elements.versionHistoryButton) {
+                this.elements.versionHistoryButton.style.display = 'none';
             }
 
             // Close slideout if open
@@ -1070,6 +1106,202 @@
 
             this.showStatus('Purpose deleted successfully.', 'success');
             setTimeout(() => this.hideStatus(), 2000);
+        },
+
+        /**
+         * Open version history modal
+         */
+        openVersionHistoryModal() {
+            const currentPromptId = state.get('currentPromptId');
+            if (!currentPromptId) {
+                this.showStatus('No prompt selected.', 'error');
+                return;
+            }
+
+            const prompts = state.get('prompts') || [];
+            const currentPrompt = prompts.find(p => p.id === currentPromptId);
+            
+            if (!currentPrompt) {
+                this.showStatus('Current prompt could not be found.', 'error');
+                return;
+            }
+
+            // Get all versions of this prompt
+            const promptVersions = prompts
+                .filter(p => p.name === currentPrompt.name)
+                .sort((a, b) => b.version - a.version); // Sort by version descending
+
+            // Update modal title
+            if (this.elements.versionHistoryTitle) {
+                this.elements.versionHistoryTitle.textContent = `Version History: ${currentPrompt.name}`;
+            }
+
+            // Render version history list
+            this.renderVersionHistoryList(promptVersions, currentPromptId);
+
+            // Show modal
+            if (this.versionHistoryModal) {
+                this.versionHistoryModal.show();
+            }
+        },
+
+        /**
+         * Close version history modal
+         */
+        closeVersionHistoryModal() {
+            if (this.versionHistoryModal) {
+                this.versionHistoryModal.hide();
+            }
+        },
+
+        /**
+         * Render version history list
+         * @param {Array} versions - Array of prompt versions
+         * @param {string} currentPromptId - Current prompt ID being edited
+         */
+        renderVersionHistoryList(versions, currentPromptId) {
+            if (!this.elements.versionHistoryList) return;
+
+            if (!versions || versions.length === 0) {
+                this.elements.versionHistoryList.innerHTML = `
+                    <div class="version-history-empty">
+                        <p>No version history available.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const PREVIEW_LENGTH = 150;
+
+            const html = versions.map(version => {
+                const isCurrent = version.id === currentPromptId;
+                const messageText = version.prompt_type === 'helper' 
+                    ? (version.prompt_message || '') 
+                    : (version.system_message || '');
+                const preview = messageText.substring(0, PREVIEW_LENGTH);
+                const hasMore = messageText.length > PREVIEW_LENGTH;
+                const createdAt = version.created_at ? new Date(version.created_at).toLocaleString() : 'Unknown';
+                const updatedAt = version.updated_at ? new Date(version.updated_at).toLocaleString() : 'Unknown';
+
+                return `
+                    <div class="version-history-item ${isCurrent ? 'current' : ''}" data-version-id="${version.id}">
+                        <div class="version-history-meta">
+                            <div class="version-history-header">
+                                <span class="version-history-version">Version ${version.version}</span>
+                                <span class="version-history-status ${version.status}">${version.status}</span>
+                                ${isCurrent ? '<span class="version-history-current-badge">Current</span>' : ''}
+                            </div>
+                            <div class="version-history-dates">
+                                <span>Created: ${createdAt}</span>
+                                <span>Updated: ${updatedAt}</span>
+                            </div>
+                            <div class="version-history-preview">${DOM.escapeHtml(preview)}${hasMore ? '...' : ''}</div>
+                        </div>
+                        <div class="version-history-actions">
+                            ${!isCurrent ? `
+                                <button class="btn btn-secondary btn-sm" data-action="view-version" data-version-id="${version.id}">View</button>
+                                <button class="btn btn-primary btn-sm" data-action="restore-version" data-version-id="${version.id}">Restore</button>
+                            ` : `
+                                <button class="btn btn-secondary btn-sm" disabled>Currently Editing</button>
+                            `}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            this.elements.versionHistoryList.innerHTML = html;
+
+            // Attach event listeners
+            this.elements.versionHistoryList.querySelectorAll('[data-action="view-version"]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const versionId = e.currentTarget.getAttribute('data-version-id');
+                    if (versionId) {
+                        this.handleViewVersion(versionId);
+                    }
+                });
+            });
+
+            this.elements.versionHistoryList.querySelectorAll('[data-action="restore-version"]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const versionId = e.currentTarget.getAttribute('data-version-id');
+                    if (versionId) {
+                        this.handleRestoreVersion(versionId);
+                    }
+                });
+            });
+        },
+
+        /**
+         * Handle view version - opens the version for editing
+         * @param {string} versionId - Version ID to view
+         */
+        handleViewVersion(versionId) {
+            // Close version history modal
+            this.closeVersionHistoryModal();
+            
+            // Close current prompt modal
+            this.closePromptModal();
+            
+            // Open the selected version for editing
+            setTimeout(() => {
+                this.openPromptModal('edit', versionId);
+            }, 100);
+        },
+
+        /**
+         * Handle restore version - creates a new version from the selected version
+         * @param {string} versionId - Version ID to restore from
+         */
+        handleRestoreVersion(versionId) {
+            const prompts = state.get('prompts') || [];
+            const sourcePrompt = prompts.find(p => p.id === versionId);
+            
+            if (!sourcePrompt) {
+                this.showStatus('Selected version could not be found.', 'error');
+                return;
+            }
+
+            // Find the highest version for this prompt name
+            const sameNamePrompts = prompts.filter(p => p.name === sourcePrompt.name);
+            const maxVersion = Math.max(...sameNamePrompts.map(p => p.version));
+            const newVersion = maxVersion + 1;
+
+            // Close version history modal
+            this.closeVersionHistoryModal();
+
+            // Update the prompt form with the source version's data
+            if (this.elements.modalTitle) {
+                this.elements.modalTitle.textContent = `Restore: ${sourcePrompt.name} (v${sourcePrompt.version} → v${newVersion})`;
+            }
+            if (this.elements.nameInput) this.elements.nameInput.value = sourcePrompt.name;
+            if (this.elements.versionInput) this.elements.versionInput.value = newVersion;
+            if (this.elements.promptTypeInput) this.elements.promptTypeInput.value = sourcePrompt.prompt_type || 'system';
+            if (this.elements.promptPurposeInput) this.elements.promptPurposeInput.value = sourcePrompt.prompt_purpose;
+            if (this.elements.statusInput) this.elements.statusInput.value = 'test'; // New versions start as test
+            if (this.elements.llmModelInput) this.elements.llmModelInput.value = sourcePrompt.llm_model;
+            if (this.elements.systemMessageInput) this.elements.systemMessageInput.value = sourcePrompt.system_message || '';
+            if (this.elements.promptMessageInput) this.elements.promptMessageInput.value = sourcePrompt.prompt_message || '';
+            if (this.elements.userMessageInput) this.elements.userMessageInput.value = '';
+
+            // Update UI based on prompt type
+            this.handlePromptTypeChange();
+
+            // Change mode to create (we're creating a new version)
+            state.set('currentMode', 'create');
+            state.set('currentPromptId', null);
+
+            // Hide version-specific buttons since we're now in create mode
+            if (this.elements.newVersionButton) {
+                this.elements.newVersionButton.style.display = 'none';
+            }
+            if (this.elements.deletePromptButton) {
+                this.elements.deletePromptButton.style.display = 'none';
+            }
+            if (this.elements.versionHistoryButton) {
+                this.elements.versionHistoryButton.style.display = 'none';
+            }
+
+            this.showStatus(`Restoring from version ${sourcePrompt.version}. Save to create version ${newVersion}.`, 'success');
         },
 
         /**
