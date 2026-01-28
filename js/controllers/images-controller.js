@@ -90,8 +90,8 @@ function initViewportDragDrop() {
         dropOverlay.innerHTML = `
             <div class="images-drop-overlay__content">
                 <div class="images-drop-overlay__icon">📤</div>
-                <p class="images-drop-overlay__text">Drop images to upload</p>
-                <p class="images-drop-overlay__hint">Supports JPG, PNG, WebP</p>
+                <p class="images-drop-overlay__text">Drop media to upload</p>
+                <p class="images-drop-overlay__hint">Images and videos up to 50MB</p>
             </div>
         `;
         container.appendChild(dropOverlay);
@@ -148,8 +148,10 @@ function initViewportDragDrop() {
         dragDepth = 0;
         dropOverlay.classList.remove('is-visible');
         
-        // Get image files from drop
-        const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+        // Get media files from drop (images and videos)
+        const files = Array.from(e.dataTransfer.files).filter(f => 
+            f.type.startsWith('image/') || f.type.startsWith('video/')
+        );
         
         if (files.length === 0) {
             return;
@@ -172,18 +174,45 @@ function initViewportDragDrop() {
 }
 
 /**
+ * Format file size for display
+ * @param {number} bytes - File size in bytes
+ * @returns {string} Formatted size
+ */
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+}
+
+/**
  * Handle dropped files upload
- * @param {File[]} files - Array of image files
+ * @param {File[]} files - Array of media files
  * @param {string} clientId - Client UUID
  */
 async function handleViewportDrop(files, clientId) {
+    // Check file sizes (50MB limit for server uploads)
+    const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+    const oversizedFiles = files.filter(f => f.size > MAX_SIZE);
+    
+    if (oversizedFiles.length > 0) {
+        const names = oversizedFiles.map(f => `${f.name} (${formatFileSize(f.size)})`).join('\n');
+        alert(`Some files are too large (max 50MB):\n${names}`);
+        // Filter out oversized files
+        files = files.filter(f => f.size <= MAX_SIZE);
+        if (files.length === 0) {
+            return;
+        }
+    }
+    
     const totalFiles = files.length;
     let successCount = 0;
     let failCount = 0;
     const errors = [];
     
     // Show a simple toast/notification for progress
-    const toast = showUploadToast(`Uploading ${totalFiles} image(s)...`);
+    const toast = showUploadToast(`Uploading ${totalFiles} file(s)...`);
     
     for (let i = 0; i < files.length; i++) {
         const file = files[i];
@@ -205,7 +234,7 @@ async function handleViewportDrop(files, clientId) {
     
     // Show results
     if (failCount === 0) {
-        updateUploadToast(toast, `Uploaded ${successCount} image(s)`, true);
+        updateUploadToast(toast, `Uploaded ${successCount} file(s)`, true);
     } else {
         updateUploadToast(toast, `Uploaded ${successCount}, failed ${failCount}`, true);
         if (errors.length > 0) {

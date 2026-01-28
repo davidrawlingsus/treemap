@@ -152,79 +152,112 @@ export function renderImagesGrid(container, images) {
 
 /**
  * Initialize lazy loading with Intersection Observer
- * Only loads images when they're about to enter the viewport
+ * Only loads media when they're about to enter the viewport
  * @param {HTMLElement} container - Grid container element
  */
 function initLazyLoading(container) {
     // Check if Intersection Observer is supported
     if (typeof IntersectionObserver === 'undefined') {
-        // Fallback: load all images immediately
-        const images = container.querySelectorAll('.images-card__image[data-src]');
-        images.forEach(img => {
-            img.src = img.dataset.src;
-            img.removeAttribute('data-src');
+        // Fallback: load all media immediately
+        const media = container.querySelectorAll('.images-card__image[data-src]');
+        media.forEach(el => {
+            el.src = el.dataset.src;
+            el.removeAttribute('data-src');
         });
         return;
     }
     
     // Create intersection observer with root margin for preloading
-    // Load images 100px before they enter viewport
+    // Load media 100px before they enter viewport
     window.imagesIntersectionObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
-                const img = entry.target;
-                const src = img.dataset.src;
+                const el = entry.target;
+                const src = el.dataset.src;
+                const isVideo = el.tagName === 'VIDEO';
                 
                 if (src) {
                     // Add loading class
-                    img.classList.add('images-card__image--loading');
+                    el.classList.add('images-card__image--loading');
                     
-                    // Load the image
-                    const tempImg = new Image();
-                    tempImg.onload = () => {
-                        img.src = src;
-                        img.removeAttribute('data-src');
-                        img.classList.remove('images-card__image--loading');
-                        img.classList.add('images-card__image--loaded');
+                    if (isVideo) {
+                        // For videos, just set the src and listen for loadeddata
+                        el.src = src;
+                        el.removeAttribute('data-src');
                         
-                        // Fade in image
-                        requestAnimationFrame(() => {
-                            img.style.opacity = '1';
-                        });
+                        el.onloadeddata = () => {
+                            el.classList.remove('images-card__image--loading');
+                            el.classList.add('images-card__image--loaded');
+                            
+                            requestAnimationFrame(() => {
+                                el.style.opacity = '1';
+                            });
+                            
+                            // Hide placeholder
+                            const placeholder = el.previousElementSibling;
+                            if (placeholder && placeholder.classList.contains('images-card__placeholder')) {
+                                placeholder.style.opacity = '0';
+                                setTimeout(() => {
+                                    placeholder.style.display = 'none';
+                                }, 300);
+                            }
+                            
+                            if (masonryInstance) {
+                                scheduleLayoutFromImageLoad();
+                            }
+                        };
                         
-                        // Hide placeholder with fade out
-                        const placeholder = img.previousElementSibling;
-                        if (placeholder && placeholder.classList.contains('images-card__placeholder')) {
-                            placeholder.style.opacity = '0';
-                            setTimeout(() => {
-                                placeholder.style.display = 'none';
-                            }, 300);
-                        }
-                        
-                        // Trigger Masonry relayout (debounced to avoid cascade → "revert then slide again")
-                        if (masonryInstance) {
-                            scheduleLayoutFromImageLoad();
-                        }
-                    };
-                    tempImg.onerror = () => {
-                        img.classList.remove('images-card__image--loading');
-                        img.classList.add('images-card__image--error');
-                    };
-                    tempImg.src = src;
+                        el.onerror = () => {
+                            el.classList.remove('images-card__image--loading');
+                            el.classList.add('images-card__image--error');
+                        };
+                    } else {
+                        // For images, preload then set src
+                        const tempImg = new Image();
+                        tempImg.onload = () => {
+                            el.src = src;
+                            el.removeAttribute('data-src');
+                            el.classList.remove('images-card__image--loading');
+                            el.classList.add('images-card__image--loaded');
+                            
+                            requestAnimationFrame(() => {
+                                el.style.opacity = '1';
+                            });
+                            
+                            // Hide placeholder with fade out
+                            const placeholder = el.previousElementSibling;
+                            if (placeholder && placeholder.classList.contains('images-card__placeholder')) {
+                                placeholder.style.opacity = '0';
+                                setTimeout(() => {
+                                    placeholder.style.display = 'none';
+                                }, 300);
+                            }
+                            
+                            // Trigger Masonry relayout
+                            if (masonryInstance) {
+                                scheduleLayoutFromImageLoad();
+                            }
+                        };
+                        tempImg.onerror = () => {
+                            el.classList.remove('images-card__image--loading');
+                            el.classList.add('images-card__image--error');
+                        };
+                        tempImg.src = src;
+                    }
                 }
                 
                 // Stop observing once loaded
-                window.imagesIntersectionObserver.unobserve(img);
+                window.imagesIntersectionObserver.unobserve(el);
             }
         });
     }, {
-        rootMargin: '100px' // Start loading 100px before image enters viewport
+        rootMargin: '100px' // Start loading 100px before media enters viewport
     });
     
-    // Observe all images with data-src
-    const images = container.querySelectorAll('.images-card__image[data-src]');
-    images.forEach(img => {
-        window.imagesIntersectionObserver.observe(img);
+    // Observe all media with data-src
+    const media = container.querySelectorAll('.images-card__image[data-src]');
+    media.forEach(el => {
+        window.imagesIntersectionObserver.observe(el);
     });
 }
 
@@ -333,26 +366,50 @@ export function relayoutImagesGrid() {
 }
 
 /**
- * Render single image card
- * @param {Object} image - Image object from API
+ * Check if content type is video
+ * @param {string} contentType - MIME type
+ * @returns {boolean}
+ */
+function isVideoType(contentType) {
+    return contentType?.startsWith('video/');
+}
+
+/**
+ * Render single image/video card
+ * @param {Object} image - Image/video object from API
  * @returns {string} HTML string
  */
 function renderImageCard(image) {
     const id = escapeHtml(image.id || '');
     const url = escapeHtml(image.url || '');
     const filename = escapeHtml(image.filename || '');
+    const contentType = image.content_type || '';
+    const isVideo = isVideoType(contentType);
+    
+    // For videos, render video element with poster; for images, render img
+    const mediaElement = isVideo ? `
+        <video 
+            data-src="${url}" 
+            class="images-card__image images-card__video" 
+            muted 
+            preload="metadata"
+        ></video>
+        <div class="images-card__play-icon">▶</div>
+    ` : `
+        <img 
+            data-src="${url}" 
+            alt="${filename}" 
+            class="images-card__image" 
+            loading="lazy"
+        >
+    `;
     
     return `
-        <div class="images-card" data-image-id="${id}">
+        <div class="images-card" data-image-id="${id}" data-content-type="${escapeHtml(contentType)}">
             <div class="images-card__image-wrapper">
                 <div class="images-card__placeholder"></div>
-                <img 
-                    data-src="${url}" 
-                    alt="${filename}" 
-                    class="images-card__image" 
-                    loading="lazy"
-                >
-                <button class="images-card__delete" data-image-id="${id}" title="Delete image">×</button>
+                ${mediaElement}
+                <button class="images-card__delete" data-image-id="${id}" title="Delete">×</button>
             </div>
             <div class="images-card__info">
                 <div class="images-card__filename" title="${filename}">${filename}</div>
@@ -388,15 +445,16 @@ function attachEventListeners(container) {
             return;
         }
         
-        // Handle image card click (show preview)
+        // Handle image/video card click (show preview)
         const imageCard = e.target.closest('.images-card');
         if (imageCard) {
-            const img = imageCard.querySelector('.images-card__image');
+            const media = imageCard.querySelector('.images-card__image');
             const filename = imageCard.querySelector('.images-card__filename')?.textContent || '';
+            const contentType = imageCard.dataset.contentType || '';
             // Get the actual src (either from src or data-src if not loaded yet)
-            const imageUrl = img?.src || img?.dataset?.src;
-            if (imageUrl) {
-                showImagePreview(imageUrl, filename);
+            const mediaUrl = media?.src || media?.dataset?.src;
+            if (mediaUrl) {
+                showMediaPreview(mediaUrl, filename, contentType);
             }
             return;
         }
@@ -404,30 +462,47 @@ function attachEventListeners(container) {
 }
 
 /**
- * Show image preview overlay
- * @param {string} imageUrl - URL of the image to preview
+ * Show media preview overlay (image or video)
+ * @param {string} mediaUrl - URL of the media to preview
  * @param {string} filename - Filename for display
+ * @param {string} contentType - MIME type of the media
  */
-function showImagePreview(imageUrl, filename) {
+function showMediaPreview(mediaUrl, filename, contentType) {
     // Remove any existing preview overlay
     const existing = document.querySelector('.images-preview-overlay');
     if (existing) {
         existing.remove();
     }
     
+    const isVideo = isVideoType(contentType);
+    
     // Create overlay
     const overlay = document.createElement('div');
     overlay.className = 'images-preview-overlay';
+    
+    const mediaElement = isVideo ? `
+        <video 
+            src="${escapeHtml(mediaUrl)}" 
+            class="images-preview-video"
+            controls
+            autoplay
+        >
+            Your browser does not support video playback.
+        </video>
+    ` : `
+        <img 
+            src="${escapeHtml(mediaUrl)}" 
+            alt="${escapeHtml(filename)}" 
+            class="images-preview-image"
+        >
+    `;
+    
     overlay.innerHTML = `
         <div class="images-preview-container">
             <button class="images-preview-close" aria-label="Close preview">×</button>
-            <div class="images-preview-image-wrapper">
+            <div class="images-preview-media-wrapper">
                 <div class="images-preview-loading">Loading...</div>
-                <img 
-                    src="${escapeHtml(imageUrl)}" 
-                    alt="${escapeHtml(filename)}" 
-                    class="images-preview-image"
-                >
+                ${mediaElement}
             </div>
             <div class="images-preview-filename">${escapeHtml(filename)}</div>
         </div>
@@ -438,18 +513,33 @@ function showImagePreview(imageUrl, filename) {
     // Prevent body scroll while overlay is open
     document.body.style.overflow = 'hidden';
     
-    // Handle image load
-    const img = overlay.querySelector('.images-preview-image');
     const loading = overlay.querySelector('.images-preview-loading');
     
-    img.onload = () => {
-        loading.style.display = 'none';
-        img.classList.add('is-loaded');
-    };
-    
-    img.onerror = () => {
-        loading.textContent = 'Failed to load image';
-    };
+    if (isVideo) {
+        // Handle video load
+        const video = overlay.querySelector('.images-preview-video');
+        
+        video.onloadeddata = () => {
+            loading.style.display = 'none';
+            video.classList.add('is-loaded');
+        };
+        
+        video.onerror = () => {
+            loading.textContent = 'Failed to load video';
+        };
+    } else {
+        // Handle image load
+        const img = overlay.querySelector('.images-preview-image');
+        
+        img.onload = () => {
+            loading.style.display = 'none';
+            img.classList.add('is-loaded');
+        };
+        
+        img.onerror = () => {
+            loading.textContent = 'Failed to load image';
+        };
+    }
     
     // Animate in
     requestAnimationFrame(() => {
@@ -458,6 +548,12 @@ function showImagePreview(imageUrl, filename) {
     
     // Close handlers
     const closeOverlay = () => {
+        // Pause video if playing
+        const video = overlay.querySelector('.images-preview-video');
+        if (video) {
+            video.pause();
+        }
+        
         overlay.classList.remove('is-visible');
         document.body.style.overflow = '';
         setTimeout(() => {
@@ -522,16 +618,16 @@ export function showImageUploadModal() {
     overlay.innerHTML = `
         <div class="images-upload-modal">
             <div class="images-upload-modal__header">
-                <h2>Upload Image</h2>
+                <h2>Upload Media</h2>
                 <button class="images-upload-modal__close" onclick="this.closest('.images-upload-overlay').remove()">×</button>
             </div>
             <div class="images-upload-modal__body">
-                <input type="file" id="imageUploadInput" accept="image/*" multiple style="display: none;">
+                <input type="file" id="imageUploadInput" accept="image/*,video/*" multiple style="display: none;">
                 <div class="images-upload-dropzone" id="imageUploadDropzone">
                     <div class="images-upload-dropzone__content">
                         <div class="images-upload-dropzone__icon">📤</div>
                         <p>Click to select or drag and drop</p>
-                        <p class="images-upload-dropzone__hint">Supports JPG, PNG, WebP (multiple files allowed)</p>
+                        <p class="images-upload-dropzone__hint">Supports images and videos up to 50MB</p>
                     </div>
                 </div>
                 <div class="images-upload-progress" id="imageUploadProgress" style="display: none;">
@@ -560,9 +656,9 @@ export function showImageUploadModal() {
         const files = Array.from(e.target.files || []);
         if (files.length > 0) {
             if (files.length === 1) {
-                await handleImageUpload(files[0], clientId, overlay, progress, progressBar);
+                await handleMediaUpload(files[0], clientId, overlay, progress, progressBar);
             } else {
-                await handleBulkImageUpload(files, clientId, overlay, progress, progressBar);
+                await handleBulkMediaUpload(files, clientId, overlay, progress, progressBar);
             }
         }
     });
@@ -580,12 +676,14 @@ export function showImageUploadModal() {
     dropzone.addEventListener('drop', async (e) => {
         e.preventDefault();
         dropzone.classList.remove('is-dragover');
-        const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+        const files = Array.from(e.dataTransfer.files).filter(f => 
+            f.type.startsWith('image/') || f.type.startsWith('video/')
+        );
         if (files.length > 0) {
             if (files.length === 1) {
-                await handleImageUpload(files[0], clientId, overlay, progress, progressBar);
+                await handleMediaUpload(files[0], clientId, overlay, progress, progressBar);
             } else {
-                await handleBulkImageUpload(files, clientId, overlay, progress, progressBar);
+                await handleBulkMediaUpload(files, clientId, overlay, progress, progressBar);
             }
         }
     });
@@ -599,11 +697,18 @@ export function showImageUploadModal() {
 }
 
 /**
- * Handle image upload
+ * Handle media upload (image or video)
  */
-async function handleImageUpload(file, clientId, overlay, progress, progressBar) {
-    if (!file.type.startsWith('image/')) {
-        alert('Please select an image file');
+async function handleMediaUpload(file, clientId, overlay, progress, progressBar) {
+    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+        alert('Please select an image or video file');
+        return;
+    }
+    
+    // Check file size (50MB limit for server uploads)
+    const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+    if (file.size > MAX_SIZE) {
+        alert(`File is too large. Maximum size is 50MB. Your file is ${formatFileSize(file.size)}.`);
         return;
     }
     
@@ -647,14 +752,28 @@ async function handleImageUpload(file, clientId, overlay, progress, progressBar)
 }
 
 /**
- * Handle bulk image upload
+ * Handle bulk media upload (images and videos)
  */
-async function handleBulkImageUpload(files, clientId, overlay, progress, progressBar) {
+async function handleBulkMediaUpload(files, clientId, overlay, progress, progressBar) {
     progress.style.display = 'block';
     progressBar.style.width = '0%';
     
     const { uploadAdImage } = await import('/js/services/api-ad-images.js');
     const { addImageToCache } = await import('/js/state/images-state.js');
+    
+    // Check file sizes (50MB limit)
+    const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+    const oversizedFiles = files.filter(f => f.size > MAX_SIZE);
+    if (oversizedFiles.length > 0) {
+        const names = oversizedFiles.map(f => `${f.name} (${formatFileSize(f.size)})`).join(', ');
+        alert(`Some files are too large (max 50MB): ${names}`);
+        // Filter out oversized files
+        files = files.filter(f => f.size <= MAX_SIZE);
+        if (files.length === 0) {
+            progress.style.display = 'none';
+            return;
+        }
+    }
     
     const totalFiles = files.length;
     let successCount = 0;
