@@ -673,6 +673,7 @@
 
 .ads-kanban {
     display: flex;
+    justify-content: center;
     gap: 16px;
     overflow-x: auto;
     padding-bottom: 16px;
