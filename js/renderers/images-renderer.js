@@ -895,8 +895,8 @@ async function handleBulkMediaUpload(files, clientId, overlay, progress, progres
 }
 
 /**
- * Show image picker modal for selecting an image for an ad
- * @param {Function} onSelect - Callback function with selected image URL
+ * Show media picker modal for selecting an image or video for an ad
+ * @param {Function} onSelect - Callback function with selected media URL
  */
 export function showImagePickerModal(onSelect) {
     // Remove any existing overlays first to prevent stacking
@@ -910,7 +910,7 @@ export function showImagePickerModal(onSelect) {
     const images = getImagesCache();
     
     if (images.length === 0) {
-        alert('No images available. Please upload images first.');
+        alert('No media available. Please upload images or videos first.');
         return;
     }
     
@@ -920,12 +920,12 @@ export function showImagePickerModal(onSelect) {
     overlay.innerHTML = `
         <div class="images-picker-modal">
             <div class="images-picker-modal__header">
-                <h2>Select Image</h2>
+                <h2>Select Media</h2>
                 <button class="images-picker-modal__close">×</button>
             </div>
             <div class="images-picker-modal__body">
                 <div class="images-picker-grid">
-                    ${images.map(image => renderPickerImageCard(image)).join('')}
+                    ${images.map(image => renderPickerMediaCard(image)).join('')}
                 </div>
             </div>
         </div>
@@ -958,16 +958,16 @@ export function showImagePickerModal(onSelect) {
 }
 
 /**
- * Initialize lazy loading for picker modal images
+ * Initialize lazy loading for picker modal media (images and videos)
  * @param {HTMLElement} overlay - Modal overlay element
  */
 function initPickerLazyLoading(overlay) {
     if (typeof IntersectionObserver === 'undefined') {
-        // Fallback: load all images immediately
-        const images = overlay.querySelectorAll('.images-picker-card__image[data-src]');
-        images.forEach(img => {
-            img.src = img.dataset.src;
-            img.removeAttribute('data-src');
+        // Fallback: load all media immediately
+        const media = overlay.querySelectorAll('.images-picker-card__image[data-src], .images-picker-card__video[data-src]');
+        media.forEach(el => {
+            el.src = el.dataset.src;
+            el.removeAttribute('data-src');
         });
         return;
     }
@@ -975,61 +975,98 @@ function initPickerLazyLoading(overlay) {
     const pickerObserver = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
-                const img = entry.target;
-                const src = img.dataset.src;
+                const el = entry.target;
+                const src = el.dataset.src;
+                const isVideo = el.tagName === 'VIDEO';
                 
                 if (src) {
-                    const tempImg = new Image();
-                    tempImg.onload = () => {
-                        img.src = src;
-                        img.removeAttribute('data-src');
-                        img.style.opacity = '1';
+                    if (isVideo) {
+                        // For videos, just set src and listen for loadeddata
+                        el.src = src;
+                        el.removeAttribute('data-src');
                         
-                        // Hide placeholder
-                        const placeholder = img.previousElementSibling;
-                        if (placeholder && placeholder.classList.contains('images-picker-card__placeholder')) {
-                            placeholder.style.opacity = '0';
-                            setTimeout(() => {
-                                placeholder.style.display = 'none';
-                            }, 200);
-                        }
-                    };
-                    tempImg.onerror = () => {
-                        img.style.opacity = '0';
-                    };
-                    tempImg.src = src;
+                        el.onloadeddata = () => {
+                            el.style.opacity = '1';
+                            // Hide placeholder
+                            const placeholder = el.previousElementSibling;
+                            if (placeholder && placeholder.classList.contains('images-picker-card__placeholder')) {
+                                placeholder.style.opacity = '0';
+                                setTimeout(() => {
+                                    placeholder.style.display = 'none';
+                                }, 200);
+                            }
+                        };
+                        el.onerror = () => {
+                            el.style.opacity = '0';
+                        };
+                    } else {
+                        // For images, preload then set src
+                        const tempImg = new Image();
+                        tempImg.onload = () => {
+                            el.src = src;
+                            el.removeAttribute('data-src');
+                            el.style.opacity = '1';
+                            
+                            // Hide placeholder
+                            const placeholder = el.previousElementSibling;
+                            if (placeholder && placeholder.classList.contains('images-picker-card__placeholder')) {
+                                placeholder.style.opacity = '0';
+                                setTimeout(() => {
+                                    placeholder.style.display = 'none';
+                                }, 200);
+                            }
+                        };
+                        tempImg.onerror = () => {
+                            el.style.opacity = '0';
+                        };
+                        tempImg.src = src;
+                    }
                 }
                 
-                pickerObserver.unobserve(img);
+                pickerObserver.unobserve(el);
             }
         });
     }, {
         rootMargin: '50px'
     });
     
-    const images = overlay.querySelectorAll('.images-picker-card__image[data-src]');
-    images.forEach(img => {
-        pickerObserver.observe(img);
+    const media = overlay.querySelectorAll('.images-picker-card__image[data-src], .images-picker-card__video[data-src]');
+    media.forEach(el => {
+        pickerObserver.observe(el);
     });
 }
 
 /**
- * Render image card for picker modal
- * @param {Object} image - Image object
+ * Render media card for picker modal (image or video)
+ * @param {Object} media - Media object
  * @returns {string} HTML string
  */
-function renderPickerImageCard(image) {
-    const url = escapeHtml(image.url || '');
-    const filename = escapeHtml(image.filename || '');
+function renderPickerMediaCard(media) {
+    const url = escapeHtml(media.url || '');
+    const filename = escapeHtml(media.filename || '');
+    const contentType = media.content_type || '';
+    const isVideo = contentType.startsWith('video/');
+    
+    const mediaElement = isVideo ? `
+        <video 
+            data-src="${url}" 
+            class="images-picker-card__video"
+            muted
+            preload="metadata"
+        ></video>
+        <div class="images-picker-card__play-icon">▶</div>
+    ` : `
+        <img 
+            data-src="${url}" 
+            alt="${filename}" 
+            class="images-picker-card__image"
+        >
+    `;
     
     return `
-        <div class="images-picker-card" data-image-url="${url}">
+        <div class="images-picker-card" data-image-url="${url}" data-content-type="${escapeHtml(contentType)}">
             <div class="images-picker-card__placeholder"></div>
-            <img 
-                data-src="${url}" 
-                alt="${filename}" 
-                class="images-picker-card__image"
-            >
+            ${mediaElement}
             <div class="images-picker-card__overlay">
                 <div class="images-picker-card__filename">${filename}</div>
             </div>
