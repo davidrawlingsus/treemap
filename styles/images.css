@@ -566,10 +566,22 @@
     overflow-y: auto;
 }
 
+/* Masonry (newspaper) layout for picker */
 .images-picker-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 16px;
+    columns: 4;
+    column-gap: 16px;
+}
+
+@media (max-width: 900px) {
+    .images-picker-grid {
+        columns: 3;
+    }
+}
+
+@media (max-width: 600px) {
+    .images-picker-grid {
+        columns: 2;
+    }
 }
 
 .images-picker-card {
@@ -579,19 +591,14 @@
     cursor: pointer;
     border: 2px solid transparent;
     transition: border-color 0.2s ease, transform 0.2s ease;
-    display: flex;
-    flex-direction: column;
     background: #f5f7fb;
-    min-height: 150px;
+    margin-bottom: 16px;
+    break-inside: avoid;
 }
 
 .images-picker-card:hover {
     border-color: var(--brand-color);
     transform: scale(1.02);
-}
-
-.images-picker-card {
-    position: relative;
 }
 
 .images-picker-card__placeholder {
@@ -600,7 +607,7 @@
     left: 0;
     width: 100%;
     height: 100%;
-    min-height: 150px;
+    min-height: 100px;
     background: linear-gradient(
         90deg,
         #e5e7eb 0%,
@@ -617,8 +624,6 @@
 .images-picker-card__image {
     width: 100%;
     height: auto;
-    max-height: 300px;
-    object-fit: contain;
     display: block;
     opacity: 0;
     transition: opacity 0.3s ease;
@@ -634,8 +639,6 @@
 .images-picker-card__video {
     width: 100%;
     height: auto;
-    max-height: 300px;
-    object-fit: contain;
     display: block;
     opacity: 0;
     transition: opacity 0.3s ease;
@@ -1032,11 +1035,6 @@
     
     .images-container {
         padding: 16px;
-    }
-    
-    .images-picker-grid {
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-        gap: 12px;
     }
     
     .images-size-toolbar {
