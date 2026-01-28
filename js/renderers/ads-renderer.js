@@ -497,6 +497,17 @@ function attachEventListeners(container) {
             return;
         }
         
+        // Handle image delete button click
+        const mediaDeleteBtn = e.target.closest('.pe-fb-ad__media-delete');
+        if (mediaDeleteBtn) {
+            e.stopPropagation();
+            const adId = mediaDeleteBtn.dataset.adId;
+            if (adId) {
+                await handleImageDelete(adId, mediaDeleteBtn.closest('.pe-fb-ad__media'));
+            }
+            return;
+        }
+        
         // Handle image media click (open image picker)
         const mediaElement = e.target.closest('.pe-fb-ad__media');
         if (mediaElement) {
@@ -785,5 +796,62 @@ async function handleImageSelection(adId, mediaElement) {
     } catch (error) {
         console.error('[AdsRenderer] Failed to open image picker:', error);
         alert('Failed to open image picker: ' + error.message);
+    }
+}
+
+/**
+ * Handle image deletion for an ad (restore placeholder)
+ * @param {string} adId - Ad UUID
+ * @param {HTMLElement} mediaElement - Media element containing the image
+ */
+async function handleImageDelete(adId, mediaElement) {
+    try {
+        // Get current ad to preserve full_json
+        const ads = getAdsCache();
+        const ad = ads.find(a => a.id === adId);
+        
+        if (!ad) {
+            throw new Error('Ad not found');
+        }
+        
+        // Update via API - pass null image_url to remove it
+        await updateFacebookAd(adId, { 
+            image_url: null
+        });
+        
+        // Update cache - remove image_url from full_json
+        const updatedFullJson = {
+            ...ad.full_json
+        };
+        delete updatedFullJson.image_url;
+        
+        updateAdInCache(adId, { 
+            full_json: updatedFullJson
+        });
+        
+        // Save scroll position before re-render
+        const windowScrollYBefore = window.scrollY;
+        const mainContainer = document.getElementById('mainContainer');
+        const mainContainerScrollTopBefore = mainContainer ? mainContainer.scrollTop : 0;
+        
+        // Re-render via controller
+        if (window.renderAdsPage) {
+            window.renderAdsPage();
+        }
+        
+        // Restore scroll position after DOM update
+        if (windowScrollYBefore > 0) {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    window.scrollTo({ top: windowScrollYBefore, behavior: 'auto' });
+                    if (mainContainer && mainContainerScrollTopBefore > 0) {
+                        mainContainer.scrollTop = mainContainerScrollTopBefore;
+                    }
+                });
+            });
+        }
+    } catch (error) {
+        console.error('[AdsRenderer] Failed to delete image:', error);
+        alert('Failed to delete image: ' + error.message);
     }
 }

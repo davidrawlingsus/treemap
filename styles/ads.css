@@ -907,6 +907,37 @@
     max-width: 100%;
 }
 
+/* Media Delete Button */
+.pe-fb-ad__media-delete {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    border: none;
+    background: rgba(0, 0, 0, 0.6);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.2s ease, background 0.2s ease;
+    z-index: 5;
+}
+
+.pe-fb-ad__media:hover .pe-fb-ad__media-delete {
+    opacity: 1;
+}
+
+.pe-fb-ad__media-delete:hover {
+    background: rgba(220, 38, 38, 0.9);
+}
+
+.pe-fb-ad__media-delete img {
+    filter: brightness(0) invert(1);
+}
+
 /* ============ Find & Replace ============ */
 
 /* Find & Replace Button */
