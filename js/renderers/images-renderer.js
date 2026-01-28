@@ -904,6 +904,7 @@ export function showImagePickerModal(onSelect) {
     existingOverlays.forEach(overlay => {
         overlay.remove();
     });
+    document.body.classList.remove('picker-open');
     
     imagePickerCallback = onSelect;
     
@@ -932,9 +933,17 @@ export function showImagePickerModal(onSelect) {
     `;
     
     document.body.appendChild(overlay);
+    document.body.classList.add('picker-open');
     
     // Initialize lazy loading for picker images
     initPickerLazyLoading(overlay);
+    
+    // Helper to close modal and restore scroll
+    const closeModal = () => {
+        overlay.remove();
+        document.body.classList.remove('picker-open');
+        imagePickerCallback = null;
+    };
     
     // Attach click handlers
     overlay.addEventListener('click', (e) => {
@@ -944,15 +953,13 @@ export function showImagePickerModal(onSelect) {
             if (imageUrl && imagePickerCallback) {
                 imagePickerCallback(imageUrl);
             }
-            overlay.remove();
-            imagePickerCallback = null;
+            closeModal();
             return;
         }
         
         // Close on overlay background or close button click
         if (e.target.classList.contains('images-picker-modal__close') || e.target === overlay) {
-            overlay.remove();
-            imagePickerCallback = null;
+            closeModal();
         }
     });
 }

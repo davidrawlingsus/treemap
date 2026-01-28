@@ -564,6 +564,12 @@
     padding: 24px;
     flex: 1;
     overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+/* Lock body scroll when picker is open */
+body.picker-open {
+    overflow: hidden;
 }
 
 /* Masonry (newspaper) layout for picker */
