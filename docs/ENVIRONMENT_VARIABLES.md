@@ -287,6 +287,30 @@ OPENAI_API_KEY=sk-proj-abcd1234efgh5678ijkl9012mnop3456qrst7890uvwx1234yz
 
 ---
 
+## File Storage (Vercel Blob)
+
+### `BLOB_READ_WRITE_TOKEN` (Required for Image Uploads)
+
+Vercel Blob storage token for uploading images.
+
+**Get Token**: Vercel Dashboard → Storage → Blob Store → Tokens
+
+**Example**:
+```bash
+BLOB_READ_WRITE_TOKEN=vercel_blob_rw_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+**Used For**:
+- Ad image uploads
+- Insight media uploads
+
+**Notes**:
+- Create a Blob store in Vercel if you don't have one
+- Generate a read-write token from the Blob store settings
+- This is handled by the frontend server (`server.js`), not the Python backend
+
+---
+
 ## OAuth Providers (Optional)
 
 ### `GOOGLE_OAUTH_CLIENT_ID` (Optional)
@@ -384,6 +408,9 @@ RESEND_REPLY_TO_EMAIL=support@yourdomain.com
 # OpenAI (Required)
 OPENAI_API_KEY=${{OPENAI_API_KEY}}
 
+# File Storage (Required for image uploads)
+BLOB_READ_WRITE_TOKEN=${{BLOB_READ_WRITE_TOKEN}}  # From Vercel Blob
+
 # CORS (if needed)
 ADDITIONAL_CORS_ORIGINS=https://yourdomain.com
 ```
@@ -438,6 +465,11 @@ python -c "from app.config import get_settings; s = get_settings(); print(f'Envi
 - **Solution**: Add origin to `ADDITIONAL_CORS_ORIGINS`
 - **Format**: Must include protocol and port
 - **Example**: `http://localhost:3000` not `localhost:3000`
+
+**Issue**: "Blob storage not configured" or image upload fails with 500
+- **Solution**: Set `BLOB_READ_WRITE_TOKEN` in Railway variables
+- **Get Token**: Vercel Dashboard → Storage → Blob Store → Tokens
+- **Verify**: Check Railway logs for "BLOB_READ_WRITE_TOKEN is configured" on startup
 
 ---
 

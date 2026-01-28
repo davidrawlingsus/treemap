@@ -628,6 +628,109 @@
     font-weight: 500;
 }
 
+/* Viewport Drop Overlay */
+.images-drop-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(185, 240, 64, 0.15);
+    border: 3px dashed var(--brand-color);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+    z-index: 100;
+    pointer-events: none;
+    margin: 8px;
+}
+
+.images-drop-overlay.is-visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.images-drop-overlay__content {
+    text-align: center;
+    padding: 24px;
+}
+
+.images-drop-overlay__icon {
+    font-size: 4rem;
+    margin-bottom: 16px;
+}
+
+.images-drop-overlay__text {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text);
+    margin: 0 0 8px 0;
+}
+
+.images-drop-overlay__hint {
+    font-size: 0.875rem;
+    color: var(--muted);
+    margin: 0;
+}
+
+/* Make container position relative for overlay positioning */
+.images-container {
+    position: relative;
+}
+
+/* Upload Toast Notification */
+.images-upload-toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--text);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 10001;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.images-upload-toast.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.images-upload-toast__spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: var(--brand-color);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+.images-upload-toast.is-done .images-upload-toast__spinner {
+    border-color: var(--brand-color);
+    animation: none;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.images-upload-toast__text {
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .images-grid-sizer,
