@@ -387,7 +387,99 @@ function attachEventListeners(container) {
             await handleDeleteImage(imageId, container);
             return;
         }
+        
+        // Handle image card click (show preview)
+        const imageCard = e.target.closest('.images-card');
+        if (imageCard) {
+            const img = imageCard.querySelector('.images-card__image');
+            const filename = imageCard.querySelector('.images-card__filename')?.textContent || '';
+            // Get the actual src (either from src or data-src if not loaded yet)
+            const imageUrl = img?.src || img?.dataset?.src;
+            if (imageUrl) {
+                showImagePreview(imageUrl, filename);
+            }
+            return;
+        }
     });
+}
+
+/**
+ * Show image preview overlay
+ * @param {string} imageUrl - URL of the image to preview
+ * @param {string} filename - Filename for display
+ */
+function showImagePreview(imageUrl, filename) {
+    // Remove any existing preview overlay
+    const existing = document.querySelector('.images-preview-overlay');
+    if (existing) {
+        existing.remove();
+    }
+    
+    // Create overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'images-preview-overlay';
+    overlay.innerHTML = `
+        <div class="images-preview-container">
+            <button class="images-preview-close" aria-label="Close preview">×</button>
+            <div class="images-preview-image-wrapper">
+                <div class="images-preview-loading">Loading...</div>
+                <img 
+                    src="${escapeHtml(imageUrl)}" 
+                    alt="${escapeHtml(filename)}" 
+                    class="images-preview-image"
+                >
+            </div>
+            <div class="images-preview-filename">${escapeHtml(filename)}</div>
+        </div>
+    `;
+    
+    document.body.appendChild(overlay);
+    
+    // Prevent body scroll while overlay is open
+    document.body.style.overflow = 'hidden';
+    
+    // Handle image load
+    const img = overlay.querySelector('.images-preview-image');
+    const loading = overlay.querySelector('.images-preview-loading');
+    
+    img.onload = () => {
+        loading.style.display = 'none';
+        img.classList.add('is-loaded');
+    };
+    
+    img.onerror = () => {
+        loading.textContent = 'Failed to load image';
+    };
+    
+    // Animate in
+    requestAnimationFrame(() => {
+        overlay.classList.add('is-visible');
+    });
+    
+    // Close handlers
+    const closeOverlay = () => {
+        overlay.classList.remove('is-visible');
+        document.body.style.overflow = '';
+        setTimeout(() => {
+            overlay.remove();
+        }, 200);
+    };
+    
+    // Close on background click
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay || e.target.classList.contains('images-preview-close')) {
+            closeOverlay();
+        }
+    });
+    
+    // Close on Escape key
+    const handleKeydown = (e) => {
+        if (e.key === 'Escape') {
+            closeOverlay();
+            document.removeEventListener('keydown', handleKeydown);
+        }
+    };
+    document.addEventListener('keydown', handleKeydown);
 }
 
 /**
