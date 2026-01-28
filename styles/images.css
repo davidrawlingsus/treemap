@@ -191,6 +191,106 @@
     opacity: 1;
 }
 
+/* Selection checkbox */
+.images-card__checkbox {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    z-index: 4;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.images-card:hover .images-card__checkbox,
+.images-card.is-selected .images-card__checkbox {
+    opacity: 1;
+}
+
+.images-card__checkbox input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.images-card__checkbox-mark {
+    display: block;
+    width: 24px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 2px solid rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.images-card__checkbox:hover .images-card__checkbox-mark {
+    border-color: var(--brand-color);
+}
+
+.images-card__checkbox input:checked + .images-card__checkbox-mark {
+    background: var(--brand-color);
+    border-color: var(--brand-color);
+}
+
+.images-card__checkbox input:checked + .images-card__checkbox-mark::after {
+    content: '✓';
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    color: #1a202c;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* Selected card state */
+.images-card.is-selected {
+    outline: 3px solid var(--brand-color);
+    outline-offset: -3px;
+}
+
+/* Bulk delete button */
+.images-bulk-delete-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    font-weight: 500;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+    margin-left: 12px;
+}
+
+.images-bulk-delete-btn:hover {
+    background: #fecaca;
+    border-color: #f87171;
+}
+
+.images-bulk-delete-btn.is-deleting {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.images-bulk-delete__count {
+    background: #991b1b;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    min-width: 20px;
+    text-align: center;
+}
+
 /* Video card play icon */
 .images-card__play-icon {
     position: absolute;
@@ -222,34 +322,6 @@
     height: auto;
     display: block;
     object-fit: contain;
-}
-
-.images-card__delete {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 28px;
-    height: 28px;
-    border-radius: 4px;
-    border: none;
-    background: rgba(0, 0, 0, 0.6);
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.25rem;
-    line-height: 1;
-    opacity: 0;
-    transition: opacity 0.2s ease, background 0.2s ease;
-}
-
-.images-card:hover .images-card__delete {
-    opacity: 1;
-}
-
-.images-card__delete:hover {
-    background: rgba(220, 38, 38, 0.9);
 }
 
 .images-card__info {

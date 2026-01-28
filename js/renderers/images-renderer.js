@@ -5,7 +5,7 @@
  */
 
 import { deleteAdImage } from '/js/services/api-ad-images.js';
-import { getImagesCache, removeImageFromCache } from '/js/state/images-state.js';
+import { getImagesCache, getSelectedImageIds, toggleImageSelection, clearImageSelections, removeImagesFromCache } from '/js/state/images-state.js';
 import { escapeHtml } from '/js/utils/dom.js';
 
 // Store current image picker callback
@@ -385,6 +385,7 @@ function renderImageCard(image) {
     const filename = escapeHtml(image.filename || '');
     const contentType = image.content_type || '';
     const isVideo = isVideoType(contentType);
+    const isSelected = getSelectedImageIds().has(image.id);
     
     // For videos, render video element with poster; for images, render img
     const mediaElement = isVideo ? `
@@ -405,11 +406,14 @@ function renderImageCard(image) {
     `;
     
     return `
-        <div class="images-card" data-image-id="${id}" data-content-type="${escapeHtml(contentType)}">
+        <div class="images-card${isSelected ? ' is-selected' : ''}" data-image-id="${id}" data-content-type="${escapeHtml(contentType)}">
             <div class="images-card__image-wrapper">
                 <div class="images-card__placeholder"></div>
                 ${mediaElement}
-                <button class="images-card__delete" data-image-id="${id}" title="Delete">×</button>
+                <label class="images-card__checkbox" data-image-id="${id}">
+                    <input type="checkbox" ${isSelected ? 'checked' : ''}>
+                    <span class="images-card__checkbox-mark"></span>
+                </label>
             </div>
             <div class="images-card__info">
                 <div class="images-card__filename" title="${filename}">${filename}</div>
@@ -437,17 +441,34 @@ function formatFileSize(bytes) {
  */
 function attachEventListeners(container) {
     container.addEventListener('click', async (e) => {
-        // Handle delete button
-        const deleteBtn = e.target.closest('.images-card__delete');
-        if (deleteBtn) {
-            const imageId = deleteBtn.dataset.imageId;
-            await handleDeleteImage(imageId, container);
+        // Handle checkbox click - but skip if click is directly on INPUT (label click already handles it)
+        const checkbox = e.target.closest('.images-card__checkbox');
+        if (checkbox && e.target.tagName !== 'INPUT') {
+            e.stopPropagation();
+            e.preventDefault(); // Prevent the label from also triggering input click
+            const imageId = checkbox.dataset.imageId;
+            const isSelected = toggleImageSelection(imageId);
+            
+            // Update card visual state
+            const card = checkbox.closest('.images-card');
+            if (card) {
+                card.classList.toggle('is-selected', isSelected);
+            }
+            
+            // Update checkbox input
+            const input = checkbox.querySelector('input[type="checkbox"]');
+            if (input) {
+                input.checked = isSelected;
+            }
+            
+            // Update delete button visibility in control bar
+            updateBulkDeleteButton();
             return;
         }
         
-        // Handle image/video card click (show preview)
+        // Handle image/video card click (show preview) - but not if clicking checkbox
         const imageCard = e.target.closest('.images-card');
-        if (imageCard) {
+        if (imageCard && !e.target.closest('.images-card__checkbox')) {
             const media = imageCard.querySelector('.images-card__image');
             const filename = imageCard.querySelector('.images-card__filename')?.textContent || '';
             const contentType = imageCard.dataset.contentType || '';
@@ -459,6 +480,85 @@ function attachEventListeners(container) {
             return;
         }
     });
+}
+
+/**
+ * Update bulk delete button visibility based on selection
+ */
+export function updateBulkDeleteButton() {
+    const deleteBtn = document.getElementById('imagesBulkDeleteBtn');
+    const selectedCount = getSelectedImageIds().size;
+    
+    if (deleteBtn) {
+        if (selectedCount > 0) {
+            deleteBtn.style.display = 'flex';
+            const countSpan = deleteBtn.querySelector('.images-bulk-delete__count');
+            if (countSpan) {
+                countSpan.textContent = selectedCount;
+            }
+        } else {
+            deleteBtn.style.display = 'none';
+        }
+    }
+}
+
+/**
+ * Handle bulk delete of selected images
+ */
+export async function handleBulkDelete() {
+    const selectedIds = Array.from(getSelectedImageIds());
+    
+    if (selectedIds.length === 0) {
+        return;
+    }
+    
+    const confirmMsg = selectedIds.length === 1 
+        ? 'Are you sure you want to delete this item?' 
+        : `Are you sure you want to delete ${selectedIds.length} items?`;
+    
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+    
+    // Show progress
+    const deleteBtn = document.getElementById('imagesBulkDeleteBtn');
+    if (deleteBtn) {
+        deleteBtn.classList.add('is-deleting');
+    }
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const imageId of selectedIds) {
+        try {
+            await deleteAdImage(imageId);
+            successCount++;
+        } catch (error) {
+            console.error(`[ImagesRenderer] Failed to delete ${imageId}:`, error);
+            failCount++;
+        }
+    }
+    
+    // Remove from cache
+    removeImagesFromCache(selectedIds);
+    clearImageSelections();
+    
+    // Re-render
+    if (window.renderImagesPage) {
+        window.renderImagesPage();
+    }
+    
+    // Update button
+    updateBulkDeleteButton();
+    
+    if (deleteBtn) {
+        deleteBtn.classList.remove('is-deleting');
+    }
+    
+    // Show result
+    if (failCount > 0) {
+        alert(`Deleted ${successCount}, failed to delete ${failCount}`);
+    }
 }
 
 /**
@@ -576,28 +676,6 @@ function showMediaPreview(mediaUrl, filename, contentType) {
         }
     };
     document.addEventListener('keydown', handleKeydown);
-}
-
-/**
- * Handle image deletion
- */
-async function handleDeleteImage(imageId, container) {
-    if (!confirm('Are you sure you want to delete this image?')) {
-        return;
-    }
-    
-    try {
-        await deleteAdImage(imageId);
-        removeImageFromCache(imageId);
-        
-        // Re-render via controller
-        if (window.renderImagesPage) {
-            window.renderImagesPage();
-        }
-    } catch (error) {
-        console.error('[ImagesRenderer] Failed to delete image:', error);
-        alert('Failed to delete image: ' + error.message);
-    }
 }
 
 /**

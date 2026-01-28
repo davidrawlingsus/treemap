@@ -10,6 +10,7 @@ let imagesLoading = false;
 let imagesError = null;
 let imagesCurrentClientId = null;
 let imagesColumnCount = null; // null means use default (4)
+let selectedImageIds = new Set(); // Track selected images for bulk operations
 
 /**
  * Get cached images
@@ -131,6 +132,47 @@ export function setImagesColumnCount(count) {
 }
 
 /**
+ * Get selected image IDs
+ * @returns {Set} Set of selected image IDs
+ */
+export function getSelectedImageIds() {
+    return selectedImageIds;
+}
+
+/**
+ * Toggle image selection
+ * @param {string} imageId - Image UUID
+ * @returns {boolean} New selection state (true = selected)
+ */
+export function toggleImageSelection(imageId) {
+    if (selectedImageIds.has(imageId)) {
+        selectedImageIds.delete(imageId);
+        return false;
+    } else {
+        selectedImageIds.add(imageId);
+        return true;
+    }
+}
+
+/**
+ * Clear all selections
+ */
+export function clearImageSelections() {
+    selectedImageIds.clear();
+}
+
+/**
+ * Remove multiple images from cache
+ * @param {string[]} imageIds - Array of image UUIDs
+ */
+export function removeImagesFromCache(imageIds) {
+    const idsSet = new Set(imageIds);
+    imagesCache = imagesCache.filter(img => !idsSet.has(img.id));
+    // Also clear these from selection
+    imageIds.forEach(id => selectedImageIds.delete(id));
+}
+
+/**
  * Clear all images state
  */
 export function clearImagesState() {
@@ -138,5 +180,6 @@ export function clearImagesState() {
     imagesLoading = false;
     imagesError = null;
     imagesCurrentClientId = null;
+    selectedImageIds.clear();
     // Note: Don't clear imagesColumnCount - it's a user preference
 }
