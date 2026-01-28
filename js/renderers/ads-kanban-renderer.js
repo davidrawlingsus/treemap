@@ -211,18 +211,26 @@ function positionPreview(card, preview) {
         left = Math.max(padding, (viewportWidth - previewWidth) / 2);
     }
     
-    // Vertical positioning - align top with card, but keep within viewport
-    let top = cardRect.top;
-    
     // Get preview height after content is rendered
     preview.style.visibility = 'hidden';
     preview.style.display = 'block';
     const previewHeight = preview.offsetHeight;
     preview.style.visibility = '';
     
-    // Adjust if preview would go below viewport
-    if (top + previewHeight > viewportHeight - padding) {
-        top = Math.max(padding, viewportHeight - previewHeight - padding);
+    // Vertical positioning: try to vertically center preview with the card,
+    // but clamp to stay within viewport bounds
+    const cardCenterY = cardRect.top + (cardRect.height / 2);
+    let top = cardCenterY - (previewHeight / 2);
+    
+    // Clamp to viewport bounds - keep preview as close to card as possible
+    const minTop = padding;
+    const maxTop = viewportHeight - previewHeight - padding;
+    
+    top = Math.max(minTop, Math.min(top, maxTop));
+    
+    // If preview is taller than viewport, align to top and let it scroll
+    if (previewHeight > viewportHeight - (2 * padding)) {
+        top = padding;
     }
     
     preview.style.left = `${left}px`;
