@@ -1,11 +1,16 @@
 """
 Ad Images management routes for founder admin.
 """
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from uuid import UUID
-from typing import List
+from typing import List, Optional
 import logging
+import os
+import time
+import random
+import string
 
 from app.database import get_db
 from app.models import User, AdImage, Client
@@ -15,6 +20,68 @@ from app.auth import get_current_active_founder
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+@router.post("/api/upload-ad-image")
+async def upload_ad_image_to_blob(
+    file: UploadFile = File(...),
+    client_id: Optional[str] = Query(None),
+):
+    """
+    Upload an ad image directly to Vercel Blob storage.
+    This endpoint handles the actual file upload to Vercel Blob.
+    Returns the blob URL for subsequent metadata storage.
+    """
+    blob_token = os.getenv("BLOB_READ_WRITE_TOKEN")
+    if not blob_token:
+        logger.error("BLOB_READ_WRITE_TOKEN not found in environment variables")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Blob storage not configured"}
+        )
+    
+    if not file:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "No file provided"}
+        )
+    
+    try:
+        # Read file content
+        content = await file.read()
+        
+        # Generate unique filename
+        file_extension = file.filename.split('.')[-1] if '.' in file.filename else 'bin'
+        random_suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=7))
+        unique_filename = f"ad-images/{client_id or 'unknown'}/{int(time.time())}-{random_suffix}.{file_extension}"
+        
+        logger.info(f"Uploading ad image to Vercel Blob: {unique_filename}, size: {len(content)} bytes, type: {file.content_type}")
+        
+        # Upload to Vercel Blob using the vercel_blob library
+        # API: vercel_blob.put(pathname, body, options_dict)
+        import vercel_blob
+        blob = vercel_blob.put(unique_filename, content, {
+            "access": "public",
+            "contentType": file.content_type,
+            "token": blob_token,
+        })
+        
+        blob_url = blob.get("url") if isinstance(blob, dict) else getattr(blob, 'url', str(blob))
+        logger.info(f"Ad image upload successful, URL: {blob_url}")
+        
+        return {
+            "url": blob_url,
+            "filename": file.filename,
+            "file_size": len(content),
+            "content_type": file.content_type
+        }
+        
+    except Exception as e:
+        logger.error(f"Ad image upload error: {e}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e) or "Upload failed"}
+        )
 
 
 @router.post(
