@@ -85,11 +85,11 @@ export function removeImageFromCache(imageId) {
 }
 
 /**
- * Add image to cache
+ * Add image to cache (prepends to show newest first)
  * @param {Object} image - Image object
  */
 export function addImageToCache(image) {
-    imagesCache.push(image);
+    imagesCache.unshift(image);
 }
 
 /**

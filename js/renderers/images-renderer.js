@@ -8,6 +8,25 @@ import { deleteAdImage } from '/js/services/api-ad-images.js';
 import { getImagesCache, getSelectedImageIds, toggleImageSelection, clearImageSelections, removeImagesFromCache } from '/js/state/images-state.js';
 import { escapeHtml } from '/js/utils/dom.js';
 
+/**
+ * Generate a thumbnail URL for an image using wsrv.nl proxy
+ * This provides on-the-fly image optimization without needing server-side processing
+ * @param {string} url - Original image URL
+ * @param {number} width - Desired width in pixels
+ * @param {number} quality - Quality (1-100), default 80
+ * @returns {string} Optimized thumbnail URL
+ */
+function getThumbnailUrl(url, width = 400, quality = 80) {
+    // Skip if not an image URL or if it's a video
+    if (!url || url.includes('video') || !url.match(/\.(jpg|jpeg|png|gif|webp)($|\?)/i)) {
+        return url;
+    }
+    
+    // Use wsrv.nl (free image proxy service) for thumbnail generation
+    // Docs: https://wsrv.nl/
+    return `https://wsrv.nl/?url=${encodeURIComponent(url)}&w=${width}&q=${quality}&output=webp`;
+}
+
 // Store current image picker callback
 let imagePickerCallback = null;
 
@@ -387,7 +406,10 @@ function renderImageCard(image) {
     const isVideo = isVideoType(contentType);
     const isSelected = getSelectedImageIds().has(image.id);
     
-    // For videos, render video element with poster; for images, render img
+    // Use thumbnail for grid view (faster loading), keep full URL for preview
+    const thumbnailUrl = isVideo ? url : getThumbnailUrl(image.url, 400, 80);
+    
+    // For videos, render video element with poster; for images, render img with thumbnail
     const mediaElement = isVideo ? `
         <video 
             data-src="${url}" 
@@ -398,7 +420,8 @@ function renderImageCard(image) {
         <div class="images-card__play-icon">▶</div>
     ` : `
         <img 
-            data-src="${url}" 
+            data-src="${escapeHtml(thumbnailUrl)}" 
+            data-full-src="${url}"
             alt="${filename}" 
             class="images-card__image" 
             loading="lazy"
@@ -406,7 +429,7 @@ function renderImageCard(image) {
     `;
     
     return `
-        <div class="images-card${isSelected ? ' is-selected' : ''}" data-image-id="${id}" data-content-type="${escapeHtml(contentType)}">
+        <div class="images-card${isSelected ? ' is-selected' : ''}" data-image-id="${id}" data-content-type="${escapeHtml(contentType)}" data-full-url="${url}">
             <div class="images-card__image-wrapper">
                 <div class="images-card__placeholder"></div>
                 ${mediaElement}
@@ -469,11 +492,13 @@ function attachEventListeners(container) {
         // Handle image/video card click (show preview) - but not if clicking checkbox
         const imageCard = e.target.closest('.images-card');
         if (imageCard && !e.target.closest('.images-card__checkbox')) {
-            const media = imageCard.querySelector('.images-card__image');
             const filename = imageCard.querySelector('.images-card__filename')?.textContent || '';
             const contentType = imageCard.dataset.contentType || '';
-            // Get the actual src (either from src or data-src if not loaded yet)
-            const mediaUrl = media?.src || media?.dataset?.src;
+            // Use full URL from data attribute (not thumbnail)
+            const fullUrl = imageCard.dataset.fullUrl;
+            const media = imageCard.querySelector('.images-card__image');
+            // Fall back to media src if full URL not available
+            const mediaUrl = fullUrl || media?.dataset?.fullSrc || media?.src || media?.dataset?.src;
             if (mediaUrl) {
                 showMediaPreview(mediaUrl, filename, contentType);
             }
@@ -679,6 +704,113 @@ function showMediaPreview(mediaUrl, filename, contentType) {
 }
 
 /**
+ * Append a single image card to the grid without re-rendering everything
+ * @param {HTMLElement} container - Grid container element
+ * @param {Object} image - Image object from API
+ */
+export function appendImageToGrid(container, image) {
+    // If the grid is showing empty state, we need to initialize it first
+    if (container.querySelector('.images-empty')) {
+        // Need to set up the grid structure first
+        container.innerHTML = `
+            <div class="images-grid-sizer"></div>
+            <div class="images-gutter-sizer"></div>
+        `;
+        
+        // Initialize Masonry if available
+        if (typeof Masonry !== 'undefined') {
+            if (masonryInstance) {
+                masonryInstance.destroy();
+            }
+            masonryInstance = new Masonry(container, {
+                itemSelector: '.images-card',
+                columnWidth: '.images-grid-sizer',
+                gutter: '.images-gutter-sizer',
+                percentPosition: true,
+                horizontalOrder: true,
+                transitionDuration: 0
+            });
+        }
+    }
+    
+    // Create the new card element
+    const cardHtml = renderImageCard(image);
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = cardHtml;
+    const newCard = tempDiv.firstElementChild;
+    
+    // Insert at the beginning (after sizer elements)
+    const firstCard = container.querySelector('.images-card');
+    if (firstCard) {
+        container.insertBefore(newCard, firstCard);
+    } else {
+        container.appendChild(newCard);
+    }
+    
+    // Set up lazy loading for this single card
+    const mediaEl = newCard.querySelector('.images-card__image[data-src]');
+    if (mediaEl && window.imagesIntersectionObserver) {
+        window.imagesIntersectionObserver.observe(mediaEl);
+    } else if (mediaEl) {
+        // No observer, load immediately
+        const src = mediaEl.dataset.src;
+        if (src) {
+            if (mediaEl.tagName === 'VIDEO') {
+                mediaEl.src = src;
+            } else {
+                const tempImg = new Image();
+                tempImg.onload = () => {
+                    mediaEl.src = src;
+                    mediaEl.classList.add('images-card__image--loaded');
+                    mediaEl.style.opacity = '1';
+                    const placeholder = mediaEl.previousElementSibling;
+                    if (placeholder?.classList.contains('images-card__placeholder')) {
+                        placeholder.style.display = 'none';
+                    }
+                };
+                tempImg.src = src;
+            }
+            mediaEl.removeAttribute('data-src');
+        }
+    }
+    
+    // Update Masonry layout if available
+    if (masonryInstance) {
+        masonryInstance.prepended(newCard);
+        // Schedule a relayout after the image loads
+        scheduleLayoutFromImageLoad();
+    }
+    
+    // Attach click handlers to the new card
+    newCard.addEventListener('click', (e) => {
+        const checkbox = e.target.closest('.images-card__checkbox');
+        if (checkbox && e.target.tagName !== 'INPUT') {
+            e.stopPropagation();
+            e.preventDefault();
+            const imageId = checkbox.dataset.imageId;
+            const isSelected = toggleImageSelection(imageId);
+            newCard.classList.toggle('is-selected', isSelected);
+            const input = checkbox.querySelector('input[type="checkbox"]');
+            if (input) input.checked = isSelected;
+            updateBulkDeleteButton();
+            return;
+        }
+        
+        if (!e.target.closest('.images-card__checkbox')) {
+            const filename = newCard.querySelector('.images-card__filename')?.textContent || '';
+            const contentType = newCard.dataset.contentType || '';
+            // Use full URL from data attribute (not thumbnail)
+            const fullUrl = newCard.dataset.fullUrl;
+            const media = newCard.querySelector('.images-card__image');
+            const mediaUrl = fullUrl || media?.dataset?.fullSrc || media?.src || media?.dataset?.src;
+            if (mediaUrl) {
+                showMediaPreview(mediaUrl, filename, contentType);
+            }
+        }
+    });
+}
+
+/**
  * Show image upload modal
  */
 export function showImageUploadModal() {
@@ -813,9 +945,10 @@ async function handleMediaUpload(file, clientId, overlay, progress, progressBar)
         
         addImageToCache(image);
         
-        // Re-render
-        if (window.renderImagesPage) {
-            window.renderImagesPage();
+        // Append to grid without full re-render
+        const container = document.getElementById('imagesGrid');
+        if (container) {
+            appendImageToGrid(container, image);
         }
         
         // Close modal after short delay
@@ -867,6 +1000,13 @@ async function handleBulkMediaUpload(files, clientId, overlay, progress, progres
         try {
             const image = await uploadAdImage(clientId, file);
             addImageToCache(image);
+            
+            // Append to grid immediately without waiting for all uploads
+            const container = document.getElementById('imagesGrid');
+            if (container) {
+                appendImageToGrid(container, image);
+            }
+            
             successCount++;
         } catch (error) {
             failCount++;
@@ -875,11 +1015,6 @@ async function handleBulkMediaUpload(files, clientId, overlay, progress, progres
     }
     
     progressBar.style.width = '100%';
-    
-    // Re-render
-    if (window.renderImagesPage) {
-        window.renderImagesPage();
-    }
     
     // Show results
     if (failCount === 0) {
@@ -1054,6 +1189,9 @@ function renderPickerMediaCard(media) {
     const contentType = media.content_type || '';
     const isVideo = contentType.startsWith('video/');
     
+    // Use thumbnail for picker (faster loading), but return full URL on selection
+    const thumbnailUrl = isVideo ? url : getThumbnailUrl(media.url, 300, 75);
+    
     const mediaElement = isVideo ? `
         <video 
             data-src="${url}" 
@@ -1064,7 +1202,7 @@ function renderPickerMediaCard(media) {
         <div class="images-picker-card__play-icon">▶</div>
     ` : `
         <img 
-            data-src="${url}" 
+            data-src="${escapeHtml(thumbnailUrl)}" 
             alt="${filename}" 
             class="images-picker-card__image"
         >
