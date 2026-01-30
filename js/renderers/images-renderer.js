@@ -492,6 +492,7 @@ function attachEventListeners(container) {
         // Handle image/video card click (show preview) - but not if clicking checkbox
         const imageCard = e.target.closest('.images-card');
         if (imageCard && !e.target.closest('.images-card__checkbox')) {
+            const imageId = imageCard.dataset.imageId;
             const filename = imageCard.querySelector('.images-card__filename')?.textContent || '';
             const contentType = imageCard.dataset.contentType || '';
             // Use full URL from data attribute (not thumbnail)
@@ -500,7 +501,7 @@ function attachEventListeners(container) {
             // Fall back to media src if full URL not available
             const mediaUrl = fullUrl || media?.dataset?.fullSrc || media?.src || media?.dataset?.src;
             if (mediaUrl) {
-                showMediaPreview(mediaUrl, filename, contentType);
+                showMediaPreview(mediaUrl, filename, contentType, imageId);
             }
             return;
         }
@@ -586,20 +587,34 @@ export async function handleBulkDelete() {
     }
 }
 
+// Track current preview index for navigation
+let currentPreviewIndex = -1;
+
 /**
- * Show media preview overlay (image or video)
+ * Show media preview overlay (image or video) with keyboard navigation
  * @param {string} mediaUrl - URL of the media to preview
  * @param {string} filename - Filename for display
  * @param {string} contentType - MIME type of the media
+ * @param {string} [imageId] - Optional image ID for navigation
  */
-function showMediaPreview(mediaUrl, filename, contentType) {
+function showMediaPreview(mediaUrl, filename, contentType, imageId) {
     // Remove any existing preview overlay
     const existing = document.querySelector('.images-preview-overlay');
     if (existing) {
         existing.remove();
     }
     
+    // Find current index in cache for navigation
+    const images = getImagesCache();
+    if (imageId) {
+        currentPreviewIndex = images.findIndex(img => img.id === imageId);
+    } else {
+        // Try to find by URL
+        currentPreviewIndex = images.findIndex(img => img.url === mediaUrl);
+    }
+    
     const isVideo = isVideoType(contentType);
+    const hasMultipleImages = images.length > 1;
     
     // Create overlay
     const overlay = document.createElement('div');
@@ -622,14 +637,33 @@ function showMediaPreview(mediaUrl, filename, contentType) {
         >
     `;
     
+    // Navigation buttons (only show if multiple images)
+    const navButtons = hasMultipleImages ? `
+        <button class="images-preview-nav images-preview-nav--prev" aria-label="Previous image">
+            <span>‹</span>
+        </button>
+        <button class="images-preview-nav images-preview-nav--next" aria-label="Next image">
+            <span>›</span>
+        </button>
+    ` : '';
+    
+    // Counter display
+    const counter = hasMultipleImages && currentPreviewIndex >= 0 ? `
+        <div class="images-preview-counter">${currentPreviewIndex + 1} / ${images.length}</div>
+    ` : '';
+    
     overlay.innerHTML = `
         <div class="images-preview-container">
             <button class="images-preview-close" aria-label="Close preview">×</button>
+            ${navButtons}
             <div class="images-preview-media-wrapper">
                 <div class="images-preview-loading">Loading...</div>
                 ${mediaElement}
             </div>
-            <div class="images-preview-filename">${escapeHtml(filename)}</div>
+            <div class="images-preview-footer">
+                <div class="images-preview-filename">${escapeHtml(filename)}</div>
+                ${counter}
+            </div>
         </div>
     `;
     
@@ -671,6 +705,24 @@ function showMediaPreview(mediaUrl, filename, contentType) {
         overlay.classList.add('is-visible');
     });
     
+    // Navigation function
+    const navigatePreview = (direction) => {
+        if (currentPreviewIndex < 0 || images.length <= 1) return;
+        
+        let newIndex = currentPreviewIndex + direction;
+        // Wrap around
+        if (newIndex < 0) newIndex = images.length - 1;
+        if (newIndex >= images.length) newIndex = 0;
+        
+        const newImage = images[newIndex];
+        if (newImage) {
+            // Close current and show new
+            overlay.remove();
+            document.removeEventListener('keydown', handleKeydown);
+            showMediaPreview(newImage.url, newImage.filename, newImage.content_type, newImage.id);
+        }
+    };
+    
     // Close handlers
     const closeOverlay = () => {
         // Pause video if playing
@@ -686,18 +738,31 @@ function showMediaPreview(mediaUrl, filename, contentType) {
         }, 200);
     };
     
-    // Close on background click
+    // Close on background click, handle nav button clicks
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay || e.target.classList.contains('images-preview-close')) {
             closeOverlay();
         }
+        // Navigation buttons
+        if (e.target.closest('.images-preview-nav--prev')) {
+            navigatePreview(-1);
+        }
+        if (e.target.closest('.images-preview-nav--next')) {
+            navigatePreview(1);
+        }
     });
     
-    // Close on Escape key
+    // Keyboard navigation: Escape to close, Left/Right arrows to navigate
     const handleKeydown = (e) => {
         if (e.key === 'Escape') {
             closeOverlay();
             document.removeEventListener('keydown', handleKeydown);
+        } else if (e.key === 'ArrowLeft') {
+            e.preventDefault();
+            navigatePreview(-1);
+        } else if (e.key === 'ArrowRight') {
+            e.preventDefault();
+            navigatePreview(1);
         }
     };
     document.addEventListener('keydown', handleKeydown);
@@ -797,6 +862,7 @@ export function appendImageToGrid(container, image) {
         }
         
         if (!e.target.closest('.images-card__checkbox')) {
+            const imageId = newCard.dataset.imageId;
             const filename = newCard.querySelector('.images-card__filename')?.textContent || '';
             const contentType = newCard.dataset.contentType || '';
             // Use full URL from data attribute (not thumbnail)
@@ -804,7 +870,7 @@ export function appendImageToGrid(container, image) {
             const media = newCard.querySelector('.images-card__image');
             const mediaUrl = fullUrl || media?.dataset?.fullSrc || media?.src || media?.dataset?.src;
             if (mediaUrl) {
-                showMediaPreview(mediaUrl, filename, contentType);
+                showMediaPreview(mediaUrl, filename, contentType, imageId);
             }
         }
     });
