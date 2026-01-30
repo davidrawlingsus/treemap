@@ -34,6 +34,11 @@ async def upload_ad_image_to_blob(
     """
     logger.info(f"[BLOB UPLOAD] Endpoint hit - client_id: {client_id}, file: {file.filename if file else 'None'}")
     
+    # Debug: Log all env var names that contain 'BLOB' or 'TOKEN'
+    blob_related_vars = [k for k in os.environ.keys() if 'BLOB' in k.upper() or 'VERCEL' in k.upper()]
+    logger.info(f"[BLOB UPLOAD] Env vars with BLOB/VERCEL in name: {blob_related_vars}")
+    logger.info(f"[BLOB UPLOAD] All env var names: {list(os.environ.keys())}")
+    
     blob_token = os.getenv("BLOB_READ_WRITE_TOKEN")
     logger.info(f"[BLOB UPLOAD] Token configured: {bool(blob_token)}, token length: {len(blob_token) if blob_token else 0}")
     if not blob_token:
