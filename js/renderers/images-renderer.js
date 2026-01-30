@@ -766,6 +766,43 @@ function showMediaPreview(mediaUrl, filename, contentType, imageId) {
         }
     };
     document.addEventListener('keydown', handleKeydown);
+    
+    // Preload adjacent images for smoother navigation
+    preloadAdjacentImages(currentPreviewIndex, images, 2);
+}
+
+/**
+ * Preload images adjacent to the current one for faster navigation
+ * @param {number} currentIndex - Current image index
+ * @param {Array} images - Array of all images
+ * @param {number} range - Number of images to preload in each direction
+ */
+function preloadAdjacentImages(currentIndex, images, range = 2) {
+    if (currentIndex < 0 || images.length <= 1) return;
+    
+    const indicesToPreload = [];
+    
+    // Collect indices to preload (previous and next)
+    for (let i = 1; i <= range; i++) {
+        // Previous images
+        let prevIndex = currentIndex - i;
+        if (prevIndex < 0) prevIndex = images.length + prevIndex; // Wrap around
+        indicesToPreload.push(prevIndex);
+        
+        // Next images
+        let nextIndex = currentIndex + i;
+        if (nextIndex >= images.length) nextIndex = nextIndex - images.length; // Wrap around
+        indicesToPreload.push(nextIndex);
+    }
+    
+    // Preload each image
+    indicesToPreload.forEach(index => {
+        const image = images[index];
+        if (image && image.url && !isVideoType(image.content_type)) {
+            const preloadImg = new Image();
+            preloadImg.src = image.url;
+        }
+    });
 }
 
 /**
