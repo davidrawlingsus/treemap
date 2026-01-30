@@ -56,13 +56,22 @@ export async function uploadAdImage(clientId, file) {
     formData.append('file', file);
     
     const uploadUrl = `/api/upload-ad-image?client_id=${clientId}`;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-ad-images.js:58',message:'uploadAdImage called',data:{clientId,fileName:file?.name,fileSize:file?.size,uploadUrl,currentOrigin:window.location.origin,appConfigApiUrl:window.APP_CONFIG?.API_BASE_URL},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H-E'})}).catch(()=>{});
+    // #endregion
     const uploadResponse = await fetch(uploadUrl, {
         method: 'POST',
         body: formData
     });
     
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-ad-images.js:70',message:'uploadResponse received',data:{status:uploadResponse.status,ok:uploadResponse.ok,statusText:uploadResponse.statusText},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H-A,H-E'})}).catch(()=>{});
+    // #endregion
     if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text().catch(() => '');
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-ad-images.js:76',message:'upload failed - error details',data:{errorText,status:uploadResponse.status},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H-A,H-B,H-E'})}).catch(()=>{});
+        // #endregion
         let errorData;
         try {
             errorData = JSON.parse(errorText);

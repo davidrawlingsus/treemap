@@ -14,6 +14,12 @@ if (fs.existsSync(backendEnvPath)) {
   console.log('⚠️  backend/.env not found');
 }
 
+// #region agent log
+const rootEnvExists = fs.existsSync(path.join(__dirname, '.env'));
+const debugStartupData = {rootEnvExists,backendEnvExists:fs.existsSync(backendEnvPath),blobTokenExists:!!process.env.BLOB_READ_WRITE_TOKEN,blobTokenLength:process.env.BLOB_READ_WRITE_TOKEN?.length||0,cwd:process.cwd(),dirname:__dirname};
+fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:startup',message:'Server startup env check',data:debugStartupData,timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H-A,H-C,H-D'})}).catch(()=>{});
+// #endregion
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -82,6 +88,9 @@ app.post('/api/upload-media', upload.single('file'), async (req, res) => {
 
 // Ad image upload endpoint using Vercel Blob SDK
 app.post('/api/upload-ad-image', upload.single('file'), async (req, res) => {
+  // #region agent log
+  fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:85',message:'upload-ad-image endpoint hit',data:{hasFile:!!req.file,clientId:req.query.client_id||req.body.client_id,blobTokenExists:!!process.env.BLOB_READ_WRITE_TOKEN,blobTokenLength:process.env.BLOB_READ_WRITE_TOKEN?.length||0},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H-A,H-B'})}).catch(()=>{});
+  // #endregion
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file provided' });
@@ -89,6 +98,9 @@ app.post('/api/upload-ad-image', upload.single('file'), async (req, res) => {
 
     const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
     if (!blobToken) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'server.js:95',message:'BLOB_READ_WRITE_TOKEN missing',data:{allBlobEnvVars:Object.keys(process.env).filter(k=>k.includes('BLOB')),rootEnvExists:require('fs').existsSync('.env'),backendEnvExists:require('fs').existsSync('./backend/.env')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H-A,H-B,H-C'})}).catch(()=>{});
+      // #endregion
       console.error('BLOB_READ_WRITE_TOKEN not found in environment variables');
       return res.status(500).json({ error: 'Blob storage not configured' });
     }

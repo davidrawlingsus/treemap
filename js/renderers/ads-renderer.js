@@ -109,6 +109,10 @@ function initMasonry(container) {
         return;
     }
     
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:initMasonry:entry',message:'Masonry init starting',data:{cardCount:container.querySelectorAll('.ads-card').length,imagesWithSrc:container.querySelectorAll('.pe-fb-ad__media.has-image img').length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H3'})}).catch(()=>{});
+    // #endregion
+    
     masonryInstance = new Masonry(container, {
         itemSelector: '.ads-card',
         columnWidth: '.ads-grid-sizer',
@@ -116,6 +120,27 @@ function initMasonry(container) {
         percentPosition: true,
         horizontalOrder: true
     });
+    
+    // #region agent log
+    const cards = container.querySelectorAll('.ads-card');
+    const cardHeights = Array.from(cards).slice(0, 6).map((c, i) => ({idx: i, height: c.offsetHeight, hasImage: !!c.querySelector('.pe-fb-ad__media.has-image')}));
+    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:initMasonry:after',message:'Masonry init complete - card heights BEFORE image load',data:{cardHeights},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H2'})}).catch(()=>{});
+    // #endregion
+    
+    // #region agent log
+    // Listen for image loads to track height changes
+    const images = container.querySelectorAll('.pe-fb-ad__media.has-image img');
+    images.forEach((img, idx) => {
+        if (img.complete) {
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:initMasonry:imgAlreadyLoaded',message:`Image ${idx} already loaded`,data:{idx,naturalHeight:img.naturalHeight,naturalWidth:img.naturalWidth},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H4'})}).catch(()=>{});
+        } else {
+            img.addEventListener('load', () => {
+                const card = img.closest('.ads-card');
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:initMasonry:imgLoaded',message:`Image ${idx} loaded AFTER Masonry init`,data:{idx,naturalHeight:img.naturalHeight,cardHeightNow:card?.offsetHeight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H3'})}).catch(()=>{});
+            });
+        }
+    });
+    // #endregion
 }
 
 /**

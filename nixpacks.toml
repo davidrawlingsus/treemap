@@ -1,6 +1,0 @@
-# Force Railway/Nixpacks to use Python instead of Node.js
-# The root requirements.txt references backend/requirements.txt
-providers = ["python"]
-
-[start]
-cmd = "cd backend && bash railway_start.sh"
