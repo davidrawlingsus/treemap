@@ -55,7 +55,8 @@ export async function uploadAdImage(clientId, file) {
     const formData = new FormData();
     formData.append('file', file);
     
-    const uploadUrl = `/api/upload-ad-image?client_id=${clientId}`;
+    // Use backend API for blob upload (Python backend has the BLOB_READ_WRITE_TOKEN)
+    const uploadUrl = `${getApiBaseUrl()}/api/upload-ad-image?client_id=${clientId}`;
     // #region agent log
     fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-ad-images.js:58',message:'uploadAdImage called',data:{clientId,fileName:file?.name,fileSize:file?.size,uploadUrl,currentOrigin:window.location.origin,appConfigApiUrl:window.APP_CONFIG?.API_BASE_URL},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H-E'})}).catch(()=>{});
     // #endregion
