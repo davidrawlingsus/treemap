@@ -32,7 +32,10 @@ async def upload_ad_image_to_blob(
     This endpoint handles the actual file upload to Vercel Blob.
     Returns the blob URL for subsequent metadata storage.
     """
+    logger.info(f"[BLOB UPLOAD] Endpoint hit - client_id: {client_id}, file: {file.filename if file else 'None'}")
+    
     blob_token = os.getenv("BLOB_READ_WRITE_TOKEN")
+    logger.info(f"[BLOB UPLOAD] Token configured: {bool(blob_token)}, token length: {len(blob_token) if blob_token else 0}")
     if not blob_token:
         logger.error("BLOB_READ_WRITE_TOKEN not found in environment variables")
         return JSONResponse(
@@ -77,7 +80,9 @@ async def upload_ad_image_to_blob(
         }
         
     except Exception as e:
-        logger.error(f"Ad image upload error: {e}")
+        import traceback
+        logger.error(f"[BLOB UPLOAD] Error: {e}")
+        logger.error(f"[BLOB UPLOAD] Traceback: {traceback.format_exc()}")
         return JSONResponse(
             status_code=500,
             content={"error": str(e) or "Upload failed"}
