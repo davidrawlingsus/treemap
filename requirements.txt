@@ -1,0 +1,3 @@
+# This file references the actual requirements in the backend directory
+# This allows Nixpacks to detect Python and install dependencies correctly
+-r backend/requirements.txt

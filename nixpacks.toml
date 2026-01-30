@@ -1,12 +1,6 @@
 # Force Railway/Nixpacks to use Python instead of Node.js
-[phases.setup]
-nixPkgs = ["python311", "gcc"]
-
-[phases.install]
-cmds = ["cd backend && pip install -r requirements.txt"]
-
-[phases.build]
-cmds = []
+# The root requirements.txt references backend/requirements.txt
+providers = ["python"]
 
 [start]
 cmd = "cd backend && bash railway_start.sh"
