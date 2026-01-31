@@ -132,9 +132,10 @@ app.post('/api/upload-ad-image', upload.single('file'), async (req, res) => {
 app.use('/api', createProxyMiddleware({
   target: API_BASE_URL,
   changeOrigin: true,
+  pathRewrite: (path, req) => `/api${path}`, // Preserve the /api prefix
   logLevel: 'warn',
   onProxyReq: (proxyReq, req, res) => {
-    console.log(`🔀 Proxying ${req.method} ${req.url} -> ${API_BASE_URL}${req.url}`);
+    console.log(`🔀 Proxying ${req.method} /api${req.url} -> ${API_BASE_URL}/api${req.url}`);
   },
   onError: (err, req, res) => {
     console.error('Proxy error:', err);
