@@ -17,29 +17,34 @@ depends_on = None
 
 
 def upgrade():
-    # Create meta_oauth_tokens table
-    op.create_table(
-        'meta_oauth_tokens',
-        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('client_id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('access_token', sa.Text(), nullable=False),
-        sa.Column('token_type', sa.String(length=50), nullable=False, server_default='bearer'),
-        sa.Column('expires_at', sa.DateTime(timezone=True), nullable=True),
-        sa.Column('meta_user_id', sa.String(length=100), nullable=True),
-        sa.Column('meta_user_name', sa.String(length=255), nullable=True),
-        sa.Column('default_ad_account_id', sa.String(length=100), nullable=True),
-        sa.Column('default_ad_account_name', sa.String(length=255), nullable=True),
-        sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-        sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
-        sa.Column('created_by', postgresql.UUID(as_uuid=True), nullable=True),
-        sa.PrimaryKeyConstraint('id'),
-        sa.ForeignKeyConstraint(['client_id'], ['clients.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['created_by'], ['users.id'], ondelete='SET NULL'),
-        sa.UniqueConstraint('client_id', name='uq_meta_oauth_tokens_client_id')
-    )
+    # Check if table already exists (idempotent migration)
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
     
-    # Create indexes
-    op.create_index('ix_meta_oauth_tokens_client_id', 'meta_oauth_tokens', ['client_id'])
+    if 'meta_oauth_tokens' not in inspector.get_table_names():
+        # Create meta_oauth_tokens table
+        op.create_table(
+            'meta_oauth_tokens',
+            sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
+            sa.Column('client_id', postgresql.UUID(as_uuid=True), nullable=False),
+            sa.Column('access_token', sa.Text(), nullable=False),
+            sa.Column('token_type', sa.String(length=50), nullable=False, server_default='bearer'),
+            sa.Column('expires_at', sa.DateTime(timezone=True), nullable=True),
+            sa.Column('meta_user_id', sa.String(length=100), nullable=True),
+            sa.Column('meta_user_name', sa.String(length=255), nullable=True),
+            sa.Column('default_ad_account_id', sa.String(length=100), nullable=True),
+            sa.Column('default_ad_account_name', sa.String(length=255), nullable=True),
+            sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+            sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True),
+            sa.Column('created_by', postgresql.UUID(as_uuid=True), nullable=True),
+            sa.PrimaryKeyConstraint('id'),
+            sa.ForeignKeyConstraint(['client_id'], ['clients.id'], ondelete='CASCADE'),
+            sa.ForeignKeyConstraint(['created_by'], ['users.id'], ondelete='SET NULL'),
+            sa.UniqueConstraint('client_id', name='uq_meta_oauth_tokens_client_id')
+        )
+        
+        # Create indexes
+        op.create_index('ix_meta_oauth_tokens_client_id', 'meta_oauth_tokens', ['client_id'])
 
 
 def downgrade():
