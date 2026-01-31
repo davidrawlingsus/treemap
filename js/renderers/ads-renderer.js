@@ -14,6 +14,18 @@ import { showMetaPublishModal } from '/js/renderers/meta-publish-modal.js';
 // Store Masonry instance for cleanup/relayout
 let masonryInstance = null;
 
+// Debounced layout for image-load callbacks
+let _adsLayoutTimeout = null;
+function scheduleLayoutFromImageLoad() {
+    // Debounce layout calls - multiple images may load in quick succession
+    clearTimeout(_adsLayoutTimeout);
+    _adsLayoutTimeout = setTimeout(() => {
+        if (masonryInstance) {
+            masonryInstance.layout();
+        }
+    }, 100); // 100ms debounce - allows multiple images to load before relayout
+}
+
 // Store event handler refs so we can remove before re-attaching on re-render (avoids duplicate handlers → multiple picker opens)
 let _adsContainerClickHandler = null;
 let _adsDocumentClickHandler = null;
@@ -98,51 +110,6 @@ export function renderAdsGrid(container, ads) {
     
     // Initialize Masonry for horizontal-first reading order
     initMasonry(container);
-    
-    // #region agent log - Check for overlapping cards after Masonry init and after images load
-    setTimeout(() => {
-        const cards = Array.from(container.querySelectorAll('.ads-card'));
-        const cardData = cards.map(card => {
-            const rect = card.getBoundingClientRect();
-            const hasImage = card.querySelector('.pe-fb-ad__media.has-image') !== null;
-            const img = card.querySelector('.pe-fb-ad__media img');
-            return { adId: card.dataset.adId, top: rect.top, bottom: rect.bottom, height: rect.height, hasImage, imgLoaded: img ? img.complete : false };
-        });
-        // Check for overlaps (cards in same column where bottom of one > top of next minus expected gap)
-        const overlaps = [];
-        for (let i = 0; i < cardData.length; i++) {
-            for (let j = i + 1; j < cardData.length; j++) {
-                const gap = cardData[j].top - cardData[i].bottom;
-                if (gap < 20 && gap > -500 && Math.abs(cardData[i].top - cardData[j].top) > 50) { // Same column, overlapping or too close
-                    overlaps.push({ card1: cardData[i].adId, card2: cardData[j].adId, gap, card1Bottom: cardData[i].bottom, card2Top: cardData[j].top, card1HasImage: cardData[i].hasImage, card2HasImage: cardData[j].hasImage });
-                }
-            }
-        }
-        fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:renderAdsGrid:overlapCheck',message:'Overlap check 100ms after init',data:{totalCards:cards.length,cardsWithImages:cardData.filter(c=>c.hasImage).length,imagesNotLoaded:cardData.filter(c=>c.hasImage && !c.imgLoaded).length,overlapsDetected:overlaps.length,overlaps:overlaps.slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,D'})}).catch(()=>{});
-    }, 100);
-    // #endregion
-    
-    // #region agent log - Check again after images should have loaded
-    setTimeout(() => {
-        const cards = Array.from(container.querySelectorAll('.ads-card'));
-        const cardData = cards.map(card => {
-            const rect = card.getBoundingClientRect();
-            const hasImage = card.querySelector('.pe-fb-ad__media.has-image') !== null;
-            const img = card.querySelector('.pe-fb-ad__media img');
-            return { adId: card.dataset.adId, top: rect.top, bottom: rect.bottom, height: rect.height, hasImage, imgLoaded: img ? img.complete : false };
-        });
-        const overlaps = [];
-        for (let i = 0; i < cardData.length; i++) {
-            for (let j = i + 1; j < cardData.length; j++) {
-                const gap = cardData[j].top - cardData[i].bottom;
-                if (gap < 20 && gap > -500 && Math.abs(cardData[i].top - cardData[j].top) > 50) {
-                    overlaps.push({ card1: cardData[i].adId, card2: cardData[j].adId, gap, card1HasImage: cardData[i].hasImage, card2HasImage: cardData[j].hasImage, card1ImgLoaded: cardData[i].imgLoaded, card2ImgLoaded: cardData[j].imgLoaded });
-                }
-            }
-        }
-        fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:renderAdsGrid:overlapCheck2',message:'Overlap check 2000ms after init',data:{totalCards:cards.length,imagesNotLoaded:cardData.filter(c=>c.hasImage && !c.imgLoaded).length,overlapsDetected:overlaps.length,overlaps:overlaps.slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B,D'})}).catch(()=>{});
-    }, 2000);
-    // #endregion
 }
 
 /**
@@ -163,25 +130,14 @@ function initMasonry(container) {
         horizontalOrder: true
     });
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:initMasonry',message:'Masonry initialized',data:{cardCount:container.querySelectorAll('.ads-card').length,cardsWithImages:container.querySelectorAll('.pe-fb-ad__media.has-image').length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
-    // #endregion
-    
-    // #region agent log - Monitor image load events for Hypothesis A/B
-    container.querySelectorAll('.pe-fb-ad__media.has-image img').forEach((img, idx) => {
-        const adCard = img.closest('.ads-card');
-        const adId = adCard?.dataset?.adId || 'unknown';
-        if (img.complete) {
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:initMasonry:imgCheck',message:'Image already loaded at init',data:{adId,imgIdx:idx,naturalHeight:img.naturalHeight,naturalWidth:img.naturalWidth,displayHeight:img.offsetHeight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-        } else {
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:initMasonry:imgCheck',message:'Image NOT loaded at init - will load later',data:{adId,imgIdx:idx},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-            img.addEventListener('load', () => {
-                const cardHeightAfter = adCard?.offsetHeight || 0;
-                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:imgOnLoad',message:'Image loaded AFTER Masonry init',data:{adId,imgIdx:idx,naturalHeight:img.naturalHeight,naturalWidth:img.naturalWidth,displayHeight:img.offsetHeight,cardHeightAfterImgLoad:cardHeightAfter},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,B'})}).catch(()=>{});
-            });
+    // Trigger Masonry relayout when images load to ensure correct card positioning
+    // (images load async after Masonry init, changing card heights)
+    container.querySelectorAll('.pe-fb-ad__media.has-image img').forEach((img) => {
+        if (!img.complete) {
+            img.addEventListener('load', scheduleLayoutFromImageLoad);
+            img.addEventListener('error', scheduleLayoutFromImageLoad);
         }
     });
-    // #endregion
 }
 
 /**
@@ -618,22 +574,12 @@ function attachEventListeners(container) {
             }
             const accordion = accordionTrigger.closest('.ads-accordion');
             if (accordion) {
-                const adCard = accordion.closest('.ads-card');
-                const adId = adCard?.dataset?.adId || 'unknown';
-                const wasExpanded = accordion.classList.contains('expanded');
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:accordionToggle:before',message:'Accordion toggle - before',data:{adId,wasExpanded,cardHeightBefore:adCard?.offsetHeight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-                // #endregion
                 accordion.classList.toggle('expanded');
-                // Force CSS columns to recalculate layout after accordion animation
+                // Recalculate Masonry layout after accordion animation completes
                 setTimeout(() => {
-                    container.style.columnCount = 'auto';
-                    // eslint-disable-next-line no-unused-expressions
-                    container.offsetHeight; // Force reflow
-                    container.style.columnCount = '';
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:accordionToggle:after',message:'Accordion toggle - after CSS column hack',data:{adId,isNowExpanded:accordion.classList.contains('expanded'),cardHeightAfter:adCard?.offsetHeight,masonryExists:!!masonryInstance},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C'})}).catch(()=>{});
-                    // #endregion
+                    if (masonryInstance) {
+                        masonryInstance.layout();
+                    }
                 }, 260); // Slightly longer than the 250ms accordion transition
             }
             return;
