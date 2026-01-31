@@ -46,12 +46,6 @@ _oauth_states = {}
 
 # ==================== OAuth Endpoints ====================
 
-@router.get("/api/meta/health")
-def meta_health():
-    """Simple health check to verify router is loaded."""
-    return {"status": "ok", "router": "meta_ads"}
-
-
 @router.get("/api/meta/oauth/init")
 def meta_oauth_init(
     client_id: UUID = Query(..., description="Client ID to connect Meta account to"),
@@ -63,15 +57,6 @@ def meta_oauth_init(
     Returns the OAuth URL for the frontend to open in a popup.
     """
     settings = get_settings()
-    
-    # #region agent log
-    import os
-    logger.info(f"[DEBUG] meta_oauth_init called for client_id={client_id}")
-    logger.info(f"[DEBUG] settings.meta_app_id present: {bool(settings.meta_app_id)}, value_start: {str(settings.meta_app_id)[:4] if settings.meta_app_id else 'None'}...")
-    logger.info(f"[DEBUG] settings.meta_app_secret present: {bool(settings.meta_app_secret)}")
-    logger.info(f"[DEBUG] ENV META_APP_ID present: {bool(os.getenv('META_APP_ID'))}")
-    logger.info(f"[DEBUG] ENV META_APP_SECRET present: {bool(os.getenv('META_APP_SECRET'))}")
-    # #endregion
     
     if not settings.meta_app_id or not settings.meta_app_secret:
         raise HTTPException(
@@ -119,10 +104,6 @@ async def meta_oauth_callback(
     Exchanges code for token and stores it.
     Returns HTML that closes the popup and notifies the parent window.
     """
-    # #region agent log
-    logger.info(f"[DEBUG] OAuth callback received: code={bool(code)}, state={bool(state)}, error={error}, error_description={error_description}")
-    # #endregion
-    
     # Handle error responses from Meta
     if error:
         error_msg = error_description or error
