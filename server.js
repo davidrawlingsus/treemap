@@ -135,19 +135,36 @@ app.post('/api/upload-ad-image', upload.single('file'), async (req, res) => {
 // Proxy all other /api/* requests to the backend
 // This must be AFTER the frontend-handled API routes (upload-media, upload-ad-image)
 // but BEFORE express.static
-app.use('/api', createProxyMiddleware({
+
+// Debug: Log before creating proxy middleware
+console.log(`🔧 Creating proxy middleware with target: "${API_BASE_URL}"`);
+
+// Create proxy with explicit target validation
+const apiProxy = createProxyMiddleware({
   target: API_BASE_URL,
   changeOrigin: true,
   pathRewrite: (path, req) => `/api${path}`, // Preserve the /api prefix
-  logLevel: 'warn',
+  logLevel: 'debug',
   onProxyReq: (proxyReq, req, res) => {
     console.log(`🔀 Proxying ${req.method} /api${req.url} -> ${API_BASE_URL}/api${req.url}`);
   },
   onError: (err, req, res) => {
-    console.error('Proxy error:', err);
-    res.status(502).json({ error: 'Backend unavailable' });
+    console.error('❌ Proxy error:', err.message);
+    console.error('❌ Proxy error stack:', err.stack);
+    console.error('❌ Request URL:', req.url);
+    console.error('❌ API_BASE_URL at error time:', API_BASE_URL);
+    if (!res.headersSent) {
+      res.status(502).json({ error: 'Backend unavailable', details: err.message });
+    }
   }
-}));
+});
+
+// Wrap with logging middleware
+app.use('/api', (req, res, next) => {
+  console.log(`📥 Incoming /api request: ${req.method} ${req.url}`);
+  console.log(`📥 Target will be: ${API_BASE_URL}`);
+  apiProxy(req, res, next);
+});
 
 // Serve static files from current directory (AFTER API routes)
 // Note: express.static will return 405 (Method Not Allowed) for POST requests to files, not 501
