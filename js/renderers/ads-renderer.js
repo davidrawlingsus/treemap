@@ -80,6 +80,10 @@ export function renderEmpty(container, message) {
  * @param {Array} ads - Array of ad objects (already filtered/sorted)
  */
 export function renderAdsGrid(container, ads) {
+    // #region agent log
+    console.log('[DEBUG] renderAdsGrid called', { containerExists: !!container, adsCount: ads?.length, containerId: container?.id });
+    // #endregion
+    
     const allAds = getAdsCache();
     const hasFiltersOrSearch = getAdsSearchTerm() || getAdsFilters().length > 0;
     
@@ -105,6 +109,10 @@ export function renderAdsGrid(container, ads) {
         ${ads.map(ad => renderAdCard(ad)).join('')}
     `;
     
+    // #region agent log
+    console.log('[DEBUG] renderAdsGrid HTML set', { childCount: container.children.length, adsCardCount: container.querySelectorAll('.ads-card').length, masonryAvailable: typeof Masonry !== 'undefined' });
+    // #endregion
+    
     // Attach event delegation for interactive elements
     attachEventListeners(container);
     
@@ -117,6 +125,10 @@ export function renderAdsGrid(container, ads) {
  * @param {HTMLElement} container - Grid container element
  */
 function initMasonry(container) {
+    // #region agent log
+    console.log('[DEBUG] initMasonry called', { masonryDefined: typeof Masonry !== 'undefined' });
+    // #endregion
+    
     if (typeof Masonry === 'undefined') {
         console.warn('[AdsRenderer] Masonry.js not loaded, falling back to CSS layout');
         return;
@@ -129,6 +141,10 @@ function initMasonry(container) {
         percentPosition: true,
         horizontalOrder: true
     });
+    
+    // #region agent log
+    console.log('[DEBUG] Masonry instance created', { hasInstance: !!masonryInstance });
+    // #endregion
     
     // Trigger Masonry relayout when images load to ensure correct card positioning
     // (images load async after Masonry init, changing card heights)
