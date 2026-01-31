@@ -566,6 +566,9 @@ def execute_client_prompt(
         if client.business_summary:
             user_message_parts.append(f"Business Context:\n{client.business_summary}")
         
+        if client.tone_of_voice:
+            user_message_parts.append(f"\n\nBrand Tone of Voice:\n{client.tone_of_voice}")
+        
         # Add voc_data as JSON
         voc_json = json.dumps(payload.voc_data, indent=2)
         user_message_parts.append(f"\n\nVoice of Customer Data:\n{voc_json}")

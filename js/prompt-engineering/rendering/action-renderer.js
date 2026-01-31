@@ -221,42 +221,23 @@
         
         const metadata = action.actions || {};
         
-        // Parse prompt_text_sent to extract system and user messages
+        // Store the full prompt_text_sent for display
         const promptTextSent = action.prompt_text_sent || '';
-        let systemMessage = '';
-        let userMessage = '';
-        
-        if (promptTextSent.includes('System:') && promptTextSent.includes('User:')) {
-            const parts = promptTextSent.split('User:');
-            systemMessage = parts[0].replace('System:', '').trim();
-            userMessage = parts.slice(1).join('User:').trim();
-        } else {
-            systemMessage = action.prompt_system_message || promptTextSent;
-            userMessage = '';
-        }
 
         const promptName = action.prompt_name || 'Unknown';
         const promptVersion = action.prompt_version !== null && action.prompt_version !== undefined 
             ? `v${action.prompt_version}` 
             : '';
 
-        // Handle user message truncation
-        let userMessageHtml = '';
-        if (userMessage) {
-            const isLong = userMessage.length > USER_MESSAGE_PREVIEW_LENGTH;
-            const preview = isLong ? userMessage.substring(0, USER_MESSAGE_PREVIEW_LENGTH) + '...' : userMessage;
-            userMessageHtml = `
+        // Full prompt toggle (shows exact prompt_text_sent as sent to LLM)
+        let fullPromptHtml = '';
+        if (promptTextSent) {
+            fullPromptHtml = `
                 <div style="margin-top: 8px;">
-                    <div style="font-size: 12px; color: var(--text); margin-top: 4px;">
-                        <strong>User Message:</strong> 
-                        <span class="user-message-preview" id="user-msg-preview-${action.id}">${DOM.escapeHtml(preview)}</span>
-                        ${isLong ? `<span class="user-message-full" id="user-msg-full-${action.id}" style="display: none;">${DOM.escapeHtml(userMessage)}</span>` : ''}
-                    </div>
-                    ${isLong ? `
-                        <button class="toggle-user-message" data-action-id="${action.id}" style="background: none; border: none; color: #666; cursor: pointer; font-size: 12px; padding: 0; text-decoration: underline; margin-top: 4px;">
-                            <span class="toggle-text">Show</span> Full User Message
-                        </button>
-                    ` : ''}
+                    <button class="toggle-full-prompt" data-action-id="${action.id}" style="background: none; border: none; color: #666; cursor: pointer; font-size: 12px; padding: 0; text-decoration: underline;">
+                        <span class="toggle-text">Show</span> Full Prompt Sent to LLM
+                    </button>
+                    <div class="full-prompt-content" id="full-prompt-${action.id}" style="display: none; margin-top: 8px; padding: 12px; background: #f7fafc; border-radius: 6px; font-size: 12px; color: var(--text); white-space: pre-wrap; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace; max-height: 500px; overflow-y: auto;">${DOM.escapeHtml(promptTextSent)}</div>
                 </div>
             `;
         }
@@ -271,15 +252,7 @@
                             ${metadata.model ? `<span style="color: var(--muted); font-size: 12px; margin-left: 8px;">• ${DOM.escapeHtml(metadata.model)}</span>` : ''}
                             ${metadata.tokens_used ? `<span style="color: var(--muted); font-size: 12px; margin-left: 8px;">• ${metadata.tokens_used} tokens</span>` : ''}
                         </div>
-                        ${userMessageHtml}
-                        ${systemMessage ? `
-                            <div style="margin-top: 8px;">
-                                <button class="toggle-system-message" data-action-id="${action.id}" style="background: none; border: none; color: #666; cursor: pointer; font-size: 12px; padding: 0; text-decoration: underline;">
-                                    <span class="toggle-text">Show</span> System Message
-                                </button>
-                                <div class="system-message-content" id="system-msg-${action.id}" style="display: none; margin-top: 8px; padding: 12px; background: #f7fafc; border-radius: 6px; font-size: 12px; color: var(--text); white-space: pre-wrap; font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;">${DOM.escapeHtml(systemMessage)}</div>
-                            </div>
-                        ` : ''}
+                        ${fullPromptHtml}
                     </div>
                     <div class="prompt-output-actions">
                         <button class="btn-nav-prev" data-action-id="${action.id}" title="Previous message">
@@ -302,48 +275,25 @@
     }
 
     /**
-     * Attach system message toggle listeners
+     * Attach prompt toggle listeners (full prompt sent to LLM)
      * @param {HTMLElement} container - Container element
      */
     function attachSystemMessageToggles(container) {
         if (!container) return;
 
-        container.querySelectorAll('.toggle-system-message').forEach(button => {
+        // Attach full prompt toggle listeners
+        container.querySelectorAll('.toggle-full-prompt').forEach(button => {
             button.addEventListener('click', (e) => {
                 const actionId = button.getAttribute('data-action-id');
-                const systemMsgDiv = document.getElementById(`system-msg-${actionId}`);
+                const fullPromptDiv = document.getElementById(`full-prompt-${actionId}`);
                 const toggleText = button.querySelector('.toggle-text');
                 
-                if (systemMsgDiv && toggleText) {
-                    if (systemMsgDiv.style.display === 'none') {
-                        systemMsgDiv.style.display = 'block';
+                if (fullPromptDiv && toggleText) {
+                    if (fullPromptDiv.style.display === 'none') {
+                        fullPromptDiv.style.display = 'block';
                         toggleText.textContent = 'Hide';
                     } else {
-                        systemMsgDiv.style.display = 'none';
-                        toggleText.textContent = 'Show';
-                    }
-                }
-            });
-        });
-
-        // Attach user message toggle listeners
-        container.querySelectorAll('.toggle-user-message').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const actionId = button.getAttribute('data-action-id');
-                const previewDiv = document.getElementById(`user-msg-preview-${actionId}`);
-                const fullDiv = document.getElementById(`user-msg-full-${actionId}`);
-                const toggleText = button.querySelector('.toggle-text');
-                
-                if (previewDiv && fullDiv && toggleText) {
-                    if (previewDiv.style.display !== 'none') {
-                        // Show full message
-                        previewDiv.style.display = 'none';
-                        fullDiv.style.display = 'inline';
-                        toggleText.textContent = 'Hide';
-                    } else {
-                        // Show preview
-                        previewDiv.style.display = 'inline';
-                        fullDiv.style.display = 'none';
+                        fullPromptDiv.style.display = 'none';
                         toggleText.textContent = 'Show';
                     }
                 }
