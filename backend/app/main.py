@@ -152,6 +152,7 @@ async def startup_event():
 # Also allow the production frontend domains (both old and new during migration)
 production_origins = [
     "https://mapthegap.ai",           # New primary domain
+    "https://vizualizd.mapthegap.ai", # Subdomain for vizualizd app
     "https://marketably.ai",          # Old domain (keep during migration)
 ]
 all_cors_origins = cors_allow_origins.copy()
@@ -169,7 +170,7 @@ logger.info(f"CORS configuration: allowing origins from regex '.*\\.up\\.railway
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https?://(.*\.up\.railway\.app|localhost|127\.0\.0\.1)(:\d+)?$",  # Allow all Railway URLs and localhost
+    allow_origin_regex=r"https?://(.*\.up\.railway\.app|.*\.mapthegap\.ai|localhost|127\.0\.0\.1)(:\d+)?$",  # Allow all Railway URLs, mapthegap.ai subdomains, and localhost
     allow_origins=all_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
