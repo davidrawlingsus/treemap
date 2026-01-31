@@ -37,6 +37,12 @@ const upload = multer({ storage: multer.memoryStorage() });
 const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:8000';
 
 console.log(`🔧 API_BASE_URL: ${API_BASE_URL}`);
+console.log(`🔧 API_BASE_URL type: ${typeof API_BASE_URL}, value: "${API_BASE_URL}", length: ${API_BASE_URL?.length}`);
+
+// Validate API_BASE_URL to prevent proxy crashes
+if (!API_BASE_URL || API_BASE_URL.trim() === '') {
+  console.error('❌ CRITICAL: API_BASE_URL is empty or not set! Proxy will fail.');
+}
 
 // Endpoint to get config (so frontend can fetch API URL dynamically)
 // This must be BEFORE express.static so it overrides the static config.js file
