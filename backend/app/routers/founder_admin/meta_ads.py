@@ -46,6 +46,12 @@ _oauth_states = {}
 
 # ==================== OAuth Endpoints ====================
 
+@router.get("/api/meta/health")
+def meta_health():
+    """Simple health check to verify router is loaded."""
+    return {"status": "ok", "router": "meta_ads"}
+
+
 @router.get("/api/meta/oauth/init")
 def meta_oauth_init(
     client_id: UUID = Query(..., description="Client ID to connect Meta account to"),
