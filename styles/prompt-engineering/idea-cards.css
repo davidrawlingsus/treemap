@@ -672,13 +672,9 @@
    Skeleton Loaders for Streaming Cards
    =========================== */
 
-@keyframes pe-skeleton-shimmer {
-    0% {
-        background-position: -100% 0;
-    }
-    100% {
-        background-position: 200% 0;
-    }
+@keyframes pe-skeleton-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
 }
 
 .pe-skeleton {
@@ -692,16 +688,8 @@
 .pe-skeleton__button,
 .pe-skeleton__avatar,
 .pe-skeleton__fb-image {
-    background: #e8e8e8;
-    background: linear-gradient(
-        110deg,
-        #e8e8e8 30%,
-        #f5f5f5 38%,
-        #f5f5f5 40%,
-        #e8e8e8 48%
-    );
-    background-size: 200% 100%;
-    animation: pe-skeleton-shimmer 1.8s linear infinite;
+    background: #e2e8f0;
+    animation: pe-skeleton-pulse 1.5s ease-in-out infinite;
     border-radius: 4px;
 }
 
