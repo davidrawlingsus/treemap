@@ -112,6 +112,24 @@ from .ad_image import (
     AdImageListResponse,
 )
 
+from .meta_ads import (
+    MetaOAuthInitResponse,
+    MetaTokenStatusResponse,
+    SetDefaultAdAccountRequest,
+    MetaAdAccount,
+    MetaAdAccountListResponse,
+    MetaCampaign,
+    MetaCampaignListResponse,
+    CreateCampaignRequest,
+    CreateCampaignResponse,
+    MetaAdSet,
+    MetaAdSetListResponse,
+    CreateAdSetRequest,
+    CreateAdSetResponse,
+    PublishAdRequest,
+    PublishAdResponse,
+)
+
 # Resolve forward references after all schemas are imported
 # This is necessary for Pydantic v2 when using forward references
 FounderUserMembership.model_rebuild()
@@ -206,5 +224,21 @@ __all__ = [
     "AdImageCreate",
     "AdImageResponse",
     "AdImageListResponse",
+    # Meta Ads
+    "MetaOAuthInitResponse",
+    "MetaTokenStatusResponse",
+    "SetDefaultAdAccountRequest",
+    "MetaAdAccount",
+    "MetaAdAccountListResponse",
+    "MetaCampaign",
+    "MetaCampaignListResponse",
+    "CreateCampaignRequest",
+    "CreateCampaignResponse",
+    "MetaAdSet",
+    "MetaAdSetListResponse",
+    "CreateAdSetRequest",
+    "CreateAdSetResponse",
+    "PublishAdRequest",
+    "PublishAdResponse",
 ]
 

@@ -9,6 +9,7 @@ import { getAdsCache, removeAdFromCache, updateAdInCache, getAdsSearchTerm, getA
 import { AD_STATUS_OPTIONS, normalizeStatus, getStatusConfig } from '/js/controllers/ads-filter-ui.js';
 import { escapeHtml } from '/js/utils/dom.js';
 import { renderFBAdMockup, formatCTA, extractDomain, formatPrimaryText } from '/js/renderers/fb-ad-mockup.js';
+import { showMetaPublishModal } from '/js/renderers/meta-publish-modal.js';
 
 // Store Masonry instance for cleanup/relayout
 let masonryInstance = null;
@@ -109,10 +110,6 @@ function initMasonry(container) {
         return;
     }
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:initMasonry:entry',message:'Masonry init starting',data:{cardCount:container.querySelectorAll('.ads-card').length,imagesWithSrc:container.querySelectorAll('.pe-fb-ad__media.has-image img').length},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H3'})}).catch(()=>{});
-    // #endregion
-    
     masonryInstance = new Masonry(container, {
         itemSelector: '.ads-card',
         columnWidth: '.ads-grid-sizer',
@@ -120,27 +117,6 @@ function initMasonry(container) {
         percentPosition: true,
         horizontalOrder: true
     });
-    
-    // #region agent log
-    const cards = container.querySelectorAll('.ads-card');
-    const cardHeights = Array.from(cards).slice(0, 6).map((c, i) => ({idx: i, height: c.offsetHeight, hasImage: !!c.querySelector('.pe-fb-ad__media.has-image')}));
-    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:initMasonry:after',message:'Masonry init complete - card heights BEFORE image load',data:{cardHeights},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H2'})}).catch(()=>{});
-    // #endregion
-    
-    // #region agent log
-    // Listen for image loads to track height changes
-    const images = container.querySelectorAll('.pe-fb-ad__media.has-image img');
-    images.forEach((img, idx) => {
-        if (img.complete) {
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:initMasonry:imgAlreadyLoaded',message:`Image ${idx} already loaded`,data:{idx,naturalHeight:img.naturalHeight,naturalWidth:img.naturalWidth},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H4'})}).catch(()=>{});
-        } else {
-            img.addEventListener('load', () => {
-                const card = img.closest('.ads-card');
-                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ads-renderer.js:initMasonry:imgLoaded',message:`Image ${idx} loaded AFTER Masonry init`,data:{idx,naturalHeight:img.naturalHeight,cardHeightNow:card?.offsetHeight},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1,H3'})}).catch(()=>{});
-            });
-        }
-    });
-    // #endregion
 }
 
 /**
@@ -196,7 +172,12 @@ function renderAdCard(ad) {
                         ${statusOptionsHtml}
                     </div>
                 </div>
-                <button class="ads-card__delete" data-ad-id="${id}" title="Delete ad">×</button>
+                <div class="ads-card__actions">
+                    <button class="ads-card__publish" data-ad-id="${id}" title="Publish to Facebook Ads Manager">
+                        <img src="/images/publish_icon.svg" alt="Publish" />
+                    </button>
+                    <button class="ads-card__delete" data-ad-id="${id}" title="Delete ad">×</button>
+                </div>
             </div>
             
             <div class="ads-card__mockup">
@@ -482,6 +463,18 @@ function attachEventListeners(container) {
             const adCard = cancelBtn.closest('.ads-card');
             if (adCard) {
                 disableEditMode(adCard);
+            }
+            return;
+        }
+        
+        // Handle publish button
+        const publishBtn = e.target.closest('.ads-card__publish');
+        if (publishBtn) {
+            e.stopPropagation();
+            const adId = publishBtn.dataset.adId;
+            const ad = getAdsCache().find(a => a.id === adId);
+            if (ad) {
+                showMetaPublishModal(adId, ad);
             }
             return;
         }

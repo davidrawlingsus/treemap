@@ -12,6 +12,7 @@ from app.models.prompt import Prompt, PromptHelperPrompt, PromptClient
 from app.models.action import Action
 from app.models.facebook_ad import FacebookAd
 from app.models.ad_image import AdImage
+from app.models.meta_oauth_token import MetaOAuthToken
 
 __all__ = [
     "Client",
@@ -32,6 +33,7 @@ __all__ = [
     "Action",
     "FacebookAd",
     "AdImage",
+    "MetaOAuthToken",
 ]
 
 
