@@ -212,12 +212,19 @@
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = markdownHTML;
             
-            // Handle regular idea cards, FB ad cards, AND email cards
-            const newCards = Array.from(tempDiv.querySelectorAll('.pe-idea-card, .pe-fb-ad-wrapper, .pe-email-wrapper'));
-            const existingCards = Array.from(contentElement.querySelectorAll('.pe-idea-card, .pe-fb-ad-wrapper, .pe-email-wrapper'));
+            // Handle regular idea cards, FB ad cards, email cards, AND skeleton loaders
+            const newCards = Array.from(tempDiv.querySelectorAll('.pe-idea-card, .pe-fb-ad-wrapper, .pe-email-wrapper, .pe-skeleton'));
+            const existingCards = Array.from(contentElement.querySelectorAll('.pe-idea-card, .pe-fb-ad-wrapper, .pe-email-wrapper, .pe-skeleton'));
             
             // Create signatures to compare cards by their IDs (if available) or by title/headline/subject
             const getCardSignature = (card) => {
+                // Check for skeleton loaders - use type as signature to preserve during streaming
+                if (card.classList.contains('pe-skeleton')) {
+                    if (card.classList.contains('pe-skeleton--email')) return 'skeleton:email';
+                    if (card.classList.contains('pe-skeleton--fb-ad')) return 'skeleton:fb-ad';
+                    if (card.classList.contains('pe-skeleton--idea')) return 'skeleton:idea';
+                    return 'skeleton:generic';
+                }
                 // Check for idea-id attribute (works for both card types)
                 const id = card.getAttribute('data-idea-id');
                 if (id) return `id:${id}`;

@@ -673,8 +673,12 @@
    =========================== */
 
 @keyframes pe-skeleton-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
+    0%, 100% {
+        background-color: #e2e8f0;
+    }
+    50% {
+        background-color: #cbd5e1;
+    }
 }
 
 .pe-skeleton {
@@ -688,7 +692,7 @@
 .pe-skeleton__button,
 .pe-skeleton__avatar,
 .pe-skeleton__fb-image {
-    background: #e2e8f0;
+    background-color: #e2e8f0;
     animation: pe-skeleton-pulse 1.5s ease-in-out infinite;
     border-radius: 4px;
 }
