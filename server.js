@@ -3,6 +3,7 @@ const path = require('path');
 const { put } = require('@vercel/blob');
 const multer = require('multer');
 const fs = require('fs');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 
 // Load environment variables - try root .env first, then backend/.env
 require('dotenv').config(); // Load root .env if it exists
@@ -124,6 +125,22 @@ app.post('/api/upload-ad-image', upload.single('file'), async (req, res) => {
     res.status(500).json({ error: error.message || 'Upload failed' });
   }
 });
+
+// Proxy all other /api/* requests to the backend
+// This must be AFTER the frontend-handled API routes (upload-media, upload-ad-image)
+// but BEFORE express.static
+app.use('/api', createProxyMiddleware({
+  target: API_BASE_URL,
+  changeOrigin: true,
+  logLevel: 'warn',
+  onProxyReq: (proxyReq, req, res) => {
+    console.log(`🔀 Proxying ${req.method} ${req.url} -> ${API_BASE_URL}${req.url}`);
+  },
+  onError: (err, req, res) => {
+    console.error('Proxy error:', err);
+    res.status(502).json({ error: 'Backend unavailable' });
+  }
+}));
 
 // Serve static files from current directory (AFTER API routes)
 // Note: express.static will return 405 (Method Not Allowed) for POST requests to files, not 501
