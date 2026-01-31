@@ -77,8 +77,18 @@
         html = html.replace(/```(\w+)?\s*([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
         
         // Handle incomplete code blocks during streaming (has opening ``` but no closing ```)
-        // Wrap them in <pre> to prevent paragraph processing from wrapping them in <p> tags
-        html = html.replace(/```(\w+)?\s*([\s\S]*)$/g, '<pre class="streaming-code-block"><code>$2</code></pre>');
+        // Show skeleton loaders for FB ads and emails instead of raw JSON
+        html = html.replace(/```(\w+)?\s*([\s\S]*)$/g, (match, lang, content) => {
+            // Check if this looks like a JSON block that will become a card
+            if (lang === 'json' || content.trim().startsWith('{')) {
+                const skeleton = detectAndGenerateSkeleton(content);
+                if (skeleton) {
+                    return skeleton;
+                }
+            }
+            // Fallback to pre block for non-card code
+            return `<pre class="streaming-code-block"><code>${content}</code></pre>`;
+        });
         
         // Restore JSON block placeholders with the actual idea card HTML
         jsonBlocks.forEach((htmlObject, index) => {
@@ -376,6 +386,64 @@
         html = html.replace(/\s*<br>\s*(<\/ul>|<\/ol>)/g, '$1');
         
         return html;
+    }
+
+    /**
+     * Detect if incomplete JSON content looks like an FB ad or email and generate skeleton
+     * @param {string} content - Partial JSON content being streamed
+     * @returns {string|null} Skeleton HTML or null if not a recognized format
+     */
+    function detectAndGenerateSkeleton(content) {
+        const lowerContent = content.toLowerCase();
+        
+        // Check for email indicators
+        if (lowerContent.includes('"subject_line"') || 
+            lowerContent.includes('"email_id"') ||
+            lowerContent.includes('"body_text"') ||
+            lowerContent.includes('"send_delay')) {
+            return generateEmailSkeleton();
+        }
+        
+        // Check for FB ad indicators
+        if (lowerContent.includes('"primary_text"') || 
+            lowerContent.includes('"headline"') ||
+            lowerContent.includes('"call_to_action"') ||
+            lowerContent.includes('"hook"')) {
+            return generateFBAdSkeleton();
+        }
+        
+        // Check for generic idea card indicators
+        if (lowerContent.includes('"idea"') || 
+            lowerContent.includes('"title"') ||
+            lowerContent.includes('"description"')) {
+            return generateIdeaCardSkeleton();
+        }
+        
+        return null;
+    }
+
+    /**
+     * Generate skeleton loader HTML for email mockup
+     * @returns {string} Skeleton HTML
+     */
+    function generateEmailSkeleton() {
+        return `<div class="pe-skeleton pe-skeleton--email"><div class="pe-skeleton__header"><div class="pe-skeleton__badge"></div><div class="pe-skeleton__line pe-skeleton__line--short"></div><div class="pe-skeleton__line pe-skeleton__line--medium"></div></div><div class="pe-skeleton__body"><div class="pe-skeleton__line"></div><div class="pe-skeleton__line"></div><div class="pe-skeleton__line pe-skeleton__line--medium"></div><div class="pe-skeleton__spacer"></div><div class="pe-skeleton__line"></div><div class="pe-skeleton__line pe-skeleton__line--short"></div><div class="pe-skeleton__spacer"></div><div class="pe-skeleton__button"></div></div></div>`;
+    }
+
+    /**
+     * Generate skeleton loader HTML for FB ad mockup
+     * @returns {string} Skeleton HTML
+     */
+    function generateFBAdSkeleton() {
+        return `<div class="pe-skeleton pe-skeleton--fb-ad"><div class="pe-skeleton__fb-header"><div class="pe-skeleton__avatar"></div><div class="pe-skeleton__fb-meta"><div class="pe-skeleton__line pe-skeleton__line--short"></div><div class="pe-skeleton__line pe-skeleton__line--tiny"></div></div></div><div class="pe-skeleton__fb-body"><div class="pe-skeleton__line"></div><div class="pe-skeleton__line"></div><div class="pe-skeleton__line pe-skeleton__line--medium"></div></div><div class="pe-skeleton__fb-image"></div><div class="pe-skeleton__fb-footer"><div class="pe-skeleton__line pe-skeleton__line--medium"></div><div class="pe-skeleton__line pe-skeleton__line--short"></div></div></div>`;
+    }
+
+    /**
+     * Generate skeleton loader HTML for generic idea card
+     * @returns {string} Skeleton HTML
+     */
+    function generateIdeaCardSkeleton() {
+        return `<div class="pe-skeleton pe-skeleton--idea"><div class="pe-skeleton__idea-header"><div class="pe-skeleton__line pe-skeleton__line--medium"></div></div><div class="pe-skeleton__idea-body"><div class="pe-skeleton__line"></div><div class="pe-skeleton__line"></div><div class="pe-skeleton__line pe-skeleton__line--short"></div></div></div>`;
     }
 
     /**
