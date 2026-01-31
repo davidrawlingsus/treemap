@@ -58,6 +58,15 @@ def meta_oauth_init(
     """
     settings = get_settings()
     
+    # #region agent log
+    import os
+    logger.info(f"[DEBUG] meta_oauth_init called for client_id={client_id}")
+    logger.info(f"[DEBUG] settings.meta_app_id present: {bool(settings.meta_app_id)}, value_start: {str(settings.meta_app_id)[:4] if settings.meta_app_id else 'None'}...")
+    logger.info(f"[DEBUG] settings.meta_app_secret present: {bool(settings.meta_app_secret)}")
+    logger.info(f"[DEBUG] ENV META_APP_ID present: {bool(os.getenv('META_APP_ID'))}")
+    logger.info(f"[DEBUG] ENV META_APP_SECRET present: {bool(os.getenv('META_APP_SECRET'))}")
+    # #endregion
+    
     if not settings.meta_app_id or not settings.meta_app_secret:
         raise HTTPException(
             status_code=500,
