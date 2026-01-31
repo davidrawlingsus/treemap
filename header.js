@@ -23,7 +23,7 @@
       <div class="marketably-header-content">
         <!-- Logo -->
         <div class="marketably-logo">
-          <a href="https://marketably.ai" class="marketably-logo-link">
+          <a href="https://mapthegap.ai" class="marketably-logo-link">
             <img src="" alt="Client Logo" class="marketably-logo-image" id="headerLogoImage" style="display: none; max-height: 40px; width: auto;">
             <div id="headerLogoText" class="marketably-logo-text-container">
               <span class="marketably-logo-text-white">market</span><span class="marketably-logo-text-brand">ably</span>
@@ -347,7 +347,7 @@
         navLogoContainer.id = 'navClientLogoContainer';
         
         const navLogoLink = document.createElement('a');
-        navLogoLink.href = 'https://marketably.ai';
+        navLogoLink.href = 'https://mapthegap.ai';
         navLogoLink.className = 'nav-client-logo-link';
         
         const navLogoImg = document.createElement('img');

@@ -397,7 +397,7 @@
     setUserInfo(null);
     showLogin();
     global.dispatchEvent(new Event('auth:logout'));
-    global.location.href = 'https://marketably.ai';
+    global.location.href = 'https://mapthegap.ai';
   };
 
   const initLoginForm = () => {
