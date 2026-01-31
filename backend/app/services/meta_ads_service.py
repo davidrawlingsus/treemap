@@ -332,6 +332,7 @@ class MetaAdsService:
         optimization_goal: str = "LINK_CLICKS",
         status: str = "PAUSED",
         targeting: Optional[Dict] = None,
+        promoted_object: Optional[Dict] = None,
     ) -> Dict[str, Any]:
         """
         Create a new adset.
@@ -340,6 +341,7 @@ class MetaAdsService:
             daily_budget: Daily budget in cents (e.g., 1000 = $10)
             lifetime_budget: Lifetime budget in cents
             targeting: Targeting specification dict
+            promoted_object: Required for certain optimization goals (e.g., OFFSITE_CONVERSIONS needs pixel_id)
         
         Returns:
             Dict with created adset id
@@ -370,6 +372,8 @@ class MetaAdsService:
                 data["daily_budget"] = daily_budget
             if lifetime_budget:
                 data["lifetime_budget"] = lifetime_budget
+            if promoted_object:
+                data["promoted_object"] = json_module.dumps(promoted_object)
             
             response = await client.post(
                 f"{META_GRAPH_API_BASE}/{ad_account_id}/adsets",
@@ -379,9 +383,15 @@ class MetaAdsService:
             if not response.is_success:
                 try:
                     error_data = response.json()
-                    error_msg = error_data.get("error", {}).get("message", response.text)
-                    logger.error(f"Meta adset creation failed: {error_msg}")
-                    raise Exception(f"Meta API error: {error_msg}")
+                    error_obj = error_data.get("error", {})
+                    error_msg = error_obj.get("message", response.text)
+                    error_subcode = error_obj.get("error_subcode")
+                    error_user_msg = error_obj.get("error_user_msg", "")
+                    error_user_title = error_obj.get("error_user_title", "")
+                    
+                    logger.error(f"Meta adset creation failed: {error_user_msg or error_msg}")
+                    # Use user-friendly message if available
+                    raise Exception(f"Meta API error: {error_user_msg or error_msg}")
                 except Exception as e:
                     logger.error(f"Meta adset creation failed: {response.text}")
                     raise
@@ -608,6 +618,36 @@ class MetaAdsService:
             "meta_ad_id": meta_ad_id,
             "meta_creative_id": creative_id,
         }
+    
+    # ==================== Pixel Methods ====================
+    
+    async def list_pixels(
+        self,
+        access_token: str,
+        ad_account_id: str,
+    ) -> List[Dict[str, Any]]:
+        """
+        List Facebook pixels for an ad account.
+        
+        Returns:
+            List of pixel dicts with id, name
+        """
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{META_GRAPH_API_BASE}/{ad_account_id}/adspixels",
+                params={
+                    "access_token": access_token,
+                    "fields": "id,name",
+                    "limit": 100,
+                }
+            )
+            
+            if not response.is_success:
+                logger.warning(f"Failed to fetch pixels: {response.text}")
+                return []
+            
+            data = response.json()
+            return data.get("data", [])
     
     # ==================== Facebook Page Methods ====================
     

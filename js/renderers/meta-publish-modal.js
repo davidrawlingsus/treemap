@@ -15,6 +15,7 @@ import {
     fetchMetaAdsets,
     createMetaAdset,
     fetchMetaPages,
+    fetchMetaPixels,
     publishAdToMeta,
 } from '/js/services/api-meta.js';
 import {
@@ -47,6 +48,7 @@ import {
 let modalElement = null;
 let currentAdId = null;
 let currentClientId = null;
+let cachedPixels = []; // Local cache for pixels
 
 /**
  * Show the Meta publish modal for an ad
@@ -273,6 +275,37 @@ async function loadAdsets(campaignId) {
 }
 
 /**
+ * Load pixels for the ad account and render in selector
+ */
+async function loadPixels() {
+    const container = getContentContainer();
+    const pixelSelect = container.querySelector('#newAdsetPixel');
+    
+    if (!pixelSelect) return;
+    
+    pixelSelect.innerHTML = '<option value="">Loading pixels...</option>';
+    
+    try {
+        const response = await fetchMetaPixels(currentClientId);
+        cachedPixels = response.items || [];
+        
+        if (cachedPixels.length === 0) {
+            pixelSelect.innerHTML = '<option value="">No pixels found - create one in Meta Business Manager</option>';
+        } else {
+            pixelSelect.innerHTML = `
+                <option value="">Select a pixel...</option>
+                ${cachedPixels.map(p => `
+                    <option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>
+                `).join('')}
+            `;
+        }
+    } catch (error) {
+        console.error('[MetaPublishModal] Failed to load pixels:', error);
+        pixelSelect.innerHTML = '<option value="">Failed to load pixels</option>';
+    }
+}
+
+/**
  * Render the main publish state
  * @param {Object} adData - Ad data for preview
  */
@@ -392,6 +425,14 @@ function renderPublishState(adData) {
                             <option value="LEAD_GENERATION">Lead Generation</option>
                             <option value="OFFSITE_CONVERSIONS">Conversions</option>
                         </select>
+                    </div>
+                    
+                    <div class="meta-publish-modal__field-group" id="pixelSelectorGroup" style="display: none;">
+                        <label class="meta-publish-modal__field-label">Facebook Pixel <span class="meta-publish-modal__locked-badge">required for conversions</span></label>
+                        <select class="meta-publish-modal__select meta-publish-modal__select--nested" id="newAdsetPixel">
+                            <option value="">Loading pixels...</option>
+                        </select>
+                        <p class="meta-publish-modal__field-hint">Select the pixel to track conversions from your website.</p>
                     </div>
                     
                     <div class="meta-publish-modal__field-group">
@@ -530,6 +571,18 @@ function attachFormListeners() {
         container.querySelector('#newAdsetBudget').value = '';
         container.querySelector('#newAdsetOptimizationGoal').value = 'LINK_CLICKS';
         container.querySelector('#newAdsetBillingEvent').value = 'IMPRESSIONS';
+        container.querySelector('#pixelSelectorGroup').style.display = 'none';
+    });
+    
+    // Optimization goal change - show/hide pixel selector
+    container.querySelector('#newAdsetOptimizationGoal')?.addEventListener('change', async (e) => {
+        const pixelGroup = container.querySelector('#pixelSelectorGroup');
+        if (e.target.value === 'OFFSITE_CONVERSIONS') {
+            pixelGroup.style.display = 'block';
+            await loadPixels();
+        } else {
+            pixelGroup.style.display = 'none';
+        }
     });
     
     // Cancel button
@@ -579,13 +632,14 @@ function updateFormState() {
     
     // Update adset select
     const adsetSelect = container.querySelector('#metaAdsetSelect');
+    const selectedAdsetId = getSelectedAdsetId();
     if (adsetSelect) {
         adsetSelect.disabled = !selectedCampaignId;
         adsetSelect.innerHTML = `
             <option value="">Select ad set...</option>
             <option value="__new__">+ Create New Ad Set</option>
             ${adsets.map(a => `
-                <option value="${escapeHtml(a.id)}">
+                <option value="${escapeHtml(a.id)}" ${a.id === selectedAdsetId ? 'selected' : ''}>
                     ${escapeHtml(a.name)} (${escapeHtml(a.status)})
                 </option>
             `).join('')}
@@ -675,11 +729,13 @@ async function handleCreateAdset() {
     const budgetInput = container.querySelector('#newAdsetBudget');
     const optimizationGoalSelect = container.querySelector('#newAdsetOptimizationGoal');
     const billingEventSelect = container.querySelector('#newAdsetBillingEvent');
+    const pixelSelect = container.querySelector('#newAdsetPixel');
     
     const name = nameInput?.value?.trim();
     const budgetUsd = parseFloat(budgetInput?.value) || 0;
     const optimizationGoal = optimizationGoalSelect?.value || 'LINK_CLICKS';
     const billingEvent = billingEventSelect?.value || 'IMPRESSIONS';
+    const pixelId = pixelSelect?.value || null;
     
     if (!name) {
         alert('Please enter an ad set name');
@@ -691,19 +747,35 @@ async function handleCreateAdset() {
         return;
     }
     
+    // Validate pixel is selected for conversion optimization
+    if (optimizationGoal === 'OFFSITE_CONVERSIONS' && !pixelId) {
+        alert('Please select a Facebook Pixel for conversion optimization');
+        return;
+    }
+    
     const btn = container.querySelector('#createAdsetBtn');
     btn.disabled = true;
     btn.textContent = 'Creating...';
     
     try {
-        const result = await createMetaAdset(currentClientId, {
+        const adsetData = {
             campaign_id: getSelectedCampaignId(),
             name: name,
             daily_budget: Math.round(budgetUsd * 100), // Convert to cents
             billing_event: billingEvent,
             optimization_goal: optimizationGoal,
             status: 'PAUSED',
-        });
+        };
+        
+        // Add promoted_object for optimization goals that require it
+        if (optimizationGoal === 'OFFSITE_CONVERSIONS' && pixelId) {
+            adsetData.promoted_object = {
+                pixel_id: pixelId,
+                custom_event_type: 'PURCHASE', // Default to PURCHASE, could make configurable
+            };
+        }
+        
+        const result = await createMetaAdset(currentClientId, adsetData);
         
         // Add to cache and select
         addAdsetToCache({ id: result.id, name: result.name, status: 'PAUSED' });
@@ -711,10 +783,12 @@ async function handleCreateAdset() {
         
         // Hide form and reset fields
         container.querySelector('#createAdsetForm').style.display = 'none';
+        container.querySelector('#pixelSelectorGroup').style.display = 'none';
         nameInput.value = '';
         budgetInput.value = '';
         optimizationGoalSelect.value = 'LINK_CLICKS';
         billingEventSelect.value = 'IMPRESSIONS';
+        if (pixelSelect) pixelSelect.value = '';
         
         updateFormState();
         

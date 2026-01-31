@@ -267,6 +267,21 @@ export async function fetchMetaPages(clientId) {
     return handleResponse(response, 'Fetch Meta pages');
 }
 
+// ==================== Pixel Methods ====================
+
+/**
+ * Fetch Facebook pixels for the client's ad account
+ * @param {string} clientId - Client UUID
+ * @returns {Promise<Object>} Response with items array of pixels
+ */
+export async function fetchMetaPixels(clientId) {
+    const response = await fetch(
+        `${API_BASE_URL}/api/meta/pixels?client_id=${clientId}`,
+        { headers: getAuthHeaders() }
+    );
+    return handleResponse(response, 'Fetch Meta pixels');
+}
+
 // ==================== Publishing Methods ====================
 
 /**

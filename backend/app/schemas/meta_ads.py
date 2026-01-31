@@ -110,6 +110,8 @@ class CreateAdSetRequest(BaseModel):
     status: str = Field("PAUSED", description="Initial adset status")
     # Targeting is complex - using basic defaults
     targeting: Optional[dict] = Field(None, description="Targeting specification")
+    # Required for certain optimization goals (e.g., OFFSITE_CONVERSIONS needs pixel_id)
+    promoted_object: Optional[dict] = Field(None, description="Promoted object (pixel_id for conversions, etc.)")
 
 
 class CreateAdSetResponse(BaseModel):

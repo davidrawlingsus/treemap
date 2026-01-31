@@ -637,11 +637,35 @@ async def create_adset(
             optimization_goal=request.optimization_goal,
             status=request.status,
             targeting=request.targeting,
+            promoted_object=request.promoted_object,
         )
         return CreateAdSetResponse(id=result["id"], name=request.name)
     except Exception as e:
         logger.error(f"Failed to create adset: {e}")
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ==================== Pixel Endpoints ====================
+
+@router.get("/api/meta/pixels")
+async def list_pixels(
+    client_id: UUID = Query(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """List Facebook pixels for the client's ad account."""
+    service = MetaAdsService(db)
+    token = service.get_token(str(client_id))
+    
+    if not token:
+        raise HTTPException(status_code=400, detail="No Meta token for this client")
+    
+    ad_account_id = token.default_ad_account_id
+    if not ad_account_id:
+        raise HTTPException(status_code=400, detail="No default ad account set")
+    
+    pixels = await service.list_pixels(token.access_token, ad_account_id)
+    return {"items": pixels, "total": len(pixels)}
 
 
 # ==================== Ad Publishing Endpoints ====================
