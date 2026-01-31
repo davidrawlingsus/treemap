@@ -1,0 +1,398 @@
+/**
+ * Email Mockup Styles
+ * Styles for email proposal cards rendered during streaming
+ * Follows the pattern established by FB ad mockups
+ */
+
+/* ============ Email Wrapper ============ */
+
+.pe-email-wrapper {
+    position: relative;
+}
+
+.pe-email-wrapper:first-child {
+    border-top: none !important;
+    padding-top: 0 !important;
+}
+
+/* ============ VoC Evidence Section ============ */
+
+.pe-email-mockup__voc {
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-radius: 8px;
+    border-left: 4px solid #B9F040;
+}
+
+.pe-email-mockup__voc-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #718096;
+    margin-bottom: 8px;
+}
+
+.pe-email-mockup__voc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pe-email-mockup__voc-item {
+    font-size: 13px;
+    font-style: italic;
+    color: #4a5568;
+    line-height: 1.5;
+    padding: 8px 12px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+}
+
+/* ============ Strategy Section ============ */
+
+.pe-email-mockup__strategy {
+    margin-top: 12px;
+    padding: 12px 16px;
+    background: #fef3c7;
+    border-radius: 8px;
+    border-left: 4px solid #f59e0b;
+}
+
+.pe-email-mockup__strategy-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #92400e;
+    margin-bottom: 4px;
+}
+
+.pe-email-mockup__strategy-text {
+    font-size: 13px;
+    color: #78350f;
+    line-height: 1.5;
+}
+
+/* ============ Add Button ============ */
+
+.pe-email-mockup__add {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pe-email-mockup__add:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(185, 240, 64, 0.4);
+}
+
+.pe-email-mockup__add:active {
+    transform: scale(0.95);
+}
+
+/* ============ Email Mockup Container ============ */
+
+.pe-email-mockup {
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.pe-email-mockup:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* ============ Responsive Adjustments ============ */
+
+@media (max-width: 640px) {
+    .pe-email-wrapper {
+        padding: 24px 0 0 0 !important;
+    }
+    
+    .pe-email-mockup__voc {
+        padding: 10px 12px;
+    }
+    
+    .pe-email-mockup__voc-item {
+        font-size: 12px;
+        padding: 6px 10px;
+    }
+    
+    .pe-email-mockup__strategy {
+        padding: 10px 12px;
+    }
+}
+
+/* ============ Email Cards Grid (for saved emails page) ============ */
+
+.emails-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 24px;
+    padding: 24px;
+}
+
+.emails-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.emails-card:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+}
+
+/* Card Header */
+.emails-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.emails-card__status {
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.emails-card__status--draft {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.emails-card__status--exported {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.emails-card__actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.emails-card__action-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease;
+}
+
+.emails-card__action-btn:hover {
+    background: rgba(55, 53, 47, 0.06);
+}
+
+.emails-card__action-btn img {
+    width: 16px;
+    height: 16px;
+    opacity: 0.6;
+}
+
+.emails-card__action-btn:hover img {
+    opacity: 1;
+}
+
+/* Delete button hover state */
+.emails-card__delete:hover {
+    background: #fee2e2;
+}
+
+.emails-card__delete:hover img {
+    filter: brightness(0) saturate(100%) invert(21%) sepia(100%) saturate(3000%) hue-rotate(353deg) brightness(90%) contrast(95%);
+}
+
+/* Publish button hover state */
+.emails-card__publish:hover {
+    background: rgba(185, 240, 64, 0.15);
+}
+
+/* Card Mockup Container */
+.emails-card__mockup {
+    padding: 0;
+}
+
+.emails-card__mockup .pe-email-mockup {
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
+/* Accordions for VoC and Strategy */
+.emails-card__accordions {
+    border-top: 1px solid #e2e8f0;
+    padding-bottom: 8px;
+}
+
+.emails-accordion {
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.emails-accordion:last-child {
+    border-bottom: none;
+}
+
+.emails-accordion__trigger {
+    width: 100%;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #1a202c;
+    transition: background 0.15s ease;
+}
+
+.emails-accordion__trigger:hover {
+    background: #edf0f5;
+}
+
+.emails-accordion__chevron {
+    flex-shrink: 0;
+    color: #718096;
+    transition: transform 0.2s ease;
+}
+
+.emails-accordion.expanded .emails-accordion__chevron {
+    transform: rotate(180deg);
+}
+
+.emails-accordion__content {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.25s ease;
+}
+
+.emails-accordion.expanded .emails-accordion__content {
+    grid-template-rows: 1fr;
+}
+
+.emails-accordion__body {
+    overflow: hidden;
+}
+
+.emails-accordion__body > * {
+    padding: 0 16px 16px 16px;
+}
+
+/* VoC Evidence List in accordions */
+.emails-card__voc-list {
+    list-style: none;
+    padding: 0 16px 16px 16px;
+    margin: 0;
+}
+
+.emails-card__voc-item {
+    font-style: italic;
+    padding: 10px 12px;
+    background: #f8fafc;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    font-size: 0.875rem;
+    color: #1a202c;
+    line-height: 1.5;
+    border-left: 3px solid #B9F040;
+}
+
+.emails-card__voc-item:last-child {
+    margin-bottom: 0;
+}
+
+/* Strategy text in accordions */
+.emails-accordion__text {
+    font-size: 0.875rem;
+    color: #1a202c;
+    line-height: 1.6;
+    margin: 0;
+}
+
+/* ============ Empty State ============ */
+
+.emails-empty {
+    text-align: center;
+    padding: 48px 24px;
+    color: #718096;
+}
+
+.emails-empty__icon {
+    font-size: 3rem;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.emails-empty__title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1a202c;
+    margin: 0 0 8px 0;
+}
+
+.emails-empty__text {
+    font-size: 0.875rem;
+    margin: 0;
+}
+
+/* ============ Loading State ============ */
+
+.emails-loading {
+    text-align: center;
+    padding: 48px 24px;
+    color: #718096;
+}
+
+/* ============ Sequence Badge Colors ============ */
+
+.email-sequence-badge--1 {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.email-sequence-badge--2 {
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
+.email-sequence-badge--3 {
+    background: #ede9fe;
+    color: #5b21b6;
+}
+
+.email-sequence-badge--4 {
+    background: #fae8ff;
+    color: #86198f;
+}
+
+.email-sequence-badge--5 {
+    background: #fce7f3;
+    color: #9d174d;
+}
+
+.email-sequence-badge--6 {
+    background: #fff1f2;
+    color: #9f1239;
+}
+
+.email-sequence-badge--7 {
+    background: #fef3c7;
+    color: #92400e;
+}

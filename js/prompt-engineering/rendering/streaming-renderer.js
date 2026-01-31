@@ -212,11 +212,11 @@
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = markdownHTML;
             
-            // Handle both regular idea cards AND FB ad cards
-            const newCards = Array.from(tempDiv.querySelectorAll('.pe-idea-card, .pe-fb-ad-wrapper'));
-            const existingCards = Array.from(contentElement.querySelectorAll('.pe-idea-card, .pe-fb-ad-wrapper'));
+            // Handle regular idea cards, FB ad cards, AND email cards
+            const newCards = Array.from(tempDiv.querySelectorAll('.pe-idea-card, .pe-fb-ad-wrapper, .pe-email-wrapper'));
+            const existingCards = Array.from(contentElement.querySelectorAll('.pe-idea-card, .pe-fb-ad-wrapper, .pe-email-wrapper'));
             
-            // Create signatures to compare cards by their IDs (if available) or by title/headline
+            // Create signatures to compare cards by their IDs (if available) or by title/headline/subject
             const getCardSignature = (card) => {
                 // Check for idea-id attribute (works for both card types)
                 const id = card.getAttribute('data-idea-id');
@@ -224,12 +224,19 @@
                 // Check for FB ad unique ID
                 const fbAdId = card.getAttribute('data-fb-ad-id');
                 if (fbAdId) return `fb:${fbAdId}`;
+                // Check for email unique ID
+                const emailId = card.getAttribute('data-email-id');
+                if (emailId) return `email:${emailId}`;
                 // Fallback to title for regular idea cards
                 const title = card.querySelector('.pe-idea-card__title')?.textContent?.trim();
                 if (title) return `title:${title}`;
                 // Fallback to headline for FB ad cards
                 const headline = card.querySelector('.pe-fb-ad__headline')?.textContent?.trim();
-                return headline ? `headline:${headline}` : null;
+                if (headline) return `headline:${headline}`;
+                // Fallback to subject line for email cards (look for the bold subject in header)
+                const subjectEl = card.querySelector('.pe-email-mockup div[style*="font-weight:600"][style*="font-size:16px"]');
+                const subject = subjectEl?.textContent?.trim();
+                return subject ? `subject:${subject}` : null;
             };
             
             const newCardSignatures = new Set(newCards.map(getCardSignature).filter(Boolean));
@@ -437,9 +444,6 @@
 
         // Remove loading spinner and add action buttons
         if (actionsDiv) {
-            // #region agent log
-            try{fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'streaming-renderer.js:finalizeStreamingItem',message:'Adding action button images via innerHTML',data:{streamingId,buttonCount:4},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2-race-condition'})}).catch(()=>{});}catch(e){}
-            // #endregion agent log
             actionsDiv.innerHTML = `
                 <button class="btn-nav-prev" data-action-id="streaming-${streamingId}" title="Previous message">
                     <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1767496461750-8ikag.png" alt="Previous" width="16" height="16">

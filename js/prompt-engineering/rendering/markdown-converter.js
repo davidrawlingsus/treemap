@@ -76,6 +76,10 @@
         // Process remaining code blocks (non-JSON or failed JSON)
         html = html.replace(/```(\w+)?\s*([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
         
+        // Handle incomplete code blocks during streaming (has opening ``` but no closing ```)
+        // Wrap them in <pre> to prevent paragraph processing from wrapping them in <p> tags
+        html = html.replace(/```(\w+)?\s*([\s\S]*)$/g, '<pre class="streaming-code-block"><code>$2</code></pre>');
+        
         // Restore JSON block placeholders with the actual idea card HTML
         jsonBlocks.forEach((htmlObject, index) => {
             let ideaCardsHTML = '';
@@ -384,6 +388,15 @@
     }
 
     /**
+     * Check if the idea object is an email format
+     * @param {Object} idea - Idea data object
+     * @returns {boolean} True if email format
+     */
+    function isEmailFormat(idea) {
+        return !!(idea.subject_line && idea.body_text && (idea.cta_text || idea.cta_url));
+    }
+
+    /**
      * Format CTA value to sentence case (e.g., SHOP_NOW -> "Shop now")
      * @param {string} cta - CTA value like SHOP_NOW, LEARN_MORE, etc.
      * @returns {string} Formatted CTA text
@@ -487,6 +500,94 @@
     }
 
     /**
+     * Format email body text with proper HTML paragraphs
+     * @param {string} text - Raw body text
+     * @returns {string} Formatted HTML
+     */
+    function formatEmailBodyText(text) {
+        if (!text) return '';
+        
+        let rawText = text
+            .replace(/\\n/g, '\n')
+            .replace(/\\"/g, '"')
+            .replace(/\r\n/g, '\n')
+            .replace(/\r/g, '\n');
+        
+        const paragraphs = rawText.split(/\n{2,}/);
+        const formattedParagraphs = paragraphs
+            .map(para => para.trim())
+            .filter(para => para.length > 0)
+            .map(para => {
+                const escaped = DOM.escapeHtml(para);
+                return escaped.replace(/\n/g, '<br>');
+            });
+        
+        return formattedParagraphs
+            .map((para, idx, arr) => {
+                const isLast = idx === arr.length - 1;
+                return `<p style="margin:0 0 ${isLast ? '0' : '16px'} 0;font-size:15px;line-height:1.6;color:#2d3748;">${para}</p>`;
+            })
+            .join('');
+    }
+
+    /**
+     * Get sequence position label for emails
+     * @param {number} position - Sequence position (1-7)
+     * @param {number} delayHours - Send delay in hours
+     * @returns {string} Human-readable label
+     */
+    function getSequenceLabel(position, delayHours) {
+        if (delayHours === 0 || delayHours === undefined) return 'Immediate';
+        if (delayHours <= 24) return 'Day 1';
+        if (delayHours <= 48) return 'Day 2';
+        if (delayHours <= 72) return 'Day 3';
+        if (delayHours <= 96) return 'Day 4';
+        if (delayHours <= 120) return 'Day 5';
+        if (delayHours <= 144) return 'Day 6';
+        if (delayHours <= 168) return 'Day 7';
+        return `Day ${Math.ceil(delayHours / 24)}`;
+    }
+
+    /**
+     * Generate HTML for an Email card from JSON data
+     * @param {Object} idea - Email data object
+     * @returns {string} HTML string for email card
+     */
+    function generateEmailCardHTML(idea) {
+        const uniqueId = idea.email_id || `email-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const formattedBody = formatEmailBodyText(idea.body_text || '');
+        const sequenceLabel = getSequenceLabel(idea.sequence_position, idea.send_delay_hours);
+        const vocEvidence = idea.voc_evidence || [];
+
+        // Get client logo from nav if available
+        const navLogo = document.getElementById('navClientLogo');
+        const logoSrc = navLogo ? navLogo.src : '';
+
+        // Get client name from dropdown
+        const clientSelect = document.getElementById('clientSelect');
+        const clientName = clientSelect?.selectedOptions?.[0]?.textContent?.trim() || 'Brand';
+
+        // Build VoC evidence HTML - single line to avoid paragraph wrapping issues
+        let vocHTML = '';
+        if (vocEvidence.length > 0) {
+            const vocItems = vocEvidence.map(quote => 
+                `<div class="pe-email-mockup__voc-item">"${DOM.escapeHtml(quote)}"</div>`
+            ).join('');
+            vocHTML = `<div class="pe-email-mockup__voc"><div class="pe-email-mockup__voc-label">VoC Evidence</div><div class="pe-email-mockup__voc-list">${vocItems}</div></div>`;
+        }
+
+        // Build strategy section - single line to avoid paragraph wrapping issues
+        let strategyHTML = '';
+        if (idea.strategic_intent) {
+            strategyHTML = `<div class="pe-email-mockup__strategy"><div class="pe-email-mockup__strategy-label">Strategic Intent</div><div class="pe-email-mockup__strategy-text">${DOM.escapeHtml(idea.strategic_intent)}</div></div>`;
+        }
+
+        // Build email HTML - IMPORTANT: No empty lines or HTML comments to avoid paragraph wrapping issues
+        const emailHTML = `<div class="pe-email-wrapper" data-email-id="${uniqueId}" style="margin:0;padding:32px 0 0 0;border-top:1px solid #cbd5e0;">${vocHTML}<div class="pe-email-mockup" style="margin:24px 0 16px 0;border:1px solid #e2e8f0;border-radius:12px;background:#fff;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.08);"><div style="padding:16px 20px;background:#f8fafc;border-bottom:1px solid #e2e8f0;"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;"><div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span style="display:inline-flex;align-items:center;justify-content:center;background:#e0e7ff;color:#3730a3;font-size:11px;font-weight:600;padding:4px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:0.5px;">Email ${idea.sequence_position || ''}${sequenceLabel ? ` • ${sequenceLabel}` : ''}</span></div><div style="font-size:13px;color:#718096;margin-bottom:4px;"><span style="font-weight:500;">From:</span> ${DOM.escapeHtml(idea.from_name || clientName)}</div><div style="font-weight:600;font-size:16px;color:#1a202c;line-height:1.3;margin-bottom:4px;">${DOM.escapeHtml(idea.subject_line || 'Subject line')}</div>${idea.preview_text ? `<div style="font-size:13px;color:#718096;line-height:1.4;">${DOM.escapeHtml(idea.preview_text)}</div>` : ''}</div><button class="pe-email-mockup__add" type="button" title="Save email" data-email='${DOM.escapeHtmlForAttribute(JSON.stringify(idea))}' style="width:28px;height:28px;border-radius:50%;border:none;background:#B9F040;color:#1a202c;font-size:16px;font-weight:700;cursor:pointer;flex-shrink:0;">+</button></div></div><div style="padding:24px 20px;max-width:600px;">${logoSrc ? `<div style="margin-bottom:20px;"><img src="${DOM.escapeHtml(logoSrc)}" alt="${DOM.escapeHtml(clientName)} Logo" style="height:36px;width:auto;object-fit:contain;"></div>` : ''}${idea.headline ? `<div style="font-size:20px;font-weight:600;color:#1a202c;margin-bottom:16px;line-height:1.3;">${DOM.escapeHtml(idea.headline)}</div>` : ''}${idea.discount_code ? `<div style="background:#f8fafc;border:2px dashed #B9F040;padding:16px;text-align:center;font-size:24px;font-weight:700;letter-spacing:3px;margin:20px 0;border-radius:8px;color:#1a202c;font-family:monospace;">${DOM.escapeHtml(idea.discount_code)}</div>` : ''}<div style="margin:16px 0;">${formattedBody}</div>${idea.social_proof ? `<div style="background:#f8fafc;padding:16px;margin:24px 0;border-left:4px solid #B9F040;font-style:italic;color:#4a5568;border-radius:0 8px 8px 0;font-size:14px;line-height:1.5;">${DOM.escapeHtml(idea.social_proof)}</div>` : ''}${idea.cta_text ? `<div style="margin:24px 0;"><a href="${DOM.escapeHtml(idea.cta_url || '#')}" style="display:inline-block;background:#B9F040;color:#1a202c;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:600;font-size:15px;">${DOM.escapeHtml(idea.cta_text)}</a></div>` : ''}<div style="margin-top:32px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:12px;color:#a0aec0;"><span style="opacity:0.7;">Questions? Just hit reply — we're real humans.</span><div style="margin-top:12px;"><a href="#" style="color:#a0aec0;text-decoration:underline;">Unsubscribe</a><span style="margin:0 8px;">•</span><a href="#" style="color:#a0aec0;text-decoration:underline;">Manage Preferences</a></div></div></div></div>${strategyHTML}</div>`;
+        return emailHTML;
+    }
+
+    /**
      * Generate HTML for an idea card from JSON data
      * @param {Object} idea - Idea data object
      * @returns {string} HTML string for idea card
@@ -495,6 +596,10 @@
         // Check if this is a Facebook ad format
         if (isFacebookAdFormat(idea)) {
             return generateFBAdCardHTML(idea);
+        }
+        // Check if this is an email format
+        if (isEmailFormat(idea)) {
+            return generateEmailCardHTML(idea);
         }
         // Extract fields from the idea object and escape for HTML safety
         const id = DOM.escapeHtml(idea.id || '');
@@ -564,7 +669,9 @@
         convertMarkdown,
         generateIdeaCardHTML,
         generateFBAdCardHTML,
+        generateEmailCardHTML,
         isFacebookAdFormat,
+        isEmailFormat,
         initFBAdInteractions
     };
 })();
