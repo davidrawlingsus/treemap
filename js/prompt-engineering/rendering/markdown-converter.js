@@ -386,11 +386,20 @@
         html = html.replace(/\s*<br>\s*(<\/ul>|<\/ol>)/g, '$1');
         
         // Style VoC Evidence sections that appear before ad cards
-        // Pattern: <p><strong>VoC Evidence:</strong></p> followed by <ul>...</ul>
-        html = html.replace(/<p><strong>VoC Evidence:<\/strong><\/p>\s*<ul>([\s\S]*?)<\/ul>/gi, (match, listContent) => {
-            // Convert list items to styled VoC items
-            const vocItems = listContent.replace(/<li>"?([^"<]*)"?<\/li>/g, '<div class="pe-voc-callout__item">"$1"</div>');
-            return `<div class="pe-voc-callout"><div class="pe-voc-callout__label">VoC Evidence</div><div class="pe-voc-callout__list">${vocItems}</div></div>`;
+        // Permissive pattern: any "VoC Evidence" text (with optional bold/paragraph wrappers) followed by a <ul>
+        html = html.replace(/(?:<p>)?(?:<strong>)?VoC Evidence:?(?:<\/strong>)?(?:<\/p>)?[\s\S]*?<ul>([\s\S]*?)<\/ul>/gi, (match, listContent) => {
+            // Extract list items and convert to styled callout items
+            const items = [];
+            listContent.replace(/<li>([^<]*)<\/li>/gi, (m, content) => {
+                // Clean up the content - remove surrounding quotes if present, then add them back consistently
+                let cleaned = content.trim().replace(/^[""]|[""]$/g, '').trim();
+                if (cleaned) {
+                    items.push(`<div class="pe-voc-callout__item">"${cleaned}"</div>`);
+                }
+                return '';
+            });
+            if (items.length === 0) return match; // No valid items found, return original
+            return `<div class="pe-voc-callout"><div class="pe-voc-callout__label">VoC Evidence</div><div class="pe-voc-callout__list">${items.join('')}</div></div>`;
         });
         
         return html;
