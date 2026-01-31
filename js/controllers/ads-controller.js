@@ -65,7 +65,13 @@ export async function initAdsPage() {
     
     try {
         const response = await fetchFacebookAds(clientId);
+        // #region agent log
+        console.log('[DEBUG] initAdsPage response', { response, responseType: typeof response });
+        // #endregion
         const ads = response.items || [];
+        // #region agent log
+        console.log('[DEBUG] initAdsPage ads extracted', { adsLength: ads.length, firstAd: ads[0] });
+        // #endregion
         
         setAdsCache(ads);
         setAdsCurrentClientId(clientId);
@@ -91,6 +97,9 @@ export function renderAdsPage() {
     const ads = getAdsCache();
     const filteredAds = getFilteredAndSortedAds(ads);
     const viewMode = getAdsViewMode();
+    // #region agent log
+    console.log('[DEBUG] renderAdsPage', { cachedAdsCount: ads.length, filteredAdsCount: filteredAds.length, viewMode });
+    // #endregion
     
     updateAdsFilterBadge();
     updateAdsSortUI();

@@ -68,7 +68,11 @@ export async function fetchFacebookAds(clientId) {
         // #endregion
         
         await handleResponseError(response);
-        return response.json();
+        const data = await response.json();
+        // #region agent log
+        console.log('[DEBUG] response data', { hasItems: !!data.items, itemsLength: data.items?.length, dataKeys: Object.keys(data), rawData: data });
+        // #endregion
+        return data;
     } catch (error) {
         // #region agent log
         console.log('[DEBUG] fetch failed', { errorMessage: error.message, errorName: error.name });
