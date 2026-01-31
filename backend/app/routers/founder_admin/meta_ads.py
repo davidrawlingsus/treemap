@@ -102,8 +102,10 @@ def meta_oauth_init(
 
 @router.get("/api/meta/oauth/callback")
 async def meta_oauth_callback(
-    code: str = Query(...),
-    state: str = Query(...),
+    code: Optional[str] = Query(None),
+    state: Optional[str] = Query(None),
+    error: Optional[str] = Query(None),
+    error_description: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
     """
@@ -111,6 +113,45 @@ async def meta_oauth_callback(
     Exchanges code for token and stores it.
     Returns HTML that closes the popup and notifies the parent window.
     """
+    # #region agent log
+    logger.info(f"[DEBUG] OAuth callback received: code={bool(code)}, state={bool(state)}, error={error}, error_description={error_description}")
+    # #endregion
+    
+    # Handle error responses from Meta
+    if error:
+        error_msg = error_description or error
+        return HTMLResponse(
+            content=f"""
+            <html>
+            <body>
+                <script>
+                    window.opener?.postMessage({{type: 'meta_oauth_error', error: '{error_msg}'}}, '*');
+                    window.close();
+                </script>
+                <p>Authentication failed: {error_msg}. You can close this window.</p>
+            </body>
+            </html>
+            """,
+            status_code=400,
+        )
+    
+    # Check for missing required parameters
+    if not code or not state:
+        return HTMLResponse(
+            content="""
+            <html>
+            <body>
+                <script>
+                    window.opener?.postMessage({type: 'meta_oauth_error', error: 'Missing authorization code'}, '*');
+                    window.close();
+                </script>
+                <p>Authentication failed: Missing authorization code. You can close this window.</p>
+            </body>
+            </html>
+            """,
+            status_code=400,
+        )
+    
     settings = get_settings()
     
     # Verify state
