@@ -385,6 +385,14 @@
         html = html.replace(/(<ul>|<ol>)\s*<br>\s*/g, '$1');
         html = html.replace(/\s*<br>\s*(<\/ul>|<\/ol>)/g, '$1');
         
+        // Style VoC Evidence sections that appear before ad cards
+        // Pattern: <p><strong>VoC Evidence:</strong></p> followed by <ul>...</ul>
+        html = html.replace(/<p><strong>VoC Evidence:<\/strong><\/p>\s*<ul>([\s\S]*?)<\/ul>/gi, (match, listContent) => {
+            // Convert list items to styled VoC items
+            const vocItems = listContent.replace(/<li>"?([^"<]*)"?<\/li>/g, '<div class="pe-voc-callout__item">"$1"</div>');
+            return `<div class="pe-voc-callout"><div class="pe-voc-callout__label">VoC Evidence</div><div class="pe-voc-callout__list">${vocItems}</div></div>`;
+        });
+        
         return html;
     }
 
