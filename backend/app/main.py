@@ -149,11 +149,15 @@ async def startup_event():
 
 # CORS configuration - allow frontend to communicate with backend
 # Allow all Railway origins (they use *.up.railway.app pattern) for flexibility
-# Also allow the production frontend domain
-default_production_origin = "https://vizualizd.marketably.ai"
+# Also allow the production frontend domains (both old and new during migration)
+production_origins = [
+    "https://mapthegap.ai",           # New primary domain
+    "https://marketably.ai",          # Old domain (keep during migration)
+]
 all_cors_origins = cors_allow_origins.copy()
-if default_production_origin not in all_cors_origins:
-    all_cors_origins.append(default_production_origin)
+for origin in production_origins:
+    if origin not in all_cors_origins:
+        all_cors_origins.append(origin)
 
 # Always allow localhost development origins
 localhost_origins = ["http://localhost:3000", "http://localhost:8000", "http://127.0.0.1:3000", "http://127.0.0.1:8000"]
