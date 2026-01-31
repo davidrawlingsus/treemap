@@ -34,15 +34,29 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // API URL will be injected from environment variable
 // Default to localhost for development
-const API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:8000';
+let API_BASE_URL = process.env.API_BASE_URL;
 
-console.log(`🔧 API_BASE_URL: ${API_BASE_URL}`);
-console.log(`🔧 API_BASE_URL type: ${typeof API_BASE_URL}, value: "${API_BASE_URL}", length: ${API_BASE_URL?.length}`);
+// Log raw environment variable value for debugging
+console.log(`🔧 Raw API_BASE_URL env var: "${API_BASE_URL}" (type: ${typeof API_BASE_URL})`);
+console.log(`🔧 All env vars with API in name:`, Object.keys(process.env).filter(k => k.includes('API')));
 
-// Validate API_BASE_URL to prevent proxy crashes
-if (!API_BASE_URL || API_BASE_URL.trim() === '') {
-  console.error('❌ CRITICAL: API_BASE_URL is empty or not set! Proxy will fail.');
+// Validate and provide fallback
+if (!API_BASE_URL || API_BASE_URL.trim() === '' || API_BASE_URL === 'null' || API_BASE_URL === 'undefined') {
+  console.error('❌ WARNING: API_BASE_URL is not properly set! Using fallback.');
+  console.error(`❌ Raw value was: "${API_BASE_URL}"`);
+  API_BASE_URL = 'http://localhost:8000';
 }
+
+// Ensure it's a valid URL
+try {
+  new URL(API_BASE_URL);
+  console.log(`✅ API_BASE_URL is valid: ${API_BASE_URL}`);
+} catch (e) {
+  console.error(`❌ API_BASE_URL "${API_BASE_URL}" is not a valid URL! Using fallback.`);
+  API_BASE_URL = 'http://localhost:8000';
+}
+
+console.log(`🔧 Final API_BASE_URL: ${API_BASE_URL}`);
 
 // Endpoint to get config (so frontend can fetch API URL dynamically)
 // This must be BEFORE express.static so it overrides the static config.js file
