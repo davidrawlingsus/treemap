@@ -26,7 +26,7 @@
           <a href="https://mapthegap.ai" class="marketably-logo-link">
             <img src="" alt="Client Logo" class="marketably-logo-image" id="headerLogoImage" style="display: none; max-height: 40px; width: auto;">
             <div id="headerLogoText" class="marketably-logo-text-container">
-              <span class="marketably-logo-text-white">market</span><span class="marketably-logo-text-brand">ably</span>
+              <span class="marketably-logo-text-white">MapThe</span><span class="marketably-logo-text-brand">Gap</span>
             </div>
           </a>
           <span class="marketably-tagline" id="headerTagline">Feedback-Fueled Marketing</span>

@@ -104,6 +104,13 @@ async def meta_oauth_callback(
     Exchanges code for token and stores it.
     Returns HTML that closes the popup and notifies the parent window.
     """
+    # #region agent log
+    import json as _json_debug
+    _log_path = "/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug.log"
+    with open(_log_path, "a") as _f:
+        _f.write(_json_debug.dumps({"location": "meta_ads.py:callback_entry", "message": "OAuth callback invoked", "hypothesisId": "H1,H2", "data": {"code_present": bool(code), "state": state, "error": error, "oauth_states_keys": list(_oauth_states.keys())}, "timestamp": __import__("time").time() * 1000, "sessionId": "debug-session"}) + "\n")
+    # #endregion
+    
     # Handle error responses from Meta
     if error:
         error_msg = error_description or error
@@ -143,6 +150,10 @@ async def meta_oauth_callback(
     
     # Verify state
     state_data = _oauth_states.pop(state, None)
+    # #region agent log
+    with open(_log_path, "a") as _f:
+        _f.write(_json_debug.dumps({"location": "meta_ads.py:state_check", "message": "State validation", "hypothesisId": "H1", "data": {"state_data_found": state_data is not None, "state_key": state, "remaining_states": len(_oauth_states)}, "timestamp": __import__("time").time() * 1000, "sessionId": "debug-session"}) + "\n")
+    # #endregion
     if not state_data:
         return HTMLResponse(
             content="""
@@ -169,9 +180,18 @@ async def meta_oauth_callback(
     
     service = MetaAdsService(db)
     
+    # #region agent log
+    with open(_log_path, "a") as _f:
+        _f.write(_json_debug.dumps({"location": "meta_ads.py:before_exchange", "message": "About to exchange code", "hypothesisId": "H2,H3", "data": {"redirect_uri": redirect_uri, "code_length": len(code) if code else 0, "client_id": client_id}, "timestamp": __import__("time").time() * 1000, "sessionId": "debug-session"}) + "\n")
+    # #endregion
+    
     try:
         # Exchange code for short-lived token
         token_response = await service.exchange_code_for_token(code, redirect_uri)
+        # #region agent log
+        with open(_log_path, "a") as _f:
+            _f.write(_json_debug.dumps({"location": "meta_ads.py:after_short_token", "message": "Short-lived token exchange result", "hypothesisId": "H3", "data": {"has_token": "access_token" in token_response, "response_keys": list(token_response.keys())}, "timestamp": __import__("time").time() * 1000, "sessionId": "debug-session"}) + "\n")
+        # #endregion
         short_lived_token = token_response.get("access_token")
         
         if not short_lived_token:
@@ -181,11 +201,20 @@ async def meta_oauth_callback(
         long_lived_response = await service.exchange_for_long_lived_token(short_lived_token)
         access_token = long_lived_response.get("access_token")
         expires_in = long_lived_response.get("expires_in")
+        # #region agent log
+        with open(_log_path, "a") as _f:
+            _f.write(_json_debug.dumps({"location": "meta_ads.py:after_long_token", "message": "Long-lived token exchange result", "hypothesisId": "H3", "data": {"has_token": bool(access_token), "expires_in": expires_in}, "timestamp": __import__("time").time() * 1000, "sessionId": "debug-session"}) + "\n")
+        # #endregion
         
         # Get user info
         user_info = await service.get_meta_user_info(access_token)
         meta_user_id = user_info.get("id")
         meta_user_name = user_info.get("name")
+        
+        # #region agent log
+        with open(_log_path, "a") as _f:
+            _f.write(_json_debug.dumps({"location": "meta_ads.py:before_save", "message": "About to save token", "hypothesisId": "H4", "data": {"client_id": client_id, "user_id": user_id, "meta_user_id": meta_user_id, "meta_user_name": meta_user_name}, "timestamp": __import__("time").time() * 1000, "sessionId": "debug-session"}) + "\n")
+        # #endregion
         
         # Save token
         service.save_token(
@@ -198,6 +227,10 @@ async def meta_oauth_callback(
         )
         
         logger.info(f"Meta OAuth completed for client {client_id}, user {meta_user_name}")
+        # #region agent log
+        with open(_log_path, "a") as _f:
+            _f.write(_json_debug.dumps({"location": "meta_ads.py:save_success", "message": "Token saved successfully", "hypothesisId": "H4", "data": {"client_id": client_id, "meta_user_name": meta_user_name}, "timestamp": __import__("time").time() * 1000, "sessionId": "debug-session"}) + "\n")
+        # #endregion
         
         # Return HTML that closes popup and notifies parent
         return HTMLResponse(
@@ -218,7 +251,14 @@ async def meta_oauth_callback(
         )
         
     except Exception as e:
+        # #region agent log
+        import traceback as _tb
+        with open(_log_path, "a") as _f:
+            _f.write(_json_debug.dumps({"location": "meta_ads.py:exception", "message": "OAuth callback exception", "hypothesisId": "H3,H4,H5", "data": {"error_type": type(e).__name__, "error_message": str(e), "traceback": _tb.format_exc()}, "timestamp": __import__("time").time() * 1000, "sessionId": "debug-session"}) + "\n")
+        # #endregion
         logger.error(f"Meta OAuth error: {e}")
+        # Escape error message for JavaScript
+        safe_error = str(e).replace("'", "\\'").replace('"', '\\"').replace('\n', ' ')
         return HTMLResponse(
             content=f"""
             <html>
@@ -226,11 +266,11 @@ async def meta_oauth_callback(
                 <script>
                     window.opener?.postMessage({{
                         type: 'meta_oauth_error',
-                        error: '{str(e)}'
+                        error: '{safe_error}'
                     }}, '*');
                     window.close();
                 </script>
-                <p>Authentication failed: {str(e)}. You can close this window.</p>
+                <p>Authentication failed: {safe_error}. You can close this window.</p>
             </body>
             </html>
             """,
