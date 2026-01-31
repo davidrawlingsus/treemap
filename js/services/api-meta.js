@@ -54,9 +54,6 @@ export async function checkMetaTokenStatus(clientId) {
  * @returns {Promise<Object>} Response with oauth_url and state
  */
 export async function getMetaOAuthUrl(clientId) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-meta.js:getMetaOAuthUrl',message:'OAuth init request',data:{clientId},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
     const response = await fetch(
         `${API_BASE_URL}/api/meta/oauth/init?client_id=${clientId}`,
         { headers: getAuthHeaders() }
@@ -74,9 +71,6 @@ export function openMetaOAuthPopup(clientId) {
         try {
             // Get OAuth URL from backend
             const { oauth_url } = await getMetaOAuthUrl(clientId);
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-meta.js:openPopup',message:'Got OAuth URL, opening popup',data:{oauth_url_length: oauth_url?.length, has_state: oauth_url?.includes('state=')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H1'})}).catch(()=>{});
-            // #endregion
             
             // Calculate popup dimensions
             const width = 600;
@@ -98,11 +92,6 @@ export function openMetaOAuthPopup(clientId) {
             
             // Listen for messages from popup
             const messageHandler = (event) => {
-                // #region agent log
-                if (event.data?.type?.startsWith('meta_oauth')) {
-                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-meta.js:messageHandler',message:'Received postMessage from popup',data:{type: event.data?.type, error: event.data?.error, meta_user_name: event.data?.meta_user_name},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3,H5'})}).catch(()=>{});
-                }
-                // #endregion
                 if (event.data?.type === 'meta_oauth_success') {
                     window.removeEventListener('message', messageHandler);
                     resolve({
@@ -127,9 +116,6 @@ export function openMetaOAuthPopup(clientId) {
             }, 500);
             
         } catch (error) {
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api-meta.js:popupError',message:'OAuth popup flow error',data:{error_message: error?.message, error_name: error?.name},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H3'})}).catch(()=>{});
-            // #endregion
             reject(error);
         }
     });

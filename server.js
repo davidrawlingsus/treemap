@@ -34,29 +34,17 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 // API URL will be injected from environment variable
 // Default to localhost for development
-let API_BASE_URL = process.env.API_BASE_URL;
+let API_BASE_URL = process.env.API_BASE_URL || 'http://localhost:8000';
 
-// Log raw environment variable value for debugging
-console.log(`🔧 Raw API_BASE_URL env var: "${API_BASE_URL}" (type: ${typeof API_BASE_URL})`);
-console.log(`🔧 All env vars with API in name:`, Object.keys(process.env).filter(k => k.includes('API')));
-
-// Validate and provide fallback
-if (!API_BASE_URL || API_BASE_URL.trim() === '' || API_BASE_URL === 'null' || API_BASE_URL === 'undefined') {
-  console.error('❌ WARNING: API_BASE_URL is not properly set! Using fallback.');
-  console.error(`❌ Raw value was: "${API_BASE_URL}"`);
-  API_BASE_URL = 'http://localhost:8000';
-}
-
-// Ensure it's a valid URL
+// Validate URL to prevent proxy crashes
 try {
   new URL(API_BASE_URL);
-  console.log(`✅ API_BASE_URL is valid: ${API_BASE_URL}`);
 } catch (e) {
   console.error(`❌ API_BASE_URL "${API_BASE_URL}" is not a valid URL! Using fallback.`);
   API_BASE_URL = 'http://localhost:8000';
 }
 
-console.log(`🔧 Final API_BASE_URL: ${API_BASE_URL}`);
+console.log(`🔧 API_BASE_URL: ${API_BASE_URL}`);
 
 // Endpoint to get config (so frontend can fetch API URL dynamically)
 // This must be BEFORE express.static so it overrides the static config.js file
@@ -149,36 +137,18 @@ app.post('/api/upload-ad-image', upload.single('file'), async (req, res) => {
 // Proxy all other /api/* requests to the backend
 // This must be AFTER the frontend-handled API routes (upload-media, upload-ad-image)
 // but BEFORE express.static
-
-// Debug: Log before creating proxy middleware
-console.log(`🔧 Creating proxy middleware with target: "${API_BASE_URL}"`);
-
-// Create proxy with explicit target validation
-const apiProxy = createProxyMiddleware({
+app.use('/api', createProxyMiddleware({
   target: API_BASE_URL,
   changeOrigin: true,
   pathRewrite: (path, req) => `/api${path}`, // Preserve the /api prefix
-  logLevel: 'debug',
-  onProxyReq: (proxyReq, req, res) => {
-    console.log(`🔀 Proxying ${req.method} /api${req.url} -> ${API_BASE_URL}/api${req.url}`);
-  },
+  logLevel: 'warn',
   onError: (err, req, res) => {
-    console.error('❌ Proxy error:', err.message);
-    console.error('❌ Proxy error stack:', err.stack);
-    console.error('❌ Request URL:', req.url);
-    console.error('❌ API_BASE_URL at error time:', API_BASE_URL);
+    console.error('Proxy error:', err.message);
     if (!res.headersSent) {
-      res.status(502).json({ error: 'Backend unavailable', details: err.message });
+      res.status(502).json({ error: 'Backend unavailable' });
     }
   }
-});
-
-// Wrap with logging middleware
-app.use('/api', (req, res, next) => {
-  console.log(`📥 Incoming /api request: ${req.method} ${req.url}`);
-  console.log(`📥 Target will be: ${API_BASE_URL}`);
-  apiProxy(req, res, next);
-});
+}));
 
 // Serve static files from current directory (AFTER API routes)
 // Note: express.static will return 405 (Method Not Allowed) for POST requests to files, not 501

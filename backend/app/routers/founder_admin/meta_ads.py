@@ -104,10 +104,6 @@ async def meta_oauth_callback(
     Exchanges code for token and stores it.
     Returns HTML that closes the popup and notifies the parent window.
     """
-    # #region agent log
-    logger.info(f"[DEBUG] OAuth callback invoked: code_present={bool(code)}, state={state[:20] if state else None}..., error={error}, oauth_states_count={len(_oauth_states)}")
-    # #endregion
-    
     # Handle error responses from Meta
     if error:
         error_msg = error_description or error
@@ -147,9 +143,6 @@ async def meta_oauth_callback(
     
     # Verify state
     state_data = _oauth_states.pop(state, None)
-    # #region agent log
-    logger.info(f"[DEBUG] State validation: found={state_data is not None}, remaining_states={len(_oauth_states)}")
-    # #endregion
     if not state_data:
         return HTMLResponse(
             content="""
@@ -176,16 +169,9 @@ async def meta_oauth_callback(
     
     service = MetaAdsService(db)
     
-    # #region agent log
-    logger.info(f"[DEBUG] About to exchange code: redirect_uri={redirect_uri}, code_length={len(code) if code else 0}, client_id={client_id}")
-    # #endregion
-    
     try:
         # Exchange code for short-lived token
         token_response = await service.exchange_code_for_token(code, redirect_uri)
-        # #region agent log
-        logger.info(f"[DEBUG] Short-lived token exchange: has_token={'access_token' in token_response}, keys={list(token_response.keys())}")
-        # #endregion
         short_lived_token = token_response.get("access_token")
         
         if not short_lived_token:
@@ -195,18 +181,11 @@ async def meta_oauth_callback(
         long_lived_response = await service.exchange_for_long_lived_token(short_lived_token)
         access_token = long_lived_response.get("access_token")
         expires_in = long_lived_response.get("expires_in")
-        # #region agent log
-        logger.info(f"[DEBUG] Long-lived token exchange: has_token={bool(access_token)}, expires_in={expires_in}")
-        # #endregion
         
         # Get user info
         user_info = await service.get_meta_user_info(access_token)
         meta_user_id = user_info.get("id")
         meta_user_name = user_info.get("name")
-        
-        # #region agent log
-        logger.info(f"[DEBUG] About to save token: client_id={client_id}, meta_user_id={meta_user_id}, meta_user_name={meta_user_name}")
-        # #endregion
         
         # Save token
         service.save_token(
@@ -219,9 +198,6 @@ async def meta_oauth_callback(
         )
         
         logger.info(f"Meta OAuth completed for client {client_id}, user {meta_user_name}")
-        # #region agent log
-        logger.info(f"[DEBUG] Token saved successfully: client_id={client_id}, meta_user_name={meta_user_name}")
-        # #endregion
         
         # Return HTML that closes popup and notifies parent
         return HTMLResponse(
@@ -242,10 +218,6 @@ async def meta_oauth_callback(
         )
         
     except Exception as e:
-        # #region agent log
-        import traceback as _tb
-        logger.error(f"[DEBUG] OAuth callback exception: type={type(e).__name__}, message={str(e)}, traceback={_tb.format_exc()}")
-        # #endregion
         logger.error(f"Meta OAuth error: {e}")
         # Escape error message for JavaScript
         safe_error = str(e).replace("'", "\\'").replace('"', '\\"').replace('\n', ' ')
