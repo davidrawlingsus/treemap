@@ -266,7 +266,6 @@ def request_magic_link(payload: MagicLinkRequest, db: Session = Depends(get_db))
 
     redirect_path = settings.magic_link_redirect_path.lstrip("/")
     base_url = settings.frontend_base_url.rstrip("/")
-    logger.info(f"Magic link config - frontend_base_url: {settings.frontend_base_url}, base_url: {base_url}")
     if redirect_path:
         magic_link_url = f"{base_url}/{redirect_path}?token={quote(token)}&email={quote(email)}"
     else:
