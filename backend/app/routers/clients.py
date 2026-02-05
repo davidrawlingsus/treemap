@@ -34,6 +34,11 @@ router = APIRouter(prefix="/api/clients", tags=["clients"])
 logger = logging.getLogger(__name__)
 
 
+def get_llm_service(request: Request):
+    """Dependency to get LLM service from app state"""
+    return request.app.state.llm_service
+
+
 def parse_application_to_jsonb(application_str: Optional[str]) -> Optional[List[str]]:
     """
     Parse comma-separated application string into a list for JSONB storage.
@@ -152,6 +157,117 @@ def update_client_settings(
     
     logger.info(f"Updated settings for client {client_id}")
     return client
+
+
+@router.post("/{client_id}/generate-tone-of-voice")
+def generate_tone_of_voice(
+    client_id: UUID,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    llm_service = Depends(get_llm_service),
+):
+    """
+    Generate a tone of voice guide for a client by:
+    1. Crawling their brand website
+    2. Combining website copy with business context
+    3. Using LLM to generate a comprehensive tone guide
+    4. Storing the result in the client's tone_of_voice field
+    """
+    from app.services.web_crawler_service import WebCrawlerService
+    
+    # Verify client access
+    verify_client_access(client_id, current_user, db)
+    
+    # Get client
+    client = db.query(Client).filter(Client.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    # Check if client has a URL
+    if not client.client_url:
+        raise HTTPException(
+            status_code=400, 
+            detail="Please set a brand website URL in Settings before generating tone of voice"
+        )
+    
+    # Get the tone_of_voice prompt from prompts table
+    prompt = db.query(Prompt).filter(
+        Prompt.prompt_purpose == "tone_of_voice",
+        Prompt.status == "live"
+    ).order_by(Prompt.version.desc()).first()
+    
+    if not prompt:
+        raise HTTPException(
+            status_code=404, 
+            detail="Tone of voice prompt not configured. Please create a prompt with purpose 'tone_of_voice' in Prompt Engineering."
+        )
+    
+    try:
+        # Crawl the brand website
+        logger.info(f"Crawling website for client {client_id}: {client.client_url}")
+        crawler = WebCrawlerService()
+        crawl_result = crawler.crawl_brand_pages(client.client_url, max_pages=4)
+        
+        if not crawl_result['combined_copy']:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Could not extract content from website. Errors: {', '.join(crawl_result['errors'])}"
+            )
+        
+        # Build user message with website copy + business context
+        user_message_parts = []
+        
+        # Add brand name
+        user_message_parts.append(f"Brand Name: {client.name}")
+        
+        # Add website copy
+        user_message_parts.append(f"\n\n=== Website Copy ===\n{crawl_result['combined_copy']}")
+        
+        # Add business context if available
+        if client.business_summary:
+            user_message_parts.append(f"\n\n=== Business Context ===\n{client.business_summary}")
+        
+        user_message = '\n'.join(user_message_parts)
+        
+        logger.info(
+            f"Generating tone of voice for client {client_id} "
+            f"with model: {prompt.llm_model}, "
+            f"pages crawled: {len(crawl_result['pages_crawled'])}, "
+            f"user_message length: {len(user_message)}"
+        )
+        
+        # Execute LLM prompt
+        result = llm_service.execute_prompt(
+            system_message=prompt.system_message,
+            user_message=user_message,
+            model=prompt.llm_model
+        )
+        
+        generated_tone = result.get('content', '')
+        
+        if not generated_tone:
+            raise HTTPException(status_code=500, detail="LLM returned empty response")
+        
+        # Save the generated tone of voice to the client
+        client.tone_of_voice = generated_tone
+        db.commit()
+        db.refresh(client)
+        
+        logger.info(f"Generated and saved tone of voice for client {client_id}, length: {len(generated_tone)}")
+        
+        return {
+            "tone_of_voice": generated_tone,
+            "pages_crawled": crawl_result['pages_crawled'],
+            "tokens_used": result.get('tokens_used'),
+            "model": result.get('model')
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating tone of voice: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{client_id}/sources", response_model=List[DataSourceResponse])
@@ -490,11 +606,6 @@ def add_insight_origin(
     db.refresh(insight)
     
     return InsightResponse.from_orm(insight)
-
-
-def get_llm_service(request: Request):
-    """Dependency to get LLM service from app state"""
-    return request.app.state.llm_service
 
 
 @router.get("/{client_id}/prompts", response_model=List[PromptMenuItem])

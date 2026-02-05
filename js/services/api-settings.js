@@ -53,3 +53,33 @@ export async function updateClientSettings(clientId, settingsData) {
     
     return response.json();
 }
+
+/**
+ * Generate tone of voice guide using AI.
+ * Crawls the brand website and uses LLM to generate a comprehensive tone guide.
+ * @param {string} clientId - The client UUID
+ * @returns {Promise<Object>} Generated tone of voice data
+ * @returns {string} return.tone_of_voice - The generated tone guide
+ * @returns {Array} return.pages_crawled - List of pages crawled
+ * @returns {number} return.tokens_used - Tokens used by LLM
+ * @returns {string} return.model - LLM model used
+ */
+export async function generateToneOfVoice(clientId) {
+    const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+    const headers = {
+        ...window.Auth?.getAuthHeaders(),
+        'Content-Type': 'application/json'
+    };
+    
+    const response = await fetch(`${API_BASE_URL}/api/clients/${clientId}/generate-tone-of-voice`, {
+        method: 'POST',
+        headers
+    });
+    
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed to generate: ${response.status}`);
+    }
+    
+    return response.json();
+}

@@ -371,7 +371,7 @@ class LLMService:
             
             client = Anthropic(
                 api_key=self.anthropic_api_key,
-                http_client=httpx.Client(timeout=60.0)
+                http_client=httpx.Client(timeout=180.0)  # Increased from 60s to handle large prompts
             )
             
             # Anthropic API uses messages.create with system parameter

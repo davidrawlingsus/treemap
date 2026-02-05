@@ -28,6 +28,7 @@
     <link rel="stylesheet" href="/styles/app.css">
     <link rel="stylesheet" href="/styles/ads.css">
     <link rel="stylesheet" href="/styles/emails.css">
+    <link rel="stylesheet" href="/styles/emails-lanes.css">
     <link rel="stylesheet" href="/styles/images.css">
     
     <script src="/config.js?v=3"></script>
@@ -278,7 +279,8 @@
         } from '/js/state/settings-state.js';
         import {
             fetchClientSettings as settingsApiFetchClientSettings,
-            updateClientSettings as settingsApiUpdateClientSettings
+            updateClientSettings as settingsApiUpdateClientSettings,
+            generateToneOfVoice as settingsApiGenerateToneOfVoice
         } from '/js/services/api-settings.js';
         import {
             getCurrentFilterType as uiInteractionGetCurrentFilterType,
@@ -347,6 +349,10 @@
             initAdsPage as adsControllerInitAdsPage,
             renderAdsPage as adsControllerRenderAdsPage
         } from '/js/controllers/ads-controller.js';
+        import {
+            initEmailsPage as emailsControllerInitEmailsPage,
+            renderEmailsPage as emailsControllerRenderEmailsPage
+        } from '/js/controllers/emails-controller.js';
         import {
             openAdsFindReplaceModal as adsFindReplaceOpenModal,
             closeAdsFindReplaceModal as adsFindReplaceCloseModal,
@@ -575,6 +581,9 @@
         window.adsControllerInitAdsPage = adsControllerInitAdsPage;
         window.initAdsPage = adsControllerInitAdsPage;
         window.renderAdsPage = adsControllerRenderAdsPage;
+        window.emailsControllerInitEmailsPage = emailsControllerInitEmailsPage;
+        window.initEmailsPage = emailsControllerInitEmailsPage;
+        window.renderEmailsPage = emailsControllerRenderEmailsPage;
         window.openAdsFindReplaceModal = adsFindReplaceOpenModal;
         window.closeAdsFindReplaceModal = adsFindReplaceCloseModal;
         window.handleAdsFindReplaceSearch = adsFindReplaceHandleSearch;
@@ -634,6 +643,7 @@
         window.settingsStateResetSettingsState = settingsStateResetSettingsState;
         window.settingsApiFetchClientSettings = settingsApiFetchClientSettings;
         window.settingsApiUpdateClientSettings = settingsApiUpdateClientSettings;
+        window.settingsApiGenerateToneOfVoice = settingsApiGenerateToneOfVoice;
         
         // Make UI interaction state functions available globally for backward compatibility
         window.uiInteractionGetCurrentFilterType = uiInteractionGetCurrentFilterType;
@@ -714,6 +724,9 @@
                 </a>
                 <a href="#" class="nav-menu-item" id="navAds" onclick="navigateToView('ads'); return false;">
                     <span>Ads</span>
+                </a>
+                <a href="#" class="nav-menu-item" id="navEmails" onclick="navigateToView('emails'); return false;">
+                    <span>Emails</span>
                 </a>
                 <a href="#" class="nav-menu-item" id="navImages" onclick="navigateToView('images'); return false;">
                     <span>Images</span>
@@ -6018,12 +6031,14 @@
             const insightsSection = document.getElementById('insights-section');
             const historySection = document.getElementById('history-section');
             const adsSection = document.getElementById('ads-section');
+            const emailsSection = document.getElementById('emails-section');
             const imagesSection = document.getElementById('images-section');
             const settingsSection = document.getElementById('settings-section');
             const navVisualizations = document.getElementById('navVisualizations');
             const navInsights = document.getElementById('navInsights');
             const navHistory = document.getElementById('navHistory');
             const navAds = document.getElementById('navAds');
+            const navEmails = document.getElementById('navEmails');
             const navImages = document.getElementById('navImages');
             const navSettings = document.getElementById('navSettings');
             const mainContainer = document.getElementById('mainContainer');
@@ -6075,6 +6090,16 @@
                     adsSection.style.overflow = 'hidden';
                 }
             }
+            if (emailsSection) {
+                emailsSection.classList.remove('active');
+                if (!emailsSection.classList.contains('active')) {
+                    emailsSection.style.display = 'none';
+                    emailsSection.style.height = '0';
+                    emailsSection.style.minHeight = '0';
+                    emailsSection.style.maxHeight = '0';
+                    emailsSection.style.overflow = 'hidden';
+                }
+            }
             if (imagesSection) {
                 imagesSection.classList.remove('active');
                 if (!imagesSection.classList.contains('active')) {
@@ -6101,6 +6126,7 @@
             if (navInsights) navInsights.classList.remove('active');
             if (navHistory) navHistory.classList.remove('active');
             if (navAds) navAds.classList.remove('active');
+            if (navEmails) navEmails.classList.remove('active');
             if (navImages) navImages.classList.remove('active');
             if (navSettings) navSettings.classList.remove('active');
             
@@ -6286,6 +6312,35 @@
                 }
                 
                 // Scroll to top to ensure ads section is visible
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (mainContainer && mainContainer.scrollTop > 0) {
+                    mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+            } else if (viewName === 'emails') {
+                if (emailsSection) {
+                    emailsSection.classList.add('active');
+                    // Reset styles for active section
+                    emailsSection.style.display = '';
+                    emailsSection.style.height = '';
+                    emailsSection.style.minHeight = '';
+                    emailsSection.style.maxHeight = '';
+                    emailsSection.style.overflow = '';
+                }
+                if (navEmails) navEmails.classList.add('active');
+                // Remove min-height constraint for emails to allow natural sizing
+                if (mainContainer) {
+                    mainContainer.style.minHeight = 'auto';
+                    mainContainer.style.height = 'auto';
+                    mainContainer.setAttribute('data-view', 'emails');
+                }
+                
+                // Initialize emails page
+                window.emailsInitialized = false;
+                if (typeof initEmailsPage === 'function') {
+                    initEmailsPage();
+                }
+                
+                // Scroll to top to ensure emails section is visible
                 window.scrollTo({ top: 0, behavior: 'smooth' });
                 if (mainContainer && mainContainer.scrollTop > 0) {
                     mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
@@ -6605,6 +6660,9 @@
                 // Update logo preview
                 updateLogoPreview(client.logo_url);
                 
+                // Render markdown fields in view mode
+                renderSettingsFields();
+                
             } catch (error) {
                 console.error('[Settings] Failed to load client settings:', error);
             }
@@ -6650,6 +6708,9 @@
                 // Update the header logo if visible
                 updateHeaderLogo(updatedClient.logo_url, updatedClient.header_color);
                 
+                // Re-render markdown fields in view mode
+                renderSettingsFields();
+                
                 showSettingsStatus('Settings saved successfully');
                 
             } catch (error) {
@@ -6674,6 +6735,67 @@
             }, 3000);
         }
         
+        async function generateToneOfVoiceWithAI() {
+            const clientId = window.settingsStateGetSettingsCurrentClientId();
+            if (!clientId) {
+                showSettingsStatus('No client selected', true);
+                return;
+            }
+            
+            // Check if URL is set
+            const clientUrl = document.getElementById('settingsClientUrl').value.trim();
+            if (!clientUrl) {
+                showSettingsStatus('Please set a brand website URL first', true);
+                return;
+            }
+            
+            const generateBtn = document.getElementById('generateToneBtn');
+            const toneOfVoiceEl = document.getElementById('settingsToneOfVoice');
+            const originalHTML = generateBtn.innerHTML;
+            
+            // Show loading state - spinner icon only
+            generateBtn.innerHTML = `
+                <svg class="settings-ai-btn-spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle>
+                    <path d="M12 2a10 10 0 0 1 10 10" stroke-linecap="round"></path>
+                </svg>
+            `;
+            generateBtn.disabled = true;
+            
+            try {
+                const result = await window.settingsApiGenerateToneOfVoice(clientId);
+                
+                // Populate the textarea with the generated tone of voice
+                if (toneOfVoiceEl && result.tone_of_voice) {
+                    toneOfVoiceEl.value = result.tone_of_voice;
+                    
+                    // Re-render the field in view mode
+                    const rendered = document.getElementById('toneOfVoiceRendered');
+                    if (rendered) {
+                        rendered.innerHTML = renderSettingsMarkdown(result.tone_of_voice);
+                        rendered.classList.remove('empty-state');
+                        rendered.style.display = 'block';
+                        toneOfVoiceEl.style.display = 'none';
+                        
+                        // Remove active state from edit button
+                        const editBtn = document.querySelector('#toneOfVoiceField .settings-edit-btn');
+                        editBtn?.classList.remove('active');
+                    }
+                }
+                
+                // Show success message with pages crawled info
+                const pageCount = result.pages_crawled?.length || 0;
+                showSettingsStatus(`Tone of voice generated from ${pageCount} page${pageCount !== 1 ? 's' : ''}. Review and save to keep.`);
+                
+            } catch (error) {
+                console.error('[Settings] Failed to generate tone of voice:', error);
+                showSettingsStatus(error.message || 'Failed to generate tone of voice', true);
+            } finally {
+                generateBtn.innerHTML = originalHTML;
+                generateBtn.disabled = false;
+            }
+        }
+        
         function updateHeaderLogo(logoUrl, headerColor) {
             // Update the nav client logo if it exists
             const logoContainer = document.querySelector('.nav-client-logo-container');
@@ -6689,6 +6811,251 @@
             if (nav && headerColor) {
                 nav.style.backgroundColor = headerColor;
             }
+        }
+        
+        /**
+         * Simple markdown to HTML converter for settings fields
+         * @param {string} text - Markdown text
+         * @returns {string} HTML string
+         */
+        function renderSettingsMarkdown(text) {
+            if (!text || !text.trim()) return '';
+            
+            let html = window.escapeHtml(text);
+            
+            // Process code blocks first
+            html = html.replace(/```(\w+)?\s*([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
+            
+            // Split into lines for block-level processing
+            const lines = html.split('\n');
+            const processedLines = [];
+            let inList = false;
+            let listType = null;
+            let inTable = false;
+            let tableRows = [];
+            let tableAlignments = [];
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const trimmed = line.trim();
+                
+                // Headers
+                if (/^###\s+/.test(trimmed)) {
+                    if (inList) { processedLines.push(listType === 'ul' ? '</ul>' : '</ol>'); inList = false; }
+                    processedLines.push('<h3>' + trimmed.replace(/^###\s+/, '') + '</h3>');
+                    continue;
+                }
+                if (/^##\s+/.test(trimmed)) {
+                    if (inList) { processedLines.push(listType === 'ul' ? '</ul>' : '</ol>'); inList = false; }
+                    processedLines.push('<h2>' + trimmed.replace(/^##\s+/, '') + '</h2>');
+                    continue;
+                }
+                if (/^#\s+/.test(trimmed)) {
+                    if (inList) { processedLines.push(listType === 'ul' ? '</ul>' : '</ol>'); inList = false; }
+                    processedLines.push('<h1>' + trimmed.replace(/^#\s+/, '') + '</h1>');
+                    continue;
+                }
+                
+                // Horizontal rule
+                if (/^[-*_]{3,}$/.test(trimmed)) {
+                    if (inList) { processedLines.push(listType === 'ul' ? '</ul>' : '</ol>'); inList = false; }
+                    processedLines.push('<hr>');
+                    continue;
+                }
+                
+                // Unordered list
+                if (/^[\-\*]\s+/.test(trimmed)) {
+                    if (!inList || listType !== 'ul') {
+                        if (inList) processedLines.push('</ol>');
+                        processedLines.push('<ul>');
+                        inList = true;
+                        listType = 'ul';
+                    }
+                    processedLines.push('<li>' + trimmed.replace(/^[\-\*]\s+/, '') + '</li>');
+                    continue;
+                }
+                
+                // Ordered list
+                if (/^\d+\.\s+/.test(trimmed)) {
+                    if (!inList || listType !== 'ol') {
+                        if (inList) processedLines.push('</ul>');
+                        processedLines.push('<ol>');
+                        inList = true;
+                        listType = 'ol';
+                    }
+                    processedLines.push('<li>' + trimmed.replace(/^\d+\.\s+/, '') + '</li>');
+                    continue;
+                }
+                
+                // Table row
+                if (/^\|.+\|$/.test(trimmed)) {
+                    if (inList) { processedLines.push(listType === 'ul' ? '</ul>' : '</ol>'); inList = false; }
+                    if (/^\|[\s\-\|:]+$/.test(trimmed)) {
+                        // Separator row - extract alignments
+                        const cells = trimmed.split('|').slice(1, -1);
+                        tableAlignments = cells.map(cell => {
+                            const t = cell.trim();
+                            if (/^:[\-]+:$/.test(t)) return 'center';
+                            if (/^:[\-]+$/.test(t)) return 'left';
+                            if (/^[\-]+:$/.test(t)) return 'right';
+                            return 'left';
+                        });
+                        continue;
+                    }
+                    if (!inTable) { inTable = true; tableRows = []; tableAlignments = []; }
+                    const cells = trimmed.split('|').slice(1, -1).map(cell => cell.trim());
+                    tableRows.push(cells);
+                    continue;
+                }
+                
+                // Close table
+                if (inTable && !/^\|.+\|$/.test(trimmed)) {
+                    if (tableRows.length > 0) {
+                        processedLines.push('<table>');
+                        const hasHeader = tableAlignments.length > 0;
+                        const headerRow = hasHeader ? tableRows[0] : null;
+                        const bodyRows = hasHeader ? tableRows.slice(1) : tableRows;
+                        if (headerRow) {
+                            processedLines.push('<thead><tr>');
+                            headerRow.forEach((cell, idx) => processedLines.push(`<th style="text-align:${tableAlignments[idx] || 'left'}">${cell}</th>`));
+                            processedLines.push('</tr></thead>');
+                        }
+                        if (bodyRows.length > 0) {
+                            processedLines.push('<tbody>');
+                            bodyRows.forEach(row => {
+                                processedLines.push('<tr>');
+                                row.forEach((cell, idx) => processedLines.push(`<td style="text-align:${tableAlignments[idx] || 'left'}">${cell}</td>`));
+                                processedLines.push('</tr>');
+                            });
+                            processedLines.push('</tbody>');
+                        }
+                        processedLines.push('</table>');
+                    }
+                    inTable = false;
+                    tableRows = [];
+                }
+                
+                // Empty line
+                if (trimmed === '') {
+                    if (inList) { processedLines.push(listType === 'ul' ? '</ul>' : '</ol>'); inList = false; }
+                    processedLines.push('');
+                    continue;
+                }
+                
+                // Regular text
+                if (inList) { processedLines.push(listType === 'ul' ? '</ul>' : '</ol>'); inList = false; }
+                processedLines.push(line);
+            }
+            
+            // Close any open list or table
+            if (inList) processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
+            if (inTable && tableRows.length > 0) {
+                processedLines.push('<table>');
+                const hasHeader = tableAlignments.length > 0;
+                const headerRow = hasHeader ? tableRows[0] : null;
+                const bodyRows = hasHeader ? tableRows.slice(1) : tableRows;
+                if (headerRow) {
+                    processedLines.push('<thead><tr>');
+                    headerRow.forEach((cell, idx) => processedLines.push(`<th style="text-align:${tableAlignments[idx] || 'left'}">${cell}</th>`));
+                    processedLines.push('</tr></thead>');
+                }
+                if (bodyRows.length > 0) {
+                    processedLines.push('<tbody>');
+                    bodyRows.forEach(row => {
+                        processedLines.push('<tr>');
+                        row.forEach((cell, idx) => processedLines.push(`<td style="text-align:${tableAlignments[idx] || 'left'}">${cell}</td>`));
+                        processedLines.push('</tr>');
+                    });
+                    processedLines.push('</tbody>');
+                }
+                processedLines.push('</table>');
+            }
+            
+            html = processedLines.join('\n');
+            
+            // Inline formatting
+            html = html.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/\*([^*\n]+?)\*/g, '<em>$1</em>');
+            html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+            
+            // Paragraphs
+            html = html.split('\n\n').map(block => {
+                const t = block.trim();
+                if (!t) return '';
+                if (t.match(/^<(h[1-3]|ul|ol|pre|li|table|hr|div|p)/)) return block;
+                return '<p>' + t.replace(/\n/g, '<br>') + '</p>';
+            }).join('');
+            
+            return html;
+        }
+        
+        /**
+         * Toggle between rendered view and edit mode for settings fields
+         * @param {string} fieldName - 'businessSummary' or 'toneOfVoice'
+         */
+        function toggleSettingsFieldEdit(fieldName) {
+            const textareaId = fieldName === 'businessSummary' ? 'settingsBusinessSummary' : 'settingsToneOfVoice';
+            const renderedId = fieldName === 'businessSummary' ? 'businessSummaryRendered' : 'toneOfVoiceRendered';
+            const fieldId = fieldName === 'businessSummary' ? 'businessSummaryField' : 'toneOfVoiceField';
+            
+            const textarea = document.getElementById(textareaId);
+            const rendered = document.getElementById(renderedId);
+            const field = document.getElementById(fieldId);
+            // Select only the edit button, not the AI button
+            const editBtn = field?.querySelector('.settings-edit-btn:not(.settings-edit-btn--ai)');
+            
+            if (!textarea || !rendered) return;
+            
+            const isEditing = textarea.style.display !== 'none';
+            
+            if (isEditing) {
+                // Switch to view mode - render the markdown
+                const content = textarea.value.trim();
+                if (content) {
+                    rendered.innerHTML = renderSettingsMarkdown(content);
+                    rendered.classList.remove('empty-state');
+                } else {
+                    rendered.innerHTML = 'No content yet. Click the edit button to add.';
+                    rendered.classList.add('empty-state');
+                }
+                rendered.style.display = 'block';
+                textarea.style.display = 'none';
+                editBtn?.classList.remove('active');
+            } else {
+                // Switch to edit mode
+                rendered.style.display = 'none';
+                textarea.style.display = 'block';
+                textarea.focus();
+                editBtn?.classList.add('active');
+            }
+        }
+        
+        /**
+         * Render settings fields in view mode if they have content
+         */
+        function renderSettingsFields() {
+            ['businessSummary', 'toneOfVoice'].forEach(fieldName => {
+                const textareaId = fieldName === 'businessSummary' ? 'settingsBusinessSummary' : 'settingsToneOfVoice';
+                const renderedId = fieldName === 'businessSummary' ? 'businessSummaryRendered' : 'toneOfVoiceRendered';
+                
+                const textarea = document.getElementById(textareaId);
+                const rendered = document.getElementById(renderedId);
+                
+                if (!textarea || !rendered) return;
+                
+                const content = textarea.value.trim();
+                if (content) {
+                    rendered.innerHTML = renderSettingsMarkdown(content);
+                    rendered.classList.remove('empty-state');
+                    rendered.style.display = 'block';
+                    textarea.style.display = 'none';
+                } else {
+                    rendered.innerHTML = 'No content yet. Click the edit button to add.';
+                    rendered.classList.add('empty-state');
+                    rendered.style.display = 'block';
+                    textarea.style.display = 'none';
+                }
+            });
         }
         
         // Sync color picker with text input
@@ -15866,6 +16233,69 @@
         </div>
     </div> <!-- End ads-section -->
 
+    <!-- Emails Section -->
+    <div id="emails-section" class="spa-section">
+        <div class="control-bar" style="position: relative;">
+            <h1 style="margin: 0; font-size: 20px; font-weight: 600; color: #37352f; margin-right: 0.5rem;">Saved Emails</h1>
+            <div class="search-box emails-section-search">
+                <input
+                    type="text"
+                    id="emailsSearchInput"
+                    placeholder="Search emails..."
+                    oninput="handleEmailsSearch()"
+                    onfocus="updateEmailsSearchClearButton()"
+                >
+                <button
+                    id="emailsSearchClear"
+                    onclick="clearEmailsSearch()"
+                    title="Clear search"
+                    style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 0; display: none; color: #666; font-size: 20px; line-height: 1; width: 24px; height: 24px; align-items: center; justify-content: center; border-radius: 3px;"
+                >&times;</button>
+            </div>
+            <div class="filter-chips" id="emailsFilterChips"></div>
+            <div style="position: relative;">
+                <button class="filter-button" onclick="toggleEmailsFilterMenu(event)" id="emailsFilterMenuBtn" type="button" aria-label="Open filters">
+                    <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/filter_list.svg" alt="" aria-hidden="true">
+                    <span id="emailsFilterBadge" class="filter-badge" aria-hidden="true"></span>
+                </button>
+                
+                <!-- Filter Dropdown Menu -->
+                <div class="filter-dropdown" id="emailsFilterDropdown">
+                    <div class="filter-dropdown-search">
+                        <input type="text" id="emailsFilterSearchInput" placeholder="Filter by..." oninput="filterEmailsFilterOptions()">
+                    </div>
+                    <div class="filter-dropdown-list" id="emailsFilterOptionsList">
+                        <!-- Filter options will be populated here -->
+                    </div>
+                </div>
+            </div>
+            <div style="position: relative;">
+                <button class="sort-button" onclick="toggleEmailsSortMenu(event)" id="emailsSortMenuBtn" type="button" aria-label="Sort options">
+                    <span id="emailsSortLabel">Newest first</span>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-left: 4px;">
+                        <path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                
+                <!-- Sort Dropdown Menu -->
+                <div class="sort-dropdown" id="emailsSortDropdown">
+                    <button class="sort-option" data-sort="desc" onclick="setEmailsSortOrder('desc')">
+                        <span>Newest first</span>
+                        <span class="sort-check" id="emailsSortCheckDesc">✓</span>
+                    </button>
+                    <button class="sort-option" data-sort="asc" onclick="setEmailsSortOrder('asc')">
+                        <span>Oldest first</span>
+                        <span class="sort-check" id="emailsSortCheckAsc"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="emails-container">
+            <div id="emailsGrid" class="emails-grid"></div>
+        </div>
+    </div> <!-- End emails-section -->
+
     <!-- Images Section -->
     <div id="images-section" class="spa-section">
         <div class="control-bar" style="position: relative;">
@@ -15937,9 +16367,18 @@
                     <h2 class="settings-card-title">Business Context</h2>
                     <p class="settings-card-description">A summary of your business that helps AI understand your company when generating insights and recommendations.</p>
                     
-                    <div class="settings-field">
-                        <label for="settingsBusinessSummary">Business Summary</label>
-                        <textarea id="settingsBusinessSummary" rows="6" placeholder="Describe your business, products/services, target audience, and unique value proposition..."></textarea>
+                    <div class="settings-field settings-field--toggleable" id="businessSummaryField">
+                        <div class="settings-field-header">
+                            <label for="settingsBusinessSummary">Business Summary</label>
+                            <button type="button" class="settings-edit-btn" onclick="toggleSettingsFieldEdit('businessSummary')" title="Edit">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div class="settings-rendered-view" id="businessSummaryRendered"></div>
+                        <textarea id="settingsBusinessSummary" rows="6" placeholder="Describe your business, products/services, target audience, and unique value proposition..." style="display: none;"></textarea>
                     </div>
                 </div>
 
@@ -15948,9 +16387,23 @@
                     <h2 class="settings-card-title">Tone of Voice</h2>
                     <p class="settings-card-description">Define your brand's voice and communication style to ensure consistent messaging in generated ad copy and content.</p>
                     
-                    <div class="settings-field">
-                        <label for="settingsToneOfVoice">Brand Voice Description</label>
-                        <textarea id="settingsToneOfVoice" rows="6" placeholder="Describe your brand's tone of voice. For example: professional yet approachable, using clear language, avoiding jargon, emphasizing trust and reliability..."></textarea>
+                    <div class="settings-field settings-field--toggleable" id="toneOfVoiceField">
+                        <div class="settings-field-header">
+                            <label for="settingsToneOfVoice">Brand Voice Description</label>
+                            <div class="settings-field-actions">
+                                <button type="button" class="settings-edit-btn settings-edit-btn--ai" onclick="generateToneOfVoiceWithAI()" id="generateToneBtn" title="Generate with AI">
+                                    <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1768461403664-yqwfwo.png" alt="" aria-hidden="true" width="18" height="18">
+                                </button>
+                                <button type="button" class="settings-edit-btn" onclick="toggleSettingsFieldEdit('toneOfVoice')" title="Edit">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="settings-rendered-view" id="toneOfVoiceRendered"></div>
+                        <textarea id="settingsToneOfVoice" rows="6" placeholder="Describe your brand's tone of voice. For example: professional yet approachable, using clear language, avoiding jargon, emphasizing trust and reliability..." style="display: none;"></textarea>
                     </div>
                 </div>
 

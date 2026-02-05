@@ -6062,6 +6062,210 @@ mark.highlight-brand {
     color: #dc2626;
 }
 
+/* AI Spinner Animation */
+.settings-ai-btn-spinner {
+    animation: settings-spinner-rotate 1s linear infinite;
+}
+
+@keyframes settings-spinner-rotate {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Settings Field Header with Edit Button */
+.settings-field-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.settings-field-header label {
+    margin-bottom: 0;
+}
+
+.settings-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    color: #718096;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.settings-edit-btn:hover {
+    background: #f7fafc;
+    border-color: #cbd5e0;
+    color: #4a5568;
+}
+
+.settings-edit-btn.active {
+    background: #667eea;
+    border-color: #667eea;
+    color: #ffffff;
+}
+
+/* AI Generate Button Variant */
+.settings-edit-btn--ai img {
+    opacity: 0.55;
+}
+
+.settings-edit-btn--ai:hover img {
+    opacity: 0.7;
+}
+
+.settings-edit-btn--ai:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.settings-edit-btn--ai .settings-ai-btn-spinner {
+    animation: settings-spinner-rotate 1s linear infinite;
+}
+
+/* Field Actions Container */
+.settings-field-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Rendered View Container */
+.settings-rendered-view {
+    padding: 16px 20px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #2d3748;
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.settings-rendered-view:empty {
+    display: none;
+}
+
+.settings-rendered-view.empty-state {
+    display: block;
+    color: #a0aec0;
+    font-style: italic;
+    padding: 24px;
+    text-align: center;
+}
+
+/* Rendered Markdown Styles */
+.settings-rendered-view h1 {
+    font-size: 1.5em;
+    font-weight: 700;
+    color: #1a202c;
+    margin: 0 0 16px 0;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #B9F040;
+}
+
+.settings-rendered-view h2 {
+    font-size: 1.25em;
+    font-weight: 600;
+    color: #2d3748;
+    margin: 24px 0 12px 0;
+}
+
+.settings-rendered-view h3 {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #4a5568;
+    margin: 20px 0 8px 0;
+}
+
+.settings-rendered-view p {
+    margin: 0 0 12px 0;
+}
+
+.settings-rendered-view ul,
+.settings-rendered-view ol {
+    margin: 8px 0 16px 0;
+    padding-left: 24px;
+}
+
+.settings-rendered-view li {
+    margin: 4px 0;
+}
+
+.settings-rendered-view strong {
+    font-weight: 600;
+    color: #1a202c;
+}
+
+.settings-rendered-view em {
+    font-style: italic;
+}
+
+.settings-rendered-view code {
+    background: #edf2f7;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'SF Mono', Consolas, monospace;
+    font-size: 0.9em;
+    color: #e53e3e;
+}
+
+.settings-rendered-view pre {
+    background: #2d3748;
+    color: #e2e8f0;
+    padding: 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 12px 0;
+}
+
+.settings-rendered-view pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+}
+
+.settings-rendered-view table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 13px;
+}
+
+.settings-rendered-view th,
+.settings-rendered-view td {
+    padding: 8px 12px;
+    border: 1px solid #e2e8f0;
+    text-align: left;
+}
+
+.settings-rendered-view th {
+    background: #f7fafc;
+    font-weight: 600;
+    color: #4a5568;
+}
+
+.settings-rendered-view tr:nth-child(even) td {
+    background: #f8fafc;
+}
+
+.settings-rendered-view hr {
+    border: none;
+    border-top: 1px solid #e2e8f0;
+    margin: 24px 0;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .settings-container {

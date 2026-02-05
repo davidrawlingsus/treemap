@@ -13,6 +13,7 @@ from app.models.action import Action
 from app.models.facebook_ad import FacebookAd
 from app.models.ad_image import AdImage
 from app.models.meta_oauth_token import MetaOAuthToken
+from app.models.saved_email import SavedEmail
 
 __all__ = [
     "Client",
@@ -34,6 +35,7 @@ __all__ = [
     "FacebookAd",
     "AdImage",
     "MetaOAuthToken",
+    "SavedEmail",
 ]
 
 

@@ -342,14 +342,16 @@ function disableEditMode(adCard) {
 function extractTextContent(element) {
     if (!element) return '';
     
-    // Preserve paragraph structure: <div> elements should become double newlines (\n\n)
+    // Preserve paragraph structure: <div>/<p> elements should become double newlines (\n\n)
     // and <br> elements should become single newlines (\n)
     // This matches what formatPrimaryText() expects: \n\n for paragraphs, \n for line breaks
     
     // Get the HTML and convert it to text with proper newline structure
     let html = element.innerHTML || '';
     
-    // Replace closing </div> tags with double newlines (paragraph breaks)
+    // Replace closing </p> and </div> tags with double newlines (paragraph breaks)
+    // formatPrimaryText uses <div>, but pasted content may use <p>
+    html = html.replace(/<\/p>/gi, '\n\n');
     html = html.replace(/<\/div>/gi, '\n\n');
     
     // Replace <br> and <br/> with single newlines (line breaks)

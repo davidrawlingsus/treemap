@@ -341,6 +341,15 @@
     }
 
     /**
+     * Check if idea data is in email format
+     * @param {Object} ideaData - Idea data object
+     * @returns {boolean} True if email format
+     */
+    function isEmailFormat(ideaData) {
+        return !!(ideaData.subject_line && ideaData.body_text);
+    }
+
+    /**
      * Create a Facebook ad from idea card data
      * @param {Object} ideaData - Facebook ad data object
      * @returns {Promise<Object>} Created ad object
@@ -407,6 +416,88 @@
                 errorMessage = typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail);
             } else if (response.statusText) {
                 errorMessage = `Failed to create Facebook ad: ${response.statusText}`;
+            }
+            
+            throw new Error(errorMessage);
+        }
+
+        return await response.json();
+    }
+
+    /**
+     * Create a saved email from idea card data
+     * @param {Object} ideaData - Email data object
+     * @returns {Promise<Object>} Created email object
+     */
+    async function createSavedEmailFromIdeaCard(ideaData) {
+        // Get current client ID
+        const currentClientId = getCurrentClientId();
+        if (!currentClientId) {
+            throw new Error('No client selected. Please select a client first.');
+        }
+
+        // Get API base URL
+        const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+
+        // Get auth headers
+        let getAuthHeaders;
+        if (typeof window.getAuthHeaders === 'function') {
+            getAuthHeaders = window.getAuthHeaders;
+        } else if (typeof window.Auth !== 'undefined' && typeof window.Auth.getAuthHeaders === 'function') {
+            getAuthHeaders = window.Auth.getAuthHeaders;
+        } else {
+            throw new Error('Authentication not available. Please log in again.');
+        }
+
+        // Get slideout panel context for action_id link
+        const slideoutPanel = window.SlideoutPanel;
+        const actionId = slideoutPanel?.currentActionId || null;
+
+        // Map email fields
+        const emailData = {
+            email_type: ideaData.email_type || null,
+            subject_line: ideaData.subject_line,
+            preview_text: ideaData.preview_text || null,
+            from_name: ideaData.from_name || null,
+            headline: ideaData.headline || null,
+            body_text: ideaData.body_text,
+            discount_code: ideaData.discount_code || null,
+            social_proof: ideaData.social_proof || null,
+            cta_text: ideaData.cta_text || null,
+            cta_url: ideaData.cta_url || null,
+            sequence_position: ideaData.sequence_position || null,
+            send_delay_hours: ideaData.send_delay_hours || null,
+            voc_evidence: ideaData.voc_evidence || [],
+            strategic_intent: ideaData.strategic_intent || null,
+            full_json: ideaData, // Preserve complete JSON
+            action_id: actionId,
+            status: 'draft'
+        };
+
+        // Create the saved email via API
+        const response = await fetch(`${API_BASE_URL}/api/clients/${currentClientId}/saved-emails`, {
+            method: 'POST',
+            headers: {
+                ...getAuthHeaders(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(emailData)
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({ detail: 'Failed to create saved email' }));
+            
+            let errorMessage = 'Failed to create saved email';
+            if (Array.isArray(error.detail)) {
+                const errorMessages = error.detail.map(err => {
+                    const field = err.loc && err.loc.length > 1 ? err.loc[err.loc.length - 1] : 'field';
+                    return `${field}: ${err.msg}`;
+                });
+                errorMessage = errorMessages.join('; ') || errorMessage;
+            } else if (error.detail) {
+                errorMessage = typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail);
+            } else if (response.statusText) {
+                errorMessage = `Failed to create saved email: ${response.statusText}`;
             }
             
             throw new Error(errorMessage);
@@ -541,15 +632,15 @@
         }
         
         // Use event delegation to handle dynamically added idea cards
-        // Handles both .pe-idea-card__add (regular idea cards) and .pe-fb-ad-wrapper__add (FB ad cards)
+        // Handles .pe-idea-card__add (regular idea cards), .pe-fb-ad-wrapper__add (FB ad cards), and .pe-email-mockup__add (email cards)
         container.addEventListener('click', async (e) => {
-            const button = e.target.closest('.pe-idea-card__add, .pe-fb-ad-wrapper__add');
+            const button = e.target.closest('.pe-idea-card__add, .pe-fb-ad-wrapper__add, .pe-email-mockup__add');
             if (!button) return;
             
             e.stopPropagation();
             
-            // Find the parent container (either .pe-idea-card or .pe-fb-ad-wrapper)
-            const ideaContainer = button.closest('.pe-idea-card') || button.closest('.pe-fb-ad-wrapper');
+            // Find the parent container (either .pe-idea-card, .pe-fb-ad-wrapper, or .pe-email-mockup)
+            const ideaContainer = button.closest('.pe-idea-card') || button.closest('.pe-fb-ad-wrapper') || button.closest('.pe-email-mockup');
             if (!ideaContainer) return;
 
             // Check if already processing (prevent duplicate clicks)
@@ -557,16 +648,20 @@
                 return;
             }
 
-            // Get the idea data
+            // Get the idea data - check both data-idea and data-email attributes
             let ideaData;
             try {
                 const ideaDataStr = button.getAttribute('data-idea');
-                if (!ideaDataStr) {
-                    console.error('[ACTION_RENDERER] No idea data found');
+                const emailDataStr = button.getAttribute('data-email');
+                
+                // Use data-idea for regular idea cards and FB ads, data-email for email mockups
+                const dataStr = ideaDataStr || emailDataStr;
+                if (!dataStr) {
+                    console.error('[ACTION_RENDERER] No idea/email data found');
                     alert('Error: No idea data found');
                     return;
                 }
-                ideaData = JSON.parse(ideaDataStr);
+                ideaData = JSON.parse(dataStr);
             } catch (e) {
                 console.error('[ACTION_RENDERER] Failed to parse idea data:', e);
                 alert('Error: Failed to parse idea data');
@@ -582,8 +677,9 @@
             button.style.cursor = 'wait';
 
             try {
-                // Check if this is a Facebook ad format
+                // Check format type: Facebook ad, Email, or regular insight
                 const isFBAd = isFacebookAdFormat(ideaData);
+                const isEmail = isEmailFormat(ideaData);
                 let successMessage;
                 
                 if (isFBAd) {
@@ -596,6 +692,17 @@
                     // Clear ads cache so it reloads when user visits Ads tab
                     if (window.adsStateModule?.clearAdsState) {
                         window.adsStateModule.clearAdsState();
+                    }
+                } else if (isEmail) {
+                    // Create saved email
+                    const newEmail = await createSavedEmailFromIdeaCard(ideaData);
+                    console.log('[ACTION_RENDERER] Saved email created successfully:', newEmail);
+                    successMessage = 'Email added to Emails tab';
+                    button.title = 'Added to Emails';
+                    
+                    // Clear emails cache so it reloads when user visits Emails tab
+                    if (window.emailsStateModule?.clearEmailsState) {
+                        window.emailsStateModule.clearEmailsState();
                     }
                 } else {
                     // Create insight
@@ -619,6 +726,9 @@
                 button.innerHTML = `<img src="${DONE_CHECK_IMAGE_URL}" alt="Added" style="width: 70%; height: 70%; object-fit: contain;" />`;
                 button.style.opacity = '1';
                 button.style.cursor = 'default';
+                button.style.display = 'flex';
+                button.style.alignItems = 'center';
+                button.style.justifyContent = 'center';
 
                 // Show brief success feedback
                 const successMsg = document.createElement('div');

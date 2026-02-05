@@ -130,6 +130,16 @@ from .meta_ads import (
     PublishAdResponse,
 )
 
+from .saved_email import (
+    SavedEmailCreate,
+    SavedEmailUpdate,
+    SavedEmailResponse,
+    SavedEmailListResponse,
+    EmailPositionUpdate,
+    BatchReorderRequest,
+    BatchReorderResponse,
+)
+
 # Resolve forward references after all schemas are imported
 # This is necessary for Pydantic v2 when using forward references
 FounderUserMembership.model_rebuild()
@@ -240,5 +250,13 @@ __all__ = [
     "CreateAdSetResponse",
     "PublishAdRequest",
     "PublishAdResponse",
+    # Saved Emails
+    "SavedEmailCreate",
+    "SavedEmailUpdate",
+    "SavedEmailResponse",
+    "SavedEmailListResponse",
+    "EmailPositionUpdate",
+    "BatchReorderRequest",
+    "BatchReorderResponse",
 ]
 

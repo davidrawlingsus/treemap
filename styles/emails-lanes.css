@@ -1,0 +1,472 @@
+/**
+ * Email Lanes (Swimlane) Layout Styles
+ * Horizontal lanes grouped by email type with drag-and-drop support.
+ */
+
+/* ============ Container ============ */
+
+.emails-lanes-container {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    padding: 24px;
+    max-width: 100%;
+    min-height: calc(100vh - 180px);
+    background: #f5f7fb;
+}
+
+/* ============ Lane (Swimlane) ============ */
+
+.emails-lane {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.emails-lane__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.emails-lane__title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.emails-lane__type-badge {
+    font-size: 0.875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 6px 12px;
+    border-radius: 6px;
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
+/* Different colors for different email types */
+.emails-lane__type-badge--post_purchase_onboarding {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.emails-lane__type-badge--cart_abandonment {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.emails-lane__type-badge--browse_abandonment {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.emails-lane__type-badge--replenishment_reminder {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.emails-lane__type-badge--winback {
+    background: #fae8ff;
+    color: #86198f;
+}
+
+.emails-lane__type-badge--welcome {
+    background: #ecfdf5;
+    color: #047857;
+}
+
+.emails-lane__count {
+    font-size: 0.875rem;
+    color: #718096;
+    font-weight: 500;
+}
+
+/* ============ Cards Container (Horizontal Scroll) ============ */
+
+.emails-lane__cards {
+    display: flex;
+    align-items: flex-start; /* Cards size to their own content height */
+    gap: 20px;
+    overflow-x: auto;
+    overflow-y: visible;
+    padding: 4px 4px 16px 4px;
+    margin: -4px;
+    scroll-behavior: smooth;
+    /* Custom scrollbar */
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e0 transparent;
+}
+
+.emails-lane__cards::-webkit-scrollbar {
+    height: 8px;
+}
+
+.emails-lane__cards::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 4px;
+}
+
+.emails-lane__cards::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 4px;
+}
+
+.emails-lane__cards::-webkit-scrollbar-thumb:hover {
+    background: #a0aec0;
+}
+
+/* ============ Lane Card (Fixed Width for Horizontal Layout) ============ */
+
+.emails-lane .emails-card {
+    flex: 0 0 360px;
+    width: 360px;
+    min-width: 360px;
+    max-width: 360px;
+    margin-bottom: 0; /* Override Masonry margin */
+    cursor: grab;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    position: relative; /* Required for drop indicator pseudo-elements */
+}
+
+.emails-lane .emails-card:active {
+    cursor: grabbing;
+}
+
+/* ============ Drag States ============ */
+
+.emails-card.is-dragging {
+    opacity: 0.4;
+    transform: scale(0.95);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    cursor: grabbing;
+    border: 2px dashed #a0aec0;
+}
+
+.emails-card.drag-ghost {
+    position: absolute;
+    pointer-events: none;
+    z-index: 1000;
+    transform: rotate(3deg);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.2);
+}
+
+/* Drop indicator - visible vertical bar showing insertion point */
+.emails-drop-indicator {
+    flex: 0 0 8px;
+    width: 8px;
+    min-height: 100%;
+    display: flex;
+    align-items: stretch;
+    justify-content: center;
+    padding: 8px 0;
+    margin: 0 -4px;
+    position: relative;
+    z-index: 100;
+}
+
+.emails-drop-indicator__line {
+    width: 4px;
+    background: linear-gradient(180deg, #B9F040 0%, #9ED936 50%, #B9F040 100%);
+    border-radius: 4px;
+    box-shadow: 
+        0 0 8px rgba(185, 240, 64, 0.8),
+        0 0 16px rgba(185, 240, 64, 0.5),
+        0 0 24px rgba(185, 240, 64, 0.3);
+    animation: dropIndicatorGlow 1s ease-in-out infinite;
+    min-height: 150px; /* Minimum visible height for drop indicator */
+    align-self: stretch; /* Stretch to match adjacent cards */
+}
+
+@keyframes dropIndicatorGlow {
+    0%, 100% {
+        box-shadow: 
+            0 0 8px rgba(185, 240, 64, 0.8),
+            0 0 16px rgba(185, 240, 64, 0.5),
+            0 0 24px rgba(185, 240, 64, 0.3);
+    }
+    50% {
+        box-shadow: 
+            0 0 12px rgba(185, 240, 64, 1),
+            0 0 24px rgba(185, 240, 64, 0.7),
+            0 0 36px rgba(185, 240, 64, 0.4);
+    }
+}
+
+/* Drop zone overlay on lane */
+.emails-lane.drag-over {
+    background: rgba(185, 240, 64, 0.08);
+    border-color: #B9F040;
+    box-shadow: inset 0 0 0 2px rgba(185, 240, 64, 0.3);
+}
+
+.emails-lane.drag-over .emails-lane__cards {
+    background: rgba(185, 240, 64, 0.05);
+    border-radius: 8px;
+}
+
+/* Subtle highlight on the adjacent card during drag */
+.emails-card.drag-target-before,
+.emails-card.drag-target-after {
+    box-shadow: 0 4px 16px rgba(185, 240, 64, 0.2);
+}
+
+/* ============ Empty Lane State ============ */
+
+.emails-lane__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    padding: 32px;
+    background: #f8fafc;
+    border: 2px dashed #e2e8f0;
+    border-radius: 8px;
+    text-align: center;
+    color: #718096;
+}
+
+.emails-lane__empty-icon {
+    font-size: 2rem;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.emails-lane__empty-text {
+    font-size: 0.875rem;
+    margin: 0;
+}
+
+/* Empty state as drop target */
+.emails-lane__empty.drag-over {
+    background: rgba(185, 240, 64, 0.1);
+    border-color: #B9F040;
+    border-style: solid;
+}
+
+/* ============ Sequence Pills (Email X and Day X as separate pills) ============ */
+
+/* Email position pill */
+.pe-email-mockup__sequence-pill {
+    display: inline-flex;
+    align-items: center;
+    background: #e0e7ff;
+    padding: 4px 4px 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.pe-email-mockup__email-position {
+    background: transparent;
+    border: none;
+    font-size: 11px;
+    font-weight: 600;
+    color: #3730a3;
+    cursor: pointer;
+    padding: 4px 20px 4px 4px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%233730a3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 4px center;
+}
+
+.pe-email-mockup__email-position:hover {
+    background: rgba(55, 48, 163, 0.15);
+}
+
+.pe-email-mockup__email-position:focus {
+    outline: 2px solid #3730a3;
+    outline-offset: 1px;
+}
+
+/* Day pill */
+.pe-email-mockup__day-pill {
+    display: inline-flex;
+    align-items: center;
+    background: #fef3c7;
+    padding: 4px 4px 4px 10px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.pe-email-mockup__day-select {
+    background: transparent;
+    border: none;
+    font-size: 11px;
+    font-weight: 600;
+    color: #92400e;
+    cursor: pointer;
+    padding: 4px 20px 4px 4px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%2392400e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 4px center;
+}
+
+.pe-email-mockup__day-select:hover {
+    background: rgba(146, 64, 14, 0.1);
+}
+
+.pe-email-mockup__day-select:focus {
+    outline: 2px solid #92400e;
+    outline-offset: 1px;
+}
+
+/* Warning state for out-of-order days */
+.pe-email-mockup__day-pill.is-warning {
+    background: #fee2e2;
+}
+
+.pe-email-mockup__day-pill.is-warning .pe-email-mockup__day-select {
+    color: #991b1b;
+}
+
+/* ============ Responsive ============ */
+
+@media (max-width: 768px) {
+    .emails-lanes-container {
+        padding: 16px;
+        gap: 24px;
+    }
+    
+    .emails-lane {
+        padding: 16px;
+    }
+    
+    .emails-lane .emails-card {
+        flex: 0 0 300px;
+        width: 300px;
+        min-width: 300px;
+        max-width: 300px;
+    }
+}
+
+@media (max-width: 480px) {
+    .emails-lane .emails-card {
+        flex: 0 0 280px;
+        width: 280px;
+        min-width: 280px;
+        max-width: 280px;
+    }
+}
+
+/* ============ Animation for Reorder ============ */
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateX(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+.emails-card.just-moved {
+    animation: slideIn 0.3s ease;
+}
+
+/* ============ Cascade Dialog ============ */
+
+.emails-cascade-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    padding: 24px;
+    z-index: 10001;
+    max-width: 400px;
+    width: 90%;
+}
+
+.emails-cascade-dialog__overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+}
+
+.emails-cascade-dialog__title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin: 0 0 12px 0;
+    color: #1a202c;
+}
+
+.emails-cascade-dialog__text {
+    font-size: 0.875rem;
+    color: #4a5568;
+    margin: 0 0 20px 0;
+    line-height: 1.5;
+}
+
+.emails-cascade-dialog__actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+}
+
+.emails-cascade-dialog__btn {
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s ease;
+}
+
+.emails-cascade-dialog__btn--cancel {
+    background: #e2e8f0;
+    border: none;
+    color: #4a5568;
+}
+
+.emails-cascade-dialog__btn--cancel:hover {
+    background: #cbd5e0;
+}
+
+.emails-cascade-dialog__btn--confirm {
+    background: #B9F040;
+    border: none;
+    color: #1a202c;
+}
+
+.emails-cascade-dialog__btn--confirm:hover {
+    background: #a8e030;
+}
+
+.emails-cascade-dialog__btn--skip {
+    background: transparent;
+    border: 1px solid #e2e8f0;
+    color: #4a5568;
+}
+
+.emails-cascade-dialog__btn--skip:hover {
+    background: #f8fafc;
+}
