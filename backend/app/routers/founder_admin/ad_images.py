@@ -172,3 +172,126 @@ def delete_ad_image(
     
     logger.info(f"Deleted ad image {image_id}")
     return None
+
+
+@router.post("/api/meta-ads-library/scrape")
+async def scrape_meta_ads_library(
+    url: str = Form(...),
+    client_id: UUID = Query(...),
+    max_scrolls: int = Query(5, description="Maximum scroll operations to load more ads"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """
+    Scrape media from a Meta Ads Library page and import to client's media library.
+    
+    Args:
+        url: Meta Ads Library URL with view_all_page_id parameter
+        client_id: Client UUID to import media to
+        max_scrolls: Maximum number of scroll operations (default 5)
+    
+    Returns:
+        Object with imported count and media list
+    """
+    from app.services.meta_ads_library_scraper import (
+        MetaAdsLibraryScraper,
+        download_and_upload_media,
+    )
+    
+    # Verify client exists
+    client = db.query(Client).filter(Client.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    # Get blob token
+    blob_token = os.getenv("BLOB_READ_WRITE_TOKEN")
+    if not blob_token:
+        raise HTTPException(
+            status_code=500,
+            detail="Blob storage not configured"
+        )
+    
+    # Initialize scraper
+    scraper = MetaAdsLibraryScraper(headless=True)
+    
+    # Validate URL
+    if not scraper.validate_url(url):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid Meta Ads Library URL. Must include view_all_page_id parameter."
+        )
+    
+    try:
+        # Scrape media from the page
+        logger.info(f"Starting Meta Ads Library scrape for client {client_id}: {url}")
+        media_items = await scraper.scrape_ads_library(url, max_scrolls=max_scrolls)
+        
+        if not media_items:
+            return {
+                "imported": 0,
+                "media": [],
+                "message": "No media found on this page"
+            }
+        
+        # Download and upload each media item
+        imported_media = []
+        errors = []
+        
+        for i, item in enumerate(media_items):
+            try:
+                logger.info(f"Importing media {i + 1}/{len(media_items)}: {item.url[:50]}...")
+                
+                # Download and upload to Vercel Blob
+                upload_result = await download_and_upload_media(
+                    media_url=item.url,
+                    client_id=str(client_id),
+                    blob_token=blob_token,
+                )
+                
+                # Save metadata to database
+                image = AdImage(
+                    client_id=client_id,
+                    url=upload_result["url"],
+                    filename=upload_result["filename"],
+                    file_size=upload_result["file_size"],
+                    content_type=upload_result["content_type"],
+                    uploaded_by=current_user.id,
+                )
+                
+                db.add(image)
+                db.commit()
+                db.refresh(image)
+                
+                imported_media.append({
+                    "id": str(image.id),
+                    "url": image.url,
+                    "filename": image.filename,
+                    "file_size": image.file_size,
+                    "content_type": image.content_type,
+                    "uploaded_at": image.uploaded_at.isoformat() if image.uploaded_at else None,
+                })
+                
+            except Exception as e:
+                logger.warning(f"Failed to import media {item.url[:50]}: {e}")
+                errors.append(str(e))
+        
+        logger.info(f"Import complete: {len(imported_media)} media imported, {len(errors)} errors")
+        
+        return {
+            "imported": len(imported_media),
+            "media": imported_media,
+            "errors": errors if errors else None,
+        }
+        
+    except ImportError as e:
+        logger.error(f"Playwright not installed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="Playwright is not installed. Please run: pip install playwright && playwright install chromium"
+        )
+    except Exception as e:
+        logger.error(f"Meta Ads Library scrape failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to scrape Meta Ads Library: {str(e)}"
+        )

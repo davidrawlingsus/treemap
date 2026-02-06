@@ -368,11 +368,18 @@
             renderImagesPage as imagesControllerRenderImagesPage
         } from '/js/controllers/images-controller.js';
         import {
-            showImageUploadModal as imagesRendererShowImageUploadModal,
-            showImagePickerModal as imagesRendererShowImagePickerModal,
+            showImageUploadModal as imagesRendererShowImageUploadModal
+        } from '/js/renderers/image-upload-modal.js';
+        import {
+            showImagePickerModal as imagesRendererShowImagePickerModal
+        } from '/js/renderers/image-picker-modal.js';
+        import {
             handleBulkDelete as imagesRendererHandleBulkDelete,
             updateBulkDeleteButton as imagesRendererUpdateBulkDeleteButton
         } from '/js/renderers/images-renderer.js';
+        import {
+            showMetaImportModal as metaImportShowMetaImportModal
+        } from '/js/renderers/meta-import-modal.js';
         
         // Make color schemes config available globally
         window.colorSchemesCATEGORY_COLORS = colorSchemesCATEGORY_COLORS;
@@ -595,6 +602,7 @@
         window.handleBulkDelete = imagesRendererHandleBulkDelete;
         window.updateBulkDeleteButton = imagesRendererUpdateBulkDeleteButton;
         window.showImagePickerModal = imagesRendererShowImagePickerModal;
+        window.showMetaImportModal = metaImportShowMetaImportModal;
         window.verbatimsRendererRenderVerbatims = verbatimsRendererRenderVerbatims;
         window.treemapRendererRenderTreemap = treemapRendererRenderTreemap;
         window.chartRendererRenderBarChart = chartRendererRenderBarChart;
@@ -729,7 +737,7 @@
                     <span>Emails</span>
                 </a>
                 <a href="#" class="nav-menu-item" id="navImages" onclick="navigateToView('images'); return false;">
-                    <span>Images</span>
+                    <span>Media</span>
                 </a>
                 <a href="#" class="nav-menu-item" id="navInsights" onclick="navigateToView('insights'); return false;">
                     <span>Insights</span>
@@ -16312,6 +16320,9 @@
             </div>
             <button class="images-upload-btn" onclick="window.showImageUploadModal()" style="padding: 8px 16px; background: var(--brand-color, #B9F040); color: #37352f; border: none; border-radius: 6px; font-weight: 500; cursor: pointer; transition: opacity 0.2s ease;">
                 Upload Media
+            </button>
+            <button class="images-import-btn" onclick="window.showMetaImportModal()">
+                Import from Ads Library
             </button>
         </div>
 
