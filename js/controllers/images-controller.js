@@ -9,10 +9,101 @@ import {
     getImagesCache, setImagesCache, setImagesLoading, setImagesError, 
     getImagesCurrentClientId, setImagesCurrentClientId,
     getImagesColumnCount, setImagesColumnCount,
+    getImagesSortBy, setImagesSortBy,
     addImageToCache
 } from '/js/state/images-state.js';
 import { renderImagesGrid, showLoading, renderError, relayoutImagesGrid, cancelScheduledLayoutFromImageLoad } from '/js/renderers/images-renderer.js';
 import { debounce } from '/js/utils/dom.js';
+
+// ============ Sort Initialization ============
+
+let sortInitialized = false;
+
+/**
+ * Sort images by the selected criteria
+ * @param {Array} images - Array of image objects
+ * @param {string} sortBy - Sort criteria
+ * @returns {Array} Sorted images
+ */
+function sortImages(images, sortBy) {
+    const sorted = [...images];
+    
+    switch (sortBy) {
+        case 'newest':
+            // Sort by created_at descending (newest first)
+            sorted.sort((a, b) => {
+                const dateA = new Date(a.created_at || 0);
+                const dateB = new Date(b.created_at || 0);
+                return dateB - dateA;
+            });
+            break;
+        case 'oldest':
+            // Sort by created_at ascending (oldest first)
+            sorted.sort((a, b) => {
+                const dateA = new Date(a.created_at || 0);
+                const dateB = new Date(b.created_at || 0);
+                return dateA - dateB;
+            });
+            break;
+        case 'running_longest':
+            // Sort by started_running_on ascending (oldest running first)
+            // Items without started_running_on go to the end
+            sorted.sort((a, b) => {
+                const dateA = a.started_running_on ? new Date(a.started_running_on) : null;
+                const dateB = b.started_running_on ? new Date(b.started_running_on) : null;
+                if (dateA && dateB) return dateA - dateB;
+                if (dateA) return -1; // a has date, b doesn't
+                if (dateB) return 1;  // b has date, a doesn't
+                return 0; // neither has date
+            });
+            break;
+        case 'running_newest':
+            // Sort by started_running_on descending (most recent running first)
+            // Items without started_running_on go to the end
+            sorted.sort((a, b) => {
+                const dateA = a.started_running_on ? new Date(a.started_running_on) : null;
+                const dateB = b.started_running_on ? new Date(b.started_running_on) : null;
+                if (dateA && dateB) return dateB - dateA;
+                if (dateA) return -1;
+                if (dateB) return 1;
+                return 0;
+            });
+            break;
+        default:
+            // No sorting
+            break;
+    }
+    
+    return sorted;
+}
+
+/**
+ * Initialize the sort dropdown
+ */
+function initSortDropdown() {
+    if (sortInitialized) {
+        return;
+    }
+    
+    const sortSelect = document.getElementById('imagesSortSelect');
+    if (!sortSelect) {
+        console.warn('[ImagesController] Sort select not found');
+        return;
+    }
+    
+    // Restore saved sort preference
+    const savedSort = getImagesSortBy();
+    sortSelect.value = savedSort;
+    
+    // Handle sort changes
+    sortSelect.addEventListener('change', (e) => {
+        const sortBy = e.target.value;
+        setImagesSortBy(sortBy);
+        renderImagesPage();
+    });
+    
+    sortInitialized = true;
+}
 
 // ============ Slider Initialization ============
 
@@ -334,8 +425,9 @@ function updateUploadBanner(banner, current, total, done = false, message = null
  * Initialize the Images page - load and render images
  */
 export async function initImagesPage() {
-    // Initialize slider first (before any rendering)
+    // Initialize controls first (before any rendering)
     initSizeSlider();
+    initSortDropdown();
     
     // Initialize viewport drag-and-drop
     initViewportDragDrop();
@@ -399,5 +491,7 @@ export function renderImagesPage() {
     }
     
     const images = getImagesCache();
-    renderImagesGrid(container, images);
+    const sortBy = getImagesSortBy();
+    const sortedImages = sortImages(images, sortBy);
+    renderImagesGrid(container, sortedImages);
 }

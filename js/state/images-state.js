@@ -11,6 +11,7 @@ let imagesError = null;
 let imagesCurrentClientId = null;
 let imagesColumnCount = null; // null means use default (4)
 let selectedImageIds = new Set(); // Track selected images for bulk operations
+let imagesSortBy = null; // null means use default ('newest')
 
 /**
  * Get cached images
@@ -173,6 +174,41 @@ export function removeImagesFromCache(imageIds) {
 }
 
 /**
+ * Get sort preference
+ * @returns {string} Sort option ('newest', 'oldest', 'running_longest', 'running_newest')
+ */
+export function getImagesSortBy() {
+    if (imagesSortBy !== null) {
+        return imagesSortBy;
+    }
+    // Try to restore from localStorage
+    try {
+        const stored = localStorage.getItem('imagesSortBy');
+        if (stored) {
+            imagesSortBy = stored;
+            return stored;
+        }
+    } catch (e) {
+        // localStorage not available or error
+    }
+    return 'newest'; // Default
+}
+
+/**
+ * Set sort preference
+ * @param {string} sortBy - Sort option
+ */
+export function setImagesSortBy(sortBy) {
+    imagesSortBy = sortBy;
+    // Persist to localStorage
+    try {
+        localStorage.setItem('imagesSortBy', sortBy);
+    } catch (e) {
+        // localStorage not available or error
+    }
+}
+
+/**
  * Clear all images state
  */
 export function clearImagesState() {
@@ -181,5 +217,5 @@ export function clearImagesState() {
     imagesError = null;
     imagesCurrentClientId = null;
     selectedImageIds.clear();
-    // Note: Don't clear imagesColumnCount - it's a user preference
+    // Note: Don't clear imagesColumnCount or imagesSortBy - they're user preferences
 }
