@@ -1929,6 +1929,8 @@
                 Auth.hideLogin();
             }
             const mainContainer = document.getElementById('mainContainer');
+            // Sync section/nav to hash before showing main so the correct tab is visible immediately (no flicker)
+            applySectionFromHashOnly();
             if (mainContainer) {
                 mainContainer.style.display = 'flex';
             }
@@ -1989,6 +1991,7 @@
                     }).then(() => {
                         // renderFavourites(); // Removed - favourites section no longer exists
                         updateNavLinks(); // Update nav links after client loads
+                        applyInitialHashRouting(); // Restore tab from URL hash (e.g. after refresh)
                     }).catch((error) => {
                         console.error('Error loading clients or projects:', error);
                         hasAutoLaunched = wasAutoLaunched;
@@ -1998,6 +2001,7 @@
                     loadClientProjects(clientId, restoreState).then(() => {
                         // renderFavourites(); // Removed - favourites section no longer exists
                         updateNavLinks(); // Update nav links after client loads
+                        applyInitialHashRouting(); // Restore tab from URL hash (e.g. after refresh)
                     });
                 }
             }
@@ -6431,6 +6435,8 @@
                 hash = '#/history';
             } else if (viewName === 'ads') {
                 hash = '#/ads';
+            } else if (viewName === 'emails') {
+                hash = '#/emails';
             } else if (viewName === 'images') {
                 hash = '#/images';
             } else if (viewName === 'settings') {
@@ -6440,6 +6446,89 @@
             window.history.pushState({ view: viewName }, '', newUrl);
         }
         
+        // Sync visible section and nav to URL hash without running tab inits (used before showing main to avoid flicker)
+        function applySectionFromHashOnly() {
+            const hash = window.location.hash;
+            const vizSection = document.getElementById('visualizations-section');
+            const insightsSection = document.getElementById('insights-section');
+            const historySection = document.getElementById('history-section');
+            const adsSection = document.getElementById('ads-section');
+            const emailsSection = document.getElementById('emails-section');
+            const imagesSection = document.getElementById('images-section');
+            const settingsSection = document.getElementById('settings-section');
+            const navVisualizations = document.getElementById('navVisualizations');
+            const navInsights = document.getElementById('navInsights');
+            const navHistory = document.getElementById('navHistory');
+            const navAds = document.getElementById('navAds');
+            const navEmails = document.getElementById('navEmails');
+            const navImages = document.getElementById('navImages');
+            const navSettings = document.getElementById('navSettings');
+            const mainContainer = document.getElementById('mainContainer');
+            const sections = [vizSection, insightsSection, historySection, adsSection, emailsSection, imagesSection, settingsSection];
+            const navItems = [navVisualizations, navInsights, navHistory, navAds, navEmails, navImages, navSettings];
+            sections.forEach(section => {
+                if (section) {
+                    section.classList.remove('active');
+                    section.style.display = 'none';
+                    section.style.height = '0';
+                    section.style.minHeight = '0';
+                    section.style.maxHeight = '0';
+                    section.style.overflow = 'hidden';
+                }
+            });
+            navItems.forEach(nav => { if (nav) nav.classList.remove('active'); });
+            let viewName = 'visualizations';
+            if (hash === '#/insights') viewName = 'insights';
+            else if (hash === '#/history') viewName = 'history';
+            else if (hash === '#/ads') viewName = 'ads';
+            else if (hash === '#/emails') viewName = 'emails';
+            else if (hash === '#/images') viewName = 'images';
+            else if (hash === '#/settings') viewName = 'settings';
+            const activeSection = viewName === 'visualizations' ? vizSection : viewName === 'insights' ? insightsSection : viewName === 'history' ? historySection : viewName === 'ads' ? adsSection : viewName === 'emails' ? emailsSection : viewName === 'images' ? imagesSection : settingsSection;
+            const activeNav = viewName === 'visualizations' ? navVisualizations : viewName === 'insights' ? navInsights : viewName === 'history' ? navHistory : viewName === 'ads' ? navAds : viewName === 'emails' ? navEmails : viewName === 'images' ? navImages : navSettings;
+            if (activeSection) {
+                activeSection.classList.add('active');
+                activeSection.style.display = '';
+                activeSection.style.height = '';
+                activeSection.style.minHeight = '';
+                activeSection.style.maxHeight = '';
+                activeSection.style.overflow = '';
+            }
+            if (activeNav) activeNav.classList.add('active');
+            if (mainContainer) {
+                if (viewName === 'visualizations') {
+                    mainContainer.style.minHeight = '100vh';
+                    mainContainer.removeAttribute('data-view');
+                } else {
+                    mainContainer.style.minHeight = 'auto';
+                    mainContainer.style.height = 'auto';
+                    mainContainer.setAttribute('data-view', viewName);
+                }
+            }
+        }
+
+        // Apply initial hash routing after client is ready (used after selectClientAndLaunch)
+        function applyInitialHashRouting() {
+            const hash = window.location.hash;
+            if (hash === '#/insights') {
+                navigateToView('insights');
+            } else if (hash === '#/history') {
+                navigateToView('history');
+            } else if (hash === '#/ads') {
+                navigateToView('ads');
+            } else if (hash === '#/emails') {
+                navigateToView('emails');
+            } else if (hash === '#/images') {
+                navigateToView('images');
+            } else if (hash === '#/settings') {
+                navigateToView('settings');
+            } else {
+                navigateToView('visualizations');
+            }
+            setActiveNavItem();
+            updateNavLinks();
+        }
+
         // Handle browser back/forward buttons
         window.addEventListener('popstate', (event) => {
             const hash = window.location.hash;
@@ -6449,8 +6538,8 @@
                 navigateToView('history');
             } else if (hash === '#/ads') {
                 navigateToView('ads');
-            } else if (hash === '#/images') {
-                navigateToView('images');
+            } else if (hash === '#/emails') {
+                navigateToView('emails');
             } else if (hash === '#/images') {
                 navigateToView('images');
             } else if (hash === '#/settings') {
@@ -6459,7 +6548,7 @@
                 navigateToView('visualizations');
             }
         });
-        
+
         // Handle hash changes (for direct navigation)
         window.addEventListener('hashchange', () => {
             const hash = window.location.hash;
@@ -6469,8 +6558,8 @@
                 navigateToView('history');
             } else if (hash === '#/ads') {
                 navigateToView('ads');
-            } else if (hash === '#/images') {
-                navigateToView('images');
+            } else if (hash === '#/emails') {
+                navigateToView('emails');
             } else if (hash === '#/images') {
                 navigateToView('images');
             } else if (hash === '#/settings') {
@@ -6486,12 +6575,18 @@
             const navVisualizations = document.getElementById('navVisualizations');
             const navInsights = document.getElementById('navInsights');
             const navHistory = document.getElementById('navHistory');
+            const navAds = document.getElementById('navAds');
+            const navEmails = document.getElementById('navEmails');
+            const navImages = document.getElementById('navImages');
             const navSettings = document.getElementById('navSettings');
             
             // Remove active class from all items
             if (navVisualizations) navVisualizations.classList.remove('active');
             if (navInsights) navInsights.classList.remove('active');
             if (navHistory) navHistory.classList.remove('active');
+            if (navAds) navAds.classList.remove('active');
+            if (navEmails) navEmails.classList.remove('active');
+            if (navImages) navImages.classList.remove('active');
             if (navSettings) navSettings.classList.remove('active');
             
             // Set active based on hash
@@ -6499,6 +6594,10 @@
                 if (navInsights) navInsights.classList.add('active');
             } else if (hash === '#/history') {
                 if (navHistory) navHistory.classList.add('active');
+            } else if (hash === '#/ads') {
+                if (navAds) navAds.classList.add('active');
+            } else if (hash === '#/emails') {
+                if (navEmails) navEmails.classList.add('active');
             } else if (hash === '#/images') {
                 if (navImages) navImages.classList.add('active');
             } else if (hash === '#/settings') {
@@ -6576,41 +6675,15 @@
         // If token exists, keep login hidden (it's already hidden by default)
         // and let async checkAuth() verify it
         
-        // Initialize navigation when DOM is ready
+        // Initialize navigation when DOM is ready (hash-based tab routing runs after client is ready via applyInitialHashRouting)
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', () => {
                 setActiveNavItem();
                 updateNavLinks();
-                // Check hash on page load for routing
-                const hash = window.location.hash;
-                if (hash === '#/insights') {
-                    navigateToView('insights');
-                } else if (hash === '#/history') {
-                    navigateToView('history');
-                } else if (hash === '#/images') {
-                    navigateToView('images');
-                } else if (hash === '#/settings') {
-                    navigateToView('settings');
-                } else {
-                    navigateToView('visualizations');
-                }
             });
         } else {
             setActiveNavItem();
             updateNavLinks();
-            // Check hash on page load for routing
-            const hash = window.location.hash;
-            if (hash === '#/insights') {
-                navigateToView('insights');
-            } else if (hash === '#/history') {
-                navigateToView('history');
-            } else if (hash === '#/images') {
-                navigateToView('images');
-            } else if (hash === '#/settings') {
-                navigateToView('settings');
-            } else {
-                navigateToView('visualizations');
-            }
         }
 
         // Insights Page JavaScript
