@@ -132,3 +132,24 @@ class DynamicBulkUpdateRequest(BaseModel):
     """Dynamic bulk update request - accepts any field as key-value pairs"""
     updates: Dict[str, Optional[str]]  # field_name -> new_value (None means don't update)
 
+
+# VOC summary for comparison (categories -> topics -> counts + sample verbatims)
+class VocSummaryTopic(BaseModel):
+    """Topic within a category with verbatim count and samples"""
+    label: str
+    code: Optional[str] = None
+    verbatim_count: int
+    sample_verbatims: List[str] = []
+
+
+class VocSummaryCategory(BaseModel):
+    """Category with its topics"""
+    name: str
+    topics: List[VocSummaryTopic] = []
+
+
+class VocSummaryResponse(BaseModel):
+    """VOC summary for a client: categories, topics, counts, sample verbatims"""
+    categories: List[VocSummaryCategory] = []
+    total_verbatims: int = 0
+

@@ -15,6 +15,8 @@ from app.models.import_job import ImportJob
 from app.models.ad_image import AdImage
 from app.models.meta_oauth_token import MetaOAuthToken
 from app.models.saved_email import SavedEmail
+from app.models.ad_library_import import AdLibraryImport
+from app.models.ad_library_ad import AdLibraryAd
 
 __all__ = [
     "Client",
@@ -38,6 +40,8 @@ __all__ = [
     "AdImage",
     "MetaOAuthToken",
     "SavedEmail",
+    "AdLibraryImport",
+    "AdLibraryAd",
 ]
 
 

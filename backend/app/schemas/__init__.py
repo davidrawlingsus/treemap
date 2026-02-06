@@ -57,6 +57,9 @@ from .voc import (
     FieldMetadata,
     FieldMetadataResponse,
     DynamicBulkUpdateRequest,
+    VocSummaryTopic,
+    VocSummaryCategory,
+    VocSummaryResponse,
 )
 
 from .csv_upload import (
@@ -114,6 +117,14 @@ from .ad_image import (
     ImportJobResponse,
     ImportJobListResponse,
     ImportJobStatusResponse,
+)
+from .ad_library_import import (
+    AdLibraryAdResponse,
+    AdLibraryImportResponse,
+    AdLibraryImportDetailResponse,
+    AdLibraryImportListResponse,
+    AdLibraryImportFromUrlRequest,
+    VocAdsComparisonRequest,
 )
 
 from .meta_ads import (
@@ -199,6 +210,9 @@ __all__ = [
     "FieldMetadata",
     "FieldMetadataResponse",
     "DynamicBulkUpdateRequest",
+    "VocSummaryTopic",
+    "VocSummaryCategory",
+    "VocSummaryResponse",
     # CSV
     "CsvColumnMapping",
     "CsvUploadResponse",
@@ -243,6 +257,12 @@ __all__ = [
     "ImportJobResponse",
     "ImportJobListResponse",
     "ImportJobStatusResponse",
+    "AdLibraryAdResponse",
+    "AdLibraryImportResponse",
+    "AdLibraryImportDetailResponse",
+    "AdLibraryImportListResponse",
+    "AdLibraryImportFromUrlRequest",
+    "VocAdsComparisonRequest",
     # Meta Ads
     "MetaOAuthInitResponse",
     "MetaTokenStatusResponse",

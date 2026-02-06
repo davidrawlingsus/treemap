@@ -29,6 +29,16 @@ class MediaItem:
     library_id: Optional[str] = None
 
 
+@dataclass
+class AdCopyItem:
+    """Ad copy only scraped from Ads Library (for VOC comparison)."""
+    primary_text: str
+    headline: Optional[str] = None
+    description: Optional[str] = None
+    library_id: Optional[str] = None
+    started_running_on: Optional[str] = None
+
+
 class MetaAdsLibraryScraper:
     """Service for scraping media from Meta Ads Library."""
     
@@ -151,6 +161,162 @@ class MetaAdsLibraryScraper:
                 await browser.close()
         
         return media_items
+    
+    async def scrape_ads_library_copy(self, url: str, max_scrolls: int = 5) -> List[AdCopyItem]:
+        """
+        Scrape ad copy only (primary text, headline) from a Meta Ads Library page.
+        Returns list of AdCopyItem; no media download.
+        """
+        if not self.validate_url(url):
+            raise ValueError("Invalid Meta Ads Library URL. Must include view_all_page_id parameter.")
+        
+        all_copy: List[AdCopyItem] = []
+        seen_keys: set = set()  # (library_id or "", primary_text[:50]) to dedupe
+        
+        try:
+            from playwright.async_api import async_playwright
+        except ImportError:
+            raise ImportError(
+                "Playwright is not installed. Run: pip install playwright && playwright install chromium"
+            )
+        
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=self.headless)
+            try:
+                context = await browser.new_context(
+                    viewport={'width': 1920, 'height': 1080},
+                    user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+                )
+                page = await context.new_page()
+                await page.goto(url, timeout=self.timeout, wait_until='networkidle')
+                await page.wait_for_timeout(3000)
+                
+                for scroll_num in range(max_scrolls):
+                    new_items = await self._extract_copy_from_page(page, seen_keys)
+                    all_copy.extend(new_items)
+                    logger.info(f"Scroll {scroll_num + 1}: Found {len(new_items)} ad copy items")
+                    await page.evaluate('window.scrollBy(0, window.innerHeight * 2)')
+                    await page.wait_for_timeout(2000)
+                    at_bottom = await page.evaluate(
+                        '() => (window.innerHeight + window.scrollY) >= document.body.scrollHeight - 100'
+                    )
+                    if at_bottom:
+                        final = await self._extract_copy_from_page(page, seen_keys)
+                        all_copy.extend(final)
+                        break
+                
+                logger.info(f"Total ad copy items found: {len(all_copy)}")
+            finally:
+                await browser.close()
+        
+        return all_copy
+    
+    async def _extract_copy_from_page(self, page, seen_keys: set) -> List[AdCopyItem]:
+        """Extract ad copy from each ad card: body (primary_text) and headline using DOM structure.
+        Body = div with white-space: pre-wrap (ad body). Headline = line-clamp div text minus 'Sponsored'.
+        """
+        raw = await page.evaluate('''
+            () => {
+                const results = [];
+                const allSpans = document.querySelectorAll('span');
+                const adCards = new Map();
+                
+                for (const span of allSpans) {
+                    const text = span.textContent?.trim() || '';
+                    const libraryIdMatch = text.match(/^Library ID:\\s*(\\d+)$/);
+                    if (libraryIdMatch) {
+                        let container = span;
+                        for (let i = 0; i < 15 && container.parentElement; i++) {
+                            container = container.parentElement;
+                            const hasVideo = container.querySelector('video[src]');
+                            const hasImage = container.querySelector('img[src*="scontent"], img[src*="fbcdn"]');
+                            if (hasVideo || hasImage) break;
+                        }
+                        const key = container;
+                        if (!adCards.has(key)) adCards.set(key, { libraryId: null, startedRunningOn: null });
+                        adCards.get(key).libraryId = libraryIdMatch[1];
+                    }
+                    const dateMatch = text.match(/^Started running on\\s+([A-Za-z]+\\s+\\d{1,2},?\\s+\\d{4})$/);
+                    if (dateMatch) {
+                        let container = span;
+                        for (let i = 0; i < 15 && container.parentElement; i++) {
+                            container = container.parentElement;
+                            const hasVideo = container.querySelector('video[src]');
+                            const hasImage = container.querySelector('img[src*="scontent"], img[src*="fbcdn"]');
+                            if (hasVideo || hasImage) break;
+                        }
+                        const key = container;
+                        if (!adCards.has(key)) adCards.set(key, { libraryId: null, startedRunningOn: null });
+                        adCards.get(key).startedRunningOn = dateMatch[1];
+                    }
+                }
+                
+                for (const [container, data] of adCards) {
+                    let bodyText = '';
+                    let headlineText = '';
+                    
+                    // Body: div with white-space: pre-wrap (Meta ad body copy)
+                    const preWrapDivs = container.querySelectorAll('div[style*="white-space: pre-wrap"]');
+                    for (const div of preWrapDivs) {
+                        const t = (div.innerText || div.textContent || '').trim();
+                        if (t.length > bodyText.length && t.length > 20) bodyText = t;
+                    }
+                    
+                    // Headline: div with -webkit-line-clamp (often "Sponsored" + headline)
+                    const lineClampDivs = container.querySelectorAll('div[style*="line-clamp"]');
+                    for (const div of lineClampDivs) {
+                        const t = (div.innerText || div.textContent || '').trim();
+                        const withoutSponsored = t.replace(/^Sponsored\\s*/i, '').trim();
+                        if (withoutSponsored.length > 0 && withoutSponsored.length <= 200)
+                            headlineText = withoutSponsored;
+                    }
+                    
+                    // Fallback: full container text
+                    const fullText = (container.innerText || container.textContent || '').trim();
+                    if (bodyText.length < 10 && fullText.length >= 10) bodyText = fullText;
+                    
+                    if (bodyText.length < 5) continue;
+                    
+                    results.push({
+                        libraryId: data.libraryId,
+                        startedRunningOn: data.startedRunningOn,
+                        bodyText: bodyText,
+                        headlineText: headlineText || null
+                    });
+                }
+                return results;
+            }
+        ''')
+        
+        items = []
+        for r in raw:
+            body_text = (r.get('bodyText') or '').strip()
+            headline_text = (r.get('headlineText') or '').strip() or None
+            if not body_text:
+                continue
+            # Strip metadata from body if present
+            body_clean = re.sub(r'Library ID:\s*\d+', '', body_text, flags=re.IGNORECASE).strip()
+            body_clean = re.sub(r'Started running on\s+[A-Za-z]+\s+\d{1,2},?\s+\d{4}', '', body_clean, flags=re.IGNORECASE).strip()
+            body_clean = re.sub(r'\n\s*\n', '\n', body_clean).strip()
+            if len(body_clean) < 5:
+                continue
+            # If we didn't get a headline from DOM, use first line of body (if short) as headline
+            if not headline_text:
+                lines = [ln.strip() for ln in body_clean.split('\n') if ln.strip()]
+                short_lines = [ln for ln in lines if len(ln) <= 120]
+                headline_text = short_lines[0] if short_lines else (lines[0] if lines else None)
+            key = (r.get('libraryId') or '', body_clean[:80])
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            items.append(AdCopyItem(
+                primary_text=body_clean[:5000],
+                headline=headline_text,
+                description=None,
+                library_id=r.get('libraryId'),
+                started_running_on=r.get('startedRunningOn')
+            ))
+        return items
     
     async def _extract_media_from_page(self, page, seen_urls: set) -> List[MediaItem]:
         """

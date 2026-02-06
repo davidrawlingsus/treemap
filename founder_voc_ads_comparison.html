@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Founder Tools – VOC vs Ads Comparison</title>
+    <link rel="icon" href="/images/favicon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles/founder-admin.css">
+    <link rel="stylesheet" href="/styles/founder-impersonation.css">
+    <script src="/config.js"></script>
+    <script src="/auth.js"></script>
+    <style>
+        .comparison-panel { max-width: 900px; }
+        .comparison-panel label { display: block; margin-bottom: 4px; font-weight: 600; }
+        .comparison-panel input[type="text"], .comparison-panel select { width: 100%; max-width: 480px; padding: 8px 12px; margin-bottom: 12px; }
+        .comparison-panel .form-row { margin-bottom: 16px; }
+        .comparison-results { margin-top: 24px; }
+        .resonance-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+        .resonance-table th, .resonance-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border, #e2e8f0); }
+        .resonance-table th { background: var(--bg, #f5f7fb); font-weight: 600; }
+        .resonance-low { color: var(--danger, #e53e3e); }
+        .resonance-medium { color: #b7791f; }
+        .resonance-high { color: var(--success, #38a169); }
+        .overlooked-list { list-style: none; padding: 0; }
+        .overlooked-list li { padding: 12px; margin-bottom: 8px; background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 8px; }
+        .overlooked-list .theme-name { font-weight: 600; }
+        .overlooked-list .sample-verbatims { font-size: 13px; color: var(--muted); margin-top: 8px; }
+        .comparison-loading { padding: 24px; text-align: center; color: var(--muted); }
+        .comparison-empty { padding: 24px; color: var(--muted); }
+        .dimensions-list { max-height: 180px; overflow-y: auto; border: 1px solid var(--border, #e2e8f0); border-radius: 8px; padding: 8px 12px; margin-bottom: 12px; background: var(--surface, #fff); }
+        .dimensions-list label { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-weight: 400; cursor: pointer; }
+        .dimensions-list input[type="checkbox"] { margin: 0; }
+        .ad-headline-cell { display: flex; align-items: center; gap: 8px; }
+        .ad-expand-btn { flex-shrink: 0; width: 28px; height: 28px; padding: 0; border: 1px solid var(--border); border-radius: 4px; background: var(--bg); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; color: var(--muted); }
+        .ad-expand-btn:hover { background: var(--border); }
+        .ad-expand-btn.expanded { transform: rotate(180deg); }
+        .ad-expand-row td { padding: 12px 12px 16px 48px; background: var(--bg, #f5f7fb); border-bottom: 1px solid var(--border); vertical-align: top; }
+        .ad-expand-row .ad-copy-block { white-space: pre-wrap; font-size: 13px; line-height: 1.5; color: var(--text); }
+        .ad-expand-row .ad-copy-label { font-size: 11px; font-weight: 600; color: var(--muted); margin-bottom: 4px; }
+    </style>
+</head>
+<body>
+    <div id="loginOverlay" class="login-overlay hidden">
+        <div class="login-container">
+            <div id="loginFormSection">
+                <h2>Sign in</h2>
+                <p class="login-subtext">Enter your work email and we'll email you a secure magic link.</p>
+                <input type="email" id="loginEmail" placeholder="you@company.com" autocomplete="email">
+                <button id="loginButton" type="button">Send Magic Link</button>
+                <div id="loginError" class="login-error"></div>
+                <div id="loginSuccess" class="login-success"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="appShell" style="display: none;">
+        <header>
+            <div>
+                <nav class="breadcrumbs">
+                    <a href="/founder_admin.html">Founder Admin</a>
+                    <span class="breadcrumbs-separator">›</span>
+                    <span>VOC vs Ads Comparison</span>
+                </nav>
+                <h1>VOC vs Ads Comparison</h1>
+                <div class="subtitle">Compare ad copy to VOC data: resonance scores and overlooked themes.</div>
+            </div>
+            <div class="founder-meta">
+                <span id="founderEmail"></span>
+                <button class="btn btn-secondary" id="logoutButton">Logout</button>
+            </div>
+        </header>
+
+        <main>
+            <div class="panel comparison-panel">
+                <h2>Setup</h2>
+                <div class="form-row">
+                    <label for="clientSelect">Client</label>
+                    <select id="clientSelect">
+                        <option value="">Select a client</option>
+                    </select>
+                </div>
+
+                <h3>Import from Ad Library (optional)</h3>
+                <p class="muted" style="font-size: 13px; margin-bottom: 12px;">Paste a Meta Ads Library URL to scrape ad copy for this client. You can then run comparison against Ad Library ads or in-app ads.</p>
+                <div class="form-row">
+                    <label for="adLibraryUrl">Ads Library URL</label>
+                    <input type="text" id="adLibraryUrl" placeholder="https://www.facebook.com/ads/library/?...&view_all_page_id=...">
+                </div>
+                <div class="form-row">
+                    <button class="btn btn-secondary" id="importCopyButton">Import copy from URL</button>
+                    <span id="importStatus" class="muted" style="margin-left: 12px; font-size: 13px;"></span>
+                </div>
+
+                <h3 style="margin-top: 24px;">VOC segment (3 steps)</h3>
+                <p class="muted" style="font-size: 13px; margin-bottom: 12px;">Narrow the VOC data to compare against. Each step filters the next.</p>
+                <div class="form-row">
+                    <label for="projectSelect">1. Project</label>
+                    <select id="projectSelect">
+                        <option value="">Select a client first</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label for="sourceSelect">2. Source</label>
+                    <select id="sourceSelect">
+                        <option value="">Select a project first</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label>3. Dimension(s)</label>
+                    <p class="muted" style="font-size: 12px; margin-bottom: 6px;">Leave all unchecked to use all dimensions in the selected project/source.</p>
+                    <div id="dimensionsContainer" class="dimensions-list">
+                        <span class="muted" id="dimensionsPlaceholder">Select a source to load dimensions.</span>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 24px;">Run comparison</h3>
+                <div class="form-row">
+                    <label for="adSourceSelect">Ad source</label>
+                    <select id="adSourceSelect">
+                        <option value="in_app">In-app ads only</option>
+                        <option value="ad_library">Ad Library import only</option>
+                        <option value="both">Both</option>
+                    </select>
+                </div>
+                <div class="form-row" id="importSelectRow" style="display: none;">
+                    <label for="importSelect">Ad Library import</label>
+                    <select id="importSelect">
+                        <option value="">Use latest import</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <button class="btn btn-primary" id="runComparisonButton">Run comparison</button>
+                </div>
+            </div>
+
+            <div class="panel comparison-results" id="comparisonResults" style="display: none;">
+                <div class="comparison-results-header" style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 12px;">
+                    <h2 style="margin: 0;">Results</h2>
+                    <button type="button" class="btn btn-secondary" id="copyResultsJsonButton" title="Copy all ads and ad copy as JSON for LLM analysis" style="display: none;">
+                        <span aria-hidden="true">&lt;/&gt;</span> Copy as JSON
+                    </button>
+                </div>
+                <p id="copyJsonFeedback" class="muted" style="font-size: 13px; margin: 0 0 12px 0; display: none;"></p>
+                <div id="comparisonLoading" class="comparison-loading" style="display: none;">Running comparison…</div>
+                <div id="comparisonContent" style="display: none;">
+                    <h3>Ads by resonance</h3>
+                    <p class="muted" style="font-size: 13px;">Resonance = share of VOC themes that appear in the ad copy (keyword overlap).</p>
+                    <div id="adsTableContainer"></div>
+                    <h3 style="margin-top: 24px;">Overlooked VOC themes</h3>
+                    <p class="muted" style="font-size: 13px;">Themes that no ad in the set addresses.</p>
+                    <ul id="overlookedList" class="overlooked-list"></ul>
+                </div>
+                <div id="comparisonEmpty" class="comparison-empty" style="display: none;">Run a comparison to see results.</div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+
+        function getAuthHeaders() {
+            if (typeof window.Auth !== 'undefined' && typeof window.Auth.getAuthHeaders === 'function') {
+                return window.Auth.getAuthHeaders();
+            }
+            return {};
+        }
+
+        const clientSelect = document.getElementById('clientSelect');
+        const adLibraryUrl = document.getElementById('adLibraryUrl');
+        const importCopyButton = document.getElementById('importCopyButton');
+        const importStatus = document.getElementById('importStatus');
+        const adSourceSelect = document.getElementById('adSourceSelect');
+        const importSelectRow = document.getElementById('importSelectRow');
+        const importSelect = document.getElementById('importSelect');
+        const runComparisonButton = document.getElementById('runComparisonButton');
+        const comparisonResults = document.getElementById('comparisonResults');
+        const comparisonLoading = document.getElementById('comparisonLoading');
+        const comparisonContent = document.getElementById('comparisonContent');
+        const comparisonEmpty = document.getElementById('comparisonEmpty');
+        const adsTableContainer = document.getElementById('adsTableContainer');
+        const overlookedList = document.getElementById('overlookedList');
+        const dimensionsContainer = document.getElementById('dimensionsContainer');
+        const dimensionsPlaceholder = document.getElementById('dimensionsPlaceholder');
+        const projectSelect = document.getElementById('projectSelect');
+        const sourceSelect = document.getElementById('sourceSelect');
+        const copyResultsJsonButton = document.getElementById('copyResultsJsonButton');
+        const copyJsonFeedback = document.getElementById('copyJsonFeedback');
+
+        let lastComparisonResult = null;
+
+        async function loadProjects() {
+            const clientId = clientSelect.value;
+            sourceSelect.innerHTML = '<option value="">Select a project first</option>';
+            dimensionsPlaceholder.textContent = 'Select a source to load dimensions.';
+            dimensionsPlaceholder.style.display = 'block';
+            dimensionsContainer.querySelectorAll('label').forEach(el => el.remove());
+            if (!clientId) {
+                projectSelect.innerHTML = '<option value="">Select a client first</option>';
+                return;
+            }
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/voc/projects?client_uuid=${clientId}`, { headers: getAuthHeaders() });
+                if (!res.ok) throw new Error('Failed to load projects');
+                const projects = await res.json();
+                projectSelect.innerHTML = '<option value="">All projects</option>';
+                (projects || []).forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.project_name || '';
+                    opt.textContent = (p.project_name || 'Unnamed') + ' (' + (p.response_count || 0) + ')';
+                    projectSelect.appendChild(opt);
+                });
+            } catch (e) {
+                console.error(e);
+                projectSelect.innerHTML = '<option value="">Failed to load projects</option>';
+            }
+        }
+
+        async function loadSources() {
+            const clientId = clientSelect.value;
+            const projectName = (projectSelect.value || '').trim();
+            dimensionsPlaceholder.textContent = 'Select a source to load dimensions.';
+            dimensionsPlaceholder.style.display = 'block';
+            dimensionsContainer.querySelectorAll('label').forEach(el => el.remove());
+            if (!clientId) {
+                sourceSelect.innerHTML = '<option value="">Select a client first</option>';
+                return;
+            }
+            try {
+                let url = `${API_BASE_URL}/api/voc/sources?client_uuid=${clientId}`;
+                if (projectName) url += `&project_name=${encodeURIComponent(projectName)}`;
+                const res = await fetch(url, { headers: getAuthHeaders() });
+                if (!res.ok) throw new Error('Failed to load sources');
+                const sources = await res.json();
+                sourceSelect.innerHTML = '<option value="">All sources</option>';
+                (sources || []).forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.data_source || '';
+                    opt.textContent = (s.data_source || 'Unnamed') + ' (' + (s.response_count || 0) + ')';
+                    sourceSelect.appendChild(opt);
+                });
+            } catch (e) {
+                console.error(e);
+                sourceSelect.innerHTML = '<option value="">Failed to load sources</option>';
+            }
+        }
+
+        async function loadDimensions() {
+            const clientId = clientSelect.value;
+            const projectName = (projectSelect.value || '').trim();
+            const dataSource = (sourceSelect.value || '').trim();
+            dimensionsPlaceholder.textContent = 'Loading…';
+            dimensionsContainer.querySelectorAll('label').forEach(el => el.remove());
+            dimensionsPlaceholder.style.display = 'block';
+            if (!clientId) {
+                dimensionsPlaceholder.textContent = 'Select a client, then project and source.';
+                return;
+            }
+            try {
+                let url = `${API_BASE_URL}/api/voc/questions?client_uuid=${clientId}`;
+                if (projectName) url += `&project_name=${encodeURIComponent(projectName)}`;
+                if (dataSource) url += `&data_source=${encodeURIComponent(dataSource)}`;
+                const res = await fetch(url, { headers: getAuthHeaders() });
+                if (!res.ok) throw new Error('Failed to load dimensions');
+                const questions = await res.json();
+                dimensionsPlaceholder.style.display = 'none';
+                if (!questions || questions.length === 0) {
+                    dimensionsPlaceholder.textContent = 'No dimensions in this segment.';
+                    dimensionsPlaceholder.style.display = 'block';
+                    return;
+                }
+                questions.forEach(q => {
+                    const label = document.createElement('label');
+                    const cb = document.createElement('input');
+                    cb.type = 'checkbox';
+                    cb.value = q.dimension_ref;
+                    cb.className = 'dimension-cb';
+                    label.appendChild(cb);
+                    label.appendChild(document.createTextNode(q.dimension_name || q.dimension_ref + ' (' + (q.response_count || 0) + ' responses)'));
+                    dimensionsContainer.appendChild(label);
+                });
+            } catch (e) {
+                console.error(e);
+                dimensionsPlaceholder.textContent = 'Failed to load dimensions.';
+                dimensionsPlaceholder.style.display = 'block';
+            }
+        }
+
+        async function loadClients() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/clients`, { headers: getAuthHeaders() });
+                if (!res.ok) throw new Error('Failed to load clients');
+                const clients = await res.json();
+                clientSelect.innerHTML = '<option value="">Select a client</option>';
+                (clients || []).forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = c.name || c.id;
+                    clientSelect.appendChild(opt);
+                });
+            } catch (e) {
+                console.error(e);
+                clientSelect.innerHTML = '<option value="">Failed to load clients</option>';
+            }
+        }
+
+        async function loadImports() {
+            const clientId = clientSelect.value;
+            if (!clientId) {
+                importSelect.innerHTML = '<option value="">Use latest import</option>';
+                return;
+            }
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/clients/${clientId}/ad-library-imports`, { headers: getAuthHeaders() });
+                if (!res.ok) throw new Error('Failed to load imports');
+                const data = await res.json();
+                const items = data.items || [];
+                importSelect.innerHTML = '<option value="">Use latest import</option>';
+                items.forEach(imp => {
+                    const opt = document.createElement('option');
+                    opt.value = imp.id;
+                    opt.textContent = `${new Date(imp.imported_at).toLocaleString()} (${imp.ad_count} ads)`;
+                    importSelect.appendChild(opt);
+                });
+            } catch (e) {
+                console.error(e);
+                importSelect.innerHTML = '<option value="">Use latest import</option>';
+            }
+        }
+
+        adSourceSelect.addEventListener('change', () => {
+            const v = adSourceSelect.value;
+            importSelectRow.style.display = (v === 'ad_library' || v === 'both') ? 'block' : 'none';
+            if (importSelectRow.style.display !== 'none') loadImports();
+        });
+
+        clientSelect.addEventListener('change', () => {
+            loadProjects();
+            if (adSourceSelect.value === 'ad_library' || adSourceSelect.value === 'both') loadImports();
+        });
+
+        projectSelect.addEventListener('change', () => {
+            loadSources();
+        });
+
+        sourceSelect.addEventListener('change', () => {
+            loadDimensions();
+        });
+
+        importCopyButton.addEventListener('click', async () => {
+            const clientId = clientSelect.value;
+            const url = (adLibraryUrl.value || '').trim();
+            if (!clientId) {
+                importStatus.textContent = 'Select a client first.';
+                return;
+            }
+            if (!url) {
+                importStatus.textContent = 'Enter an Ads Library URL.';
+                return;
+            }
+            importStatus.textContent = 'Importing…';
+            importCopyButton.disabled = true;
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/clients/${clientId}/ad-library-imports`, {
+                    method: 'POST',
+                    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ source_url: url, max_scrolls: 5 }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    importStatus.textContent = data.detail || `Error ${res.status}`;
+                    return;
+                }
+                const count = (data.ads || []).length;
+                importStatus.textContent = `Imported ${count} ads.`;
+                loadImports();
+            } catch (e) {
+                importStatus.textContent = 'Import failed.';
+                console.error(e);
+            } finally {
+                importCopyButton.disabled = false;
+            }
+        });
+
+        runComparisonButton.addEventListener('click', async () => {
+            const clientId = clientSelect.value;
+            if (!clientId) {
+                alert('Select a client first.');
+                return;
+            }
+            comparisonResults.style.display = 'block';
+            comparisonLoading.style.display = 'block';
+            comparisonContent.style.display = 'none';
+            comparisonEmpty.style.display = 'none';
+            try {
+                const dimensionRefs = Array.from(dimensionsContainer.querySelectorAll('.dimension-cb:checked')).map(cb => cb.value);
+                const body = {
+                    ad_source: adSourceSelect.value,
+                    ad_library_import_id: importSelect.value || null,
+                    project_name: (projectSelect.value || '').trim() || null,
+                    data_source: (sourceSelect.value || '').trim() || null,
+                    dimension_refs: dimensionRefs.length > 0 ? dimensionRefs : null,
+                };
+                const res = await fetch(`${API_BASE_URL}/api/clients/${clientId}/voc-ads-comparison`, {
+                    method: 'POST',
+                    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                const result = await res.json().catch(() => ({}));
+                comparisonLoading.style.display = 'none';
+                if (!res.ok) {
+                    lastComparisonResult = null;
+                    copyResultsJsonButton.style.display = 'none';
+                    adsTableContainer.innerHTML = `<p class="comparison-empty">${result.detail || 'Comparison failed.'}</p>`;
+                    overlookedList.innerHTML = '';
+                    comparisonContent.style.display = 'block';
+                    return;
+                }
+                lastComparisonResult = result;
+                copyResultsJsonButton.style.display = 'inline-flex';
+                copyResultsJsonButton.style.alignItems = 'center';
+                copyResultsJsonButton.style.gap = '6px';
+
+                const ads = result.ads || [];
+                const overlooked = result.overlooked_themes || [];
+                const totalThemes = result.total_themes || 0;
+
+                let tableHtml = '<table class="resonance-table"><thead><tr><th>Ad copy</th><th>Resonance</th><th>Label</th><th>Themes hit</th></tr></thead><tbody>';
+                ads.forEach((ad, idx) => {
+                    const labelClass = ad.resonance_label === 'low' ? 'resonance-low' : ad.resonance_label === 'medium' ? 'resonance-medium' : 'resonance-high';
+                    const primary = ad.primary_text || '';
+                    const headline = (ad.headline || primary || '—').trim().substring(0, 80);
+                    const displayLine = headline || '—';
+                    const hitCount = (ad.themes_hit || []).length;
+                    tableHtml += `<tr class="ad-row" data-ad-index="${idx}"><td class="ad-headline-cell"><button type="button" class="ad-expand-btn" aria-label="Expand ad copy">▼</button><span>${escapeHtml(displayLine)}</span></td><td>${(ad.resonance_score * 100).toFixed(1)}%</td><td class="${labelClass}">${ad.resonance_label}</td><td>${hitCount} / ${totalThemes}</td></tr>`;
+                    const primaryEscaped = escapeHtml(primary);
+                    const descEscaped = escapeHtml(ad.description || '');
+                    tableHtml += `<tr class="ad-expand-row" id="expand-${idx}" style="display:none;"><td colspan="4"><div class="ad-copy-label">Primary text</div><div class="ad-copy-block">${primaryEscaped || '—'}</div>${descEscaped ? `<div class="ad-copy-label" style="margin-top:12px;">Description</div><div class="ad-copy-block">${descEscaped}</div>` : ''}</td></tr>`;
+                });
+                tableHtml += '</tbody></table>';
+                adsTableContainer.innerHTML = tableHtml;
+
+                adsTableContainer.querySelectorAll('.ad-expand-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const row = btn.closest('tr');
+                        const idx = row.getAttribute('data-ad-index');
+                        const expandRow = document.getElementById(`expand-${idx}`);
+                        if (!expandRow) return;
+                        const isHidden = expandRow.style.display === 'none';
+                        expandRow.style.display = isHidden ? 'table-row' : 'none';
+                        btn.classList.toggle('expanded', isHidden);
+                        btn.setAttribute('aria-label', isHidden ? 'Collapse ad copy' : 'Expand ad copy');
+                    });
+                });
+
+                overlookedList.innerHTML = '';
+                overlooked.forEach(t => {
+                    const li = document.createElement('li');
+                    const samples = (t.sample_verbatims || []).slice(0, 3).map(s => escapeHtml(String(s).substring(0, 120)));
+                    li.innerHTML = `<span class="theme-name">${escapeHtml(t.category)} → ${escapeHtml(t.topic_label)}</span> (${t.verbatim_count} verbatims)<div class="sample-verbatims">${samples.join(' … ')}</div>`;
+                    overlookedList.appendChild(li);
+                });
+
+                comparisonContent.style.display = 'block';
+            } catch (e) {
+                comparisonLoading.style.display = 'none';
+                adsTableContainer.innerHTML = `<p class="comparison-empty">Request failed.</p>`;
+                overlookedList.innerHTML = '';
+                comparisonContent.style.display = 'block';
+                console.error(e);
+            }
+        });
+
+        function escapeHtml(s) {
+            const div = document.createElement('div');
+            div.textContent = s;
+            return div.innerHTML;
+        }
+
+        copyResultsJsonButton.addEventListener('click', async () => {
+            if (!lastComparisonResult || !lastComparisonResult.ads || lastComparisonResult.ads.length === 0) {
+                copyJsonFeedback.textContent = 'No comparison results to copy. Run a comparison first.';
+                copyJsonFeedback.style.display = 'block';
+                copyJsonFeedback.style.color = 'var(--muted)';
+                setTimeout(() => { copyJsonFeedback.style.display = 'none'; }, 3000);
+                return;
+            }
+            const exportData = {
+                total_themes: lastComparisonResult.total_themes ?? 0,
+                ads: (lastComparisonResult.ads || []).map(ad => ({
+                    id: ad.id,
+                    headline: ad.headline ?? null,
+                    primary_text: ad.primary_text ?? null,
+                    description: ad.description ?? null,
+                    resonance_score: ad.resonance_score,
+                    resonance_label: ad.resonance_label,
+                    themes_hit_count: (ad.themes_hit || []).length,
+                    themes_hit: ad.themes_hit || [],
+                    themes_missed: ad.themes_missed || [],
+                })),
+                overlooked_themes: (lastComparisonResult.overlooked_themes || []).map(t => ({
+                    category: t.category,
+                    topic_label: t.topic_label,
+                    verbatim_count: t.verbatim_count,
+                    sample_verbatims: t.sample_verbatims || [],
+                })),
+            };
+            const jsonString = JSON.stringify(exportData, null, 2);
+            try {
+                await navigator.clipboard.writeText(jsonString);
+                copyJsonFeedback.textContent = 'Copied to clipboard. Paste into an LLM for analysis.';
+                copyJsonFeedback.style.display = 'block';
+                copyJsonFeedback.style.color = 'var(--success, #38a169)';
+                setTimeout(() => { copyJsonFeedback.style.display = 'none'; }, 3000);
+            } catch (e) {
+                copyJsonFeedback.textContent = 'Copy failed. You can copy from the console.';
+                copyJsonFeedback.style.display = 'block';
+                copyJsonFeedback.style.color = 'var(--danger, #e53e3e)';
+                console.log('VOC vs Ads comparison JSON:', jsonString);
+            }
+        });
+
+        function showApp() {
+            document.getElementById('appShell').style.display = 'flex';
+            document.getElementById('founderEmail').textContent = window.Auth?.getStoredUserInfo?.()?.email || '';
+            loadClients();
+        }
+
+        function init() {
+            document.getElementById('logoutButton').addEventListener('click', () => {
+                if (window.Auth?.handleLogout) window.Auth.handleLogout();
+            });
+            if (typeof Auth !== 'undefined' && Auth.checkAuth) {
+                Auth.checkAuth().then(authenticated => {
+                    if (authenticated) {
+                        const user = Auth.getStoredUserInfo();
+                        if (user?.is_founder) showApp();
+                        else Auth.showLogin();
+                    } else Auth.showLogin();
+                }).catch(() => Auth.showLogin());
+            }
+        }
+        init();
+    </script>
+</body>
+</html>

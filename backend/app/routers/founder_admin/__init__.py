@@ -14,6 +14,8 @@ from .facebook_ads import router as facebook_ads_router
 from .ad_images import router as ad_images_router
 from .meta_ads import router as meta_ads_router
 from .saved_emails import router as saved_emails_router
+from .ad_library_imports import router as ad_library_imports_router
+from .voc_ads_comparison import router as voc_ads_comparison_router
 
 # Create main router that includes all sub-routers
 router = APIRouter(tags=["founder-admin"])
@@ -29,4 +31,6 @@ router.include_router(facebook_ads_router)
 router.include_router(ad_images_router)
 router.include_router(meta_ads_router)
 router.include_router(saved_emails_router)
+router.include_router(ad_library_imports_router)
+router.include_router(voc_ads_comparison_router)
 

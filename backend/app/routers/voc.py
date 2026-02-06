@@ -23,6 +23,9 @@ from app.schemas import (
     CsvUploadResponse,
     CsvSaveResponse,
     CsvColumnMappingRequest,
+    VocSummaryResponse,
+    VocSummaryCategory,
+    VocSummaryTopic,
 )
 from app.auth import get_current_user
 from app.authorization import verify_client_access
@@ -74,6 +77,38 @@ def get_voc_data(
         query = query.filter(ProcessVoc.dimension_ref == dimension_ref)
     
     return query.all()
+
+
+from app.services.voc_summary_service import build_voc_summary_dict
+
+
+@router.get("/summary", response_model=VocSummaryResponse)
+def get_voc_summary(
+    client_uuid: Optional[UUID] = None,
+    data_source: Optional[str] = None,
+    project_name: Optional[str] = None,
+    dimension_ref: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Get VOC summary for comparison: categories, topics, verbatim counts, sample verbatims.
+    Mirrors the treemap hierarchy (Category -> Topic -> Verbatims).
+    """
+    summary = build_voc_summary_dict(
+        db, client_uuid=client_uuid, data_source=data_source,
+        project_name=project_name, dimension_ref=dimension_ref
+    )
+    categories = [
+        VocSummaryCategory(
+            name=c["name"],
+            topics=[VocSummaryTopic(**t) for t in c["topics"]]
+        )
+        for c in summary["categories"]
+    ]
+    return VocSummaryResponse(
+        categories=categories,
+        total_verbatims=summary["total_verbatims"]
+    )
 
 
 @router.get("/questions", response_model=List[DimensionQuestionInfo])
