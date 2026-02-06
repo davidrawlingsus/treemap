@@ -381,6 +381,9 @@
         import {
             showMetaImportModal as metaImportShowMetaImportModal
         } from '/js/renderers/meta-import-modal.js';
+        import {
+            showImportMediaModal as importMediaShowImportMediaModal
+        } from '/js/renderers/import-media-modal.js';
         
         // Make color schemes config available globally
         window.colorSchemesCATEGORY_COLORS = colorSchemesCATEGORY_COLORS;
@@ -604,6 +607,7 @@
         window.updateBulkDeleteButton = imagesRendererUpdateBulkDeleteButton;
         window.showImagePickerModal = imagesRendererShowImagePickerModal;
         window.showMetaImportModal = metaImportShowMetaImportModal;
+        window.showImportMediaModal = importMediaShowImportMediaModal;
         
         // Expose appendImageToGrid for real-time updates from imports
         window.appendImageToGrid = function(image) {
@@ -16409,11 +16413,8 @@
                 <input type="range" id="imagesSizeSlider" class="images-size-slider" min="2" max="8" value="4" step="1">
                 <span class="images-size-value" id="imagesSizeValue">4</span>
             </div>
-            <button class="images-upload-btn" onclick="window.showImageUploadModal()" style="padding: 8px 16px; background: var(--brand-color, #B9F040); color: #37352f; border: none; border-radius: 6px; font-weight: 500; cursor: pointer; transition: opacity 0.2s ease;">
-                Upload Media
-            </button>
-            <button class="images-import-btn" onclick="window.showMetaImportModal()">
-                Import from Ads Library
+            <button class="images-import-btn" onclick="window.showImportMediaModal()">
+                Import Media
             </button>
         </div>
 
