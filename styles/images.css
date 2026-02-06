@@ -721,48 +721,88 @@ body.picker-open {
     white-space: nowrap;
 }
 
-/* Sort Dropdown Toolbar */
-.images-sort-toolbar {
+/* Sort Button and Dropdown */
+.images-sort-menu-container {
+    margin-left: 8px;
+}
+
+.images-sort-btn {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-left: auto;
-    margin-right: 16px;
-}
-
-.images-sort-label {
-    font-size: 0.875rem;
-    color: var(--text);
-    font-weight: 500;
-    white-space: nowrap;
-}
-
-.images-sort-select {
-    padding: 6px 12px;
-    padding-right: 28px;
-    font-size: 0.875rem;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    background: transparent;
     border: 1px solid var(--border);
     border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.images-sort-btn:hover {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: var(--brand-color);
+}
+
+.images-sort-btn img {
+    opacity: 0.7;
+}
+
+.images-sort-btn:hover img {
+    opacity: 1;
+}
+
+.images-sort-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    min-width: 180px;
     background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    z-index: 1000;
+    overflow: hidden;
+}
+
+.images-sort-dropdown.is-open {
+    display: block;
+}
+
+.images-sort-dropdown__header {
+    padding: 10px 14px 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.images-sort-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 10px 14px;
+    background: transparent;
+    border: none;
+    font-size: 0.875rem;
     color: var(--text);
     cursor: pointer;
-    outline: none;
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M3 4.5L6 7.5L9 4.5'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 8px center;
-    background-size: 12px;
+    text-align: left;
+    transition: background 0.15s ease;
 }
 
-.images-sort-select:hover {
-    border-color: var(--brand-color);
+.images-sort-option:hover {
+    background: rgba(0, 0, 0, 0.04);
 }
 
-.images-sort-select:focus {
-    border-color: var(--brand-color);
-    box-shadow: 0 0 0 2px rgba(185, 240, 64, 0.2);
+.images-sort-option__check {
+    color: var(--brand-color);
+    font-weight: 600;
+    min-width: 16px;
 }
 
 /* Size Slider Toolbar */

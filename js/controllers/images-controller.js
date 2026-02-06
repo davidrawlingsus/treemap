@@ -85,24 +85,69 @@ function initSortDropdown() {
         return;
     }
     
-    const sortSelect = document.getElementById('imagesSortSelect');
-    if (!sortSelect) {
-        console.warn('[ImagesController] Sort select not found');
+    const dropdown = document.getElementById('imagesSortDropdown');
+    const sortOptions = document.querySelectorAll('.images-sort-option');
+    
+    if (!dropdown || !sortOptions.length) {
+        console.warn('[ImagesController] Sort dropdown not found');
         return;
     }
     
-    // Restore saved sort preference
+    // Restore saved sort preference and update checkmarks
     const savedSort = getImagesSortBy();
-    sortSelect.value = savedSort;
+    updateSortCheckmarks(savedSort);
     
-    // Handle sort changes
-    sortSelect.addEventListener('change', (e) => {
-        const sortBy = e.target.value;
-        setImagesSortBy(sortBy);
-        renderImagesPage();
+    // Handle sort option clicks
+    sortOptions.forEach(option => {
+        option.addEventListener('click', () => {
+            const sortBy = option.dataset.sort;
+            setImagesSortBy(sortBy);
+            updateSortCheckmarks(sortBy);
+            closeSortDropdown();
+            renderImagesPage();
+        });
+    });
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        const container = document.querySelector('.images-sort-menu-container');
+        if (container && !container.contains(e.target)) {
+            closeSortDropdown();
+        }
     });
     
     sortInitialized = true;
+}
+
+/**
+ * Update checkmarks on sort options
+ */
+function updateSortCheckmarks(selectedSort) {
+    document.getElementById('sortCheckNewest').textContent = selectedSort === 'newest' ? '✓' : '';
+    document.getElementById('sortCheckOldest').textContent = selectedSort === 'oldest' ? '✓' : '';
+    document.getElementById('sortCheckRunningLongest').textContent = selectedSort === 'running_longest' ? '✓' : '';
+    document.getElementById('sortCheckRunningNewest').textContent = selectedSort === 'running_newest' ? '✓' : '';
+}
+
+/**
+ * Toggle sort dropdown visibility
+ */
+export function toggleSortDropdown(e) {
+    e.stopPropagation();
+    const dropdown = document.getElementById('imagesSortDropdown');
+    if (dropdown) {
+        dropdown.classList.toggle('is-open');
+    }
+}
+
+/**
+ * Close sort dropdown
+ */
+function closeSortDropdown() {
+    const dropdown = document.getElementById('imagesSortDropdown');
+    if (dropdown) {
+        dropdown.classList.remove('is-open');
+    }
 }
 
 // ============ Slider Initialization ============

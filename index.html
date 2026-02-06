@@ -365,7 +365,8 @@
         } from '/js/state/ads-state.js';
         import {
             initImagesPage as imagesControllerInitImagesPage,
-            renderImagesPage as imagesControllerRenderImagesPage
+            renderImagesPage as imagesControllerRenderImagesPage,
+            toggleSortDropdown as imagesControllerToggleSortDropdown
         } from '/js/controllers/images-controller.js';
         import {
             showImageUploadModal as imagesRendererShowImageUploadModal
@@ -608,6 +609,7 @@
         window.showImagePickerModal = imagesRendererShowImagePickerModal;
         window.showMetaImportModal = metaImportShowMetaImportModal;
         window.showImportMediaModal = importMediaShowImportMediaModal;
+        window.toggleImagesSortMenu = imagesControllerToggleSortDropdown;
         
         // Expose appendImageToGrid for real-time updates from imports
         window.appendImageToGrid = function(image) {
@@ -16399,15 +16401,6 @@
                 <span>Delete</span>
                 <span class="images-bulk-delete__count">0</span>
             </button>
-            <div class="images-sort-toolbar">
-                <label for="imagesSortSelect" class="images-sort-label">Sort</label>
-                <select id="imagesSortSelect" class="images-sort-select">
-                    <option value="newest">Newest First</option>
-                    <option value="oldest">Oldest First</option>
-                    <option value="running_longest">Running Longest</option>
-                    <option value="running_newest">Running Most Recent</option>
-                </select>
-            </div>
             <div class="images-size-toolbar">
                 <label for="imagesSizeSlider" class="images-size-label">Size</label>
                 <input type="range" id="imagesSizeSlider" class="images-size-slider" min="2" max="8" value="4" step="1">
@@ -16416,6 +16409,30 @@
             <button class="images-import-btn" onclick="window.showImportMediaModal()">
                 Import Media
             </button>
+            <div class="images-sort-menu-container" style="position: relative;">
+                <button class="images-sort-btn" id="imagesSortBtn" onclick="window.toggleImagesSortMenu(event)" type="button" aria-label="Sort options">
+                    <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/filter_list.svg" alt="" aria-hidden="true" width="20" height="20">
+                </button>
+                <div class="images-sort-dropdown" id="imagesSortDropdown">
+                    <div class="images-sort-dropdown__header">Sort by</div>
+                    <button class="images-sort-option" data-sort="newest">
+                        <span>Newest First</span>
+                        <span class="images-sort-option__check" id="sortCheckNewest">✓</span>
+                    </button>
+                    <button class="images-sort-option" data-sort="oldest">
+                        <span>Oldest First</span>
+                        <span class="images-sort-option__check" id="sortCheckOldest"></span>
+                    </button>
+                    <button class="images-sort-option" data-sort="running_longest">
+                        <span>Running Longest</span>
+                        <span class="images-sort-option__check" id="sortCheckRunningLongest"></span>
+                    </button>
+                    <button class="images-sort-option" data-sort="running_newest">
+                        <span>Running Most Recent</span>
+                        <span class="images-sort-option__check" id="sortCheckRunningNewest"></span>
+                    </button>
+                </div>
+            </div>
         </div>
 
         <div class="images-container">
