@@ -1245,7 +1245,7 @@ body.picker-open {
     padding: 8px 16px;
     background: rgba(0, 0, 0, 0.04);
     color: var(--text);
-    border: 1px solid rgba(0, 0, 0, 0.15);
+    border: none;
     border-radius: 6px;
     font-weight: 500;
     cursor: pointer;
@@ -1255,7 +1255,6 @@ body.picker-open {
 
 .images-import-btn:hover {
     background: var(--brand-color);
-    border-color: var(--brand-color);
     color: #1a1a1a;
 }
 
