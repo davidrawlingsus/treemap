@@ -1243,9 +1243,9 @@ body.picker-open {
 /* Import Button */
 .images-import-btn {
     padding: 8px 16px;
-    background: transparent;
+    background: rgba(0, 0, 0, 0.04);
     color: var(--text);
-    border: 1px solid var(--border);
+    border: 1px solid rgba(0, 0, 0, 0.15);
     border-radius: 6px;
     font-weight: 500;
     cursor: pointer;
@@ -1254,8 +1254,9 @@ body.picker-open {
 }
 
 .images-import-btn:hover {
-    background: rgba(0, 0, 0, 0.05);
-    border-color: var(--text);
+    background: var(--brand-color);
+    border-color: var(--brand-color);
+    color: #1a1a1a;
 }
 
 /* Meta Import Modal Overlay */
