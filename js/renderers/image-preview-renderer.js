@@ -40,7 +40,7 @@ export function showMediaPreview(mediaUrl, filename, contentType, imageId) {
         // Try to find by URL
         currentPreviewIndex = images.findIndex(img => img.url === mediaUrl);
     }
-    
+
     const isVideo = isVideoType(contentType);
     const hasMultipleImages = images.length > 1;
     
@@ -133,18 +133,28 @@ export function showMediaPreview(mediaUrl, filename, contentType, imageId) {
         overlay.classList.add('is-visible');
     });
     
-    // Navigation function
+    // Navigation function - use current cache (not closure) so brand switch works correctly
     const navigatePreview = (direction) => {
-        if (currentPreviewIndex < 0 || images.length <= 1) return;
-        
-        let newIndex = currentPreviewIndex + direction;
-        // Wrap around
-        if (newIndex < 0) newIndex = images.length - 1;
-        if (newIndex >= images.length) newIndex = 0;
-        
-        const newImage = images[newIndex];
+        const currentCache = getImagesCache();
+        if (currentCache.length <= 1) return;
+
+        const mediaEl = overlay.querySelector('.images-preview-image, .images-preview-video');
+        const displayedSrc = mediaEl?.src || mediaEl?.currentSrc || '';
+        if (!displayedSrc) return;
+
+        // Find current index in the current cache by matching displayed URL or filename
+        const idx = currentCache.findIndex(img =>
+            (img.url && (displayedSrc.endsWith(img.url) || displayedSrc.includes(img.url))) ||
+            (img.filename && displayedSrc.endsWith(img.filename))
+        );
+        if (idx < 0) return;
+
+        let newIndex = idx + direction;
+        if (newIndex < 0) newIndex = currentCache.length - 1;
+        if (newIndex >= currentCache.length) newIndex = 0;
+
+        const newImage = currentCache[newIndex];
         if (newImage) {
-            // Close current and show new
             overlay.remove();
             document.removeEventListener('keydown', handleKeydown);
             showMediaPreview(newImage.url, newImage.filename, newImage.content_type, newImage.id);
