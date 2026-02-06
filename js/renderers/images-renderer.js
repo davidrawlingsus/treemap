@@ -320,6 +320,25 @@ function isVideoType(contentType) {
 }
 
 /**
+ * Format a date for display
+ * @param {string} dateStr - ISO date string
+ * @returns {string} Formatted date like "Jan 15, 2024"
+ */
+function formatDate(dateStr) {
+    if (!dateStr) return '';
+    try {
+        const date = new Date(dateStr);
+        return date.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric', 
+            year: 'numeric' 
+        });
+    } catch {
+        return '';
+    }
+}
+
+/**
  * Render single image/video card
  * @param {Object} image - Image/video object from API
  * @returns {string} HTML string
@@ -331,6 +350,11 @@ function renderImageCard(image) {
     const contentType = image.content_type || '';
     const isVideo = isVideoType(contentType);
     const isSelected = getSelectedImageIds().has(image.id);
+    
+    // Meta Ads Library metadata
+    const startedRunningOn = image.started_running_on;
+    const libraryId = image.library_id;
+    const hasMetaData = startedRunningOn || libraryId;
     
     const thumbnailUrl = isVideo ? url : getThumbnailUrl(image.url, 400, 80);
     
@@ -352,6 +376,18 @@ function renderImageCard(image) {
         >
     `;
     
+    // Build metadata section if we have Meta Ads data
+    let metadataHtml = '';
+    if (hasMetaData) {
+        const dateHtml = startedRunningOn 
+            ? `<span class="images-card__meta-date" title="Started running on">${formatDate(startedRunningOn)}</span>`
+            : '';
+        const idHtml = libraryId 
+            ? `<span class="images-card__meta-library-id" title="Library ID: ${escapeHtml(libraryId)}">ID: ${escapeHtml(libraryId)}</span>`
+            : '';
+        metadataHtml = `<div class="images-card__meta-extra">${dateHtml}${idHtml}</div>`;
+    }
+    
     return `
         <div class="images-card${isSelected ? ' is-selected' : ''}" data-image-id="${id}" data-content-type="${escapeHtml(contentType)}" data-full-url="${url}">
             <div class="images-card__image-wrapper">
@@ -365,6 +401,7 @@ function renderImageCard(image) {
             <div class="images-card__info">
                 <div class="images-card__filename" title="${filename}">${filename}</div>
                 <div class="images-card__meta">${formatFileSize(image.file_size || 0)}</div>
+                ${metadataHtml}
             </div>
         </div>
     `;

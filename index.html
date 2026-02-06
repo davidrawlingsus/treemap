@@ -375,7 +375,8 @@
         } from '/js/renderers/image-picker-modal.js';
         import {
             handleBulkDelete as imagesRendererHandleBulkDelete,
-            updateBulkDeleteButton as imagesRendererUpdateBulkDeleteButton
+            updateBulkDeleteButton as imagesRendererUpdateBulkDeleteButton,
+            appendImageToGrid as imagesRendererAppendImageToGrid
         } from '/js/renderers/images-renderer.js';
         import {
             showMetaImportModal as metaImportShowMetaImportModal
@@ -603,6 +604,14 @@
         window.updateBulkDeleteButton = imagesRendererUpdateBulkDeleteButton;
         window.showImagePickerModal = imagesRendererShowImagePickerModal;
         window.showMetaImportModal = metaImportShowMetaImportModal;
+        
+        // Expose appendImageToGrid for real-time updates from imports
+        window.appendImageToGrid = function(image) {
+            const container = document.getElementById('imagesGrid');
+            if (container) {
+                imagesRendererAppendImageToGrid(container, image);
+            }
+        };
         window.verbatimsRendererRenderVerbatims = verbatimsRendererRenderVerbatims;
         window.treemapRendererRenderTreemap = treemapRendererRenderTreemap;
         window.chartRendererRenderBarChart = chartRendererRenderBarChart;

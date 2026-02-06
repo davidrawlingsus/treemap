@@ -343,6 +343,30 @@
     color: var(--muted);
 }
 
+/* Meta Ads Library metadata */
+.images-card__meta-extra {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+}
+
+.images-card__meta-date {
+    font-size: 0.6875rem;
+    color: var(--muted);
+}
+
+.images-card__meta-library-id {
+    font-size: 0.625rem;
+    color: var(--muted);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 /* Upload Modal */
 .images-upload-overlay {
     position: fixed;
@@ -1302,6 +1326,49 @@ body.picker-open {
     font-size: 0.75rem;
     color: var(--muted);
     margin: 0;
+}
+
+.meta-import-progress__bar-container {
+    width: 100%;
+    max-width: 280px;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 8px;
+}
+
+.meta-import-progress__bar {
+    height: 100%;
+    background: var(--brand-color);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+.meta-import-background-notice {
+    margin-top: 24px;
+    padding: 16px;
+    background: rgba(185, 240, 64, 0.1);
+    border-radius: 8px;
+    text-align: center;
+    border: 1px solid rgba(185, 240, 64, 0.3);
+}
+
+.meta-import-background-notice p {
+    margin: 0;
+    font-size: 0.8125rem;
+    color: var(--text);
+}
+
+.meta-import-background-notice p:first-child {
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.meta-import-background-notice__hint {
+    color: var(--muted);
+    font-size: 0.75rem;
 }
 
 /* Meta Import Results */

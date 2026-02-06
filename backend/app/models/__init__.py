@@ -11,6 +11,7 @@ from app.models.insight import Insight
 from app.models.prompt import Prompt, PromptHelperPrompt, PromptClient
 from app.models.action import Action
 from app.models.facebook_ad import FacebookAd
+from app.models.import_job import ImportJob
 from app.models.ad_image import AdImage
 from app.models.meta_oauth_token import MetaOAuthToken
 from app.models.saved_email import SavedEmail
@@ -33,6 +34,7 @@ __all__ = [
     "PromptClient",
     "Action",
     "FacebookAd",
+    "ImportJob",
     "AdImage",
     "MetaOAuthToken",
     "SavedEmail",

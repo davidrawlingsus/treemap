@@ -1,10 +1,18 @@
 /**
  * Meta Ads Library Import Modal Module
- * Handles importing media from Meta Ads Library URLs.
+ * Handles importing media from Meta Ads Library URLs using background jobs.
  */
 
-import { importFromMetaAdsLibrary } from '/js/services/api-meta-import.js';
-import { addImageToCache } from '/js/state/images-state.js';
+import { 
+    startMetaImportJob, 
+    getImportJobStatus, 
+    getImportJobImages 
+} from '/js/services/api-meta-import.js';
+import { addImageToCache, getImagesCache } from '/js/state/images-state.js';
+
+// Store active polling intervals
+let activePollingInterval = null;
+let lastImageTimestamp = null;
 
 /**
  * Validate Meta Ads Library URL
@@ -25,6 +33,35 @@ function isValidMetaAdsLibraryUrl(url) {
 }
 
 /**
+ * Stop any active polling
+ */
+function stopPolling() {
+    if (activePollingInterval) {
+        clearInterval(activePollingInterval);
+        activePollingInterval = null;
+    }
+}
+
+/**
+ * Append a new image to the masonry grid in real-time
+ * @param {Object} image - Image data
+ */
+function appendImageToGrid(image) {
+    // Use existing appendImageToGrid if available, otherwise use renderImages
+    if (typeof window.appendImageToGrid === 'function') {
+        window.appendImageToGrid(image);
+    } else if (typeof window.renderImages === 'function') {
+        // Get current images and add this one
+        addImageToCache(image);
+        // Re-render the grid (fallback)
+        window.renderImages();
+    } else {
+        // Just add to cache - will show on refresh
+        addImageToCache(image);
+    }
+}
+
+/**
  * Show Meta Ads Library import modal
  * @param {Function} onImportComplete - Callback when import is complete
  */
@@ -36,6 +73,9 @@ export function showMetaImportModal(onImportComplete) {
         alert('Please select a client first');
         return;
     }
+    
+    // Stop any existing polling
+    stopPolling();
     
     // Create modal overlay
     const overlay = document.createElement('div');
@@ -64,8 +104,15 @@ export function showMetaImportModal(onImportComplete) {
                 </div>
                 <div class="meta-import-progress" id="metaImportProgress" style="display: none;">
                     <div class="meta-import-progress__spinner"></div>
-                    <p class="meta-import-progress__text" id="metaImportProgressText">Scanning ads library...</p>
+                    <p class="meta-import-progress__text" id="metaImportProgressText">Starting import...</p>
                     <p class="meta-import-progress__detail" id="metaImportProgressDetail"></p>
+                    <div class="meta-import-progress__bar-container" id="metaImportProgressBarContainer" style="display: none;">
+                        <div class="meta-import-progress__bar" id="metaImportProgressBar"></div>
+                    </div>
+                    <div class="meta-import-background-notice">
+                        <p>You can close this dialog - the import will continue in the background.</p>
+                        <p class="meta-import-background-notice__hint">Imported media will appear automatically as they're processed.</p>
+                    </div>
                 </div>
                 <div class="meta-import-results" id="metaImportResults" style="display: none;">
                     <div class="meta-import-results__icon">✓</div>
@@ -88,6 +135,8 @@ export function showMetaImportModal(onImportComplete) {
     const progressEl = overlay.querySelector('#metaImportProgress');
     const progressText = overlay.querySelector('#metaImportProgressText');
     const progressDetail = overlay.querySelector('#metaImportProgressDetail');
+    const progressBarContainer = overlay.querySelector('#metaImportProgressBarContainer');
+    const progressBar = overlay.querySelector('#metaImportProgressBar');
     const resultsEl = overlay.querySelector('#metaImportResults');
     const resultsText = overlay.querySelector('#metaImportResultsText');
     const footerEl = overlay.querySelector('#metaImportFooter');
@@ -108,6 +157,93 @@ export function showMetaImportModal(onImportComplete) {
         }
     });
     
+    // Track images we've already added to avoid duplicates
+    const addedImageIds = new Set();
+    
+    /**
+     * Poll for job status and new images
+     */
+    async function pollJobStatus(jobId) {
+        try {
+            const statusResponse = await getImportJobStatus(jobId);
+            const job = statusResponse.job;
+            
+            // Update progress display
+            if (job.status === 'running') {
+                progressText.textContent = 'Importing media...';
+                if (job.total_found > 0) {
+                    progressBarContainer.style.display = 'block';
+                    const percent = Math.round((job.total_imported / job.total_found) * 100);
+                    progressBar.style.width = `${percent}%`;
+                    progressDetail.textContent = `${job.total_imported} of ${job.total_found} items imported`;
+                } else {
+                    progressDetail.textContent = `${job.total_imported} items imported`;
+                }
+            } else if (job.status === 'pending') {
+                progressText.textContent = 'Connecting to Meta Ads Library...';
+                progressDetail.textContent = 'Scanning page for ads';
+            }
+            
+            // Add any new images to the grid in real-time
+            if (statusResponse.recent_images && statusResponse.recent_images.length > 0) {
+                for (const image of statusResponse.recent_images) {
+                    if (!addedImageIds.has(image.id)) {
+                        addedImageIds.add(image.id);
+                        appendImageToGrid(image);
+                    }
+                }
+            }
+            
+            // Check if complete
+            if (job.status === 'complete' || job.status === 'failed') {
+                stopPolling();
+                
+                // Ensure we have all images
+                const allImages = await getImportJobImages(jobId);
+                for (const image of allImages.items || []) {
+                    if (!addedImageIds.has(image.id)) {
+                        addedImageIds.add(image.id);
+                        appendImageToGrid(image);
+                    }
+                }
+                
+                // Show results
+                progressEl.style.display = 'none';
+                resultsEl.style.display = 'flex';
+                
+                if (job.status === 'complete') {
+                    if (job.total_imported > 0) {
+                        resultsText.textContent = `Successfully imported ${job.total_imported} media file${job.total_imported > 1 ? 's' : ''}`;
+                    } else {
+                        resultsEl.querySelector('.meta-import-results__icon').textContent = '⚠️';
+                        resultsText.textContent = 'No media found on this page';
+                    }
+                } else {
+                    resultsEl.querySelector('.meta-import-results__icon').textContent = '❌';
+                    resultsText.textContent = job.error_message || 'Import failed';
+                }
+                
+                // Update footer
+                footerEl.innerHTML = `
+                    <button class="meta-import-modal__submit" onclick="this.closest('.meta-import-overlay').remove()">Done</button>
+                `;
+                
+                // Notify caller
+                if (onImportComplete) {
+                    onImportComplete({
+                        imported: job.total_imported,
+                        total_found: job.total_found,
+                        status: job.status,
+                    });
+                }
+            }
+            
+        } catch (error) {
+            console.error('[MetaImportModal] Polling error:', error);
+            // Don't stop polling on transient errors
+        }
+    }
+    
     // Handle submit
     submitBtn.addEventListener('click', async () => {
         const url = urlInput.value.trim();
@@ -124,49 +260,46 @@ export function showMetaImportModal(onImportComplete) {
         submitBtn.disabled = true;
         submitBtn.textContent = 'Importing...';
         
+        // Update footer to allow closing while import runs
+        footerEl.innerHTML = `
+            <button class="meta-import-modal__cancel" onclick="this.closest('.meta-import-overlay').remove()">Close</button>
+        `;
+        
         try {
-            progressText.textContent = 'Connecting to Meta Ads Library...';
-            progressDetail.textContent = 'This may take a moment';
+            progressText.textContent = 'Starting import job...';
+            progressDetail.textContent = '';
             
-            const result = await importFromMetaAdsLibrary(clientId, url);
+            // Start the import job
+            const job = await startMetaImportJob(clientId, url);
             
-            // Add imported images to cache
-            if (result.media && result.media.length > 0) {
-                result.media.forEach(image => {
-                    addImageToCache(image);
-                });
+            if (!job || !job.id) {
+                throw new Error('Failed to create import job');
             }
             
-            // Show results
-            progressEl.style.display = 'none';
-            resultsEl.style.display = 'flex';
+            console.log('[MetaImportModal] Import job started:', job.id);
             
-            if (result.imported > 0) {
-                resultsText.textContent = `Successfully imported ${result.imported} media file${result.imported > 1 ? 's' : ''}`;
-            } else {
-                resultsEl.querySelector('.meta-import-results__icon').textContent = '⚠️';
-                resultsText.textContent = 'No media found on this page';
-            }
+            // Start polling for status
+            lastImageTimestamp = null;
+            activePollingInterval = setInterval(() => pollJobStatus(job.id), 2000);
             
-            // Update footer
-            footerEl.innerHTML = `
-                <button class="meta-import-modal__submit" onclick="this.closest('.meta-import-overlay').remove()">Done</button>
-            `;
-            
-            // Notify caller
-            if (onImportComplete) {
-                onImportComplete(result);
-            }
+            // Do initial poll immediately
+            await pollJobStatus(job.id);
             
         } catch (error) {
             console.error('[MetaImportModal] Import failed:', error);
             
+            stopPolling();
             progressEl.style.display = 'none';
             formEl.style.display = 'block';
-            errorEl.textContent = error.message || 'Failed to import media. Please try again.';
+            errorEl.textContent = error.message || 'Failed to start import. Please try again.';
             errorEl.style.display = 'block';
             submitBtn.disabled = false;
             submitBtn.textContent = 'Import Media';
+            
+            footerEl.innerHTML = `
+                <button class="meta-import-modal__cancel" onclick="this.closest('.meta-import-overlay').remove()">Cancel</button>
+                <button class="meta-import-modal__submit" id="metaImportSubmit">Import Media</button>
+            `;
         }
     });
     
@@ -177,16 +310,31 @@ export function showMetaImportModal(onImportComplete) {
         }
     });
     
+    // Clean up on close
+    const cleanup = () => {
+        stopPolling();
+    };
+    
     // Close on overlay click
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) {
+            cleanup();
             overlay.remove();
+        }
+    });
+    
+    // Handle close button clicks
+    overlay.addEventListener('click', (e) => {
+        if (e.target.classList.contains('meta-import-modal__close') ||
+            e.target.classList.contains('meta-import-modal__cancel')) {
+            cleanup();
         }
     });
     
     // Close on Escape
     const handleEscape = (e) => {
         if (e.key === 'Escape') {
+            cleanup();
             overlay.remove();
             document.removeEventListener('keydown', handleEscape);
         }

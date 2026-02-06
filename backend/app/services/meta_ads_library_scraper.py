@@ -1,18 +1,20 @@
 """
 Meta Ads Library Scraper Service.
 Scrapes media (images and videos) from Meta Ads Library pages using Playwright.
+Targets only ad card containers to avoid UI sprite sheets and icons.
 """
 
 import logging
 import asyncio
 import httpx
-import os
+import re
 import time
 import random
 import string
 from typing import List, Dict, Any, Optional
 from urllib.parse import urlparse, parse_qs
 from dataclasses import dataclass
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +25,8 @@ class MediaItem:
     url: str
     media_type: str  # 'image' or 'video'
     filename: Optional[str] = None
+    started_running_on: Optional[str] = None  # Date string like "Jan 15, 2024"
+    library_id: Optional[str] = None
 
 
 class MetaAdsLibraryScraper:
@@ -122,7 +126,7 @@ class MetaAdsLibraryScraper:
                     new_media = await self._extract_media_from_page(page, seen_urls)
                     media_items.extend(new_media)
                     
-                    logger.info(f"Scroll {scroll_num + 1}: Found {len(new_media)} new media items")
+                    logger.info(f"Scroll {scroll_num + 1}: Found {len(new_media)} new ad media items")
                     
                     # Scroll down
                     await page.evaluate('window.scrollBy(0, window.innerHeight * 2)')
@@ -141,7 +145,7 @@ class MetaAdsLibraryScraper:
                         media_items.extend(final_media)
                         break
                 
-                logger.info(f"Total media items found: {len(media_items)}")
+                logger.info(f"Total ad media items found: {len(media_items)}")
                 
             finally:
                 await browser.close()
@@ -150,7 +154,8 @@ class MetaAdsLibraryScraper:
     
     async def _extract_media_from_page(self, page, seen_urls: set) -> List[MediaItem]:
         """
-        Extract media URLs from the current page state.
+        Extract media URLs from ad card containers only.
+        This targets the actual ad creatives, not UI elements or sprite sheets.
         
         Args:
             page: Playwright page object
@@ -161,78 +166,219 @@ class MetaAdsLibraryScraper:
         """
         media_items = []
         
-        # Extract image URLs from ad cards
-        # Meta Ads Library uses various image containers
-        images = await page.evaluate('''
+        # Extract ad card data using card-based approach
+        # This finds each ad card container and extracts media + metadata together
+        ad_data = await page.evaluate('''
             () => {
-                const images = [];
+                const results = [];
                 
-                // Find all images in the page
-                const imgElements = document.querySelectorAll('img[src]');
-                for (const img of imgElements) {
+                // Meta Ads Library structure: ads are in a grid/list layout
+                // Look for the ad card containers - these typically have specific structure
+                // with the ad preview image/video and metadata
+                
+                // Strategy: Find all images that are likely ad creatives based on:
+                // 1. Size (ad images are typically larger than icons)
+                // 2. Parent container structure
+                // 3. Presence of nearby date/library ID elements
+                // 4. NOT from static resource paths (sprite sheets, icons)
+                
+                // Exclusion patterns for URLs we don't want
+                const excludePatterns = [
+                    '/rsrc.php/',      // Static resources
+                    '/static/',        // Static files
+                    '/emoji/',         // Emoji sprites
+                    '/images/reaction', // Reaction icons
+                    '/images/messaging', // Messaging icons
+                    'data:image/',     // Data URIs (often small icons)
+                    '/platform/',      // Platform icons
+                    '/ajax/',          // AJAX resources
+                    'sprite',          // Sprite sheets
+                    '/share_icons/',   // Share icons
+                    '/icons/',         // General icons
+                    'transparent.gif', // Tracking pixels
+                    'pixel',           // Tracking pixels
+                    '/badge/',         // Badges
+                    '/logo/',          // Logos (not ad content)
+                ];
+                
+                // Find all substantial images on the page
+                const allImages = document.querySelectorAll('img[src]');
+                
+                for (const img of allImages) {
                     const src = img.src;
-                    // Filter for ad images (usually from scontent or fbcdn)
-                    if (src && (
-                        src.includes('scontent') || 
-                        src.includes('fbcdn') ||
-                        src.includes('external')
-                    )) {
-                        // Skip tiny images (likely icons)
-                        if (img.naturalWidth > 100 || img.width > 100) {
-                            images.push({
-                                url: src,
-                                type: 'image'
-                            });
+                    if (!src) continue;
+                    
+                    // Skip excluded patterns
+                    const isExcluded = excludePatterns.some(pattern => 
+                        src.toLowerCase().includes(pattern.toLowerCase())
+                    );
+                    if (isExcluded) continue;
+                    
+                    // Must be from Meta's content delivery (scontent or fbcdn)
+                    const isMetaCDN = src.includes('scontent') || 
+                                     src.includes('fbcdn.net') ||
+                                     src.includes('xx.fbcdn');
+                    if (!isMetaCDN) continue;
+                    
+                    // Size check - ad images are typically larger
+                    // Use both natural size and display size
+                    const width = img.naturalWidth || img.width || 0;
+                    const height = img.naturalHeight || img.height || 0;
+                    if (width < 200 && height < 200) continue;
+                    
+                    // Look for ad container by walking up the DOM
+                    // Ad cards typically have specific container structure
+                    let container = img.closest('[class*="ad"], [role="article"], [data-ad-preview]');
+                    if (!container) {
+                        // Try to find a reasonable parent container
+                        container = img.parentElement?.parentElement?.parentElement;
+                    }
+                    
+                    // Try to extract metadata from nearby elements
+                    let startedRunningOn = null;
+                    let libraryId = null;
+                    
+                    if (container) {
+                        // Look for "Started running on" text
+                        const textContent = container.textContent || '';
+                        const dateMatch = textContent.match(/Started running on\\s+([A-Za-z]+\\s+\\d{1,2},?\\s+\\d{4})/i);
+                        if (dateMatch) {
+                            startedRunningOn = dateMatch[1];
+                        }
+                        
+                        // Look for library ID in links
+                        const links = container.querySelectorAll('a[href*="library"]');
+                        for (const link of links) {
+                            const href = link.href || '';
+                            const idMatch = href.match(/[?&]id=(\\d+)/);
+                            if (idMatch) {
+                                libraryId = idMatch[1];
+                                break;
+                            }
+                        }
+                        
+                        // Also try to find "See ad details" link with ID
+                        const detailsLink = container.querySelector('a[href*="ad-details"], a[aria-label*="details"]');
+                        if (detailsLink && !libraryId) {
+                            const href = detailsLink.href || '';
+                            const idMatch = href.match(/[?&]id=(\\d+)/);
+                            if (idMatch) {
+                                libraryId = idMatch[1];
+                            }
                         }
                     }
+                    
+                    results.push({
+                        url: src,
+                        type: 'image',
+                        startedRunningOn: startedRunningOn,
+                        libraryId: libraryId
+                    });
                 }
                 
-                // Find video sources
-                const videoElements = document.querySelectorAll('video source[src], video[src]');
-                for (const video of videoElements) {
-                    const src = video.src || video.getAttribute('src');
-                    if (src && (src.includes('video') || src.includes('fbcdn'))) {
-                        images.push({
-                            url: src,
-                            type: 'video'
-                        });
+                // Find videos in ad cards
+                const allVideos = document.querySelectorAll('video');
+                for (const video of allVideos) {
+                    // Get video source
+                    let src = video.src;
+                    if (!src) {
+                        const source = video.querySelector('source');
+                        src = source?.src;
                     }
-                }
-                
-                // Also check for background images in ad cards
-                const divs = document.querySelectorAll('[style*="background-image"]');
-                for (const div of divs) {
-                    const style = div.getAttribute('style') || '';
-                    const match = style.match(/url\\(['"']?([^'"')]+)['"']?\\)/);
-                    if (match && match[1] && (
-                        match[1].includes('scontent') || 
-                        match[1].includes('fbcdn')
-                    )) {
-                        images.push({
-                            url: match[1],
-                            type: 'image'
-                        });
+                    if (!src) continue;
+                    
+                    // Check if from Meta CDN
+                    const isMetaCDN = src.includes('fbcdn') || src.includes('video');
+                    if (!isMetaCDN) continue;
+                    
+                    // Get parent container for metadata
+                    let container = video.closest('[class*="ad"], [role="article"], [data-ad-preview]');
+                    if (!container) {
+                        container = video.parentElement?.parentElement?.parentElement;
                     }
+                    
+                    let startedRunningOn = null;
+                    let libraryId = null;
+                    
+                    if (container) {
+                        const textContent = container.textContent || '';
+                        const dateMatch = textContent.match(/Started running on\\s+([A-Za-z]+\\s+\\d{1,2},?\\s+\\d{4})/i);
+                        if (dateMatch) {
+                            startedRunningOn = dateMatch[1];
+                        }
+                        
+                        const links = container.querySelectorAll('a[href*="library"]');
+                        for (const link of links) {
+                            const href = link.href || '';
+                            const idMatch = href.match(/[?&]id=(\\d+)/);
+                            if (idMatch) {
+                                libraryId = idMatch[1];
+                                break;
+                            }
+                        }
+                    }
+                    
+                    results.push({
+                        url: src,
+                        type: 'video',
+                        startedRunningOn: startedRunningOn,
+                        libraryId: libraryId
+                    });
                 }
                 
-                return images;
+                return results;
             }
         ''')
         
-        for item in images:
+        for item in ad_data:
             url = item['url']
             if url not in seen_urls:
                 seen_urls.add(url)
                 media_items.append(MediaItem(
                     url=url,
-                    media_type=item['type']
+                    media_type=item['type'],
+                    started_running_on=item.get('startedRunningOn'),
+                    library_id=item.get('libraryId')
                 ))
         
         return media_items
 
 
+def parse_date_string(date_str: Optional[str]) -> Optional[datetime]:
+    """
+    Parse a date string like "Jan 15, 2024" into a datetime.
+    
+    Args:
+        date_str: Date string from Meta Ads Library
+        
+    Returns:
+        datetime or None if parsing fails
+    """
+    if not date_str:
+        return None
+    
+    # Common date formats in Meta Ads Library
+    formats = [
+        "%b %d, %Y",    # Jan 15, 2024
+        "%b %d %Y",     # Jan 15 2024
+        "%B %d, %Y",    # January 15, 2024
+        "%B %d %Y",     # January 15 2024
+        "%d %b %Y",     # 15 Jan 2024
+        "%d %B %Y",     # 15 January 2024
+    ]
+    
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_str.strip(), fmt)
+        except ValueError:
+            continue
+    
+    logger.warning(f"Could not parse date string: {date_str}")
+    return None
+
+
 async def download_and_upload_media(
-    media_url: str,
+    media_item: MediaItem,
     client_id: str,
     blob_token: str,
 ) -> Dict[str, Any]:
@@ -240,18 +386,18 @@ async def download_and_upload_media(
     Download media from URL and upload to Vercel Blob.
     
     Args:
-        media_url: URL of the media to download
+        media_item: MediaItem with URL and metadata
         client_id: Client UUID for organizing storage
         blob_token: Vercel Blob API token
         
     Returns:
-        Dict with url, filename, file_size, content_type
+        Dict with url, filename, file_size, content_type, and metadata
     """
     import vercel_blob
     
     async with httpx.AsyncClient(timeout=60.0) as client:
         # Download the media
-        response = await client.get(media_url, follow_redirects=True)
+        response = await client.get(media_item.url, follow_redirects=True)
         response.raise_for_status()
         
         content = response.content
@@ -281,9 +427,14 @@ async def download_and_upload_media(
         
         blob_url = blob.get("url") if isinstance(blob, dict) else getattr(blob, 'url', str(blob))
         
+        # Parse the date string into a datetime
+        started_running_on = parse_date_string(media_item.started_running_on)
+        
         return {
             "url": blob_url,
             "filename": filename,
             "file_size": len(content),
             "content_type": content_type,
+            "started_running_on": started_running_on,
+            "library_id": media_item.library_id,
         }

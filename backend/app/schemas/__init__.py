@@ -110,6 +110,10 @@ from .ad_image import (
     AdImageCreate,
     AdImageResponse,
     AdImageListResponse,
+    ImportJobCreate,
+    ImportJobResponse,
+    ImportJobListResponse,
+    ImportJobStatusResponse,
 )
 
 from .meta_ads import (
@@ -234,6 +238,11 @@ __all__ = [
     "AdImageCreate",
     "AdImageResponse",
     "AdImageListResponse",
+    # Import Jobs
+    "ImportJobCreate",
+    "ImportJobResponse",
+    "ImportJobListResponse",
+    "ImportJobStatusResponse",
     # Meta Ads
     "MetaOAuthInitResponse",
     "MetaTokenStatusResponse",
