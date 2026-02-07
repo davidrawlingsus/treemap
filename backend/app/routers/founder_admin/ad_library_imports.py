@@ -128,6 +128,16 @@ async def create_ad_library_import_from_url(
             status_code=400,
             detail="Invalid Meta Ads Library URL. Must include view_all_page_id parameter.",
         )
+    # Fail fast with 503 (so our app returns the response and CORS headers) if Playwright
+    # isn't available. Avoids proxy timeout 502 with no CORS when scrape runs in constrained env.
+    try:
+        from playwright.async_api import async_playwright  # noqa: F401
+    except ImportError:
+        logger.warning("Playwright not installed; Ad Library import unavailable")
+        raise HTTPException(
+            status_code=503,
+            detail="Ad Library import is not available on this server (Playwright/Chromium not installed).",
+        ) from None
     try:
         copy_items: list[AdCopyItem] = await scraper.scrape_ads_library_copy(
             body.source_url, max_scrolls=body.max_scrolls
