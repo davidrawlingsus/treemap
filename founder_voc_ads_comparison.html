@@ -364,10 +364,14 @@
             importStatus.textContent = 'Importing…';
             importCopyButton.disabled = true;
             try {
+                // #region agent log
+                const _payload = { source_url: url, max_scrolls: 5 };
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'founder_voc_ads_comparison.html:367',message:'POST ad-library-imports request',data:{clientId,url:(url||'').slice(0,200),urlLen:(url||'').length,payload:_payload},timestamp:Date.now(),hypothesisId:'H1,H2'})}).catch(()=>{});
+                // #endregion
                 const res = await fetch(`${API_BASE_URL}/api/clients/${clientId}/ad-library-imports`, {
                     method: 'POST',
                     headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ source_url: url, max_scrolls: 5 }),
+                    body: JSON.stringify(_payload),
                 });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) {

@@ -99,11 +99,31 @@ async def create_ad_library_import_from_url(
     current_user: User = Depends(get_current_active_founder),
 ):
     """Scrape ad copy from a Meta Ads Library URL and store for VOC comparison."""
+    # #region agent log
+    _log_path = "/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug.log"
+    try:
+        import json
+        _e = {"hypothesisId": "H1-H4", "location": "ad_library_imports.py:create_ad_library_import_from_url", "message": "POST ad-library-imports entry", "data": {"client_id": str(client_id), "source_url": body.source_url[:200] if body.source_url else None, "source_url_len": len(body.source_url) if body.source_url else 0, "max_scrolls": body.max_scrolls}, "timestamp": __import__("time").time() * 1000}
+        open(_log_path, "a").write(json.dumps(_e) + "\n")
+    except Exception:
+        pass
+    # #endregion
     client = db.query(Client).filter(Client.id == client_id).first()
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
     scraper = MetaAdsLibraryScraper(headless=True)
-    if not scraper.validate_url(body.source_url):
+    # #region agent log
+    _valid = scraper.validate_url(body.source_url)
+    try:
+        import json as _json
+        _parsed = __import__("urllib.parse").urlparse(body.source_url)
+        _q = __import__("urllib.parse").parse_qs(_parsed.query)
+        _e2 = {"hypothesisId": "H1,H3,H4", "location": "ad_library_imports.py:validate_url_result", "message": "validate_url result", "data": {"validate_url": _valid, "netloc": _parsed.netloc, "path": (_parsed.path or "")[:80], "has_view_all_page_id": "view_all_page_id" in _q}, "timestamp": __import__("time").time() * 1000}
+        open(_log_path, "a").write(_json.dumps(_e2) + "\n")
+    except Exception:
+        pass
+    # #endregion
+    if not _valid:
         raise HTTPException(
             status_code=400,
             detail="Invalid Meta Ads Library URL. Must include view_all_page_id parameter.",
