@@ -91,7 +91,7 @@ export function renderHistoryTable() {
     const highlightFn = highlightSearchTerms || window.highlightSearchTerms || ((text) => escapeHtmlFn(text));
     const toPascalCaseFn = toPascalCase || window.toPascalCase || ((text) => text);
 
-    const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'PPC', 'SEM', 'SERP', 'SaaS', 'B2B', 'B2C', 'GDPR', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];
+    const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'A', 'B', 'PPC', 'SEM', 'SERP', 'SaaS', 'B2B', 'B2C', 'BOFU', 'MOFU', 'TOFU', 'GDPR', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];
 
     tbody.innerHTML = filtered.map(action => {
         const createdDate = new Date(action.created_at).toLocaleDateString();
@@ -101,6 +101,7 @@ export function renderHistoryTable() {
             .replace(/-/g, ' ')
             .split(' ')
             .map(word => {
+                if (/^[Aa]&[Bb]$/.test(word)) return 'A & B';
                 const upperWord = word.toUpperCase();
                 if (abbreviations.includes(upperWord)) {
                     return upperWord;

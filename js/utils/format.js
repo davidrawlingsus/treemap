@@ -111,6 +111,9 @@ export function highlightSearchTerms(text, searchTerm, escapeHtmlFn = null) {
     return escapedText.replace(regex, '<mark class="search-highlight">$1</mark>');
 }
 
+/** Marketing/funnel abbreviations that stay uppercase in PascalCase output */
+const PASCAL_CASE_ABBREVIATIONS = new Set(['US', 'USA', 'SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'A', 'B', 'PPC', 'SEM', 'SERP', 'SaaS', 'B2B', 'B2C', 'BOFU', 'MOFU', 'TOFU', 'GDPR', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX']);
+
 /**
  * Convert text to PascalCase
  * @param {string} text - Text to convert
@@ -121,9 +124,12 @@ export function toPascalCase(text) {
     return text
         .split(/[\s_-]+/)
         .map(word => {
-            // Keep US and USA as uppercase (case-insensitive check)
+            // A&b, A&B, a&b etc. -> A & B (no spaces means it's one token)
+            if (/^[Aa]&[Bb]$/.test(word)) {
+                return 'A & B';
+            }
             const upperWord = word.toUpperCase();
-            if (upperWord === 'US' || upperWord === 'USA') {
+            if (PASCAL_CASE_ABBREVIATIONS.has(upperWord)) {
                 return upperWord;
             }
             return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();

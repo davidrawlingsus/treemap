@@ -11514,7 +11514,7 @@
                     if (prompt && prompt.name) {
                         const name = prompt.name;
                         // Common marketing abbreviations to keep in uppercase
-                        const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'PPC', 'SEM', 'SERP', 'SaaS', 'B2B', 'B2C', 'GDPR', 'CTA', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];
+                        const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'A', 'B', 'PPC', 'SEM', 'SERP', 'SaaS', 'B2B', 'B2C', 'BOFU', 'MOFU', 'TOFU', 'GDPR', 'CTA', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];
                         
                         // Replace underscores and hyphens with spaces, then apply Title Case with abbreviation preservation
                         promptName = name
@@ -11522,12 +11522,11 @@
                             .replace(/-/g, ' ')
                             .split(' ')
                             .map(word => {
-                                // Check if word (case-insensitive) matches any abbreviation
+                                if (/^[Aa]&[Bb]$/.test(word)) return 'A & B';
                                 const upperWord = word.toUpperCase();
                                 if (abbreviations.includes(upperWord)) {
                                     return upperWord;
                                 }
-                                // Apply Title Case
                                 return word.charAt(0).toUpperCase() + word.substr(1).toLowerCase();
                             })
                             .join(' ');
@@ -14349,12 +14348,13 @@
                 // Get prompt name for display
                 let promptName = 'AI Expert Output';
                 if (action.prompt_purpose) {
-                    const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'PPC', 'SEM', 'SERP', 'SaaS', 'B2B', 'B2C', 'GDPR', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];
+                    const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'A', 'B', 'PPC', 'SEM', 'SERP', 'SaaS', 'B2B', 'B2C', 'BOFU', 'MOFU', 'TOFU', 'GDPR', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];
                     promptName = action.prompt_purpose
                         .replace(/_/g, ' ')
                         .replace(/-/g, ' ')
                         .split(' ')
                         .map(word => {
+                            if (/^[Aa]&[Bb]$/.test(word)) return 'A & B';
                             const upperWord = word.toUpperCase();
                             if (abbreviations.includes(upperWord)) {
                                 return upperWord;
@@ -14757,7 +14757,7 @@
                     }
 
                     // Format prompt names with title case and abbreviation preservation
-                    const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'PPC', 'SEM', 'SERP', 'SaaS', 'B2B', 'B2C', 'GDPR', 'CTA', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];
+                    const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'A', 'B', 'PPC', 'SEM', 'SERP', 'SaaS', 'B2B', 'B2C', 'BOFU', 'MOFU', 'TOFU', 'GDPR', 'CTA', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];
                     
                     container.innerHTML = expertPrompts.map(prompt => {
                         const name = prompt.name || '';
@@ -14766,6 +14766,7 @@
                             .replace(/-/g, ' ')
                             .split(' ')
                             .map(word => {
+                                if (/^[Aa]&[Bb]$/.test(word)) return 'A & B';
                                 const upperWord = word.toUpperCase();
                                 if (abbreviations.includes(upperWord)) {
                                     return upperWord;
@@ -15078,7 +15079,7 @@
                         aiExpertSubmenu.innerHTML = prompts.map(prompt => {
                             const name = prompt.name || '';
                             // Common marketing abbreviations to keep in uppercase
-                            const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'PPC', 'SEM', 'SERP', 'SaaS', 'B2B', 'B2C', 'GDPR', 'CTA', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];
+                            const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'A', 'B', 'PPC', 'SEM', 'SERP', 'SaaS', 'B2B', 'B2C', 'BOFU', 'MOFU', 'TOFU', 'GDPR', 'CTA', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];
                             
                             // Replace underscores and hyphens with spaces, then apply Title Case with abbreviation preservation
                             const titleCaseName = name
@@ -15086,12 +15087,11 @@
                                 .replace(/-/g, ' ')
                                 .split(' ')
                                 .map(word => {
-                                    // Check if word (case-insensitive) matches any abbreviation
+                                    if (/^[Aa]&[Bb]$/.test(word)) return 'A & B';
                                     const upperWord = word.toUpperCase();
                                     if (abbreviations.includes(upperWord)) {
                                         return upperWord;
                                     }
-                                    // Apply Title Case
                                     return word.charAt(0).toUpperCase() + word.substr(1).toLowerCase();
                                 })
                                 .join(' ');
