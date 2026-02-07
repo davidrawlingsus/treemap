@@ -489,7 +489,6 @@
                 return;
             }
             const exportData = {
-                total_themes: lastComparisonResult.total_themes ?? 0,
                 ads: (lastComparisonResult.ads || []).map(ad => ({
                     id: ad.id,
                     headline: ad.headline ?? null,
@@ -497,15 +496,6 @@
                     description: ad.description ?? null,
                     resonance_score: ad.resonance_score,
                     resonance_label: ad.resonance_label,
-                    themes_hit_count: (ad.themes_hit || []).length,
-                    themes_hit: ad.themes_hit || [],
-                    themes_missed: ad.themes_missed || [],
-                })),
-                overlooked_themes: (lastComparisonResult.overlooked_themes || []).map(t => ({
-                    category: t.category,
-                    topic_label: t.topic_label,
-                    verbatim_count: t.verbatim_count,
-                    sample_verbatims: t.sample_verbatims || [],
                 })),
             };
             const jsonString = JSON.stringify(exportData, null, 2);
