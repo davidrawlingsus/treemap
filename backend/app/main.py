@@ -18,6 +18,7 @@ import hashlib
 from uuid import UUID
 from pathlib import Path
 from urllib.parse import quote, urlparse
+import re
 import logging
 from dotenv import load_dotenv
 
@@ -180,6 +181,12 @@ app.add_middleware(
 )
 
 
+# Same regex as CORSMiddleware so safeguard allows *.mapthegap.ai, *.railway.app, localhost
+_CORS_ORIGIN_REGEX = re.compile(
+    r"^https?://(.*\.up\.railway\.app|.*\.mapthegap\.ai|localhost|127\.0\.0\.1)(:\d+)?$"
+)
+
+
 class EnsureCORSHeadersMiddleware(BaseHTTPMiddleware):
     """Ensure CORS headers are on every response for allowed origins (safeguard for proxies/error paths)."""
 
@@ -187,10 +194,17 @@ class EnsureCORSHeadersMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self._allowed = set(allowed_origins)
 
+    def _origin_allowed(self, origin: str) -> bool:
+        if not origin:
+            return False
+        if origin in self._allowed:
+            return True
+        return bool(_CORS_ORIGIN_REGEX.match(origin))
+
     async def dispatch(self, request: StarletteRequest, call_next):
         response = await call_next(request)
         origin = request.headers.get("origin")
-        if not origin or origin not in self._allowed:
+        if not self._origin_allowed(origin):
             return response
         if not response.headers.get("access-control-allow-origin"):
             response.headers["access-control-allow-origin"] = origin
