@@ -1,6 +1,9 @@
 """
 Authentication routes.
 """
+import json
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
@@ -9,6 +12,18 @@ from urllib.parse import quote
 import logging
 
 from app.database import get_db
+
+# #region agent log
+_DEBUG_LOG_PATH = Path(__file__).resolve().parents[3] / ".cursor" / "debug.log"
+
+def _agent_log(location: str, message: str, data: dict, hypothesis_id: str) -> None:
+    try:
+        _DEBUG_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(_DEBUG_LOG_PATH, "a") as f:
+            f.write(json.dumps({"location": location, "message": message, "data": data, "hypothesisId": hypothesis_id, "timestamp": __import__("time").time() * 1000}) + "\n")
+    except Exception:
+        pass
+# #endregion
 from app.models import User, Membership, AuthorizedDomain, AuthorizedEmail, Client
 from app.schemas import Token, UserLogin, MagicLinkRequest, MagicLinkVerifyRequest, ImpersonateRequest, UserWithClients, ClientResponse
 from app.config import get_settings
@@ -135,6 +150,9 @@ def request_magic_link(payload: MagicLinkRequest, db: Session = Depends(get_db))
     1. Belong to an authorized domain mapped to at least one client, OR
     2. Be an individually authorized email mapped to at least one client
     """
+    # #region agent log
+    _agent_log("auth.py:request_magic_link", "entry", {"emailRedacted": payload.email.strip()[:3] + "***" if payload.email else None}, "H5")
+    # #endregion
     settings = get_settings()
     email = payload.email.strip().lower()
     if not email or "@" not in email:
@@ -248,22 +266,6 @@ def request_magic_link(payload: MagicLinkRequest, db: Session = Depends(get_db))
             membership.provisioning_method = membership.provisioning_method or "magic_link"
             membership.joined_at = membership.joined_at or now
 
-    email_service = build_email_service(settings)
-    if not email_service.is_configured():
-        missing_config = []
-        if not settings.resend_api_key:
-            missing_config.append("RESEND_API_KEY")
-        if not settings.resend_from_email:
-            missing_config.append("RESEND_FROM_EMAIL")
-        logger.error(
-            "Resend is not configured. Missing configuration: %s",
-            ", ".join(missing_config) if missing_config else "unknown",
-        )
-        raise HTTPException(
-            status_code=500,
-            detail="Email service is not configured. Please contact support.",
-        )
-
     redirect_path = settings.magic_link_redirect_path.lstrip("/")
     base_url = settings.frontend_base_url.rstrip("/")
     if redirect_path:
@@ -282,6 +284,45 @@ def request_magic_link(payload: MagicLinkRequest, db: Session = Depends(get_db))
             detail="Failed to generate magic link. Please try again.",
         ) from exc
 
+    # #region agent log
+    _agent_log("auth.py:request_magic_link", "after_commit", {"environment": settings.environment, "magic_link_dev_log": getattr(settings, "magic_link_dev_log", False)}, "H5,H3")
+    # #endregion
+    # Local dev: log magic link to console instead of sending email (no Resend required)
+    if settings.environment == "development" and getattr(settings, "magic_link_dev_log", False):
+        logger.warning(
+            "[DEV] Magic link (email not sent). Copy this URL to sign in: %s",
+            magic_link_url,
+        )
+        print("\n" + "=" * 60)
+        print("[DEV] Magic link requested for:", email)
+        print("Copy this URL into your browser to sign in:")
+        print(magic_link_url)
+        print("=" * 60 + "\n")
+        return {
+            "message": "Magic link sent. Please check your email.",
+            "expires_at": expires_at,
+        }
+
+    email_service = build_email_service(settings)
+    is_configured = email_service.is_configured()
+    # #region agent log
+    _agent_log("auth.py:request_magic_link", "email_service_check", {"is_configured": is_configured, "has_resend_key": bool(settings.resend_api_key), "has_from_email": bool(settings.resend_from_email)}, "H3")
+    # #endregion
+    if not is_configured:
+        missing_config = []
+        if not settings.resend_api_key:
+            missing_config.append("RESEND_API_KEY")
+        if not settings.resend_from_email:
+            missing_config.append("RESEND_FROM_EMAIL")
+        logger.error(
+            "Resend is not configured. Missing configuration: %s",
+            ", ".join(missing_config) if missing_config else "unknown",
+        )
+        raise HTTPException(
+            status_code=500,
+            detail="Email service is not configured. Please contact support.",
+        )
+
     email_params = MagicLinkEmailParams(
         to_email=email,
         magic_link=magic_link_url,
@@ -289,14 +330,18 @@ def request_magic_link(payload: MagicLinkRequest, db: Session = Depends(get_db))
         expires_at=expires_at,
     )
 
+    # #region agent log
+    _agent_log("auth.py:request_magic_link", "before_send_magic_link_email", {}, "H2")
+    # #endregion
     try:
         email_service.send_magic_link_email(email_params)
     except RuntimeError as exc:
+        # #region agent log
+        _agent_log("auth.py:request_magic_link", "resend_failed", {"excType": type(exc).__name__, "excMessage": str(exc)}, "H2")
+        # #endregion
         logger.exception("Unable to send magic-link email to %s", email)
-        raise HTTPException(
-            status_code=502,
-            detail="Unable to send the magic link email. Please try again later.",
-        ) from exc
+        detail = str(exc) if exc.args else "Unable to send the magic link email. Please try again later."
+        raise HTTPException(status_code=502, detail=detail) from exc
 
     return {
         "message": "Magic link sent. Please check your email.",

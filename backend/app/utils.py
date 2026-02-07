@@ -65,12 +65,22 @@ def extract_origin(url: str | None) -> Optional[str]:
     return None
 
 
+def _clean_env_email(value):
+    """Strip and remove trailing # comment so .env line concatenation doesn't break Resend."""
+    if value is None:
+        return None
+    s = (value or "").strip()
+    if "#" in s:
+        s = s.split("#", 1)[0].strip()
+    return s or None
+
+
 def build_email_service(settings):
     """Instantiate an EmailService based on current settings."""
     return EmailService(
-        api_key=settings.resend_api_key,
-        from_email=settings.resend_from_email,
-        reply_to_email=settings.resend_reply_to_email,
+        api_key=(settings.resend_api_key or "").strip() or None,
+        from_email=_clean_env_email(settings.resend_from_email),
+        reply_to_email=_clean_env_email(settings.resend_reply_to_email),
     )
 
 

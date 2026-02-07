@@ -1,13 +1,27 @@
+import json
 import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
 from typing import List, Optional
 
 import requests
 
 
 logger = logging.getLogger(__name__)
+
+# #region agent log
+_DEBUG_LOG_PATH = Path(__file__).resolve().parents[3] / ".cursor" / "debug.log"
+
+def _agent_log(location: str, message: str, data: dict, hypothesis_id: str) -> None:
+    try:
+        _DEBUG_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        with open(_DEBUG_LOG_PATH, "a") as f:
+            f.write(json.dumps({"location": location, "message": message, "data": data, "hypothesisId": hypothesis_id, "timestamp": time.time() * 1000}) + "\n")
+    except Exception:
+        pass
+# #endregion
 
 
 @dataclass
@@ -29,13 +43,39 @@ class EmailService:
         from_email: Optional[str],
         reply_to_email: Optional[str] = None,
     ) -> None:
-        self.api_key = api_key
-        self.from_email = from_email
-        self.reply_to_email = reply_to_email
+        self.api_key = (api_key or "").strip() or None
+        raw_from = (from_email or "").strip() or None
+        self.from_email = _normalize_resend_from(raw_from)
+        self.reply_to_email = (reply_to_email or "").strip() or None
 
     def is_configured(self) -> bool:
         """Return True when the Resend client can send emails."""
         return bool(self.api_key and self.from_email)
+
+
+def _normalize_resend_from(value: Optional[str]) -> Optional[str]:
+    """
+    Normalize RESEND_FROM_EMAIL so Resend accepts it.
+    Resend expects: 'email@example.com' or 'Name <email@example.com>'.
+    Handles whitespace/newlines and 'Name email@example.com' -> 'Name <email@example.com>'.
+    """
+    if not value or not value.strip():
+        return None
+    value = value.strip()
+    if "<" in value and ">" in value:
+        return value
+    if "@" in value:
+        part = value.split("@", 1)
+        if len(part) == 2 and part[0].strip() and part[1].strip():
+            left = part[0].strip()
+            right = part[1].strip()
+            if " " in left:
+                display_name = left.rsplit(" ", 1)[0].strip()
+                local = left.rsplit(" ", 1)[-1].strip()
+                if local and display_name:
+                    return f"{display_name} <{local}@{right}>"
+            return f"{left}@{right}"
+    return value
 
     def send_magic_link_email(self, params: MagicLinkEmailParams) -> None:
         """
@@ -44,6 +84,9 @@ class EmailService:
         Raises:
             RuntimeError: When the email fails to send.
         """
+        # #region agent log
+        _agent_log("email.py:send_magic_link_email", "entry", {"is_configured": self.is_configured(), "to_email_redacted": params.to_email[:3] + "***" if params.to_email else None}, "H3,H2")
+        # #endregion
         if not self.is_configured():
             logger.warning(
                 "EmailService is not configured; skipping magic-link email for %s",
@@ -117,8 +160,13 @@ class EmailService:
         # Generate a unique message ID for tracking
         message_id = f"magic-link-{int(time.time())}-{hash(params.to_email) % 10000}"
 
+        # Clean 'from' so Resend never sees newlines/control chars (env can have trailing \\n)
+        from_value = (self.from_email or "").replace("\r", "").replace("\n", "").strip()
+        if not from_value:
+            raise RuntimeError("Email 'from' address is empty after cleaning.")
+
         payload = {
-            "from": self.from_email,
+            "from": from_value,
             "to": [params.to_email],
             "subject": subject,
             "html": html_body,
@@ -133,9 +181,12 @@ class EmailService:
         }
 
         if self.reply_to_email:
-            payload["reply_to"] = self.reply_to_email
+            payload["reply_to"] = (self.reply_to_email or "").replace("\r", "").replace("\n", "").strip()
 
         try:
+            # #region agent log
+            _agent_log("email.py:send_magic_link_email", "resend_post_start", {"from_repr": repr(from_value), "from_len": len(from_value)}, "H2")
+            # #endregion
             response = requests.post(
                 "https://api.resend.com/emails",
                 headers={
@@ -145,13 +196,37 @@ class EmailService:
                 json=payload,
                 timeout=10,
             )
+            # #region agent log
+            _agent_log("email.py:send_magic_link_email", "resend_post_response", {"status_code": response.status_code, "ok": response.ok}, "H2")
+            # #endregion
             response.raise_for_status()
         except requests.RequestException as exc:
+            res = getattr(exc, "response", None)
+            status_code = res.status_code if res is not None else None
+            resend_message = None
+            if res is not None:
+                try:
+                    body = res.json()
+                    resend_message = body.get("message") or body.get("msg") or (body.get("name") and str(body))
+                except Exception:
+                    try:
+                        resend_message = (res.text or "").strip()[:500]
+                    except Exception:
+                        pass
+            # #region agent log
+            _agent_log("email.py:send_magic_link_email", "resend_post_error", {"excType": type(exc).__name__, "excMessage": str(exc), "response_status_code": status_code, "resend_message": resend_message}, "H2")
+            # #endregion
             logger.error(
-                "Failed to send magic-link email to %s: %s",
+                "Failed to send magic-link email to %s: %s (Resend: %s)",
                 params.to_email,
                 exc,
+                resend_message,
             )
-            raise RuntimeError("Failed to send magic-link email") from exc
+            user_message = "Unable to send the magic link email."
+            if resend_message:
+                user_message = f"{user_message} {resend_message}"
+            else:
+                user_message = f"{user_message} Please try again later."
+            raise RuntimeError(user_message) from exc
 
 

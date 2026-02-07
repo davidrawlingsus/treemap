@@ -54,6 +54,10 @@ def write_debug_log(data: dict) -> None:
         logger = logging.getLogger(__name__)
         logger.debug(f"Failed to write debug log: {e}")
 
+# Load backend/.env so Resend etc. come from the right file regardless of cwd
+_env_file = PROJECT_ROOT / ".env"
+if _env_file.exists():
+    load_dotenv(_env_file, override=False)
 if LOCAL_ENV_FILE.exists():
     load_dotenv(LOCAL_ENV_FILE, override=True)
 
@@ -72,6 +76,10 @@ class Settings(BaseSettings):
     magic_link_rate_limit_seconds: int = Field(default=120)  # 2 minutes
     frontend_base_url: str = Field(default="http://localhost:3000")
     magic_link_redirect_path: str = Field(default="/magic-login")
+    magic_link_dev_log: bool = Field(
+        default=False,
+        description="When true and ENVIRONMENT=development, log magic link to console instead of sending email.",
+    )
     resend_api_key: str | None = Field(default=None)
     resend_from_email: str | None = Field(default=None)
     resend_reply_to_email: str | None = Field(default=None)

@@ -99,6 +99,22 @@ curl -X POST "http://localhost:8000/api/data-sources/upload" \
    - Treemap visualization rendering
    - Interactive charts below
 
+## Magic link (login) locally
+
+To sign in with a magic link without configuring Resend email:
+
+1. In `backend/.env` (or `.env.local`), set:
+   ```bash
+   ENVIRONMENT=development
+   MAGIC_LINK_DEV_LOG=true
+   ```
+2. Restart the backend.
+3. On the login screen, enter an email that is authorized (see founder admin for authorized domains/emails).
+4. Click "Send Magic Link". The backend will **not** send an email; it will print the magic link in the **backend terminal**.
+5. Copy the printed URL from the terminal and open it in your browser to sign in.
+
+**502 "Unable to send the magic link email"** means the backend tried to send email (e.g. via Resend) and it failed. Use `MAGIC_LINK_DEV_LOG=true` as above to avoid sending email locally.
+
 ## Troubleshooting
 
 **"Error loading data: Failed to fetch"**
