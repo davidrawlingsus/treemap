@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
+from starlette.responses import Response
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import text, or_, func, inspect, MetaData, Table, Column as SAColumn, Integer, String, DateTime
@@ -202,8 +203,20 @@ class EnsureCORSHeadersMiddleware(BaseHTTPMiddleware):
         return bool(_CORS_ORIGIN_REGEX.match(origin))
 
     async def dispatch(self, request: StarletteRequest, call_next):
-        response = await call_next(request)
         origin = request.headers.get("origin")
+        # Handle OPTIONS preflight ourselves so it always gets CORS headers (avoids proxy stripping).
+        if request.method == "OPTIONS" and self._origin_allowed(origin):
+            return Response(
+                status_code=200,
+                headers={
+                    "access-control-allow-origin": origin,
+                    "access-control-allow-credentials": "true",
+                    "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+                    "access-control-allow-headers": "*",
+                    "access-control-max-age": "86400",
+                },
+            )
+        response = await call_next(request)
         if not self._origin_allowed(origin):
             return response
         if not response.headers.get("access-control-allow-origin"):

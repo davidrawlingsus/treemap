@@ -364,23 +364,37 @@
             importStatus.textContent = 'Importing…';
             importCopyButton.disabled = true;
             try {
-                // #region agent log
-                const _payload = { source_url: url, max_scrolls: 5 };
-                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'founder_voc_ads_comparison.html:367',message:'POST ad-library-imports request',data:{clientId,url:(url||'').slice(0,200),urlLen:(url||'').length,payload:_payload},timestamp:Date.now(),hypothesisId:'H1,H2'})}).catch(()=>{});
-                // #endregion
                 const res = await fetch(`${API_BASE_URL}/api/clients/${clientId}/ad-library-imports`, {
                     method: 'POST',
                     headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-                    body: JSON.stringify(_payload),
+                    body: JSON.stringify({ source_url: url, max_scrolls: 5 }),
                 });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) {
                     importStatus.textContent = data.detail || `Error ${res.status}`;
                     return;
                 }
-                const count = (data.ads || []).length;
-                importStatus.textContent = `Imported ${count} ads.`;
-                loadImports();
+                if (res.status === 202) {
+                    importStatus.textContent = data.message || 'Import started. Refresh the list in 1–2 minutes.';
+                    loadImports();
+                    const pollCount = 12;
+                    const pollMs = 10000;
+                    for (let i = 0; i < pollCount; i++) {
+                        await new Promise(r => setTimeout(r, pollMs));
+                        const prevCount = (importSelect.options.length - 1) || 0;
+                        await loadImports();
+                        const newCount = (importSelect.options.length - 1) || 0;
+                        if (newCount > prevCount) {
+                            importStatus.textContent = `New import ready (${newCount} total).`;
+                            break;
+                        }
+                        importStatus.textContent = `Import in progress… (${i + 1}/${pollCount} checks)`;
+                    }
+                } else {
+                    const count = (data.ads || []).length;
+                    importStatus.textContent = `Imported ${count} ads.`;
+                    loadImports();
+                }
             } catch (e) {
                 importStatus.textContent = 'Import failed.';
                 console.error(e);

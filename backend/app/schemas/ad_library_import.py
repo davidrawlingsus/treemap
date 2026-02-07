@@ -52,6 +52,12 @@ class AdLibraryImportListResponse(BaseModel):
     total: int
 
 
+class AdLibraryImportStartedResponse(BaseModel):
+    """Response when import is started in the background (202)."""
+    status: str = "started"
+    message: str = "Import started. This may take 1–2 minutes. Refresh the list to see the new import."
+
+
 class AdLibraryImportFromUrlRequest(BaseModel):
     """Request to import ad copy from a Meta Ads Library URL."""
     source_url: str = Field(..., description="Meta Ads Library URL with view_all_page_id")
