@@ -1,6 +1,8 @@
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request as StarletteRequest
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import text, or_, func, inspect, MetaData, Table, Column as SAColumn, Integer, String, DateTime
@@ -176,6 +178,27 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+class EnsureCORSHeadersMiddleware(BaseHTTPMiddleware):
+    """Ensure CORS headers are on every response for allowed origins (safeguard for proxies/error paths)."""
+
+    def __init__(self, app, allowed_origins: list[str]):
+        super().__init__(app)
+        self._allowed = set(allowed_origins)
+
+    async def dispatch(self, request: StarletteRequest, call_next):
+        response = await call_next(request)
+        origin = request.headers.get("origin")
+        if not origin or origin not in self._allowed:
+            return response
+        if not response.headers.get("access-control-allow-origin"):
+            response.headers["access-control-allow-origin"] = origin
+            response.headers["access-control-allow-credentials"] = "true"
+        return response
+
+
+app.add_middleware(EnsureCORSHeadersMiddleware, allowed_origins=all_cors_origins)
 
 # Include static file serving router
 from app.routers import static
