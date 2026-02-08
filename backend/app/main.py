@@ -4,7 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request as StarletteRequest
 from starlette.responses import Response
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import text, or_, func, inspect, MetaData, Table, Column as SAColumn, Integer, String, DateTime
 from sqlalchemy.exc import IntegrityError
@@ -126,6 +126,22 @@ if cors_allow_origins:
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Visualizd API", version="0.1.0")
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: StarletteRequest, exc: Exception):
+    """Return 500 with CORS headers so the client sees the error instead of CORS block."""
+    logger.exception("Unhandled exception: %s", exc)
+    origin = request.headers.get("origin") or ""
+    headers = {}
+    if origin and re.match(r"^https?://(.*\.up\.railway\.app|.*\.mapthegap\.ai|localhost|127\.0\.0\.1)(:\d+)?$", origin):
+        headers["access-control-allow-origin"] = origin
+        headers["access-control-allow-credentials"] = "true"
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error. Check server logs."},
+        headers=headers,
+    )
 
 
 @app.on_event("startup")

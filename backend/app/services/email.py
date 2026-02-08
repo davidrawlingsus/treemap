@@ -52,31 +52,6 @@ class EmailService:
         """Return True when the Resend client can send emails."""
         return bool(self.api_key and self.from_email)
 
-
-def _normalize_resend_from(value: Optional[str]) -> Optional[str]:
-    """
-    Normalize RESEND_FROM_EMAIL so Resend accepts it.
-    Resend expects: 'email@example.com' or 'Name <email@example.com>'.
-    Handles whitespace/newlines and 'Name email@example.com' -> 'Name <email@example.com>'.
-    """
-    if not value or not value.strip():
-        return None
-    value = value.strip()
-    if "<" in value and ">" in value:
-        return value
-    if "@" in value:
-        part = value.split("@", 1)
-        if len(part) == 2 and part[0].strip() and part[1].strip():
-            left = part[0].strip()
-            right = part[1].strip()
-            if " " in left:
-                display_name = left.rsplit(" ", 1)[0].strip()
-                local = left.rsplit(" ", 1)[-1].strip()
-                if local and display_name:
-                    return f"{display_name} <{local}@{right}>"
-            return f"{left}@{right}"
-    return value
-
     def send_magic_link_email(self, params: MagicLinkEmailParams) -> None:
         """
         Send a magic-link email to the user.
@@ -230,3 +205,26 @@ def _normalize_resend_from(value: Optional[str]) -> Optional[str]:
             raise RuntimeError(user_message) from exc
 
 
+def _normalize_resend_from(value: Optional[str]) -> Optional[str]:
+    """
+    Normalize RESEND_FROM_EMAIL so Resend accepts it.
+    Resend expects: 'email@example.com' or 'Name <email@example.com>'.
+    Handles whitespace/newlines and 'Name email@example.com' -> 'Name <email@example.com>'.
+    """
+    if not value or not value.strip():
+        return None
+    value = value.strip()
+    if "<" in value and ">" in value:
+        return value
+    if "@" in value:
+        part = value.split("@", 1)
+        if len(part) == 2 and part[0].strip() and part[1].strip():
+            left = part[0].strip()
+            right = part[1].strip()
+            if " " in left:
+                display_name = left.rsplit(" ", 1)[0].strip()
+                local = left.rsplit(" ", 1)[-1].strip()
+                if local and display_name:
+                    return f"{display_name} <{local}@{right}>"
+            return f"{left}@{right}"
+    return value
