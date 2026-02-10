@@ -94,6 +94,12 @@ def run_voc_ads_comparison(
                     "primary_text": ad.primary_text or "",
                     "headline": ad.headline or "",
                     "description": ad.description or "",
+                    "ad_delivery_start_time": ad.ad_delivery_start_time,
+                    "ad_delivery_end_time": ad.ad_delivery_end_time,
+                    "ad_format": ad.ad_format,
+                    "cta": ad.cta,
+                    "destination_url": ad.destination_url,
+                    "media_thumbnail_url": ad.media_thumbnail_url,
                 })
         elif ad_source == "both" and not ads:
             raise HTTPException(

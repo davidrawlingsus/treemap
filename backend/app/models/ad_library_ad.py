@@ -7,7 +7,7 @@ from app.database import Base
 
 
 class AdLibraryAd(Base):
-    """Single ad copy row from an Ad Library import (for VOC comparison)."""
+    """Single ad copy row from an Ad Library import (for VOC comparison / Hook Wall)."""
     __tablename__ = "ad_library_ads"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -17,6 +17,13 @@ class AdLibraryAd(Base):
     description = Column(Text, nullable=True)
     library_id = Column(String(100), nullable=True)
     started_running_on = Column(String(100), nullable=True)  # e.g. "Jan 15, 2024"
+    # Extended: timeline, format, CTA, thumbnail
+    ad_delivery_start_time = Column(String(100), nullable=True)  # e.g. "Jun 29, 2024"
+    ad_delivery_end_time = Column(String(100), nullable=True)   # e.g. "Jul 15, 2024" or null if active
+    ad_format = Column(String(50), nullable=True)                 # video | image | carousel
+    cta = Column(String(200), nullable=True)                      # CTA button/link text
+    destination_url = Column(Text, nullable=True)                # decoded landing URL
+    media_thumbnail_url = Column(Text, nullable=True)            # poster or first image for Hook Wall
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships

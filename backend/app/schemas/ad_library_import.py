@@ -8,7 +8,7 @@ from uuid import UUID
 
 
 class AdLibraryAdResponse(BaseModel):
-    """Single ad from an Ad Library import."""
+    """Single ad from an Ad Library import (copy + timeline, format, CTA, thumbnail)."""
     id: UUID
     import_id: UUID
     primary_text: str
@@ -16,6 +16,12 @@ class AdLibraryAdResponse(BaseModel):
     description: Optional[str] = None
     library_id: Optional[str] = None
     started_running_on: Optional[str] = None
+    ad_delivery_start_time: Optional[str] = None
+    ad_delivery_end_time: Optional[str] = None
+    ad_format: Optional[str] = None  # video | image | carousel
+    cta: Optional[str] = None
+    destination_url: Optional[str] = None
+    media_thumbnail_url: Optional[str] = None
     created_at: datetime
 
     class Config:

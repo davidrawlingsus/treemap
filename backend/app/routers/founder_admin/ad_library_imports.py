@@ -47,6 +47,12 @@ async def _run_import_background(client_id: UUID, source_url: str, max_scrolls: 
                 description=item.description,
                 library_id=item.library_id,
                 started_running_on=item.started_running_on,
+                ad_delivery_start_time=item.ad_delivery_start_time,
+                ad_delivery_end_time=item.ad_delivery_end_time,
+                ad_format=item.ad_format,
+                cta=item.cta,
+                destination_url=item.destination_url,
+                media_thumbnail_url=item.media_thumbnail_url,
             )
             db.add(ad)
         db.commit()

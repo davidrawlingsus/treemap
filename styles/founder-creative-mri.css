@@ -1,0 +1,179 @@
+/* Creative MRI page: setup panel, report summary, ad cards */
+.mri-panel {
+  max-width: 900px;
+}
+.mri-panel label {
+  display: block;
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+.mri-panel select {
+  width: 100%;
+  max-width: 480px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+}
+.mri-panel .form-row {
+  margin-bottom: 16px;
+}
+.mri-results {
+  margin-top: 24px;
+}
+.mri-loading {
+  padding: 32px 24px;
+  text-align: center;
+  color: var(--muted, #718096);
+}
+.mri-loading--active {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+}
+.mri-loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid var(--border, #e2e8f0);
+  border-top-color: var(--brand-color, #b9f040);
+  border-radius: 50%;
+  animation: mri-spin 1s linear infinite;
+  margin-bottom: 16px;
+}
+@keyframes mri-spin {
+  to { transform: rotate(360deg); }
+}
+.mri-loading-title {
+  font-weight: 600;
+  color: var(--text, #1a202c);
+  margin: 0 0 8px 0;
+}
+.mri-loading-detail {
+  font-size: 13px;
+  margin: 0;
+  max-width: 360px;
+}
+
+/* Charts */
+.mri-charts {
+  display: grid;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+@media (min-width: 640px) {
+  .mri-charts {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (min-width: 960px) {
+  .mri-charts {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.mri-chart {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  padding: 16px;
+}
+.mri-chart-title {
+  margin: 0 0 12px 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text, #1a202c);
+}
+.mri-chart-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mri-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.mri-bar-label {
+  flex: 0 0 120px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text, #1a202c);
+}
+.mri-bar-track {
+  flex: 1;
+  min-width: 0;
+  height: 20px;
+  background: var(--bg, #f5f7fb);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.mri-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--brand-color, #b9f040);
+  transition: width 0.3s ease;
+}
+.mri-bar-fill--hook { background: #74c7e8; }
+.mri-bar-fill--funnel { background: #6fd4a1; }
+.mri-bar-value {
+  flex: 0 0 36px;
+  text-align: right;
+  font-weight: 600;
+  color: var(--muted, #718096);
+}
+.mri-summary {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.mri-summary h3 {
+  margin: 0 0 12px 0;
+  font-size: 1rem;
+}
+.mri-summary .score {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text, #1a202c);
+}
+.mri-summary ul {
+  margin: 0;
+  padding-left: 20px;
+}
+.mri-summary li {
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.mri-ad-card {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 12px;
+}
+.mri-ad-card .headline {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.mri-ad-card .angle {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.mri-ad-card .hook-phrase {
+  font-size: 13px;
+  font-style: italic;
+  margin-bottom: 8px;
+}
+.mri-ad-card .what-to-change {
+  font-size: 12px;
+  color: var(--danger, #e53e3e);
+  margin-top: 8px;
+}
+.mri-ad-card .what-to-change ul {
+  margin: 4px 0 0 0;
+  padding-left: 18px;
+}

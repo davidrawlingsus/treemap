@@ -106,7 +106,7 @@ def run_comparison(
             label = "medium"
         else:
             label = "high"
-        results_ads.append({
+        out = {
             "id": str(ad_id) if ad_id is not None else None,
             "resonance_score": round(score, 4),
             "resonance_label": label,
@@ -115,7 +115,11 @@ def run_comparison(
             "headline": headline[:200] if headline else None,
             "primary_text": primary,
             "description": description,
-        })
+        }
+        for key in ("ad_delivery_start_time", "ad_delivery_end_time", "ad_format", "cta", "destination_url", "media_thumbnail_url"):
+            if ad.get(key) is not None:
+                out[key] = ad[key]
+        results_ads.append(out)
 
     # Overlooked = themes that no ad hit
     hit_by_any = set()

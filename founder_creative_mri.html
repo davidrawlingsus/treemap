@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Founder Tools – Creative MRI</title>
+    <link rel="icon" href="/images/favicon.png" type="image/png">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles/founder-admin.css">
+    <link rel="stylesheet" href="/styles/founder-creative-mri.css">
+    <script src="/config.js"></script>
+    <script src="/auth.js"></script>
+</head>
+<body>
+    <div id="loginOverlay" class="login-overlay hidden">
+        <div class="login-container">
+            <div id="loginFormSection">
+                <h2>Sign in</h2>
+                <p class="login-subtext">Enter your work email and we'll email you a secure magic link.</p>
+                <input type="email" id="loginEmail" placeholder="you@company.com" autocomplete="email">
+                <button id="loginButton" type="button">Send Magic Link</button>
+                <div id="loginError" class="login-error"></div>
+                <div id="loginSuccess" class="login-success"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="appShell" style="display: none;">
+        <header>
+            <div>
+                <nav class="breadcrumbs">
+                    <a href="/founder_admin.html">Founder Admin</a>
+                    <span class="breadcrumbs-separator">›</span>
+                    <span>Creative MRI</span>
+                </nav>
+                <h1>Creative MRI</h1>
+                <div class="subtitle">Copy-based effectiveness diagnostics: hook, funnel, proof, offer analysis with Claude.</div>
+            </div>
+            <div class="founder-meta">
+                <span id="founderEmail"></span>
+                <button class="btn btn-secondary" id="logoutButton">Logout</button>
+            </div>
+        </header>
+
+        <main>
+            <div class="panel mri-panel">
+                <h2>Setup</h2>
+                <div class="form-row">
+                    <label for="clientSelect">Client</label>
+                    <select id="clientSelect">
+                        <option value="">Select a client</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label for="importSelect">Ad Library import</label>
+                    <select id="importSelect">
+                        <option value="">Use latest import</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <button class="btn btn-primary" id="runReportButton">Run report</button>
+                </div>
+            </div>
+
+            <div class="panel mri-results" id="mriResults" style="display: none;">
+                <h2>Report</h2>
+                <p class="muted" style="font-size: 13px; margin-bottom: 12px;" id="mriLabel">Copy-based effectiveness diagnostics.</p>
+                <div id="mriLoading" class="mri-loading mri-loading--active" style="display: none;">
+                    <div class="mri-loading-spinner" aria-hidden="true"></div>
+                    <p class="mri-loading-title">Running report…</p>
+                    <p class="mri-loading-detail">Claude analyzes each ad for hook, angle, and copy edits. This can take 1–2 minutes for many ads.</p>
+                </div>
+                <div id="mriContent" style="display: none;">
+                    <div class="mri-summary" id="mriSummary"></div>
+                    <h3>Charts</h3>
+                    <div class="mri-charts">
+                        <div class="mri-chart" id="mriChartSubscores">
+                            <h4 class="mri-chart-title">Subscores (average)</h4>
+                            <div class="mri-chart-bars" id="mriChartSubscoresBars"></div>
+                        </div>
+                        <div class="mri-chart" id="mriChartHooks">
+                            <h4 class="mri-chart-title">Hook type distribution</h4>
+                            <div class="mri-chart-bars" id="mriChartHooksBars"></div>
+                        </div>
+                        <div class="mri-chart" id="mriChartFunnel">
+                            <h4 class="mri-chart-title">Funnel stage distribution</h4>
+                            <div class="mri-chart-bars" id="mriChartFunnelBars"></div>
+                        </div>
+                    </div>
+                    <h3>Ads</h3>
+                    <div id="mriAdsList"></div>
+                </div>
+                <div id="mriEmpty" class="mri-loading" style="display: none;">Run a report to see results.</div>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+
+        function getAuthHeaders() {
+            if (typeof window.Auth !== 'undefined' && typeof window.Auth.getAuthHeaders === 'function') {
+                return window.Auth.getAuthHeaders();
+            }
+            return {};
+        }
+
+        const clientSelect = document.getElementById('clientSelect');
+        const importSelect = document.getElementById('importSelect');
+        const runReportButton = document.getElementById('runReportButton');
+        const mriResults = document.getElementById('mriResults');
+        const mriLoading = document.getElementById('mriLoading');
+        const mriContent = document.getElementById('mriContent');
+        const mriEmpty = document.getElementById('mriEmpty');
+        const mriSummary = document.getElementById('mriSummary');
+        const mriAdsList = document.getElementById('mriAdsList');
+
+        async function loadClients() {
+            const res = await fetch(`${API_BASE_URL}/api/clients`, { headers: getAuthHeaders() });
+            if (!res.ok) return;
+            const clients = await res.json();
+            clientSelect.innerHTML = '<option value="">Select a client</option>';
+            (clients || []).forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id || c.client_id;
+                opt.textContent = c.name || c.client_name || c.id || 'Unknown';
+                clientSelect.appendChild(opt);
+            });
+        }
+
+        async function loadImports() {
+            const clientId = clientSelect.value;
+            if (!clientId) {
+                importSelect.innerHTML = '<option value="">Select a client first</option>';
+                return;
+            }
+            const res = await fetch(`${API_BASE_URL}/api/clients/${clientId}/ad-library-imports`, { headers: getAuthHeaders() });
+            if (!res.ok) {
+                importSelect.innerHTML = '<option value="">Use latest import</option>';
+                return;
+            }
+            const data = await res.json();
+            importSelect.innerHTML = '<option value="">Use latest import</option>';
+            (data.items || []).forEach(imp => {
+                const opt = document.createElement('option');
+                opt.value = imp.id;
+                opt.textContent = `Import ${imp.ad_count || 0} ads · ${imp.imported_at ? new Date(imp.imported_at).toLocaleDateString() : ''}`;
+                importSelect.appendChild(opt);
+            });
+        }
+
+        clientSelect.addEventListener('change', loadImports);
+
+        runReportButton.addEventListener('click', async () => {
+            const clientId = clientSelect.value;
+            if (!clientId) {
+                alert('Select a client first.');
+                return;
+            }
+            mriResults.style.display = 'block';
+            mriLoading.style.display = 'flex';
+            mriContent.style.display = 'none';
+            mriEmpty.style.display = 'none';
+            runReportButton.disabled = true;
+            try {
+                const body = {};
+                const importId = importSelect.value;
+                if (importId) body.ad_library_import_id = importId;
+                const res = await fetch(`${API_BASE_URL}/api/clients/${clientId}/creative-mri/report`, {
+                    method: 'POST',
+                    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+                const report = await res.json().catch(() => ({}));
+                mriLoading.style.display = 'none';
+                if (!res.ok) {
+                    mriEmpty.style.display = 'block';
+                    mriEmpty.textContent = report.detail || `Error ${res.status}`;
+                    return;
+                }
+                mriContent.style.display = 'block';
+                const meta = report.meta || {};
+                const exec = report.executive_summary || {};
+                const ads = report.ads || [];
+
+                function renderBarRow(label, value, maxVal, fillClass = '') {
+                    const pct = maxVal ? Math.round((value / maxVal) * 100) : 0;
+                    return `
+                        <div class="mri-bar-row">
+                            <span class="mri-bar-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
+                            <div class="mri-bar-track"><div class="mri-bar-fill ${fillClass}" style="width: ${pct}%"></div></div>
+                            <span class="mri-bar-value">${value}</span>
+                        </div>`;
+                }
+
+                const subscoresSummary = exec.subscores_summary || [];
+                const subscoresMax = Math.max(...subscoresSummary.map(s => s.average), 1);
+                document.getElementById('mriChartSubscoresBars').innerHTML = subscoresSummary
+                    .map(s => renderBarRow(s.name.replace(/_/g, ' '), s.average.toFixed(1), 20)).join('');
+
+                const hookCounts = {};
+                ads.forEach(ad => { const h = ad.hook_type || 'unknown'; hookCounts[h] = (hookCounts[h] || 0) + 1; });
+                const hookMax = Math.max(...Object.values(hookCounts), 1);
+                document.getElementById('mriChartHooksBars').innerHTML = Object.entries(hookCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([name, count]) => renderBarRow(name, count, hookMax, 'mri-bar-fill--hook')).join('');
+
+                const funnelCounts = {};
+                ads.forEach(ad => { const f = ad.funnel_stage || 'unknown'; funnelCounts[f] = (funnelCounts[f] || 0) + 1; });
+                const funnelMax = Math.max(...Object.values(funnelCounts), 1);
+                document.getElementById('mriChartFunnelBars').innerHTML = Object.entries(funnelCounts)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([name, count]) => renderBarRow(name, count, funnelMax, 'mri-bar-fill--funnel')).join('');
+
+                mriSummary.innerHTML = `
+                    <h3>Executive summary</h3>
+                    <p><span class="score">${exec.overall_effectiveness_score ?? 0}</span> / 100 (copy-based effectiveness)</p>
+                    <p><strong>Subscores:</strong></p>
+                    <ul>
+                        ${(exec.subscores_summary || []).map(s => `<li>${s.name}: ${s.average}</li>`).join('')}
+                    </ul>
+                    <p><strong>Top strengths:</strong></p>
+                    <ul>
+                        ${(exec.top_strengths || []).map(s => `<li>${s.subscore} (avg ${s.average}) – ${(s.headline || '').slice(0, 60)}…</li>`).join('')}
+                    </ul>
+                    <p><strong>Top leaks:</strong></p>
+                    <ul>
+                        ${(exec.top_leaks || []).map(s => `<li>${s.subscore} (avg ${s.average}) – ${(s.headline || '').slice(0, 60)}…</li>`).join('')}
+                    </ul>
+                    <p><strong>Fast wins:</strong></p>
+                    <ul>
+                        ${(exec.fast_wins || []).map(w => `<li>${w}</li>`).join('')}
+                    </ul>
+                `;
+                mriAdsList.innerHTML = ads.map(ad => {
+                    const llm = ad.llm || {};
+                    const headline = (ad.headline || ad.primary_text || '').slice(0, 120);
+                    const angle = llm.angle || ad.angle || '—';
+                    const hookPhrase = llm.hook_phrase || ad.hook_phrase || '—';
+                    const whatToChange = (llm.what_to_change || ad.what_to_change || []);
+                    return `
+                        <div class="mri-ad-card">
+                            <div class="headline">${escapeHtml(headline)}</div>
+                            <div class="angle">Angle: ${escapeHtml(angle)}</div>
+                            <div class="hook-phrase">Hook: ${escapeHtml(hookPhrase)}</div>
+                            <div>Score: ${ad.overall_score ?? '—'} · Stage: ${ad.funnel_stage ?? '—'} · Hook: ${ad.hook_type ?? '—'}</div>
+                            ${whatToChange.length ? `<div class="what-to-change"><strong>What to change:</strong><ul>${whatToChange.map(w => `<li>${escapeHtml(w)}</li>`).join('')}</ul></div>` : ''}
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                mriLoading.style.display = 'none';
+                mriEmpty.style.display = 'block';
+                mriEmpty.textContent = 'Report failed: ' + (e.message || String(e));
+                console.error(e);
+            } finally {
+                runReportButton.disabled = false;
+            }
+        });
+
+        function escapeHtml(s) {
+            if (s == null) return '';
+            const div = document.createElement('div');
+            div.textContent = s;
+            return div.innerHTML;
+        }
+
+        function showApp() {
+            document.getElementById('appShell').style.display = 'flex';
+            document.getElementById('founderEmail').textContent = window.Auth?.getStoredUserInfo?.()?.email || '';
+            loadClients();
+        }
+
+        function init() {
+            document.getElementById('logoutButton').addEventListener('click', () => {
+                if (window.Auth?.handleLogout) window.Auth.handleLogout();
+            });
+            if (typeof window.Auth !== 'undefined' && typeof window.Auth.checkAuth === 'function') {
+                window.Auth.checkAuth().then(showApp).catch(() => {});
+            } else {
+                showApp();
+            }
+        }
+        init();
+    </script>
+</body>
+</html>

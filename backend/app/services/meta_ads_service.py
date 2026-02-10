@@ -39,7 +39,7 @@ class MetaAdsService:
         Returns:
             OAuth authorization URL
         """
-        scopes = "ads_management,ads_read,business_management,pages_show_list,pages_read_engagement"
+        scopes = "ads_management,ads_read,business_management,pages_show_list"
         
         params = {
             "client_id": self.settings.meta_app_id,

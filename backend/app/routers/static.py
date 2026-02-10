@@ -170,3 +170,13 @@ if (frontend_path / "founder_prompt_engineering.html").exists():
         """Serve the founder prompt engineering page"""
         return FileResponse(frontend_path / "founder_prompt_engineering.html")
 
+if (frontend_path / "founder_creative_mri.html").exists():
+    @router.get("/founder_creative_mri", response_class=FileResponse)
+    def serve_founder_creative_mri():
+        """Serve the founder Creative MRI page"""
+        return FileResponse(frontend_path / "founder_creative_mri.html")
+
+    @router.get("/founder_creative_mri.html", response_class=FileResponse)
+    def serve_founder_creative_mri_html():
+        """Serve the founder Creative MRI page"""
+        return FileResponse(frontend_path / "founder_creative_mri.html")

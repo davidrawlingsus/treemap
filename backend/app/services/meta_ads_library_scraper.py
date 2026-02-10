@@ -31,12 +31,19 @@ class MediaItem:
 
 @dataclass
 class AdCopyItem:
-    """Ad copy only scraped from Ads Library (for VOC comparison)."""
+    """Ad copy and metadata scraped from Ads Library (for VOC comparison / Hook Wall)."""
     primary_text: str
     headline: Optional[str] = None
     description: Optional[str] = None
     library_id: Optional[str] = None
     started_running_on: Optional[str] = None
+    # Extended fields: timeline, format, CTA, thumbnail
+    ad_delivery_start_time: Optional[str] = None  # e.g. "Jun 29, 2024"
+    ad_delivery_end_time: Optional[str] = None   # e.g. "Jul 15, 2024" or null if active
+    ad_format: Optional[str] = None               # "video" | "image" | "carousel"
+    cta: Optional[str] = None                     # CTA button/link text
+    destination_url: Optional[str] = None        # decoded landing URL
+    media_thumbnail_url: Optional[str] = None    # poster or first image URL for Hook Wall
 
 
 class MetaAdsLibraryScraper:
@@ -212,9 +219,7 @@ class MetaAdsLibraryScraper:
         return all_copy
     
     async def _extract_copy_from_page(self, page, seen_keys: set) -> List[AdCopyItem]:
-        """Extract ad copy from each ad card: body (primary_text) and headline using DOM structure.
-        Body = div with white-space: pre-wrap (ad body). Headline = line-clamp div text minus 'Sponsored'.
-        """
+        """Extract ad copy and metadata from each ad card: body, headline, format, CTA, thumbnail, timeline."""
         raw = await page.evaluate('''
             () => {
                 const results = [];
@@ -233,7 +238,7 @@ class MetaAdsLibraryScraper:
                             if (hasVideo || hasImage) break;
                         }
                         const key = container;
-                        if (!adCards.has(key)) adCards.set(key, { libraryId: null, startedRunningOn: null });
+                        if (!adCards.has(key)) adCards.set(key, { libraryId: null, startedRunningOn: null, endedRunningOn: null });
                         adCards.get(key).libraryId = libraryIdMatch[1];
                     }
                     const dateMatch = text.match(/^Started running on\\s+([A-Za-z]+\\s+\\d{1,2},?\\s+\\d{4})$/);
@@ -246,8 +251,20 @@ class MetaAdsLibraryScraper:
                             if (hasVideo || hasImage) break;
                         }
                         const key = container;
-                        if (!adCards.has(key)) adCards.set(key, { libraryId: null, startedRunningOn: null });
+                        if (!adCards.has(key)) adCards.set(key, { libraryId: null, startedRunningOn: null, endedRunningOn: null });
                         adCards.get(key).startedRunningOn = dateMatch[1];
+                    }
+                    const endedMatch = text.match(/Ended\\s+([A-Za-z]+\\s+\\d{1,2},?\\s+\\d{4})/);
+                    if (endedMatch) {
+                        let container = span;
+                        for (let i = 0; i < 15 && container.parentElement; i++) {
+                            container = container.parentElement;
+                            const hasVideo = container.querySelector('video[src]');
+                            const hasImage = container.querySelector('img[src*="scontent"], img[src*="fbcdn"]');
+                            if (hasVideo || hasImage) break;
+                        }
+                        const key = container;
+                        if (adCards.has(key)) adCards.get(key).endedRunningOn = endedMatch[1];
                     }
                 }
                 
@@ -255,14 +272,12 @@ class MetaAdsLibraryScraper:
                     let bodyText = '';
                     let headlineText = '';
                     
-                    // Body: div with white-space: pre-wrap (Meta ad body copy)
                     const preWrapDivs = container.querySelectorAll('div[style*="white-space: pre-wrap"]');
                     for (const div of preWrapDivs) {
                         const t = (div.innerText || div.textContent || '').trim();
                         if (t.length > bodyText.length && t.length > 20) bodyText = t;
                     }
                     
-                    // Headline: div with -webkit-line-clamp (often "Sponsored" + headline)
                     const lineClampDivs = container.querySelectorAll('div[style*="line-clamp"]');
                     for (const div of lineClampDivs) {
                         const t = (div.innerText || div.textContent || '').trim();
@@ -271,17 +286,59 @@ class MetaAdsLibraryScraper:
                             headlineText = withoutSponsored;
                     }
                     
-                    // Fallback: full container text
                     const fullText = (container.innerText || container.textContent || '').trim();
                     if (bodyText.length < 10 && fullText.length >= 10) bodyText = fullText;
                     
                     if (bodyText.length < 5) continue;
                     
+                    // ad_format: video | image | carousel
+                    let adFormat = 'image';
+                    const video = container.querySelector('video[src], video[poster]');
+                    const images = container.querySelectorAll('img[src*="scontent"], img[src*="fbcdn"]');
+                    const largeImages = Array.from(images).filter(img => {
+                        const src = (img.src || '').toLowerCase();
+                        if (src.includes('s60x60') || src.includes('_s60x60')) return false;
+                        return true;
+                    });
+                    if (video) adFormat = 'video';
+                    else if (largeImages.length > 1) adFormat = 'carousel';
+                    
+                    // media_thumbnail_url: video poster or first large image
+                    let mediaThumbnailUrl = null;
+                    if (video && video.poster) mediaThumbnailUrl = video.poster;
+                    else if (largeImages.length > 0 && largeImages[0].src) mediaThumbnailUrl = largeImages[0].src;
+                    
+                    // CTA and destination_url: main link (target=_blank, l.php or external)
+                    let cta = null;
+                    let destinationUrl = null;
+                    const links = container.querySelectorAll('a[target="_blank"][href]');
+                    for (const a of links) {
+                        const href = (a.getAttribute('href') || a.href || '').trim();
+                        if (!href || href.startsWith('#')) continue;
+                        const text = (a.innerText || a.textContent || '').trim();
+                        if (href.includes('l.facebook.com/l.php') || href.includes('l.php')) {
+                            try {
+                                const u = new URL(href);
+                                const uParam = u.searchParams.get('u');
+                                destinationUrl = uParam ? decodeURIComponent(uParam) : href;
+                            } catch (_) { destinationUrl = href; }
+                        } else if (href.startsWith('http') && !href.includes('facebook.com')) {
+                            destinationUrl = href;
+                        }
+                        if (destinationUrl && text && text.length <= 100) cta = text;
+                        if (destinationUrl) break;
+                    }
+                    
                     results.push({
                         libraryId: data.libraryId,
                         startedRunningOn: data.startedRunningOn,
+                        endedRunningOn: data.endedRunningOn || null,
                         bodyText: bodyText,
-                        headlineText: headlineText || null
+                        headlineText: headlineText || null,
+                        adFormat: adFormat,
+                        mediaThumbnailUrl: mediaThumbnailUrl,
+                        cta: cta,
+                        destinationUrl: destinationUrl
                     });
                 }
                 return results;
@@ -294,13 +351,11 @@ class MetaAdsLibraryScraper:
             headline_text = (r.get('headlineText') or '').strip() or None
             if not body_text:
                 continue
-            # Strip metadata from body if present
             body_clean = re.sub(r'Library ID:\s*\d+', '', body_text, flags=re.IGNORECASE).strip()
             body_clean = re.sub(r'Started running on\s+[A-Za-z]+\s+\d{1,2},?\s+\d{4}', '', body_clean, flags=re.IGNORECASE).strip()
             body_clean = re.sub(r'\n\s*\n', '\n', body_clean).strip()
             if len(body_clean) < 5:
                 continue
-            # If we didn't get a headline from DOM, use first line of body (if short) as headline
             if not headline_text:
                 lines = [ln.strip() for ln in body_clean.split('\n') if ln.strip()]
                 short_lines = [ln for ln in lines if len(ln) <= 120]
@@ -314,7 +369,13 @@ class MetaAdsLibraryScraper:
                 headline=headline_text,
                 description=None,
                 library_id=r.get('libraryId'),
-                started_running_on=r.get('startedRunningOn')
+                started_running_on=r.get('startedRunningOn'),
+                ad_delivery_start_time=r.get('startedRunningOn'),
+                ad_delivery_end_time=r.get('endedRunningOn'),
+                ad_format=r.get('adFormat') or None,
+                cta=(r.get('cta') or '').strip() or None,
+                destination_url=(r.get('destinationUrl') or '').strip() or None,
+                media_thumbnail_url=(r.get('mediaThumbnailUrl') or '').strip() or None,
             ))
         return items
     
