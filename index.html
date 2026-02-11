@@ -11506,8 +11506,9 @@
                 // Get prompt name for display
                 let promptName = 'AI Expert';
                 try {
-                    const prompts = await window.ClientPromptAPI.listPrompts(currentClientId);
-                    const prompt = prompts.find(p => p.id === promptId);
+                    const grouped = await window.ClientPromptAPI.listPrompts(currentClientId);
+                    const allPrompts = (grouped || []).flatMap(g => (g.prompts || []));
+                    const prompt = allPrompts.find(p => p.id === promptId);
                     if (prompt && prompt.name) {
                         const name = prompt.name;
                         // Common marketing abbreviations to keep in uppercase
@@ -14656,11 +14657,13 @@
 
             let overviewPromptId = null;
             try {
-                const prompts = await window.ClientPromptAPI.listPrompts(currentClientId);
-                console.log('[openAIOverviewFromVisualizations] Available prompts:', prompts);
+                const groupedPrompts = await window.ClientPromptAPI.listPrompts(currentClientId);
+                console.log('[openAIOverviewFromVisualizations] Available prompts (grouped):', groupedPrompts);
+                // API returns groups with prompts array; flatten to search
+                const allPrompts = (groupedPrompts || []).flatMap(g => (g.prompts || []));
                 
                 // Search for overview prompt with flexible matching
-                const overviewPrompt = (prompts || []).find(prompt => {
+                const overviewPrompt = allPrompts.find(prompt => {
                     const name = (prompt.name || '').trim().toLowerCase();
                     // Match various forms: "overview", "ai overview", "Overview Summary", etc.
                     return name === 'overview' || 
@@ -14674,15 +14677,16 @@
                     console.log('[openAIOverviewFromVisualizations] Found overview prompt:', overviewPrompt);
                 } else {
                     console.warn('[openAIOverviewFromVisualizations] No overview prompt found. Available prompts:', 
-                        prompts.map(p => p.name));
+                        allPrompts.map(p => p.name));
                 }
             } catch (error) {
                 console.error('[openAIOverviewFromVisualizations] Failed to load prompts:', error);
             }
 
             if (!overviewPromptId) {
-                const availablePrompts = await window.ClientPromptAPI.listPrompts(currentClientId).catch(() => []);
-                const promptNames = availablePrompts.map(p => p.name).join(', ');
+                const grouped = await window.ClientPromptAPI.listPrompts(currentClientId).catch(() => []);
+                const allPrompts = (grouped || []).flatMap(g => (g.prompts || []));
+                const promptNames = allPrompts.map(p => p.name).join(', ');
                 alert(`Unable to find the "overview" prompt. Available prompts: ${promptNames || 'none'}. Please create a prompt with "overview" in its name.`);
                 return;
             }
