@@ -384,3 +384,44 @@
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   }
 }
+
+/* History tab */
+.mri-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+.mri-history-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px 16px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 0.2s, border-color 0.2s;
+}
+.mri-history-item:hover {
+  background: var(--bg, #f5f7fb);
+  border-color: var(--primary, #b9f040);
+}
+.mri-history-brand {
+  font-weight: 600;
+  color: var(--text, #1a202c);
+}
+.mri-history-meta {
+  font-size: 13px;
+  color: var(--muted, #718096);
+}
+.mri-history-empty {
+  font-size: 14px;
+  color: var(--muted, #718096);
+  margin: 0;
+  padding: 24px 0;
+}

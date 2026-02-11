@@ -5,23 +5,32 @@ Body: { ads?: [...], ad_library_import_id?: uuid }.
 If ads omitted, load from Ad Library import (or latest for client).
 Video ads are analyzed via Gemini when video_analysis_json is missing.
 Use ?stream=1 to get SSE progress events + final report.
+Reports are stored in DB; use GET to retrieve or poll status.
 """
 import asyncio
 import json
 import logging
 import queue
+from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 
 from app.config import get_settings
-from app.database import get_db
-from app.models import User, Client, AdLibraryImport, AdLibraryAd
+from app.database import get_db, SessionLocal
+from app.models import User, Client, AdLibraryImport, AdLibraryAd, CreativeMRIReport
 from app.auth import get_current_active_founder
 from app.services.creative_mri.pipeline import run_creative_mri_pipeline
 from app.services.gemini_video_service import GeminiVideoService
+from app.schemas.creative_mri import (
+    CreativeMRIReportResponse,
+    CreativeMRIReportListResponse,
+    CreativeMRIReportListItem,
+    CreativeMRIReportHistoryResponse,
+    CreativeMRIReportHistoryItem,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -97,7 +106,7 @@ async def _run_report_stream(
     body: dict,
     db: Session,
 ):
-    """Async generator yielding SSE progress events and final report."""
+    """Async generator yielding SSE progress events and final report. Persists report to DB."""
     client = db.query(Client).filter(Client.id == client_id).first()
     if not client:
         yield _format_sse({"error": "Client not found"})
@@ -106,6 +115,7 @@ async def _run_report_stream(
     ads_input = body.get("ads")
     ad_library_import_id = body.get("ad_library_import_id")
     ads = None
+    import_id = None
 
     if ads_input is not None:
         yield _format_sse({"stage": "loading", "current": 1, "total": 1, "message": "Preparing ads..."})
@@ -168,17 +178,32 @@ async def _run_report_stream(
         yield _format_sse({"error": "LLM service not configured. Set ANTHROPIC_API_KEY."})
         return
 
+    # Create report row for persistence
+    report_row = CreativeMRIReport(
+        client_id=client_id,
+        ad_library_import_id=import_id,
+        status="running",
+    )
+    db.add(report_row)
+    db.commit()
+    db.refresh(report_row)
+    report_id = report_row.id
+
     yield _format_sse({"stage": "llm", "current": 0, "total": len(ads), "message": "Starting ad copy analysis..."})
 
     progress_queue = queue.Queue()
     report_ref = []
+    pipeline_error = []
 
     def progress_cb(stage: str, current: int, total: int, message: str):
         progress_queue.put({"stage": stage, "current": current, "total": total, "message": message})
 
     def run_pipeline():
-        result = run_creative_mri_pipeline(ads, llm_service, progress_callback=progress_cb)
-        progress_queue.put({"report": result})
+        try:
+            result = run_creative_mri_pipeline(ads, llm_service, progress_callback=progress_cb)
+            progress_queue.put({"report": result})
+        except Exception as e:
+            pipeline_error.append(e)
         progress_queue.put(None)
 
     loop = asyncio.get_event_loop()
@@ -197,8 +222,47 @@ async def _run_report_stream(
             await asyncio.sleep(0.05)
 
     await task
-    if report_ref:
-        yield _format_sse({"stage": "done", "report": report_ref[0]})
+
+    if pipeline_error:
+        report_row.status = "failed"
+        report_row.error_message = str(pipeline_error[0])
+        db.commit()
+        yield _format_sse({"error": report_row.error_message})
+    elif report_ref:
+        report_row.report_json = report_ref[0]
+        report_row.status = "complete"
+        report_row.completed_at = datetime.now(timezone.utc)
+        db.commit()
+        yield _format_sse({"stage": "done", "report_id": str(report_id), "report": report_ref[0]})
+
+
+def _run_and_save_report_sync(report_id: UUID, ads: list, app) -> None:
+    """Background task: run pipeline and save result to report row."""
+    llm_service = getattr(app.state, "llm_service", None) if app else None
+    db = SessionLocal()
+    try:
+        report_row = db.query(CreativeMRIReport).filter(CreativeMRIReport.id == report_id).first()
+        if not report_row:
+            logger.warning("Report %s not found in background task", report_id)
+            return
+        try:
+            if not llm_service:
+                report_row.status = "failed"
+                report_row.error_message = "LLM service not configured"
+                db.commit()
+                return
+            result = run_creative_mri_pipeline(ads, llm_service)
+            report_row.report_json = result
+            report_row.status = "complete"
+            report_row.completed_at = datetime.now(timezone.utc)
+            db.commit()
+        except Exception as e:
+            logger.exception("Creative MRI pipeline failed for report %s", report_id)
+            report_row.status = "failed"
+            report_row.error_message = str(e)
+            db.commit()
+    finally:
+        db.close()
 
 
 @router.post("/api/clients/{client_id}/creative-mri/report")
@@ -206,6 +270,7 @@ async def run_creative_mri_report(
     client_id: UUID,
     body: dict,
     request: Request,
+    background_tasks: BackgroundTasks,
     stream: bool = False,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_founder),
@@ -214,7 +279,7 @@ async def run_creative_mri_report(
     Run Creative MRI report: copy-based effectiveness diagnostics.
     Body: { "ads": [...] } or { "ad_library_import_id": "uuid" }.
     If ads omitted, load ads from ad_library_import_id or latest Ad Library import for client.
-    Use ?stream=1 for SSE progress events.
+    Use ?stream=1 for SSE progress events. Reports are stored; use GET to retrieve.
     """
     client = db.query(Client).filter(Client.id == client_id).first()
     if not client:
@@ -222,6 +287,7 @@ async def run_creative_mri_report(
 
     ads_input = body.get("ads")
     ad_library_import_id = body.get("ad_library_import_id")
+    import_id = None
 
     if ads_input is not None:
         ads = [a if isinstance(a, dict) else {"id": str(i), "headline": "", "primary_text": str(a)} for i, a in enumerate(ads_input)]
@@ -254,10 +320,6 @@ async def run_creative_mri_report(
         if not ads:
             raise HTTPException(status_code=400, detail="No ads in this import.")
 
-    llm_service = getattr(request.app.state, "llm_service", None)
-    if not llm_service:
-        raise HTTPException(status_code=503, detail="LLM service not configured. Set ANTHROPIC_API_KEY.")
-
     if stream:
         return StreamingResponse(
             _run_report_stream(request, client_id, body, db),
@@ -265,5 +327,125 @@ async def run_creative_mri_report(
             headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
         )
 
-    report = run_creative_mri_pipeline(ads, llm_service)
-    return report
+    # Non-stream: create report row, run in background, return 202
+    llm_service = getattr(request.app.state, "llm_service", None)
+    if not llm_service:
+        raise HTTPException(status_code=503, detail="LLM service not configured. Set ANTHROPIC_API_KEY.")
+
+    report_row = CreativeMRIReport(
+        client_id=client_id,
+        ad_library_import_id=import_id,
+        status="running",
+    )
+    db.add(report_row)
+    db.commit()
+    db.refresh(report_row)
+
+    background_tasks.add_task(_run_and_save_report_sync, report_row.id, ads, request.app)
+    return JSONResponse(status_code=202, content={"report_id": str(report_row.id)})
+
+
+@router.get(
+    "/api/clients/{client_id}/creative-mri/reports/{report_id}",
+    response_model=CreativeMRIReportResponse,
+)
+def get_creative_mri_report(
+    client_id: UUID,
+    report_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Get a stored Creative MRI report. Returns full report only when status=complete."""
+    report = (
+        db.query(CreativeMRIReport)
+        .filter(
+            CreativeMRIReport.id == report_id,
+            CreativeMRIReport.client_id == client_id,
+        )
+        .first()
+    )
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return CreativeMRIReportResponse(
+        id=report.id,
+        client_id=report.client_id,
+        ad_library_import_id=report.ad_library_import_id,
+        status=report.status,
+        report=report.report_json if report.status == "complete" else None,
+        error_message=report.error_message,
+        created_at=report.created_at,
+        completed_at=report.completed_at,
+    )
+
+
+@router.get(
+    "/api/clients/{client_id}/creative-mri/reports",
+    response_model=CreativeMRIReportListResponse,
+)
+def list_creative_mri_reports(
+    client_id: UUID,
+    limit: int = 20,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """List stored reports for a client, ordered by created_at desc."""
+    client = db.query(Client).filter(Client.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    reports = (
+        db.query(CreativeMRIReport)
+        .filter(CreativeMRIReport.client_id == client_id)
+        .order_by(CreativeMRIReport.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    items = [
+        CreativeMRIReportListItem(
+            id=r.id,
+            client_id=r.client_id,
+            ad_library_import_id=r.ad_library_import_id,
+            status=r.status,
+            created_at=r.created_at,
+            completed_at=r.completed_at,
+        )
+        for r in reports
+    ]
+    return CreativeMRIReportListResponse(items=items)
+
+
+@router.get(
+    "/api/creative-mri/reports",
+    response_model=CreativeMRIReportHistoryResponse,
+)
+def list_all_creative_mri_reports(
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """List all stored Creative MRI reports across clients (for History tab), ordered by created_at desc."""
+    reports = (
+        db.query(CreativeMRIReport)
+        .options(joinedload(CreativeMRIReport.client))
+        .order_by(CreativeMRIReport.created_at.desc())
+        .limit(limit)
+        .all()
+    )
+    items = []
+    for r in reports:
+        client_name = r.client.name if r.client else "—"
+        ad_count = None
+        if r.status == "complete" and r.report_json and isinstance(r.report_json, dict):
+            meta = r.report_json.get("meta") or {}
+            ad_count = meta.get("total_ads")
+        items.append(
+            CreativeMRIReportHistoryItem(
+                id=r.id,
+                client_id=r.client_id,
+                client_name=client_name,
+                status=r.status,
+                ad_count=ad_count,
+                created_at=r.created_at,
+                completed_at=r.completed_at,
+            )
+        )
+    return CreativeMRIReportHistoryResponse(items=items)

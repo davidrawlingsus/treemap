@@ -4,6 +4,7 @@ Schemas for Creative MRI report: request (ads or ad_library_import_id) and respo
 from pydantic import BaseModel, Field
 from typing import Optional, List, Any
 from uuid import UUID
+from datetime import datetime
 
 
 class CreativeMRIAdInput(BaseModel):
@@ -35,3 +36,46 @@ class CreativeMRIResponse(BaseModel):
     executive_summary: dict
     ads: List[dict]
     tear_down: dict
+
+
+class CreativeMRIReportResponse(BaseModel):
+    """Stored report: status and optional full report when complete."""
+    id: UUID
+    client_id: UUID
+    ad_library_import_id: Optional[UUID] = None
+    status: str
+    report: Optional[dict] = None
+    error_message: Optional[str] = None
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+
+
+class CreativeMRIReportListItem(BaseModel):
+    """Minimal report info for list view (no full report JSON)."""
+    id: UUID
+    client_id: UUID
+    ad_library_import_id: Optional[UUID] = None
+    status: str
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+
+
+class CreativeMRIReportListResponse(BaseModel):
+    """List of reports for a client."""
+    items: List[CreativeMRIReportListItem]
+
+
+class CreativeMRIReportHistoryItem(BaseModel):
+    """Report list item for History tab (includes client name)."""
+    id: UUID
+    client_id: UUID
+    client_name: str
+    status: str
+    ad_count: Optional[int] = None
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+
+
+class CreativeMRIReportHistoryResponse(BaseModel):
+    """List of all reports across clients for History tab."""
+    items: List[CreativeMRIReportHistoryItem]

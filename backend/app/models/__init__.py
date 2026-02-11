@@ -19,6 +19,7 @@ from app.models.saved_email import SavedEmail
 from app.models.ad_library_import import AdLibraryImport
 from app.models.ad_library_ad import AdLibraryAd
 from app.models.ad_library_media import AdLibraryMedia
+from app.models.creative_mri_report import CreativeMRIReport
 
 __all__ = [
     "Client",
@@ -46,6 +47,7 @@ __all__ = [
     "AdLibraryImport",
     "AdLibraryAd",
     "AdLibraryMedia",
+    "CreativeMRIReport",
 ]
 
 

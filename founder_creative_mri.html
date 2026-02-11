@@ -49,6 +49,7 @@
                 <div class="mri-tabs mri-tabs--primary" role="tablist" aria-label="Brand type">
                     <button class="mri-tab mri-tab--active" role="tab" id="tabNewBrand" data-tab="new">New Brand</button>
                     <button class="mri-tab" role="tab" id="tabExistingBrand" data-tab="existing">Existing Brand</button>
+                    <button class="mri-tab" role="tab" id="tabHistory" data-tab="history">History</button>
                 </div>
 
                 <div id="paneNewBrand" class="mri-tab-pane mri-tab-pane--active" role="tabpanel">
@@ -85,6 +86,12 @@
                                 <option value="">Use latest import</option>
                             </select>
                         </div>
+                        <div id="recentReportsSection" class="mri-form-row" style="display: none;">
+                            <label>Load saved report</label>
+                            <select id="recentReportsSelect">
+                                <option value="">— No saved reports —</option>
+                            </select>
+                        </div>
                         <button class="btn btn-primary" id="runReportButton">Run report</button>
                     </div>
                     <div id="paneNewImport" class="mri-tab-pane" role="tabpanel" hidden>
@@ -99,6 +106,13 @@
                         <button class="btn btn-primary" id="importAdsButton">Import Ads</button>
                         <div id="importAdsMessage" class="mri-message" style="display: none;"></div>
                     </div>
+                    </div>
+                </div>
+
+                <div id="paneHistory" class="mri-tab-pane" role="tabpanel" hidden>
+                    <p class="mri-panel-desc">Previous reports you can reopen. Click a report to view it.</p>
+                    <div id="historyReportsList" class="mri-history-list">
+                        <p class="mri-history-empty" id="historyEmpty">Loading…</p>
                     </div>
                 </div>
             </div>
@@ -228,19 +242,36 @@
         existingBrandSelect.addEventListener('change', () => {
             const hasBrand = !!existingBrandSelect.value;
             existingBrandImportSection.hidden = !hasBrand;
-            if (hasBrand) loadImports();
+            if (hasBrand) {
+                loadImports();
+                loadRecentReports();
+            } else {
+                document.getElementById('recentReportsSection').style.display = 'none';
+            }
+        });
+
+        document.getElementById('recentReportsSelect').addEventListener('change', async () => {
+            const reportId = document.getElementById('recentReportsSelect').value;
+            const clientId = existingBrandSelect.value;
+            if (!reportId || !clientId) return;
+            setUrlReportParams(clientId, reportId);
+            await loadStoredReportAndRender();
         });
 
         function switchPrimaryTab(tab) {
             const isNew = tab === 'new';
+            const isExisting = tab === 'existing';
+            const isHistory = tab === 'history';
             document.getElementById('tabNewBrand').classList.toggle('mri-tab--active', isNew);
-            document.getElementById('tabExistingBrand').classList.toggle('mri-tab--active', !isNew);
-            const paneNew = document.getElementById('paneNewBrand');
-            const paneExisting = document.getElementById('paneExistingBrand');
-            paneNew.classList.toggle('mri-tab-pane--active', isNew);
-            paneNew.hidden = !isNew;
-            paneExisting.classList.toggle('mri-tab-pane--active', !isNew);
-            paneExisting.hidden = isNew;
+            document.getElementById('tabExistingBrand').classList.toggle('mri-tab--active', isExisting);
+            document.getElementById('tabHistory').classList.toggle('mri-tab--active', isHistory);
+            document.getElementById('paneNewBrand').classList.toggle('mri-tab-pane--active', isNew);
+            document.getElementById('paneNewBrand').hidden = !isNew;
+            document.getElementById('paneExistingBrand').classList.toggle('mri-tab-pane--active', isExisting);
+            document.getElementById('paneExistingBrand').hidden = !isExisting;
+            document.getElementById('paneHistory').classList.toggle('mri-tab-pane--active', isHistory);
+            document.getElementById('paneHistory').hidden = !isHistory;
+            if (isHistory) loadHistoryReports();
         }
         function switchSecondaryTab(tab) {
             const isExisting = tab === 'existing-import';
@@ -255,6 +286,7 @@
         }
         document.getElementById('tabNewBrand').addEventListener('click', () => switchPrimaryTab('new'));
         document.getElementById('tabExistingBrand').addEventListener('click', () => switchPrimaryTab('existing'));
+        document.getElementById('tabHistory').addEventListener('click', () => switchPrimaryTab('history'));
         document.getElementById('tabExistingImport').addEventListener('click', () => switchSecondaryTab('existing-import'));
         document.getElementById('tabNewImport').addEventListener('click', () => switchSecondaryTab('new-import'));
 
@@ -307,12 +339,46 @@
                     await loadClients();
                     return;
                 }
-                msgEl.textContent = `Brand "${name}" added and import started. This may take 1–2 minutes. Switch to Existing Brand to run a report when done.`;
+                msgEl.textContent = `Brand "${name}" added. Importing ads… (checking every 10 seconds). Report will run automatically when ready.`;
                 msgEl.className = 'mri-message mri-message--success';
                 msgEl.style.display = 'block';
                 nameInput.value = '';
                 urlInput.value = '';
                 await loadClients();
+                existingBrandSelect.value = brandId;
+                existingBrandImportSection.hidden = false;
+                await loadImports();
+                const pollInterval = 10000;
+                const maxWait = 3 * 60 * 1000;
+                const startedAt = Date.now();
+                const pollUntilReady = async () => {
+                    while (Date.now() - startedAt < maxWait) {
+                        await new Promise((r) => setTimeout(r, pollInterval));
+                        const impRes = await fetch(`${API_BASE_URL}/api/clients/${brandId}/ad-library-imports`, { headers: getAuthHeaders() });
+                        if (!impRes.ok) continue;
+                        const impData = await impRes.json();
+                        const items = impData.items || [];
+                        if (items.length >= 1 && (items[0].ad_count || 0) > 0) {
+                            await loadImports();
+                            importSelect.value = items[0].id;
+                            mriResults.style.display = 'block';
+                            mriLoading.style.display = 'flex';
+                            mriContent.style.display = 'none';
+                            mriEmpty.style.display = 'none';
+                            document.getElementById('mriProgressFill').style.width = '0%';
+                            document.getElementById('mriProgressMessage').textContent = '';
+                            document.getElementById('mriLoadingDetail').textContent = 'Connecting…';
+                            switchPrimaryTab('existing');
+                            runReportButton.click();
+                            msgEl.textContent = `Import complete. Running report…`;
+                            return;
+                        }
+                        msgEl.textContent = `Importing ads… (${Math.round((Date.now() - startedAt) / 1000)}s elapsed). Report will run when ready.`;
+                    }
+                    msgEl.textContent = `Import is taking longer than expected. Switch to Existing Brand and run report manually when ready.`;
+                    msgEl.className = 'mri-message mri-message--error';
+                };
+                await pollUntilReady();
             } finally {
                 btn.disabled = false;
             }
@@ -415,6 +481,9 @@
                                 }
                                 if (data.stage === 'done' && data.report) {
                                     report = data.report;
+                                    if (data.report_id && clientId) {
+                                        setUrlReportParams(clientId, data.report_id);
+                                    }
                                     break;
                                 }
                                 const total = data.total || 1;
@@ -436,94 +505,10 @@
                 }
                 mriLoading.style.display = 'none';
                 mriContent.style.display = 'block';
-                document.getElementById('mriFilters').style.display = 'flex';
                 const clientOpt = existingBrandSelect.options[existingBrandSelect.selectedIndex];
-                document.getElementById('filterBrand').textContent = clientOpt?.textContent || '—';
-                document.getElementById('filterImport').textContent = importSelect.options[importSelect.selectedIndex]?.textContent || 'Latest';
-
-                const meta = report.meta || {};
-                const exec = report.executive_summary || {};
-                const ads = report.ads || [];
-                const analysis = report.analysis || {};
-                const ds = analysis?.analysis?.dataset_summary || {};
-                const counts = ds.counts || {};
-                const funnelShare = ds.funnel?.stage_share || {};
-
-                document.getElementById('mriImpactScoreboard').innerHTML = `
-                    <p><strong>Performance lift potential:</strong> +${Math.round(exec.overall_effectiveness_score || 0) - 50}% (copy-based proxy)</p>
-                    <p><strong>Biggest drags:</strong></p>
-                    <ul>${(exec.top_leaks || []).slice(0, 3).map(l => `<li>${l.subscore}</li>`).join('')}</ul>
-                    <p><strong>Quick wins:</strong></p>
-                    <ul>${(exec.fast_wins || []).slice(0, 3).map(w => `<li>${escapeHtml(w)}</li>`).join('')}</ul>
-                    <p class="muted">Funnel mix: TOFU ${Math.round((funnelShare.tofu || 0) * 100)}% / MOFU ${Math.round((funnelShare.mofu || 0) * 100)}% / BOFU ${Math.round((funnelShare.bofu || 0) * 100)}%</p>
-                `;
-
-                function renderBarRow(label, value, maxVal, fillClass = '') {
-                    const pct = maxVal ? Math.round((value / maxVal) * 100) : 0;
-                    return `
-                        <div class="mri-bar-row">
-                            <span class="mri-bar-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
-                            <div class="mri-bar-track"><div class="mri-bar-fill ${fillClass}" style="width: ${pct}%"></div></div>
-                            <span class="mri-bar-value">${value}</span>
-                        </div>`;
-                }
-
-                const subscoresSummary = exec.subscores_summary || [];
-                const subscoresMax = Math.max(...subscoresSummary.map(s => s.average), 1);
-                document.getElementById('mriChartSubscoresBars').innerHTML = subscoresSummary
-                    .map(s => renderBarRow(s.name.replace(/_/g, ' '), s.average.toFixed(1), 20)).join('');
-
-                const hookCounts = {};
-                ads.forEach(ad => { const h = ad.hook_type || 'unknown'; hookCounts[h] = (hookCounts[h] || 0) + 1; });
-                const hookMax = Math.max(...Object.values(hookCounts), 1);
-                document.getElementById('mriChartHooksBars').innerHTML = Object.entries(hookCounts)
-                    .sort((a, b) => b[1] - a[1])
-                    .map(([name, count]) => renderBarRow(name, count, hookMax, 'mri-bar-fill--hook')).join('');
-
-                const funnelCounts = {};
-                ads.forEach(ad => { const f = ad.funnel_stage || 'unknown'; funnelCounts[f] = (funnelCounts[f] || 0) + 1; });
-                const funnelMax = Math.max(...Object.values(funnelCounts), 1);
-                document.getElementById('mriChartFunnelBars').innerHTML = Object.entries(funnelCounts)
-                    .sort((a, b) => b[1] - a[1])
-                    .map(([name, count]) => renderBarRow(name, count, funnelMax, 'mri-bar-fill--funnel')).join('');
-
-                mriSummary.innerHTML = `
-                    <h3>Executive summary</h3>
-                    <p><span class="score">${exec.overall_effectiveness_score ?? 0}</span> / 100 (copy-based effectiveness)</p>
-                    <p><strong>Subscores:</strong></p>
-                    <ul>
-                        ${(exec.subscores_summary || []).map(s => `<li>${s.name}: ${s.average}</li>`).join('')}
-                    </ul>
-                    <p><strong>Top strengths:</strong></p>
-                    <ul>
-                        ${(exec.top_strengths || []).map(s => `<li>${s.subscore} (avg ${s.average}) – ${(s.headline || '').slice(0, 60)}…</li>`).join('')}
-                    </ul>
-                    <p><strong>Top leaks:</strong></p>
-                    <ul>
-                        ${(exec.top_leaks || []).map(s => `<li>${s.subscore} (avg ${s.average}) – ${(s.headline || '').slice(0, 60)}…</li>`).join('')}
-                    </ul>
-                    <p><strong>Fast wins:</strong></p>
-                    <ul>
-                        ${(exec.fast_wins || []).map(w => `<li>${w}</li>`).join('')}
-                    </ul>
-                `;
-                mriAdsList.innerHTML = ads.map(ad => {
-                    const llm = ad.llm || {};
-                    const headline = (ad.headline || ad.primary_text || '').slice(0, 120);
-                    const angle = llm.angle || ad.angle || '—';
-                    const hookPhrase = llm.hook_phrase || ad.hook_phrase || '—';
-                    const whatToChange = (llm.what_to_change || ad.what_to_change || []);
-                    return `
-                        <div class="mri-ad-card">
-                            <div class="headline">${escapeHtml(headline)}</div>
-                            <div class="angle">Angle: ${escapeHtml(angle)}</div>
-                            <div class="hook-phrase">Hook: ${escapeHtml(hookPhrase)}</div>
-                            <div>Score: ${ad.overall_score ?? '—'} · Stage: ${ad.funnel_stage ?? '—'} · Hook: ${ad.hook_type ?? '—'}</div>
-                            ${(ad.media_thumbnail_url ? `<img src="${escapeHtml(ad.media_thumbnail_url)}" alt="" class="mri-ad-thumb">` : '')}
-                            ${whatToChange.length ? `<div class="what-to-change"><strong>What to change:</strong><ul>${whatToChange.map(w => `<li>${escapeHtml(w)}</li>`).join('')}</ul></div>` : ''}
-                        </div>
-                    `;
-                }).join('');
+                const importLabel = importSelect.options[importSelect.selectedIndex]?.textContent || 'Latest';
+                renderReport(report, clientOpt?.textContent || '—', importLabel);
+                loadRecentReports();
             } catch (e) {
                 mriLoading.style.display = 'none';
                 mriEmpty.style.display = 'block';
@@ -541,10 +526,257 @@
             return div.innerHTML;
         }
 
+        function getUrlReportParams() {
+            const params = new URLSearchParams(window.location.search);
+            const clientId = params.get('client_id');
+            const reportId = params.get('report_id');
+            return { clientId, reportId };
+        }
+
+        function setUrlReportParams(clientId, reportId) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('client_id', clientId);
+            url.searchParams.set('report_id', reportId);
+            window.history.replaceState({}, '', url.toString());
+        }
+
+        function renderReport(report, brandLabel, importLabel) {
+            const exec = report.executive_summary || {};
+            const ads = report.ads || [];
+            const analysis = report.analysis || {};
+            const ds = analysis?.analysis?.dataset_summary || {};
+            const funnelShare = ds.funnel?.stage_share || {};
+
+            document.getElementById('mriFilters').style.display = 'flex';
+            document.getElementById('filterBrand').textContent = brandLabel || '—';
+            document.getElementById('filterImport').textContent = importLabel || 'Latest';
+
+            document.getElementById('mriImpactScoreboard').innerHTML = `
+                <p><strong>Performance lift potential:</strong> +${Math.round(exec.overall_effectiveness_score || 0) - 50}% (copy-based proxy)</p>
+                <p><strong>Biggest drags:</strong></p>
+                <ul>${(exec.top_leaks || []).slice(0, 3).map(l => `<li>${l.subscore}</li>`).join('')}</ul>
+                <p><strong>Quick wins:</strong></p>
+                <ul>${(exec.fast_wins || []).slice(0, 3).map(w => `<li>${escapeHtml(w)}</li>`).join('')}</ul>
+                <p class="muted">Funnel mix: TOFU ${Math.round((funnelShare.tofu || 0) * 100)}% / MOFU ${Math.round((funnelShare.mofu || 0) * 100)}% / BOFU ${Math.round((funnelShare.bofu || 0) * 100)}%</p>
+            `;
+
+            function renderBarRow(label, value, maxVal, fillClass = '') {
+                const pct = maxVal ? Math.round((value / maxVal) * 100) : 0;
+                return `
+                    <div class="mri-bar-row">
+                        <span class="mri-bar-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
+                        <div class="mri-bar-track"><div class="mri-bar-fill ${fillClass}" style="width: ${pct}%"></div></div>
+                        <span class="mri-bar-value">${value}</span>
+                    </div>`;
+            }
+
+            const subscoresSummary = exec.subscores_summary || [];
+            document.getElementById('mriChartSubscoresBars').innerHTML = subscoresSummary
+                .map(s => renderBarRow(s.name.replace(/_/g, ' '), s.average.toFixed(1), 20)).join('');
+
+            const hookCounts = {};
+            ads.forEach(ad => { const h = ad.hook_type || 'unknown'; hookCounts[h] = (hookCounts[h] || 0) + 1; });
+            const hookMax = Math.max(...Object.values(hookCounts), 1);
+            document.getElementById('mriChartHooksBars').innerHTML = Object.entries(hookCounts)
+                .sort((a, b) => b[1] - a[1])
+                .map(([name, count]) => renderBarRow(name, count, hookMax, 'mri-bar-fill--hook')).join('');
+
+            const funnelCounts = {};
+            ads.forEach(ad => { const f = ad.funnel_stage || 'unknown'; funnelCounts[f] = (funnelCounts[f] || 0) + 1; });
+            const funnelMax = Math.max(...Object.values(funnelCounts), 1);
+            document.getElementById('mriChartFunnelBars').innerHTML = Object.entries(funnelCounts)
+                .sort((a, b) => b[1] - a[1])
+                .map(([name, count]) => renderBarRow(name, count, funnelMax, 'mri-bar-fill--funnel')).join('');
+
+            mriSummary.innerHTML = `
+                <h3>Executive summary</h3>
+                <p><span class="score">${exec.overall_effectiveness_score ?? 0}</span> / 100 (copy-based effectiveness)</p>
+                <p><strong>Subscores:</strong></p>
+                <ul>
+                    ${(exec.subscores_summary || []).map(s => `<li>${s.name}: ${s.average}</li>`).join('')}
+                </ul>
+                <p><strong>Top strengths:</strong></p>
+                <ul>
+                    ${(exec.top_strengths || []).map(s => `<li>${s.subscore} (avg ${s.average}) – ${(s.headline || '').slice(0, 60)}…</li>`).join('')}
+                </ul>
+                <p><strong>Top leaks:</strong></p>
+                <ul>
+                    ${(exec.top_leaks || []).map(s => `<li>${s.subscore} (avg ${s.average}) – ${(s.headline || '').slice(0, 60)}…</li>`).join('')}
+                </ul>
+                <p><strong>Fast wins:</strong></p>
+                <ul>
+                    ${(exec.fast_wins || []).map(w => `<li>${w}</li>`).join('')}
+                </ul>
+            `;
+            mriAdsList.innerHTML = ads.map(ad => {
+                const llm = ad.llm || {};
+                const headline = (ad.headline || ad.primary_text || '').slice(0, 120);
+                const angle = llm.angle || ad.angle || '—';
+                const hookPhrase = llm.hook_phrase || ad.hook_phrase || '—';
+                const whatToChange = (llm.what_to_change || ad.what_to_change || []);
+                return `
+                    <div class="mri-ad-card">
+                        <div class="headline">${escapeHtml(headline)}</div>
+                        <div class="angle">Angle: ${escapeHtml(angle)}</div>
+                        <div class="hook-phrase">Hook: ${escapeHtml(hookPhrase)}</div>
+                        <div>Score: ${ad.overall_score ?? '—'} · Stage: ${ad.funnel_stage ?? '—'} · Hook: ${ad.hook_type ?? '—'}</div>
+                        ${(ad.media_thumbnail_url ? `<img src="${escapeHtml(ad.media_thumbnail_url)}" alt="" class="mri-ad-thumb">` : '')}
+                        ${whatToChange.length ? `<div class="what-to-change"><strong>What to change:</strong><ul>${whatToChange.map(w => `<li>${escapeHtml(w)}</li>`).join('')}</ul></div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function loadReportById(clientId, reportId) {
+            const res = await fetch(`${API_BASE_URL}/api/clients/${clientId}/creative-mri/reports/${reportId}`, { headers: getAuthHeaders() });
+            if (!res.ok) return null;
+            return res.json();
+        }
+
+        async function loadStoredReportAndRender() {
+            const { clientId, reportId } = getUrlReportParams();
+            if (!clientId || !reportId) return false;
+
+            mriResults.style.display = 'block';
+            mriLoading.style.display = 'flex';
+            mriContent.style.display = 'none';
+            mriEmpty.style.display = 'none';
+            document.getElementById('mriLoadingDetail').textContent = 'Loading report…';
+
+            const data = await loadReportById(clientId, reportId);
+            if (!data) {
+                mriLoading.style.display = 'none';
+                mriEmpty.style.display = 'block';
+                mriEmpty.textContent = 'Report not found.';
+                return true;
+            }
+
+            if (data.status === 'complete' && data.report) {
+                mriLoading.style.display = 'none';
+                mriContent.style.display = 'block';
+                existingBrandSelect.value = clientId;
+                existingBrandImportSection.hidden = false;
+                await loadImports();
+                await loadRecentReports();
+                switchPrimaryTab('existing');
+                const clientOpt = existingBrandSelect.options[existingBrandSelect.selectedIndex];
+                const meta = data.report.meta || {};
+                const adCount = meta.total_ads ?? '?';
+                renderReport(data.report, clientOpt?.textContent || '—', `${adCount} ads`);
+                return true;
+            }
+
+            if (data.status === 'failed') {
+                mriLoading.style.display = 'none';
+                mriEmpty.style.display = 'block';
+                mriEmpty.textContent = data.error_message || 'Report failed.';
+                return true;
+            }
+
+            // status === 'running' (or pending)
+            document.getElementById('mriLoadingDetail').textContent = 'Report is still being generated. Checking every 5 seconds…';
+            const pollStoredReport = async () => {
+                const d = await loadReportById(clientId, reportId);
+                if (!d) return;
+                if (d.status === 'complete' && d.report) {
+                    mriLoading.style.display = 'none';
+                    mriContent.style.display = 'block';
+                    existingBrandSelect.value = clientId;
+                    existingBrandImportSection.hidden = false;
+                    await loadImports();
+                    await loadRecentReports();
+                    switchPrimaryTab('existing');
+                    const clientOpt = existingBrandSelect.options[existingBrandSelect.selectedIndex];
+                    const meta = d.report.meta || {};
+                    const adCount = meta.total_ads ?? '?';
+                    renderReport(d.report, clientOpt?.textContent || '—', `${adCount} ads`);
+                    return;
+                }
+                if (d.status === 'failed') {
+                    mriLoading.style.display = 'none';
+                    mriEmpty.style.display = 'block';
+                    mriEmpty.textContent = d.error_message || 'Report failed.';
+                    return;
+                }
+                setTimeout(pollStoredReport, 5000);
+            };
+            setTimeout(pollStoredReport, 5000);
+            return true;
+        }
+
+        async function loadRecentReports() {
+            const clientId = existingBrandSelect.value;
+            const sel = document.getElementById('recentReportsSelect');
+            const section = document.getElementById('recentReportsSection');
+            if (!clientId) {
+                section.style.display = 'none';
+                return;
+            }
+            const res = await fetch(`${API_BASE_URL}/api/clients/${clientId}/creative-mri/reports?limit=20`, { headers: getAuthHeaders() });
+            if (!res.ok) {
+                section.style.display = 'none';
+                return;
+            }
+            const data = await res.json();
+            const items = data.items || [];
+            sel.innerHTML = '<option value="">— No saved reports —</option>';
+            items.forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r.id;
+                const status = r.status === 'complete' ? 'complete' : r.status;
+                const date = r.created_at ? new Date(r.created_at).toLocaleString() : '';
+                opt.textContent = `${status} · ${date}`;
+                sel.appendChild(opt);
+            });
+            section.style.display = items.length ? 'block' : 'none';
+        }
+
+        async function loadHistoryReports() {
+            const listEl = document.getElementById('historyReportsList');
+            const emptyEl = document.getElementById('historyEmpty');
+            emptyEl.textContent = 'Loading…';
+            emptyEl.style.display = 'block';
+            listEl.querySelectorAll('.mri-history-item').forEach(el => el.remove());
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/creative-mri/reports?limit=50`, { headers: getAuthHeaders() });
+                if (!res.ok) {
+                    emptyEl.textContent = 'Failed to load reports.';
+                    return;
+                }
+                const data = await res.json();
+                const items = data.items || [];
+                emptyEl.style.display = items.length ? 'none' : 'block';
+                emptyEl.textContent = items.length ? '' : 'No previous reports yet. Run a report from New Brand or Existing Brand.';
+                items.forEach(r => {
+                    const row = document.createElement('button');
+                    row.type = 'button';
+                    row.className = 'mri-history-item';
+                    const date = r.created_at ? new Date(r.created_at).toLocaleString() : '—';
+                    const adInfo = r.ad_count != null ? ` · ${r.ad_count} ads` : '';
+                    const statusLabel = r.status === 'complete' ? 'Complete' : r.status === 'running' ? 'Running' : r.status === 'failed' ? 'Failed' : r.status;
+                    row.innerHTML = `
+                        <span class="mri-history-brand">${escapeHtml(r.client_name || '—')}</span>
+                        <span class="mri-history-meta">${escapeHtml(date)}${escapeHtml(adInfo)} · ${escapeHtml(statusLabel)}</span>
+                    `;
+                    row.addEventListener('click', async () => {
+                        setUrlReportParams(r.client_id, r.id);
+                        await loadStoredReportAndRender();
+                    });
+                    listEl.appendChild(row);
+                });
+            } catch (e) {
+                emptyEl.textContent = 'Failed to load reports.';
+                emptyEl.style.display = 'block';
+            }
+        }
+
         function showApp() {
             document.getElementById('appShell').style.display = 'flex';
             document.getElementById('founderEmail').textContent = window.Auth?.getStoredUserInfo?.()?.email || '';
-            loadClients();
+            loadClients().then(async () => {
+                const loaded = await loadStoredReportAndRender();
+                if (!loaded) existingBrandImportSection.hidden = !existingBrandSelect.value;
+            });
         }
 
         function init() {
