@@ -120,22 +120,22 @@ class MetaAdsService:
     def save_token(
         self,
         client_id: str,
+        user_id: str,
         access_token: str,
         expires_in: Optional[int],
         meta_user_id: str,
         meta_user_name: str,
-        created_by_user_id: Optional[str] = None,
     ) -> MetaOAuthToken:
         """
-        Save or update Meta OAuth token for a client.
+        Save or update Meta OAuth token for a (user, client).
         
         Args:
             client_id: Internal client UUID
+            user_id: Internal user UUID who owns this connection
             access_token: Meta access token
             expires_in: Token lifetime in seconds
             meta_user_id: Meta user ID
             meta_user_name: Meta user name
-            created_by_user_id: User who authorized
         
         Returns:
             MetaOAuthToken instance
@@ -144,9 +144,9 @@ class MetaAdsService:
         if expires_in:
             expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
         
-        # Check for existing token
         existing = self.db.query(MetaOAuthToken).filter(
-            MetaOAuthToken.client_id == client_id
+            MetaOAuthToken.client_id == client_id,
+            MetaOAuthToken.user_id == user_id,
         ).first()
         
         if existing:
@@ -154,38 +154,41 @@ class MetaAdsService:
             existing.expires_at = expires_at
             existing.meta_user_id = meta_user_id
             existing.meta_user_name = meta_user_name
-            existing.created_by = created_by_user_id
+            existing.created_by = user_id
             self.db.commit()
             self.db.refresh(existing)
             return existing
         
         token = MetaOAuthToken(
             client_id=client_id,
+            user_id=user_id,
             access_token=access_token,
             expires_at=expires_at,
             meta_user_id=meta_user_id,
             meta_user_name=meta_user_name,
-            created_by=created_by_user_id,
+            created_by=user_id,
         )
         self.db.add(token)
         self.db.commit()
         self.db.refresh(token)
         return token
     
-    def get_token(self, client_id: str) -> Optional[MetaOAuthToken]:
-        """Get Meta OAuth token for a client."""
+    def get_token(self, client_id: str, user_id: str) -> Optional[MetaOAuthToken]:
+        """Get Meta OAuth token for a (user, client)."""
         return self.db.query(MetaOAuthToken).filter(
-            MetaOAuthToken.client_id == client_id
+            MetaOAuthToken.client_id == client_id,
+            MetaOAuthToken.user_id == user_id,
         ).first()
     
     def set_default_ad_account(
         self,
         client_id: str,
+        user_id: str,
         ad_account_id: str,
         ad_account_name: Optional[str] = None,
     ) -> MetaOAuthToken:
-        """Set the default ad account for a client."""
-        token = self.get_token(client_id)
+        """Set the default ad account for a (user, client)."""
+        token = self.get_token(client_id, user_id)
         if not token:
             raise ValueError(f"No Meta token found for client {client_id}")
         
@@ -535,6 +538,7 @@ class MetaAdsService:
     async def publish_ad(
         self,
         ad_id: str,
+        user_id: str,
         adset_id: str,
         ad_account_id: str,
         page_id: str,
@@ -548,6 +552,7 @@ class MetaAdsService:
         
         Args:
             ad_id: Local FacebookAd UUID
+            user_id: Internal user UUID (owns the Meta connection)
             adset_id: Meta adset ID to publish to
             ad_account_id: Meta ad account ID
             page_id: Facebook page ID for the ad
@@ -557,13 +562,11 @@ class MetaAdsService:
         Returns:
             Dict with meta_ad_id, meta_creative_id
         """
-        # Get the local ad
         ad = self.db.query(FacebookAd).filter(FacebookAd.id == ad_id).first()
         if not ad:
             raise ValueError(f"Ad {ad_id} not found")
         
-        # Get the token for the client
-        token = self.get_token(str(ad.client_id))
+        token = self.get_token(str(ad.client_id), user_id)
         if not token:
             raise ValueError(f"No Meta token for client {ad.client_id}")
         

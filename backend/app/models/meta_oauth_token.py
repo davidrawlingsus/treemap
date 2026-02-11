@@ -1,7 +1,7 @@
 """
-Meta OAuth Token model for storing Facebook/Meta API credentials per client.
+Meta OAuth Token model for storing Facebook/Meta API credentials per user per client.
 """
-from sqlalchemy import Column, String, DateTime, Text, ForeignKey
+from sqlalchemy import Column, String, DateTime, Text, ForeignKey, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -11,13 +11,15 @@ from app.database import Base
 
 class MetaOAuthToken(Base):
     """
-    Stores Meta/Facebook OAuth tokens per client.
-    Each client can have one active Meta connection.
+    Stores Meta/Facebook OAuth tokens per (user, client).
+    Each user has their own Meta connection per client.
     """
     __tablename__ = "meta_oauth_tokens"
+    __table_args__ = (UniqueConstraint("user_id", "client_id", name="uq_meta_oauth_tokens_user_client"),)
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    client_id = Column(UUID(as_uuid=True), ForeignKey('clients.id', ondelete='CASCADE'), nullable=False, unique=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    client_id = Column(UUID(as_uuid=True), ForeignKey('clients.id', ondelete='CASCADE'), nullable=False)
     
     # OAuth token data
     access_token = Column(Text, nullable=False)  # Long-lived access token
@@ -38,11 +40,12 @@ class MetaOAuthToken(Base):
     created_by = Column(UUID(as_uuid=True), ForeignKey('users.id'), nullable=True)
 
     # Relationships
+    user = relationship("User", foreign_keys=[user_id])
     client = relationship("Client", foreign_keys=[client_id])
     creator = relationship("User", foreign_keys=[created_by])
 
     def __repr__(self):
-        return f"<MetaOAuthToken(id={self.id}, client_id={self.client_id}, meta_user_id={self.meta_user_id})>"
+        return f"<MetaOAuthToken(id={self.id}, user_id={self.user_id}, client_id={self.client_id}, meta_user_id={self.meta_user_id})>"
 
     def is_expired(self):
         """Check if the token has expired."""

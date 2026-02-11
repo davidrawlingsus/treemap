@@ -186,14 +186,14 @@ async def meta_oauth_callback(
         meta_user_id = user_info.get("id")
         meta_user_name = user_info.get("name")
         
-        # Save token
+        # Save token for this (user, client)
         service.save_token(
             client_id=client_id,
+            user_id=user_id,
             access_token=access_token,
             expires_in=expires_in,
             meta_user_id=meta_user_id,
             meta_user_name=meta_user_name,
-            created_by_user_id=user_id,
         )
         
         logger.info(f"Meta OAuth completed for client {client_id}, user {meta_user_name}")
@@ -421,7 +421,7 @@ def get_meta_token_status(
     """Check if a client has a valid Meta token."""
     verify_client_access(client_id, current_user, db)
     service = MetaAdsService(db)
-    token = service.get_token(str(client_id))
+    token = service.get_token(str(client_id), str(current_user.id))
     
     if not token:
         return MetaTokenStatusResponse(has_token=False, is_expired=False)
@@ -442,10 +442,11 @@ def disconnect_meta(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Disconnect Meta account from a client (delete token)."""
+    """Disconnect Meta account from a client (delete this user's token)."""
     verify_client_access(client_id, current_user, db)
     token = db.query(MetaOAuthToken).filter(
-        MetaOAuthToken.client_id == client_id
+        MetaOAuthToken.client_id == client_id,
+        MetaOAuthToken.user_id == current_user.id,
     ).first()
     
     if token:
@@ -467,14 +468,11 @@ async def list_ad_accounts(
     """List Meta ad accounts for a client."""
     verify_client_access(client_id, current_user, db)
     service = MetaAdsService(db)
-    token = service.get_token(str(client_id))
-    
+    token = service.get_token(str(client_id), str(current_user.id))
     if not token:
         raise HTTPException(status_code=400, detail="No Meta token for this client")
-    
     if token.is_expired():
         raise HTTPException(status_code=401, detail="Meta token expired, please reconnect")
-    
     accounts = await service.list_ad_accounts(token.access_token)
     
     items = [
@@ -500,10 +498,10 @@ def set_default_ad_account(
     """Set the default ad account for a client."""
     verify_client_access(request.client_id, current_user, db)
     service = MetaAdsService(db)
-    
     try:
         service.set_default_ad_account(
             client_id=str(request.client_id),
+            user_id=str(current_user.id),
             ad_account_id=request.ad_account_id,
             ad_account_name=request.ad_account_name,
         )
@@ -524,7 +522,7 @@ async def list_campaigns(
     """List campaigns for an ad account."""
     verify_client_access(client_id, current_user, db)
     service = MetaAdsService(db)
-    token = service.get_token(str(client_id))
+    token = service.get_token(str(client_id), str(current_user.id))
     
     if not token:
         raise HTTPException(status_code=400, detail="No Meta token for this client")
@@ -570,7 +568,7 @@ async def create_campaign(
     """Create a new campaign."""
     verify_client_access(client_id, current_user, db)
     service = MetaAdsService(db)
-    token = service.get_token(str(client_id))
+    token = service.get_token(str(client_id), str(current_user.id))
     
     if not token:
         raise HTTPException(status_code=400, detail="No Meta token for this client")
@@ -602,7 +600,7 @@ async def list_adsets(
     """List adsets for a campaign."""
     verify_client_access(client_id, current_user, db)
     service = MetaAdsService(db)
-    token = service.get_token(str(client_id))
+    token = service.get_token(str(client_id), str(current_user.id))
     
     if not token:
         raise HTTPException(status_code=400, detail="No Meta token for this client")
@@ -634,7 +632,7 @@ async def create_adset(
     """Create a new adset."""
     verify_client_access(client_id, current_user, db)
     service = MetaAdsService(db)
-    token = service.get_token(str(client_id))
+    token = service.get_token(str(client_id), str(current_user.id))
     
     if not token:
         raise HTTPException(status_code=400, detail="No Meta token for this client")
@@ -678,7 +676,7 @@ async def list_pixels(
     """List Facebook pixels for the client's ad account."""
     verify_client_access(client_id, current_user, db)
     service = MetaAdsService(db)
-    token = service.get_token(str(client_id))
+    token = service.get_token(str(client_id), str(current_user.id))
     
     if not token:
         raise HTTPException(status_code=400, detail="No Meta token for this client")
@@ -702,7 +700,7 @@ async def list_pages(
     """List Facebook pages the user manages."""
     verify_client_access(client_id, current_user, db)
     service = MetaAdsService(db)
-    token = service.get_token(str(client_id))
+    token = service.get_token(str(client_id), str(current_user.id))
     
     if not token:
         raise HTTPException(status_code=400, detail="No Meta token for this client")
@@ -725,14 +723,13 @@ async def publish_ad(
     """
     verify_client_access(client_id, current_user, db)
     service = MetaAdsService(db)
-    token = service.get_token(str(client_id))
-    
+    token = service.get_token(str(client_id), str(current_user.id))
     if not token:
         raise HTTPException(status_code=400, detail="No Meta token for this client")
-    
     try:
         result = await service.publish_ad(
             ad_id=str(request.ad_id),
+            user_id=str(current_user.id),
             adset_id=request.adset_id,
             ad_account_id=request.ad_account_id,
             page_id=page_id,
