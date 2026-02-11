@@ -145,7 +145,8 @@
     // #region agent log
     const apiBase = getApiBaseUrl();
     const requestUrl = `${apiBase}/api/auth/magic-link/request`;
-    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.js:requestMagicLink',message:'magic-link request',data:{apiBaseUrl:apiBase,requestUrl,emailRedacted:email?email.replace(/(.{2}).*@/,'$1***@'):null},timestamp:Date.now(),hypothesisId:'H1,H4'})}).catch(()=>{});
+    const origin = (typeof global.location !== 'undefined' && global.location.origin) ? global.location.origin : '';
+    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.js:requestMagicLink',message:'before fetch',data:{origin,requestUrl,apiBaseUrl:apiBase},timestamp:Date.now(),hypothesisId:'A,C,D'})}).catch(()=>{});
     // #endregion
     const response = await fetch(
       requestUrl,

@@ -190,7 +190,7 @@ logger.info(f"CORS configuration: allowing origins from regex '.*\\.up\\.railway
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https?://(.*\.up\.railway\.app|.*\.mapthegap\.ai|localhost|127\.0\.0\.1)(:\d+)?$",  # Allow all Railway URLs, mapthegap.ai subdomains, and localhost
+    allow_origin_regex=r"https?://(.*\.up\.railway\.app|.*\.mapthegap\.ai|localhost|127\.0\.0\.1)(:\d+)?/?$",  # Allow all Railway URLs, mapthegap.ai subdomains, localhost; optional trailing slash
     allow_origins=all_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
@@ -199,8 +199,9 @@ app.add_middleware(
 
 
 # Same regex as CORSMiddleware so safeguard allows *.mapthegap.ai, *.railway.app, localhost
+# Optional trailing slash so origins like "https://vizualizd.mapthegap.ai/" are allowed
 _CORS_ORIGIN_REGEX = re.compile(
-    r"^https?://(.*\.up\.railway\.app|.*\.mapthegap\.ai|localhost|127\.0\.0\.1)(:\d+)?$"
+    r"^https?://(.*\.up\.railway\.app|.*\.mapthegap\.ai|localhost|127\.0\.0\.1)(:\d+)?/?$"
 )
 
 
@@ -214,12 +215,25 @@ class EnsureCORSHeadersMiddleware(BaseHTTPMiddleware):
     def _origin_allowed(self, origin: str) -> bool:
         if not origin:
             return False
+        origin_stripped = origin.rstrip("/")
+        if origin_stripped in self._allowed:
+            return True
         if origin in self._allowed:
             return True
         return bool(_CORS_ORIGIN_REGEX.match(origin))
 
     async def dispatch(self, request: StarletteRequest, call_next):
-        origin = request.headers.get("origin")
+        origin = request.headers.get("origin") or ""
+        # #region agent log
+        try:
+            allowed = self._origin_allowed(origin)
+            _log_path = __import__("pathlib").Path(__file__).resolve().parents[1] / ".cursor" / "debug.log"
+            _log_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(_log_path, "a") as _f:
+                _f.write(__import__("json").dumps({"location": "main.py:EnsureCORSHeadersMiddleware", "message": "dispatch", "data": {"origin": origin, "method": request.method, "path": request.url.path, "origin_allowed": allowed}, "timestamp": __import__("time").time() * 1000, "hypothesisId": "B,D,E"}) + "\n")
+        except Exception:
+            pass
+        # #endregion
         # Handle OPTIONS preflight ourselves so it always gets CORS headers (avoids proxy stripping).
         if request.method == "OPTIONS" and self._origin_allowed(origin):
             return Response(
