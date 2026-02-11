@@ -54,8 +54,9 @@ def upgrade():
         nullable=False,
     )
 
-    # Drop old unique on client_id only (if it exists)
+    # Drop old unique on client_id only (both possible constraint names)
     op.execute("ALTER TABLE meta_oauth_tokens DROP CONSTRAINT IF EXISTS uq_meta_oauth_tokens_client_id")
+    op.execute("ALTER TABLE meta_oauth_tokens DROP CONSTRAINT IF EXISTS meta_oauth_tokens_client_id_key")
 
     # Add new unique on (user_id, client_id); drop first so re-run is safe
     op.execute("ALTER TABLE meta_oauth_tokens DROP CONSTRAINT IF EXISTS uq_meta_oauth_tokens_user_client")
