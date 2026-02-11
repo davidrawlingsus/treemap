@@ -64,6 +64,20 @@
                 });
             }
 
+            if (elements.addContextMenuGroupModal) {
+                this.addContextMenuGroupModal = new Modal('addContextMenuGroupModal', {
+                    closeOnBackdropClick: true,
+                    closeOnEscape: true
+                });
+            }
+
+            if (elements.manageContextMenuGroupsModal) {
+                this.manageContextMenuGroupsModal = new Modal('manageContextMenuGroupsModal', {
+                    closeOnBackdropClick: true,
+                    closeOnEscape: true
+                });
+            }
+
             if (elements.versionHistoryModal) {
                 this.versionHistoryModal = new Modal('versionHistoryModal', {
                     closeOnBackdropClick: true,
@@ -233,6 +247,39 @@
                     this.handleAllClientsToggle();
                 });
             }
+
+            // Context menu group modals
+            if (this.elements.addContextMenuGroupButton) {
+                this.elements.addContextMenuGroupButton.addEventListener('click', () => {
+                    this.openAddContextMenuGroupModal();
+                });
+            }
+            if (this.elements.manageContextMenuGroupsButton) {
+                this.elements.manageContextMenuGroupsButton.addEventListener('click', () => {
+                    this.openManageContextMenuGroupsModal();
+                });
+            }
+            if (this.elements.cancelAddContextMenuGroupButton) {
+                this.elements.cancelAddContextMenuGroupButton.addEventListener('click', () => {
+                    this.closeAddContextMenuGroupModal();
+                });
+            }
+            if (this.elements.cancelManageContextMenuGroupsButton) {
+                this.elements.cancelManageContextMenuGroupsButton.addEventListener('click', () => {
+                    this.closeManageContextMenuGroupsModal();
+                });
+            }
+            if (this.elements.saveContextMenuGroupButton) {
+                this.elements.saveContextMenuGroupButton.addEventListener('click', () => {
+                    this.handleAddContextMenuGroup();
+                });
+            }
+            if (this.elements.addContextMenuGroupForm) {
+                this.elements.addContextMenuGroupForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    this.handleAddContextMenuGroup();
+                });
+            }
         },
 
         /**
@@ -255,6 +302,9 @@
             if (this.elements.promptPurposeInput) {
                 PurposesManager.populateSelect(this.elements.promptPurposeInput, true, prompts);
             }
+
+            // Populate context menu groups dropdown
+            await this.populateContextMenuGroupSelect();
 
             if (mode === 'edit' && promptId) {
                 const prompt = prompts.find((item) => item.id === promptId);
@@ -291,6 +341,9 @@
                 await this.populateClientSelection();
                 if (prompt.client_facing && !prompt.all_clients && prompt.client_ids) {
                     this.setSelectedClients(prompt.client_ids);
+                }
+                if (this.elements.contextMenuGroupInput) {
+                    this.elements.contextMenuGroupInput.value = prompt.context_menu_group_id || '';
                 }
                 
                 // Show/hide groups based on client_facing and all_clients state
@@ -583,6 +636,11 @@
                 return;
             }
 
+            // Get context menu group (only for client-facing prompts)
+            const contextMenuGroupId = clientFacingValue && this.elements.contextMenuGroupInput?.value
+                ? this.elements.contextMenuGroupInput.value
+                : null;
+
             // Build payload based on prompt type
             const payload = {
                 name: nameValue,
@@ -593,6 +651,7 @@
                 client_facing: clientFacingValue,
                 all_clients: clientFacingValue ? allClientsValue : false,
                 client_ids: clientFacingValue && !allClientsValue ? clientIds : [],
+                context_menu_group_id: contextMenuGroupId || undefined,
                 llm_model: llmModelValue,
             };
             
@@ -981,6 +1040,11 @@
                 this.elements.allClientsGroup.style.display = isChecked ? 'block' : 'none';
             }
             
+            // Show/hide context menu group selector
+            if (this.elements.contextMenuGroup) {
+                this.elements.contextMenuGroup.style.display = isChecked ? 'block' : 'none';
+            }
+            
             // Hide client selection if client facing is unchecked
             if (!isChecked && this.elements.clientSelectionGroup) {
                 this.elements.clientSelectionGroup.style.display = 'none';
@@ -1078,6 +1142,178 @@
                 const clientId = checkbox.getAttribute('data-client-id');
                 checkbox.checked = clientIdSet.has(String(clientId));
             });
+        },
+
+        /**
+         * Populate context menu group dropdown
+         */
+        async populateContextMenuGroupSelect() {
+            if (!this.elements.contextMenuGroupInput) return;
+
+            try {
+                const groups = await PromptAPI.listContextMenuGroups();
+                this.elements.contextMenuGroupInput.innerHTML = '<option value="">Select top-level menu...</option>';
+                if (groups && groups.length > 0) {
+                    groups.forEach(g => {
+                        const option = document.createElement('option');
+                        option.value = g.id;
+                        option.textContent = g.label;
+                        this.elements.contextMenuGroupInput.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('[MODALS] Failed to load context menu groups:', error);
+            }
+        },
+
+        /**
+         * Open add context menu group modal
+         */
+        openAddContextMenuGroupModal() {
+            if (this.elements.newContextMenuGroupInput) {
+                this.elements.newContextMenuGroupInput.value = '';
+            }
+            if (this.addContextMenuGroupModal) {
+                this.addContextMenuGroupModal.show();
+            }
+            setTimeout(() => {
+                if (this.elements.newContextMenuGroupInput) {
+                    this.elements.newContextMenuGroupInput.focus();
+                }
+            }, 50);
+        },
+
+        /**
+         * Close add context menu group modal
+         */
+        closeAddContextMenuGroupModal() {
+            if (this.addContextMenuGroupModal) {
+                this.addContextMenuGroupModal.hide();
+            }
+            if (this.elements.newContextMenuGroupInput) {
+                this.elements.newContextMenuGroupInput.value = '';
+            }
+        },
+
+        /**
+         * Handle add context menu group
+         */
+        async handleAddContextMenuGroup() {
+            const label = this.elements.newContextMenuGroupInput?.value.trim();
+            if (!label) {
+                this.showStatus('Please enter a group label.', 'error');
+                return;
+            }
+
+            try {
+                const group = await PromptAPI.createContextMenuGroup({ label });
+                await this.populateContextMenuGroupSelect();
+                if (this.elements.contextMenuGroupInput) {
+                    this.elements.contextMenuGroupInput.value = group.id;
+                }
+                this.closeAddContextMenuGroupModal();
+                if (this.manageContextMenuGroupsModal && this.manageContextMenuGroupsModal.isVisible()) {
+                    this.renderContextMenuGroupsList();
+                }
+                this.showStatus('Context menu group added successfully.', 'success');
+                setTimeout(() => this.hideStatus(), 2000);
+            } catch (error) {
+                this.showStatus(error.message || 'Failed to add group.', 'error');
+            }
+        },
+
+        /**
+         * Open manage context menu groups modal
+         */
+        async openManageContextMenuGroupsModal() {
+            await this.renderContextMenuGroupsList();
+            if (this.manageContextMenuGroupsModal) {
+                this.manageContextMenuGroupsModal.show();
+            }
+        },
+
+        /**
+         * Close manage context menu groups modal
+         */
+        closeManageContextMenuGroupsModal() {
+            if (this.manageContextMenuGroupsModal) {
+                this.manageContextMenuGroupsModal.hide();
+            }
+        },
+
+        /**
+         * Render context menu groups list for manage modal
+         */
+        async renderContextMenuGroupsList() {
+            if (!this.elements.contextMenuGroupsList) return;
+
+            try {
+                const groups = await PromptAPI.listContextMenuGroupsWithCount();
+                this.elements.contextMenuGroupsList.innerHTML = '';
+
+                if (!groups || groups.length === 0) {
+                    this.elements.contextMenuGroupsList.innerHTML = '<p style="color: var(--muted);">No context menu groups yet.</p>';
+                    return;
+                }
+
+                groups.forEach(group => {
+                    const row = document.createElement('div');
+                    row.style.display = 'flex';
+                    row.style.alignItems = 'center';
+                    row.style.justifyContent = 'space-between';
+                    row.style.padding = '12px';
+                    row.style.borderBottom = '1px solid var(--border)';
+                    row.style.gap = '12px';
+
+                    const labelDiv = document.createElement('span');
+                    labelDiv.textContent = `${group.label} (${group.prompt_count} prompt${group.prompt_count !== 1 ? 's' : ''})`;
+
+                    const actionsDiv = document.createElement('div');
+                    actionsDiv.style.display = 'flex';
+                    actionsDiv.style.gap = '8px';
+
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.type = 'button';
+                    deleteBtn.className = 'btn btn-secondary';
+                    deleteBtn.textContent = 'Delete';
+                    deleteBtn.disabled = group.prompt_count > 0;
+                    if (group.prompt_count > 0) {
+                        deleteBtn.title = 'Cannot delete: prompts use this group. Reassign them first.';
+                    }
+                    deleteBtn.addEventListener('click', () => this.handleDeleteContextMenuGroup(group));
+
+                    actionsDiv.appendChild(deleteBtn);
+                    row.appendChild(labelDiv);
+                    row.appendChild(actionsDiv);
+                    this.elements.contextMenuGroupsList.appendChild(row);
+                });
+            } catch (error) {
+                console.error('[MODALS] Failed to load context menu groups:', error);
+                this.elements.contextMenuGroupsList.innerHTML = '<p style="color: var(--error, #d32f2f);">Failed to load groups</p>';
+            }
+        },
+
+        /**
+         * Handle delete context menu group
+         * @param {Object} group - Group object with id, label, prompt_count
+         */
+        async handleDeleteContextMenuGroup(group) {
+            if (group.prompt_count > 0) {
+                this.showStatus('Cannot delete: prompts use this group. Reassign them first.', 'error');
+                return;
+            }
+            if (!confirm(`Delete context menu group "${group.label}"?`)) {
+                return;
+            }
+            try {
+                await PromptAPI.deleteContextMenuGroup(group.id);
+                await this.populateContextMenuGroupSelect();
+                this.renderContextMenuGroupsList();
+                this.showStatus('Context menu group deleted.', 'success');
+                setTimeout(() => this.hideStatus(), 2000);
+            } catch (error) {
+                this.showStatus(error.message || 'Failed to delete group.', 'error');
+            }
         },
 
         /**

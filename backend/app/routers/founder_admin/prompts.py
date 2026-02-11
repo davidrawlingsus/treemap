@@ -14,7 +14,7 @@ import json
 import logging
 
 from app.database import get_db
-from app.models import User, Prompt, Client, Action, PromptHelperPrompt, PromptClient
+from app.models import User, Prompt, Client, Action, PromptHelperPrompt, PromptClient, ContextMenuGroup
 from app.schemas import PromptResponse, PromptCreate, PromptUpdate, ActionResponse, PromptHelperPromptResponse
 from app.auth import get_current_active_founder
 from app.services.llm_service import LLMService
@@ -107,6 +107,7 @@ def list_prompts_for_founder(
                 'client_facing': client_facing,
                 'all_clients': all_clients,
                 'client_ids': client_ids,
+                'context_menu_group_id': prompt.context_menu_group_id,
                 'llm_model': prompt.llm_model,
                 'created_at': prompt.created_at,
                 'updated_at': prompt.updated_at,
@@ -161,6 +162,7 @@ def list_helper_prompts(
                 'client_facing': client_facing,
                 'all_clients': all_clients,
                 'client_ids': client_ids,
+                'context_menu_group_id': prompt.context_menu_group_id,
                 'llm_model': prompt.llm_model,
                 'created_at': prompt.created_at,
                 'updated_at': prompt.updated_at,
@@ -207,6 +209,7 @@ def get_prompt_for_founder(
         'client_facing': client_facing,
         'all_clients': all_clients,
         'client_ids': client_ids,
+        'context_menu_group_id': prompt.context_menu_group_id,
         'llm_model': prompt.llm_model,
         'created_at': prompt.created_at,
         'updated_at': prompt.updated_at,
@@ -255,6 +258,12 @@ def create_prompt_for_founder(
         client_facing = payload.client_facing if payload.client_facing is not None else False
         all_clients = payload.all_clients if payload.all_clients is not None else False
         client_ids = payload.client_ids if payload.client_ids is not None else []
+        context_menu_group_id = payload.context_menu_group_id
+        # Default to AI Expert group for client-facing prompts if not specified
+        if client_facing and context_menu_group_id is None:
+            ai_expert = db.query(ContextMenuGroup).filter(ContextMenuGroup.label == "AI Expert").first()
+            if ai_expert:
+                context_menu_group_id = ai_expert.id
         
         prompt = Prompt(
             name=payload.name,
@@ -266,6 +275,7 @@ def create_prompt_for_founder(
             status=payload.status,
             client_facing=client_facing,
             all_clients=all_clients,
+            context_menu_group_id=context_menu_group_id,
             llm_model=payload.llm_model,
         )
         db.add(prompt)
@@ -303,6 +313,7 @@ def create_prompt_for_founder(
             'client_facing': client_facing,
             'all_clients': all_clients,
             'client_ids': client_ids,
+            'context_menu_group_id': prompt.context_menu_group_id,
             'llm_model': prompt.llm_model,
             'created_at': prompt.created_at,
             'updated_at': prompt.updated_at,
@@ -358,6 +369,8 @@ def update_prompt_for_founder(
         prompt.all_clients = payload.all_clients
     if payload.llm_model is not None:
         prompt.llm_model = payload.llm_model
+    if payload.context_menu_group_id is not None:
+        prompt.context_menu_group_id = payload.context_menu_group_id
     
     # Update client associations if client_ids is provided
     if payload.client_ids is not None:
@@ -418,6 +431,7 @@ def update_prompt_for_founder(
             'client_facing': client_facing,
             'all_clients': all_clients,
             'client_ids': client_ids,
+            'context_menu_group_id': prompt.context_menu_group_id,
             'llm_model': prompt.llm_model,
             'created_at': prompt.created_at,
             'updated_at': prompt.updated_at,

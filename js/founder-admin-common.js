@@ -323,6 +323,19 @@
         },
 
         /**
+         * PATCH request
+         * @param {string} endpoint - API endpoint
+         * @param {Object} data - Request body
+         * @returns {Promise} Response data
+         */
+        async patch(endpoint, data = {}) {
+            return this.request(endpoint, {
+                method: 'PATCH',
+                body: data
+            });
+        },
+
+        /**
          * DELETE request
          * @param {string} endpoint - API endpoint
          * @returns {Promise} Response data

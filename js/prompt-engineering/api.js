@@ -402,6 +402,55 @@
                 setCache(cacheKey, result);
             }
             return result;
+        },
+
+        /**
+         * List context menu groups (for prompt form dropdown)
+         * @returns {Promise<Array>} Array of {id, label, sort_order}
+         */
+        async listContextMenuGroups() {
+            return API.get('/api/founder/context-menu-groups');
+        },
+
+        /**
+         * List context menu groups with prompt count (for manage modal)
+         * @returns {Promise<Array>} Array of {id, label, sort_order, prompt_count}
+         */
+        async listContextMenuGroupsWithCount() {
+            return API.get('/api/founder/context-menu-groups/manage');
+        },
+
+        /**
+         * Create a context menu group
+         * @param {Object} data - {label, sort_order?}
+         * @returns {Promise<Object>} Created group
+         */
+        async createContextMenuGroup(data) {
+            const result = await API.post('/api/founder/context-menu-groups', data);
+            cache.clear();
+            return result;
+        },
+
+        /**
+         * Update a context menu group
+         * @param {string} groupId - Group ID
+         * @param {Object} data - {label?, sort_order?}
+         * @returns {Promise<Object>} Updated group
+         */
+        async updateContextMenuGroup(groupId, data) {
+            const result = await API.patch(`/api/founder/context-menu-groups/${groupId}`, data);
+            cache.clear();
+            return result;
+        },
+
+        /**
+         * Delete a context menu group
+         * @param {string} groupId - Group ID
+         * @returns {Promise<void>}
+         */
+        async deleteContextMenuGroup(groupId) {
+            await API.delete(`/api/founder/context-menu-groups/${groupId}`);
+            cache.clear();
         }
     };
 

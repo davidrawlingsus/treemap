@@ -19,6 +19,7 @@ class PromptCreate(BaseModel):
     client_facing: Optional[bool] = Field(default=False, description="Whether prompt appears in AI Expert menu")
     all_clients: Optional[bool] = Field(default=False, description="If True, prompt is available to all clients (ignores client_ids)")
     client_ids: Optional[List[UUID]] = Field(default=[], description="List of client IDs this prompt is available to (only used if all_clients=False)")
+    context_menu_group_id: Optional[UUID] = Field(None, description="Top-level context menu group this prompt appears under")
     llm_model: str = Field(default="gpt-4o-mini", description="LLM model identifier")
 
 
@@ -34,6 +35,7 @@ class PromptUpdate(BaseModel):
     client_facing: Optional[bool] = None
     all_clients: Optional[bool] = None
     client_ids: Optional[List[UUID]] = None
+    context_menu_group_id: Optional[UUID] = None
     llm_model: Optional[str] = None
 
 
@@ -50,6 +52,7 @@ class PromptResponse(BaseModel):
     client_facing: bool
     all_clients: bool
     client_ids: List[UUID] = Field(default_factory=list)
+    context_menu_group_id: Optional[UUID] = None
     llm_model: str
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -65,6 +68,41 @@ class PromptMenuItem(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ContextMenuGroupSchema(BaseModel):
+    """Context menu group schema"""
+    id: UUID
+    label: str
+    sort_order: int
+
+    class Config:
+        from_attributes = True
+
+
+class ContextMenuGroupCreate(BaseModel):
+    """Create a context menu group"""
+    label: str
+    sort_order: Optional[int] = 0
+
+
+class ContextMenuGroupUpdate(BaseModel):
+    """Update a context menu group"""
+    label: Optional[str] = None
+    sort_order: Optional[int] = None
+
+
+class ContextMenuGroupWithCount(ContextMenuGroupSchema):
+    """Context menu group with prompt count"""
+    prompt_count: int = 0
+
+
+class ClientPromptsGroupedItem(BaseModel):
+    """One group in the grouped client prompts response"""
+    id: UUID
+    label: str
+    sort_order: int
+    prompts: List[PromptMenuItem]
 
 
 class ClientPromptExecuteRequest(BaseModel):

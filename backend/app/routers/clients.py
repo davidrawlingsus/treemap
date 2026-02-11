@@ -11,7 +11,7 @@ import logging
 import json
 
 from app.database import get_db
-from app.models import Client, DataSource, Insight, Membership, User, Prompt, Action, PromptClient
+from app.models import Client, DataSource, Insight, Membership, User, Prompt, Action, PromptClient, ContextMenuGroup
 from app.schemas import (
     ClientCreate,
     ClientResponse,
@@ -25,6 +25,7 @@ from app.schemas import (
     InsightOrigin,
     PromptMenuItem,
     ClientPromptExecuteRequest,
+    ClientPromptsGroupedItem,
 )
 from app.schemas.action import ClientActionResponse, ActionResponse
 from app.auth import get_current_user
@@ -608,13 +609,13 @@ def add_insight_origin(
     return InsightResponse.from_orm(insight)
 
 
-@router.get("/{client_id}/prompts", response_model=List[PromptMenuItem])
+@router.get("/{client_id}/prompts", response_model=List[ClientPromptsGroupedItem])
 def list_client_prompts(
     client_id: UUID,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """List all client-facing prompts available for a client"""
+    """List all client-facing prompts available for a client, grouped by context menu group."""
     # Verify client access
     verify_client_access(client_id, current_user, db)
     
@@ -633,8 +634,30 @@ def list_client_prompts(
         )
     ).order_by(Prompt.name).all()
     
-    # Return minimal info (id and name) for menu display
-    return [PromptMenuItem(id=p.id, name=p.name) for p in prompts]
+    # Get AI Expert group for prompts with null context_menu_group_id (backward compat)
+    ai_expert_group = db.query(ContextMenuGroup).filter(ContextMenuGroup.label == "AI Expert").first()
+    
+    # Group prompts by context_menu_group_id (use AI Expert for null)
+    groups_dict = {}
+    for p in prompts:
+        group_id = p.context_menu_group_id or (ai_expert_group.id if ai_expert_group else None)
+        if group_id is None:
+            continue  # Skip if no AI Expert group (shouldn't happen after migration)
+        if group_id not in groups_dict:
+            g = db.query(ContextMenuGroup).filter(ContextMenuGroup.id == group_id).first()
+            if g:
+                groups_dict[group_id] = {
+                    "id": g.id,
+                    "label": g.label,
+                    "sort_order": g.sort_order,
+                    "prompts": [],
+                }
+        if group_id in groups_dict:
+            groups_dict[group_id]["prompts"].append(PromptMenuItem(id=p.id, name=p.name))
+    
+    # Sort by sort_order, then by label
+    sorted_groups = sorted(groups_dict.values(), key=lambda x: (x["sort_order"], x["label"]))
+    return [ClientPromptsGroupedItem(**g) for g in sorted_groups]
 
 
 @router.post("/{client_id}/prompts/{prompt_id}/execute")

@@ -1702,11 +1702,6 @@ body.slideout-open .treemap-search-container.search-active .treemap-search-clear
     margin: 4px 0;
 }
 
-#aiExpertOptionsContainer {
-    max-height: 300px;
-    overflow-y: auto;
-}
-
 .insights-panel-body {
     transition: max-height 0.3s ease-out;
     padding: 0 24px calc(24px + 0.5rem) 24px;

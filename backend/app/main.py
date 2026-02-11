@@ -224,16 +224,6 @@ class EnsureCORSHeadersMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: StarletteRequest, call_next):
         origin = request.headers.get("origin") or ""
-        # #region agent log
-        try:
-            allowed = self._origin_allowed(origin)
-            _log_path = __import__("pathlib").Path(__file__).resolve().parents[1] / ".cursor" / "debug.log"
-            _log_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(_log_path, "a") as _f:
-                _f.write(__import__("json").dumps({"location": "main.py:EnsureCORSHeadersMiddleware", "message": "dispatch", "data": {"origin": origin, "method": request.method, "path": request.url.path, "origin_allowed": allowed}, "timestamp": __import__("time").time() * 1000, "hypothesisId": "B,D,E"}) + "\n")
-        except Exception:
-            pass
-        # #endregion
         # Handle OPTIONS preflight ourselves so it always gets CORS headers (avoids proxy stripping).
         if request.method == "OPTIONS" and self._origin_allowed(origin):
             return Response(

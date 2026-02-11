@@ -8,6 +8,7 @@ from app.models.process_voc import ProcessVoc
 from app.models.authorized_domain import AuthorizedDomain, AuthorizedDomainClient
 from app.models.authorized_email import AuthorizedEmail, AuthorizedEmailClient
 from app.models.insight import Insight
+from app.models.context_menu_group import ContextMenuGroup
 from app.models.prompt import Prompt, PromptHelperPrompt, PromptClient
 from app.models.action import Action
 from app.models.facebook_ad import FacebookAd
@@ -31,6 +32,7 @@ __all__ = [
     "AuthorizedEmail",
     "AuthorizedEmailClient",
     "Insight",
+    "ContextMenuGroup",
     "Prompt",
     "PromptHelperPrompt",
     "PromptClient",

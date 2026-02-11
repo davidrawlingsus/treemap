@@ -230,6 +230,21 @@
                     </div>
                     <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Select which clients can access this prompt in the AI Expert menu</p>
                 </div>
+                <div class="form-group" id="contextMenuGroup" style="display: none;">
+                    <label>Context Menu</label>
+                    <div style="display: flex; gap: 8px; align-items: flex-start;">
+                        <select id="contextMenuGroupInput" style="flex: 1;">
+                            <option value="">Select top-level menu...</option>
+                        </select>
+                        <button type="button" class="btn btn-secondary" id="addContextMenuGroupButton" style="padding: 12px 16px; white-space: nowrap; display: flex; align-items: center; justify-content: center;" title="Add new context menu group">
+                            <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/add.png" alt="Add new group" width="20" height="20">
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="manageContextMenuGroupsButton" style="padding: 12px 16px; white-space: nowrap; display: flex; align-items: center; justify-content: center;" title="Manage context menu groups">
+                            <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/edit.png" alt="Manage groups" width="20" height="20">
+                        </button>
+                    </div>
+                    <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Choose which top-level menu this prompt appears under when right-clicking on visualizations</p>
+                </div>
                 <div class="form-group">
                     <label for="llmModelInput">LLM Model</label>
                     <select id="llmModelInput" required>
@@ -304,6 +319,39 @@
                     </div>
                     <div class="modal-actions">
                         <button class="btn btn-secondary" id="cancelManagePurposesButton" type="button">Close</button>
+                    </div>
+                </div>
+            </div>
+            <div id="addContextMenuGroupModal" class="modal-backdrop">
+                <div class="modal" style="width: min(450px, 90vw);">
+                    <header>
+                        <h2>Add Context Menu Group</h2>
+                    </header>
+                    <form id="addContextMenuGroupForm" style="padding: 32px;">
+                        <div class="form-group">
+                            <label for="newContextMenuGroupInput">Group Label</label>
+                            <input type="text" id="newContextMenuGroupInput" placeholder="e.g., Summarize, Headlines" required>
+                            <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Label shown in the right-click context menu</p>
+                        </div>
+                    </form>
+                    <div class="modal-actions">
+                        <button class="btn btn-secondary" id="cancelAddContextMenuGroupButton" type="button">Cancel</button>
+                        <button class="btn btn-primary" id="saveContextMenuGroupButton" type="button">Add Group</button>
+                    </div>
+                </div>
+            </div>
+            <div id="manageContextMenuGroupsModal" class="modal-backdrop">
+                <div class="modal" style="width: min(500px, 90vw);">
+                    <header>
+                        <h2>Manage Context Menu Groups</h2>
+                    </header>
+                    <div style="padding: 32px;">
+                        <div id="contextMenuGroupsList" style="margin-bottom: 24px;">
+                            <!-- Groups will be listed here -->
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button class="btn btn-secondary" id="cancelManageContextMenuGroupsButton" type="button">Close</button>
                     </div>
                 </div>
             </div>

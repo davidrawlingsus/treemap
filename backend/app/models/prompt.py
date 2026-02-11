@@ -20,10 +20,12 @@ class Prompt(Base):
     client_facing = Column(Boolean, nullable=False, default=False)  # Whether prompt appears in AI Expert menu
     all_clients = Column(Boolean, nullable=False, default=False)  # If True, prompt is available to all clients (ignores client_ids)
     llm_model = Column(String(100), nullable=False, default='gpt-4o-mini')
+    context_menu_group_id = Column(UUID(as_uuid=True), ForeignKey('context_menu_groups.id', ondelete='SET NULL'), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     # Relationships
+    context_menu_group = relationship("ContextMenuGroup", back_populates="prompts")
     actions = relationship("Action", back_populates="prompt", cascade="all, delete-orphan")
     # Relationships for helper prompts (system prompts can have multiple helper prompts)
     helper_prompts = relationship(

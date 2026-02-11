@@ -94,6 +94,11 @@ from .prompt import (
     PromptMenuItem,
     ClientPromptExecuteRequest,
     PromptHelperPromptResponse,
+    ContextMenuGroupSchema,
+    ContextMenuGroupCreate,
+    ContextMenuGroupUpdate,
+    ContextMenuGroupWithCount,
+    ClientPromptsGroupedItem,
 )
 
 from .action import (
@@ -240,6 +245,11 @@ __all__ = [
     "PromptMenuItem",
     "ClientPromptExecuteRequest",
     "PromptHelperPromptResponse",
+    "ContextMenuGroupSchema",
+    "ContextMenuGroupCreate",
+    "ContextMenuGroupUpdate",
+    "ContextMenuGroupWithCount",
+    "ClientPromptsGroupedItem",
     # Actions
     "ActionCreate",
     "ActionResponse",
