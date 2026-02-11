@@ -1,5 +1,6 @@
 """
-Authorized email management routes for founder admin.
+Authorized email management routes.
+Access: any authenticated user.
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload
@@ -11,7 +12,7 @@ from typing import List
 from app.database import get_db
 from app.models import User, Client, AuthorizedEmail, AuthorizedEmailClient
 from app.schemas import AuthorizedEmailResponse, AuthorizedEmailCreate, AuthorizedEmailUpdate
-from app.auth import get_current_active_founder
+from app.auth import get_current_user
 from app.utils import serialize_authorized_email
 
 router = APIRouter()
@@ -23,9 +24,9 @@ router = APIRouter()
 )
 def list_authorized_emails_for_founder(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
-    """List authorized emails with associated clients for founder tooling."""
+    """List authorized emails with associated clients."""
     emails = (
         db.query(AuthorizedEmail)
         .options(
@@ -48,7 +49,7 @@ def list_authorized_emails_for_founder(
 def create_authorized_email_for_founder(
     payload: AuthorizedEmailCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new authorized email and associate it with clients."""
     normalized_email = payload.email.strip().lower()
@@ -117,7 +118,7 @@ def update_authorized_email_for_founder(
     email_id: UUID,
     payload: AuthorizedEmailUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """Update an existing authorized email and its client associations."""
     authorized_email = (

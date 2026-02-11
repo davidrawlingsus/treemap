@@ -1,6 +1,6 @@
 """
-Saved Emails management routes for founder admin.
-Follows the pattern established by facebook_ads.py router.
+Saved Emails management routes.
+Access: any authenticated user with access to the client (membership or founder).
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -19,7 +19,8 @@ from app.schemas import (
     BatchReorderRequest,
     BatchReorderResponse,
 )
-from app.auth import get_current_active_founder
+from app.auth import get_current_user
+from app.authorization import verify_client_access
 
 logger = logging.getLogger(__name__)
 
@@ -34,14 +35,10 @@ def list_saved_emails(
     client_id: UUID,
     email_type: Optional[str] = Query(None, description="Filter by email type"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """List all saved emails for a client, optionally filtered by email_type."""
-    # Verify client exists
-    client = db.query(Client).filter(Client.id == client_id).first()
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found")
-    
+    verify_client_access(client_id, current_user, db)
     query = db.query(SavedEmail).filter(SavedEmail.client_id == client_id)
     
     # Apply email_type filter if provided
@@ -65,14 +62,10 @@ def create_saved_email(
     client_id: UUID,
     email_data: SavedEmailCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new saved email."""
-    # Verify client exists
-    client = db.query(Client).filter(Client.id == client_id).first()
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found")
-    
+    verify_client_access(client_id, current_user, db)
     # Create the email
     email = SavedEmail(
         client_id=client_id,
@@ -111,13 +104,13 @@ def create_saved_email(
 def get_saved_email(
     email_id: UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """Get a single saved email by ID."""
     email = db.query(SavedEmail).filter(SavedEmail.id == email_id).first()
     if not email:
         raise HTTPException(status_code=404, detail="Saved email not found")
-    
+    verify_client_access(email.client_id, current_user, db)
     return SavedEmailResponse.model_validate(email)
 
 
@@ -129,13 +122,13 @@ def update_saved_email(
     email_id: UUID,
     email_data: SavedEmailUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """Update a saved email (e.g., change status, edit content, or set image_url)."""
     email = db.query(SavedEmail).filter(SavedEmail.id == email_id).first()
     if not email:
         raise HTTPException(status_code=404, detail="Saved email not found")
-    
+    verify_client_access(email.client_id, current_user, db)
     # Update only provided fields
     update_data = email_data.model_dump(exclude_unset=True)
     
@@ -177,13 +170,13 @@ def update_saved_email(
 def delete_saved_email(
     email_id: UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete a saved email."""
     email = db.query(SavedEmail).filter(SavedEmail.id == email_id).first()
     if not email:
         raise HTTPException(status_code=404, detail="Saved email not found")
-    
+    verify_client_access(email.client_id, current_user, db)
     db.delete(email)
     db.commit()
     
@@ -199,18 +192,14 @@ def batch_reorder_emails(
     client_id: UUID,
     reorder_request: BatchReorderRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Batch update email sequence positions and send delays.
     Used for drag-and-drop reordering in the UI.
     Updates all provided emails in a single transaction.
     """
-    # Verify client exists
-    client = db.query(Client).filter(Client.id == client_id).first()
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found")
-    
+    verify_client_access(client_id, current_user, db)
     updated_emails = []
     
     for update in reorder_request.updates:

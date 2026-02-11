@@ -1,5 +1,6 @@
 """
 Meta Ads management routes for OAuth and Marketing API.
+Access: any authenticated user with access to the client (membership or founder).
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
@@ -13,6 +14,7 @@ import hashlib
 import hmac
 import json
 
+import httpx
 from app.database import get_db
 from app.models import User, Client, MetaOAuthToken
 from app.schemas import (
@@ -32,7 +34,8 @@ from app.schemas import (
     PublishAdRequest,
     PublishAdResponse,
 )
-from app.auth import get_current_active_founder
+from app.auth import get_current_user
+from app.authorization import verify_client_access
 from app.config import get_settings
 from app.services.meta_ads_service import MetaAdsService
 
@@ -50,24 +53,20 @@ _oauth_states = {}
 def meta_oauth_init(
     client_id: UUID = Query(..., description="Client ID to connect Meta account to"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ) -> MetaOAuthInitResponse:
     """
     Initialize Meta OAuth flow.
     Returns the OAuth URL for the frontend to open in a popup.
     """
     settings = get_settings()
+    verify_client_access(client_id, current_user, db)
     
     if not settings.meta_app_id or not settings.meta_app_secret:
         raise HTTPException(
             status_code=500,
             detail="Meta OAuth not configured. Set META_APP_ID and META_APP_SECRET."
         )
-    
-    # Verify client exists
-    client = db.query(Client).filter(Client.id == client_id).first()
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found")
     
     # Generate state token for CSRF protection
     state = secrets.token_urlsafe(32)
@@ -417,9 +416,10 @@ async def meta_data_deletion_callback(
 def get_meta_token_status(
     client_id: UUID = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ) -> MetaTokenStatusResponse:
     """Check if a client has a valid Meta token."""
+    verify_client_access(client_id, current_user, db)
     service = MetaAdsService(db)
     token = service.get_token(str(client_id))
     
@@ -440,9 +440,10 @@ def get_meta_token_status(
 def disconnect_meta(
     client_id: UUID = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """Disconnect Meta account from a client (delete token)."""
+    verify_client_access(client_id, current_user, db)
     token = db.query(MetaOAuthToken).filter(
         MetaOAuthToken.client_id == client_id
     ).first()
@@ -461,9 +462,10 @@ def disconnect_meta(
 async def list_ad_accounts(
     client_id: UUID = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ) -> MetaAdAccountListResponse:
     """List Meta ad accounts for a client."""
+    verify_client_access(client_id, current_user, db)
     service = MetaAdsService(db)
     token = service.get_token(str(client_id))
     
@@ -493,9 +495,10 @@ async def list_ad_accounts(
 def set_default_ad_account(
     request: SetDefaultAdAccountRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """Set the default ad account for a client."""
+    verify_client_access(request.client_id, current_user, db)
     service = MetaAdsService(db)
     
     try:
@@ -516,28 +519,44 @@ async def list_campaigns(
     ad_account_id: str = Query(...),
     client_id: UUID = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ) -> MetaCampaignListResponse:
     """List campaigns for an ad account."""
+    verify_client_access(client_id, current_user, db)
     service = MetaAdsService(db)
     token = service.get_token(str(client_id))
     
     if not token:
         raise HTTPException(status_code=400, detail="No Meta token for this client")
-    
-    campaigns = await service.list_campaigns(token.access_token, ad_account_id)
-    
+    if token.is_expired():
+        raise HTTPException(status_code=401, detail="Meta token expired, please reconnect")
+
+    try:
+        campaigns = await service.list_campaigns(token.access_token, ad_account_id)
+    except httpx.HTTPStatusError as e:
+        msg = str(e)
+        try:
+            err_body = e.response.json()
+            msg = err_body.get("error", {}).get("message", e.response.text) or msg
+        except Exception:
+            if e.response is not None:
+                msg = e.response.text or msg
+        logger.warning("Meta list_campaigns failed: %s", msg)
+        raise HTTPException(status_code=502, detail=f"Meta API: {msg}")
+    except Exception as e:
+        logger.exception("Meta list_campaigns error")
+        raise HTTPException(status_code=502, detail=str(e))
+
     items = [
         MetaCampaign(
-            id=c["id"],
+            id=c.get("id", ""),
             name=c.get("name", ""),
             status=c.get("status", "UNKNOWN"),
             objective=c.get("objective"),
             created_time=c.get("created_time"),
         )
-        for c in campaigns
+        for c in (campaigns or [])
     ]
-    
     return MetaCampaignListResponse(items=items, total=len(items))
 
 
@@ -546,9 +565,10 @@ async def create_campaign(
     request: CreateCampaignRequest,
     client_id: UUID = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ) -> CreateCampaignResponse:
     """Create a new campaign."""
+    verify_client_access(client_id, current_user, db)
     service = MetaAdsService(db)
     token = service.get_token(str(client_id))
     
@@ -577,9 +597,10 @@ async def list_adsets(
     campaign_id: str = Query(...),
     client_id: UUID = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ) -> MetaAdSetListResponse:
     """List adsets for a campaign."""
+    verify_client_access(client_id, current_user, db)
     service = MetaAdsService(db)
     token = service.get_token(str(client_id))
     
@@ -608,9 +629,10 @@ async def create_adset(
     request: CreateAdSetRequest,
     client_id: UUID = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ) -> CreateAdSetResponse:
     """Create a new adset."""
+    verify_client_access(client_id, current_user, db)
     service = MetaAdsService(db)
     token = service.get_token(str(client_id))
     
@@ -651,9 +673,10 @@ async def create_adset(
 async def list_pixels(
     client_id: UUID = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """List Facebook pixels for the client's ad account."""
+    verify_client_access(client_id, current_user, db)
     service = MetaAdsService(db)
     token = service.get_token(str(client_id))
     
@@ -674,9 +697,10 @@ async def list_pixels(
 async def list_pages(
     client_id: UUID = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """List Facebook pages the user manages."""
+    verify_client_access(client_id, current_user, db)
     service = MetaAdsService(db)
     token = service.get_token(str(client_id))
     
@@ -693,12 +717,13 @@ async def publish_ad(
     page_id: str = Query(..., description="Facebook page ID to publish from"),
     client_id: UUID = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ) -> PublishAdResponse:
     """
     Publish a local Facebook ad to Meta.
     Creates ad creative and ad in the specified adset.
     """
+    verify_client_access(client_id, current_user, db)
     service = MetaAdsService(db)
     token = service.get_token(str(client_id))
     

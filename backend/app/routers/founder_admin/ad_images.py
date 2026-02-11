@@ -1,5 +1,6 @@
 """
-Ad Images management routes for founder admin.
+Ad Images management routes.
+Access: any authenticated user with access to the client (membership or founder).
 """
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, BackgroundTasks
 from fastapi.responses import JSONResponse
@@ -21,7 +22,8 @@ from app.schemas import (
     AdImageCreate, AdImageResponse, AdImageListResponse,
     ImportJobCreate, ImportJobResponse, ImportJobListResponse, ImportJobStatusResponse
 )
-from app.auth import get_current_active_founder
+from app.auth import get_current_user
+from app.authorization import verify_client_access
 
 logger = logging.getLogger(__name__)
 
@@ -103,13 +105,10 @@ async def upload_ad_image(
     file_size: str = Form(...),
     content_type: str = Form(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """Upload a new ad image (metadata only - file already uploaded to Vercel Blob)."""
-    client = db.query(Client).filter(Client.id == client_id).first()
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found")
-    
+    verify_client_access(client_id, current_user, db)
     try:
         file_size_int = int(file_size)
     except (ValueError, TypeError):
@@ -139,13 +138,10 @@ async def upload_ad_image(
 def list_ad_images(
     client_id: UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """List all ad images for a client."""
-    client = db.query(Client).filter(Client.id == client_id).first()
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found")
-    
+    verify_client_access(client_id, current_user, db)
     images = db.query(AdImage).filter(
         AdImage.client_id == client_id
     ).order_by(AdImage.uploaded_at.desc()).all()
@@ -163,13 +159,13 @@ def list_ad_images(
 def delete_ad_image(
     image_id: UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete an ad image."""
     image = db.query(AdImage).filter(AdImage.id == image_id).first()
     if not image:
         raise HTTPException(status_code=404, detail="Ad image not found")
-    
+    verify_client_access(image.client_id, current_user, db)
     db.delete(image)
     db.commit()
     
@@ -304,7 +300,7 @@ async def start_meta_import(
     client_id: UUID = Query(...),
     max_scrolls: int = Query(5, description="Maximum scroll operations to load more ads"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Start a Meta Ads Library import job.
@@ -312,11 +308,7 @@ async def start_meta_import(
     """
     from app.services.meta_ads_library_scraper import MetaAdsLibraryScraper
     
-    # Verify client exists
-    client = db.query(Client).filter(Client.id == client_id).first()
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found")
-    
+    verify_client_access(client_id, current_user, db)
     # Validate URL
     scraper = MetaAdsLibraryScraper(headless=True)
     if not scraper.validate_url(url):
@@ -369,9 +361,10 @@ def list_import_jobs(
     status: Optional[str] = Query(None, description="Filter by status"),
     limit: int = Query(10, description="Maximum number of jobs to return"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """List import jobs for a client."""
+    verify_client_access(client_id, current_user, db)
     query = db.query(ImportJob).filter(ImportJob.client_id == client_id)
     
     if status:
@@ -389,13 +382,13 @@ def list_import_jobs(
 def get_import_job_status(
     job_id: UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """Get detailed status of an import job including recently imported images."""
     job = db.query(ImportJob).filter(ImportJob.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Import job not found")
-    
+    verify_client_access(job.client_id, current_user, db)
     # Get recently imported images for this job
     recent_images = db.query(AdImage).filter(
         AdImage.import_job_id == job_id
@@ -412,13 +405,13 @@ def get_import_job_images(
     job_id: UUID,
     since: Optional[datetime] = Query(None, description="Get images imported after this timestamp"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """Get images imported by a specific job, optionally filtered by timestamp."""
     job = db.query(ImportJob).filter(ImportJob.id == job_id).first()
     if not job:
         raise HTTPException(status_code=404, detail="Import job not found")
-    
+    verify_client_access(job.client_id, current_user, db)
     query = db.query(AdImage).filter(AdImage.import_job_id == job_id)
     
     if since:
@@ -441,7 +434,7 @@ async def scrape_meta_ads_library(
     client_id: UUID = Query(...),
     max_scrolls: int = Query(5, description="Maximum scroll operations to load more ads"),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """
     [DEPRECATED] Synchronous scrape endpoint - use /api/meta-ads-library/import instead.
@@ -452,9 +445,7 @@ async def scrape_meta_ads_library(
         download_and_upload_media,
     )
     
-    client = db.query(Client).filter(Client.id == client_id).first()
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found")
+    verify_client_access(client_id, current_user, db)
     
     blob_token = os.getenv("BLOB_READ_WRITE_TOKEN")
     if not blob_token:

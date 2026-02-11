@@ -50,33 +50,15 @@ async function handleResponseError(response) {
  * @returns {Promise<Object>} Object with items array and total count
  */
 export async function fetchFacebookAds(clientId) {
-    // #region agent log
-    const debugApiUrl = getApiBaseUrl();
-    const debugFullUrl = `${debugApiUrl}/api/clients/${clientId}/facebook-ads`;
-    const debugOrigin = window.location.origin;
-    console.log('[DEBUG] fetchFacebookAds called', { apiBaseUrl: debugApiUrl, fullUrl: debugFullUrl, origin: debugOrigin, appConfig: window.APP_CONFIG });
-    // #endregion
-    
     try {
         const response = await fetch(
             `${getApiBaseUrl()}/api/clients/${clientId}/facebook-ads`,
             { headers: getAuthHeaders() }
         );
-        
-        // #region agent log
-        console.log('[DEBUG] fetch succeeded', { status: response.status, ok: response.ok });
-        // #endregion
-        
         await handleResponseError(response);
         const data = await response.json();
-        // #region agent log
-        console.log('[DEBUG] response data', { hasItems: !!data.items, itemsLength: data.items?.length, dataKeys: Object.keys(data), rawData: data });
-        // #endregion
         return data;
     } catch (error) {
-        // #region agent log
-        console.log('[DEBUG] fetch failed', { errorMessage: error.message, errorName: error.name });
-        // #endregion
         throw error;
     }
 }

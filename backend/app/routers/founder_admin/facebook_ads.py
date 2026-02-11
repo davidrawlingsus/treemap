@@ -1,5 +1,6 @@
 """
-Facebook Ads management routes for founder admin.
+Facebook Ads management routes.
+Access: any authenticated user with access to the client (membership or founder).
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -10,7 +11,8 @@ import logging
 from app.database import get_db
 from app.models import User, FacebookAd, Client
 from app.schemas import FacebookAdCreate, FacebookAdUpdate, FacebookAdResponse, FacebookAdListResponse
-from app.auth import get_current_active_founder
+from app.auth import get_current_user
+from app.authorization import verify_client_access
 import copy
 
 logger = logging.getLogger(__name__)
@@ -25,14 +27,10 @@ router = APIRouter()
 def list_facebook_ads(
     client_id: UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """List all Facebook ads for a client."""
-    # Verify client exists
-    client = db.query(Client).filter(Client.id == client_id).first()
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found")
-    
+    verify_client_access(client_id, current_user, db)
     ads = db.query(FacebookAd).filter(
         FacebookAd.client_id == client_id
     ).order_by(FacebookAd.created_at.desc()).all()
@@ -52,14 +50,10 @@ def create_facebook_ad(
     client_id: UUID,
     ad_data: FacebookAdCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new Facebook ad."""
-    # Verify client exists
-    client = db.query(Client).filter(Client.id == client_id).first()
-    if not client:
-        raise HTTPException(status_code=404, detail="Client not found")
-    
+    verify_client_access(client_id, current_user, db)
     # Create the ad
     ad = FacebookAd(
         client_id=client_id,
@@ -92,13 +86,13 @@ def create_facebook_ad(
 def get_facebook_ad(
     ad_id: UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """Get a single Facebook ad by ID."""
     ad = db.query(FacebookAd).filter(FacebookAd.id == ad_id).first()
     if not ad:
         raise HTTPException(status_code=404, detail="Facebook ad not found")
-    
+    verify_client_access(ad.client_id, current_user, db)
     return FacebookAdResponse.model_validate(ad)
 
 
@@ -110,13 +104,13 @@ def update_facebook_ad(
     ad_id: UUID,
     ad_data: FacebookAdUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """Update a Facebook ad (e.g., change status or image_url)."""
     ad = db.query(FacebookAd).filter(FacebookAd.id == ad_id).first()
     if not ad:
         raise HTTPException(status_code=404, detail="Facebook ad not found")
-    
+    verify_client_access(ad.client_id, current_user, db)
     # Update only provided fields
     update_data = ad_data.model_dump(exclude_unset=True)
     
@@ -146,13 +140,13 @@ def update_facebook_ad(
 def delete_facebook_ad(
     ad_id: UUID,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_active_founder),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete a Facebook ad."""
     ad = db.query(FacebookAd).filter(FacebookAd.id == ad_id).first()
     if not ad:
         raise HTTPException(status_code=404, detail="Facebook ad not found")
-    
+    verify_client_access(ad.client_id, current_user, db)
     db.delete(ad)
     db.commit()
     
