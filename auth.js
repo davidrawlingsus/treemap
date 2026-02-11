@@ -142,14 +142,8 @@
   };
 
   const requestMagicLink = async (email) => {
-    // #region agent log
-    const apiBase = getApiBaseUrl();
-    const requestUrl = `${apiBase}/api/auth/magic-link/request`;
-    const origin = (typeof global.location !== 'undefined' && global.location.origin) ? global.location.origin : '';
-    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.js:requestMagicLink',message:'before fetch',data:{origin,requestUrl,apiBaseUrl:apiBase},timestamp:Date.now(),hypothesisId:'A,C,D'})}).catch(()=>{});
-    // #endregion
     const response = await fetch(
-      requestUrl,
+      `${getApiBaseUrl()}/api/auth/magic-link/request`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -159,9 +153,6 @@
     const text = await response.text();
     let responseBody = null;
     try { responseBody = JSON.parse(text); } catch (_) { responseBody = { _raw: text.slice(0, 200) }; }
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'auth.js:requestMagicLink',message:'magic-link response',data:{status:response.status,ok:response.ok,detail:responseBody},timestamp:Date.now(),hypothesisId:'H1,H2,H4'})}).catch(()=>{});
-    // #endregion
     if (!response.ok) {
       const message = (responseBody && (responseBody.detail || responseBody.message)) || 'Unable to send magic link.';
       throw new Error(message);
