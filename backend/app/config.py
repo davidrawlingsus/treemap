@@ -90,6 +90,7 @@ class Settings(BaseSettings):
     meta_redirect_uri: str | None = Field(default=None)
     additional_cors_origins: str | None = Field(default=None)
     anthropic_api_key: str | None = Field(default=None)
+    gemini_api_key: str | None = Field(default=None)
     founder_admin_password: str = Field(default="tuj@yew2zmw*ZVN8uht")
 
     def get_database_url(self) -> str:

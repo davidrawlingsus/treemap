@@ -33,6 +33,7 @@ class ClientResponse(BaseModel):
     name: str
     slug: str
     is_active: bool
+    ad_library_only: Optional[bool] = False
     business_summary: Optional[str] = None
     client_url: Optional[str] = None
     logo_url: Optional[str] = None
@@ -91,6 +92,7 @@ class ClientCreate(BaseModel):
     slug: str
     is_active: bool = True
     settings: dict = {}
+    ad_library_only: bool = False
 
 
 class ClientLogoUpdate(BaseModel):

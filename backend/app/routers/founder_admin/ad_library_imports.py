@@ -9,7 +9,7 @@ from uuid import UUID
 import logging
 
 from app.database import get_db, SessionLocal
-from app.models import User, Client, AdLibraryImport, AdLibraryAd
+from app.models import User, Client, AdLibraryImport, AdLibraryAd, AdLibraryMedia
 from app.schemas import (
     AdLibraryImportResponse,
     AdLibraryImportDetailResponse,
@@ -17,6 +17,8 @@ from app.schemas import (
     AdLibraryImportStartedResponse,
     AdLibraryImportFromUrlRequest,
     AdLibraryAdResponse,
+    AdLibraryAdDetailResponse,
+    AdLibraryMediaResponse,
 )
 from app.auth import get_current_active_founder
 from app.services.meta_ads_library_scraper import MetaAdsLibraryScraper, AdCopyItem
@@ -53,8 +55,25 @@ async def _run_import_background(client_id: UUID, source_url: str, max_scrolls: 
                 cta=item.cta,
                 destination_url=item.destination_url,
                 media_thumbnail_url=item.media_thumbnail_url,
+                status=item.status,
+                platforms=item.platforms,
+                ads_using_creative_count=item.ads_using_creative_count,
+                page_name=item.page_name,
+                page_url=item.page_url,
+                page_profile_image_url=item.page_profile_image_url,
             )
             db.add(ad)
+            db.flush()
+            for idx, m in enumerate(item.media_items or []):
+                media = AdLibraryMedia(
+                    ad_id=ad.id,
+                    media_type=m.media_type,
+                    url=m.url,
+                    poster_url=m.poster_url,
+                    duration_seconds=m.duration_seconds,
+                    sort_order=m.sort_order if hasattr(m, 'sort_order') else idx,
+                )
+                db.add(media)
         db.commit()
         logger.info(
             "Background import completed: client_id=%s, import_id=%s, ads=%s",
@@ -117,17 +136,26 @@ def get_ad_library_import(
             AdLibraryImport.id == import_id,
             AdLibraryImport.client_id == client_id,
         )
-        .options(joinedload(AdLibraryImport.ads))
+        .options(
+            joinedload(AdLibraryImport.ads).joinedload(AdLibraryAd.media_items)
+        )
         .first()
     )
     if not imp:
         raise HTTPException(status_code=404, detail="Import not found")
+    ads_with_media = [
+        AdLibraryAdDetailResponse(
+            **AdLibraryAdResponse.model_validate(ad).model_dump(),
+            media_items=[AdLibraryMediaResponse.model_validate(m) for m in ad.media_items],
+        )
+        for ad in imp.ads
+    ]
     return AdLibraryImportDetailResponse(
         id=imp.id,
         client_id=imp.client_id,
         source_url=imp.source_url,
         imported_at=imp.imported_at,
-        ads=[AdLibraryAdResponse.model_validate(ad) for ad in imp.ads],
+        ads=ads_with_media,
     )
 
 

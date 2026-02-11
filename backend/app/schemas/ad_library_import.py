@@ -7,8 +7,22 @@ from datetime import datetime
 from uuid import UUID
 
 
+class AdLibraryMediaResponse(BaseModel):
+    """Single media item (video or image) from an ad."""
+    id: UUID
+    ad_id: UUID
+    media_type: str  # image | video
+    url: str
+    poster_url: Optional[str] = None
+    duration_seconds: Optional[int] = None
+    sort_order: int = 0
+
+    class Config:
+        from_attributes = True
+
+
 class AdLibraryAdResponse(BaseModel):
-    """Single ad from an Ad Library import (copy + timeline, format, CTA, thumbnail)."""
+    """Single ad from an Ad Library import (copy + metadata + media)."""
     id: UUID
     import_id: UUID
     primary_text: str
@@ -22,10 +36,21 @@ class AdLibraryAdResponse(BaseModel):
     cta: Optional[str] = None
     destination_url: Optional[str] = None
     media_thumbnail_url: Optional[str] = None
+    status: Optional[str] = None
+    platforms: Optional[List[str]] = None
+    ads_using_creative_count: Optional[int] = None
+    page_name: Optional[str] = None
+    page_url: Optional[str] = None
+    page_profile_image_url: Optional[str] = None
     created_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class AdLibraryAdDetailResponse(AdLibraryAdResponse):
+    """Ad with media items."""
+    media_items: List[AdLibraryMediaResponse] = []
 
 
 class AdLibraryImportResponse(BaseModel):
@@ -41,12 +66,12 @@ class AdLibraryImportResponse(BaseModel):
 
 
 class AdLibraryImportDetailResponse(BaseModel):
-    """Ad Library import with full list of ads."""
+    """Ad Library import with full list of ads (including media)."""
     id: UUID
     client_id: UUID
     source_url: str
     imported_at: datetime
-    ads: List[AdLibraryAdResponse] = []
+    ads: List[AdLibraryAdDetailResponse] = []
 
     class Config:
         from_attributes = True

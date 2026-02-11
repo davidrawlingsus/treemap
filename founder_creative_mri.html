@@ -33,8 +33,8 @@
                     <span class="breadcrumbs-separator">›</span>
                     <span>Creative MRI</span>
                 </nav>
-                <h1>Creative MRI</h1>
-                <div class="subtitle">Copy-based effectiveness diagnostics: hook, funnel, proof, offer analysis with Claude.</div>
+                <h1>Creative Effectiveness Command Center</h1>
+                <div class="subtitle">What exists and how it behaves · Why it performs · What to do next.</div>
             </div>
             <div class="founder-meta">
                 <span id="founderEmail"></span>
@@ -43,35 +43,95 @@
         </header>
 
         <main>
-            <div class="panel mri-panel">
-                <h2>Setup</h2>
-                <div class="form-row">
-                    <label for="clientSelect">Client</label>
-                    <select id="clientSelect">
-                        <option value="">Select a client</option>
-                    </select>
+            <div class="panel mri-panel brands-imports-panel">
+                <h2>Brands & Imports</h2>
+                <p class="mri-panel-desc">Add diagnosis-only brands and import ads from Meta Ads Library. These brands do not appear in the visualization app.</p>
+                <div class="mri-tabs mri-tabs--primary" role="tablist" aria-label="Brand type">
+                    <button class="mri-tab mri-tab--active" role="tab" id="tabNewBrand" data-tab="new">New Brand</button>
+                    <button class="mri-tab" role="tab" id="tabExistingBrand" data-tab="existing">Existing Brand</button>
                 </div>
-                <div class="form-row">
-                    <label for="importSelect">Ad Library import</label>
-                    <select id="importSelect">
-                        <option value="">Use latest import</option>
-                    </select>
+
+                <div id="paneNewBrand" class="mri-tab-pane mri-tab-pane--active" role="tabpanel">
+                    <div class="mri-form-section">
+                        <div class="mri-form-row">
+                            <label for="brandNameInput">Brand name</label>
+                            <input type="text" id="brandNameInput" placeholder="e.g. Acme Corp" />
+                        </div>
+                        <div class="mri-form-row">
+                            <label for="newBrandUrlInput">Meta Ads Library URL</label>
+                            <input type="url" id="newBrandUrlInput" placeholder="https://www.facebook.com/ads/library/..." />
+                        </div>
+                        <button class="btn btn-primary" id="addAndImportButton">Add and Import</button>
+                        <div id="addAndImportMessage" class="mri-message" style="display: none;"></div>
+                    </div>
                 </div>
-                <div class="form-row">
-                    <button class="btn btn-primary" id="runReportButton">Run report</button>
+
+                <div id="paneExistingBrand" class="mri-tab-pane" role="tabpanel" hidden>
+                    <div class="mri-form-row">
+                        <label for="existingBrandSelect">Brand</label>
+                        <select id="existingBrandSelect">
+                            <option value="">Select a brand</option>
+                        </select>
+                    </div>
+                    <div id="existingBrandImportSection" class="mri-existing-import-section" hidden>
+                        <div class="mri-tabs mri-tabs--secondary" role="tablist" aria-label="Import type">
+                            <button class="mri-tab mri-tab--active" role="tab" id="tabExistingImport" data-tab="existing-import">Existing Import</button>
+                            <button class="mri-tab" role="tab" id="tabNewImport" data-tab="new-import">New Import</button>
+                        </div>
+                        <div id="paneExistingImport" class="mri-tab-pane mri-tab-pane--active" role="tabpanel">
+                        <div class="mri-form-row">
+                            <label for="importSelect">Ad Library import</label>
+                            <select id="importSelect">
+                                <option value="">Use latest import</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" id="runReportButton">Run report</button>
+                    </div>
+                    <div id="paneNewImport" class="mri-tab-pane" role="tabpanel" hidden>
+                        <div class="mri-form-row">
+                            <label for="existingBrandUrlInput">Meta Ads Library URL</label>
+                            <input type="url" id="existingBrandUrlInput" placeholder="https://www.facebook.com/ads/library/..." />
+                        </div>
+                        <div class="mri-form-row mri-form-row--inline">
+                            <label for="importScrollsInput">Scrolls (1–20)</label>
+                            <input type="number" id="importScrollsInput" min="1" max="20" value="5" class="mri-input-narrow" />
+                        </div>
+                        <button class="btn btn-primary" id="importAdsButton">Import Ads</button>
+                        <div id="importAdsMessage" class="mri-message" style="display: none;"></div>
+                    </div>
+                    </div>
                 </div>
             </div>
 
             <div class="panel mri-results" id="mriResults" style="display: none;">
+                <div class="command-center-filters" id="mriFilters" style="display: none;">
+                    <span>Brand: <strong id="filterBrand">—</strong></span>
+                    <span>Import: <strong id="filterImport">—</strong></span>
+                </div>
                 <h2>Report</h2>
-                <p class="muted" style="font-size: 13px; margin-bottom: 12px;" id="mriLabel">Copy-based effectiveness diagnostics.</p>
+                <p class="mri-panel-desc" id="mriLabel">Copy-based effectiveness diagnostics.</p>
                 <div id="mriLoading" class="mri-loading mri-loading--active" style="display: none;">
                     <div class="mri-loading-spinner" aria-hidden="true"></div>
                     <p class="mri-loading-title">Running report…</p>
-                    <p class="mri-loading-detail">Claude analyzes each ad for hook, angle, and copy edits. This can take 1–2 minutes for many ads.</p>
+                    <p class="mri-loading-detail" id="mriLoadingDetail">Claude analyzes each ad (plus Gemini for video). This can take 1–2 minutes for many ads.</p>
+                    <div class="mri-progress-container" style="margin-top: 16px; max-width: 360px; width: 100%;">
+                        <div class="mri-progress-track">
+                            <div class="mri-progress-fill" id="mriProgressFill" style="width: 0%"></div>
+                        </div>
+                        <p class="mri-progress-message" id="mriProgressMessage" style="margin: 8px 0 0 0; font-size: 13px; color: var(--muted, #718096);"></p>
+                    </div>
                 </div>
                 <div id="mriContent" style="display: none;">
-                    <div class="mri-summary" id="mriSummary"></div>
+                    <div class="command-center-grid">
+                        <div class="command-center-section health-summary">
+                            <h3>Health Summary</h3>
+                            <div class="mri-summary" id="mriSummary"></div>
+                        </div>
+                        <div class="command-center-section impact-scoreboard">
+                            <h3>Impact Scoreboard</h3>
+                            <div id="mriImpactScoreboard"></div>
+                        </div>
+                    </div>
                     <h3>Charts</h3>
                     <div class="mri-charts">
                         <div class="mri-chart" id="mriChartSubscores">
@@ -87,8 +147,8 @@
                             <div class="mri-chart-bars" id="mriChartFunnelBars"></div>
                         </div>
                     </div>
-                    <h3>Ads</h3>
-                    <div id="mriAdsList"></div>
+                    <h3>Top Ads (click to expand)</h3>
+                    <div id="mriAdsList" class="mri-ads-grid"></div>
                 </div>
                 <div id="mriEmpty" class="mri-loading" style="display: none;">Run a report to see results.</div>
             </div>
@@ -105,7 +165,7 @@
             return {};
         }
 
-        const clientSelect = document.getElementById('clientSelect');
+        const existingBrandSelect = document.getElementById('existingBrandSelect');
         const importSelect = document.getElementById('importSelect');
         const runReportButton = document.getElementById('runReportButton');
         const mriResults = document.getElementById('mriResults');
@@ -119,17 +179,32 @@
             const res = await fetch(`${API_BASE_URL}/api/clients`, { headers: getAuthHeaders() });
             if (!res.ok) return;
             const clients = await res.json();
-            clientSelect.innerHTML = '<option value="">Select a client</option>';
+            const optionHtml = (c) => {
+                const label = c.name || c.client_name || c.id || 'Unknown';
+                const suffix = c.ad_library_only ? ' (Diagnosis)' : '';
+                return { value: c.id || c.client_id, text: label + suffix };
+            };
+            existingBrandSelect.innerHTML = '<option value="">Select a brand</option>';
             (clients || []).forEach(c => {
+                const { value, text } = optionHtml(c);
                 const opt = document.createElement('option');
-                opt.value = c.id || c.client_id;
-                opt.textContent = c.name || c.client_name || c.id || 'Unknown';
-                clientSelect.appendChild(opt);
+                opt.value = value;
+                opt.textContent = text;
+                existingBrandSelect.appendChild(opt);
             });
         }
 
+        function slugify(s) {
+            if (!s || typeof s !== 'string') return '';
+            return s.toLowerCase().trim()
+                .replace(/[^a-z0-9\s-]/g, '')
+                .replace(/\s+/g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^-|-$/g, '') || 'brand';
+        }
+
         async function loadImports() {
-            const clientId = clientSelect.value;
+            const clientId = existingBrandSelect.value;
             if (!clientId) {
                 importSelect.innerHTML = '<option value="">Select a client first</option>';
                 return;
@@ -149,39 +224,239 @@
             });
         }
 
-        clientSelect.addEventListener('change', loadImports);
+        const existingBrandImportSection = document.getElementById('existingBrandImportSection');
+        existingBrandSelect.addEventListener('change', () => {
+            const hasBrand = !!existingBrandSelect.value;
+            existingBrandImportSection.hidden = !hasBrand;
+            if (hasBrand) loadImports();
+        });
+
+        function switchPrimaryTab(tab) {
+            const isNew = tab === 'new';
+            document.getElementById('tabNewBrand').classList.toggle('mri-tab--active', isNew);
+            document.getElementById('tabExistingBrand').classList.toggle('mri-tab--active', !isNew);
+            const paneNew = document.getElementById('paneNewBrand');
+            const paneExisting = document.getElementById('paneExistingBrand');
+            paneNew.classList.toggle('mri-tab-pane--active', isNew);
+            paneNew.hidden = !isNew;
+            paneExisting.classList.toggle('mri-tab-pane--active', !isNew);
+            paneExisting.hidden = isNew;
+        }
+        function switchSecondaryTab(tab) {
+            const isExisting = tab === 'existing-import';
+            document.getElementById('tabExistingImport').classList.toggle('mri-tab--active', isExisting);
+            document.getElementById('tabNewImport').classList.toggle('mri-tab--active', !isExisting);
+            const paneExisting = document.getElementById('paneExistingImport');
+            const paneNew = document.getElementById('paneNewImport');
+            paneExisting.classList.toggle('mri-tab-pane--active', isExisting);
+            paneExisting.hidden = !isExisting;
+            paneNew.classList.toggle('mri-tab-pane--active', !isExisting);
+            paneNew.hidden = isExisting;
+        }
+        document.getElementById('tabNewBrand').addEventListener('click', () => switchPrimaryTab('new'));
+        document.getElementById('tabExistingBrand').addEventListener('click', () => switchPrimaryTab('existing'));
+        document.getElementById('tabExistingImport').addEventListener('click', () => switchSecondaryTab('existing-import'));
+        document.getElementById('tabNewImport').addEventListener('click', () => switchSecondaryTab('new-import'));
+
+        document.getElementById('addAndImportButton').addEventListener('click', async () => {
+            const nameInput = document.getElementById('brandNameInput');
+            const urlInput = document.getElementById('newBrandUrlInput');
+            const msgEl = document.getElementById('addAndImportMessage');
+            const name = (nameInput?.value || '').trim();
+            const url = (urlInput?.value || '').trim();
+            if (!name) {
+                msgEl.textContent = 'Enter a brand name.';
+                msgEl.style.display = 'block';
+                msgEl.className = 'mri-message mri-message--error';
+                return;
+            }
+            if (!url) {
+                msgEl.textContent = 'Enter a Meta Ads Library URL (must include view_all_page_id).';
+                msgEl.style.display = 'block';
+                msgEl.className = 'mri-message mri-message--error';
+                return;
+            }
+            const slug = slugify(name) || 'brand';
+            msgEl.style.display = 'none';
+            const btn = document.getElementById('addAndImportButton');
+            btn.disabled = true;
+            try {
+                const createRes = await fetch(`${API_BASE_URL}/api/clients`, {
+                    method: 'POST',
+                    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, slug, ad_library_only: true }),
+                });
+                const createData = await createRes.json().catch(() => ({}));
+                if (!createRes.ok) {
+                    msgEl.textContent = createData.detail || `Error ${createRes.status}`;
+                    msgEl.className = 'mri-message mri-message--error';
+                    msgEl.style.display = 'block';
+                    return;
+                }
+                const brandId = createData.id || createData.client_id;
+                const importRes = await fetch(`${API_BASE_URL}/api/clients/${brandId}/ad-library-imports`, {
+                    method: 'POST',
+                    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ source_url: url, max_scrolls: 5 }),
+                });
+                const importData = await importRes.json().catch(() => ({}));
+                if (!importRes.ok) {
+                    msgEl.textContent = importData.detail || `Brand created, but import failed: ${importRes.status}`;
+                    msgEl.className = 'mri-message mri-message--error';
+                    msgEl.style.display = 'block';
+                    await loadClients();
+                    return;
+                }
+                msgEl.textContent = `Brand "${name}" added and import started. This may take 1–2 minutes. Switch to Existing Brand to run a report when done.`;
+                msgEl.className = 'mri-message mri-message--success';
+                msgEl.style.display = 'block';
+                nameInput.value = '';
+                urlInput.value = '';
+                await loadClients();
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        document.getElementById('importAdsButton').addEventListener('click', async () => {
+            const brandId = existingBrandSelect.value;
+            const urlInput = document.getElementById('existingBrandUrlInput');
+            const scrollsInput = document.getElementById('importScrollsInput');
+            const msgEl = document.getElementById('importAdsMessage');
+            const url = (urlInput?.value || '').trim();
+            if (!brandId) {
+                msgEl.textContent = 'Select a brand first.';
+                msgEl.className = 'mri-message mri-message--error';
+                msgEl.style.display = 'block';
+                return;
+            }
+            if (!url) {
+                msgEl.textContent = 'Enter a Meta Ads Library URL (must include view_all_page_id).';
+                msgEl.className = 'mri-message mri-message--error';
+                msgEl.style.display = 'block';
+                return;
+            }
+            const scrolls = Math.min(20, Math.max(1, parseInt(scrollsInput.value, 10) || 5));
+            msgEl.style.display = 'none';
+            const btn = document.getElementById('importAdsButton');
+            btn.disabled = true;
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/clients/${brandId}/ad-library-imports`, {
+                    method: 'POST',
+                    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ source_url: url, max_scrolls: scrolls }),
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    msgEl.textContent = data.detail || `Error ${res.status}`;
+                    msgEl.className = 'mri-message mri-message--error';
+                    msgEl.style.display = 'block';
+                    return;
+                }
+                msgEl.textContent = 'Import started. This may take 1–2 minutes. Switch to Existing Import when done to run a report.';
+                msgEl.className = 'mri-message mri-message--success';
+                msgEl.style.display = 'block';
+                urlInput.value = '';
+                await loadImports();
+            } finally {
+                btn.disabled = false;
+            }
+        });
 
         runReportButton.addEventListener('click', async () => {
-            const clientId = clientSelect.value;
+            const clientId = existingBrandSelect.value;
             if (!clientId) {
-                alert('Select a client first.');
+                alert('Select a brand first.');
                 return;
             }
             mriResults.style.display = 'block';
             mriLoading.style.display = 'flex';
             mriContent.style.display = 'none';
             mriEmpty.style.display = 'none';
+            document.getElementById('mriProgressFill').style.width = '0%';
+            document.getElementById('mriProgressMessage').textContent = '';
+            document.getElementById('mriLoadingDetail').textContent = 'Connecting…';
             runReportButton.disabled = true;
             try {
                 const body = {};
                 const importId = importSelect.value;
                 if (importId) body.ad_library_import_id = importId;
-                const res = await fetch(`${API_BASE_URL}/api/clients/${clientId}/creative-mri/report`, {
+                const res = await fetch(`${API_BASE_URL}/api/clients/${clientId}/creative-mri/report?stream=1`, {
                     method: 'POST',
                     headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
                     body: JSON.stringify(body),
                 });
-                const report = await res.json().catch(() => ({}));
-                mriLoading.style.display = 'none';
                 if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    mriLoading.style.display = 'none';
                     mriEmpty.style.display = 'block';
-                    mriEmpty.textContent = report.detail || `Error ${res.status}`;
+                    mriEmpty.textContent = err.detail || `Error ${res.status}`;
                     return;
                 }
+                const reader = res.body.getReader();
+                const dec = new TextDecoder();
+                let buf = '';
+                let report = null;
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buf += dec.decode(value, { stream: true });
+                    const lines = buf.split('\n');
+                    buf = lines.pop() || '';
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.slice(6));
+                                if (data.error) {
+                                    mriLoading.style.display = 'none';
+                                    mriEmpty.style.display = 'block';
+                                    mriEmpty.textContent = data.error;
+                                    return;
+                                }
+                                if (data.stage === 'done' && data.report) {
+                                    report = data.report;
+                                    break;
+                                }
+                                const total = data.total || 1;
+                                const current = data.current || 0;
+                                const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+                                document.getElementById('mriProgressFill').style.width = pct + '%';
+                                document.getElementById('mriProgressMessage').textContent = data.message || '';
+                                document.getElementById('mriLoadingDetail').textContent = data.message || 'Processing…';
+                            } catch (_) {}
+                        }
+                    }
+                    if (report) break;
+                }
+                if (!report) {
+                    mriLoading.style.display = 'none';
+                    mriEmpty.style.display = 'block';
+                    mriEmpty.textContent = 'Report incomplete. No data received.';
+                    return;
+                }
+                mriLoading.style.display = 'none';
                 mriContent.style.display = 'block';
+                document.getElementById('mriFilters').style.display = 'flex';
+                const clientOpt = existingBrandSelect.options[existingBrandSelect.selectedIndex];
+                document.getElementById('filterBrand').textContent = clientOpt?.textContent || '—';
+                document.getElementById('filterImport').textContent = importSelect.options[importSelect.selectedIndex]?.textContent || 'Latest';
+
                 const meta = report.meta || {};
                 const exec = report.executive_summary || {};
                 const ads = report.ads || [];
+                const analysis = report.analysis || {};
+                const ds = analysis?.analysis?.dataset_summary || {};
+                const counts = ds.counts || {};
+                const funnelShare = ds.funnel?.stage_share || {};
+
+                document.getElementById('mriImpactScoreboard').innerHTML = `
+                    <p><strong>Performance lift potential:</strong> +${Math.round(exec.overall_effectiveness_score || 0) - 50}% (copy-based proxy)</p>
+                    <p><strong>Biggest drags:</strong></p>
+                    <ul>${(exec.top_leaks || []).slice(0, 3).map(l => `<li>${l.subscore}</li>`).join('')}</ul>
+                    <p><strong>Quick wins:</strong></p>
+                    <ul>${(exec.fast_wins || []).slice(0, 3).map(w => `<li>${escapeHtml(w)}</li>`).join('')}</ul>
+                    <p class="muted">Funnel mix: TOFU ${Math.round((funnelShare.tofu || 0) * 100)}% / MOFU ${Math.round((funnelShare.mofu || 0) * 100)}% / BOFU ${Math.round((funnelShare.bofu || 0) * 100)}%</p>
+                `;
 
                 function renderBarRow(label, value, maxVal, fillClass = '') {
                     const pct = maxVal ? Math.round((value / maxVal) * 100) : 0;
@@ -244,6 +519,7 @@
                             <div class="angle">Angle: ${escapeHtml(angle)}</div>
                             <div class="hook-phrase">Hook: ${escapeHtml(hookPhrase)}</div>
                             <div>Score: ${ad.overall_score ?? '—'} · Stage: ${ad.funnel_stage ?? '—'} · Hook: ${ad.hook_type ?? '—'}</div>
+                            ${(ad.media_thumbnail_url ? `<img src="${escapeHtml(ad.media_thumbnail_url)}" alt="" class="mri-ad-thumb">` : '')}
                             ${whatToChange.length ? `<div class="what-to-change"><strong>What to change:</strong><ul>${whatToChange.map(w => `<li>${escapeHtml(w)}</li>`).join('')}</ul></div>` : ''}
                         </div>
                     `;

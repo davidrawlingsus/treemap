@@ -1,21 +1,195 @@
-/* Creative MRI page: setup panel, report summary, ad cards */
-.mri-panel {
-  max-width: 900px;
+/* Creative MRI / Command Center: setup panel, report summary, ad cards */
+
+/* Command Center layout */
+.command-center-filters {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: var(--bg, #f5f7fb);
+  border-radius: 8px;
+  font-size: 13px;
 }
-.mri-panel label {
-  display: block;
-  margin-bottom: 4px;
+.command-center-filters strong {
+  font-weight: 600;
+  color: var(--text, #1a202c);
+}
+.command-center-grid {
+  display: grid;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+@media (min-width: 768px) {
+  .command-center-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.command-center-section {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  padding: 16px;
+}
+.command-center-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 1rem;
   font-weight: 600;
 }
-.mri-panel select {
-  width: 100%;
-  max-width: 480px;
-  padding: 8px 12px;
-  margin-bottom: 12px;
+.command-center-section.impact-scoreboard ul {
+  margin: 0;
+  padding-left: 20px;
 }
-.mri-panel .form-row {
+.command-center-section.impact-scoreboard li {
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+/* Tab toggles */
+.mri-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 20px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  overflow: hidden;
+  width: fit-content;
+}
+.mri-tabs--primary {
+  margin-bottom: 24px;
+}
+.mri-tabs--secondary {
   margin-bottom: 16px;
+  margin-top: 4px;
 }
+.mri-tabs--secondary .mri-tab {
+  padding: 8px 16px;
+  font-size: 13px;
+}
+.mri-tab {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  background: var(--bg, #f5f7fb);
+  color: var(--muted, #718096);
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+.mri-tab:first-child {
+  border-right: 1px solid var(--border, #e2e8f0);
+}
+.mri-tab:hover {
+  background: var(--surface, #fff);
+  color: var(--text, #1a202c);
+}
+.mri-tab.mri-tab--active {
+  background: var(--surface, #fff);
+  color: var(--text, #1a202c);
+  font-weight: 600;
+}
+.mri-tab-pane {
+  display: none;
+}
+.mri-tab-pane.mri-tab-pane--active {
+  display: block;
+}
+.brands-imports-panel {
+  max-width: 560px;
+}
+
+/* Panel and section styling */
+.mri-panel {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  padding: 20px 24px;
+}
+.mri-panel h2 {
+  margin: 0 0 6px 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+.mri-panel-desc {
+  font-size: 13px;
+  color: var(--muted, #718096);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+
+/* Form sections and rows - consistent layout */
+.mri-form-section {
+  min-width: 0;
+}
+.mri-form-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+.mri-form-row {
+  margin-bottom: 14px;
+}
+.mri-form-row label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text, #1a202c);
+}
+.mri-form-row input,
+.mri-form-row select {
+  width: 100%;
+  max-width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--surface, #fff);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.mri-form-row input:focus,
+.mri-form-row select:focus {
+  outline: none;
+  border-color: var(--primary, #b9f040);
+  box-shadow: 0 0 0 2px rgba(185, 240, 64, 0.2);
+}
+.mri-form-row--inline {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.mri-form-row--inline label {
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+.mri-input-narrow {
+  width: 72px !important;
+  max-width: 72px !important;
+}
+.mri-form-section .btn {
+  margin-top: 4px;
+}
+
+/* Message feedback */
+.mri-message {
+  margin-top: 12px;
+  font-size: 13px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  line-height: 1.4;
+}
+.mri-message--success {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+.mri-message--error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
 .mri-results {
   margin-top: 24px;
 }
@@ -52,6 +226,22 @@
   font-size: 13px;
   margin: 0;
   max-width: 360px;
+}
+.mri-progress-track {
+  height: 8px;
+  background: var(--bg, #f5f7fb);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.mri-progress-fill {
+  height: 100%;
+  background: var(--brand-color, #b9f040);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+.mri-progress-message {
+  font-size: 13px;
+  color: var(--muted, #718096);
 }
 
 /* Charts */
@@ -176,4 +366,21 @@
 .mri-ad-card .what-to-change ul {
   margin: 4px 0 0 0;
   padding-left: 18px;
+}
+.mri-ad-thumb {
+  display: block;
+  max-width: 120px;
+  max-height: 80px;
+  object-fit: cover;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+.mri-ads-grid {
+  display: grid;
+  gap: 12px;
+}
+@media (min-width: 640px) {
+  .mri-ads-grid {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
 }

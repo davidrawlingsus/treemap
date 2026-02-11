@@ -11,7 +11,7 @@ import re
 import time
 import random
 import string
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from urllib.parse import urlparse, parse_qs
 from dataclasses import dataclass
 from datetime import datetime
@@ -30,20 +30,37 @@ class MediaItem:
 
 
 @dataclass
+class MediaItemInfo:
+    """Single media item (video or image) within an ad card."""
+    media_type: str  # 'image' or 'video'
+    url: str
+    poster_url: Optional[str] = None
+    duration_seconds: Optional[int] = None
+    sort_order: int = 0
+
+
+@dataclass
 class AdCopyItem:
-    """Ad copy and metadata scraped from Ads Library (for VOC comparison / Hook Wall)."""
+    """Full ad card scraped from Ads Library (copy, metadata, media)."""
     primary_text: str
     headline: Optional[str] = None
     description: Optional[str] = None
     library_id: Optional[str] = None
     started_running_on: Optional[str] = None
-    # Extended fields: timeline, format, CTA, thumbnail
-    ad_delivery_start_time: Optional[str] = None  # e.g. "Jun 29, 2024"
-    ad_delivery_end_time: Optional[str] = None   # e.g. "Jul 15, 2024" or null if active
-    ad_format: Optional[str] = None               # "video" | "image" | "carousel"
-    cta: Optional[str] = None                     # CTA button/link text
-    destination_url: Optional[str] = None        # decoded landing URL
-    media_thumbnail_url: Optional[str] = None    # poster or first image URL for Hook Wall
+    ad_delivery_start_time: Optional[str] = None
+    ad_delivery_end_time: Optional[str] = None
+    ad_format: Optional[str] = None
+    cta: Optional[str] = None
+    destination_url: Optional[str] = None
+    media_thumbnail_url: Optional[str] = None
+    # Extended: status, platforms, page, ads count
+    status: Optional[str] = None  # Active | Paused | Ended
+    platforms: Optional[List[str]] = None  # ["meta","instagram",...]
+    ads_using_creative_count: Optional[int] = None
+    page_name: Optional[str] = None
+    page_url: Optional[str] = None
+    page_profile_image_url: Optional[str] = None
+    media_items: Optional[List[MediaItemInfo]] = None  # Full media URLs per ad
 
 
 class MetaAdsLibraryScraper:
@@ -219,7 +236,7 @@ class MetaAdsLibraryScraper:
         return all_copy
     
     async def _extract_copy_from_page(self, page, seen_keys: set) -> List[AdCopyItem]:
-        """Extract ad copy and metadata from each ad card: body, headline, format, CTA, thumbnail, timeline."""
+        """Extract full ad card: copy, metadata, status, page info, media."""
         raw = await page.evaluate('''
             () => {
                 const results = [];
@@ -238,7 +255,7 @@ class MetaAdsLibraryScraper:
                             if (hasVideo || hasImage) break;
                         }
                         const key = container;
-                        if (!adCards.has(key)) adCards.set(key, { libraryId: null, startedRunningOn: null, endedRunningOn: null });
+                        if (!adCards.has(key)) adCards.set(key, { libraryId: null, startedRunningOn: null, endedRunningOn: null, status: null, adsUsingCreative: null });
                         adCards.get(key).libraryId = libraryIdMatch[1];
                     }
                     const dateMatch = text.match(/^Started running on\\s+([A-Za-z]+\\s+\\d{1,2},?\\s+\\d{4})$/);
@@ -251,7 +268,7 @@ class MetaAdsLibraryScraper:
                             if (hasVideo || hasImage) break;
                         }
                         const key = container;
-                        if (!adCards.has(key)) adCards.set(key, { libraryId: null, startedRunningOn: null, endedRunningOn: null });
+                        if (!adCards.has(key)) adCards.set(key, { libraryId: null, startedRunningOn: null, endedRunningOn: null, status: null, adsUsingCreative: null });
                         adCards.get(key).startedRunningOn = dateMatch[1];
                     }
                     const endedMatch = text.match(/Ended\\s+([A-Za-z]+\\s+\\d{1,2},?\\s+\\d{4})/);
@@ -265,6 +282,31 @@ class MetaAdsLibraryScraper:
                         }
                         const key = container;
                         if (adCards.has(key)) adCards.get(key).endedRunningOn = endedMatch[1];
+                    }
+                    if (/^Active$|^Paused$|^Ended$/i.test(text)) {
+                        let container = span;
+                        for (let i = 0; i < 15 && container.parentElement; i++) {
+                            container = container.parentElement;
+                            const hasVideo = container.querySelector('video[src]');
+                            const hasImage = container.querySelector('img[src*="scontent"], img[src*="fbcdn"]');
+                            if (hasVideo || hasImage) break;
+                        }
+                        const key = container;
+                        if (!adCards.has(key)) adCards.set(key, { libraryId: null, startedRunningOn: null, endedRunningOn: null, status: null, adsUsingCreative: null });
+                        adCards.get(key).status = text;
+                    }
+                    const adsMatch = text.match(/(\\d+)\\s+ads?\\s+use this creative/i);
+                    if (adsMatch) {
+                        let container = span;
+                        for (let i = 0; i < 15 && container.parentElement; i++) {
+                            container = container.parentElement;
+                            const hasVideo = container.querySelector('video[src]');
+                            const hasImage = container.querySelector('img[src*="scontent"], img[src*="fbcdn"]');
+                            if (hasVideo || hasImage) break;
+                        }
+                        const key = container;
+                        if (!adCards.has(key)) adCards.set(key, { libraryId: null, startedRunningOn: null, endedRunningOn: null, status: null, adsUsingCreative: null });
+                        adCards.get(key).adsUsingCreative = parseInt(adsMatch[1], 10);
                     }
                 }
                 
@@ -291,7 +333,6 @@ class MetaAdsLibraryScraper:
                     
                     if (bodyText.length < 5) continue;
                     
-                    // ad_format: video | image | carousel
                     let adFormat = 'image';
                     const video = container.querySelector('video[src], video[poster]');
                     const images = container.querySelectorAll('img[src*="scontent"], img[src*="fbcdn"]');
@@ -303,19 +344,24 @@ class MetaAdsLibraryScraper:
                     if (video) adFormat = 'video';
                     else if (largeImages.length > 1) adFormat = 'carousel';
                     
-                    // media_thumbnail_url: video poster or first large image
                     let mediaThumbnailUrl = null;
                     if (video && video.poster) mediaThumbnailUrl = video.poster;
                     else if (largeImages.length > 0 && largeImages[0].src) mediaThumbnailUrl = largeImages[0].src;
                     
-                    // CTA and destination_url: main link (target=_blank, l.php or external)
                     let cta = null;
                     let destinationUrl = null;
+                    let pageName = null;
+                    let pageUrl = null;
+                    let pageProfileImageUrl = null;
                     const links = container.querySelectorAll('a[target="_blank"][href]');
                     for (const a of links) {
                         const href = (a.getAttribute('href') || a.href || '').trim();
                         if (!href || href.startsWith('#')) continue;
                         const text = (a.innerText || a.textContent || '').trim();
+                        if (href.includes('facebook.com') && !href.includes('l.php') && text && text.length > 0 && text.length <= 100) {
+                            pageUrl = href;
+                            pageName = text;
+                        }
                         if (href.includes('l.facebook.com/l.php') || href.includes('l.php')) {
                             try {
                                 const u = new URL(href);
@@ -328,17 +374,51 @@ class MetaAdsLibraryScraper:
                         if (destinationUrl && text && text.length <= 100) cta = text;
                         if (destinationUrl) break;
                     }
+                    const profileImg = container.querySelector('img[alt][src*="scontent"], img[alt][src*="fbcdn"]');
+                    if (profileImg && profileImg.alt && pageName && (profileImg.alt === pageName || profileImg.alt.includes(pageName))) {
+                        pageProfileImageUrl = profileImg.src;
+                    } else if (largeImages.length > 0 && !video) {
+                        pageProfileImageUrl = null;
+                    } else {
+                        const smallImg = container.querySelector('img[src*="s60x60"], img[src*="_s60x60"]');
+                        if (smallImg) pageProfileImageUrl = smallImg.src;
+                    }
+                    
+                    const mediaItems = [];
+                    if (video && video.src) {
+                        let durSec = null;
+                        const fullText = container.innerText || '';
+                        const slashMatch = fullText.match(/\\/\\s*(\\d+):(\\d+)/);
+                        if (slashMatch) durSec = parseInt(slashMatch[1], 10) * 60 + parseInt(slashMatch[2], 10);
+                        else {
+                            const m = fullText.match(/(\\d+):(\\d+)/);
+                            if (m) durSec = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+                        }
+                        mediaItems.push({ type: 'video', url: video.src, posterUrl: video.poster || null, durationSeconds: durSec, sortOrder: 0 });
+                    }
+                    for (let i = 0; i < largeImages.length; i++) {
+                        const src = largeImages[i].src;
+                        if (src && !mediaItems.some(m => m.url === src)) {
+                            mediaItems.push({ type: 'image', url: src, posterUrl: null, durationSeconds: null, sortOrder: i });
+                        }
+                    }
                     
                     results.push({
                         libraryId: data.libraryId,
                         startedRunningOn: data.startedRunningOn,
                         endedRunningOn: data.endedRunningOn || null,
+                        status: data.status || null,
+                        adsUsingCreative: data.adsUsingCreative || null,
                         bodyText: bodyText,
                         headlineText: headlineText || null,
                         adFormat: adFormat,
                         mediaThumbnailUrl: mediaThumbnailUrl,
                         cta: cta,
-                        destinationUrl: destinationUrl
+                        destinationUrl: destinationUrl,
+                        pageName: pageName,
+                        pageUrl: pageUrl,
+                        pageProfileImageUrl: pageProfileImageUrl,
+                        mediaItems: mediaItems
                     });
                 }
                 return results;
@@ -364,6 +444,20 @@ class MetaAdsLibraryScraper:
             if key in seen_keys:
                 continue
             seen_keys.add(key)
+            media_items = []
+            for m in (r.get('mediaItems') or []):
+                media_items.append(MediaItemInfo(
+                    media_type=m.get('type', 'image'),
+                    url=(m.get('url') or '').strip(),
+                    poster_url=(m.get('posterUrl') or '').strip() or None,
+                    duration_seconds=m.get('durationSeconds'),
+                    sort_order=int(m.get('sortOrder', 0)),
+                ))
+            platforms = r.get('platforms')
+            if isinstance(platforms, list):
+                pass
+            else:
+                platforms = None
             items.append(AdCopyItem(
                 primary_text=body_clean[:5000],
                 headline=headline_text,
@@ -376,6 +470,13 @@ class MetaAdsLibraryScraper:
                 cta=(r.get('cta') or '').strip() or None,
                 destination_url=(r.get('destinationUrl') or '').strip() or None,
                 media_thumbnail_url=(r.get('mediaThumbnailUrl') or '').strip() or None,
+                status=(r.get('status') or '').strip() or None,
+                platforms=platforms,
+                ads_using_creative_count=r.get('adsUsingCreative'),
+                page_name=(r.get('pageName') or '').strip() or None,
+                page_url=(r.get('pageUrl') or '').strip() or None,
+                page_profile_image_url=(r.get('pageProfileImageUrl') or '').strip() or None,
+                media_items=media_items if media_items else None,
             ))
         return items
     

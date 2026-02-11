@@ -18,6 +18,7 @@ from app.models.meta_oauth_token import MetaOAuthToken
 from app.models.saved_email import SavedEmail
 from app.models.ad_library_import import AdLibraryImport
 from app.models.ad_library_ad import AdLibraryAd
+from app.models.ad_library_media import AdLibraryMedia
 
 __all__ = [
     "Client",
@@ -44,6 +45,7 @@ __all__ = [
     "SavedEmail",
     "AdLibraryImport",
     "AdLibraryAd",
+    "AdLibraryMedia",
 ]
 
 

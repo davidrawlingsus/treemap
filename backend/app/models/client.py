@@ -22,6 +22,7 @@ class Client(Base):
     logo_url = Column(String(500), nullable=True)
     header_color = Column(String(7), nullable=True)
     tone_of_voice = Column(Text, nullable=True)
+    ad_library_only = Column(Boolean, default=False)  # Diagnosis-only brand (not in viz app)
 
     # Relationships
     founder = relationship("User", foreign_keys=[founder_user_id], back_populates="founded_clients")

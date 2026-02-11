@@ -28,7 +28,7 @@ from app.schemas import (
     ClientPromptsGroupedItem,
 )
 from app.schemas.action import ClientActionResponse, ActionResponse
-from app.auth import get_current_user
+from app.auth import get_current_user, get_current_active_founder
 from app.authorization import verify_client_access
 
 router = APIRouter(prefix="/api/clients", tags=["clients"])
@@ -66,8 +66,12 @@ def list_clients(db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=ClientResponse)
-def create_client(client: ClientCreate, db: Session = Depends(get_db)):
-    """Create a new client"""
+def create_client(
+    client: ClientCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Create a new client (founder only). Use ad_library_only=True for diagnosis-only brands."""
     try:
         # Check if client with same name or slug already exists
         existing = db.query(Client).filter(

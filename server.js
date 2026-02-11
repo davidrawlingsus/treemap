@@ -48,11 +48,12 @@ console.log(`🔧 API_BASE_URL: ${API_BASE_URL}`);
 
 // Endpoint to get config (so frontend can fetch API URL dynamically)
 // This must be BEFORE express.static so it overrides the static config.js file
-// In dev: use same-origin so /api/* requests are proxied (avoids direct browser→backend connection issues)
+// Serve config - for local dev, always point to backend (8000) to bypass broken proxy
 app.get('/config.js', (req, res) => {
   res.type('application/javascript');
+  res.set('Cache-Control', 'no-store');
   const isLocalBackend = API_BASE_URL.includes('localhost:8000') || API_BASE_URL.includes('127.0.0.1:8000');
-  const urlForFrontend = isLocalBackend ? `http://localhost:${PORT}` : API_BASE_URL;
+  const urlForFrontend = isLocalBackend ? 'http://localhost:8000' : API_BASE_URL;
   res.send(`window.APP_CONFIG = { API_BASE_URL: '${urlForFrontend}' };`);
 });
 
@@ -143,8 +144,9 @@ app.post('/api/upload-ad-image', upload.single('file'), async (req, res) => {
 app.use('/api', createProxyMiddleware({
   target: API_BASE_URL,
   changeOrigin: true,
-  pathRewrite: (path, req) => `/api${path}`, // Preserve the /api prefix
   logLevel: 'warn',
+  proxyTimeout: 60000,
+  timeout: 60000,
   onError: (err, req, res) => {
     console.error('Proxy error:', err.message);
     if (!res.headersSent) {

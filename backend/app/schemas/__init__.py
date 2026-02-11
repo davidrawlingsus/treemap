@@ -125,6 +125,8 @@ from .ad_image import (
 )
 from .ad_library_import import (
     AdLibraryAdResponse,
+    AdLibraryAdDetailResponse,
+    AdLibraryMediaResponse,
     AdLibraryImportResponse,
     AdLibraryImportDetailResponse,
     AdLibraryImportListResponse,

@@ -116,6 +116,9 @@ def get_user_clients(user: User, db: Session) -> List[Client]:
             if client.id not in client_ids:
                 accessible_clients.append(client)
     
+    # Exclude diagnosis-only brands (ad_library_only) from viz app
+    accessible_clients = [c for c in accessible_clients if not getattr(c, 'ad_library_only', False)]
+    
     return accessible_clients
 
 
