@@ -48,9 +48,12 @@ console.log(`🔧 API_BASE_URL: ${API_BASE_URL}`);
 
 // Endpoint to get config (so frontend can fetch API URL dynamically)
 // This must be BEFORE express.static so it overrides the static config.js file
+// In dev: use same-origin so /api/* requests are proxied (avoids direct browser→backend connection issues)
 app.get('/config.js', (req, res) => {
   res.type('application/javascript');
-  res.send(`window.APP_CONFIG = { API_BASE_URL: '${API_BASE_URL}' };`);
+  const isLocalBackend = API_BASE_URL.includes('localhost:8000') || API_BASE_URL.includes('127.0.0.1:8000');
+  const urlForFrontend = isLocalBackend ? `http://localhost:${PORT}` : API_BASE_URL;
+  res.send(`window.APP_CONFIG = { API_BASE_URL: '${urlForFrontend}' };`);
 });
 
 // API routes must be BEFORE express.static to avoid conflicts
