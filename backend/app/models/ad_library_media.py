@@ -19,6 +19,7 @@ class AdLibraryMedia(Base):
     duration_seconds = Column(Integer, nullable=True)  # video length
     sort_order = Column(Integer, nullable=False, default=0)  # carousel order
     video_analysis_json = Column(JSONB, nullable=True)  # Gemini output for video ads
+    image_analysis_json = Column(JSONB, nullable=True)  # Gemini output for image ads
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships

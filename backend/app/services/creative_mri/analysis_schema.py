@@ -27,6 +27,12 @@ HOOK_TYPES = [
 
 FUNNEL_STAGES = ["tofu", "mofu", "bofu"]
 
+MOFU_JOB_TYPES = ["awareness", "consideration", "intent", "unknown", "not_applicable"]
+
+REPLACE_REFINE_DECISION = ["replace", "refine", "unknown"]
+
+FIRST2S_HOOK_QUALITY = ["strong", "weak", "missing", "unknown"]
+
 PROOF_TYPES = [
     "quantitative_stat",
     "clinical_study",

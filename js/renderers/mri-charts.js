@@ -71,14 +71,25 @@ function prepLaunchCadence(ads) {
         .sort((a, b) => a.date - b.date);
 }
 
-/** Prep chart 2: active creatives per week (between start and end) */
+/** Prep chart 2: active creatives per week (between start and end).
+ * For ads without end date, assume they ran until the dataset cutoff (latest date across all ads).
+ * This differs from launch cadence, which counts only the week of launch. */
 function prepRotationDepth(ads) {
+    let datasetCutoff = null;
+    ads.forEach(a => {
+        const start = parseDate(a.ad_delivery_start_time || a.started_running_on);
+        const end = parseDate(a.ad_delivery_end_time);
+        if (start && (!datasetCutoff || start > datasetCutoff)) datasetCutoff = new Date(start);
+        if (end && (!datasetCutoff || end > datasetCutoff)) datasetCutoff = new Date(end);
+    });
+    if (!datasetCutoff) return [];
+
     const byWeek = {};
     ads.forEach(a => {
         const start = parseDate(a.ad_delivery_start_time || a.started_running_on);
-        const end = parseDate(a.ad_delivery_end_time || a.ad_delivery_start_time || a.started_running_on);
+        const end = parseDate(a.ad_delivery_end_time);
         if (!start) return;
-        const endDate = end || start;
+        const endDate = end && end >= start ? end : datasetCutoff;
         let d = new Date(start);
         while (d <= endDate) {
             const wk = weekKey(d);
@@ -91,14 +102,25 @@ function prepRotationDepth(ads) {
         .sort((a, b) => a.date - b.date);
 }
 
-/** Prep chart 3: run length in days (histogram) */
+/** Prep chart 3: run length in days (histogram).
+ * For ads without end date, use dataset cutoff (latest date) so we have approximate run lengths. */
 function prepCreativeHalfLife(ads) {
+    let datasetCutoff = null;
+    ads.forEach(a => {
+        const start = parseDate(a.ad_delivery_start_time || a.started_running_on);
+        const end = parseDate(a.ad_delivery_end_time);
+        if (start && (!datasetCutoff || start > datasetCutoff)) datasetCutoff = new Date(start);
+        if (end && (!datasetCutoff || end > datasetCutoff)) datasetCutoff = new Date(end);
+    });
+    if (!datasetCutoff) return [];
+
     const days = [];
     ads.forEach(a => {
         const start = parseDate(a.ad_delivery_start_time || a.started_running_on);
-        const end = parseDate(a.ad_delivery_end_time || a.ad_delivery_start_time);
-        if (!start || !end) return;
-        const diff = Math.round((end - start) / (1000 * 60 * 60 * 24));
+        const end = parseDate(a.ad_delivery_end_time);
+        if (!start) return;
+        const endDate = end && end >= start ? end : datasetCutoff;
+        const diff = Math.round((endDate - start) / (1000 * 60 * 60 * 24));
         if (diff >= 0) days.push(diff);
     });
     return days;
@@ -301,23 +323,31 @@ function renderStackedArea(container, data, keys, normalized = false) {
     const stack = d3.stack().keys(keysArr).offset(normalized ? d3.stackOffsetExpand : d3.stackOffsetNone);
     const stacked = stack(arr.map(d => {
         const out = { ...d };
-        keysArr.forEach(k => { if (out[k] == null) out[k] = 0; });
+        keysArr.forEach(k => { out[k] = Math.max(0, Number(d[k]) || 0); });
         return out;
     }));
 
     const x = d3.scaleTime().domain(d3.extent(arr, d => d.date)).range([0, innerW]);
-    const y = d3.scaleLinear().domain(normalized ? [0, 1] : [0, d3.max(stacked, s => d3.max(s, d => d[1]))]).range([innerH, 0]);
+    const yMax = normalized ? 1 : Math.max(0.001, d3.max(stacked, s => d3.max(s, d => d[1])) || 0);
+    const y = d3.scaleLinear().domain([0, yMax]).range([innerH, 0]);
 
-    const area = d3.area().x(d => x(d.data.date)).y0(d => y(d[0])).y1(d => y(d[1]));
+    const area = d3.area()
+        .x(d => x(d.data.date))
+        .y0(d => y(Math.max(0, d[0])))
+        .y1(d => y(Math.max(0, d[1])))
+        .defined(d => d[0] <= d[1]);
     const color = d3.scaleOrdinal(keysArr, MRI_CHART_COLORS);
 
     const svg = d3.select(el).append('svg').attr('width', width).attr('height', height).attr('viewBox', `0 0 ${width} ${height}`);
+    const defs = svg.append('defs');
+    const clipId = 'stacked-area-clip-' + (el.id || Math.random().toString(36).slice(2));
+    defs.append('clipPath').attr('id', clipId).append('rect').attr('width', innerW).attr('height', innerH);
     const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
     g.append('g').attr('transform', `translate(0,${innerH})`).call(d3.axisBottom(x).ticks(5).tickFormat(d3.timeFormat('%b %d')));
     g.append('g').call(d3.axisLeft(y).ticks(4).tickFormat(normalized ? d3.format('.0%') : d3.format('d')));
 
-    g.selectAll('path').data(stacked).join('path').attr('fill', d => color(d.key)).attr('opacity', 0.85).attr('d', area);
+    g.selectAll('path').data(stacked).join('path').attr('clip-path', `url(#${clipId})`).attr('fill', d => color(d.key)).attr('opacity', 0.85).attr('d', area);
 
     const legend = g.append('g').attr('transform', `translate(${innerW + 6},0)`);
     keysArr.forEach((k, i) => {
@@ -403,7 +433,7 @@ export function renderHookQuality(container, points) {
     const d3 = window.d3;
     const width = Math.max(200, el.clientWidth || 280);
     const height = 180;
-    const margin = { top: 12, right: 12, bottom: 40, left: 36 };
+    const margin = { top: 12, right: 12, bottom: 70, left: 36 };
     const innerW = width - margin.left - margin.right;
     const innerH = height - margin.top - margin.bottom;
 
@@ -414,7 +444,8 @@ export function renderHookQuality(container, points) {
     const svg = d3.select(el).append('svg').attr('width', width).attr('height', height).attr('viewBox', `0 0 ${width} ${height}`);
     const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-    g.append('g').attr('transform', `translate(0,${innerH})`).call(d3.axisBottom(x).tickValues(hooks.slice(0, 8)));
+    const axisG = g.append('g').attr('transform', `translate(0,${innerH})`).call(d3.axisBottom(x).tickValues(hooks));
+    axisG.selectAll('text').attr('transform', 'rotate(-45)').style('text-anchor', 'end').attr('dx', '-0.5em').attr('dy', '0.5em');
     g.append('g').call(d3.axisLeft(y).ticks(5));
 
     const jitter = () => (Math.random() - 0.5) * (x.step() * 0.6);

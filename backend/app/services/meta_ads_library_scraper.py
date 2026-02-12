@@ -310,6 +310,45 @@ class MetaAdsLibraryScraper:
                     }
                 }
                 
+                const META_MEDIA_URL = /(scontent|fbcdn\\.net|video\\.\\d+\\.fbcdn|cdninstagram)/i;
+                const isAdMediaUrl = (url) => {
+                    if (!url || typeof url !== 'string') return false;
+                    const u = url.toLowerCase();
+                    if (u.includes('s60x60') || u.includes('_s60x60')) return false;
+                    return META_MEDIA_URL.test(url);
+                };
+                const findMediaInContainer = (el) => {
+                    const videos = [], images = [];
+                    const seen = new Set();
+                    const walk = (node, depth) => {
+                        if (depth > 25) return;
+                        if (node.nodeType !== 1) return;
+                        if (node.tagName === 'VIDEO') {
+                            const src = node.src || node.getAttribute('src');
+                            const poster = node.poster || node.getAttribute('poster');
+                            const url = src || poster;
+                            if (url && isAdMediaUrl(url) && !seen.has(url)) {
+                                seen.add(url);
+                                videos.push({ url, poster: poster || null });
+                            }
+                            return;
+                        }
+                        if (node.tagName === 'IMG') {
+                            const src = node.src || node.getAttribute('src');
+                            if (src && isAdMediaUrl(src) && !seen.has(src)) {
+                                seen.add(src);
+                                images.push({ url: src });
+                            }
+                            return;
+                        }
+                        for (const c of node.children || []) walk(c, depth + 1);
+                    };
+                    walk(el, 0);
+                    if (videos.length === 0 && images.length === 0 && el.parentElement) {
+                        walk(el.parentElement, 0);
+                    }
+                    return { videos, images };
+                };
                 for (const [container, data] of adCards) {
                     let bodyText = '';
                     let headlineText = '';
@@ -334,19 +373,16 @@ class MetaAdsLibraryScraper:
                     if (bodyText.length < 5) continue;
                     
                     let adFormat = 'image';
-                    const video = container.querySelector('video[src], video[poster]');
-                    const images = container.querySelectorAll('img[src*="scontent"], img[src*="fbcdn"]');
-                    const largeImages = Array.from(images).filter(img => {
-                        const src = (img.src || '').toLowerCase();
-                        if (src.includes('s60x60') || src.includes('_s60x60')) return false;
-                        return true;
-                    });
+                    const { videos, images } = findMediaInContainer(container);
+                    const video = videos[0];
+                    const largeImages = images;
                     if (video) adFormat = 'video';
                     else if (largeImages.length > 1) adFormat = 'carousel';
                     
                     let mediaThumbnailUrl = null;
                     if (video && video.poster) mediaThumbnailUrl = video.poster;
-                    else if (largeImages.length > 0 && largeImages[0].src) mediaThumbnailUrl = largeImages[0].src;
+                    else if (video && video.url) mediaThumbnailUrl = video.url;
+                    else if (largeImages.length > 0 && largeImages[0].url) mediaThumbnailUrl = largeImages[0].url;
                     
                     let cta = null;
                     let destinationUrl = null;
@@ -385,7 +421,7 @@ class MetaAdsLibraryScraper:
                     }
                     
                     const mediaItems = [];
-                    if (video && video.src) {
+                    if (video && video.url) {
                         let durSec = null;
                         const fullText = container.innerText || '';
                         const slashMatch = fullText.match(/\\/\\s*(\\d+):(\\d+)/);
@@ -394,10 +430,10 @@ class MetaAdsLibraryScraper:
                             const m = fullText.match(/(\\d+):(\\d+)/);
                             if (m) durSec = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
                         }
-                        mediaItems.push({ type: 'video', url: video.src, posterUrl: video.poster || null, durationSeconds: durSec, sortOrder: 0 });
+                        mediaItems.push({ type: 'video', url: video.url, posterUrl: video.poster || null, durationSeconds: durSec, sortOrder: 0 });
                     }
                     for (let i = 0; i < largeImages.length; i++) {
-                        const src = largeImages[i].src;
+                        const src = largeImages[i].url;
                         if (src && !mediaItems.some(m => m.url === src)) {
                             mediaItems.push({ type: 'image', url: src, posterUrl: null, durationSeconds: null, sortOrder: i });
                         }

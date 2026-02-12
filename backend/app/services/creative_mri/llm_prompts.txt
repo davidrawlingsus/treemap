@@ -75,11 +75,13 @@ Output JSON schema (use exactly these keys):
 
 
 ================================================================================
-USER MESSAGE (built by build_user_message - unchanged)
+USER MESSAGE (built by build_user_message)
 ================================================================================
 The user message is a JSON string containing the ad content. Structure:
 {"headline": "...", "primary_text": "...", "cta": "...", "destination_url": "..."}
-Optionally includes "video_analysis": {...} when the ad has Gemini video analysis.
+Optionally includes:
+- "video_analysis": {...} when the ad has Gemini video analysis.
+- "image_analyses": [{...}, ...] when the ad has Gemini image analysis (image/carousel ads).
 
 
 ================================================================================

@@ -34,9 +34,6 @@
   gap: 12px;
   margin-bottom: 16px;
 }
-.mri-report-header .command-center-filters {
-  margin-bottom: 0;
-}
 .mri-back-to-setup {
   flex-shrink: 0;
 }
@@ -51,19 +48,6 @@
 }
 
 /* Command Center layout */
-.command-center-filters {
-  display: flex;
-  gap: 24px;
-  margin-bottom: 16px;
-  padding: 12px 16px;
-  background: var(--bg, #f5f7fb);
-  border-radius: 8px;
-  font-size: 13px;
-}
-.command-center-filters strong {
-  font-weight: 600;
-  color: var(--text, #1a202c);
-}
 .command-center-grid {
   display: grid;
   gap: 24px;
@@ -279,6 +263,9 @@
   margin-top: 0;
   align-self: center;
 }
+.mri-loading.mri-loading--synthesize .mri-progress-container {
+  display: none;
+}
 .mri-loading-spinner {
   width: 48px;
   height: 48px;
@@ -339,11 +326,6 @@
 @media (min-width: 640px) {
   .mri-charts {
     grid-template-columns: repeat(2, 1fr);
-  }
-}
-@media (min-width: 960px) {
-  .mri-charts {
-    grid-template-columns: repeat(3, 1fr);
   }
 }
 .mri-chart {
@@ -558,6 +540,36 @@
 .mri-ad-card__meta .mri-ad-card__score {
   border-left: 3px solid var(--brand-color, #b9f040);
 }
+.mri-ad-card__badge {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.mri-ad-card__badge--replace {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+.mri-ad-card__badge--refine {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+.mri-ad-card__badge--first2s {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+.mri-ad-card__claim-risk {
+  font-size: 12px;
+  color: #b45309;
+  padding: 4px 8px;
+  margin-bottom: 8px;
+  background: #fffbeb;
+  border-radius: 6px;
+  border-left: 3px solid #f59e0b;
+}
 .mri-ad-card__angle {
   font-size: 14px;
   color: var(--text, #1a202c);
@@ -569,6 +581,15 @@
   font-style: italic;
   color: var(--muted, #718096);
   margin-bottom: 12px;
+}
+.mri-ad-card__transcript {
+  font-size: 12px;
+  color: var(--muted, #718096);
+  margin-bottom: 12px;
+  max-height: 120px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 .mri-ad-card__what-to-change {
   font-size: 13px;
@@ -607,18 +628,6 @@
   .mri-ads-grid-sizer,
   .mri-ad-card {
     width: calc(25% - 18px);
-  }
-}
-@media (min-width: 2100px) {
-  .mri-ads-grid-sizer,
-  .mri-ad-card {
-    width: calc(20% - 19.2px);
-  }
-}
-@media (min-width: 2510px) {
-  .mri-ads-grid-sizer,
-  .mri-ad-card {
-    width: calc(16.666% - 20px);
   }
 }
 @media (max-width: 768px) {

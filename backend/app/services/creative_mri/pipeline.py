@@ -28,6 +28,8 @@ from app.services.creative_mri.analysis_schema import (
     SCHEMA_VERSION,
     build_taxonomy,
 )
+from app.services.creative_mri.exposure_proxy import enrich_ads_with_exposure
+from app.services.creative_mri.aggregations import compute_aggregates
 from app.services.creative_mri.llm import call_creative_mri_llm
 
 logger = logging.getLogger(__name__)
@@ -101,6 +103,7 @@ def ingest_ads(ads: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             "platforms": ad.get("platforms"),
             "media_items": ad.get("media_items"),
             "ads_using_creative_count": ad.get("ads_using_creative_count"),
+            "status": ad.get("status"),
         }
         out.append(normalized)
     return out
@@ -134,6 +137,10 @@ def llm_pass(
             ad["funnel_stage"] = "tofu"
             ad["overall_score"] = 50
             ad["subscores"] = {k: 50 for k in ("hook", "clarity_specificity", "proof_strength", "differentiation_mechanism", "conversion_readiness")}
+            ad["mofu_job_type"] = "not_applicable"
+            ad["replace_vs_refine"] = {"decision": "unknown"}
+            ad["claim_audit"] = {}
+            ad["video_first_2s"] = {"applicable": False}
             continue
         ad["llm"] = {
             "hook_type": llm_out.get("hook_type"),
@@ -154,6 +161,10 @@ def llm_pass(
             "destination_type": llm_out.get("destination_type"),
             "unsupported_claims": llm_out.get("unsupported_claims") or [],
             "what_to_change": llm_out.get("what_to_change") or [],
+            "mofu_job_type": llm_out.get("mofu_job_type"),
+            "replace_vs_refine": llm_out.get("replace_vs_refine") or {},
+            "claim_audit": llm_out.get("claim_audit") or {},
+            "video_first_2s": llm_out.get("video_first_2s") or {},
         }
         ad["hook_type"] = llm_out.get("hook_type") or "unknown"
         ad["funnel_stage"] = (llm_out.get("funnel_stage") or "tofu").lower()
@@ -294,6 +305,15 @@ def aggregate(ads: List[Dict[str, Any]]) -> Dict[str, Any]:
     analysis_ads = []
     for a in ads:
         llm = a.get("llm") or {}
+        stage = (llm.get("funnel_stage") or a.get("funnel_stage") or "tofu").lower()
+        funnel_obj = {
+            "stage": stage,
+            "stage_confidence": 0.8,
+            "stage_rationale": llm.get("stage_rationale") or [],
+            "substage_tags": [],
+        }
+        if stage == "mofu":
+            funnel_obj["mofu_job_type"] = llm.get("mofu_job_type") or "unknown"
         hook_scores = _normalize_hook_scores(llm.get("hook_scores") or {})
         analysis_ads.append({
             "ad_id": a.get("id"),
@@ -301,6 +321,10 @@ def aggregate(ads: List[Dict[str, Any]]) -> Dict[str, Any]:
             "started_running_on": a.get("started_running_on"),
             "ad_delivery_start_time": a.get("ad_delivery_start_time"),
             "ad_delivery_end_time": a.get("ad_delivery_end_time"),
+            "meta_context": {
+                "exposure_proxy": a.get("exposure_proxy", 1.0),
+                "run_days": a.get("run_days", 1),
+            },
             "labels": {
                 "format": (a.get("ad_format") or "unknown").lower(),
                 "platforms": a.get("platforms") or [],
@@ -316,12 +340,7 @@ def aggregate(ads: List[Dict[str, Any]]) -> Dict[str, Any]:
                 "scores": hook_scores,
                 "rationale": llm.get("stage_rationale") or [],
             },
-            "funnel": {
-                "stage": llm.get("funnel_stage") or a.get("funnel_stage") or "tofu",
-                "stage_confidence": 0.8,
-                "stage_rationale": llm.get("stage_rationale") or [],
-                "substage_tags": [],
-            },
+            "funnel": funnel_obj,
             "proof": {
                 "proof_claimed": llm.get("proof_claimed") or [],
                 "proof_shown": llm.get("proof_shown") or [],
@@ -350,6 +369,9 @@ def aggregate(ads: List[Dict[str, Any]]) -> Dict[str, Any]:
                 "improvement_bandwidth_0_100": 50,
             },
             "evidence": {"spans": []},
+            "replace_vs_refine": llm.get("replace_vs_refine") or {},
+            "claim_audit": llm.get("claim_audit") or {},
+            "video_first_2s": llm.get("video_first_2s") or {"applicable": False},
         })
 
     run_id = str(uuid.uuid4())
@@ -375,6 +397,7 @@ def aggregate(ads: List[Dict[str, Any]]) -> Dict[str, Any]:
                 },
             },
             "dataset_summary": _build_dataset_summary(analysis_ads, n, overall_avg),
+            "exposure_weighted_aggregates": compute_aggregates(ads),
         },
     }
 
@@ -401,7 +424,7 @@ def run_creative_mri_pipeline(
     model: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
-    Run full pipeline: ingest → classify/score → LLM per-ad → aggregate.
+    Run full pipeline: ingest → exposure proxy → LLM per-ad → aggregate.
     Returns report payload (meta, executive_summary, ads, tear_down).
     progress_callback(stage, current, total, message) is called during LLM pass.
     system_message and model from Prompt Engineering when configured; else use built-in prompts.
@@ -409,6 +432,8 @@ def run_creative_mri_pipeline(
     normalized = ingest_ads(ads)
     if not normalized:
         return aggregate([])
+
+    enrich_ads_with_exposure(normalized)
 
     llm_pass(
         normalized,

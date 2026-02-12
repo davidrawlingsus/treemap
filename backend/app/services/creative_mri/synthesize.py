@@ -116,6 +116,10 @@ def _build_aggregate_metadata(report: Dict[str, Any]) -> Dict[str, Any]:
 
     ads_using_counts = [a.get("ads_using_creative_count") for a in raw_ads if a.get("ads_using_creative_count") is not None]
 
+    exposure_aggregates = (
+        (report.get("analysis") or {}).get("analysis") or {}
+    ).get("exposure_weighted_aggregates") or {}
+
     return {
         "launch_cadence": launch_cadence,
         "active_creatives_over_time": active_creatives_over_time,
@@ -128,6 +132,7 @@ def _build_aggregate_metadata(report: Dict[str, Any]) -> Dict[str, Any]:
         "redundancy_clusters": clusters,
         "redundancy_summary": redundancy_summary,
         "ads_using_creative_count": sum(ads_using_counts) / len(ads_using_counts) if ads_using_counts else None,
+        "exposure_weighted_aggregates": exposure_aggregates,
     }
 
 
@@ -171,7 +176,11 @@ def build_synthesize_payload(report: Dict[str, Any]) -> str:
         "per_ad_mri": analysis_ads,
         "aggregate_metadata": metadata,
     }
-    return json.dumps(payload, ensure_ascii=False, default=str)
+    msg = json.dumps(payload, ensure_ascii=False, default=str)
+    # #region agent log
+    _diag("synthesize_payload_built", {"user_message_len": len(msg), "ad_count": len(analysis_ads), "hypothesisId": "H3"})
+    # #endregion
+    return msg
 
 
 def run_synthesize(
@@ -205,6 +214,7 @@ def _call_synthesize_llm(
             system_message=system_message,
             user_message=user_message,
             model=model,
+            max_tokens=16384,
         )
         content = (result or {}).get("content") or ""
         if not content.strip():
@@ -223,7 +233,13 @@ def _call_synthesize_llm(
             out = json.loads(text)
         except json.JSONDecodeError as e:
             # #region agent log
-            _diag("synthesize_llm_parse_fallback", {"error": str(e)[:100], "json_repair_available": json_repair is not None})
+            _diag("synthesize_llm_parse_fallback", {
+                "error": str(e)[:100],
+                "json_repair_available": json_repair is not None,
+                "content_length": len(text),
+                "content_tail_100": text[-100:] if len(text) > 100 else text,
+                "hypothesisId": "H2",
+            })
             # #endregion
             if json_repair is None:
                 logger.warning("Synthesized summary JSON parse failed. Install json-repair for auto-repair: pip install json-repair")
@@ -238,7 +254,14 @@ def _call_synthesize_llm(
                 return None
         if isinstance(out, dict):
             # #region agent log
-            _diag("synthesize_llm_success", {"keys": list(out.keys())[:10]})
+            actions = out.get("top_5_high_impact_actions") or []
+            actions_len = len(actions) if isinstance(actions, list) else -1
+            _diag("synthesize_llm_success", {
+                "keys": list(out.keys())[:10],
+                "top_5_high_impact_actions_count": actions_len,
+                "content_length": len(content),
+                "hypothesisId": "H1_H2_H5",
+            })
             # #endregion
             return out
         # #region agent log

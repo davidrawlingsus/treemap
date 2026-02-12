@@ -56,7 +56,8 @@ class LLMService:
         self,
         system_message: str,
         user_message: str,
-        model: str
+        model: str,
+        max_tokens: Optional[int] = None,
     ) -> Dict:
         """
         Execute a prompt with system and user messages.
@@ -76,14 +77,14 @@ class LLMService:
             # Normalize model name (handle deprecated names)
             normalized_model = self._normalize_anthropic_model(model)
             logger.info(f"Routing to Anthropic API for model: {model} (normalized: {normalized_model})")
-            return self._execute_anthropic(system_message, user_message, normalized_model)
+            return self._execute_anthropic(system_message, user_message, normalized_model, max_tokens_override=max_tokens)
         elif self._is_openai_model(model):
             logger.info(f"Routing to OpenAI API for model: {model}")
-            return self._execute_openai(system_message, user_message, model)
+            return self._execute_openai(system_message, user_message, model, max_tokens_override=max_tokens)
         else:
             # Default to OpenAI if model pattern doesn't match
             logger.warning(f"Unknown model pattern '{model}', defaulting to OpenAI")
-            return self._execute_openai(system_message, user_message, model)
+            return self._execute_openai(system_message, user_message, model, max_tokens_override=max_tokens)
     
     def execute_prompt_stream(
         self,
@@ -120,7 +121,8 @@ class LLMService:
         self,
         system_message: str,
         user_message: str,
-        model: str
+        model: str,
+        max_tokens_override: Optional[int] = None,
     ) -> Dict:
         """Execute prompt using OpenAI API"""
         if not self.openai_api_key:
@@ -161,7 +163,7 @@ class LLMService:
             
             # Add max_tokens for models that support it
             if not any(model_lower.startswith(m) for m in models_without_max_tokens):
-                request_params["max_tokens"] = 4000
+                request_params["max_tokens"] = max_tokens_override if max_tokens_override is not None else 4000
             
             # Try the request, and if we get unsupported parameter errors, retry without them
             max_retries = 2
@@ -354,7 +356,8 @@ class LLMService:
         self,
         system_message: str,
         user_message: str,
-        model: str
+        model: str,
+        max_tokens_override: Optional[int] = None,
     ) -> Dict:
         """Execute prompt using Anthropic API"""
         if not self.anthropic_api_key:
@@ -414,7 +417,7 @@ class LLMService:
             # Build request parameters
             request_params = {
                 "model": model,
-                "max_tokens": 4096,
+                "max_tokens": max_tokens_override if max_tokens_override is not None else 4096,
                 "temperature": 1,  # Default temperature for Anthropic (can be adjusted)
                 "messages": messages
             }

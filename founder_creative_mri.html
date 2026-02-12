@@ -122,10 +122,6 @@
 
             <div class="panel mri-results" id="mriResults" style="display: none;">
                 <div class="mri-report-header">
-                    <div class="command-center-filters" id="mriFilters" style="display: none;">
-                        <span>Brand: <strong id="filterBrand">—</strong></span>
-                        <span>Import: <strong id="filterImport">—</strong></span>
-                    </div>
                     <button type="button" class="btn btn-secondary mri-back-to-setup" id="backToSetupButton" style="display: none;">
                         Back to setup
                     </button>
@@ -136,7 +132,7 @@
                     <div class="mri-loading-prelude">
                         <div class="mri-loading-spinner" aria-hidden="true"></div>
                         <p class="mri-loading-title">Running report…</p>
-                        <p class="mri-loading-detail" id="mriLoadingDetail">Claude analyzes each ad (plus Gemini for video). This can take 1–2 minutes for many ads.</p>
+                        <p class="mri-loading-detail" id="mriLoadingDetail">Claude analyzes each ad (plus Gemini for video and images). This can take 1–2 minutes for many ads.</p>
                     </div>
                     <div class="mri-progress-container" style="margin-top: 0; max-width: 360px; width: 100%;">
                         <div class="mri-progress-track">
@@ -571,10 +567,6 @@
             const ds = analysis?.analysis?.dataset_summary || {};
             const funnelShare = ds.funnel?.stage_share || {};
 
-            document.getElementById('mriFilters').style.display = 'flex';
-            document.getElementById('filterBrand').textContent = brandLabel || '—';
-            document.getElementById('filterImport').textContent = importLabel || 'Latest';
-
             const synth = report.synthesized_summary || {};
             if (synth.executive_summary || synth.dataset_overview || synth.top_5_high_impact_actions) {
                 renderSynthesizedSummary(synth);
@@ -596,19 +588,26 @@
             document.getElementById('mriChartSubscoresBars').innerHTML = subscoresSummary
                 .map(s => renderBarRow(s.name.replace(/_/g, ' '), s.average.toFixed(1), 100)).join('');
 
+            const ALL_HOOK_TYPES = ['direct_benefit','pain_agitation','authority','social_proof','ranking','newness','contrarian','identity','instructional','urgency_scarcity','story','offer_led','question','curiosity_gap','comparison','mechanism_tease','unknown'];
+            const ALL_FUNNEL_STAGES = ['tofu','mofu','bofu'];
             const hookCounts = {};
-            ads.forEach(ad => { const h = ad.hook_type || 'unknown'; hookCounts[h] = (hookCounts[h] || 0) + 1; });
+            ALL_HOOK_TYPES.forEach(h => { hookCounts[h] = 0; });
+            ads.forEach(ad => { const h = (ad.hook_type || 'unknown').toLowerCase();
+                if (hookCounts[h] !== undefined) hookCounts[h]++; else hookCounts['unknown']++; });
             const hookMax = Math.max(...Object.values(hookCounts), 1);
-            document.getElementById('mriChartHooksBars').innerHTML = Object.entries(hookCounts)
-                .sort((a, b) => b[1] - a[1])
-                .map(([name, count]) => renderBarRow(name, count, hookMax, 'mri-bar-fill--hook')).join('');
+            document.getElementById('mriChartHooksBars').innerHTML = ALL_HOOK_TYPES
+                .map(h => ({ name: h, count: hookCounts[h] ?? 0 }))
+                .sort((a, b) => b.count - a.count)
+                .map(({ name, count }) => renderBarRow(name, count, hookMax, 'mri-bar-fill--hook')).join('');
 
-            const funnelCounts = {};
-            ads.forEach(ad => { const f = ad.funnel_stage || 'unknown'; funnelCounts[f] = (funnelCounts[f] || 0) + 1; });
+            const funnelCounts = { tofu: 0, mofu: 0, bofu: 0 };
+            ads.forEach(ad => { const f = (ad.funnel_stage || 'tofu').toLowerCase();
+                if (funnelCounts[f] !== undefined) funnelCounts[f]++; });
             const funnelMax = Math.max(...Object.values(funnelCounts), 1);
-            document.getElementById('mriChartFunnelBars').innerHTML = Object.entries(funnelCounts)
-                .sort((a, b) => b[1] - a[1])
-                .map(([name, count]) => renderBarRow(name, count, funnelMax, 'mri-bar-fill--funnel')).join('');
+            document.getElementById('mriChartFunnelBars').innerHTML = ALL_FUNNEL_STAGES
+                .map(f => ({ name: f, count: funnelCounts[f] ?? 0 }))
+                .sort((a, b) => b.count - a.count)
+                .map(({ name, count }) => renderBarRow(name, count, funnelMax, 'mri-bar-fill--funnel')).join('');
 
             function formatSummaryText(str) {
                 if (str == null || str === '') return '';
@@ -619,6 +618,9 @@
                 const exec = synth.executive_summary || {};
                 const dataset = synth.dataset_overview || {};
                 const actions = synth.top_5_high_impact_actions || [];
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'founder_creative_mri.html:renderSynthesizedSummary',message:'Impact actions render',data:{actionsCount:actions.length,synthKeys:Object.keys(synth),hypothesisId:'H4_H5'},timestamp:Date.now()})}).catch(()=>{});
+                // #endregion
                 const funnel = synth.funnel_analysis || {};
                 const hook = synth.hook_analysis || {};
                 const proof = synth.proof_and_credibility || {};
@@ -696,6 +698,13 @@
                 const first = items[0];
                 return first?.url || ad.media_thumbnail_url || null;
             };
+            const getVideoTranscript = (ad) => {
+                const items = ad.media_items || [];
+                const video = items.find(m => (m || {}).media_type === 'video');
+                const analysis = video?.video_analysis_json;
+                if (!analysis || typeof analysis !== 'object') return null;
+                return analysis.transcript || analysis.timeline_first_2s?.transcript_excerpt || null;
+            };
             const KNOWN_CTA_PHRASES = ['shop now', 'learn more', 'sign up', 'get offer', 'download', 'watch more', 'send message', 'apply now', 'book now', 'start trial', 'take quiz'];
             const isLikelyHeadline = (s) => !s || s.length > 25 || !KNOWN_CTA_PHRASES.includes(s.toLowerCase().trim());
             const getCtaForButton = (ad) => {
@@ -720,6 +729,15 @@
                 const angle = llm.angle || ad.angle || '—';
                 const hookPhrase = llm.hook_phrase || ad.hook_phrase || '—';
                 const whatToChange = (llm.what_to_change || ad.what_to_change || []);
+                const rvr = llm.replace_vs_refine || {};
+                const rvrDecision = rvr.decision || '';
+                const mofuJob = (ad.funnel_stage || '').toLowerCase() === 'mofu' ? (llm.mofu_job_type || '') : '';
+                const claimAudit = llm.claim_audit || {};
+                const topRisk = (claimAudit.top_risks || [])[0];
+                const vf2s = llm.video_first_2s || {};
+                const isVideo = (ad.ad_format || '').toLowerCase() === 'video' || (ad.media_items || []).some(m => (m || {}).media_type === 'video');
+                const first2sBadge = isVideo && vf2s.applicable ? (vf2s.quality || 'missing') : '';
+                const videoTranscript = getVideoTranscript(ad);
                 const mockup = renderFBAdMockup({
                     adId: ad.id || '',
                     primaryText: formatPrimaryText(ad.primary_text || ''),
@@ -738,11 +756,15 @@
                         <div class="mri-ad-card__feedback">
                             <div class="mri-ad-card__meta">
                                 <span class="mri-ad-card__score">Score: ${ad.overall_score ?? '—'}</span>
-                                <span class="mri-ad-card__stage">Stage: ${escapeHtml(ad.funnel_stage ?? '—')}</span>
+                                <span class="mri-ad-card__stage">Stage: ${escapeHtml(ad.funnel_stage ?? '—')}${mofuJob ? ` · ${escapeHtml(mofuJob)}` : ''}</span>
                                 <span class="mri-ad-card__hook">Hook: ${escapeHtml(ad.hook_type ?? '—')}</span>
+                                ${rvrDecision ? `<span class="mri-ad-card__badge mri-ad-card__badge--${rvrDecision}">${escapeHtml(rvrDecision)}</span>` : ''}
+                                ${first2sBadge ? `<span class="mri-ad-card__badge mri-ad-card__badge--first2s">1st2s: ${escapeHtml(first2sBadge)}</span>` : ''}
                             </div>
+                            ${topRisk ? `<div class="mri-ad-card__claim-risk">⚠ ${escapeHtml(topRisk)}</div>` : ''}
                             <div class="mri-ad-card__angle">Angle: ${escapeHtml(angle)}</div>
                             ${hookPhrase !== '—' ? `<div class="mri-ad-card__hook-phrase">Hook phrase: "${escapeHtml(hookPhrase)}"</div>` : ''}
+                            ${videoTranscript ? `<div class="mri-ad-card__transcript"><strong>Video transcript:</strong> ${escapeHtml(videoTranscript)}</div>` : ''}
                             ${whatToChange.length ? `
                                 <div class="mri-ad-card__what-to-change">
                                     <strong>What to change:</strong>
@@ -831,12 +853,24 @@
                 const total = data.progress_total ?? 1;
                 const current = data.progress_current ?? 0;
                 const msg = data.progress_message || 'Report is still being generated. Checking every 5 seconds…';
-                const pct = total > 0 ? Math.round((current / total) * 100) : 0;
-                document.getElementById('mriProgressFill').style.width = pct + '%';
-                document.getElementById('mriLoadingDetail').textContent = msg;
-                document.getElementById('mriProgressMessage').textContent = msg;
-                if (total > 0 || msg) {
-                    mriLoading.classList.add('mri-loading--progress');
+                const isSynthesizing = /synthesiz/i.test(msg);
+
+                if (isSynthesizing) {
+                    mriLoading.classList.remove('mri-loading--progress');
+                    mriLoading.classList.add('mri-loading--synthesize');
+                    document.getElementById('mriLoadingDetail').textContent = 'Synthesising data, won\'t be long';
+                    document.querySelector('.mri-loading-title').textContent = 'Synthesising…';
+                    document.getElementById('mriProgressMessage').textContent = '';
+                } else {
+                    mriLoading.classList.remove('mri-loading--synthesize');
+                    const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+                    document.getElementById('mriProgressFill').style.width = pct + '%';
+                    document.getElementById('mriLoadingDetail').textContent = msg;
+                    document.getElementById('mriProgressMessage').textContent = msg;
+                    document.querySelector('.mri-loading-title').textContent = 'Running report…';
+                    if (total > 0 || msg) {
+                        mriLoading.classList.add('mri-loading--progress');
+                    }
                 }
                 const stuckEl = document.getElementById('mriLoadingStuck');
                 if (data.created_at) {

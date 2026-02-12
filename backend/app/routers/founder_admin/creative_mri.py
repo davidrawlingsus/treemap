@@ -73,6 +73,7 @@ def _ad_to_dict(ad: AdLibraryAd) -> dict:
         "ad_delivery_end_time": ad.ad_delivery_end_time,
         "media_thumbnail_url": ad.media_thumbnail_url,
         "ads_using_creative_count": ad.ads_using_creative_count,
+        "status": ad.status,
     }
     if ad.media_items:
         d["media_items"] = [
@@ -82,6 +83,7 @@ def _ad_to_dict(ad: AdLibraryAd) -> dict:
                 "poster_url": m.poster_url,
                 "duration_seconds": m.duration_seconds,
                 "video_analysis_json": m.video_analysis_json,
+                "image_analysis_json": getattr(m, "image_analysis_json", None),
             }
             for m in ad.media_items
         ]
@@ -108,12 +110,45 @@ async def _ensure_video_analysis(
             logger.warning("Gemini video analysis failed for %s: %s", m.url[:60], e)
 
 
+async def _ensure_image_analysis(
+    ad: AdLibraryAd, gemini: GeminiVideoService, db: Session
+) -> None:
+    """For each image media item missing image_analysis_json, call Gemini and save."""
+    if not gemini.is_configured():
+        return
+    for m in ad.media_items or []:
+        if m.media_type != "image" or not m.url:
+            continue
+        image_analysis = getattr(m, "image_analysis_json", None)
+        if image_analysis:
+            continue
+        try:
+            analysis = await gemini.analyze_image_url(m.url)
+            if analysis:
+                m.image_analysis_json = analysis
+                db.add(m)
+                db.commit()
+                logger.info("Stored Gemini image analysis for ad %s media %s", ad.id, m.id)
+        except Exception as e:
+            logger.warning("Gemini image analysis failed for %s: %s", m.url[:60], e)
+
+
 def _count_pending_videos(library_ads: list) -> int:
     """Count video media items that need Gemini analysis."""
     n = 0
     for ad in library_ads:
         for m in ad.media_items or []:
             if m.media_type == "video" and m.url and not m.video_analysis_json:
+                n += 1
+    return n
+
+
+def _count_pending_images(library_ads: list) -> int:
+    """Count image media items that need Gemini analysis."""
+    n = 0
+    for ad in library_ads:
+        for m in ad.media_items or []:
+            if m.media_type == "image" and m.url and not getattr(m, "image_analysis_json", None):
                 n += 1
     return n
 
@@ -188,6 +223,29 @@ async def _run_report_stream(
                             yield _format_sse({"stage": "video", "current": done, "total": total_videos, "message": f"Analyzing videos {done}/{total_videos}"})
             else:
                 yield _format_sse({"stage": "video", "current": 0, "total": 0, "message": "Skipping video analysis (Gemini not configured)"})
+
+        total_images = _count_pending_images(library_ads)
+        if total_images > 0:
+            settings = get_settings()
+            gemini = GeminiVideoService(api_key=settings.gemini_api_key)
+            if gemini.is_configured():
+                done = 0
+                for ad in library_ads:
+                    for m in ad.media_items or []:
+                        if m.media_type != "image" or not m.url or getattr(m, "image_analysis_json", None):
+                            continue
+                        try:
+                            analysis = await gemini.analyze_image_url(m.url)
+                            if analysis:
+                                m.image_analysis_json = analysis
+                                db.add(m)
+                                db.commit()
+                            done += 1
+                            yield _format_sse({"stage": "image", "current": done, "total": total_images, "message": f"Analyzing images {done}/{total_images}"})
+                        except Exception as e:
+                            logger.warning("Gemini image analysis failed for %s: %s", m.url[:60], e)
+                            done += 1
+                            yield _format_sse({"stage": "image", "current": done, "total": total_images, "message": f"Analyzing images {done}/{total_images}"})
 
         ads = [_ad_to_dict(ad) for ad in library_ads]
         if not ads:
@@ -434,6 +492,7 @@ async def run_creative_mri_report(
         gemini = GeminiVideoService(api_key=settings.gemini_api_key)
         for ad in library_ads:
             await _ensure_video_analysis(ad, gemini, db)
+            await _ensure_image_analysis(ad, gemini, db)
         ads = [_ad_to_dict(ad) for ad in library_ads]
         if not ads:
             raise HTTPException(status_code=400, detail="No ads in this import.")
