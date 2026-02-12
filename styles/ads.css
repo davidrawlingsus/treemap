@@ -580,6 +580,10 @@
     padding: 0 16px 16px 16px;
 }
 
+.ads-accordion.expanded .ads-accordion__body > * {
+    padding-top: 12px;
+}
+
 /* Accordion Text */
 .ads-accordion__text {
     font-size: 0.875rem;

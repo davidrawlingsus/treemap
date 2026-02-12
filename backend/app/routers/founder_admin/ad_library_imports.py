@@ -23,6 +23,16 @@ from app.schemas import (
 from app.auth import get_current_active_founder
 from app.services.meta_ads_library_scraper import MetaAdsLibraryScraper, AdCopyItem
 
+try:
+    from app.services.mri_media_diagnostic import (
+        log_import_save,
+        log_import_done,
+        log_import_error,
+    )
+except ImportError:
+    def _noop(*a, **k): pass
+    log_import_save = log_import_done = log_import_error = _noop
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
@@ -64,6 +74,7 @@ async def _run_import_background(client_id: UUID, source_url: str, max_scrolls: 
             )
             db.add(ad)
             db.flush()
+            media_urls = []
             for idx, m in enumerate(item.media_items or []):
                 media = AdLibraryMedia(
                     ad_id=ad.id,
@@ -74,12 +85,16 @@ async def _run_import_background(client_id: UUID, source_url: str, max_scrolls: 
                     sort_order=m.sort_order if hasattr(m, 'sort_order') else idx,
                 )
                 db.add(media)
+                media_urls.append(m.url or "")
+            log_import_save(str(ad.id), len(item.media_items or []), media_urls)
         db.commit()
+        log_import_done(str(imp.id), str(client_id), len(copy_items))
         logger.info(
             "Background import completed: client_id=%s, import_id=%s, ads=%s",
             client_id, imp.id, len(copy_items),
         )
     except Exception as e:
+        log_import_error(str(e))
         logger.exception("Background import failed: %s", e)
         db.rollback()
     finally:

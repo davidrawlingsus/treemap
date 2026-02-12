@@ -1,0 +1,4 @@
+# Ensure google-genai is installed for Creative MRI video transcripts.
+# Extends the default Python build with an explicit install.
+[phases.install]
+cmds = ["...", "pip install google-genai>=1.0.0"]

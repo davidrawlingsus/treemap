@@ -48,6 +48,24 @@ from app.schemas.creative_mri import (
     CreativeMRIReportHistoryItem,
 )
 
+try:
+    from app.services.mri_media_diagnostic import (
+        log_mri_load,
+        log_mri_ad_to_dict,
+        log_report_ads_serialized,
+        log_report_fetched,
+        log_mri_path,
+        log_mri_video_phase_start,
+        log_mri_video_item_before,
+        log_mri_video_item_after,
+        log_mri_ads_built_for_pipeline,
+        log_mri_video_phase_skipped,
+    )
+except ImportError:
+    def _noop(*a, **k): pass
+    log_mri_load = log_mri_ad_to_dict = log_report_ads_serialized = log_report_fetched = _noop
+    log_mri_path = log_mri_video_phase_start = log_mri_video_item_before = log_mri_video_item_after = log_mri_ads_built_for_pipeline = log_mri_video_phase_skipped = _noop
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
@@ -59,6 +77,9 @@ def _format_sse(data: dict) -> str:
 
 def _ad_to_dict(ad: AdLibraryAd) -> dict:
     """Convert AdLibraryAd to flat dict for pipeline."""
+    media_items = ad.media_items or []
+    has_thumbnail = bool((ad.media_thumbnail_url or "").strip())
+    log_mri_ad_to_dict(str(ad.id), len(media_items), has_thumbnail)
     d = {
         "id": str(ad.id),
         "library_id": ad.library_id,
@@ -75,7 +96,7 @@ def _ad_to_dict(ad: AdLibraryAd) -> dict:
         "ads_using_creative_count": ad.ads_using_creative_count,
         "status": ad.status,
     }
-    if ad.media_items:
+    if media_items:
         d["media_items"] = [
             {
                 "media_type": m.media_type,
@@ -85,7 +106,7 @@ def _ad_to_dict(ad: AdLibraryAd) -> dict:
                 "video_analysis_json": m.video_analysis_json,
                 "image_analysis_json": getattr(m, "image_analysis_json", None),
             }
-            for m in ad.media_items
+            for m in media_items
         ]
     return d
 
@@ -96,17 +117,22 @@ async def _ensure_video_analysis(
     """For each video media item missing video_analysis_json, call Gemini and save."""
     if not gemini.is_configured():
         return
-    for m in ad.media_items or []:
-        if m.media_type != "video" or not m.url or m.video_analysis_json:
-            continue
+    pending = [m for m in (ad.media_items or []) if m.media_type == "video" and m.url and not m.video_analysis_json]
+    for idx, m in enumerate(pending):
         try:
+            log_mri_video_item_before(str(ad.id), str(m.id), m.url, idx + 1, len(pending))
             analysis = await gemini.analyze_video_url(m.url)
             if analysis:
                 m.video_analysis_json = analysis
                 db.add(m)
                 db.commit()
+                t = analysis.get("transcript") or (analysis.get("timeline_first_2s") or {}).get("transcript_excerpt")
+                log_mri_video_item_after(str(ad.id), str(m.id), True, bool(t), len(t) if t else 0, True)
                 logger.info("Stored Gemini video analysis for ad %s media %s", ad.id, m.id)
+            else:
+                log_mri_video_item_after(str(ad.id), str(m.id), False, False, 0, False, "analysis_returned_none")
         except Exception as e:
+            log_mri_video_item_after(str(ad.id), str(m.id), False, False, 0, False, str(e)[:100])
             logger.warning("Gemini video analysis failed for %s: %s", m.url[:60], e)
 
 
@@ -198,11 +224,26 @@ async def _run_report_stream(
             .options(joinedload(AdLibraryAd.media_items))
             .all()
         )
+        ads_media_summary = [
+            {
+                "ad_id": str(ad.id),
+                "media_items_count": len(ad.media_items or []),
+                "media_thumbnail_url": bool((ad.media_thumbnail_url or "").strip()),
+                "media_urls_sample": [m.url[:80] for m in (ad.media_items or [])[:2]],
+                "video_url_lens": [len(m.url) for m in (ad.media_items or []) if m.media_type == "video"][:3],
+            }
+            for ad in library_ads[:50]
+        ]
+        log_mri_load(str(import_id), len(library_ads), ads_media_summary)
         total_videos = _count_pending_videos(library_ads)
+        total_video_media = sum(1 for a in library_ads for m in (a.media_items or []) if m.media_type == "video")
+        if total_videos == 0:
+            log_mri_video_phase_skipped("stream", "no_pending_videos" if total_video_media == 0 else "all_have_analysis", total_video_media)
 
         if total_videos > 0:
             settings = get_settings()
             gemini = GeminiVideoService(api_key=settings.gemini_api_key)
+            log_mri_video_phase_start("stream", total_videos, total_videos, gemini.is_configured(), str(import_id))
             if gemini.is_configured():
                 done = 0
                 for ad in library_ads:
@@ -210,18 +251,25 @@ async def _run_report_stream(
                         if m.media_type != "video" or not m.url or m.video_analysis_json:
                             continue
                         try:
+                            log_mri_video_item_before(str(ad.id), str(m.id), m.url, done + 1, total_videos)
                             analysis = await gemini.analyze_video_url(m.url)
                             if analysis:
                                 m.video_analysis_json = analysis
                                 db.add(m)
                                 db.commit()
+                                t = analysis.get("transcript") or (analysis.get("timeline_first_2s") or {}).get("transcript_excerpt")
+                                log_mri_video_item_after(str(ad.id), str(m.id), True, bool(t), len(t) if t else 0, True)
+                            else:
+                                log_mri_video_item_after(str(ad.id), str(m.id), False, False, 0, False, "analysis_returned_none")
                             done += 1
                             yield _format_sse({"stage": "video", "current": done, "total": total_videos, "message": f"Analyzing videos {done}/{total_videos}"})
                         except Exception as e:
+                            log_mri_video_item_after(str(ad.id), str(m.id), False, False, 0, False, str(e)[:100])
                             logger.warning("Gemini video analysis failed for %s: %s", m.url[:60], e)
                             done += 1
                             yield _format_sse({"stage": "video", "current": done, "total": total_videos, "message": f"Analyzing videos {done}/{total_videos}"})
             else:
+                log_mri_video_phase_skipped("stream", "gemini_not_configured", total_videos)
                 yield _format_sse({"stage": "video", "current": 0, "total": 0, "message": "Skipping video analysis (Gemini not configured)"})
 
         total_images = _count_pending_images(library_ads)
@@ -248,6 +296,15 @@ async def _run_report_stream(
                             yield _format_sse({"stage": "image", "current": done, "total": total_images, "message": f"Analyzing images {done}/{total_images}"})
 
         ads = [_ad_to_dict(ad) for ad in library_ads]
+        sample = []
+        for a in ads[:5]:
+            mi = a.get("media_items") or []
+            sample.append({
+                "ad_id": a.get("id"),
+                "media_count": len(mi),
+                "videos": [{"has_video_analysis_json": bool(m.get("video_analysis_json")), "media_type": m.get("media_type")} for m in mi],
+            })
+        log_mri_ads_built_for_pipeline(len(ads), "stream", sample)
         if not ads:
             yield _format_sse({"error": "No ads in this import."})
             return
@@ -372,6 +429,9 @@ async def _run_report_stream(
         report_row.status = "complete"
         report_row.completed_at = datetime.now(timezone.utc)
         db.commit()
+        ads = report.get("ads") or []
+        ads_with_media = sum(1 for a in ads if (a.get("media_items") or (a.get("media_thumbnail_url") or "").strip()))
+        log_report_ads_serialized(str(report_id), len(ads), ads_with_media, ads)
         # #region agent log
         _diag("stream_done", {"report_id": str(report_id)}, "H1")
         # #endregion
@@ -426,6 +486,9 @@ def _run_and_save_report_sync(report_id: UUID, ads: list, app) -> None:
             report_row.status = "complete"
             report_row.completed_at = datetime.now(timezone.utc)
             db.commit()
+            ads = result.get("ads") or []
+            ads_with_media = sum(1 for a in ads if (a.get("media_items") or (a.get("media_thumbnail_url") or "").strip()))
+            log_report_ads_serialized(str(report_id), len(ads), ads_with_media, ads)
             # #region agent log
             _diag("bg_task_complete", {"report_id": str(report_id)}, "H2")
             # #endregion
@@ -488,12 +551,36 @@ async def run_creative_mri_report(
             .options(joinedload(AdLibraryAd.media_items))
             .all()
         )
+        ads_media_summary = [
+            {
+                "ad_id": str(ad.id),
+                "media_items_count": len(ad.media_items or []),
+                "video_url_lens": [len(m.url) for m in (ad.media_items or []) if m.media_type == "video"][:3],
+            }
+            for ad in library_ads[:20]
+        ]
+        log_mri_load(str(import_id), len(library_ads), ads_media_summary)
+        total_videos = _count_pending_videos(library_ads)
+        total_video_media = sum(1 for a in library_ads for m in (a.media_items or []) if m.media_type == "video")
         settings = get_settings()
         gemini = GeminiVideoService(api_key=settings.gemini_api_key)
+        log_mri_path("background", None)
+        if total_videos == 0:
+            log_mri_video_phase_skipped("background", "no_pending_videos" if total_video_media == 0 else "all_have_analysis", total_video_media)
+        log_mri_video_phase_start("background", total_videos, total_videos, gemini.is_configured(), str(import_id))
         for ad in library_ads:
             await _ensure_video_analysis(ad, gemini, db)
             await _ensure_image_analysis(ad, gemini, db)
         ads = [_ad_to_dict(ad) for ad in library_ads]
+        sample = []
+        for a in ads[:5]:
+            mi = a.get("media_items") or []
+            sample.append({
+                "ad_id": a.get("id"),
+                "media_count": len(mi),
+                "videos": [{"has_video_analysis_json": bool(m.get("video_analysis_json")), "media_type": m.get("media_type")} for m in mi],
+            })
+        log_mri_ads_built_for_pipeline(len(ads), "background", sample)
         if not ads:
             raise HTTPException(status_code=400, detail="No ads in this import.")
 
@@ -549,6 +636,28 @@ def get_creative_mri_report(
     )
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
+    if report.status == "complete" and report.report_json:
+        ads = report.report_json.get("ads") or []
+        ads_with_media = sum(1 for a in ads if (a.get("media_items") or (a.get("media_thumbnail_url") or "").strip()))
+        sample = []
+        for a in ads[:5]:
+            vid_has_analysis = vid_has_transcript = False
+            for m in (a.get("media_items") or []):
+                if m.get("media_type") == "video":
+                    vaj = m.get("video_analysis_json")
+                    if vaj and isinstance(vaj, dict):
+                        vid_has_analysis = True
+                        t = vaj.get("transcript") or (vaj.get("timeline_first_2s") or {}).get("transcript_excerpt")
+                        vid_has_transcript = bool(t)
+                    break
+            sample.append({
+                "id": a.get("id"),
+                "media_count": len(a.get("media_items") or []),
+                "has_thumb": bool((a.get("media_thumbnail_url") or "").strip()),
+                "vid_has_analysis": vid_has_analysis,
+                "vid_has_transcript": vid_has_transcript,
+            })
+        log_report_fetched(str(report_id), len(ads), ads_with_media, sample)
     return CreativeMRIReportResponse(
         id=report.id,
         client_id=report.client_id,

@@ -147,6 +147,16 @@ async def unhandled_exception_handler(request: StarletteRequest, exc: Exception)
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup"""
+    # Verify google-genai is available for Creative MRI video transcripts
+    try:
+        from google import genai  # noqa: F401
+        logger.info("google-genai available for Creative MRI video analysis")
+    except ImportError:
+        logger.error(
+            "google-genai NOT installed - Creative MRI video transcripts will fail. "
+            "Run: pip install google-genai"
+        )
+
     settings = get_settings()
     openai_api_key = os.getenv("OPENAI_API_KEY")
     anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")

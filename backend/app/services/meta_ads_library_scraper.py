@@ -7,6 +7,19 @@ Targets only ad card containers to avoid UI sprite sheets and icons.
 import logging
 import asyncio
 import httpx
+
+try:
+    from app.services.mri_media_diagnostic import (
+        log_scrape_start,
+        log_scrape_extract,
+        log_scrape_done,
+    )
+except ImportError:
+
+    def _noop(*args, **kwargs):
+        pass
+
+    log_scrape_start = log_scrape_extract = log_scrape_done = _noop
 import re
 import time
 import random
@@ -193,7 +206,7 @@ class MetaAdsLibraryScraper:
         """
         if not self.validate_url(url):
             raise ValueError("Invalid Meta Ads Library URL. Must include view_all_page_id parameter.")
-        
+        log_scrape_start(url, max_scrolls)
         all_copy: List[AdCopyItem] = []
         seen_keys: set = set()  # (library_id or "", primary_text[:50]) to dedupe
         
@@ -230,6 +243,8 @@ class MetaAdsLibraryScraper:
                         break
                 
                 logger.info(f"Total ad copy items found: {len(all_copy)}")
+                items_with_media = sum(1 for c in all_copy if c.media_items)
+                log_scrape_done(len(all_copy), items_with_media)
             finally:
                 await browser.close()
         
@@ -460,6 +475,8 @@ class MetaAdsLibraryScraper:
                 return results;
             }
         ''')
+        
+        log_scrape_extract(len(raw) if raw else 0, raw or [])
         
         items = []
         for r in raw:

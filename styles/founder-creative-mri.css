@@ -10,12 +10,16 @@
   max-width: 1400px;
   margin: 0 auto;
 }
-.mri-main.mri-report-view .brands-imports-panel {
+.mri-main.mri-report-view .mri-setup-sidebar-slot {
   display: none;
 }
 .mri-main.mri-report-view .mri-results {
   flex: 1;
   min-width: 0;
+}
+.mri-setup-sidebar-slot {
+  flex-shrink: 0;
+  max-width: 400px;
 }
 .brands-imports-panel {
   flex-shrink: 0;
@@ -34,6 +38,11 @@
   gap: 12px;
   margin-bottom: 16px;
 }
+.mri-report-header .mri-report-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
 .mri-back-to-setup {
   flex-shrink: 0;
 }
@@ -42,9 +51,84 @@
   .mri-main {
     flex-direction: column;
   }
+  .mri-setup-sidebar-slot,
   .brands-imports-panel {
     max-width: none;
   }
+}
+
+/* Brands & Imports modal overlay (when "Back to setup" from report view) */
+.mri-setup-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+.mri-setup-modal-overlay.mri-setup-modal--open {
+  opacity: 1;
+  visibility: visible;
+}
+.mri-setup-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+.mri-setup-modal {
+  position: relative;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  padding: 20px 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+  width: 100%;
+  max-width: 440px;
+  max-height: 90vh;
+  overflow-y: auto;
+  transform: translateY(16px);
+  transition: transform 0.2s ease;
+}
+.mri-setup-modal-overlay.mri-setup-modal--open .mri-setup-modal {
+  transform: translateY(0);
+}
+.mri-setup-modal__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: var(--muted, #718096);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.mri-setup-modal__close:hover {
+  background: var(--bg, #f5f7fb);
+  color: var(--text, #1a202c);
+}
+.mri-setup-modal__body {
+  padding-top: 8px;
+  padding-right: 36px;
+}
+.mri-setup-modal__body .brands-imports-panel {
+  max-width: none;
+  border: none;
+  padding: 0;
 }
 
 /* Command Center layout */

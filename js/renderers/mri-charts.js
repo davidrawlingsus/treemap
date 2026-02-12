@@ -298,8 +298,9 @@ export function renderCreativeHalfLife(container, daysArray) {
 
 /**
  * Render stacked area (chart 4) or normalized stacked area (chart 5)
+ * @param {Function} [keyFormatter] - Optional: (key) => displayLabel for legend (e.g. k => k.toUpperCase() for funnel)
  */
-function renderStackedArea(container, data, keys, normalized = false) {
+function renderStackedArea(container, data, keys, normalized = false, keyFormatter = k => k) {
     const el = typeof container === 'string' ? document.getElementById(container) : container;
     if (!el || !window.d3) {
         renderEmpty(el, 'Chart unavailable');
@@ -352,7 +353,7 @@ function renderStackedArea(container, data, keys, normalized = false) {
     const legend = g.append('g').attr('transform', `translate(${innerW + 6},0)`);
     keysArr.forEach((k, i) => {
         legend.append('rect').attr('y', i * 16).attr('width', 10).attr('height', 10).attr('fill', color(k));
-        legend.append('text').attr('x', 14).attr('y', i * 16 + 9).attr('font-size', 10).attr('fill', '#4a5568').text(k);
+        legend.append('text').attr('x', 14).attr('y', i * 16 + 9).attr('font-size', 10).attr('fill', '#4a5568').text(keyFormatter(k));
     });
 }
 
@@ -371,7 +372,7 @@ export function renderFunnelMixOverTime(container, data) {
         renderEmpty(container);
         return;
     }
-    renderStackedArea(container, { keys: ['tofu', 'mofu', 'bofu'], data }, ['tofu', 'mofu', 'bofu'], true);
+    renderStackedArea(container, { keys: ['tofu', 'mofu', 'bofu'], data }, ['tofu', 'mofu', 'bofu'], true, k => k.toUpperCase());
 }
 
 /**
