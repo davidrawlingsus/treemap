@@ -438,11 +438,31 @@ async def _run_report_stream(
         yield _format_sse({"stage": "done", "report_id": str(report_id), "report": report})
 
 
-def _run_and_save_report_sync(report_id: UUID, ads: list, app) -> None:
-    """Background task: run pipeline and save result to report row."""
-    # #region agent log
-    _diag("bg_task_start", {"report_id": str(report_id), "ad_count": len(ads)}, "H2")
-    # #endregion
+async def _load_ads_with_media_analysis(import_id: UUID, db: Session) -> list:
+    """Load ads from import, run Gemini video/image analysis, return ad dicts."""
+    library_ads = (
+        db.query(AdLibraryAd)
+        .filter(AdLibraryAd.import_id == import_id)
+        .options(joinedload(AdLibraryAd.media_items))
+        .all()
+    )
+    settings = get_settings()
+    gemini = GeminiVideoService(api_key=settings.gemini_api_key)
+    total_videos = _count_pending_videos(library_ads)
+    total_images = _count_pending_images(library_ads)
+    log_mri_video_phase_start("background", total_videos, total_videos, gemini.is_configured(), str(import_id))
+    for ad in library_ads:
+        await _ensure_video_analysis(ad, gemini, db)
+        await _ensure_image_analysis(ad, gemini, db)
+    ads = [_ad_to_dict(ad) for ad in library_ads]
+    log_mri_ads_built_for_pipeline(len(ads), "background", [])
+    return ads
+
+
+def _run_and_save_report_sync(report_id: UUID, ads_or_import: dict, app) -> None:
+    """Background task: run pipeline and save result to report row.
+    ads_or_import: {"ads": [...]} for pre-built ads, or {"client_id": uuid, "import_id": uuid} to load from import.
+    """
     llm_service = getattr(app.state, "llm_service", None) if app else None
     db = SessionLocal()
     try:
@@ -456,6 +476,20 @@ def _run_and_save_report_sync(report_id: UUID, ads: list, app) -> None:
                 report_row.error_message = "LLM service not configured"
                 db.commit()
                 return
+
+            # Load ads (with media analysis) from import if needed
+            if "import_id" in ads_or_import:
+                import_id = UUID(ads_or_import["import_id"])
+                report_row.progress_message = "Analyzing videos and images..."
+                db.commit()
+                ads = asyncio.run(_load_ads_with_media_analysis(import_id, db))
+            else:
+                ads = ads_or_import.get("ads") or []
+
+            # #region agent log
+            _diag("bg_task_start", {"report_id": str(report_id), "ad_count": len(ads)}, "H2")
+            # #endregion
+
             system_message, model = get_creative_mri_prompts(db)
 
             def progress_cb(stage: str, current: int, total: int, message: str) -> None:
@@ -530,6 +564,7 @@ async def run_creative_mri_report(
 
     if ads_input is not None:
         ads = [a if isinstance(a, dict) else {"id": str(i), "headline": "", "primary_text": str(a)} for i, a in enumerate(ads_input)]
+        ads_or_import = {"ads": ads}
     else:
         import_id = ad_library_import_id
         if not import_id:
@@ -560,29 +595,10 @@ async def run_creative_mri_report(
             for ad in library_ads[:20]
         ]
         log_mri_load(str(import_id), len(library_ads), ads_media_summary)
-        total_videos = _count_pending_videos(library_ads)
-        total_video_media = sum(1 for a in library_ads for m in (a.media_items or []) if m.media_type == "video")
-        settings = get_settings()
-        gemini = GeminiVideoService(api_key=settings.gemini_api_key)
-        log_mri_path("background", None)
-        if total_videos == 0:
-            log_mri_video_phase_skipped("background", "no_pending_videos" if total_video_media == 0 else "all_have_analysis", total_video_media)
-        log_mri_video_phase_start("background", total_videos, total_videos, gemini.is_configured(), str(import_id))
-        for ad in library_ads:
-            await _ensure_video_analysis(ad, gemini, db)
-            await _ensure_image_analysis(ad, gemini, db)
-        ads = [_ad_to_dict(ad) for ad in library_ads]
-        sample = []
-        for a in ads[:5]:
-            mi = a.get("media_items") or []
-            sample.append({
-                "ad_id": a.get("id"),
-                "media_count": len(mi),
-                "videos": [{"has_video_analysis_json": bool(m.get("video_analysis_json")), "media_type": m.get("media_type")} for m in mi],
-            })
-        log_mri_ads_built_for_pipeline(len(ads), "background", sample)
-        if not ads:
+        if not library_ads:
             raise HTTPException(status_code=400, detail="No ads in this import.")
+        # Defer video/image analysis to background task so POST returns immediately
+        ads_or_import = {"client_id": str(client_id), "import_id": str(import_id)}
 
     if stream:
         # #region agent log
@@ -611,7 +627,7 @@ async def run_creative_mri_report(
     # #region agent log
     _diag("post_using_background", {"report_id": str(report_row.id), "client_id": str(client_id)}, "H2")
     # #endregion
-    background_tasks.add_task(_run_and_save_report_sync, report_row.id, ads, request.app)
+    background_tasks.add_task(_run_and_save_report_sync, report_row.id, ads_or_import, request.app)
     return JSONResponse(status_code=202, content={"report_id": str(report_row.id)})
 
 

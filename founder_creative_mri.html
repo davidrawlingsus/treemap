@@ -422,7 +422,7 @@
                             document.getElementById('mriProgressFill').style.width = '0%';
                             document.getElementById('mriProgressMessage').textContent = '';
                             mriLoading.classList.remove('mri-loading--progress');
-                            document.getElementById('mriLoadingDetail').textContent = 'Connecting…';
+                            document.getElementById('mriLoadingDetail').textContent = 'Starting report…';
                             runReportButton.click();
                             return;
                         }
@@ -502,7 +502,7 @@
             document.getElementById('mriProgressFill').style.width = '0%';
             document.getElementById('mriProgressMessage').textContent = '';
             mriLoading.classList.remove('mri-loading--progress');
-            document.getElementById('mriLoadingDetail').textContent = 'Connecting…';
+            document.getElementById('mriLoadingDetail').textContent = 'Starting report…';
             runReportButton.disabled = true;
             const importLabel = importSelect.options[importSelect.selectedIndex]?.textContent || 'Latest';
             try {
@@ -604,6 +604,16 @@
             const exec = report.executive_summary || {};
             const ads = report.ads || [];
             const analysis = report.analysis || {};
+            // Diagnostic: count ads with video transcripts (for debugging missing transcripts)
+            let adsWithVideoTranscript = 0;
+            ads.forEach(ad => {
+                const items = ad.media_items || [];
+                const video = items.find(m => (m || {}).media_type === 'video');
+                const vaj = video?.video_analysis_json;
+                const t = vaj && typeof vaj === 'object' ? (vaj.transcript || vaj.timeline_first_2s?.transcript_excerpt) : null;
+                if (t) adsWithVideoTranscript++;
+            });
+            console.info('[MRI] Report loaded:', { ads_count: ads.length, ads_with_video_transcript: adsWithVideoTranscript });
             const ds = analysis?.analysis?.dataset_summary || {};
             const funnelShare = ds.funnel?.stage_share || {};
 
