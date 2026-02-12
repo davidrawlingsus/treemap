@@ -1,6 +1,7 @@
 """
 Tests for Creative MRI: exposure proxy, aggregations, schema validation.
 """
+import json
 from datetime import datetime, timezone, timedelta
 
 import pytest
@@ -10,7 +11,8 @@ from app.services.creative_mri.exposure_proxy import (
     enrich_ads_with_exposure,
 )
 from app.services.creative_mri.aggregations import compute_aggregates
-from app.services.creative_mri.llm import parse_llm_response
+from app.services.creative_mri.llm import build_user_message, parse_llm_response
+from app.services.creative_mri.synthesize import build_synthesize_payload
 
 
 # --- Exposure proxy ---
@@ -154,3 +156,87 @@ def test_parse_llm_response_backward_compat():
     assert out["replace_vs_refine"]["decision"] == "unknown"
     assert out["claim_audit"]["top_risks"] == []
     assert out["video_first_2s"]["applicable"] is False
+
+
+# --- Per-ad LLM (transcript & summary) ---
+
+
+def test_build_user_message_includes_video_transcript_and_analysis():
+    """Transcript and video_analysis are included in per-ad Claude payload when present."""
+    ad = {
+        "id": "ad-1",
+        "headline": "Test Headline",
+        "primary_text": "Test body copy",
+        "cta": "Learn More",
+        "destination_url": "https://example.com",
+        "status": "Active",
+        "run_days": 30,
+        "exposure_proxy": 100.0,
+        "media_items": [
+            {
+                "media_type": "video",
+                "video_analysis_json": {
+                    "transcript": "Hello and welcome to our product demo. See how it works in just 30 seconds.",
+                    "visual_scenes": [{"start": 0, "end": 5, "description": "Person speaking"}],
+                    "on_screen_text": ["30 second demo"],
+                    "proof_shown_visually": [],
+                    "emotional_cues": ["enthusiasm"],
+                    "timeline_first_2s": "Person introducing product",
+                },
+            },
+        ],
+    }
+    msg = build_user_message(ad)
+    payload = json.loads(msg)
+    assert "video_analysis" in payload
+    assert payload["video_analysis"]["transcript"] == "Hello and welcome to our product demo. See how it works in just 30 seconds."
+    assert payload["video_analysis"]["visual_scenes"] == [{"start": 0, "end": 5, "description": "Person speaking"}]
+    assert payload["video_analysis"]["timeline_first_2s"] == "Person introducing product"
+    assert payload["headline"] == "Test Headline"
+    assert payload["meta_context"] == {"status": "Active", "run_days": 30, "exposure_proxy": 100.0}
+
+
+def test_build_user_message_no_video_analysis_when_missing():
+    """video_analysis is not included when ad has no video with video_analysis_json."""
+    ad = {
+        "id": "ad-2",
+        "headline": "Image-only ad",
+        "primary_text": "Body",
+        "media_items": [
+            {"media_type": "image", "image_analysis_json": None},
+            {"media_type": "video", "video_analysis_json": None},
+        ],
+    }
+    msg = build_user_message(ad)
+    payload = json.loads(msg)
+    assert "video_analysis" not in payload
+    assert payload["headline"] == "Image-only ad"
+
+
+def test_build_synthesize_payload_includes_per_ad_analysis():
+    """Synthesized summary receives per-ad MRI (including transcript-derived insights)."""
+    report = {
+        "ads": [{"id": "ad-1", "headline": "Test"}],
+        "analysis": {
+            "analysis": {
+                "ads": [
+                    {
+                        "ad_id": "ad-1",
+                        "hook_type": "direct_benefit",
+                        "proof_claimed": [{"type": "testimonial", "strength_0_1": 0.8}],
+                        "proof_shown": [{"type": "testimonial", "strength_0_1": 0.6}],
+                        "what_to_change": ["Improve first 2 seconds"],
+                    },
+                ],
+                "dataset_summary": {},
+                "redundancy": {},
+            },
+        },
+    }
+    msg = build_synthesize_payload(report)
+    payload = json.loads(msg)
+    assert "per_ad_mri" in payload
+    assert len(payload["per_ad_mri"]) == 1
+    assert payload["per_ad_mri"][0]["hook_type"] == "direct_benefit"
+    assert payload["per_ad_mri"][0]["what_to_change"] == ["Improve first 2 seconds"]
+    assert "aggregate_metadata" in payload

@@ -4,8 +4,6 @@ Uses prompt from Prompt Engineering (prompt_purpose=ad_creative_mri_synthesized_
 """
 import json
 import logging
-import os
-import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
@@ -19,18 +17,6 @@ except ImportError:
 logger = logging.getLogger(__name__)
 
 PROMPT_PURPOSE = "ad_creative_mri_synthesized_summary"
-
-# #region agent log
-_DEBUG_LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", ".cursor")
-_DEBUG_LOG = os.path.join(_DEBUG_LOG_DIR, "debug.log")
-def _diag(msg: str, data: dict = None):
-    try:
-        os.makedirs(_DEBUG_LOG_DIR, exist_ok=True)
-        with open(_DEBUG_LOG, "a") as f:
-            f.write(json.dumps({"location": "synthesize.py", "message": msg, "data": data or {}, "timestamp": int(time.time() * 1000)}) + "\n")
-    except Exception:
-        pass
-# #endregion
 
 
 def _parse_date(s: Any) -> Optional[datetime]:
@@ -142,13 +128,6 @@ def get_synthesized_summary_prompt(db: Session) -> Optional[tuple]:
     from app.models import Prompt
 
     purpose_lower = PROMPT_PURPOSE.lower()
-    # #region agent log
-    candidates = db.query(Prompt).filter(func.lower(Prompt.prompt_purpose) == purpose_lower).all()
-    _diag("synthesize_prompt_candidates", {
-        "count": len(candidates),
-        "candidates": [{"status": p.status, "prompt_type": p.prompt_type, "has_system_message": bool(p.system_message), "has_prompt_message": bool(p.prompt_message)} for p in candidates[:5]],
-    })
-    # #endregion
     prompt = (
         db.query(Prompt)
         .filter(
@@ -158,9 +137,6 @@ def get_synthesized_summary_prompt(db: Session) -> Optional[tuple]:
         .order_by(Prompt.version.desc())
         .first()
     )
-    # #region agent log
-    _diag("synthesize_prompt_lookup", {"found": prompt is not None, "has_content": bool(prompt and (prompt.system_message or prompt.prompt_message)), "purpose": PROMPT_PURPOSE})
-    # #endregion
     content = (prompt and (prompt.system_message or prompt.prompt_message)) or None
     if not content:
         return None
@@ -177,9 +153,6 @@ def build_synthesize_payload(report: Dict[str, Any]) -> str:
         "aggregate_metadata": metadata,
     }
     msg = json.dumps(payload, ensure_ascii=False, default=str)
-    # #region agent log
-    _diag("synthesize_payload_built", {"user_message_len": len(msg), "ad_count": len(analysis_ads), "hypothesisId": "H3"})
-    # #endregion
     return msg
 
 
@@ -232,45 +205,17 @@ def _call_synthesize_llm(
         try:
             out = json.loads(text)
         except json.JSONDecodeError as e:
-            # #region agent log
-            _diag("synthesize_llm_parse_fallback", {
-                "error": str(e)[:100],
-                "json_repair_available": json_repair is not None,
-                "content_length": len(text),
-                "content_tail_100": text[-100:] if len(text) > 100 else text,
-                "hypothesisId": "H2",
-            })
-            # #endregion
             if json_repair is None:
                 logger.warning("Synthesized summary JSON parse failed. Install json-repair for auto-repair: pip install json-repair")
                 return None
             try:
                 out = json_repair.loads(text)
             except Exception as repair_err:
-                # #region agent log
-                _diag("synthesize_llm_error", {"error": str(repair_err)})
-                # #endregion
                 logger.warning("Synthesized summary LLM failed (parse + repair): %s", repair_err)
                 return None
         if isinstance(out, dict):
-            # #region agent log
-            actions = out.get("top_5_high_impact_actions") or []
-            actions_len = len(actions) if isinstance(actions, list) else -1
-            _diag("synthesize_llm_success", {
-                "keys": list(out.keys())[:10],
-                "top_5_high_impact_actions_count": actions_len,
-                "content_length": len(content),
-                "hypothesisId": "H1_H2_H5",
-            })
-            # #endregion
             return out
-        # #region agent log
-        _diag("synthesize_llm_bad_format", {"type": type(out).__name__})
-        # #endregion
         return None
     except Exception as e:
-        # #region agent log
-        _diag("synthesize_llm_error", {"error": str(e)})
-        # #endregion
         logger.warning("Synthesized summary LLM failed: %s", e)
         return None

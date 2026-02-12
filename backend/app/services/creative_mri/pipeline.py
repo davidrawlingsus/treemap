@@ -11,19 +11,6 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
-# #region agent log
-import os as _diag_os
-_DEBUG_LOG_DIR = _diag_os.path.join(_diag_os.path.dirname(__file__), "..", "..", "..", "..", ".cursor")
-_DEBUG_LOG = _diag_os.path.join(_DEBUG_LOG_DIR, "debug.log")
-def _diag(msg: str, data: dict = None, hyp: str = None):
-    try:
-        _diag_os.makedirs(_DEBUG_LOG_DIR, exist_ok=True)
-        with open(_DEBUG_LOG, "a") as f:
-            f.write(json.dumps({"location": "pipeline.py", "message": msg, "data": data or {}, "timestamp": int(time.time() * 1000), "hypothesisId": hyp}) + "\n")
-    except Exception:
-        pass
-# #endregion
-
 from app.services.creative_mri.analysis_schema import (
     SCHEMA_VERSION,
     build_taxonomy,
@@ -118,19 +105,10 @@ def llm_pass(
 ) -> List[Dict[str, Any]]:
     """Call Claude per-ad; merge llm fields into each ad. Classification and scoring come from LLM."""
     n = len(ads)
-    # #region agent log
-    _diag("llm_pass_start", {"ad_count": n}, "H4")
-    # #endregion
     for i, ad in enumerate(ads):
         if progress_callback:
             progress_callback("llm", i + 1, n, f"Analyzing ad copy {i + 1}/{n}")
-        # #region agent log
-        _diag("llm_pass_before_call", {"ad_index": i + 1, "total": n}, "H4")
-        # #endregion
         llm_out = call_creative_mri_llm(llm_service, ad, system_message=system_message, model=model)
-        # #region agent log
-        _diag("llm_pass_after_call", {"ad_index": i + 1, "total": n}, "H4")
-        # #endregion
         if not llm_out:
             ad["llm"] = None
             ad["hook_type"] = "unknown"
@@ -175,9 +153,6 @@ def llm_pass(
         hs = llm_out.get("hook_scores") or {}
         overall = hs.get("overall") if isinstance(hs, dict) else None
         ad["overall_score"] = max(0, min(100, float(overall))) if isinstance(overall, (int, float)) else 50
-    # #region agent log
-    _diag("llm_pass_end", {"ad_count": n}, "H4")
-    # #endregion
     return ads
 
 

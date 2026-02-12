@@ -10,6 +10,9 @@
   max-width: 1400px;
   margin: 0 auto;
 }
+.mri-main.mri-report-view {
+  max-width: 2400px;
+}
 .mri-main.mri-report-view .mri-setup-sidebar-slot {
   display: none;
 }
@@ -751,6 +754,12 @@
   .mri-ads-grid-sizer,
   .mri-ad-card {
     width: calc(25% - 18px);
+  }
+}
+@media (min-width: 2100px) {
+  .mri-ads-grid-sizer,
+  .mri-ad-card {
+    width: calc(20% - 19.2px);
   }
 }
 @media (max-width: 768px) {

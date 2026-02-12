@@ -605,15 +605,6 @@
             const ads = report.ads || [];
             const analysis = report.analysis || {};
             // Diagnostic: count ads with video transcripts (for debugging missing transcripts)
-            let adsWithVideoTranscript = 0;
-            ads.forEach(ad => {
-                const items = ad.media_items || [];
-                const video = items.find(m => (m || {}).media_type === 'video');
-                const vaj = video?.video_analysis_json;
-                const t = vaj && typeof vaj === 'object' ? (vaj.transcript || vaj.timeline_first_2s?.transcript_excerpt) : null;
-                if (t) adsWithVideoTranscript++;
-            });
-            console.info('[MRI] Report loaded:', { ads_count: ads.length, ads_with_video_transcript: adsWithVideoTranscript });
             const ds = analysis?.analysis?.dataset_summary || {};
             const funnelShare = ds.funnel?.stage_share || {};
 
