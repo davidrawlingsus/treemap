@@ -727,10 +727,7 @@
             const cardsHtml = ads.map(ad => {
                 const llm = ad.llm || {};
                 const angle = llm.angle || ad.angle || '—';
-                const hookPhrase = llm.hook_phrase || ad.hook_phrase || '—';
                 const whatToChange = (llm.what_to_change || ad.what_to_change || []);
-                const rvr = llm.replace_vs_refine || {};
-                const rvrDecision = rvr.decision || '';
                 const mofuJob = (ad.funnel_stage || '').toLowerCase() === 'mofu' ? (llm.mofu_job_type || '') : '';
                 const claimAudit = llm.claim_audit || {};
                 const topRisk = (claimAudit.top_risks || [])[0];
@@ -750,28 +747,40 @@
                     imageUrl: firstMediaUrl(ad),
                     readOnly: true
                 });
-                return `
-                    <div class="mri-ad-card mri-ad-card--masonry">
-                        <div class="mri-ad-card__mockup">${mockup}</div>
-                        <div class="mri-ad-card__feedback">
-                            <div class="mri-ad-card__meta">
-                                <span class="mri-ad-card__score">Score: ${ad.overall_score ?? '—'}</span>
-                                <span class="mri-ad-card__stage">Stage: ${escapeHtml(ad.funnel_stage ?? '—')}${mofuJob ? ` · ${escapeHtml(mofuJob)}` : ''}</span>
-                                <span class="mri-ad-card__hook">Hook: ${escapeHtml(ad.hook_type ?? '—')}</span>
-                                ${rvrDecision ? `<span class="mri-ad-card__badge mri-ad-card__badge--${rvrDecision}">${escapeHtml(rvrDecision)}</span>` : ''}
-                                ${first2sBadge ? `<span class="mri-ad-card__badge mri-ad-card__badge--first2s">1st2s: ${escapeHtml(first2sBadge)}</span>` : ''}
-                            </div>
-                            ${topRisk ? `<div class="mri-ad-card__claim-risk">⚠ ${escapeHtml(topRisk)}</div>` : ''}
-                            <div class="mri-ad-card__angle">Angle: ${escapeHtml(angle)}</div>
-                            ${hookPhrase !== '—' ? `<div class="mri-ad-card__hook-phrase">Hook phrase: "${escapeHtml(hookPhrase)}"</div>` : ''}
-                            ${videoTranscript ? `<div class="mri-ad-card__transcript"><strong>Video transcript:</strong> ${escapeHtml(videoTranscript)}</div>` : ''}
-                            ${whatToChange.length ? `
-                                <div class="mri-ad-card__what-to-change">
-                                    <strong>What to change:</strong>
-                                    <ul>${whatToChange.map(w => `<li>${escapeHtml(w)}</li>`).join('')}</ul>
-                                </div>
-                            ` : ''}
+                const labelsParts = [
+                    `Score: ${ad.overall_score ?? '—'}`,
+                    `Stage: ${escapeHtml(ad.funnel_stage ?? '—')}${mofuJob ? ` · ${escapeHtml(mofuJob)}` : ''}`,
+                    `Hook: ${escapeHtml(ad.hook_type ?? '—')}`,
+                    first2sBadge ? `1st2s: ${escapeHtml(first2sBadge)}` : '',
+                    topRisk ? `⚠ ${escapeHtml(topRisk)}` : '',
+                    angle !== '—' ? `Angle: ${escapeHtml(angle)}` : ''
+                ].filter(Boolean);
+                const whatToChangeHtml = whatToChange.length ? `<ul class="ads-card__voc-list">${whatToChange.map(w => `<li class="ads-card__voc-item">${escapeHtml(w)}</li>`).join('')}</ul>` : '<p class="ads-card__detail-value">No suggestions</p>';
+                const transcriptHtml = videoTranscript ? `<div class="mri-ad-card__transcript-body">${escapeHtml(videoTranscript)}</div>` : '';
+                const accordions = [
+                    { title: 'What to change', body: whatToChangeHtml },
+                    ...(videoTranscript ? [{ title: 'Video transcript', body: transcriptHtml }] : [])
+                ];
+                const accordionsHtml = accordions.map(acc => `
+                    <div class="ads-accordion">
+                        <button class="ads-accordion__trigger" type="button">
+                            <span class="ads-accordion__title">${escapeHtml(acc.title)}</span>
+                            <svg class="ads-accordion__chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
+                        <div class="ads-accordion__content">
+                            <div class="ads-accordion__body">${acc.body}</div>
                         </div>
+                    </div>
+                `).join('');
+                return `
+                    <div class="mri-ad-card mri-ad-card--masonry ads-card">
+                        <div class="mri-ad-card__header ads-card__header">
+                            <div class="mri-ad-card__labels">${labelsParts.map(l => `<span class="mri-ad-card__label">${l}</span>`).join('')}</div>
+                        </div>
+                        <div class="mri-ad-card__mockup ads-card__mockup">${mockup}</div>
+                        <div class="ads-card__accordions">${accordionsHtml}</div>
                     </div>
                 `;
             }).join('');
@@ -795,6 +804,19 @@
                         el.addEventListener('error', () => mriMasonryInstance?.layout());
                     } else if (el.tagName === 'VIDEO') {
                         el.addEventListener('loadeddata', () => mriMasonryInstance?.layout());
+                    }
+                });
+            }
+            if (!mriAdsList._accordionHandler) {
+                mriAdsList._accordionHandler = true;
+                mriAdsList.addEventListener('click', (e) => {
+                    const trigger = e.target.closest('.ads-accordion__trigger');
+                    if (trigger) {
+                        const accordion = trigger.closest('.ads-accordion');
+                        if (accordion) {
+                            accordion.classList.toggle('expanded');
+                            setTimeout(() => mriMasonryInstance?.layout(), 260);
+                        }
                     }
                 });
             }
