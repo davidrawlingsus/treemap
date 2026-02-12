@@ -48,15 +48,42 @@
 }
 
 /* Command Center layout */
-.command-center-grid {
-  display: grid;
-  gap: 24px;
-  margin-bottom: 24px;
+.command-center-section--full {
+  width: 100%;
 }
-@media (min-width: 768px) {
-  .command-center-grid {
-    grid-template-columns: 1fr 1fr;
+.impact-scoreboard-grid-inner {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 12px;
+}
+@media (max-width: 900px) {
+  .impact-scoreboard-grid-inner {
+    grid-template-columns: 1fr;
   }
+}
+.impact-scoreboard-cell {
+  background: var(--bg, #f5f7fb);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 13px;
+}
+.impact-scoreboard-cell .mri-action-header {
+  margin-bottom: 6px;
+}
+.impact-scoreboard-cell .mri-action-why,
+.impact-scoreboard-cell .mri-action-brief {
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+}
+.impact-scoreboard-cell .mri-roadmap-phases p {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+}
+.impact-scoreboard-cell.mri-action-item {
+  padding: 12px 14px;
+  border-bottom: none;
 }
 .command-center-section {
   background: var(--surface, #fff);

@@ -143,15 +143,13 @@
                     </div>
                 </div>
                 <div id="mriContent" style="display: none;">
-                    <div class="command-center-grid">
-                        <div class="command-center-section health-summary">
-                            <h3>Health Summary</h3>
-                            <div class="mri-summary" id="mriSummary"></div>
-                        </div>
-                        <div class="command-center-section impact-scoreboard">
-                            <h3>Impact Scoreboard</h3>
-                            <div id="mriImpactScoreboard"></div>
-                        </div>
+                    <div class="command-center-section health-summary command-center-section--full">
+                        <h3>Health Summary</h3>
+                        <div class="mri-summary" id="mriSummary"></div>
+                    </div>
+                    <div class="command-center-section impact-scoreboard">
+                        <h3>Impact Scoreboard</h3>
+                        <div class="impact-scoreboard-grid" id="mriImpactScoreboard"></div>
                     </div>
                     <h3>Charts</h3>
                     <div class="mri-charts">
@@ -639,32 +637,30 @@
                     ${offer.conversion_structural_risk ? `<div class="mri-summary-block"><p><strong>Conversion risk:</strong> ${formatSummaryText(offer.conversion_structural_risk)}</p></div>` : ''}
                 `;
 
-                document.getElementById('mriImpactScoreboard').innerHTML = `
-                    ${actions.length ? `
-                        <h4 class="mri-summary-subheading">Top 5 high-impact actions</h4>
-                        <ol class="mri-actions-list">
-                            ${actions.map((a, i) => `
-                                <li class="mri-action-item">
-                                    <div class="mri-action-header">
-                                        <strong>${escapeHtml(a.action_title || 'Action ' + (i + 1))}</strong>
-                                        <span class="mri-action-meta">${escapeHtml(a.impact_confidence || '')} impact · ${escapeHtml(a.effort_level || '')} effort</span>
-                                    </div>
-                                    ${a.why_it_matters ? `<p class="mri-action-why">${formatSummaryText(a.why_it_matters)}</p>` : ''}
-                                    ${a.what_to_produce?.creative_brief?.length ? `<ul class="mri-action-brief">${(a.what_to_produce.creative_brief || []).map(b => `<li>${formatSummaryText(b)}</li>`).join('')}</ul>` : ''}
-                                </li>
-                            `).join('')}
-                        </ol>
-                    ` : ''}
-                    ${roadmap.phase_1_weeks_1_4?.focus ? `
+                const actionCells = (actions || []).slice(0, 5).map((a, i) => `
+                    <div class="impact-scoreboard-cell mri-action-item">
+                        <div class="mri-action-header">
+                            <strong>${escapeHtml(a.action_title || 'Action ' + (i + 1))}</strong>
+                            <span class="mri-action-meta">${escapeHtml(a.impact_confidence || '')} impact · ${escapeHtml(a.effort_level || '')} effort</span>
+                        </div>
+                        ${a.why_it_matters ? `<p class="mri-action-why">${formatSummaryText(a.why_it_matters)}</p>` : ''}
+                        ${a.what_to_produce?.creative_brief?.length ? `<ul class="mri-action-brief">${(a.what_to_produce.creative_brief || []).map(b => `<li>${formatSummaryText(b)}</li>`).join('')}</ul>` : ''}
+                    </div>
+                `).join('');
+                const roadmapHtml = roadmap.phase_1_weeks_1_4?.focus ? `
+                    <div class="impact-scoreboard-cell mri-roadmap-cell">
                         <h4 class="mri-summary-subheading">90-day roadmap</h4>
                         <div class="mri-roadmap-phases">
                             <p><strong>Phase 1 (weeks 1–4):</strong> ${formatSummaryText(roadmap.phase_1_weeks_1_4.focus)}</p>
                             <p><strong>Phase 2 (weeks 5–8):</strong> ${formatSummaryText(roadmap.phase_2_weeks_5_8?.focus || '—')}</p>
                             <p><strong>Phase 3 (weeks 9–12):</strong> ${formatSummaryText(roadmap.phase_3_weeks_9_12?.focus || '—')}</p>
                         </div>
-                    ` : ''}
-                    ${!actions.length && !roadmap.phase_1_weeks_1_4 ? '<p class="muted">No synthesized summary available. Run a new report with the synthesize prompt configured.</p>' : ''}
-                `;
+                    </div>
+                ` : '';
+                const cells = actionCells + roadmapHtml;
+                document.getElementById('mriImpactScoreboard').innerHTML = cells
+                    ? `<h4 class="mri-summary-subheading">Top 5 high-impact actions</h4><div class="impact-scoreboard-grid-inner">${cells}</div>`
+                    : '<p class="muted">No synthesized summary available. Run a new report with the synthesize prompt configured.</p>';
             }
 
             function renderLegacySummary(exec, funnelShare) {
