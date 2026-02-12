@@ -62,12 +62,12 @@
 
   function createFormScreen(today) {
     const clientLogos = [
-      { src: 'https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/logos/katkin_logo_square.png', alt: 'KatKin' },
-      { src: 'https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/logos/mous_logo_square.png', alt: 'Mous' },
-      { src: 'https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/logos/hotjar_logo_square.png', alt: 'Hotjar' },
-      { src: 'https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/logos/look_fabulous_forever_logo_square.png', alt: 'Look Fabulous Forever' },
-      { src: 'https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/logos/wattbike_logo_rectangle.png', alt: 'Wattbike' },
-      { src: 'https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/logos/omlet_logo_square.png', alt: 'Omlet' },
+      { src: '/images/viz_header_logos/katkin_logo_%23000000.png', alt: 'KatKin' },
+      { src: '/images/viz_header_logos/mous_logo_%23FFFFFF.png', alt: 'Mous' },
+      { src: '/images/viz_header_logos/liforme_logo_%23FFFFFF.png', alt: 'Hotjar' },
+      { src: '/images/viz_header_logos/neom_organics_logo_%23FFFFFF.jpg', alt: 'Look Fabulous Forever' },
+      { src: '/images/viz_header_logos/wattbike_logo_%23FFFFFF.png', alt: 'Wattbike' },
+      { src: '/images/viz_header_logos/omlet_logo_%23FFFFFF.png', alt: 'Omlet' },
     ];
 
     return `
@@ -356,6 +356,14 @@
         navLogoImg.className = 'nav-client-logo-image';
         navLogoImg.id = 'navClientLogo';
         navLogoImg.style.cssText = 'display: block; max-height: 40px; width: auto;';
+        navLogoImg.onerror = function() {
+          if (this.dataset.fallbackTried) return;
+          const match = logoUrl.match(/client_logos\/(.+)$/);
+          if (match) {
+            this.dataset.fallbackTried = '1';
+            this.src = '/images/viz_header_logos/' + match[1];
+          }
+        };
         
         navLogoLink.appendChild(navLogoImg);
         navLogoContainer.appendChild(navLogoLink);
@@ -363,6 +371,14 @@
         
         // Hide client logo and show text logo in header (for fallback, but header will be hidden)
         logoImage.src = logoUrl;
+        logoImage.onerror = function() {
+          if (this.dataset.fallbackTried) return;
+          const match = logoUrl.match(/client_logos\/(.+)$/);
+          if (match) {
+            this.dataset.fallbackTried = '1';
+            this.src = '/images/viz_header_logos/' + match[1];
+          }
+        };
         logoImage.style.display = 'none';
         logoText.style.display = 'inline';
         if (tagline) tagline.style.display = 'block';

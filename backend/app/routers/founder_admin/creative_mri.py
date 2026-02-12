@@ -11,8 +11,22 @@ import asyncio
 import json
 import logging
 import queue
+import time
 from datetime import datetime, timezone
 from uuid import UUID
+
+# #region agent log
+import os as _diag_os
+_DEBUG_LOG_DIR = _diag_os.path.join(_diag_os.path.dirname(__file__), "..", "..", "..", "..", ".cursor")
+DEBUG_LOG = _diag_os.path.join(_DEBUG_LOG_DIR, "debug.log")
+def _diag(msg: str, data: dict = None, hyp: str = None):
+    try:
+        _diag_os.makedirs(_DEBUG_LOG_DIR, exist_ok=True)
+        with open(DEBUG_LOG, "a") as f:
+            f.write(json.dumps({"location": "creative_mri.py", "message": msg, "data": data or {}, "timestamp": int(time.time() * 1000), "hypothesisId": hyp}) + "\n")
+    except Exception:
+        pass
+# #endregion
 
 from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -22,7 +36,9 @@ from app.config import get_settings
 from app.database import get_db, SessionLocal
 from app.models import User, Client, AdLibraryImport, AdLibraryAd, CreativeMRIReport
 from app.auth import get_current_active_founder
+from app.services.creative_mri.llm import get_creative_mri_prompts
 from app.services.creative_mri.pipeline import run_creative_mri_pipeline
+from app.services.creative_mri.synthesize import run_synthesize
 from app.services.gemini_video_service import GeminiVideoService
 from app.schemas.creative_mri import (
     CreativeMRIReportResponse,
@@ -52,9 +68,11 @@ def _ad_to_dict(ad: AdLibraryAd) -> dict:
         "cta": ad.cta,
         "destination_url": ad.destination_url,
         "ad_format": ad.ad_format,
+        "started_running_on": ad.started_running_on,
         "ad_delivery_start_time": ad.ad_delivery_start_time,
         "ad_delivery_end_time": ad.ad_delivery_end_time,
         "media_thumbnail_url": ad.media_thumbnail_url,
+        "ads_using_creative_count": ad.ads_using_creative_count,
     }
     if ad.media_items:
         d["media_items"] = [
@@ -107,6 +125,9 @@ async def _run_report_stream(
     db: Session,
 ):
     """Async generator yielding SSE progress events and final report. Persists report to DB."""
+    # #region agent log
+    _diag("stream_start", {"client_id": str(client_id)}, "H1")
+    # #endregion
     client = db.query(Client).filter(Client.id == client_id).first()
     if not client:
         yield _format_sse({"error": "Client not found"})
@@ -188,8 +209,20 @@ async def _run_report_stream(
     db.commit()
     db.refresh(report_row)
     report_id = report_row.id
+    # #region agent log
+    _diag("report_created", {"report_id": str(report_id), "ad_count": len(ads)}, "H1")
+    # #endregion
+
+    def _persist_progress(current: int, total: int, message: str) -> None:
+        report_row.progress_current = current
+        report_row.progress_total = total
+        report_row.progress_message = message
+        db.commit()
 
     yield _format_sse({"stage": "llm", "current": 0, "total": len(ads), "message": "Starting ad copy analysis..."})
+    _persist_progress(0, len(ads), "Starting ad copy analysis...")
+
+    system_message, model = get_creative_mri_prompts(db)
 
     progress_queue = queue.Queue()
     report_ref = []
@@ -199,10 +232,25 @@ async def _run_report_stream(
         progress_queue.put({"stage": stage, "current": current, "total": total, "message": message})
 
     def run_pipeline():
+        # #region agent log
+        _diag("pipeline_thread_start", {"report_id": str(report_id)}, "H4")
+        # #endregion
         try:
-            result = run_creative_mri_pipeline(ads, llm_service, progress_callback=progress_cb)
+            result = run_creative_mri_pipeline(
+                ads,
+                llm_service,
+                progress_callback=progress_cb,
+                system_message=system_message,
+                model=model,
+            )
+            # #region agent log
+            _diag("pipeline_thread_done", {"report_id": str(report_id)}, "H4")
+            # #endregion
             progress_queue.put({"report": result})
         except Exception as e:
+            # #region agent log
+            _diag("pipeline_thread_error", {"report_id": str(report_id), "error": str(e)}, "H4")
+            # #endregion
             pipeline_error.append(e)
         progress_queue.put(None)
 
@@ -218,10 +266,18 @@ async def _run_report_stream(
                 report_ref.append(ev["report"])
                 continue
             yield _format_sse(ev)
+            curr = ev.get("current")
+            total = ev.get("total")
+            msg = ev.get("message")
+            if curr is not None and total is not None and msg is not None:
+                _persist_progress(curr, total, msg)
         except queue.Empty:
             await asyncio.sleep(0.05)
 
     await task
+    # #region agent log
+    _diag("stream_after_await_task", {"report_id": str(report_id)}, "H1")
+    # #endregion
 
     if pipeline_error:
         report_row.status = "failed"
@@ -229,15 +285,46 @@ async def _run_report_stream(
         db.commit()
         yield _format_sse({"error": report_row.error_message})
     elif report_ref:
-        report_row.report_json = report_ref[0]
+        report = report_ref[0]
+        # #region agent log
+        _diag("synthesize_start", {"report_id": str(report_id)}, "H4")
+        # #endregion
+        yield _format_sse({"stage": "synthesize", "current": 0, "total": 1, "message": "Synthesizing executive summary..."})
+        _persist_progress(0, 1, "Synthesizing executive summary...")
+
+        from app.services.creative_mri.synthesize import (
+            get_synthesized_summary_prompt,
+            build_synthesize_payload,
+            _call_synthesize_llm,
+        )
+        prompt_tuple = get_synthesized_summary_prompt(db)
+        if prompt_tuple:
+            system_message, model = prompt_tuple
+
+            def run_synth():
+                return _call_synthesize_llm(report, llm_service, system_message, model)
+
+            synth_result = await asyncio.get_event_loop().run_in_executor(None, run_synth)
+        else:
+            synth_result = None
+        if synth_result:
+            report["synthesized_summary"] = synth_result
+
+        report_row.report_json = report
         report_row.status = "complete"
         report_row.completed_at = datetime.now(timezone.utc)
         db.commit()
-        yield _format_sse({"stage": "done", "report_id": str(report_id), "report": report_ref[0]})
+        # #region agent log
+        _diag("stream_done", {"report_id": str(report_id)}, "H1")
+        # #endregion
+        yield _format_sse({"stage": "done", "report_id": str(report_id), "report": report})
 
 
 def _run_and_save_report_sync(report_id: UUID, ads: list, app) -> None:
     """Background task: run pipeline and save result to report row."""
+    # #region agent log
+    _diag("bg_task_start", {"report_id": str(report_id), "ad_count": len(ads)}, "H2")
+    # #endregion
     llm_service = getattr(app.state, "llm_service", None) if app else None
     db = SessionLocal()
     try:
@@ -251,12 +338,43 @@ def _run_and_save_report_sync(report_id: UUID, ads: list, app) -> None:
                 report_row.error_message = "LLM service not configured"
                 db.commit()
                 return
-            result = run_creative_mri_pipeline(ads, llm_service)
+            system_message, model = get_creative_mri_prompts(db)
+
+            def progress_cb(stage: str, current: int, total: int, message: str) -> None:
+                report_row.progress_current = current
+                report_row.progress_total = total
+                report_row.progress_message = message
+                db.commit()
+
+            report_row.progress_current = 0
+            report_row.progress_total = len(ads)
+            report_row.progress_message = "Starting ad copy analysis..."
+            db.commit()
+
+            result = run_creative_mri_pipeline(
+                ads,
+                llm_service,
+                progress_callback=progress_cb,
+                system_message=system_message,
+                model=model,
+            )
+            # #region agent log
+            _diag("bg_task_pipeline_done", {"report_id": str(report_id)}, "H2")
+            # #endregion
+            synth_result = run_synthesize(result, llm_service, db)
+            if synth_result:
+                result["synthesized_summary"] = synth_result
             report_row.report_json = result
             report_row.status = "complete"
             report_row.completed_at = datetime.now(timezone.utc)
             db.commit()
+            # #region agent log
+            _diag("bg_task_complete", {"report_id": str(report_id)}, "H2")
+            # #endregion
         except Exception as e:
+            # #region agent log
+            _diag("bg_task_error", {"report_id": str(report_id), "error": str(e)}, "H2")
+            # #endregion
             logger.exception("Creative MRI pipeline failed for report %s", report_id)
             report_row.status = "failed"
             report_row.error_message = str(e)
@@ -321,6 +439,9 @@ async def run_creative_mri_report(
             raise HTTPException(status_code=400, detail="No ads in this import.")
 
     if stream:
+        # #region agent log
+        _diag("post_using_stream", {"client_id": str(client_id)}, "H1")
+        # #endregion
         return StreamingResponse(
             _run_report_stream(request, client_id, body, db),
             media_type="text/event-stream",
@@ -341,6 +462,9 @@ async def run_creative_mri_report(
     db.commit()
     db.refresh(report_row)
 
+    # #region agent log
+    _diag("post_using_background", {"report_id": str(report_row.id), "client_id": str(client_id)}, "H2")
+    # #endregion
     background_tasks.add_task(_run_and_save_report_sync, report_row.id, ads, request.app)
     return JSONResponse(status_code=202, content={"report_id": str(report_row.id)})
 
@@ -373,6 +497,9 @@ def get_creative_mri_report(
         status=report.status,
         report=report.report_json if report.status == "complete" else None,
         error_message=report.error_message,
+        progress_current=report.progress_current,
+        progress_total=report.progress_total,
+        progress_message=report.progress_message,
         created_at=report.created_at,
         completed_at=report.completed_at,
     )

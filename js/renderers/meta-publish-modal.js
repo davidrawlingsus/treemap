@@ -178,7 +178,7 @@ function renderConnectState() {
     container.innerHTML = `
         <div class="meta-publish-modal__connect">
             <div class="meta-publish-modal__connect-icon">
-                <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/meta-icon-YwRwyV12gzJo5FDTWOXR0fOX1nb6Ch.webp" alt="Meta" width="48" height="48">
+                <img src="/images/meta-icon.webp" alt="Meta" width="48" height="48">
             </div>
             <h3 class="meta-publish-modal__connect-title">
                 ${isExpired ? 'Meta Connection Expired' : 'Connect to Meta'}

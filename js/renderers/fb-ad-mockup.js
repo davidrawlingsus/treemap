@@ -43,7 +43,7 @@ export function renderFBAdMockup({ adId, primaryText, headline, description, cta
 
     const editIconHtml = readOnly ? '' : `
                 <button class="pe-fb-ad__edit-icon" data-ad-id="${adId}" title="Edit ad text" type="button">
-                    <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/edit.png" alt="Edit" width="16" height="16">
+                    <img src="/images/edit.png" alt="Edit" width="16" height="16">
                 </button>`;
 
     const editControlsHtml = readOnly ? '' : `
@@ -73,7 +73,7 @@ export function renderFBAdMockup({ adId, primaryText, headline, description, cta
                     ? `<video src="${escapeHtml(imageUrl)}" style="width:100%;height:auto;display:block;object-fit:contain;" muted loop autoplay playsinline></video>`
                     : `<img src="${escapeHtml(imageUrl)}" alt="Ad image" style="width:100%;height:auto;display:block;object-fit:contain;">`) 
                 : '<div class="pe-fb-ad__media-placeholder" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#9ca3af;font-size:14px;pointer-events:none;">Click to add media</div>'}
-                ${imageUrl && !readOnly ? `<button class="pe-fb-ad__media-delete" data-ad-id="${adId}" title="Remove media" type="button"><img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/delete_button.png" alt="Delete" width="12" height="12"></button>` : ''}
+                ${imageUrl && !readOnly ? `<button class="pe-fb-ad__media-delete" data-ad-id="${adId}" title="Remove media" type="button"><img src="/images/delete_button.png" alt="Delete" width="12" height="12"></button>` : ''}
             </div>
             <div class="pe-fb-ad__link-details" style="background:#f8fafb;padding:10px 12px;margin:0;display:flex;align-items:center;justify-content:space-between;gap:12px;">
                 <div class="pe-fb-ad__link-text" style="flex:1;min-width:0;margin:0;padding:0;">

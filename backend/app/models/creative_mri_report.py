@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Text, ForeignKey
+from sqlalchemy import Column, String, DateTime, Text, ForeignKey, Integer
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -20,6 +20,9 @@ class CreativeMRIReport(Base):
     status = Column(String(20), nullable=False)  # pending, running, complete, failed
     report_json = Column(JSONB, nullable=True)
     error_message = Column(Text, nullable=True)
+    progress_current = Column(Integer, nullable=True)
+    progress_total = Column(Integer, nullable=True)
+    progress_message = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)
 

@@ -160,7 +160,7 @@
             <header style="display: flex; justify-content: space-between; align-items: center;">
                 <h2 id="modalTitle">New Prompt</h2>
                 <button type="button" id="modalCloseButton" data-modal-close style="background: none; border: none; cursor: pointer; padding: 8px; display: flex; align-items: center; justify-content: center;" title="Close">
-                    <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/close_button.png" alt="Close" width="24" height="24">
+                    <img src="/images/close_button.png" alt="Close" width="24" height="24">
                 </button>
             </header>
             <form id="promptForm" style="max-height: calc(92vh - 180px); overflow-y: auto;">
@@ -194,10 +194,10 @@
                             <option value="microcopy">Microcopy</option>
                         </select>
                         <button type="button" class="btn btn-secondary" id="addPurposeButton" style="padding: 12px 16px; white-space: nowrap; display: flex; align-items: center; justify-content: center;" title="Add new purpose">
-                            <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/add.png" alt="Add new purpose" width="20" height="20">
+                            <img src="/images/add.png" alt="Add new purpose" width="20" height="20">
                         </button>
                         <button type="button" class="btn btn-secondary" id="managePurposesButton" style="padding: 12px 16px; white-space: nowrap; display: flex; align-items: center; justify-content: center;" title="Manage purposes">
-                            <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/edit.png" alt="Manage purposes" width="20" height="20">
+                            <img src="/images/edit.png" alt="Manage purposes" width="20" height="20">
                         </button>
                     </div>
                 </div>
@@ -237,10 +237,10 @@
                             <option value="">Select top-level menu...</option>
                         </select>
                         <button type="button" class="btn btn-secondary" id="addContextMenuGroupButton" style="padding: 12px 16px; white-space: nowrap; display: flex; align-items: center; justify-content: center;" title="Add new context menu group">
-                            <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/add.png" alt="Add new group" width="20" height="20">
+                            <img src="/images/add.png" alt="Add new group" width="20" height="20">
                         </button>
                         <button type="button" class="btn btn-secondary" id="manageContextMenuGroupsButton" style="padding: 12px 16px; white-space: nowrap; display: flex; align-items: center; justify-content: center;" title="Manage context menu groups">
-                            <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/edit.png" alt="Manage groups" width="20" height="20">
+                            <img src="/images/edit.png" alt="Manage groups" width="20" height="20">
                         </button>
                     </div>
                     <p style="font-size: 12px; color: var(--muted); margin-top: 4px;">Choose which top-level menu this prompt appears under when right-clicking on visualizations</p>
@@ -357,7 +357,7 @@
             </div>
             <div class="modal-actions">
                 <button class="btn btn-secondary" id="deletePromptButton" type="button" style="display: none; padding: 12px 16px; white-space: nowrap;" title="Delete prompt">
-                    <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/delete_button.png" alt="Delete" width="20" height="20" style="margin-right: 8px;">
+                    <img src="/images/delete_button.png" alt="Delete" width="20" height="20" style="margin-right: 8px;">
                     <span>Delete</span>
                 </button>
                 <button class="btn btn-secondary" id="versionHistoryButton" type="button" style="display: none; padding: 12px 16px; white-space: nowrap;" title="View version history">
@@ -396,7 +396,7 @@
     <div id="slideoutPanel" class="ai-insights-panel">
         <div class="ai-insights-header">
             <button id="slideoutExpandButton" class="slideout-expand-btn" title="Expand slideout">
-                <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1767922251837-rvam8.png" alt="Expand" width="20" height="20">
+                <img src="/images/expansion_icon.png" alt="Expand" width="20" height="20">
             </button>
             <div style="flex: 1;">
                 <div id="slideoutTitle" data-slideout-title style="font-size: 1.5rem; font-weight: 600; font-family: 'Lato', sans-serif; color: oklch(0.145 0 0);">LLM Outputs</div>
@@ -404,7 +404,7 @@
             <div style="display: flex; align-items: center; gap: 8px;">
                 <div class="filter-menu" style="position: relative;">
                     <button id="promptFiltersBtn" class="filter-button" type="button" aria-label="Open filters" data-filter-button style="display: none;">
-                        <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/filter_list.svg" alt="" aria-hidden="true">
+                        <img src="/images/filter_list.svg" alt="" aria-hidden="true">
                         <span id="promptFilterBadge" class="filter-badge" data-filter-badge aria-hidden="true"></span>
                     </button>
                     <div id="promptFiltersDropdown" class="filter-dropdown" data-filter-dropdown style="display: none; position: absolute; top: 100%; right: 0px; margin-top: 8px; background: white; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); min-width: 350px; max-width: 450px; z-index: 1000; max-height: 500px; overflow-y: auto;">
@@ -442,14 +442,14 @@
         <div id="slideoutContent" class="ai-insights-content" data-slideout-content>
             <!-- Content loaded dynamically -->
             <button id="slideoutToTopButton" class="slideout-to-top-btn" title="Scroll to top" style="display: none;">
-                <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1767671630805-s0jbg.png" alt="To top" width="24" height="24">
+                <img src="/images/arrow_up.png" alt="To top" width="24" height="24">
             </button>
         </div>
         <div class="ai-insights-chat">
             <div class="chat-input-container">
                 <textarea id="slideoutChatInput" class="chat-input" placeholder="Enter prompt message (e.g., URL, verbatim JSON, etc.)..." rows="2"></textarea>
                 <button id="slideoutChatSend" class="chat-send-btn" title="Send">
-                    <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/send_icon.png" alt="Send" width="20" height="20" id="slideoutChatSendIcon">
+                    <img src="/images/send%20icon.png" alt="Send" width="20" height="20" id="slideoutChatSendIcon">
                 </button>
             </div>
         </div>

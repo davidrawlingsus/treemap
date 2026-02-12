@@ -453,16 +453,16 @@
         if (actionsDiv) {
             actionsDiv.innerHTML = `
                 <button class="btn-nav-prev" data-action-id="streaming-${streamingId}" title="Previous message">
-                    <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1767496461750-8ikag.png" alt="Previous" width="16" height="16">
+                    <img src="/images/arrow_up.png" alt="Previous" width="16" height="16">
                 </button>
                 <button class="btn-nav-next" data-action-id="streaming-${streamingId}" title="Next message">
-                    <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1767496465023-xx3hee.png" alt="Next" width="16" height="16">
+                    <img src="/images/arrow_down.png" alt="Next" width="16" height="16">
                 </button>
                 <button class="btn-copy-output" data-action-id="streaming-${streamingId}" title="Copy to clipboard">
-                    <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/copy_button.png" alt="Copy" width="16" height="16">
+                    <img src="/images/copy_button.png" alt="Copy" width="16" height="16">
                 </button>
                 <button class="btn-delete-output" data-action-id="streaming-${streamingId}" title="Delete">
-                    <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/delete_button.png" alt="Delete" width="16" height="16">
+                    <img src="/images/delete_button.png" alt="Delete" width="16" height="16">
                 </button>
             `;
         }

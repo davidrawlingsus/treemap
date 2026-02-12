@@ -89,6 +89,22 @@ DESTINATION_TYPES = [
     "unknown",
 ]
 
+OFFER_TYPES = [
+    "percent_off",
+    "money_off",
+    "bundle_save",
+    "bogo",
+    "free_shipping",
+    "free_gift",
+    "trial_sample",
+    "subscription_discount",
+    "limited_time",
+    "limited_quantity",
+    "guarantee",
+    "price_lock",
+    "financing",
+]
+
 
 def build_taxonomy() -> dict:
     """Return taxonomy object for analysis bundle."""
@@ -97,6 +113,7 @@ def build_taxonomy() -> dict:
         "funnel_stages": FUNNEL_STAGES,
         "proof_types": PROOF_TYPES,
         "objection_types": OBJECTION_TYPES,
+        "offer_types": OFFER_TYPES,
         "cta_types": CTA_TYPES,
         "destination_types": DESTINATION_TYPES,
     }

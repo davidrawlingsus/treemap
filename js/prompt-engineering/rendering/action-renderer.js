@@ -18,7 +18,7 @@
     // Constants
     const USER_MESSAGE_PREVIEW_LENGTH = 200; // characters
     const SCROLL_BOTTOM_THRESHOLD = 50; // px
-    const DONE_CHECK_IMAGE_URL = 'https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/done_check_black_1768289477172.png';
+    const DONE_CHECK_IMAGE_URL = '/images/done_check_black.png';
 
     /**
      * Render prompt results/actions
@@ -256,16 +256,16 @@
                     </div>
                     <div class="prompt-output-actions">
                         <button class="btn-nav-prev" data-action-id="${action.id}" title="Previous message">
-                            <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1767496461750-8ikag.png" alt="Previous" width="16" height="16">
+                            <img src="/images/arrow_up.png" alt="Previous" width="16" height="16">
                         </button>
                         <button class="btn-nav-next" data-action-id="${action.id}" title="Next message">
-                            <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1767496465023-xx3hee.png" alt="Next" width="16" height="16">
+                            <img src="/images/arrow_down.png" alt="Next" width="16" height="16">
                         </button>
                         <button class="btn-copy-output" data-action-id="${action.id}" title="Copy to clipboard">
-                            <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/copy_button.png" alt="Copy" width="16" height="16">
+                            <img src="/images/copy_button.png" alt="Copy" width="16" height="16">
                         </button>
                         <button class="btn-delete-output" data-action-id="${action.id}" title="Delete">
-                            <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/delete_button.png" alt="Delete" width="16" height="16">
+                            <img src="/images/delete_button.png" alt="Delete" width="16" height="16">
                         </button>
                     </div>
                 </div>

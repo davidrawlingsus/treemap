@@ -1,28 +1,58 @@
 """
-Creative MRI pipeline: ingest → classify → score → LLM → aggregate.
+Creative MRI pipeline: ingest → LLM per-ad → aggregate.
 Outputs analysis bundle (schema 1.0.0) for dashboard charts.
+All classification and scoring comes from the LLM.
 """
+import json
 import re
+import time
 import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
+# #region agent log
+import os as _diag_os
+_DEBUG_LOG_DIR = _diag_os.path.join(_diag_os.path.dirname(__file__), "..", "..", "..", "..", ".cursor")
+_DEBUG_LOG = _diag_os.path.join(_DEBUG_LOG_DIR, "debug.log")
+def _diag(msg: str, data: dict = None, hyp: str = None):
+    try:
+        _diag_os.makedirs(_DEBUG_LOG_DIR, exist_ok=True)
+        with open(_DEBUG_LOG, "a") as f:
+            f.write(json.dumps({"location": "pipeline.py", "message": msg, "data": data or {}, "timestamp": int(time.time() * 1000), "hypothesisId": hyp}) + "\n")
+    except Exception:
+        pass
+# #endregion
+
 from app.services.creative_mri.analysis_schema import (
     SCHEMA_VERSION,
     build_taxonomy,
-)
-from app.services.creative_mri.rules import (
-    detect_hook_type,
-    detect_proof_types,
-    detect_offer_elements,
-    detect_funnel_stage,
 )
 from app.services.creative_mri.llm import call_creative_mri_llm
 
 logger = logging.getLogger(__name__)
 
 MIN_WORD_COUNT = 5
+
+# Map LLM hook_scores (0-100) to executive summary subscores
+HOOK_SCORE_KEYS = ("clarity", "specificity", "novelty", "emotional_pull", "pattern_interrupt", "audience_specificity", "credibility", "overall")
+
+
+def _subscores_from_llm(hook_scores: Dict[str, float]) -> Dict[str, float]:
+    """Derive 5 subscores from LLM hook_scores (0-100)."""
+    hs = dict(hook_scores or {})
+    for k in HOOK_SCORE_KEYS:
+        if k not in hs or not isinstance(hs.get(k), (int, float)):
+            hs[k] = 50
+        else:
+            hs[k] = max(0, min(100, float(hs[k])))
+    return {
+        "hook": hs.get("overall", 50),
+        "clarity_specificity": (hs.get("clarity", 50) + hs.get("specificity", 50)) / 2,
+        "proof_strength": hs.get("credibility", 50),
+        "differentiation_mechanism": (hs.get("novelty", 50) + hs.get("pattern_interrupt", 50)) / 2,
+        "conversion_readiness": (hs.get("emotional_pull", 50) + hs.get("audience_specificity", 50)) / 2,
+    }
 
 
 def _normalize_text(text: Optional[str]) -> str:
@@ -64,71 +94,46 @@ def ingest_ads(ads: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             "cta": _normalize_text(ad.get("cta")) or None,
             "destination_url": (ad.get("destination_url") or "").strip() or None,
             "ad_format": (ad.get("ad_format") or "").strip() or None,
+            "started_running_on": ad.get("started_running_on"),
             "ad_delivery_start_time": ad.get("ad_delivery_start_time"),
             "ad_delivery_end_time": ad.get("ad_delivery_end_time"),
             "media_thumbnail_url": (ad.get("media_thumbnail_url") or "").strip() or None,
             "platforms": ad.get("platforms"),
             "media_items": ad.get("media_items"),
+            "ads_using_creative_count": ad.get("ads_using_creative_count"),
         }
         out.append(normalized)
     return out
-
-
-def classify_and_score(ad: Dict[str, Any]) -> Dict[str, Any]:
-    """Rule-based: hook_type, funnel_stage, proof_types, offer_elements; simple subscores and overall 0–100."""
-    full = ad.get("full_text") or ""
-    wc = max(1, ad.get("word_count") or 1)
-
-    hook_type = detect_hook_type(full)
-    funnel_stage = (detect_funnel_stage(full) or "tofu").lower()
-    proof_types = detect_proof_types(full)
-    offer_elements = detect_offer_elements(full)
-
-    # Simple subscores 0–20 each (placeholder: rule-based heuristics)
-    hook_score = 10 if hook_type != "unknown" else 4
-    clarity_score = min(20, 5 + min(15, (wc // 20)))  # length proxy
-    proof_score = min(20, len(proof_types) * 4)
-    diff_score = 10 if ("new_mechanism" in hook_type or "comparison" in hook_type) else 6
-    conv_score = 5
-    if ad.get("cta"):
-        conv_score += 5
-    if ad.get("destination_url"):
-        conv_score += 5
-    if offer_elements:
-        conv_score += 5
-    conv_score = min(20, conv_score)
-
-    overall = hook_score + clarity_score + proof_score + diff_score + conv_score
-    overall = min(100, max(0, overall))
-
-    ad["hook_type"] = hook_type
-    ad["funnel_stage"] = (funnel_stage or "tofu").lower()
-    ad["proof_types"] = proof_types
-    ad["offer_elements"] = offer_elements
-    ad["overall_score"] = overall
-    ad["subscores"] = {
-        "hook": hook_score,
-        "clarity_specificity": clarity_score,
-        "proof_strength": proof_score,
-        "differentiation_mechanism": diff_score,
-        "conversion_readiness": conv_score,
-    }
-    return ad
 
 
 def llm_pass(
     ads: List[Dict[str, Any]],
     llm_service: Any,
     progress_callback: Optional[Callable[[str, int, int, str], None]] = None,
+    system_message: Optional[str] = None,
+    model: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
-    """Call Claude per-ad; merge llm fields into each ad. On failure, keep rule-only."""
+    """Call Claude per-ad; merge llm fields into each ad. Classification and scoring come from LLM."""
     n = len(ads)
+    # #region agent log
+    _diag("llm_pass_start", {"ad_count": n}, "H4")
+    # #endregion
     for i, ad in enumerate(ads):
         if progress_callback:
             progress_callback("llm", i + 1, n, f"Analyzing ad copy {i + 1}/{n}")
-        llm_out = call_creative_mri_llm(llm_service, ad)
+        # #region agent log
+        _diag("llm_pass_before_call", {"ad_index": i + 1, "total": n}, "H4")
+        # #endregion
+        llm_out = call_creative_mri_llm(llm_service, ad, system_message=system_message, model=model)
+        # #region agent log
+        _diag("llm_pass_after_call", {"ad_index": i + 1, "total": n}, "H4")
+        # #endregion
         if not llm_out:
             ad["llm"] = None
+            ad["hook_type"] = "unknown"
+            ad["funnel_stage"] = "tofu"
+            ad["overall_score"] = 50
+            ad["subscores"] = {k: 50 for k in ("hook", "clarity_specificity", "proof_strength", "differentiation_mechanism", "conversion_readiness")}
             continue
         ad["llm"] = {
             "hook_type": llm_out.get("hook_type"),
@@ -145,15 +150,23 @@ def llm_pass(
             "offer_present": llm_out.get("offer_present"),
             "offer_types": llm_out.get("offer_types") or [],
             "hook_scores": llm_out.get("hook_scores") or {},
+            "cta_type": llm_out.get("cta_type"),
+            "destination_type": llm_out.get("destination_type"),
             "unsupported_claims": llm_out.get("unsupported_claims") or [],
             "what_to_change": llm_out.get("what_to_change") or [],
         }
-        if llm_out.get("angle"):
-            ad["angle"] = llm_out["angle"]
-        if llm_out.get("hook_phrase"):
-            ad["hook_phrase"] = llm_out["hook_phrase"]
-        if llm_out.get("funnel_stage"):
-            ad["funnel_stage"] = llm_out["funnel_stage"]
+        ad["hook_type"] = llm_out.get("hook_type") or "unknown"
+        ad["funnel_stage"] = (llm_out.get("funnel_stage") or "tofu").lower()
+        ad["angle"] = llm_out.get("angle")
+        ad["hook_phrase"] = llm_out.get("hook_phrase")
+        subscores = _subscores_from_llm(llm_out.get("hook_scores"))
+        ad["subscores"] = subscores
+        hs = llm_out.get("hook_scores") or {}
+        overall = hs.get("overall") if isinstance(hs, dict) else None
+        ad["overall_score"] = max(0, min(100, float(overall))) if isinstance(overall, (int, float)) else 50
+    # #region agent log
+    _diag("llm_pass_end", {"ad_count": n}, "H4")
+    # #endregion
     return ads
 
 
@@ -241,17 +254,26 @@ def aggregate(ads: List[Dict[str, Any]]) -> Dict[str, Any]:
             "headline": (worst_ad.get("headline") or "")[:80],
         })
 
-    # Fast wins: 5 generic copy-editable actions from low scores
-    fast_wins = [
-        "Add a clear hook in the first line (pain, result, or curiosity).",
-        "Add proof (testimonial, data, or before/after) near key claims.",
-        "Add a clear CTA and destination (button/link).",
-        "Add one offer element (discount, guarantee, free shipping).",
-        "Differentiate with mechanism or comparison.",
-    ]
+    # by_score: descending (best first) for tear-down
+    by_score = sorted(ads, key=lambda a: -(a.get("overall_score") or 0))
+
+    # Fast wins: from LLM what_to_change on worst-performing ads
+    worst_ads = list(reversed(by_score))[: min(5, len(by_score))]
+    fast_wins_seen = set()
+    fast_wins = []
+    for a in worst_ads:
+        for item in (a.get("llm") or {}).get("what_to_change") or []:
+            if item and item not in fast_wins_seen:
+                fast_wins_seen.add(item)
+                fast_wins.append(item)
+                if len(fast_wins) >= 5:
+                    break
+        if len(fast_wins) >= 5:
+            break
+    if not fast_wins:
+        fast_wins = ["Review and improve copy based on low-scoring areas above."]
 
     # Tear-down: 2 best, 2 average, 2 weakest by overall_score
-    by_score = sorted(ads, key=lambda a: -(a.get("overall_score") or 0))
     best = by_score[:2] if len(by_score) >= 2 else by_score[:1]
     mid_start = max(1, len(by_score) // 2 - 1)
     mid_end = mid_start + 2
@@ -262,25 +284,36 @@ def aggregate(ads: List[Dict[str, Any]]) -> Dict[str, Any]:
         a["what_to_change"] = (a.get("llm") or {}).get("what_to_change") or []
 
     # Build analysis bundle for dashboard (creative-llm-analysis.bundle schema)
+    def _normalize_hook_scores(hs: dict) -> dict:
+        out = {}
+        for k in HOOK_SCORE_KEYS:
+            v = hs.get(k) if isinstance(hs, dict) else None
+            out[k] = v if isinstance(v, (int, float)) else 50
+        return out
+
     analysis_ads = []
     for a in ads:
         llm = a.get("llm") or {}
+        hook_scores = _normalize_hook_scores(llm.get("hook_scores") or {})
         analysis_ads.append({
             "ad_id": a.get("id"),
             "library_id": a.get("library_id"),
+            "started_running_on": a.get("started_running_on"),
+            "ad_delivery_start_time": a.get("ad_delivery_start_time"),
+            "ad_delivery_end_time": a.get("ad_delivery_end_time"),
             "labels": {
                 "format": (a.get("ad_format") or "unknown").lower(),
                 "platforms": a.get("platforms") or [],
                 "cta_text": a.get("cta"),
-                "cta_type": None,
+                "cta_type": llm.get("cta_type"),
                 "destination_url": a.get("destination_url"),
-                "destination_type": None,
+                "destination_type": llm.get("destination_type"),
             },
             "hook": {
                 "hook_text": llm.get("hook_phrase") or "",
                 "hook_position": "primary_text_opening",
                 "hook_types": [{"type": llm.get("hook_type") or "unknown", "weight": 1.0}],
-                "scores": llm.get("hook_scores") or {},
+                "scores": hook_scores,
                 "rationale": llm.get("stage_rationale") or [],
             },
             "funnel": {
@@ -364,19 +397,25 @@ def run_creative_mri_pipeline(
     ads: List[Dict[str, Any]],
     llm_service: Any,
     progress_callback: Optional[Callable[[str, int, int, str], None]] = None,
+    system_message: Optional[str] = None,
+    model: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Run full pipeline: ingest → classify/score → LLM per-ad → aggregate.
     Returns report payload (meta, executive_summary, ads, tear_down).
     progress_callback(stage, current, total, message) is called during LLM pass.
+    system_message and model from Prompt Engineering when configured; else use built-in prompts.
     """
     normalized = ingest_ads(ads)
     if not normalized:
         return aggregate([])
 
-    for ad in normalized:
-        classify_and_score(ad)
-
-    llm_pass(normalized, llm_service, progress_callback=progress_callback)
+    llm_pass(
+        normalized,
+        llm_service,
+        progress_callback=progress_callback,
+        system_message=system_message,
+        model=model,
+    )
 
     return aggregate(normalized)

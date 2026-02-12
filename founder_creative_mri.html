@@ -8,6 +8,9 @@
     <link rel="stylesheet" href="/styles.css">
     <link rel="stylesheet" href="/styles/founder-admin.css">
     <link rel="stylesheet" href="/styles/founder-creative-mri.css">
+    <link rel="stylesheet" href="/styles/ads.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js"></script>
     <script src="/config.js"></script>
     <script src="/auth.js"></script>
 </head>
@@ -42,8 +45,8 @@
             </div>
         </header>
 
-        <main>
-            <div class="panel mri-panel brands-imports-panel">
+        <main id="mriMain" class="mri-main">
+            <div class="panel mri-panel brands-imports-panel" id="brandsImportsPanel">
                 <h2>Brands & Imports</h2>
                 <p class="mri-panel-desc">Add diagnosis-only brands and import ads from Meta Ads Library. These brands do not appear in the visualization app.</p>
                 <div class="mri-tabs mri-tabs--primary" role="tablist" aria-label="Brand type">
@@ -118,21 +121,29 @@
             </div>
 
             <div class="panel mri-results" id="mriResults" style="display: none;">
-                <div class="command-center-filters" id="mriFilters" style="display: none;">
-                    <span>Brand: <strong id="filterBrand">—</strong></span>
-                    <span>Import: <strong id="filterImport">—</strong></span>
+                <div class="mri-report-header">
+                    <div class="command-center-filters" id="mriFilters" style="display: none;">
+                        <span>Brand: <strong id="filterBrand">—</strong></span>
+                        <span>Import: <strong id="filterImport">—</strong></span>
+                    </div>
+                    <button type="button" class="btn btn-secondary mri-back-to-setup" id="backToSetupButton" style="display: none;">
+                        Back to setup
+                    </button>
                 </div>
                 <h2>Report</h2>
                 <p class="mri-panel-desc" id="mriLabel">Copy-based effectiveness diagnostics.</p>
                 <div id="mriLoading" class="mri-loading mri-loading--active" style="display: none;">
-                    <div class="mri-loading-spinner" aria-hidden="true"></div>
-                    <p class="mri-loading-title">Running report…</p>
-                    <p class="mri-loading-detail" id="mriLoadingDetail">Claude analyzes each ad (plus Gemini for video). This can take 1–2 minutes for many ads.</p>
-                    <div class="mri-progress-container" style="margin-top: 16px; max-width: 360px; width: 100%;">
+                    <div class="mri-loading-prelude">
+                        <div class="mri-loading-spinner" aria-hidden="true"></div>
+                        <p class="mri-loading-title">Running report…</p>
+                        <p class="mri-loading-detail" id="mriLoadingDetail">Claude analyzes each ad (plus Gemini for video). This can take 1–2 minutes for many ads.</p>
+                    </div>
+                    <div class="mri-progress-container" style="margin-top: 0; max-width: 360px; width: 100%;">
                         <div class="mri-progress-track">
                             <div class="mri-progress-fill" id="mriProgressFill" style="width: 0%"></div>
                         </div>
-                        <p class="mri-progress-message" id="mriProgressMessage" style="margin: 8px 0 0 0; font-size: 13px; color: var(--muted, #718096);"></p>
+                        <p class="mri-progress-message" id="mriProgressMessage"></p>
+                        <p class="mri-loading-stuck" id="mriLoadingStuck" style="display: none;"></p>
                     </div>
                 </div>
                 <div id="mriContent" style="display: none;">
@@ -160,8 +171,40 @@
                             <h4 class="mri-chart-title">Funnel stage distribution</h4>
                             <div class="mri-chart-bars" id="mriChartFunnelBars"></div>
                         </div>
+                        <div class="mri-chart mri-chart--d3">
+                            <h4 class="mri-chart-title">1. Launch cadence (launches/week)</h4>
+                            <div id="mriChartLaunchCadence"></div>
+                        </div>
+                        <div class="mri-chart mri-chart--d3">
+                            <h4 class="mri-chart-title">2. Rotation depth (active creatives/week)</h4>
+                            <div id="mriChartRotationDepth"></div>
+                        </div>
+                        <div class="mri-chart mri-chart--d3">
+                            <h4 class="mri-chart-title">3. Creative half-life (run length days)</h4>
+                            <div id="mriChartHalfLife"></div>
+                        </div>
+                        <div class="mri-chart mri-chart--d3">
+                            <h4 class="mri-chart-title">4. Format mix over time</h4>
+                            <div id="mriChartFormatMix"></div>
+                        </div>
+                        <div class="mri-chart mri-chart--d3">
+                            <h4 class="mri-chart-title">5. Funnel mix over time</h4>
+                            <div id="mriChartFunnelMix"></div>
+                        </div>
+                        <div class="mri-chart mri-chart--d3">
+                            <h4 class="mri-chart-title">6. Hook × Funnel</h4>
+                            <div id="mriChartHookFunnel"></div>
+                        </div>
+                        <div class="mri-chart mri-chart--d3">
+                            <h4 class="mri-chart-title">7. Hook quality (overall by type)</h4>
+                            <div id="mriChartHookQuality"></div>
+                        </div>
+                        <div class="mri-chart mri-chart--d3">
+                            <h4 class="mri-chart-title">8. Copy tradeoff (specificity vs emotional pull)</h4>
+                            <div id="mriChartCopyTradeoff"></div>
+                        </div>
                     </div>
-                    <h3>Top Ads (click to expand)</h3>
+                    <h3>Ad Critique</h3>
                     <div id="mriAdsList" class="mri-ads-grid"></div>
                 </div>
                 <div id="mriEmpty" class="mri-loading" style="display: none;">Run a report to see results.</div>
@@ -170,6 +213,9 @@
     </div>
 
     <script type="module">
+        import { renderAllMriCharts } from '/js/renderers/mri-charts.js';
+        import { renderFBAdMockup, formatCTA, extractDomain, formatPrimaryText } from '/js/renderers/fb-ad-mockup.js';
+
         const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
 
         function getAuthHeaders() {
@@ -188,6 +234,7 @@
         const mriEmpty = document.getElementById('mriEmpty');
         const mriSummary = document.getElementById('mriSummary');
         const mriAdsList = document.getElementById('mriAdsList');
+        let mriMasonryInstance = null;
 
         async function loadClients() {
             const res = await fetch(`${API_BASE_URL}/api/clients`, { headers: getAuthHeaders() });
@@ -362,11 +409,13 @@
                             await loadImports();
                             importSelect.value = items[0].id;
                             mriResults.style.display = 'block';
+                            enterReportView();
                             mriLoading.style.display = 'flex';
                             mriContent.style.display = 'none';
                             mriEmpty.style.display = 'none';
                             document.getElementById('mriProgressFill').style.width = '0%';
                             document.getElementById('mriProgressMessage').textContent = '';
+                            mriLoading.classList.remove('mri-loading--progress');
                             document.getElementById('mriLoadingDetail').textContent = 'Connecting…';
                             switchPrimaryTab('existing');
                             runReportButton.click();
@@ -436,18 +485,22 @@
                 return;
             }
             mriResults.style.display = 'block';
+            enterReportView();
             mriLoading.style.display = 'flex';
             mriContent.style.display = 'none';
             mriEmpty.style.display = 'none';
             document.getElementById('mriProgressFill').style.width = '0%';
             document.getElementById('mriProgressMessage').textContent = '';
+            mriLoading.classList.remove('mri-loading--progress');
             document.getElementById('mriLoadingDetail').textContent = 'Connecting…';
             runReportButton.disabled = true;
+            const brandLabel = existingBrandSelect.options[existingBrandSelect.selectedIndex]?.textContent || '—';
+            const importLabel = importSelect.options[importSelect.selectedIndex]?.textContent || 'Latest';
             try {
                 const body = {};
                 const importId = importSelect.value;
                 if (importId) body.ad_library_import_id = importId;
-                const res = await fetch(`${API_BASE_URL}/api/clients/${clientId}/creative-mri/report?stream=1`, {
+                const res = await fetch(`${API_BASE_URL}/api/clients/${clientId}/creative-mri/report`, {
                     method: 'POST',
                     headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
                     body: JSON.stringify(body),
@@ -459,56 +512,16 @@
                     mriEmpty.textContent = err.detail || `Error ${res.status}`;
                     return;
                 }
-                const reader = res.body.getReader();
-                const dec = new TextDecoder();
-                let buf = '';
-                let report = null;
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    buf += dec.decode(value, { stream: true });
-                    const lines = buf.split('\n');
-                    buf = lines.pop() || '';
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            try {
-                                const data = JSON.parse(line.slice(6));
-                                if (data.error) {
-                                    mriLoading.style.display = 'none';
-                                    mriEmpty.style.display = 'block';
-                                    mriEmpty.textContent = data.error;
-                                    return;
-                                }
-                                if (data.stage === 'done' && data.report) {
-                                    report = data.report;
-                                    if (data.report_id && clientId) {
-                                        setUrlReportParams(clientId, data.report_id);
-                                    }
-                                    break;
-                                }
-                                const total = data.total || 1;
-                                const current = data.current || 0;
-                                const pct = total > 0 ? Math.round((current / total) * 100) : 0;
-                                document.getElementById('mriProgressFill').style.width = pct + '%';
-                                document.getElementById('mriProgressMessage').textContent = data.message || '';
-                                document.getElementById('mriLoadingDetail').textContent = data.message || 'Processing…';
-                            } catch (_) {}
-                        }
-                    }
-                    if (report) break;
-                }
-                if (!report) {
+                const data = await res.json();
+                const reportId = data.report_id;
+                if (!reportId) {
                     mriLoading.style.display = 'none';
                     mriEmpty.style.display = 'block';
-                    mriEmpty.textContent = 'Report incomplete. No data received.';
+                    mriEmpty.textContent = 'No report ID returned.';
                     return;
                 }
-                mriLoading.style.display = 'none';
-                mriContent.style.display = 'block';
-                const clientOpt = existingBrandSelect.options[existingBrandSelect.selectedIndex];
-                const importLabel = importSelect.options[importSelect.selectedIndex]?.textContent || 'Latest';
-                renderReport(report, clientOpt?.textContent || '—', importLabel);
-                loadRecentReports();
+                setUrlReportParams(clientId, reportId);
+                await loadStoredReportAndRender();
             } catch (e) {
                 mriLoading.style.display = 'none';
                 mriEmpty.style.display = 'block';
@@ -518,6 +531,17 @@
                 runReportButton.disabled = false;
             }
         });
+
+        function enterReportView() {
+            document.getElementById('mriMain').classList.add('mri-report-view');
+            document.getElementById('backToSetupButton').style.display = '';
+        }
+        function exitReportView() {
+            document.getElementById('mriMain').classList.remove('mri-report-view');
+            document.getElementById('backToSetupButton').style.display = 'none';
+        }
+
+        document.getElementById('backToSetupButton').addEventListener('click', exitReportView);
 
         function escapeHtml(s) {
             if (s == null) return '';
@@ -551,14 +575,12 @@
             document.getElementById('filterBrand').textContent = brandLabel || '—';
             document.getElementById('filterImport').textContent = importLabel || 'Latest';
 
-            document.getElementById('mriImpactScoreboard').innerHTML = `
-                <p><strong>Performance lift potential:</strong> +${Math.round(exec.overall_effectiveness_score || 0) - 50}% (copy-based proxy)</p>
-                <p><strong>Biggest drags:</strong></p>
-                <ul>${(exec.top_leaks || []).slice(0, 3).map(l => `<li>${l.subscore}</li>`).join('')}</ul>
-                <p><strong>Quick wins:</strong></p>
-                <ul>${(exec.fast_wins || []).slice(0, 3).map(w => `<li>${escapeHtml(w)}</li>`).join('')}</ul>
-                <p class="muted">Funnel mix: TOFU ${Math.round((funnelShare.tofu || 0) * 100)}% / MOFU ${Math.round((funnelShare.mofu || 0) * 100)}% / BOFU ${Math.round((funnelShare.bofu || 0) * 100)}%</p>
-            `;
+            const synth = report.synthesized_summary || {};
+            if (synth.executive_summary || synth.dataset_overview || synth.top_5_high_impact_actions) {
+                renderSynthesizedSummary(synth);
+            } else {
+                renderLegacySummary(exec, funnelShare);
+            }
 
             function renderBarRow(label, value, maxVal, fillClass = '') {
                 const pct = maxVal ? Math.round((value / maxVal) * 100) : 0;
@@ -572,7 +594,7 @@
 
             const subscoresSummary = exec.subscores_summary || [];
             document.getElementById('mriChartSubscoresBars').innerHTML = subscoresSummary
-                .map(s => renderBarRow(s.name.replace(/_/g, ' '), s.average.toFixed(1), 20)).join('');
+                .map(s => renderBarRow(s.name.replace(/_/g, ' '), s.average.toFixed(1), 100)).join('');
 
             const hookCounts = {};
             ads.forEach(ad => { const h = ad.hook_type || 'unknown'; hookCounts[h] = (hookCounts[h] || 0) + 1; });
@@ -588,43 +610,172 @@
                 .sort((a, b) => b[1] - a[1])
                 .map(([name, count]) => renderBarRow(name, count, funnelMax, 'mri-bar-fill--funnel')).join('');
 
-            mriSummary.innerHTML = `
-                <h3>Executive summary</h3>
-                <p><span class="score">${exec.overall_effectiveness_score ?? 0}</span> / 100 (copy-based effectiveness)</p>
-                <p><strong>Subscores:</strong></p>
-                <ul>
-                    ${(exec.subscores_summary || []).map(s => `<li>${s.name}: ${s.average}</li>`).join('')}
-                </ul>
-                <p><strong>Top strengths:</strong></p>
-                <ul>
-                    ${(exec.top_strengths || []).map(s => `<li>${s.subscore} (avg ${s.average}) – ${(s.headline || '').slice(0, 60)}…</li>`).join('')}
-                </ul>
-                <p><strong>Top leaks:</strong></p>
-                <ul>
-                    ${(exec.top_leaks || []).map(s => `<li>${s.subscore} (avg ${s.average}) – ${(s.headline || '').slice(0, 60)}…</li>`).join('')}
-                </ul>
-                <p><strong>Fast wins:</strong></p>
-                <ul>
-                    ${(exec.fast_wins || []).map(w => `<li>${w}</li>`).join('')}
-                </ul>
-            `;
-            mriAdsList.innerHTML = ads.map(ad => {
+            function formatSummaryText(str) {
+                if (str == null || str === '') return '';
+                return escapeHtml(String(str)).replace(/\n/g, '<br>');
+            }
+
+            function renderSynthesizedSummary(synth) {
+                const exec = synth.executive_summary || {};
+                const dataset = synth.dataset_overview || {};
+                const actions = synth.top_5_high_impact_actions || [];
+                const funnel = synth.funnel_analysis || {};
+                const hook = synth.hook_analysis || {};
+                const proof = synth.proof_and_credibility || {};
+                const offer = synth.offer_and_conversion || {};
+                const roadmap = synth['90_day_creative_roadmap'] || {};
+
+                document.getElementById('mriSummary').innerHTML = `
+                    ${dataset.ads_analyzed != null ? `<p class="mri-summary-meta">${dataset.ads_analyzed} ads analyzed · ${formatSummaryText(dataset.launch_cadence_pattern || '')} cadence · ${formatSummaryText(dataset.creative_rotation_depth || '')} rotation</p>` : ''}
+                    ${exec.core_diagnosis ? `<div class="mri-summary-block"><p><strong>Core diagnosis:</strong> ${formatSummaryText(exec.core_diagnosis)}</p></div>` : ''}
+                    ${exec.primary_constraint ? `<div class="mri-summary-block"><p><strong>Primary constraint:</strong> ${formatSummaryText(exec.primary_constraint)}</p></div>` : ''}
+                    ${(exec.secondary_constraints || []).length ? `<div class="mri-summary-block"><p><strong>Secondary constraints:</strong></p><ul>${exec.secondary_constraints.map(c => `<li>${formatSummaryText(c)}</li>`).join('')}</ul></div>` : ''}
+                    ${(exec.hidden_strengths || []).length ? `<div class="mri-summary-block"><p><strong>Hidden strengths:</strong></p><ul>${exec.hidden_strengths.map(s => `<li>${formatSummaryText(s)}</li>`).join('')}</ul></div>` : ''}
+                    ${funnel.structural_gap ? `<div class="mri-summary-block"><p><strong>Funnel gap:</strong> ${formatSummaryText(funnel.structural_gap)}</p></div>` : ''}
+                    ${hook.implication ? `<div class="mri-summary-block"><p><strong>Hook implication:</strong> ${formatSummaryText(hook.implication)}</p></div>` : ''}
+                    ${proof.risk ? `<div class="mri-summary-block"><p><strong>Proof credibility risk:</strong> ${formatSummaryText(proof.risk)}</p></div>` : ''}
+                    ${offer.conversion_structural_risk ? `<div class="mri-summary-block"><p><strong>Conversion risk:</strong> ${formatSummaryText(offer.conversion_structural_risk)}</p></div>` : ''}
+                `;
+
+                document.getElementById('mriImpactScoreboard').innerHTML = `
+                    ${actions.length ? `
+                        <h4 class="mri-summary-subheading">Top 5 high-impact actions</h4>
+                        <ol class="mri-actions-list">
+                            ${actions.map((a, i) => `
+                                <li class="mri-action-item">
+                                    <div class="mri-action-header">
+                                        <strong>${escapeHtml(a.action_title || 'Action ' + (i + 1))}</strong>
+                                        <span class="mri-action-meta">${escapeHtml(a.impact_confidence || '')} impact · ${escapeHtml(a.effort_level || '')} effort</span>
+                                    </div>
+                                    ${a.why_it_matters ? `<p class="mri-action-why">${formatSummaryText(a.why_it_matters)}</p>` : ''}
+                                    ${a.what_to_produce?.creative_brief?.length ? `<ul class="mri-action-brief">${(a.what_to_produce.creative_brief || []).map(b => `<li>${formatSummaryText(b)}</li>`).join('')}</ul>` : ''}
+                                </li>
+                            `).join('')}
+                        </ol>
+                    ` : ''}
+                    ${roadmap.phase_1_weeks_1_4?.focus ? `
+                        <h4 class="mri-summary-subheading">90-day roadmap</h4>
+                        <div class="mri-roadmap-phases">
+                            <p><strong>Phase 1 (weeks 1–4):</strong> ${formatSummaryText(roadmap.phase_1_weeks_1_4.focus)}</p>
+                            <p><strong>Phase 2 (weeks 5–8):</strong> ${formatSummaryText(roadmap.phase_2_weeks_5_8?.focus || '—')}</p>
+                            <p><strong>Phase 3 (weeks 9–12):</strong> ${formatSummaryText(roadmap.phase_3_weeks_9_12?.focus || '—')}</p>
+                        </div>
+                    ` : ''}
+                    ${!actions.length && !roadmap.phase_1_weeks_1_4 ? '<p class="muted">No synthesized summary available. Run a new report with the synthesize prompt configured.</p>' : ''}
+                `;
+            }
+
+            function renderLegacySummary(exec, funnelShare) {
+                mriSummary.innerHTML = `
+                    <p class="muted" style="margin-bottom: 12px;">Legacy summary — synthesized strategic summary not in this report. Run a new report with the "Ad Creative MRI - Synthesized Summary" prompt configured in Prompt Engineering to see the strategic diagnosis.</p>
+                    <h3>Executive summary</h3>
+                    <p><span class="score">${exec.overall_effectiveness_score ?? 0}</span> / 100 (copy-based effectiveness)</p>
+                    <p><strong>Subscores:</strong></p>
+                    <ul>${(exec.subscores_summary || []).map(s => `<li>${s.name}: ${s.average}</li>`).join('')}</ul>
+                    <p><strong>Top strengths:</strong></p>
+                    <ul>${(exec.top_strengths || []).map(s => `<li>${s.subscore} (avg ${s.average}) – ${(s.headline || '').slice(0, 60)}…</li>`).join('')}</ul>
+                    <p><strong>Top leaks:</strong></p>
+                    <ul>${(exec.top_leaks || []).map(s => `<li>${s.subscore} (avg ${s.average}) – ${(s.headline || '').slice(0, 60)}…</li>`).join('')}</ul>
+                    <p><strong>Fast wins:</strong></p>
+                    <ul>${(exec.fast_wins || []).map(w => `<li>${w}</li>`).join('')}</ul>
+                `;
+                document.getElementById('mriImpactScoreboard').innerHTML = `
+                    <p><strong>Performance lift potential:</strong> +${Math.round(exec.overall_effectiveness_score || 0) - 50}% (copy-based proxy)</p>
+                    <p><strong>Biggest drags:</strong></p>
+                    <ul>${(exec.top_leaks || []).slice(0, 3).map(l => `<li>${l.subscore}</li>`).join('')}</ul>
+                    <p><strong>Quick wins:</strong></p>
+                    <ul>${(exec.fast_wins || []).slice(0, 3).map(w => `<li>${escapeHtml(w)}</li>`).join('')}</ul>
+                    <p class="muted">Funnel mix: TOFU ${Math.round((funnelShare.tofu || 0) * 100)}% / MOFU ${Math.round((funnelShare.mofu || 0) * 100)}% / BOFU ${Math.round((funnelShare.bofu || 0) * 100)}%</p>
+                `;
+            }
+
+            renderAllMriCharts(report);
+
+            const firstMediaUrl = (ad) => {
+                const items = ad.media_items || [];
+                const first = items[0];
+                return first?.url || ad.media_thumbnail_url || null;
+            };
+            const KNOWN_CTA_PHRASES = ['shop now', 'learn more', 'sign up', 'get offer', 'download', 'watch more', 'send message', 'apply now', 'book now', 'start trial', 'take quiz'];
+            const isLikelyHeadline = (s) => !s || s.length > 25 || !KNOWN_CTA_PHRASES.includes(s.toLowerCase().trim());
+            const getCtaForButton = (ad) => {
+                if (ad.llm?.cta_type) return formatCTA(ad.llm.cta_type);
+                const c = (ad.cta || '').trim();
+                if (isLikelyHeadline(c)) return 'Learn more';
+                return formatCTA(c.replace(/\s+/g, '_'));
+            };
+            const getHeadlineForMockup = (ad) => {
+                const h = (ad.headline || '').trim();
+                if (h) return h;
+                const c = (ad.cta || '').trim();
+                return isLikelyHeadline(c) ? c : '';
+            };
+            if (!ads.length) {
+                mriAdsList.innerHTML = '<p class="muted">No ads in this report.</p>';
+                if (mriMasonryInstance) { mriMasonryInstance.destroy(); mriMasonryInstance = null; }
+                return;
+            }
+            const cardsHtml = ads.map(ad => {
                 const llm = ad.llm || {};
-                const headline = (ad.headline || ad.primary_text || '').slice(0, 120);
                 const angle = llm.angle || ad.angle || '—';
                 const hookPhrase = llm.hook_phrase || ad.hook_phrase || '—';
                 const whatToChange = (llm.what_to_change || ad.what_to_change || []);
+                const mockup = renderFBAdMockup({
+                    adId: ad.id || '',
+                    primaryText: formatPrimaryText(ad.primary_text || ''),
+                    headline: escapeHtml(getHeadlineForMockup(ad)),
+                    description: escapeHtml(ad.description || ''),
+                    cta: getCtaForButton(ad),
+                    displayUrl: extractDomain(ad.destination_url || ''),
+                    logoSrc: '',
+                    clientName: brandLabel || 'Sponsored',
+                    imageUrl: firstMediaUrl(ad),
+                    readOnly: true
+                });
                 return `
-                    <div class="mri-ad-card">
-                        <div class="headline">${escapeHtml(headline)}</div>
-                        <div class="angle">Angle: ${escapeHtml(angle)}</div>
-                        <div class="hook-phrase">Hook: ${escapeHtml(hookPhrase)}</div>
-                        <div>Score: ${ad.overall_score ?? '—'} · Stage: ${ad.funnel_stage ?? '—'} · Hook: ${ad.hook_type ?? '—'}</div>
-                        ${(ad.media_thumbnail_url ? `<img src="${escapeHtml(ad.media_thumbnail_url)}" alt="" class="mri-ad-thumb">` : '')}
-                        ${whatToChange.length ? `<div class="what-to-change"><strong>What to change:</strong><ul>${whatToChange.map(w => `<li>${escapeHtml(w)}</li>`).join('')}</ul></div>` : ''}
+                    <div class="mri-ad-card mri-ad-card--masonry">
+                        <div class="mri-ad-card__mockup">${mockup}</div>
+                        <div class="mri-ad-card__feedback">
+                            <div class="mri-ad-card__meta">
+                                <span class="mri-ad-card__score">Score: ${ad.overall_score ?? '—'}</span>
+                                <span class="mri-ad-card__stage">Stage: ${escapeHtml(ad.funnel_stage ?? '—')}</span>
+                                <span class="mri-ad-card__hook">Hook: ${escapeHtml(ad.hook_type ?? '—')}</span>
+                            </div>
+                            <div class="mri-ad-card__angle">Angle: ${escapeHtml(angle)}</div>
+                            ${hookPhrase !== '—' ? `<div class="mri-ad-card__hook-phrase">Hook phrase: "${escapeHtml(hookPhrase)}"</div>` : ''}
+                            ${whatToChange.length ? `
+                                <div class="mri-ad-card__what-to-change">
+                                    <strong>What to change:</strong>
+                                    <ul>${whatToChange.map(w => `<li>${escapeHtml(w)}</li>`).join('')}</ul>
+                                </div>
+                            ` : ''}
+                        </div>
                     </div>
                 `;
             }).join('');
+            mriAdsList.innerHTML = `
+                <div class="mri-ads-grid-sizer"></div>
+                <div class="mri-ads-gutter-sizer"></div>
+                ${cardsHtml}
+            `;
+            if (typeof Masonry !== 'undefined') {
+                if (mriMasonryInstance) mriMasonryInstance.destroy();
+                mriMasonryInstance = new Masonry(mriAdsList, {
+                    itemSelector: '.mri-ad-card',
+                    columnWidth: '.mri-ads-grid-sizer',
+                    gutter: '.mri-ads-gutter-sizer',
+                    percentPosition: true,
+                    horizontalOrder: true
+                });
+                mriAdsList.querySelectorAll('.pe-fb-ad__media.has-image img, .pe-fb-ad__media.has-image video').forEach((el) => {
+                    if (el.tagName === 'IMG' && !el.complete) {
+                        el.addEventListener('load', () => mriMasonryInstance?.layout());
+                        el.addEventListener('error', () => mriMasonryInstance?.layout());
+                    } else if (el.tagName === 'VIDEO') {
+                        el.addEventListener('loadeddata', () => mriMasonryInstance?.layout());
+                    }
+                });
+            }
         }
 
         async function loadReportById(clientId, reportId) {
@@ -638,6 +789,7 @@
             if (!clientId || !reportId) return false;
 
             mriResults.style.display = 'block';
+            enterReportView();
             mriLoading.style.display = 'flex';
             mriContent.style.display = 'none';
             mriEmpty.style.display = 'none';
@@ -674,7 +826,33 @@
             }
 
             // status === 'running' (or pending)
-            document.getElementById('mriLoadingDetail').textContent = 'Report is still being generated. Checking every 5 seconds…';
+            const STUCK_REPORT_MINUTES = 15;
+            function updateProgressUI(data) {
+                const total = data.progress_total ?? 1;
+                const current = data.progress_current ?? 0;
+                const msg = data.progress_message || 'Report is still being generated. Checking every 5 seconds…';
+                const pct = total > 0 ? Math.round((current / total) * 100) : 0;
+                document.getElementById('mriProgressFill').style.width = pct + '%';
+                document.getElementById('mriLoadingDetail').textContent = msg;
+                document.getElementById('mriProgressMessage').textContent = msg;
+                if (total > 0 || msg) {
+                    mriLoading.classList.add('mri-loading--progress');
+                }
+                const stuckEl = document.getElementById('mriLoadingStuck');
+                if (data.created_at) {
+                    const started = new Date(data.created_at).getTime();
+                    const minutes = Math.floor((Date.now() - started) / 60000);
+                    if (minutes >= STUCK_REPORT_MINUTES) {
+                        stuckEl.textContent = `This report may be stuck. It's been running for ${minutes} minutes (most complete in 1–2 min). You can go back and try again.`;
+                        stuckEl.style.display = 'block';
+                    } else {
+                        stuckEl.style.display = 'none';
+                    }
+                } else {
+                    stuckEl.style.display = 'none';
+                }
+            }
+            updateProgressUI(data);
             const pollStoredReport = async () => {
                 const d = await loadReportById(clientId, reportId);
                 if (!d) return;
@@ -698,6 +876,7 @@
                     mriEmpty.textContent = d.error_message || 'Report failed.';
                     return;
                 }
+                updateProgressUI(d);
                 setTimeout(pollStoredReport, 5000);
             };
             setTimeout(pollStoredReport, 5000);
@@ -723,7 +902,11 @@
             items.forEach(r => {
                 const opt = document.createElement('option');
                 opt.value = r.id;
-                const status = r.status === 'complete' ? 'complete' : r.status;
+                let status = r.status === 'complete' ? 'complete' : r.status;
+                if (r.status === 'running') {
+                    const minutes = r.created_at ? Math.floor((Date.now() - new Date(r.created_at).getTime()) / 60000) : 0;
+                    status = minutes >= 15 ? 'running (possibly stuck)' : 'running';
+                }
                 const date = r.created_at ? new Date(r.created_at).toLocaleString() : '';
                 opt.textContent = `${status} · ${date}`;
                 sel.appendChild(opt);
@@ -753,7 +936,11 @@
                     row.className = 'mri-history-item';
                     const date = r.created_at ? new Date(r.created_at).toLocaleString() : '—';
                     const adInfo = r.ad_count != null ? ` · ${r.ad_count} ads` : '';
-                    const statusLabel = r.status === 'complete' ? 'Complete' : r.status === 'running' ? 'Running' : r.status === 'failed' ? 'Failed' : r.status;
+                    let statusLabel = r.status === 'complete' ? 'Complete' : r.status === 'failed' ? 'Failed' : r.status;
+                    if (r.status === 'running') {
+                        const minutes = r.created_at ? Math.floor((Date.now() - new Date(r.created_at).getTime()) / 60000) : 0;
+                        statusLabel = minutes >= 15 ? 'Running (possibly stuck)' : 'Running';
+                    }
                     row.innerHTML = `
                         <span class="mri-history-brand">${escapeHtml(r.client_name || '—')}</span>
                         <span class="mri-history-meta">${escapeHtml(date)}${escapeHtml(adInfo)} · ${escapeHtml(statusLabel)}</span>

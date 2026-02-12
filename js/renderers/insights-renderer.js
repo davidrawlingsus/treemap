@@ -130,7 +130,7 @@ export function renderInsights(insights) {
         // Check if this insight is pinned
         const isPinned = isPinnedOverview(insight);
         const pinnedClass = isPinned ? 'pinned-overview' : '';
-        const pinIconUrl = 'https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1768438528602-0zkm0h.svg';
+        const pinIconUrl = '/images/pinned_item.svg';
         
         // Use pin icon for pinned items, doc icon for others
         const iconHTML = isPinned

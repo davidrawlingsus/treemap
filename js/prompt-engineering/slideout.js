@@ -408,7 +408,7 @@
                 console.warn('[SLIDEOUT] No content element available');
                 // Reset send button
                 if (this.elements.chatSend) {
-                    this.elements.chatSend.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/send_icon.png" alt="Send" width="20" height="20" id="slideoutChatSendIcon">';
+                    this.elements.chatSend.innerHTML = '<img src="/images/send%20icon.png" alt="Send" width="20" height="20" id="slideoutChatSendIcon">';
                     this.elements.chatSend.disabled = false;
                 }
                 return;
@@ -494,7 +494,7 @@
                                 // #region agent log
                                 fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:493',message:'Setting done_icon via innerHTML',data:{elementExists:!!this.elements.chatSend},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2-race-condition'})}).catch(()=>{});
                                 // #endregion agent log
-                                this.elements.chatSend.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/done_icon.png" alt="Done" width="20" height="20" id="slideoutChatSendIcon">';
+                                this.elements.chatSend.innerHTML = '<img src="/images/done%20icon.png" alt="Done" width="20" height="20" id="slideoutChatSendIcon">';
                             }
 
                             // Reset to send icon after delay
@@ -503,7 +503,7 @@
                                     // #region agent log
                                     fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:502',message:'Resetting to send_icon via innerHTML after delay',data:{delay:RESET_ICON_DELAY},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2-race-condition'})}).catch(()=>{});
                                     // #endregion agent log
-                                    this.elements.chatSend.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/send_icon.png" alt="Send" width="20" height="20" id="slideoutChatSendIcon">';
+                                    this.elements.chatSend.innerHTML = '<img src="/images/send%20icon.png" alt="Send" width="20" height="20" id="slideoutChatSendIcon">';
                                     this.elements.chatSend.disabled = false;
                                 }
                             }, RESET_ICON_DELAY);
@@ -553,7 +553,7 @@
                             
                             // Reset to send icon on error
                             if (this.elements.chatSend) {
-                                this.elements.chatSend.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/send_icon.png" alt="Send" width="20" height="20" id="slideoutChatSendIcon">';
+                                this.elements.chatSend.innerHTML = '<img src="/images/send%20icon.png" alt="Send" width="20" height="20" id="slideoutChatSendIcon">';
                                 this.elements.chatSend.disabled = false;
                             }
                         }
@@ -574,7 +574,7 @@
                 });
                 // Reset to send icon on error
                 if (this.elements.chatSend) {
-                    this.elements.chatSend.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/send_icon.png" alt="Send" width="20" height="20" id="slideoutChatSendIcon">';
+                    this.elements.chatSend.innerHTML = '<img src="/images/send%20icon.png" alt="Send" width="20" height="20" id="slideoutChatSendIcon">';
                     this.elements.chatSend.disabled = false;
                 }
                 throw error;
@@ -652,7 +652,7 @@
                 toTopButton.className = 'slideout-to-top-btn';
                 toTopButton.title = 'Scroll to top';
                 toTopButton.style.display = 'none';
-                toTopButton.innerHTML = '<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/insights/1767671630805-s0jbg.png" alt="To top" width="24" height="24">';
+                toTopButton.innerHTML = '<img src="/images/arrow_up.png" alt="To top" width="24" height="24">';
                 content.appendChild(toTopButton);
             }
 

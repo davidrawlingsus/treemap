@@ -506,7 +506,7 @@
      * Check Vercel Blob Storage connectivity (hypothesis H1 - CDN issues, H4 - DNS)
      */
     async function checkBlobConnectivity() {
-        const testUrl = 'https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/filter_list.svg';
+        const testUrl = '/images/filter_list.svg';
         const startTime = performance.now();
         
         try {

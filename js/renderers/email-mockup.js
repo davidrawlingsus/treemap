@@ -349,7 +349,7 @@ export function renderEmailMockupForSaved({
     // Edit icon HTML (pencil button)
     const editIconHtml = readOnly ? '' : `
         <button class="pe-email-mockup__edit-icon" data-email-id="${emailId}" title="Edit email text" type="button">
-            <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/edit.png" alt="Edit" width="16" height="16">
+            <img src="/images/edit.png" alt="Edit" width="16" height="16">
         </button>`;
     
     // Edit controls HTML (Cancel/Save buttons)
@@ -363,7 +363,7 @@ export function renderEmailMockupForSaved({
     const imageHtml = imageUrl ? `
         <div class="pe-email-mockup__media has-image" style="margin:16px 0;position:relative;">
             <img src="${escapeHtml(imageUrl)}" alt="Email image" style="width:100%;height:auto;display:block;border-radius:8px;">
-            ${!readOnly ? `<button class="pe-email-mockup__media-delete" data-email-id="${emailId}" title="Remove image" type="button"><img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/delete_button.png" alt="Delete" width="12" height="12"></button>` : ''}
+            ${!readOnly ? `<button class="pe-email-mockup__media-delete" data-email-id="${emailId}" title="Remove image" type="button"><img src="/images/delete_button.png" alt="Delete" width="12" height="12"></button>` : ''}
         </div>
     ` : '';
 
