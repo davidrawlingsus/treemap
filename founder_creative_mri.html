@@ -126,7 +126,7 @@
                         Back to setup
                     </button>
                 </div>
-                <h2>Report</h2>
+                <h2 id="mriReportTitle" class="mri-report-title">Ad Creative MRI</h2>
                 <p class="mri-panel-desc" id="mriLabel">Copy-based effectiveness diagnostics.</p>
                 <div id="mriLoading" class="mri-loading mri-loading--active" style="display: none;">
                     <div class="mri-loading-prelude">
@@ -144,61 +144,60 @@
                 </div>
                 <div id="mriContent" style="display: none;">
                     <div class="command-center-section health-summary command-center-section--full">
-                        <h3>Health Summary</h3>
+                        <h3 class="mri-section-heading">Health Summary</h3>
                         <div class="mri-summary" id="mriSummary"></div>
                     </div>
                     <div class="command-center-section impact-scoreboard">
-                        <h3>Impact Scoreboard</h3>
                         <div class="impact-scoreboard-grid" id="mriImpactScoreboard"></div>
                     </div>
-                    <h3>Charts</h3>
+                    <h3 class="mri-section-heading">Charts</h3>
                     <div class="mri-charts">
                         <div class="mri-chart" id="mriChartSubscores">
-                            <h4 class="mri-chart-title">Subscores (average)</h4>
+                            <h4 class="mri-chart-title mri-subsection-heading">Subscores (average)</h4>
                             <div class="mri-chart-bars" id="mriChartSubscoresBars"></div>
                         </div>
                         <div class="mri-chart" id="mriChartHooks">
-                            <h4 class="mri-chart-title">Hook type distribution</h4>
+                            <h4 class="mri-chart-title mri-subsection-heading">Hook type distribution</h4>
                             <div class="mri-chart-bars" id="mriChartHooksBars"></div>
                         </div>
                         <div class="mri-chart" id="mriChartFunnel">
-                            <h4 class="mri-chart-title">Funnel stage distribution</h4>
+                            <h4 class="mri-chart-title mri-subsection-heading">Funnel stage distribution</h4>
                             <div class="mri-chart-bars" id="mriChartFunnelBars"></div>
                         </div>
                         <div class="mri-chart mri-chart--d3">
-                            <h4 class="mri-chart-title">1. Launch cadence (launches/week)</h4>
+                            <h4 class="mri-chart-title mri-subsection-heading">1. Launch cadence (launches/week)</h4>
                             <div id="mriChartLaunchCadence"></div>
                         </div>
                         <div class="mri-chart mri-chart--d3">
-                            <h4 class="mri-chart-title">2. Rotation depth (active creatives/week)</h4>
+                            <h4 class="mri-chart-title mri-subsection-heading">2. Rotation depth (active creatives/week)</h4>
                             <div id="mriChartRotationDepth"></div>
                         </div>
                         <div class="mri-chart mri-chart--d3">
-                            <h4 class="mri-chart-title">3. Creative half-life (run length days)</h4>
+                            <h4 class="mri-chart-title mri-subsection-heading">3. Creative half-life (run length days)</h4>
                             <div id="mriChartHalfLife"></div>
                         </div>
                         <div class="mri-chart mri-chart--d3">
-                            <h4 class="mri-chart-title">4. Format mix over time</h4>
+                            <h4 class="mri-chart-title mri-subsection-heading">4. Format mix over time</h4>
                             <div id="mriChartFormatMix"></div>
                         </div>
                         <div class="mri-chart mri-chart--d3">
-                            <h4 class="mri-chart-title">5. Funnel mix over time</h4>
+                            <h4 class="mri-chart-title mri-subsection-heading">5. Funnel mix over time</h4>
                             <div id="mriChartFunnelMix"></div>
                         </div>
                         <div class="mri-chart mri-chart--d3">
-                            <h4 class="mri-chart-title">6. Hook × Funnel</h4>
+                            <h4 class="mri-chart-title mri-subsection-heading">6. Hook × Funnel</h4>
                             <div id="mriChartHookFunnel"></div>
                         </div>
                         <div class="mri-chart mri-chart--d3">
-                            <h4 class="mri-chart-title">7. Hook quality (overall by type)</h4>
+                            <h4 class="mri-chart-title mri-subsection-heading">7. Hook quality (overall by type)</h4>
                             <div id="mriChartHookQuality"></div>
                         </div>
                         <div class="mri-chart mri-chart--d3">
-                            <h4 class="mri-chart-title">8. Copy tradeoff (specificity vs emotional pull)</h4>
+                            <h4 class="mri-chart-title mri-subsection-heading">8. Copy tradeoff (specificity vs emotional pull)</h4>
                             <div id="mriChartCopyTradeoff"></div>
                         </div>
                     </div>
-                    <h3>Ad Critique</h3>
+                    <h3 class="mri-section-heading">Ad Critique</h3>
                     <div id="mriAdsList" class="mri-ads-grid"></div>
                 </div>
                 <div id="mriEmpty" class="mri-loading" style="display: none;">Run a report to see results.</div>
@@ -480,6 +479,11 @@
             }
             mriResults.style.display = 'block';
             enterReportView();
+            const brandLabel = existingBrandSelect.options[existingBrandSelect.selectedIndex]?.textContent || '—';
+            const reportTitleEl = document.getElementById('mriReportTitle');
+            if (reportTitleEl && brandLabel && brandLabel !== '—') {
+                reportTitleEl.textContent = `${brandLabel}'s Ad Creative MRI`;
+            }
             mriLoading.style.display = 'flex';
             mriContent.style.display = 'none';
             mriEmpty.style.display = 'none';
@@ -488,7 +492,6 @@
             mriLoading.classList.remove('mri-loading--progress');
             document.getElementById('mriLoadingDetail').textContent = 'Connecting…';
             runReportButton.disabled = true;
-            const brandLabel = existingBrandSelect.options[existingBrandSelect.selectedIndex]?.textContent || '—';
             const importLabel = importSelect.options[importSelect.selectedIndex]?.textContent || 'Latest';
             try {
                 const body = {};
@@ -559,6 +562,12 @@
         }
 
         function renderReport(report, brandLabel, importLabel) {
+            const reportTitleEl = document.getElementById('mriReportTitle');
+            if (reportTitleEl) {
+                reportTitleEl.textContent = (brandLabel && brandLabel !== '—')
+                    ? `${brandLabel}'s Ad Creative MRI`
+                    : 'Ad Creative MRI';
+            }
             const exec = report.executive_summary || {};
             const ads = report.ads || [];
             const analysis = report.analysis || {};
@@ -626,7 +635,6 @@
                 const roadmap = synth['90_day_creative_roadmap'] || {};
 
                 document.getElementById('mriSummary').innerHTML = `
-                    ${dataset.ads_analyzed != null ? `<p class="mri-summary-meta">${dataset.ads_analyzed} ads analyzed · ${formatSummaryText(dataset.launch_cadence_pattern || '')} cadence · ${formatSummaryText(dataset.creative_rotation_depth || '')} rotation</p>` : ''}
                     ${exec.core_diagnosis ? `<div class="mri-summary-block"><p><strong>Core diagnosis:</strong> ${formatSummaryText(exec.core_diagnosis)}</p></div>` : ''}
                     ${exec.primary_constraint ? `<div class="mri-summary-block"><p><strong>Primary constraint:</strong> ${formatSummaryText(exec.primary_constraint)}</p></div>` : ''}
                     ${(exec.secondary_constraints || []).length ? `<div class="mri-summary-block"><p><strong>Secondary constraints:</strong></p><ul>${exec.secondary_constraints.map(c => `<li>${formatSummaryText(c)}</li>`).join('')}</ul></div>` : ''}
@@ -640,8 +648,11 @@
                 const actionCells = (actions || []).slice(0, 5).map((a, i) => `
                     <div class="impact-scoreboard-cell mri-action-item">
                         <div class="mri-action-header">
-                            <strong>${escapeHtml(a.action_title || 'Action ' + (i + 1))}</strong>
-                            <span class="mri-action-meta">${escapeHtml(a.impact_confidence || '')} impact · ${escapeHtml(a.effort_level || '')} effort</span>
+                            <span class="mri-action-number">${i + 1}</span>
+                            <div class="mri-action-header-content">
+                                <strong>${escapeHtml(a.action_title || 'Action ' + (i + 1))}</strong>
+                                <span class="mri-action-meta">${escapeHtml(a.impact_confidence || '')} impact · ${escapeHtml(a.effort_level || '')} effort</span>
+                            </div>
                         </div>
                         ${a.why_it_matters ? `<p class="mri-action-why">${formatSummaryText(a.why_it_matters)}</p>` : ''}
                         ${a.what_to_produce?.creative_brief?.length ? `<ul class="mri-action-brief">${(a.what_to_produce.creative_brief || []).map(b => `<li>${formatSummaryText(b)}</li>`).join('')}</ul>` : ''}
@@ -649,7 +660,7 @@
                 `).join('');
                 const roadmapHtml = roadmap.phase_1_weeks_1_4?.focus ? `
                     <div class="impact-scoreboard-cell mri-roadmap-cell">
-                        <h4 class="mri-summary-subheading">90-day roadmap</h4>
+                        <h4 class="mri-subsection-heading">90-day roadmap</h4>
                         <div class="mri-roadmap-phases">
                             <p><strong>Phase 1 (weeks 1–4):</strong> ${formatSummaryText(roadmap.phase_1_weeks_1_4.focus)}</p>
                             <p><strong>Phase 2 (weeks 5–8):</strong> ${formatSummaryText(roadmap.phase_2_weeks_5_8?.focus || '—')}</p>
@@ -659,14 +670,14 @@
                 ` : '';
                 const cells = actionCells + roadmapHtml;
                 document.getElementById('mriImpactScoreboard').innerHTML = cells
-                    ? `<h4 class="mri-summary-subheading">Top 5 high-impact actions</h4><div class="impact-scoreboard-grid-inner">${cells}</div>`
+                    ? `<h3 class="mri-section-heading">Top 5 high-impact actions</h3><div class="impact-scoreboard-grid-inner">${cells}</div>`
                     : '<p class="muted">No synthesized summary available. Run a new report with the synthesize prompt configured.</p>';
             }
 
             function renderLegacySummary(exec, funnelShare) {
                 mriSummary.innerHTML = `
                     <p class="muted" style="margin-bottom: 12px;">Legacy summary — synthesized strategic summary not in this report. Run a new report with the "Ad Creative MRI - Synthesized Summary" prompt configured in Prompt Engineering to see the strategic diagnosis.</p>
-                    <h3>Executive summary</h3>
+                    <h3 class="mri-section-heading">Executive summary</h3>
                     <p><span class="score">${exec.overall_effectiveness_score ?? 0}</span> / 100 (copy-based effectiveness)</p>
                     <p><strong>Subscores:</strong></p>
                     <ul>${(exec.subscores_summary || []).map(s => `<li>${s.name}: ${s.average}</li>`).join('')}</ul>
