@@ -80,10 +80,6 @@ export function renderEmpty(container, message) {
  * @param {Array} ads - Array of ad objects (already filtered/sorted)
  */
 export function renderAdsGrid(container, ads) {
-    // #region agent log
-    console.log('[DEBUG] renderAdsGrid called', { containerExists: !!container, adsCount: ads?.length, containerId: container?.id });
-    // #endregion
-    
     const allAds = getAdsCache();
     const hasFiltersOrSearch = getAdsSearchTerm() || getAdsFilters().length > 0;
     
@@ -109,10 +105,6 @@ export function renderAdsGrid(container, ads) {
         ${ads.map(ad => renderAdCard(ad)).join('')}
     `;
     
-    // #region agent log
-    console.log('[DEBUG] renderAdsGrid HTML set', { childCount: container.children.length, adsCardCount: container.querySelectorAll('.ads-card').length, masonryAvailable: typeof Masonry !== 'undefined' });
-    // #endregion
-    
     // Attach event delegation for interactive elements
     attachEventListeners(container);
     
@@ -125,10 +117,6 @@ export function renderAdsGrid(container, ads) {
  * @param {HTMLElement} container - Grid container element
  */
 function initMasonry(container) {
-    // #region agent log
-    console.log('[DEBUG] initMasonry called', { masonryDefined: typeof Masonry !== 'undefined' });
-    // #endregion
-    
     if (typeof Masonry === 'undefined') {
         console.warn('[AdsRenderer] Masonry.js not loaded, falling back to CSS layout');
         return;
@@ -142,16 +130,14 @@ function initMasonry(container) {
         horizontalOrder: true
     });
     
-    // #region agent log
-    console.log('[DEBUG] Masonry instance created', { hasInstance: !!masonryInstance });
-    // #endregion
-    
     // Trigger Masonry relayout when images load to ensure correct card positioning
     // (images load async after Masonry init, changing card heights)
     container.querySelectorAll('.pe-fb-ad__media.has-image img').forEach((img) => {
         if (!img.complete) {
             img.addEventListener('load', scheduleLayoutFromImageLoad);
             img.addEventListener('error', scheduleLayoutFromImageLoad);
+        } else {
+            scheduleLayoutFromImageLoad();
         }
     });
 }
@@ -173,8 +159,13 @@ function renderAdCard(ad) {
     const cta = formatCTA(ad.call_to_action);
     const destinationUrl = ad.destination_url || '';
     const displayUrl = extractDomain(destinationUrl);
-    const vocEvidence = ad.voc_evidence || [];
-    
+    // Use voc_evidence from ad; fallback to full_json.voc_evidence for ads created before we stored it at top level
+    const vocEvidence = (ad.voc_evidence && ad.voc_evidence.length > 0)
+        ? ad.voc_evidence
+        : (ad.full_json?.voc_evidence || []);
+
+    const imageUrl = ad.full_json?.image_url || null;
+
     const formattedPrimaryText = formatPrimaryText(primaryText);
     
     // Get client info for the mockup
@@ -227,7 +218,7 @@ function renderAdCard(ad) {
                     displayUrl,
                     logoSrc,
                     clientName,
-                    imageUrl: ad.full_json?.image_url || null
+                    imageUrl
                 })}
             </div>
             

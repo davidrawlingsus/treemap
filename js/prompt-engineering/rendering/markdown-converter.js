@@ -18,57 +18,93 @@
      * @param {string} text - Markdown text
      * @returns {string} HTML string
      */
+    /**
+     * Extract VoC Evidence quotes from markdown text (bullets before a JSON block)
+     * Matches: - "quote" or * "quote" (straight " or curly "" quotes)
+     */
+    function extractVocEvidenceFromPrecedingText(precedingText) {
+        if (!precedingText || !precedingText.trim()) return [];
+        const quotes = [];
+        const bulletRegex = /[-*]\s*["\u201C\u201D"]([^"\u201C\u201D\u201E\u201F]*?)["\u201C\u201D\u201E\u201F"]/g;
+        let m;
+        while ((m = bulletRegex.exec(precedingText)) !== null) {
+            const q = m[1].trim();
+            if (q) quotes.push(q);
+        }
+        return quotes;
+    }
+
     function convertMarkdown(text) {
         if (!text) return '';
         
         // Process JSON blocks BEFORE HTML escaping (so JSON.parse works)
-        // Use placeholders to preserve their position
+        // Use exec loop to capture preceding text (VoC Evidence) before each ```json block
         const jsonBlocks = [];
-        text = text.replace(/```json\s*([\s\S]*?)```/gi, (match, jsonContent) => {
+        const jsonRegex = /```json\s*([\s\S]*?)```/gi;
+        let prevLastIndex = 0;
+        let match;
+        const replacements = [];
+        while ((match = jsonRegex.exec(text)) !== null) {
+            const precedingText = text.substring(prevLastIndex, match.index);
+            prevLastIndex = jsonRegex.lastIndex;
+            const jsonContent = match[1];
             try {
-                // Skip empty or whitespace-only JSON content
                 if (!jsonContent || !jsonContent.trim()) {
-                    return match;
+                    replacements.push({ start: match.index, end: prevLastIndex, html: match[0] });
+                    continue;
                 }
-                // Try to parse the JSON
                 const jsonData = JSON.parse(jsonContent);
-                
-                let ideaCardsHTML = '';
-                
-                // Check if this is the structured format with content + ideas
+                const vocFromPreceding = extractVocEvidenceFromPrecedingText(precedingText);
+
                 if (jsonData.ideas && Array.isArray(jsonData.ideas)) {
-                    // Generate idea cards HTML object that will be processed later
-                    const htmlObject = {
-                        content: jsonData.content || null,
-                        ideas: jsonData.ideas
-                    };
-                    
-                    // Store and return placeholder
-                    const placeholder = `___JSON_BLOCK_${jsonBlocks.length}___`;
+                    const ideas = jsonData.ideas;
+                    if (vocFromPreceding.length > 0 && ideas.length > 0) {
+                        const lastIdea = ideas[ideas.length - 1];
+                        if (lastIdea && !(lastIdea.voc_evidence?.length)) {
+                            lastIdea.voc_evidence = vocFromPreceding;
+                        }
+                    }
+                    const htmlObject = { content: jsonData.content || null, ideas };
                     jsonBlocks.push(htmlObject);
-                    return placeholder;
-                } 
-                // Legacy support: Check if it's an array of ideas or a single idea
-                else if (Array.isArray(jsonData)) {
-                    const placeholder = `___JSON_BLOCK_${jsonBlocks.length}___`;
-                    jsonBlocks.push({ content: null, ideas: jsonData });
-                    return placeholder;
+                    replacements.push({ start: match.index, end: prevLastIndex, placeholder: jsonBlocks.length - 1 });
+                } else if (Array.isArray(jsonData)) {
+                    const ideas = jsonData;
+                    if (vocFromPreceding.length > 0 && ideas.length > 0) {
+                        const lastIdea = ideas[ideas.length - 1];
+                        if (lastIdea && !(lastIdea.voc_evidence?.length)) {
+                            lastIdea.voc_evidence = vocFromPreceding;
+                        }
+                    }
+                    jsonBlocks.push({ content: null, ideas });
+                    replacements.push({ start: match.index, end: prevLastIndex, placeholder: jsonBlocks.length - 1 });
                 } else {
-                    const placeholder = `___JSON_BLOCK_${jsonBlocks.length}___`;
-                    jsonBlocks.push({ content: null, ideas: [jsonData] });
-                    return placeholder;
+                    const idea = jsonData;
+                    const isFBAd = !!(idea.primary_text && idea.headline && idea.call_to_action);
+                    const isEmail = !!(idea.subject_line && idea.body_text);
+                    if ((isFBAd || isEmail) && vocFromPreceding.length > 0 && !(idea.voc_evidence?.length)) {
+                        idea.voc_evidence = vocFromPreceding;
+                    }
+                    jsonBlocks.push({ content: null, ideas: [idea] });
+                    replacements.push({ start: match.index, end: prevLastIndex, placeholder: jsonBlocks.length - 1 });
                 }
             } catch (e) {
-                // If JSON parsing fails, treat as regular code block
-                // During streaming, incomplete JSON blocks may be present - silently skip them
-                // Only log if it looks like a complete block (has closing backticks)
-                if (match.includes('```') && match.split('```').length >= 3) {
+                if (match[0].includes('```') && match[0].split('```').length >= 3) {
                     console.warn('[MARKDOWN] Failed to parse JSON block for idea card:', e);
                 }
-                // Return the original match to be processed as regular code block
-                return match;
+                replacements.push({ start: match.index, end: prevLastIndex, html: match[0] });
             }
-        });
+        }
+
+        // Build result by replacing matches (in reverse order to preserve indices)
+        let result = text;
+        for (let i = replacements.length - 1; i >= 0; i--) {
+            const r = replacements[i];
+            const before = result.substring(0, r.start);
+            const after = result.substring(r.end);
+            const replacement = r.placeholder !== undefined ? `___JSON_BLOCK_${r.placeholder}___` : (r.html || '');
+            result = before + replacement + after;
+        }
+        text = result;
         
         // Now escape HTML to prevent XSS
         let html = DOM.escapeHtml(text);

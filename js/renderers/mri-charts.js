@@ -71,25 +71,27 @@ function prepLaunchCadence(ads) {
         .sort((a, b) => a.date - b.date);
 }
 
+/** Default run length (days) for ads without end date. Avoids cumulative effect where
+ * all ads-without-end contribute to every week until dataset end, making the chart only go up. */
+const ROTATION_DEPTH_DEFAULT_RUN_DAYS = 90;
+
 /** Prep chart 2: active creatives per week (between start and end).
- * For ads without end date, assume they ran until the dataset cutoff (latest date across all ads).
+ * For ads without end date, assume a default run length (90 days) so counts can decrease as ads "drop off".
  * This differs from launch cadence, which counts only the week of launch. */
 function prepRotationDepth(ads) {
-    let datasetCutoff = null;
-    ads.forEach(a => {
-        const start = parseDate(a.ad_delivery_start_time || a.started_running_on);
-        const end = parseDate(a.ad_delivery_end_time);
-        if (start && (!datasetCutoff || start > datasetCutoff)) datasetCutoff = new Date(start);
-        if (end && (!datasetCutoff || end > datasetCutoff)) datasetCutoff = new Date(end);
-    });
-    if (!datasetCutoff) return [];
-
     const byWeek = {};
     ads.forEach(a => {
         const start = parseDate(a.ad_delivery_start_time || a.started_running_on);
         const end = parseDate(a.ad_delivery_end_time);
         if (!start) return;
-        const endDate = end && end >= start ? end : datasetCutoff;
+        let endDate;
+        if (end && end >= start) {
+            endDate = end;
+        } else {
+            const assumedEnd = new Date(start);
+            assumedEnd.setDate(assumedEnd.getDate() + ROTATION_DEPTH_DEFAULT_RUN_DAYS);
+            endDate = assumedEnd;
+        }
         let d = new Date(start);
         while (d <= endDate) {
             const wk = weekKey(d);
@@ -126,7 +128,7 @@ function prepCreativeHalfLife(ads) {
     return days;
 }
 
-/** Prep chart 4: format mix by week (stacked) */
+/** Prep chart 4: format mix by week (100% stacked) */
 function prepFormatMixOverTime(ads) {
     const byWeek = {};
     ads.forEach(a => {
@@ -137,14 +139,14 @@ function prepFormatMixOverTime(ads) {
         const fmt = (a.labels?.format || 'unknown').toLowerCase();
         byWeek[wk][fmt] = (byWeek[wk][fmt] || 0) + 1;
     });
-    const formats = new Set();
-    Object.values(byWeek).forEach(w => Object.keys(w).forEach(k => formats.add(k)));
+    const formats = [...new Set(Object.values(byWeek).flatMap(w => Object.keys(w)))].sort();
     return {
-        keys: Array.from(formats).sort(),
+        keys: formats,
         data: Object.entries(byWeek)
             .map(([week, counts]) => {
+                const total = Object.values(counts).reduce((s, n) => s + n, 0) || 1;
                 const row = { week, date: new Date(week) };
-                formats.forEach(f => { row[f] = counts[f] || 0; });
+                formats.forEach(f => { row[f] = (counts[f] || 0) / total; });
                 return row;
             })
             .sort((a, b) => a.date - b.date),
@@ -358,10 +360,15 @@ function renderStackedArea(container, data, keys, normalized = false, keyFormatt
 }
 
 /**
- * Render format mix over time (chart 4)
+ * Render format mix over time (chart 4) - 100% stacked
  */
 export function renderFormatMixOverTime(container, stackData) {
-    renderStackedArea(container, stackData, stackData?.keys, false);
+    if (!stackData?.keys?.length) {
+        renderEmpty(container);
+        return;
+    }
+    const fmt = k => k.charAt(0).toUpperCase() + k.slice(1);
+    renderStackedArea(container, stackData, stackData.keys, true, fmt);
 }
 
 /**
