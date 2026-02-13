@@ -201,6 +201,9 @@ function renderAdCard(ad) {
                     </div>
                 </div>
                 <div class="ads-card__actions">
+                    <button class="ads-card__iterate" data-ad-id="${id}" title="Iterate on this ad">
+                        <img src="/images/iterate.svg" alt="Iterate" />
+                    </button>
                     <button class="ads-card__publish" data-ad-id="${id}" title="Publish to Facebook Ads Manager">
                         <img src="/images/publish_icon.svg" alt="Publish" />
                     </button>
@@ -493,6 +496,18 @@ function attachEventListeners(container) {
             const adCard = cancelBtn.closest('.ads-card');
             if (adCard) {
                 disableEditMode(adCard);
+            }
+            return;
+        }
+        
+        // Handle iterate button
+        const iterateBtn = e.target.closest('.ads-card__iterate');
+        if (iterateBtn) {
+            e.stopPropagation();
+            const adId = iterateBtn.dataset.adId;
+            const ad = getAdsCache().find(a => a.id === adId);
+            if (ad && window.SlideoutPanel?.openAdIterate) {
+                window.SlideoutPanel.openAdIterate(ad);
             }
             return;
         }

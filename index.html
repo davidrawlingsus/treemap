@@ -10760,9 +10760,9 @@
                 if (tab) {
                     // Always keep tab hidden
                     tab.style.display = 'none';
-                    // Close the panel if it's open, but NOT if we're viewing history
-                    // History mode should persist even when dimensions change
-                    if (this.currentMode !== 'history') {
+                    // Close the panel if it's open, but NOT if we're viewing history or ad-iterate
+                    // History and ad-iterate modes should persist even when dimensions change
+                    if (this.currentMode !== 'history' && this.currentMode !== 'ad-iterate') {
                         this.close();
                     }
                 }
@@ -11684,6 +11684,102 @@
                 } catch (error) {
                     console.error('[openAIExpertInsight] Failed to start streaming:', error);
                     alert('Error: ' + (error.message || 'Failed to start AI expert'));
+                }
+            },
+
+            async openAdIterate(ad) {
+                const clientId = currentClientId || window.appStateGetCurrentClientId?.() || document.getElementById('clientSelect')?.value;
+                if (!clientId) {
+                    alert('No client selected');
+                    return;
+                }
+                if (!window.ClientPromptAPI) {
+                    alert('Error: Client prompt API not loaded');
+                    return;
+                }
+                let promptData;
+                try {
+                    promptData = await window.ClientPromptAPI.getPromptByPurpose(clientId, 'ad_iterate');
+                } catch (e) {
+                    alert('Configure an Ad Iterate prompt in Prompt Engineering (prompt_purpose: ad_iterate)');
+                    return;
+                }
+                const { id: promptId, name: promptName } = promptData;
+                const renderer = await getPromptRendererWithRetry();
+                if (!renderer) {
+                    alert('Error: Prompt rendering modules not loaded. Please refresh the page.');
+                    return;
+                }
+                const panel = document.getElementById('slideoutPanel');
+                const overlay = document.getElementById('slideoutOverlay');
+                const titleEl = document.getElementById('slideoutTitle');
+                const contentEl = document.getElementById('slideoutContent');
+                if (!panel || !overlay || !titleEl || !contentEl) {
+                    console.error('[openAdIterate] Slideout elements not found');
+                    return;
+                }
+                this.currentMode = 'ad-iterate';
+                this.isOpen = true;
+                panel.classList.add('open');
+                overlay.classList.add('visible');
+                document.body.classList.add('slideout-open');
+                titleEl.textContent = promptName || 'Ad Iterations';
+                contentEl.innerHTML = '';
+                const vocData = {
+                    ad: {
+                        primary_text: ad.primary_text,
+                        headline: ad.headline,
+                        description: ad.description,
+                        call_to_action: ad.call_to_action,
+                        destination_url: ad.destination_url,
+                        voc_evidence: ad.voc_evidence || ad.full_json?.voc_evidence || [],
+                        full_json: ad.full_json || {}
+                    },
+                    mode: 'iterate'
+                };
+                const streamingItem = renderer.createStreamingResultItem(contentEl, promptName || 'Ad Iterations', null, '');
+                if (!streamingItem) {
+                    alert('Error: Failed to initialize streaming display');
+                    return;
+                }
+                const slideoutContent = document.getElementById('slideoutContent');
+                if (slideoutContent) {
+                    if (renderer.attachIdeaCardListeners) {
+                        renderer.attachIdeaCardListeners(slideoutContent);
+                    } else if (window.ActionRenderer?.attachIdeaCardListeners) {
+                        window.ActionRenderer.attachIdeaCardListeners(slideoutContent);
+                    }
+                }
+                try {
+                    await window.ClientPromptAPI.executeStream(
+                        clientId,
+                        promptId,
+                        vocData,
+                        (chunk) => { renderer.appendToStreamingItem(streamingItem, chunk); },
+                        (metadata) => {
+                            renderer.finalizeStreamingItem(streamingItem, metadata);
+                            const slideoutContentEl = document.getElementById('slideoutContent');
+                            if (slideoutContentEl && (renderer.attachIdeaCardListeners || window.ActionRenderer?.attachIdeaCardListeners)) {
+                                (renderer.attachIdeaCardListeners || window.ActionRenderer.attachIdeaCardListeners).call(null, slideoutContentEl);
+                            }
+                        },
+                        (error) => {
+                            console.error('[openAdIterate] Streaming error:', error);
+                            const contentDiv = streamingItem.querySelector('.prompt-result-content');
+                            if (contentDiv) {
+                                contentDiv.innerHTML = `<p style="color: oklch(0.577 0.245 27.325);">Error: ${escapeHtml(error.message || 'Unknown error occurred')}</p>`;
+                            }
+                            renderer.finalizeStreamingItem(streamingItem, {});
+                            const slideoutContentEl = document.getElementById('slideoutContent');
+                            if (slideoutContentEl && (renderer.attachIdeaCardListeners || window.ActionRenderer?.attachIdeaCardListeners)) {
+                                (renderer.attachIdeaCardListeners || window.ActionRenderer.attachIdeaCardListeners).call(null, slideoutContentEl);
+                            }
+                        },
+                        null
+                    );
+                } catch (error) {
+                    console.error('[openAdIterate] Failed to start streaming:', error);
+                    alert('Error: ' + (error.message || 'Failed to start ad iteration'));
                 }
             },
 

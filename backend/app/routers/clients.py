@@ -664,6 +664,43 @@ def list_client_prompts(
     return [ClientPromptsGroupedItem(**g) for g in sorted_groups]
 
 
+@router.get("/{client_id}/prompts/by-purpose", response_model=PromptMenuItem)
+def get_client_prompt_by_purpose(
+    client_id: UUID,
+    purpose: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get the first live prompt with the given prompt_purpose. Purpose-only prompts (e.g. ad_iterate)
+    are found here without needing client_facing or all_clients - they don't appear in context menus."""
+    from sqlalchemy import func
+
+    verify_client_access(client_id, current_user, db)
+
+    purpose_lower = purpose.lower().strip()
+
+    # By-purpose lookup: purpose-only prompts (e.g. ad_iterate) are found here without needing
+    # client_facing (context menu) or all_clients/client assignment. verify_client_access ensures
+    # the user has access to the client.
+    prompt = (
+        db.query(Prompt)
+        .filter(
+            func.lower(Prompt.prompt_purpose) == purpose_lower,
+            Prompt.status == "live",
+        )
+        .order_by(Prompt.name)
+        .first()
+    )
+
+    if not prompt:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No live prompt with purpose '{purpose}' configured. In Prompt Engineering, ensure: prompt_purpose='{purpose}' and status='live'.",
+        )
+
+    return PromptMenuItem(id=prompt.id, name=prompt.name)
+
+
 @router.post("/{client_id}/prompts/{prompt_id}/execute")
 def execute_client_prompt(
     client_id: UUID,

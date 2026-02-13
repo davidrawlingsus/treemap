@@ -1337,20 +1337,24 @@
     gap: 4px;
 }
 
-.ads-card__publish {
+.ads-card__iterate,
+.ads-card__publish,
+.ads-card__delete {
     width: 28px;
     height: 28px;
     border-radius: 4px;
     border: none;
     background: transparent;
+    color: var(--muted);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: background 0.2s ease;
     padding: 0;
+    transition: background 0.2s ease, color 0.2s ease;
 }
 
+.ads-card__iterate img,
 .ads-card__publish img {
     width: 18px;
     height: 18px;
@@ -1358,12 +1362,16 @@
     transition: opacity 0.2s ease;
 }
 
-.ads-card__publish:hover {
-    background: rgba(24, 119, 242, 0.1);
+.ads-card__iterate:hover,
+.ads-card__publish:hover,
+.ads-card__delete:hover {
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--muted);
 }
 
+.ads-card__iterate:hover img,
 .ads-card__publish:hover img {
-    opacity: 1;
+    opacity: 0.85;
 }
 
 /* ============ Meta Publish Modal ============ */

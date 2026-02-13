@@ -316,6 +316,18 @@
             return window.insightsCurrentClientId;
         }
         
+        // Try app state (Ads tab, main app)
+        if (typeof window.appStateGetCurrentClientId === 'function') {
+            const clientId = window.appStateGetCurrentClientId();
+            if (clientId) return clientId;
+        }
+        
+        // Try client selector dropdown
+        const clientSelect = document.getElementById('clientSelect');
+        if (clientSelect?.value) {
+            return clientSelect.value;
+        }
+        
         // Try to access via Function constructor (safe eval) to access script-scoped variables
         try {
             // eslint-disable-next-line no-new-func

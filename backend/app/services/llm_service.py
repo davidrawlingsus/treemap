@@ -155,15 +155,15 @@ class LLMService:
             model_lower = model.lower()
             models_without_params = ['o1', 'o1-preview', 'o1-mini']
             models_without_temperature = ['gpt-4o', 'gpt-4o-mini'] + models_without_params
-            models_without_max_tokens = ['gpt-4o', 'gpt-4o-mini'] + models_without_params
+            models_without_max_tokens = models_without_params  # o1* may not support max_tokens
             
             # Add temperature for models that support it
             if not any(model_lower.startswith(m) for m in models_without_temperature):
                 request_params["temperature"] = 0.7
             
-            # Add max_tokens for models that support it
+            # Add max_tokens for models that support it (16384 allows long outputs e.g. multiple ad variations)
             if not any(model_lower.startswith(m) for m in models_without_max_tokens):
-                request_params["max_tokens"] = max_tokens_override if max_tokens_override is not None else 4000
+                request_params["max_tokens"] = max_tokens_override if max_tokens_override is not None else 16384
             
             # Try the request, and if we get unsupported parameter errors, retry without them
             max_retries = 2
@@ -264,15 +264,15 @@ class LLMService:
             model_lower = model.lower()
             models_without_params = ['o1', 'o1-preview', 'o1-mini']
             models_without_temperature = ['gpt-4o', 'gpt-4o-mini'] + models_without_params
-            models_without_max_tokens = ['gpt-4o', 'gpt-4o-mini'] + models_without_params
+            models_without_max_tokens = models_without_params  # o1* may not support max_tokens
             
             # Add temperature for models that support it
             if not any(model_lower.startswith(m) for m in models_without_temperature):
                 request_params["temperature"] = 0.7
             
-            # Add max_tokens for models that support it
+            # Add max_tokens for models that support it (16384 allows long outputs e.g. multiple ad variations)
             if not any(model_lower.startswith(m) for m in models_without_max_tokens):
-                request_params["max_tokens"] = 4000
+                request_params["max_tokens"] = 16384
             
             # Try the request, and if we get unsupported parameter errors, retry without them
             max_retries = 2

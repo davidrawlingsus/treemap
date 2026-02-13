@@ -45,7 +45,8 @@
         let match;
         const replacements = [];
         while ((match = jsonRegex.exec(text)) !== null) {
-            const precedingText = text.substring(prevLastIndex, match.index);
+            const precedingTextStart = prevLastIndex;
+            const precedingText = text.substring(precedingTextStart, match.index);
             prevLastIndex = jsonRegex.lastIndex;
             const jsonContent = match[1];
             try {
@@ -55,6 +56,17 @@
                 }
                 const jsonData = JSON.parse(jsonContent);
                 const vocFromPreceding = extractVocEvidenceFromPrecedingText(precedingText);
+
+                // When VoC is extracted and added to card data, also include the VoC section
+                // in the replacement range so it's removed from the markdown (prevents duplication
+                // since VoC will be rendered inside the card's pe-fb-ad-wrapper__voc section)
+                let replStart = match.index;
+                if (vocFromPreceding.length > 0) {
+                    const vocIdx = precedingText.toLowerCase().lastIndexOf('voc evidence');
+                    if (vocIdx >= 0) {
+                        replStart = precedingTextStart + vocIdx;
+                    }
+                }
 
                 if (jsonData.ideas && Array.isArray(jsonData.ideas)) {
                     const ideas = jsonData.ideas;
@@ -66,7 +78,7 @@
                     }
                     const htmlObject = { content: jsonData.content || null, ideas };
                     jsonBlocks.push(htmlObject);
-                    replacements.push({ start: match.index, end: prevLastIndex, placeholder: jsonBlocks.length - 1 });
+                    replacements.push({ start: replStart, end: prevLastIndex, placeholder: jsonBlocks.length - 1 });
                 } else if (Array.isArray(jsonData)) {
                     const ideas = jsonData;
                     if (vocFromPreceding.length > 0 && ideas.length > 0) {
@@ -76,7 +88,7 @@
                         }
                     }
                     jsonBlocks.push({ content: null, ideas });
-                    replacements.push({ start: match.index, end: prevLastIndex, placeholder: jsonBlocks.length - 1 });
+                    replacements.push({ start: replStart, end: prevLastIndex, placeholder: jsonBlocks.length - 1 });
                 } else {
                     const idea = jsonData;
                     const isFBAd = !!(idea.primary_text && idea.headline && idea.call_to_action);
@@ -85,7 +97,7 @@
                         idea.voc_evidence = vocFromPreceding;
                     }
                     jsonBlocks.push({ content: null, ideas: [idea] });
-                    replacements.push({ start: match.index, end: prevLastIndex, placeholder: jsonBlocks.length - 1 });
+                    replacements.push({ start: replStart, end: prevLastIndex, placeholder: jsonBlocks.length - 1 });
                 }
             } catch (e) {
                 if (match[0].includes('```') && match[0].split('```').length >= 3) {
@@ -423,7 +435,9 @@
         
         // Style VoC Evidence sections that appear before ad cards
         // Permissive pattern: any "VoC Evidence" text (with optional bold/paragraph wrappers) followed by a <ul>
-        html = html.replace(/(?:<p>)?(?:<strong>)?VoC Evidence:?(?:<\/strong>)?(?:<\/p>)?[\s\S]*?<ul>([\s\S]*?)<\/ul>/gi, (match, listContent) => {
+        // IMPORTANT: negative lookbehind (?<!&quot;>) prevents matching "VoC Evidence" text INSIDE
+        // card HTML (e.g. pe-fb-ad-wrapper__voc-label), which would destroy the card structure
+        html = html.replace(/(?<!">)(?:<p>)?(?:<strong>)?VoC Evidence:?(?:<\/strong>)?(?:<\/p>)?[\s\S]*?<ul>([\s\S]*?)<\/ul>/gi, (match, listContent) => {
             // Extract list items and convert to styled callout items
             const items = [];
             listContent.replace(/<li>([^<]*)<\/li>/gi, (m, content) => {

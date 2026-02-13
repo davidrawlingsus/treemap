@@ -4879,6 +4879,7 @@ mark.highlight-brand {
 
 .ai-insights-content {
     flex: 1;
+    min-height: 0; /* Required for flex child with overflow to scroll properly */
     overflow-y: auto;
     padding: 24px;
 }
@@ -5739,6 +5740,7 @@ mark.highlight-brand {
 
 .ai-insights-content {
     flex: 1;
+    min-height: 0; /* Required for flex child with overflow to scroll properly */
     overflow-y: auto;
     padding: 0 10px;
     transition: opacity 0.2s ease;

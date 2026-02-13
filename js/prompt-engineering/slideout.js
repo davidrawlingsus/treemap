@@ -491,18 +491,12 @@
                             
                             // Show done icon
                             if (this.elements.chatSend) {
-                                // #region agent log
-                                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:493',message:'Setting done_icon via innerHTML',data:{elementExists:!!this.elements.chatSend},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2-race-condition'})}).catch(()=>{});
-                                // #endregion agent log
                                 this.elements.chatSend.innerHTML = '<img src="/images/done%20icon.png" alt="Done" width="20" height="20" id="slideoutChatSendIcon">';
                             }
 
                             // Reset to send icon after delay
                             setTimeout(() => {
                                 if (this.elements.chatSend) {
-                                    // #region agent log
-                                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'slideout.js:502',message:'Resetting to send_icon via innerHTML after delay',data:{delay:RESET_ICON_DELAY},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'H2-race-condition'})}).catch(()=>{});
-                                    // #endregion agent log
                                     this.elements.chatSend.innerHTML = '<img src="/images/send%20icon.png" alt="Send" width="20" height="20" id="slideoutChatSendIcon">';
                                     this.elements.chatSend.disabled = false;
                                 }

@@ -89,13 +89,10 @@
             const currentScrollTop = container.scrollTop;
             const lastScrollTop = parseFloat(itemElement.dataset.lastScrollTop || '0');
             
-            // If user scrolled down manually (away from top), disable auto-scroll
-            if (currentScrollTop > lastScrollTop + 5) { // 5px threshold to account for minor adjustments
-                console.log('[STREAMING] User scrolled down manually, disabling auto-scroll for streaming item', {
-                    streamingId,
-                    currentScrollTop,
-                    lastScrollTop
-                });
+            // Only disable when user scrolls UP (to read earlier content). Programmatic scroll-to-bottom
+            // always increases scrollTop, so we never disable during streaming.
+            if (currentScrollTop < lastScrollTop - 5) {
+                console.log('[STREAMING] User scrolled up, disabling auto-scroll', { streamingId, currentScrollTop, lastScrollTop });
                 itemElement.dataset.autoScrollEnabled = 'false';
             }
             
@@ -199,7 +196,7 @@
         // Store raw text in WeakMap to avoid data attribute size limits
         const currentText = streamingContentStore.get(contentElement) || '';
         const newText = currentText + chunk;
-        
+
         try {
             // Store in WeakMap instead of data attribute
             streamingContentStore.set(contentElement, newText);
@@ -253,7 +250,7 @@
             const cardsChanged = newCards.length !== existingCards.length ||
                                 newCardSignatures.size !== existingCardSignatures.size ||
                                 !Array.from(newCardSignatures).every(sig => existingCardSignatures.has(sig));
-            
+
             if (!cardsChanged && existingCards.length > 0) {
                 // Cards haven't changed - preserve existing card DOM elements entirely
                 // and only update the streaming content that appears after the last card
@@ -322,7 +319,7 @@
                     preservedCards.set(signature, card);
                 }
             });
-            
+
             // Replace new cards with preserved cards where signatures match
             newCards.forEach(newCard => {
                 const signature = getCardSignature(newCard);
@@ -332,7 +329,7 @@
                     newCard.parentNode.replaceChild(preservedCard, newCard);
                 }
             });
-            
+
             // Clear existing content
             while (contentElement.firstChild) {
                 contentElement.removeChild(contentElement.firstChild);
@@ -342,6 +339,7 @@
             while (tempDiv.firstChild) {
                 contentElement.appendChild(tempDiv.firstChild);
             }
+
         } catch (error) {
             console.error('[STREAMING] Error in appendToStreamingItem:', error);
             throw error;
@@ -374,25 +372,9 @@
         // But first check if header will reach top after this scroll
         requestAnimationFrame(() => {
             if (container && itemElement.dataset.autoScrollEnabled === 'true') {
-                // Store current scroll position
-                const scrollBefore = container.scrollTop;
-                
-                // Scroll to bottom
+                // Scroll to bottom (handler only disables on scroll-up, not scroll-down)
                 container.scrollTop = container.scrollHeight;
                 itemElement.dataset.lastScrollTop = container.scrollTop.toString();
-                
-                // Check if header is now at top AFTER scrolling
-                // Use requestAnimationFrame to ensure DOM has updated
-                requestAnimationFrame(() => {
-                    if (_isHeaderAtTop(itemElement, container)) {
-                        console.log('[STREAMING] Streaming header reached top of viewport after scroll, disabling auto-scroll', {
-                            streamingId: itemElement.dataset.streamingId,
-                            scrollBefore,
-                            scrollAfter: container.scrollTop
-                        });
-                        itemElement.dataset.autoScrollEnabled = 'false';
-                    }
-                });
             }
         });
     }

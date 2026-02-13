@@ -59,6 +59,45 @@
         },
 
         /**
+         * Get prompt by purpose (e.g. ad_iterate)
+         * @param {string} clientId - Client ID (UUID)
+         * @param {string} purpose - prompt_purpose value (e.g. 'ad_iterate')
+         * @returns {Promise<{id: string, name: string}>} Prompt with id and name
+         * @throws {Error} If no prompt found (404) or auth error
+         */
+        async getPromptByPurpose(clientId, purpose) {
+            try {
+                const url = `${API_BASE_URL}/api/clients/${clientId}/prompts/by-purpose?purpose=${encodeURIComponent(purpose)}`;
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: getAuthHeaders()
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        throw new Error('Authentication required');
+                    }
+                    if (response.status === 404) {
+                        const errorData = await response.json().catch(() => ({}));
+                        throw new Error(errorData.detail || `No prompt with purpose '${purpose}' configured`);
+                    }
+                    const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+                    throw new Error(errorData.detail || `Request failed with status ${response.status}`);
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error('[CLIENT_PROMPT_API] getPromptByPurpose() error', {
+                    clientId,
+                    purpose,
+                    error: error.message || String(error),
+                    timestamp: new Date().toISOString()
+                });
+                throw error;
+            }
+        },
+
+        /**
          * Execute a prompt with streaming response (client-facing)
          * @param {string} clientId - Client ID (UUID)
          * @param {string} promptId - Prompt ID (UUID)
