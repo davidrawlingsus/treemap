@@ -7124,6 +7124,31 @@
         }
         
         /**
+         * Copy the content of a settings field to the clipboard
+         */
+        function copySettingsFieldContent(fieldName) {
+            const textareaId = fieldName === 'businessSummary' ? 'settingsBusinessSummary' : 'settingsToneOfVoice';
+            const textarea = document.getElementById(textareaId);
+            if (!textarea || !textarea.value.trim()) return;
+            
+            navigator.clipboard.writeText(textarea.value.trim()).then(() => {
+                // Brief visual feedback on the copy button
+                const fieldId = fieldName === 'businessSummary' ? 'businessSummaryField' : 'toneOfVoiceField';
+                const copyBtn = document.querySelector(`#${fieldId} .settings-copy-btn`);
+                if (copyBtn) {
+                    copyBtn.classList.add('copied');
+                    copyBtn.title = 'Copied!';
+                    setTimeout(() => {
+                        copyBtn.classList.remove('copied');
+                        copyBtn.title = 'Copy to clipboard';
+                    }, 1500);
+                }
+            }).catch(err => {
+                console.error('[Settings] Failed to copy:', err);
+            });
+        }
+        
+        /**
          * Render settings fields in view mode if they have content
          */
         function renderSettingsFields() {
@@ -16476,12 +16501,17 @@
                     <div class="settings-field settings-field--toggleable" id="businessSummaryField">
                         <div class="settings-field-header">
                             <label for="settingsBusinessSummary">Business Summary</label>
-                            <button type="button" class="settings-edit-btn" onclick="toggleSettingsFieldEdit('businessSummary')" title="Edit">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                                </svg>
-                            </button>
+                            <div class="settings-field-actions">
+                                <button type="button" class="settings-copy-btn" onclick="copySettingsFieldContent('businessSummary')" title="Copy to clipboard">
+                                    <img src="/images/copy_button.png" alt="Copy" width="14" height="14">
+                                </button>
+                                <button type="button" class="settings-edit-btn" onclick="toggleSettingsFieldEdit('businessSummary')" title="Edit">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                         <div class="settings-rendered-view" id="businessSummaryRendered"></div>
                         <textarea id="settingsBusinessSummary" rows="6" placeholder="Describe your business, products/services, target audience, and unique value proposition..." style="display: none;"></textarea>
@@ -16497,6 +16527,9 @@
                         <div class="settings-field-header">
                             <label for="settingsToneOfVoice">Brand Voice Description</label>
                             <div class="settings-field-actions">
+                                <button type="button" class="settings-copy-btn" onclick="copySettingsFieldContent('toneOfVoice')" title="Copy to clipboard">
+                                    <img src="/images/copy_button.png" alt="Copy" width="14" height="14">
+                                </button>
                                 <button type="button" class="settings-edit-btn settings-edit-btn--ai" onclick="generateToneOfVoiceWithAI()" id="generateToneBtn" title="Generate with AI">
                                     <img src="/images/ai_insights.png" alt="" aria-hidden="true" width="18" height="18">
                                 </button>

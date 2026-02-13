@@ -6130,6 +6130,44 @@ mark.highlight-brand {
     animation: settings-spinner-rotate 1s linear infinite;
 }
 
+/* Copy Button */
+.settings-copy-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.settings-copy-btn img {
+    opacity: 0.45;
+    transition: opacity 0.2s ease;
+}
+
+.settings-copy-btn:hover {
+    background: #f7fafc;
+    border-color: #cbd5e0;
+}
+
+.settings-copy-btn:hover img {
+    opacity: 0.7;
+}
+
+.settings-copy-btn.copied {
+    background: #f0fff4;
+    border-color: #9ae6b4;
+}
+
+.settings-copy-btn.copied img {
+    opacity: 0.8;
+}
+
 /* Field Actions Container */
 .settings-field-actions {
     display: flex;
