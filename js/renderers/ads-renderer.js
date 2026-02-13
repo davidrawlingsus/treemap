@@ -188,17 +188,30 @@ function renderAdCard(ad) {
         </button>
     `).join('');
     
+    // Angle pill (from full_json, with backward compat for testType)
+    const angle = ad.full_json?.angle || ad.full_json?.testType || '';
+    const anglePillHtml = angle
+        ? `<div class="ads-card__angle-wrapper">
+               <button class="ads-card__angle-pill" data-ad-id="${id}" title="Click to change angle">${escapeHtml(angle)}</button>
+           </div>`
+        : `<div class="ads-card__angle-wrapper">
+               <button class="ads-card__angle-pill ads-card__angle-pill--empty" data-ad-id="${id}" title="Click to set angle">+ Angle</button>
+           </div>`;
+    
     return `
         <div class="ads-card" data-ad-id="${id}">
             <div class="ads-card__header">
-                <div class="ads-card__status-wrapper">
-                    <button class="ads-card__status ${statusClass}" data-ad-id="${id}" title="Click to change status">
-                        ${escapeHtml(statusConfig.label)}
-                        <span class="ads-card__status-chevron">▼</span>
-                    </button>
-                    <div class="ads-card__status-dropdown">
-                        ${statusOptionsHtml}
+                <div class="ads-card__header-left">
+                    <div class="ads-card__status-wrapper">
+                        <button class="ads-card__status ${statusClass}" data-ad-id="${id}" title="Click to change status">
+                            ${escapeHtml(statusConfig.label)}
+                            <span class="ads-card__status-chevron">▼</span>
+                        </button>
+                        <div class="ads-card__status-dropdown">
+                            ${statusOptionsHtml}
+                        </div>
                     </div>
+                    ${anglePillHtml}
                 </div>
                 <div class="ads-card__actions">
                     <button class="ads-card__iterate" data-ad-id="${id}" title="Iterate on this ad">
@@ -532,6 +545,17 @@ function attachEventListeners(container) {
             return;
         }
         
+        // Handle angle pill click (open angle dropdown)
+        const anglePill = e.target.closest('.ads-card__angle-pill');
+        if (anglePill) {
+            e.stopPropagation();
+            const adId = anglePill.dataset.adId;
+            if (adId) {
+                openAngleDropdown(adId, anglePill);
+            }
+            return;
+        }
+        
         // Handle status pill click (toggle dropdown)
         const statusBtn = e.target.closest('.ads-card__status');
         if (statusBtn && !e.target.closest('.ads-card__status-dropdown')) {
@@ -620,6 +644,10 @@ function attachEventListeners(container) {
                 w.classList.remove('open');
             });
         }
+        // Close angle dropdown if clicking outside
+        if (!e.target.closest('.ads-card__angle-dropdown') && !e.target.closest('.ads-card__angle-pill')) {
+            closeAngleDropdown();
+        }
     };
     document.addEventListener('click', _adsDocumentClickHandler);
     
@@ -705,6 +733,239 @@ function attachEventListeners(container) {
         }
     };
     container.addEventListener('keydown', _adsContainerKeydownHandler);
+}
+
+// ============ Angle Dropdown ============
+
+// Track the active angle dropdown element (appended to body)
+let _activeAngleDropdown = null;
+
+/**
+ * Get unique angle values across all ads
+ * @returns {string[]} Sorted array of unique angle strings
+ */
+function getUniqueAngleValues() {
+    const ads = getAdsCache();
+    const values = new Set();
+    ads.forEach(ad => {
+        const value = ad.full_json?.angle || ad.full_json?.testType;
+        if (value && typeof value === 'string' && value.trim()) {
+            values.add(value.trim());
+        }
+    });
+    return Array.from(values).sort();
+}
+
+/**
+ * Open the angle dropdown for an ad
+ * @param {string} adId - Ad UUID
+ * @param {HTMLElement} pill - The angle pill button that was clicked
+ */
+function openAngleDropdown(adId, pill) {
+    // Close any existing dropdown
+    closeAngleDropdown();
+    
+    const ad = getAdsCache().find(a => a.id === adId);
+    if (!ad) return;
+    
+    const currentAngle = ad.full_json?.angle || ad.full_json?.testType || '';
+    const availableAngles = getUniqueAngleValues();
+    
+    // Create dropdown element
+    const dropdown = document.createElement('div');
+    dropdown.className = 'ads-card__angle-dropdown';
+    dropdown.id = 'active-angle-dropdown';
+    dropdown.dataset.adId = adId;
+    dropdown.onclick = (e) => e.stopPropagation();
+    
+    dropdown.innerHTML = `
+        <div class="ads-card__angle-search-container">
+            <input type="text" 
+                   class="ads-card__angle-search" 
+                   placeholder="Search or create new angle..."
+                   data-ad-id="${adId}">
+        </div>
+        <div class="ads-card__angle-options" id="angle-options-list"></div>
+    `;
+    
+    // Append to body with fixed positioning
+    document.body.appendChild(dropdown);
+    _activeAngleDropdown = dropdown;
+    
+    // Position relative to the pill
+    const pillRect = pill.getBoundingClientRect();
+    dropdown.style.position = 'fixed';
+    dropdown.style.left = pillRect.left + 'px';
+    dropdown.style.width = '260px';
+    dropdown.style.zIndex = '10001';
+    
+    // Determine if dropdown should go above or below
+    const spaceBelow = window.innerHeight - pillRect.bottom;
+    const spaceAbove = pillRect.top;
+    if (spaceBelow < 220 && spaceAbove > spaceBelow) {
+        dropdown.style.bottom = (window.innerHeight - pillRect.top + 4) + 'px';
+        dropdown.style.top = 'auto';
+    } else {
+        dropdown.style.top = (pillRect.bottom + 4) + 'px';
+    }
+    
+    // Render options
+    renderAngleOptions(dropdown, availableAngles, currentAngle, adId);
+    
+    // Focus search input
+    const searchInput = dropdown.querySelector('.ads-card__angle-search');
+    if (searchInput) {
+        setTimeout(() => searchInput.focus(), 10);
+        
+        // Filter on input
+        searchInput.addEventListener('input', () => {
+            renderAngleOptions(dropdown, availableAngles, currentAngle, adId);
+        });
+        
+        // Keyboard handling
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const term = searchInput.value.trim();
+                if (term) {
+                    // If exact match exists, select it; otherwise create new
+                    const exactMatch = availableAngles.find(a => a.toLowerCase() === term.toLowerCase());
+                    handleAngleChange(adId, exactMatch || term);
+                }
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                closeAngleDropdown();
+            }
+        });
+    }
+}
+
+/**
+ * Close the active angle dropdown
+ */
+function closeAngleDropdown() {
+    if (_activeAngleDropdown) {
+        _activeAngleDropdown.remove();
+        _activeAngleDropdown = null;
+    }
+}
+
+/**
+ * Render angle dropdown options
+ * @param {HTMLElement} dropdown - Dropdown container
+ * @param {string[]} availableAngles - All unique angle values
+ * @param {string} currentAngle - Currently selected angle
+ * @param {string} adId - Ad UUID
+ */
+function renderAngleOptions(dropdown, availableAngles, currentAngle, adId) {
+    const optionsList = dropdown.querySelector('#angle-options-list');
+    if (!optionsList) return;
+    
+    const searchInput = dropdown.querySelector('.ads-card__angle-search');
+    const searchTerm = (searchInput?.value || '').trim().toLowerCase();
+    
+    const filtered = availableAngles.filter(a => a.toLowerCase().includes(searchTerm));
+    
+    let html = '';
+    
+    // Existing options
+    filtered.forEach(angle => {
+        const isSelected = angle.toLowerCase() === currentAngle.toLowerCase();
+        html += `
+            <div class="ads-card__angle-option ${isSelected ? 'selected' : ''}" 
+                 data-angle="${escapeHtml(angle)}" data-ad-id="${adId}">
+                <span class="ads-card__angle-option-label">${escapeHtml(angle)}</span>
+                ${isSelected ? '<span class="ads-card__angle-option-check">✓</span>' : ''}
+            </div>
+        `;
+    });
+    
+    // "Create new" option if search term doesn't exactly match any existing
+    if (searchTerm && !availableAngles.some(a => a.toLowerCase() === searchTerm)) {
+        html += `
+            <div class="ads-card__angle-option ads-card__angle-option--create" 
+                 data-angle="${escapeHtml(searchTerm)}" data-ad-id="${adId}">
+                <span class="ads-card__angle-option-create-icon">+</span>
+                <span>Create "${escapeHtml(searchTerm)}"</span>
+            </div>
+        `;
+    }
+    
+    if (!html && !searchTerm) {
+        html = '<div class="ads-card__angle-empty">No angles yet. Type to create one.</div>';
+    } else if (!html && searchTerm) {
+        html = `
+            <div class="ads-card__angle-option ads-card__angle-option--create" 
+                 data-angle="${escapeHtml(searchTerm)}" data-ad-id="${adId}">
+                <span class="ads-card__angle-option-create-icon">+</span>
+                <span>Create "${escapeHtml(searchTerm)}"</span>
+            </div>
+        `;
+    }
+    
+    optionsList.innerHTML = html;
+    
+    // Attach click handlers to options
+    optionsList.querySelectorAll('.ads-card__angle-option').forEach(option => {
+        option.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const angle = option.dataset.angle;
+            const optAdId = option.dataset.adId;
+            if (angle && optAdId) {
+                handleAngleChange(optAdId, angle);
+            }
+        });
+    });
+}
+
+/**
+ * Handle angle change for an ad
+ * @param {string} adId - Ad UUID
+ * @param {string} newAngle - New angle value
+ */
+async function handleAngleChange(adId, newAngle) {
+    closeAngleDropdown();
+    
+    try {
+        // Get current ad
+        const ads = getAdsCache();
+        const ad = ads.find(a => a.id === adId);
+        if (!ad) throw new Error('Ad not found');
+        
+        // Update via API
+        await updateFacebookAd(adId, { angle: newAngle });
+        
+        // Update cache - merge angle into full_json
+        const updatedFullJson = { ...ad.full_json, angle: newAngle };
+        // Clean up legacy testType if present
+        delete updatedFullJson.testType;
+        updateAdInCache(adId, { full_json: updatedFullJson });
+        
+        // Save scroll position
+        const windowScrollYBefore = window.scrollY;
+        const mainContainer = document.getElementById('mainContainer');
+        const mainContainerScrollTopBefore = mainContainer ? mainContainer.scrollTop : 0;
+        
+        // Re-render
+        if (window.renderAdsPage) {
+            window.renderAdsPage();
+        }
+        
+        // Restore scroll position
+        if (windowScrollYBefore > 0) {
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    window.scrollTo({ top: windowScrollYBefore, behavior: 'auto' });
+                    if (mainContainer && mainContainerScrollTopBefore > 0) {
+                        mainContainer.scrollTop = mainContainerScrollTopBefore;
+                    }
+                });
+            });
+        }
+    } catch (error) {
+        console.error('[AdsRenderer] Failed to update angle:', error);
+        alert('Failed to update angle: ' + error.message);
+    }
 }
 
 /**

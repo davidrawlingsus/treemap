@@ -182,7 +182,7 @@
     gap: 8px;
 }
 
-.idea-header-row > .idea-test-type {
+.idea-header-row > .idea-angle {
     max-width: calc(100% - 36px);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -206,7 +206,7 @@
     padding: 0;
 }
 
-.idea-test-type {
+.idea-angle {
     font-size: 10px;
     font-weight: 600;
     color: #4a5568;
@@ -228,7 +228,7 @@
     width: 100%;
 }
 
-.idea-container.selected .idea-test-type {
+.idea-container.selected .idea-angle {
     background: #c6f6d5;
     color: #22543d;
 }
@@ -326,7 +326,7 @@
         gap: 8px;
     }
     
-    .idea-test-type {
+    .idea-angle {
         font-size: 10px;
         padding: 2px 6px;
     }

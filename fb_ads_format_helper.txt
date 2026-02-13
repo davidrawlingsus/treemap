@@ -23,7 +23,7 @@
     "type": "image",
     "image_hash": null
   },
-  "testType": "Story",
+  "angle": "Story",
   "origin": "VoC / Pain Point / Specific Theme"
 }
 ```
@@ -93,7 +93,7 @@ Each ad MUST be in its own separate ```json block. Output ads one at a time as y
     "type": "image",
     "image_hash": null
   },
-  "testType": "Story or Surprise or Curiosity or Guidance or Instructional or Hyperbole or Newness or Ranking",
+  "angle": "Story or Surprise or Curiosity or Guidance or Instructional or Hyperbole or Newness or Ranking",
   "origin": "{Source Type} / {Category} / {Theme}"
 }
 ```
@@ -121,7 +121,7 @@ Each ad MUST be in its own separate ```json block. Output ads one at a time as y
     "type": "image",
     "image_hash": null
   },
-  "testType": "Story",
+  "angle": "Story",
   "origin": "VoC / Procrastination + Process Fear / Conversion Barriers"
 }
 ```
@@ -174,7 +174,7 @@ Each ad MUST be in its own separate ```json block. Output ads one at a time as y
    - ✅ `call_to_action` - must be a valid CTA value (see list below)
    - ✅ `destination_url` - complete URL with https://
    - ✅ `media` - object with `type: "image"` and `image_hash: null`
-   - ✅ `testType` - one of the 8 creative lanes
+   - ✅ `angle` - one of the 8 creative lanes
    - ✅ `origin` - format: Source / Category / Theme
 
 8. **Call to Action Values (MUST USE ONE OF THESE)**
@@ -240,7 +240,7 @@ Before you return ANY response containing JSON, you MUST verify ALL of the follo
 - [ ] `destination_url` is a complete URL with https://
 - [ ] `media.type` is set to "image"
 - [ ] `media.image_hash` is set to null
-- [ ] `testType` matches one of the 8 creative lanes
+- [ ] `angle` matches one of the 8 creative lanes
 - [ ] `origin` follows the format: Source / Category / Theme
 
 **STEP 7: Content Quality Check**

@@ -12,7 +12,7 @@ let adsCurrentClientId = null;
 
 // Filter/Sort/Search state
 let adsSearchTerm = '';
-let adsFilters = [];  // [{field: 'testType', value: 'Social Proof'}, ...]
+let adsFilters = [];  // [{field: 'angle', value: 'Social Proof'}, ...]
 let adsSortBy = 'created_at';
 let adsSortOrder = 'desc';
 
@@ -135,7 +135,7 @@ export function setAdsFilters(filters) {
 
 /**
  * Add a filter
- * @param {string} field - Field name (testType, origin)
+ * @param {string} field - Field name (angle, origin)
  * @param {string} value - Filter value
  */
 export function addAdsFilter(field, value) {

@@ -16,7 +16,7 @@ Each idea must be in its own separate ```json block. Output ideas one at a time 
 {
   "id": "unique-id-001",
   "title": "Actionable description (≤10 words)",
-  "testType": "Headline Hooks | Social Proof | Pain Point | Trust Building | Other",
+  "angle": "Headline Hooks | Social Proof | Pain Point | Trust Building | Other",
   "application": "Facebook Ads - Primary Text + Headline",
   "origin": "{Source Type} / {Category} / {Theme}",
   "details": "Lane: <Lane Name>\\nConcept name: <Name>\\nHeadline / hook: <Hook>\\nEmotional driver: <Emotion + why>\\nWhy this works (psychology): <2–4 sentences>\\nSuggested format: <video/static/UGC/founder/demo>\\nVoC phrases to include: <3–6 verbatim or near-verbatim phrases>\\nCTA: <CTA>\\nPrimary test variable: <single lever only>"
@@ -27,7 +27,7 @@ Each idea must be in its own separate ```json block. Output ideas one at a time 
 {
   "id": "unique-id-002",
   "title": "Actionable description (≤10 words)",
-  "testType": "Headline Hooks | Social Proof | Pain Point | Trust Building | Other",
+  "angle": "Headline Hooks | Social Proof | Pain Point | Trust Building | Other",
   "application": "Facebook Ads - Primary Text + Headline",
   "origin": "{Source Type} / {Category} / {Theme}",
   "details": "Lane: <Lane Name>\\nConcept name: <Name>\\nHeadline / hook: <Hook>\\nEmotional driver: <Emotion + why>\\nWhy this works (psychology): <2–4 sentences>\\nSuggested format: <video/static/UGC/founder/demo>\\nVoC phrases to include: <3–6 verbatim or near-verbatim phrases>\\nCTA: <CTA>\\nPrimary test variable: <single lever only>"

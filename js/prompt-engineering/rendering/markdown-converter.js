@@ -740,7 +740,7 @@
         // Extract fields from the idea object and escape for HTML safety
         const id = DOM.escapeHtml(idea.id || '');
         const title = DOM.escapeHtml(idea.title || idea.name || 'Untitled Idea');
-        const testType = DOM.escapeHtml(idea.testType || idea.test_type || idea.type || '');
+        const angle = DOM.escapeHtml(idea.angle || idea.testType || idea.test_type || idea.type || '');
         const application = DOM.escapeHtml(idea.application || '');
         const origin = DOM.escapeHtml(idea.origin || '');
         const details = DOM.escapeHtml(idea.details || idea.description || '');
@@ -769,7 +769,7 @@
         return `
             <div class="pe-idea-card" ${id ? `data-idea-id="${id}"` : ''}>
                 <div class="pe-idea-card__top">
-                    ${testType ? `<div class="pe-idea-card__badge">${testType}</div>` : '<div></div>'}
+                    ${angle ? `<div class="pe-idea-card__badge">${angle}</div>` : '<div></div>'}
                     <button class="pe-idea-card__add" type="button" title="Add idea" data-idea='${DOM.escapeHtmlForAttribute(JSON.stringify(idea))}'>
                         +
                     </button>

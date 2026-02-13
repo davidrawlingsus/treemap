@@ -31,6 +31,7 @@ class FacebookAdUpdate(BaseModel):
     destination_url: Optional[str] = None
     image_hash: Optional[str] = None
     image_url: Optional[str] = Field(None, description="Image URL from ad_images inventory")
+    angle: Optional[str] = Field(None, description="Ad angle (stored in full_json)")
     voc_evidence: Optional[List[str]] = None
     status: Optional[str] = None
 

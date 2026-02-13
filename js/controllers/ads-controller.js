@@ -131,7 +131,11 @@ function getFilteredAndSortedAds(ads) {
                 return adStatus === filter.value.toLowerCase();
             }
             // Other fields are in full_json
-            const value = ad.full_json?.[filter.field];
+            // For 'angle', also check legacy 'testType' key for pre-migration data
+            let value = ad.full_json?.[filter.field];
+            if (!value && filter.field === 'angle') {
+                value = ad.full_json?.testType;
+            }
             if (!value) return false;
             return value.toLowerCase() === filter.value.toLowerCase();
         });
@@ -160,7 +164,11 @@ function getUniqueFilterValues(field) {
     // Other fields come from full_json
     const values = new Set();
     ads.forEach(ad => {
-        const value = ad.full_json?.[field];
+        // For 'angle', also check legacy 'testType' key for pre-migration data
+        let value = ad.full_json?.[field];
+        if (!value && field === 'angle') {
+            value = ad.full_json?.testType;
+        }
         if (value && typeof value === 'string' && value.trim()) {
             values.add(value.trim());
         }

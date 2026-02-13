@@ -35,7 +35,7 @@ Each idea MUST be in its own separate ```json block. Output ideas one at a time 
 {
   "id": "unique-id-001",
   "title": "Actionable description (≤10 words)",
-  "testType": "A one or two word label that describes the type of test",
+  "angle": "A one or two word label that describes the type of test",
   "application": "Where this is going to be tested, eg. Facebook Ads, Homepage, PDP etc",
   "origin": "{Source Type} / {Category} / {Theme}",
   "details": "The details of the proposed test. Use **Attribute Name:** format for labels. Always include **VoC evidence:** with 3–6 verbatim or near-verbatim phrases. Use \\n for line breaks between sections."
@@ -47,7 +47,7 @@ Each idea MUST be in its own separate ```json block. Output ideas one at a time 
 {
   "id": "rank-001",
   "title": "3 Types of People Who Finally Got Their Plate",
-  "testType": "Listicle Ranking",
+  "angle": "Listicle Ranking",
   "application": "Facebook Ads — Carousel or Video",
   "origin": "VoC / Process Fear / Exclusivity Misconception",
   "details": "Hook:\\nThere are 3 types of people who finally stopped putting off a private plate.\\n\\nType 1: The \\\"I Thought It Was Paperwork Hell\\\" Person\\n\\\"I thought it was loads of paperwork, hassle and expense.\\\"\\nTurns out? Absolute Reg does it all. You literally just choose your plate and they handle the DVLA nonsense.\\n\\n**VoC evidence:**\\n- \\\"I didn't think I was the type of person to be accepted\\\"\\n- \\\"I thought it was loads of paperwork, hassle and expense\\\"\\n- \\\"I thought it would take weeks\\\"\\n\\nPriority: High — Directly confronts exclusivity belief and paperwork fear."

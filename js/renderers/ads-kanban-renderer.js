@@ -104,12 +104,12 @@ function renderKanbanCard(ad) {
     const id = escapeHtml(ad.id || '');
     const headline = escapeHtml(ad.headline || 'Untitled Ad');
     const primaryText = escapeHtml((ad.primary_text || '').substring(0, 100));
-    const testType = escapeHtml(ad.full_json?.testType || '');
+    const angle = escapeHtml(ad.full_json?.angle || '');
     
     return `
         <div class="ads-kanban__card" draggable="true" data-ad-id="${id}">
             <div class="ads-kanban__card-headline">${headline}</div>
-            ${testType ? `<div class="ads-kanban__card-type">${testType}</div>` : ''}
+            ${angle ? `<div class="ads-kanban__card-type">${angle}</div>` : ''}
             ${primaryText ? `<div class="ads-kanban__card-preview">${primaryText}${ad.primary_text?.length > 100 ? '...' : ''}</div>` : ''}
             <div class="ads-kanban__card-drag-handle">⋮⋮</div>
         </div>

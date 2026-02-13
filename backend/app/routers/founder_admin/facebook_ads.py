@@ -117,9 +117,17 @@ def update_facebook_ad(
     # Handle image_url - store it in full_json
     image_url = update_data.pop('image_url', None)
     if image_url is not None:
-        # Update full_json to include image_url
         full_json = copy.deepcopy(ad.full_json) if ad.full_json else {}
         full_json['image_url'] = image_url
+        ad.full_json = full_json
+    
+    # Handle angle - store it in full_json
+    angle = update_data.pop('angle', None)
+    if angle is not None:
+        full_json = copy.deepcopy(ad.full_json) if ad.full_json else {}
+        full_json['angle'] = angle
+        # Remove legacy testType key if present
+        full_json.pop('testType', None)
         ad.full_json = full_json
     
     # Update other fields

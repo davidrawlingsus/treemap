@@ -559,8 +559,8 @@
         }
 
         // Map idea card fields to insight schema
-        // Badge content (testType) - this is the type of test (headlines, social proof, lead-in, etc.)
-        const badgeContent = ideaData.testType || ideaData.test_type || ideaData.type || '';
+        // Badge content (angle) - this is the angle/type of test (headlines, social proof, lead-in, etc.)
+        const badgeContent = ideaData.angle || ideaData.testType || ideaData.test_type || ideaData.type || '';
         // Application field from idea card - comma-separated values (homepage, pdp, google ad, etc.)
         const applicationField = ideaData.application || null;
         // Details/description goes to notes (the WYSIWYG body) and description
