@@ -133,9 +133,16 @@
             <div class="panel mri-results" id="mriResults" style="display: none;">
                 <div class="mri-report-header">
                     <h2 id="mriReportTitle" class="mri-report-title">Ad Creative MRI</h2>
-                    <button type="button" class="btn btn-secondary mri-back-to-setup" id="backToSetupButton" style="display: none;">
-                        Back to setup
-                    </button>
+                    <div class="mri-report-header-actions">
+                        <button type="button" class="mri-edit-pencil-btn" id="mriEditButton" title="Edit report" aria-label="Edit report">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                        <button type="button" class="btn btn-primary mri-save-btn" id="mriSaveButton">Save</button>
+                        <button type="button" class="btn btn-secondary mri-cancel-btn" id="mriCancelEditButton">Cancel</button>
+                        <button type="button" class="btn btn-secondary mri-back-to-setup" id="backToSetupButton" style="display: none;">
+                            Back to setup
+                        </button>
+                    </div>
                 </div>
                 <p class="mri-panel-desc" id="mriLabel">Copy-based effectiveness diagnostics.</p>
                 <div id="mriLoading" class="mri-loading mri-loading--active" style="display: none;">
@@ -219,6 +226,7 @@
         import { renderAllMriCharts } from '/js/renderers/mri-charts.js';
         import { renderFBAdMockup, formatCTA, extractDomain, formatPrimaryText } from '/js/renderers/fb-ad-mockup.js';
         import { toPascalCase } from '/js/utils/format.js';
+        import { updateCreativeMriReport } from '/js/services/api-creative-mri.js';
 
         const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
 
@@ -238,7 +246,9 @@
         const mriEmpty = document.getElementById('mriEmpty');
         const mriSummary = document.getElementById('mriSummary');
         const mriAdsList = document.getElementById('mriAdsList');
+        const mriImpactScoreboard = document.getElementById('mriImpactScoreboard');
         let mriMasonryInstance = null;
+        let currentReportData = null;
 
         async function loadClients() {
             const res = await fetch(`${API_BASE_URL}/api/clients`, { headers: getAuthHeaders() });
@@ -567,6 +577,64 @@
         document.getElementById('backToSetupButton').addEventListener('click', openSetupModal);
         document.getElementById('mriSetupModalClose').addEventListener('click', closeSetupModal);
         document.getElementById('mriSetupModalBackdrop').addEventListener('click', closeSetupModal);
+
+        let editModeOriginalSummary = '';
+        let editModeOriginalScoreboard = '';
+        const mriEditButton = document.getElementById('mriEditButton');
+        const mriSaveButton = document.getElementById('mriSaveButton');
+        const mriCancelEditButton = document.getElementById('mriCancelEditButton');
+        const mriReportHeaderActions = document.querySelector('.mri-report-header-actions');
+
+        function enterEditMode() {
+            if (!currentReportData || !mriSummary || !mriImpactScoreboard) return;
+            editModeOriginalSummary = mriSummary.innerHTML;
+            editModeOriginalScoreboard = mriImpactScoreboard.innerHTML;
+            mriSummary.contentEditable = 'true';
+            mriImpactScoreboard.contentEditable = 'true';
+            mriContent.classList.add('mri-edit-mode');
+            mriReportHeaderActions?.classList.add('is-edit-mode');
+        }
+
+        function exitEditMode() {
+            mriSummary.contentEditable = 'false';
+            mriImpactScoreboard.contentEditable = 'false';
+            mriContent.classList.remove('mri-edit-mode');
+            mriReportHeaderActions?.classList.remove('is-edit-mode');
+        }
+
+        mriEditButton?.addEventListener('click', () => {
+            if (!currentReportData) return;
+            enterEditMode();
+        });
+
+        mriCancelEditButton?.addEventListener('click', () => {
+            mriSummary.innerHTML = editModeOriginalSummary;
+            mriImpactScoreboard.innerHTML = editModeOriginalScoreboard;
+            exitEditMode();
+        });
+
+        mriSaveButton?.addEventListener('click', async () => {
+            if (!currentReportData) return;
+            const { report, clientId, reportId } = currentReportData;
+            const updatedReport = {
+                ...report,
+                edited_sections: {
+                    summary: mriSummary.innerHTML,
+                    impact_scoreboard: mriImpactScoreboard.innerHTML,
+                },
+            };
+            mriSaveButton.disabled = true;
+            try {
+                await updateCreativeMriReport(clientId, reportId, updatedReport, getAuthHeaders);
+                currentReportData = { ...currentReportData, report: updatedReport };
+                exitEditMode();
+            } catch (err) {
+                console.error('Failed to save report:', err);
+                alert('Failed to save: ' + (err.message || 'Unknown error'));
+            } finally {
+                mriSaveButton.disabled = false;
+            }
+        });
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && mriSetupModalOverlay.classList.contains('mri-setup-modal--open')) {
                 closeSetupModal();
@@ -608,11 +676,15 @@
             const ds = analysis?.analysis?.dataset_summary || {};
             const funnelShare = ds.funnel?.stage_share || {};
 
+            const edited = report.edited_sections || {};
+            if (edited.summary) mriSummary.innerHTML = edited.summary;
+            if (edited.impact_scoreboard) mriImpactScoreboard.innerHTML = edited.impact_scoreboard;
+
             const synth = report.synthesized_summary || {};
             if (synth.executive_summary || synth.dataset_overview || synth.top_5_high_impact_actions) {
-                renderSynthesizedSummary(synth);
+                renderSynthesizedSummary(synth, edited);
             } else {
-                renderLegacySummary(exec, funnelShare);
+                renderLegacySummary(exec, funnelShare, edited);
             }
 
             function renderBarRow(label, value, maxVal, fillClass = '') {
@@ -654,7 +726,7 @@
                 return escapeHtml(String(str)).replace(/\n/g, '<br>');
             }
 
-            function renderSynthesizedSummary(synth) {
+            function renderSynthesizedSummary(synth, edited = {}) {
                 const exec = synth.executive_summary || {};
                 const dataset = synth.dataset_overview || {};
                 const actions = synth.top_5_high_impact_actions || [];
@@ -667,6 +739,7 @@
                 const offer = synth.offer_and_conversion || {};
                 const roadmap = synth['90_day_creative_roadmap'] || {};
 
+                if (!edited.summary) {
                 document.getElementById('mriSummary').innerHTML = `
                     ${exec.core_diagnosis ? `<div class="mri-summary-block"><p><strong>Core diagnosis:</strong> ${formatSummaryText(exec.core_diagnosis)}</p></div>` : ''}
                     ${exec.primary_constraint ? `<div class="mri-summary-block"><p><strong>Primary constraint:</strong> ${formatSummaryText(exec.primary_constraint)}</p></div>` : ''}
@@ -677,6 +750,7 @@
                     ${proof.risk ? `<div class="mri-summary-block"><p><strong>Proof credibility risk:</strong> ${formatSummaryText(proof.risk)}</p></div>` : ''}
                     ${offer.conversion_structural_risk ? `<div class="mri-summary-block"><p><strong>Conversion risk:</strong> ${formatSummaryText(offer.conversion_structural_risk)}</p></div>` : ''}
                 `;
+                }
 
                 const actionCells = (actions || []).slice(0, 5).map((a, i) => `
                     <div class="impact-scoreboard-cell mri-action-item">
@@ -702,12 +776,15 @@
                     </div>
                 ` : '';
                 const cells = actionCells + roadmapHtml;
-                document.getElementById('mriImpactScoreboard').innerHTML = cells
-                    ? `<h3 class="mri-section-heading">Top 5 high-impact actions</h3><div class="impact-scoreboard-grid-inner">${cells}</div>`
-                    : '<p class="muted">No synthesized summary available. Run a new report with the synthesize prompt configured.</p>';
+                if (!edited.impact_scoreboard) {
+                    document.getElementById('mriImpactScoreboard').innerHTML = cells
+                        ? `<h3 class="mri-section-heading">Top 5 high-impact actions</h3><div class="impact-scoreboard-grid-inner">${cells}</div>`
+                        : '<p class="muted">No synthesized summary available. Run a new report with the synthesize prompt configured.</p>';
+                }
             }
 
-            function renderLegacySummary(exec, funnelShare) {
+            function renderLegacySummary(exec, funnelShare, edited = {}) {
+                if (!edited.summary) {
                 mriSummary.innerHTML = `
                     <p class="muted" style="margin-bottom: 12px;">Legacy summary — synthesized strategic summary not in this report. Run a new report with the "Ad Creative MRI - Synthesized Summary" prompt configured in Prompt Engineering to see the strategic diagnosis.</p>
                     <h3 class="mri-section-heading">Executive summary</h3>
@@ -721,6 +798,8 @@
                     <p><strong>Fast wins:</strong></p>
                     <ul>${(exec.fast_wins || []).map(w => `<li>${w}</li>`).join('')}</ul>
                 `;
+                }
+                if (!edited.impact_scoreboard) {
                 document.getElementById('mriImpactScoreboard').innerHTML = `
                     <p><strong>Performance lift potential:</strong> +${Math.round(exec.overall_effectiveness_score || 0) - 50}% (copy-based proxy)</p>
                     <p><strong>Biggest drags:</strong></p>
@@ -729,6 +808,7 @@
                     <ul>${(exec.fast_wins || []).slice(0, 3).map(w => `<li>${escapeHtml(w)}</li>`).join('')}</ul>
                     <p class="muted">Funnel mix: TOFU ${Math.round((funnelShare.tofu || 0) * 100)}% / MOFU ${Math.round((funnelShare.mofu || 0) * 100)}% / BOFU ${Math.round((funnelShare.bofu || 0) * 100)}%</p>
                 `;
+                }
             }
 
             renderAllMriCharts(report);
@@ -930,6 +1010,7 @@
                 const clientOpt = existingBrandSelect.options[existingBrandSelect.selectedIndex];
                 const meta = data.report.meta || {};
                 const adCount = meta.total_ads ?? '?';
+                currentReportData = { report: data.report, clientId, reportId };
                 renderReport(data.report, clientOpt?.textContent || '—', `${adCount} ads`);
                 return true;
             }
@@ -996,6 +1077,7 @@
                     const clientOpt = existingBrandSelect.options[existingBrandSelect.selectedIndex];
                     const meta = d.report.meta || {};
                     const adCount = meta.total_ads ?? '?';
+                    currentReportData = { report: d.report, clientId, reportId };
                     renderReport(d.report, clientOpt?.textContent || '—', `${adCount} ads`);
                     return;
                 }

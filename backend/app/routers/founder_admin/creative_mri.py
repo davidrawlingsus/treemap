@@ -661,6 +661,51 @@ def get_creative_mri_report(
     )
 
 
+@router.patch(
+    "/api/clients/{client_id}/creative-mri/reports/{report_id}",
+    response_model=CreativeMRIReportResponse,
+)
+def update_creative_mri_report(
+    client_id: UUID,
+    report_id: UUID,
+    body: dict,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Update a completed Creative MRI report (e.g. edited sections). Body: { "report": { ... } }."""
+    report_row = (
+        db.query(CreativeMRIReport)
+        .filter(
+            CreativeMRIReport.id == report_id,
+            CreativeMRIReport.client_id == client_id,
+        )
+        .first()
+    )
+    if not report_row:
+        raise HTTPException(status_code=404, detail="Report not found")
+    if report_row.status != "complete":
+        raise HTTPException(status_code=400, detail="Can only edit completed reports")
+    updated_report = body.get("report")
+    if not isinstance(updated_report, dict):
+        raise HTTPException(status_code=400, detail="Body must include 'report' object")
+    report_row.report_json = updated_report
+    db.commit()
+    db.refresh(report_row)
+    return CreativeMRIReportResponse(
+        id=report_row.id,
+        client_id=report_row.client_id,
+        ad_library_import_id=report_row.ad_library_import_id,
+        status=report_row.status,
+        report=report_row.report_json,
+        error_message=report_row.error_message,
+        progress_current=report_row.progress_current,
+        progress_total=report_row.progress_total,
+        progress_message=report_row.progress_message,
+        created_at=report_row.created_at,
+        completed_at=report_row.completed_at,
+    )
+
+
 @router.get(
     "/api/clients/{client_id}/creative-mri/reports",
     response_model=CreativeMRIReportListResponse,
