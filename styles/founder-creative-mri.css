@@ -577,6 +577,9 @@
 .mri-chart--d3 > div {
   min-height: 180px;
 }
+.mri-chart--full-width {
+  grid-column: 1 / -1;
+}
 .mri-chart-bars {
   display: flex;
   flex-direction: column;
@@ -814,6 +817,33 @@
   .mri-ad-card {
     width: 100%;
   }
+}
+
+/* Ad → Landing page headline metric */
+.mri-lp-headline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  background: var(--bg, #f5f7fb);
+  border-radius: 8px;
+}
+.mri-lp-headline__stat {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text, #1a202c);
+}
+.mri-lp-headline__arrow {
+  font-size: 1.125rem;
+  color: var(--muted, #718096);
+}
+.mri-lp-headline__ratio {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted, #718096);
+  margin-left: auto;
 }
 
 /* History tab */

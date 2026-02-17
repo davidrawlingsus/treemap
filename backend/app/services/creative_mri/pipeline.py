@@ -143,6 +143,10 @@ def llm_pass(
             "replace_vs_refine": llm_out.get("replace_vs_refine") or {},
             "claim_audit": llm_out.get("claim_audit") or {},
             "video_first_2s": llm_out.get("video_first_2s") or {},
+            "reading_grade_level": (
+                llm_out.get("reading_grade_level")
+                or (llm_out.get("diagnostics", {}).get("copy_mechanics", {}).get("reading_grade_level"))
+            ),
         }
         ad["hook_type"] = llm_out.get("hook_type") or "unknown"
         ad["funnel_stage"] = (llm_out.get("funnel_stage") or "tofu").lower()
@@ -307,6 +311,7 @@ def aggregate(ads: List[Dict[str, Any]]) -> Dict[str, Any]:
                 "cta_type": llm.get("cta_type"),
                 "destination_url": a.get("destination_url"),
                 "destination_type": llm.get("destination_type"),
+                "reading_grade_level": llm.get("reading_grade_level") or (llm.get("diagnostics", {}).get("copy_mechanics", {}).get("reading_grade_level")),
             },
             "hook": {
                 "hook_text": llm.get("hook_phrase") or "",

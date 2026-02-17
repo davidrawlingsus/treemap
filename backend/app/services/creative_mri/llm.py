@@ -67,6 +67,7 @@ Output JSON schema (use exactly these keys):
   }},
   "cta_type": "string from CTA types list or null",
   "destination_type": "string from destination types list or null",
+  "reading_grade_level": "integer 1–16 Flesch-Kincaid grade level estimate of the combined ad copy (headline + primary_text). 5 = 5th-grader can read it, 8 = middle school, 12 = high-school senior, 16 = college graduate",
   "unsupported_claims": ["claim phrases with no proof nearby"],
   "what_to_change": ["1–3 concrete copy edits"]
 }}"""
@@ -162,6 +163,12 @@ def _validate_and_normalize(out: Dict[str, Any]) -> Dict[str, Any]:
         else:
             hs[k] = max(0, min(100, float(v)))
     out["hook_scores"] = hs
+
+    rgl = out.get("reading_grade_level")
+    if isinstance(rgl, (int, float)) and 1 <= rgl <= 16:
+        out["reading_grade_level"] = round(rgl)
+    else:
+        out["reading_grade_level"] = None
 
     mjt = (out.get("mofu_job_type") or "").lower().replace(" ", "_")
     out["mofu_job_type"] = mjt if mjt in VALID_MOFU_JOB_TYPES else ("unknown" if mjt else "not_applicable")

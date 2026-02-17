@@ -71,7 +71,7 @@ export function renderFBAdMockup({ adId, primaryText, headline, description, cta
             </div>
             <div class="pe-fb-ad__media ${imageUrl ? 'has-image' : ''}" style="width:100%;${imageUrl ? '' : 'aspect-ratio:1.91/1;'}position:relative;cursor:pointer;margin:0;padding:0;${imageUrl ? '' : 'background:linear-gradient(to top right,transparent calc(50% - 1px),#9ca3af calc(50% - 1px),#9ca3af calc(50% + 1px),transparent calc(50% + 1px)),linear-gradient(to top left,transparent calc(50% - 1px),#9ca3af calc(50% - 1px),#9ca3af calc(50% + 1px),transparent calc(50% + 1px)),#e5e7eb;'}">
                 ${imageUrl ? (isVideoUrl(imageUrl) 
-                    ? `<video src="${escapeHtml(imageUrl)}" style="width:100%;height:auto;display:block;object-fit:contain;" muted loop autoplay playsinline></video>`
+                    ? `<video src="${escapeHtml(imageUrl)}" style="width:100%;height:auto;display:block;object-fit:contain;" muted loop playsinline preload="metadata"></video>`
                     : `<img src="${escapeHtml(getOptimizedImageUrl(imageUrl, 500, 80))}" alt="Ad image" style="width:100%;height:auto;display:block;object-fit:contain;" loading="lazy">`) 
                 : '<div class="pe-fb-ad__media-placeholder" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#9ca3af;font-size:14px;pointer-events:none;">Click to add media</div>'}
                 ${imageUrl && !readOnly ? `<button class="pe-fb-ad__media-delete" data-ad-id="${adId}" title="Remove media" type="button"><img src="/images/delete_button.png" alt="Delete" width="12" height="12"></button>` : ''}

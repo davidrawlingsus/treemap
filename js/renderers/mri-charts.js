@@ -460,6 +460,159 @@ export function renderHookQuality(container, points) {
     g.selectAll('circle').data(points).join('circle').attr('cx', d => x(d.hook_type) + jitter()).attr('cy', d => y(d.overall)).attr('r', 4).attr('fill', MRI_CHART_COLORS[5]).attr('opacity', 0.7);
 }
 
+/** Truncate a URL to domain + path for display */
+function truncateUrl(url, maxLen = 36) {
+    try {
+        const u = new URL(url);
+        const display = u.hostname.replace(/^www\./, '') + u.pathname.replace(/\/$/, '');
+        return display.length > maxLen ? display.slice(0, maxLen) + '…' : display;
+    } catch {
+        return url.length > maxLen ? url.slice(0, maxLen) + '…' : url;
+    }
+}
+
+/** Prep chart 9: ads grouped by destination landing page.
+ *  Checks both flat ads (report.ads) and structured analysis ads for destination URLs. */
+function prepAdToLandingPage(report) {
+    const urlMap = {};
+    let adsWithUrl = 0;
+    const flatAds = report?.ads || [];
+    const structuredAds = report?.analysis?.analysis?.ads || [];
+
+    // Try flat ads first (top-level destination_url)
+    flatAds.forEach(ad => {
+        const url = (ad.destination_url || '').trim();
+        if (!url) return;
+        adsWithUrl++;
+        const type = (ad.llm?.destination_type || 'unknown').toLowerCase();
+        if (!urlMap[url]) urlMap[url] = { url, type, count: 0 };
+        urlMap[url].count++;
+    });
+
+    // Fallback: if no URLs from flat ads, try structured analysis ads (labels.destination_url)
+    if (adsWithUrl === 0 && structuredAds.length > 0) {
+        structuredAds.forEach(ad => {
+            const url = (ad.labels?.destination_url || '').trim();
+            if (!url) return;
+            adsWithUrl++;
+            const type = (ad.labels?.destination_type || 'unknown').toLowerCase();
+            if (!urlMap[url]) urlMap[url] = { url, type, count: 0 };
+            urlMap[url].count++;
+        });
+    }
+
+    const pages = Object.values(urlMap).sort((a, b) => b.count - a.count);
+    console.debug('[MRI chart 9] Ad→LP prep:', { flatAds: flatAds.length, structuredAds: structuredAds.length, adsWithUrl, pages: pages.length });
+    return { totalAds: adsWithUrl, totalPages: pages.length, pages };
+}
+
+const DESTINATION_TYPE_LABELS = {
+    pdp: 'PDP', collection: 'Collection', landing_page: 'Landing page',
+    quiz: 'Quiz', blog_article: 'Blog', home: 'Home',
+    lead_form: 'Lead form', amazon: 'Amazon', app_store: 'App store', unknown: 'Unknown',
+};
+
+/**
+ * Render ad → landing page horizontal bar chart (chart 9)
+ */
+export function renderAdToLandingPage(container, prep) {
+    const el = typeof container === 'string' ? document.getElementById(container) : container;
+    if (!el || !window.d3) { renderEmpty(el, 'Chart unavailable'); return; }
+    el.innerHTML = '';
+    if (!prep || !prep.pages.length) { renderEmpty(el, 'No destination URLs found'); return; }
+
+    const d3 = window.d3;
+    const { totalAds, totalPages, pages } = prep;
+    const ratio = totalPages > 0 ? (totalAds / totalPages).toFixed(1) : '—';
+
+    // Headline metric
+    const header = document.createElement('div');
+    header.className = 'mri-lp-headline';
+    header.innerHTML = `
+        <span class="mri-lp-headline__stat">${totalAds} ads</span>
+        <span class="mri-lp-headline__arrow">→</span>
+        <span class="mri-lp-headline__stat">${totalPages} landing page${totalPages !== 1 ? 's' : ''}</span>
+        <span class="mri-lp-headline__ratio">${ratio} : 1 concentration</span>
+    `;
+    el.appendChild(header);
+
+    const topPages = pages.slice(0, 15);
+    const maxCount = d3.max(topPages, d => d.count) || 1;
+
+    const types = [...new Set(topPages.map(d => d.type))];
+    const color = d3.scaleOrdinal().domain(types).range(MRI_CHART_COLORS);
+
+    const barHeight = 24;
+    const gap = 6;
+    const width = Math.max(300, el.clientWidth || 500);
+    const labelWidth = Math.min(200, width * 0.35);
+    const margin = { top: 8, right: 44, bottom: 28, left: labelWidth };
+    const innerW = width - margin.left - margin.right;
+    const chartH = topPages.length * (barHeight + gap);
+    const height = chartH + margin.top + margin.bottom;
+
+    const svg = d3.select(el).append('svg')
+        .attr('width', width).attr('height', height)
+        .attr('viewBox', `0 0 ${width} ${height}`);
+    const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+    const x = d3.scaleLinear().domain([0, maxCount]).nice().range([0, innerW]);
+    const y = d3.scaleBand().domain(topPages.map((_, i) => i)).range([0, chartH]).padding(0.15);
+
+    g.append('g').attr('transform', `translate(0,${chartH})`).call(d3.axisBottom(x).ticks(Math.min(maxCount, 6)).tickFormat(d3.format('d')));
+
+    // Bars
+    topPages.forEach((page, i) => {
+        g.append('rect')
+            .attr('x', 0).attr('y', y(i))
+            .attr('width', x(page.count)).attr('height', y.bandwidth())
+            .attr('fill', color(page.type)).attr('rx', 3).attr('opacity', 0.85);
+        // URL label
+        g.append('text')
+            .attr('x', -8).attr('y', y(i) + y.bandwidth() / 2)
+            .attr('text-anchor', 'end').attr('dominant-baseline', 'central')
+            .attr('font-size', 11).attr('fill', '#4a5568')
+            .text(truncateUrl(page.url, Math.floor(labelWidth / 6)));
+        // Count label
+        g.append('text')
+            .attr('x', x(page.count) + 5).attr('y', y(i) + y.bandwidth() / 2)
+            .attr('dominant-baseline', 'central')
+            .attr('font-size', 11).attr('font-weight', 600).attr('fill', '#4a5568')
+            .text(page.count);
+    });
+
+    // Tooltip
+    const tooltip = d3.select(el).append('div')
+        .attr('class', 'mri-chart-tooltip')
+        .style('position', 'absolute').style('pointer-events', 'none').style('opacity', 0)
+        .style('background', '#1a202c').style('color', '#fff')
+        .style('padding', '6px 10px').style('border-radius', '6px')
+        .style('font-size', '12px').style('z-index', 1000).style('max-width', '320px')
+        .style('word-break', 'break-all');
+
+    g.selectAll('rect').on('mouseover', function (ev, d) {
+        const idx = topPages.findIndex(p => x(p.count) === +d3.select(this).attr('width'));
+        const page = topPages[idx] || topPages[Array.from(this.parentNode.querySelectorAll('rect')).indexOf(this)];
+        if (!page) return;
+        const typeLabel = DESTINATION_TYPE_LABELS[page.type] || page.type;
+        tooltip.style('opacity', 1).html(`<strong>${page.url}</strong><br>${page.count} ad${page.count !== 1 ? 's' : ''} · ${typeLabel}`);
+    }).on('mousemove', ev => {
+        tooltip.style('left', (ev.pageX + 12) + 'px').style('top', (ev.pageY - 10) + 'px');
+    }).on('mouseout', () => tooltip.style('opacity', 0));
+
+    // Legend (destination types) — only if multiple types
+    if (types.length > 1) {
+        const legend = svg.append('g').attr('transform', `translate(${margin.left},${height - 2})`);
+        let xOff = 0;
+        types.forEach(t => {
+            const label = DESTINATION_TYPE_LABELS[t] || t;
+            legend.append('rect').attr('x', xOff).attr('y', 0).attr('width', 10).attr('height', 10).attr('fill', color(t)).attr('rx', 2);
+            const txt = legend.append('text').attr('x', xOff + 14).attr('y', 9).attr('font-size', 10).attr('fill', '#718096').text(label);
+            xOff += 14 + (txt.node()?.getComputedTextLength?.() || label.length * 6) + 16;
+        });
+    }
+}
+
 /**
  * Render copy tradeoff scatter: specificity vs emotional_pull (chart 8)
  */
@@ -494,7 +647,7 @@ export function renderCopyTradeoff(container, points) {
 }
 
 /**
- * Render all 8 MRI charts into their containers
+ * Render all 9 MRI charts into their containers
  * @param {Object} report - Full report from pipeline
  */
 export function renderAllMriCharts(report) {
@@ -508,6 +661,7 @@ export function renderAllMriCharts(report) {
     const funnelData = prepFunnelMixOverTime(ads);
     const hookFunnelPrep = prepHookFunnel(ads);
     const hookScoresData = prepHookScores(ads);
+    const adToLpData = prepAdToLandingPage(report);
 
     renderLaunchCadence('mriChartLaunchCadence', launchData, 'launches');
     renderLaunchCadence('mriChartRotationDepth', rotationData, 'active creatives');
@@ -517,4 +671,5 @@ export function renderAllMriCharts(report) {
     renderHookFunnel('mriChartHookFunnel', hookFunnelPrep);
     renderHookQuality('mriChartHookQuality', hookScoresData);
     renderCopyTradeoff('mriChartCopyTradeoff', hookScoresData);
+    renderAdToLandingPage('mriChartAdToLandingPage', adToLpData);
 }
