@@ -230,15 +230,6 @@
 
         const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
 
-        if (/mri_debug=1/i.test(window.location.search || '')) {
-            window.addEventListener('error', (e) => {
-                console.error('[MRI-DEBUG] uncaught error:', e.message, e.filename, e.lineno, e.colno, e.error);
-            });
-            window.addEventListener('unhandledrejection', (e) => {
-                console.error('[MRI-DEBUG] unhandled rejection:', e.reason);
-            });
-        }
-
         function getAuthHeaders() {
             if (typeof window.Auth !== 'undefined' && typeof window.Auth.getAuthHeaders === 'function') {
                 return window.Auth.getAuthHeaders();
@@ -672,18 +663,6 @@
         }
 
         function renderReport(report, brandLabel, importLabel) {
-            const MRI_DEBUG = /mri_debug=1/i.test(window.location.search || '');
-            const dbg = (msg, data) => {
-                if (!MRI_DEBUG) return;
-                const payload = { t: Date.now(), ...(data || {}) };
-                console.log('[MRI-DEBUG]', msg, JSON.stringify(payload));
-                // #region agent log
-                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'founder_creative_mri.html:renderReport',message:msg,data:payload,timestamp:Date.now()})}).catch(()=>{});
-                }
-                // #endregion
-            };
-            dbg('renderReport START', { adsCount: (report?.ads || []).length, ua: navigator.userAgent });
             const reportTitleEl = document.getElementById('mriReportTitle');
             if (reportTitleEl) {
                 reportTitleEl.textContent = (brandLabel && brandLabel !== '—')
@@ -832,15 +811,9 @@
                 }
             }
 
-            dbg('before renderAllMriCharts');
-            try {
-                renderAllMriCharts(report);
-                dbg('renderAllMriCharts DONE');
-            } catch (e) {
-                dbg('renderAllMriCharts ERROR', { err: String(e), stack: e?.stack });
-                console.error('[MRI-DEBUG] renderAllMriCharts threw:', e);
-            }
+            renderAllMriCharts(report);
 
+            const MRI_DEBUG = /mri_debug=1/i.test(window.location.search || '');
             const firstMediaUrl = (ad) => {
                 const items = ad.media_items || [];
                 const first = items[0];
@@ -901,13 +874,9 @@
             if (!ads.length) {
                 mriAdsList.innerHTML = '<p class="muted">No ads in this report.</p>';
                 if (mriMasonryInstance) { mriMasonryInstance.destroy(); mriMasonryInstance = null; }
-                dbg('no ads, early return');
                 return;
             }
-            dbg('before ads.map', { adsLength: ads.length });
-            let cardsHtml;
-            try {
-            cardsHtml = ads.map(ad => {
+            const cardsHtml = ads.map(ad => {
                 const llm = ad.llm || {};
                 const angle = llm.angle || ad.angle || '—';
                 const whatToChange = (llm.what_to_change || ad.what_to_change || []);
@@ -967,21 +936,29 @@
                     </div>
                 `;
             }).join('');
-            dbg('ads.map DONE', { cardsHtmlLen: cardsHtml?.length });
-            } catch (e) {
-                dbg('ads.map ERROR', { err: String(e), stack: e?.stack });
-                console.error('[MRI-DEBUG] ads.map threw:', e);
-                mriAdsList.innerHTML = '<p class="muted">Failed to build ads. Check console.</p>';
-                return;
-            }
-            dbg('before innerHTML');
             mriAdsList.innerHTML = `
                 <div class="mri-ads-grid-sizer"></div>
                 <div class="mri-ads-gutter-sizer"></div>
                 ${cardsHtml}
             `;
-            dbg('innerHTML set');
-            mriAdsList.classList.add('mri-ads-grid--fallback');
+            if (typeof Masonry !== 'undefined') {
+                if (mriMasonryInstance) mriMasonryInstance.destroy();
+                mriMasonryInstance = new Masonry(mriAdsList, {
+                    itemSelector: '.mri-ad-card',
+                    columnWidth: '.mri-ads-grid-sizer',
+                    gutter: '.mri-ads-gutter-sizer',
+                    percentPosition: true,
+                    horizontalOrder: true
+                });
+                mriAdsList.querySelectorAll('.pe-fb-ad__media.has-image img, .pe-fb-ad__media.has-image video').forEach((el) => {
+                    if (el.tagName === 'IMG' && !el.complete) {
+                        el.addEventListener('load', () => mriMasonryInstance?.layout());
+                        el.addEventListener('error', () => mriMasonryInstance?.layout());
+                    } else if (el.tagName === 'VIDEO') {
+                        el.addEventListener('loadeddata', () => mriMasonryInstance?.layout());
+                    }
+                });
+            }
             if (!mriAdsList._accordionHandler) {
                 mriAdsList._accordionHandler = true;
                 mriAdsList.addEventListener('click', (e) => {
@@ -990,12 +967,11 @@
                         const accordion = trigger.closest('.ads-accordion');
                         if (accordion) {
                             accordion.classList.toggle('expanded');
-                            setTimeout(() => mriMasonryInstance?.layout?.(), 260);
+                            setTimeout(() => mriMasonryInstance?.layout(), 260);
                         }
                     }
                 });
             }
-            dbg('renderReport END');
         }
 
         async function loadReportById(clientId, reportId) {
