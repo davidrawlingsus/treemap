@@ -829,6 +829,11 @@
                 }
                 return url;
             };
+            const getPosterUrlForVideo = (ad) => {
+                const items = ad.media_items || [];
+                const first = items[0];
+                return (first?.poster_url || ad.media_thumbnail_url || '').trim() || null;
+            };
             const getVideoTranscript = (ad) => {
                 const items = ad.media_items || [];
                 const video = items.find(m => (m || {}).media_type === 'video');
@@ -887,6 +892,8 @@
                 const isVideo = (ad.ad_format || '').toLowerCase() === 'video' || (ad.media_items || []).some(m => (m || {}).media_type === 'video');
                 const first2sBadge = isVideo && vf2s.applicable ? (vf2s.quality || 'missing') : '';
                 const videoTranscript = getVideoTranscript(ad);
+                const imageUrl = firstMediaUrl(ad);
+                const posterUrl = isVideo ? getPosterUrlForVideo(ad) : null;
                 const mockup = renderFBAdMockup({
                     adId: ad.id || '',
                     primaryText: formatPrimaryText(ad.primary_text || ''),
@@ -896,7 +903,8 @@
                     displayUrl: extractDomain(ad.destination_url || ''),
                     logoSrc: '',
                     clientName: brandLabel || 'Sponsored',
-                    imageUrl: firstMediaUrl(ad),
+                    imageUrl,
+                    posterUrl: posterUrl || undefined,
                     readOnly: true
                 });
                 const labelsParts = [
