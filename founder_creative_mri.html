@@ -981,54 +981,7 @@
                 ${cardsHtml}
             `;
             dbg('innerHTML set');
-            function initMasonryAndHandlers() {
-            if (typeof Masonry !== 'undefined') {
-                if (mriMasonryInstance) mriMasonryInstance.destroy();
-                mriMasonryInstance = new Masonry(mriAdsList, {
-                    itemSelector: '.mri-ad-card',
-                    columnWidth: '.mri-ads-grid-sizer',
-                    gutter: '.mri-ads-gutter-sizer',
-                    percentPosition: true,
-                    horizontalOrder: true
-                });
-                mriAdsList.querySelectorAll('.pe-fb-ad__media.has-image img, .pe-fb-ad__media.has-image video').forEach((el) => {
-                    if (el.tagName === 'IMG' && !el.complete) {
-                        el.addEventListener('load', () => mriMasonryInstance?.layout());
-                        el.addEventListener('error', () => mriMasonryInstance?.layout());
-                    } else if (el.tagName === 'VIDEO') {
-                        el.addEventListener('loadeddata', () => mriMasonryInstance?.layout());
-                    }
-                });
-                dbg('Masonry init DONE');
-            } else {
-                dbg('Masonry not available');
-            }
-            }
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    initMasonryAndHandlers();
-                    const cards = mriAdsList.querySelectorAll('.mri-ad-card');
-                    dbg('post-Masonry DOM (delayed init)', {
-                        cardCount: cards.length,
-                        containerHeight: mriAdsList.offsetHeight,
-                        firstCardHeight: cards[0]?.offsetHeight ?? 0
-                    });
-                    if (mriAdsList.offsetHeight === 0 || !mriMasonryInstance) {
-                        if (mriMasonryInstance) {
-                            mriMasonryInstance.destroy();
-                            mriMasonryInstance = null;
-                        }
-                        mriAdsList.querySelectorAll('.mri-ad-card').forEach((el) => {
-                            el.style.position = '';
-                            el.style.top = '';
-                            el.style.left = '';
-                            el.style.transform = '';
-                        });
-                        mriAdsList.classList.add('mri-ads-grid--fallback');
-                        dbg('Applied CSS fallback (Masonry 0 height or unavailable)');
-                    }
-                });
-            });
+            mriAdsList.classList.add('mri-ads-grid--fallback');
             if (!mriAdsList._accordionHandler) {
                 mriAdsList._accordionHandler = true;
                 mriAdsList.addEventListener('click', (e) => {
@@ -1037,7 +990,7 @@
                         const accordion = trigger.closest('.ads-accordion');
                         if (accordion) {
                             accordion.classList.toggle('expanded');
-                            setTimeout(() => mriMasonryInstance?.layout(), 260);
+                            setTimeout(() => mriMasonryInstance?.layout?.(), 260);
                         }
                     }
                 });
