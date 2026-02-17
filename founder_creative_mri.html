@@ -678,7 +678,9 @@
                 const payload = { t: Date.now(), ...(data || {}) };
                 console.log('[MRI-DEBUG]', msg, JSON.stringify(payload));
                 // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'founder_creative_mri.html:renderReport',message:msg,data:payload,timestamp:Date.now()})}).catch(()=>{});
+                if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'founder_creative_mri.html:renderReport',message:msg,data:payload,timestamp:Date.now()})}).catch(()=>{});
+                }
                 // #endregion
             };
             dbg('renderReport START', { adsCount: (report?.ads || []).length, ua: navigator.userAgent });
@@ -997,6 +999,16 @@
                     }
                 });
                 dbg('Masonry init DONE');
+                const cards = mriAdsList.querySelectorAll('.mri-ad-card');
+                const containerH = mriAdsList.offsetHeight;
+                const firstCardH = cards[0]?.offsetHeight ?? 0;
+                dbg('post-Masonry DOM', { cardCount: cards.length, containerHeight: containerH, firstCardHeight: firstCardH });
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        mriMasonryInstance?.layout();
+                        dbg('Masonry layout() retry', { containerHeight: mriAdsList.offsetHeight });
+                    });
+                });
             } else {
                 dbg('Masonry not available');
             }
