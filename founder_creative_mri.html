@@ -1018,6 +1018,12 @@
                             mriMasonryInstance.destroy();
                             mriMasonryInstance = null;
                         }
+                        mriAdsList.querySelectorAll('.mri-ad-card').forEach((el) => {
+                            el.style.position = '';
+                            el.style.top = '';
+                            el.style.left = '';
+                            el.style.transform = '';
+                        });
                         mriAdsList.classList.add('mri-ads-grid--fallback');
                         dbg('Applied CSS fallback (Masonry 0 height or unavailable)');
                     }

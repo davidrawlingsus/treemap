@@ -831,6 +831,7 @@
   top: auto !important;
   left: auto !important;
   flex: 0 0 calc(50% - 12px);
+  min-height: 280px;
 }
 @media (min-width: 1270px) {
   .mri-ads-grid--fallback .mri-ad-card {
