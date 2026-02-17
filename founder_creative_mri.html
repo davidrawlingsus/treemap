@@ -815,7 +815,11 @@
                 }
             }
 
-            renderAllMriCharts(report);
+            try {
+                renderAllMriCharts(report);
+            } catch (e) {
+                console.error('[MRI] Charts render failed:', e);
+            }
 
             const MRI_DEBUG = /mri_debug=1/i.test(window.location.search || '');
             const firstMediaUrl = (ad) => {
@@ -880,7 +884,10 @@
                 if (mriMasonryInstance) { mriMasonryInstance.destroy(); mriMasonryInstance = null; }
                 return;
             }
-            const cardsHtml = ads.map(ad => {
+
+            mriAdsList.innerHTML = '<p class="muted">Loading ads…</p>';
+            const ADS_BATCH_SIZE = 25;
+            const renderOneAd = (ad) => {
                 const llm = ad.llm || {};
                 const angle = llm.angle || ad.angle || '—';
                 const whatToChange = (llm.what_to_change || ad.what_to_change || []);
@@ -939,43 +946,69 @@
                         <div class="ads-card__accordions">${accordionsHtml}</div>
                     </div>
                 `;
-            }).join('');
+            };
+
+            requestAnimationFrame(() => {
+                try {
             mriAdsList.innerHTML = `
                 <div class="mri-ads-grid-sizer"></div>
                 <div class="mri-ads-gutter-sizer"></div>
-                ${cardsHtml}
             `;
-            if (typeof Masonry !== 'undefined') {
-                if (mriMasonryInstance) mriMasonryInstance.destroy();
-                mriMasonryInstance = new Masonry(mriAdsList, {
-                    itemSelector: '.mri-ad-card',
-                    columnWidth: '.mri-ads-grid-sizer',
-                    gutter: '.mri-ads-gutter-sizer',
-                    percentPosition: true,
-                    horizontalOrder: true
-                });
-                mriAdsList.querySelectorAll('.pe-fb-ad__media.has-image img, .pe-fb-ad__media.has-image video').forEach((el) => {
-                    if (el.tagName === 'IMG' && !el.complete) {
-                        el.addEventListener('load', () => mriMasonryInstance?.layout());
-                        el.addEventListener('error', () => mriMasonryInstance?.layout());
-                    } else if (el.tagName === 'VIDEO') {
-                        el.addEventListener('loadeddata', () => mriMasonryInstance?.layout());
+
+            function renderBatch(offset) {
+                try {
+                const batch = ads.slice(offset, offset + ADS_BATCH_SIZE);
+                const cardsHtml = batch.map(renderOneAd).join('');
+                const wrapper = document.createElement('div');
+                wrapper.innerHTML = cardsHtml;
+                while (wrapper.firstChild) mriAdsList.appendChild(wrapper.firstChild);
+                } catch (batchErr) {
+                    console.error('[MRI] Ads batch render failed:', batchErr);
+                    mriAdsList.innerHTML = '<p class="muted">Failed to load ads. Open DevTools (F12) → Console for details.</p>';
+                    return;
+                }
+                if (offset + ADS_BATCH_SIZE < ads.length) {
+                    setTimeout(() => renderBatch(offset + ADS_BATCH_SIZE), 0);
+                } else {
+                    if (typeof Masonry !== 'undefined') {
+                        if (mriMasonryInstance) mriMasonryInstance.destroy();
+                        mriMasonryInstance = new Masonry(mriAdsList, {
+                            itemSelector: '.mri-ad-card',
+                            columnWidth: '.mri-ads-grid-sizer',
+                            gutter: '.mri-ads-gutter-sizer',
+                            percentPosition: true,
+                            horizontalOrder: true
+                        });
+                        mriAdsList.querySelectorAll('.pe-fb-ad__media.has-image img, .pe-fb-ad__media.has-image video').forEach((el) => {
+                            if (el.tagName === 'IMG' && !el.complete) {
+                                el.addEventListener('load', () => mriMasonryInstance?.layout());
+                                el.addEventListener('error', () => mriMasonryInstance?.layout());
+                            } else if (el.tagName === 'VIDEO') {
+                                el.addEventListener('loadeddata', () => mriMasonryInstance?.layout());
+                            }
+                        });
                     }
-                });
-            }
-            if (!mriAdsList._accordionHandler) {
-                mriAdsList._accordionHandler = true;
-                mriAdsList.addEventListener('click', (e) => {
-                    const trigger = e.target.closest('.ads-accordion__trigger');
-                    if (trigger) {
-                        const accordion = trigger.closest('.ads-accordion');
-                        if (accordion) {
-                            accordion.classList.toggle('expanded');
-                            setTimeout(() => mriMasonryInstance?.layout(), 260);
-                        }
+                    if (!mriAdsList._accordionHandler) {
+                        mriAdsList._accordionHandler = true;
+                        mriAdsList.addEventListener('click', (e) => {
+                            const trigger = e.target.closest('.ads-accordion__trigger');
+                            if (trigger) {
+                                const accordion = trigger.closest('.ads-accordion');
+                                if (accordion) {
+                                    accordion.classList.toggle('expanded');
+                                    setTimeout(() => mriMasonryInstance?.layout(), 260);
+                                }
+                            }
+                        });
                     }
-                });
+                }
             }
+            renderBatch(0);
+                } catch (e) {
+                    console.error('[MRI] Ads render failed:', e);
+                    mriAdsList.innerHTML = '<p class="muted">Failed to load ads. Open DevTools (F12) → Console for details.</p>';
+                }
+            });
         }
 
         async function loadReportById(clientId, reportId) {
