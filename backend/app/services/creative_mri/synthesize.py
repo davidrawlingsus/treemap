@@ -106,27 +106,6 @@ def _build_aggregate_metadata(report: Dict[str, Any]) -> Dict[str, Any]:
         (report.get("analysis") or {}).get("analysis") or {}
     ).get("exposure_weighted_aggregates") or {}
 
-    # Reading grade level aggregates
-    grade_levels = []
-    for a in analysis_ads:
-        rgl = (a.get("labels") or {}).get("reading_grade_level")
-        if isinstance(rgl, (int, float)) and 1 <= rgl <= 16:
-            grade_levels.append(round(rgl))
-    # Also check flat ads as fallback
-    if not grade_levels:
-        for a in raw_ads:
-            rgl = (a.get("llm") or {}).get("reading_grade_level")
-            if isinstance(rgl, (int, float)) and 1 <= rgl <= 16:
-                grade_levels.append(round(rgl))
-    reading_grade_stats = None
-    if grade_levels:
-        reading_grade_stats = {
-            "average": round(sum(grade_levels) / len(grade_levels), 1),
-            "min": min(grade_levels),
-            "max": max(grade_levels),
-            "count": len(grade_levels),
-        }
-
     return {
         "launch_cadence": launch_cadence,
         "active_creatives_over_time": active_creatives_over_time,
@@ -140,7 +119,6 @@ def _build_aggregate_metadata(report: Dict[str, Any]) -> Dict[str, Any]:
         "redundancy_summary": redundancy_summary,
         "ads_using_creative_count": sum(ads_using_counts) / len(ads_using_counts) if ads_using_counts else None,
         "exposure_weighted_aggregates": exposure_aggregates,
-        "reading_grade_level": reading_grade_stats,
     }
 
 
