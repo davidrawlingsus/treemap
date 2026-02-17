@@ -816,6 +816,43 @@
   }
 }
 
+/* Fallback when Masonry produces 0 height (older Chrome/Intel) */
+.mri-ads-grid--fallback {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+.mri-ads-grid--fallback .mri-ads-grid-sizer,
+.mri-ads-grid--fallback .mri-ads-gutter-sizer {
+  display: none;
+}
+.mri-ads-grid--fallback .mri-ad-card {
+  position: relative !important;
+  top: auto !important;
+  left: auto !important;
+  flex: 0 0 calc(50% - 12px);
+}
+@media (min-width: 1270px) {
+  .mri-ads-grid--fallback .mri-ad-card {
+    flex: 0 0 calc(33.333% - 16px);
+  }
+}
+@media (min-width: 1680px) {
+  .mri-ads-grid--fallback .mri-ad-card {
+    flex: 0 0 calc(25% - 18px);
+  }
+}
+@media (min-width: 2100px) {
+  .mri-ads-grid--fallback .mri-ad-card {
+    flex: 0 0 calc(20% - 19.2px);
+  }
+}
+@media (max-width: 768px) {
+  .mri-ads-grid--fallback .mri-ad-card {
+    flex: 0 0 100%;
+  }
+}
+
 /* History tab */
 .mri-history-list {
   display: flex;

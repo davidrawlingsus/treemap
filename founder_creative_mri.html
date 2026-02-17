@@ -981,6 +981,7 @@
                 ${cardsHtml}
             `;
             dbg('innerHTML set');
+            function initMasonryAndHandlers() {
             if (typeof Masonry !== 'undefined') {
                 if (mriMasonryInstance) mriMasonryInstance.destroy();
                 mriMasonryInstance = new Masonry(mriAdsList, {
@@ -999,19 +1000,29 @@
                     }
                 });
                 dbg('Masonry init DONE');
-                const cards = mriAdsList.querySelectorAll('.mri-ad-card');
-                const containerH = mriAdsList.offsetHeight;
-                const firstCardH = cards[0]?.offsetHeight ?? 0;
-                dbg('post-Masonry DOM', { cardCount: cards.length, containerHeight: containerH, firstCardHeight: firstCardH });
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        mriMasonryInstance?.layout();
-                        dbg('Masonry layout() retry', { containerHeight: mriAdsList.offsetHeight });
-                    });
-                });
             } else {
                 dbg('Masonry not available');
             }
+            }
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    initMasonryAndHandlers();
+                    const cards = mriAdsList.querySelectorAll('.mri-ad-card');
+                    dbg('post-Masonry DOM (delayed init)', {
+                        cardCount: cards.length,
+                        containerHeight: mriAdsList.offsetHeight,
+                        firstCardHeight: cards[0]?.offsetHeight ?? 0
+                    });
+                    if (mriAdsList.offsetHeight === 0 || !mriMasonryInstance) {
+                        if (mriMasonryInstance) {
+                            mriMasonryInstance.destroy();
+                            mriMasonryInstance = null;
+                        }
+                        mriAdsList.classList.add('mri-ads-grid--fallback');
+                        dbg('Applied CSS fallback (Masonry 0 height or unavailable)');
+                    }
+                });
+            });
             if (!mriAdsList._accordionHandler) {
                 mriAdsList._accordionHandler = true;
                 mriAdsList.addEventListener('click', (e) => {
