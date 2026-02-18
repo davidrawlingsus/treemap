@@ -283,6 +283,14 @@
             generateToneOfVoice as settingsApiGenerateToneOfVoice
         } from '/js/services/api-settings.js';
         import {
+            fetchProductContexts as productContextApiFetch,
+            extractProductContextFromUrl as productContextApiExtract,
+            createProductContext as productContextApiCreate,
+            updateProductContext as productContextApiUpdate,
+            setProductContextLive as productContextApiSetLive,
+            deleteProductContext as productContextApiDelete
+        } from '/js/services/api-product-context.js';
+        import {
             getCurrentFilterType as uiInteractionGetCurrentFilterType,
             setCurrentFilterType as uiInteractionSetCurrentFilterType,
             getCurrentFilterSelections as uiInteractionGetCurrentFilterSelections,
@@ -349,6 +357,15 @@
             initAdsPage as adsControllerInitAdsPage,
             renderAdsPage as adsControllerRenderAdsPage
         } from '/js/controllers/ads-controller.js';
+        import { renderSettingsMarkdown } from '/js/utils/markdown.js';
+        import {
+            loadAndRenderProductContext as productContextLoadAndRender,
+            initProductContextEventDelegation as productContextInitEventDelegation,
+            addProductContextFromExtraction as productContextAddFromExtraction
+        } from '/js/controllers/product-context-controller.js';
+        import {
+            getProductContextExtractedData as productContextStateGetExtractedData
+        } from '/js/state/product-context-state.js';
         import {
             initEmailsPage as emailsControllerInitEmailsPage,
             renderEmailsPage as emailsControllerRenderEmailsPage
@@ -667,6 +684,17 @@
         window.settingsApiFetchClientSettings = settingsApiFetchClientSettings;
         window.settingsApiUpdateClientSettings = settingsApiUpdateClientSettings;
         window.settingsApiGenerateToneOfVoice = settingsApiGenerateToneOfVoice;
+        window.productContextApiFetch = productContextApiFetch;
+        window.productContextApiExtract = productContextApiExtract;
+        window.productContextApiCreate = productContextApiCreate;
+        window.productContextApiUpdate = productContextApiUpdate;
+        window.productContextApiSetLive = productContextApiSetLive;
+        window.productContextApiDelete = productContextApiDelete;
+        window.loadAndRenderProductContext = productContextLoadAndRender;
+        window.productContextInitEventDelegation = productContextInitEventDelegation;
+        window.productContextAddFromExtraction = productContextAddFromExtraction;
+        window.productContextStateGetExtractedData = productContextStateGetExtractedData;
+        window.renderSettingsMarkdown = renderSettingsMarkdown;
         
         // Make UI interaction state functions available globally for backward compatibility
         window.uiInteractionGetCurrentFilterType = uiInteractionGetCurrentFilterType;
@@ -6724,6 +6752,7 @@
                 return;
             }
             
+            window.productContextInitEventDelegation();
             await loadClientSettings();
             window.settingsStateSetSettingsInitialized(true);
         }
@@ -6755,6 +6784,9 @@
                 
                 // Render markdown fields in view mode
                 renderSettingsFields();
+                
+                // Load and render product contexts
+                await window.loadAndRenderProductContext();
                 
             } catch (error) {
                 console.error('[Settings] Failed to load client settings:', error);
@@ -6804,6 +6836,11 @@
                 // Re-render markdown fields in view mode
                 renderSettingsFields();
                 
+                // If there's a pending product context extraction, save it too
+                if (window.productContextStateGetExtractedData?.()) {
+                    await window.productContextAddFromExtraction();
+                }
+                
                 showSettingsStatus('Settings saved successfully');
                 
             } catch (error) {
@@ -6827,6 +6864,7 @@
                 status.classList.remove('visible');
             }, 3000);
         }
+        window.showSettingsStatus = showSettingsStatus;
         
         async function generateToneOfVoiceWithAI() {
             const clientId = window.settingsStateGetSettingsCurrentClientId();
@@ -6865,7 +6903,7 @@
                     // Re-render the field in view mode
                     const rendered = document.getElementById('toneOfVoiceRendered');
                     if (rendered) {
-                        rendered.innerHTML = renderSettingsMarkdown(result.tone_of_voice);
+                        rendered.innerHTML = window.renderSettingsMarkdown(result.tone_of_voice);
                         rendered.classList.remove('empty-state');
                         rendered.style.display = 'block';
                         toneOfVoiceEl.style.display = 'none';
@@ -6907,182 +6945,6 @@
         }
         
         /**
-         * Simple markdown to HTML converter for settings fields
-         * @param {string} text - Markdown text
-         * @returns {string} HTML string
-         */
-        function renderSettingsMarkdown(text) {
-            if (!text || !text.trim()) return '';
-            
-            let html = window.escapeHtml(text);
-            
-            // Process code blocks first
-            html = html.replace(/```(\w+)?\s*([\s\S]*?)```/g, '<pre><code>$2</code></pre>');
-            
-            // Split into lines for block-level processing
-            const lines = html.split('\n');
-            const processedLines = [];
-            let inList = false;
-            let listType = null;
-            let inTable = false;
-            let tableRows = [];
-            let tableAlignments = [];
-            
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i];
-                const trimmed = line.trim();
-                
-                // Headers
-                if (/^###\s+/.test(trimmed)) {
-                    if (inList) { processedLines.push(listType === 'ul' ? '</ul>' : '</ol>'); inList = false; }
-                    processedLines.push('<h3>' + trimmed.replace(/^###\s+/, '') + '</h3>');
-                    continue;
-                }
-                if (/^##\s+/.test(trimmed)) {
-                    if (inList) { processedLines.push(listType === 'ul' ? '</ul>' : '</ol>'); inList = false; }
-                    processedLines.push('<h2>' + trimmed.replace(/^##\s+/, '') + '</h2>');
-                    continue;
-                }
-                if (/^#\s+/.test(trimmed)) {
-                    if (inList) { processedLines.push(listType === 'ul' ? '</ul>' : '</ol>'); inList = false; }
-                    processedLines.push('<h1>' + trimmed.replace(/^#\s+/, '') + '</h1>');
-                    continue;
-                }
-                
-                // Horizontal rule
-                if (/^[-*_]{3,}$/.test(trimmed)) {
-                    if (inList) { processedLines.push(listType === 'ul' ? '</ul>' : '</ol>'); inList = false; }
-                    processedLines.push('<hr>');
-                    continue;
-                }
-                
-                // Unordered list
-                if (/^[\-\*]\s+/.test(trimmed)) {
-                    if (!inList || listType !== 'ul') {
-                        if (inList) processedLines.push('</ol>');
-                        processedLines.push('<ul>');
-                        inList = true;
-                        listType = 'ul';
-                    }
-                    processedLines.push('<li>' + trimmed.replace(/^[\-\*]\s+/, '') + '</li>');
-                    continue;
-                }
-                
-                // Ordered list
-                if (/^\d+\.\s+/.test(trimmed)) {
-                    if (!inList || listType !== 'ol') {
-                        if (inList) processedLines.push('</ul>');
-                        processedLines.push('<ol>');
-                        inList = true;
-                        listType = 'ol';
-                    }
-                    processedLines.push('<li>' + trimmed.replace(/^\d+\.\s+/, '') + '</li>');
-                    continue;
-                }
-                
-                // Table row
-                if (/^\|.+\|$/.test(trimmed)) {
-                    if (inList) { processedLines.push(listType === 'ul' ? '</ul>' : '</ol>'); inList = false; }
-                    if (/^\|[\s\-\|:]+$/.test(trimmed)) {
-                        // Separator row - extract alignments
-                        const cells = trimmed.split('|').slice(1, -1);
-                        tableAlignments = cells.map(cell => {
-                            const t = cell.trim();
-                            if (/^:[\-]+:$/.test(t)) return 'center';
-                            if (/^:[\-]+$/.test(t)) return 'left';
-                            if (/^[\-]+:$/.test(t)) return 'right';
-                            return 'left';
-                        });
-                        continue;
-                    }
-                    if (!inTable) { inTable = true; tableRows = []; tableAlignments = []; }
-                    const cells = trimmed.split('|').slice(1, -1).map(cell => cell.trim());
-                    tableRows.push(cells);
-                    continue;
-                }
-                
-                // Close table
-                if (inTable && !/^\|.+\|$/.test(trimmed)) {
-                    if (tableRows.length > 0) {
-                        processedLines.push('<table>');
-                        const hasHeader = tableAlignments.length > 0;
-                        const headerRow = hasHeader ? tableRows[0] : null;
-                        const bodyRows = hasHeader ? tableRows.slice(1) : tableRows;
-                        if (headerRow) {
-                            processedLines.push('<thead><tr>');
-                            headerRow.forEach((cell, idx) => processedLines.push(`<th style="text-align:${tableAlignments[idx] || 'left'}">${cell}</th>`));
-                            processedLines.push('</tr></thead>');
-                        }
-                        if (bodyRows.length > 0) {
-                            processedLines.push('<tbody>');
-                            bodyRows.forEach(row => {
-                                processedLines.push('<tr>');
-                                row.forEach((cell, idx) => processedLines.push(`<td style="text-align:${tableAlignments[idx] || 'left'}">${cell}</td>`));
-                                processedLines.push('</tr>');
-                            });
-                            processedLines.push('</tbody>');
-                        }
-                        processedLines.push('</table>');
-                    }
-                    inTable = false;
-                    tableRows = [];
-                }
-                
-                // Empty line
-                if (trimmed === '') {
-                    if (inList) { processedLines.push(listType === 'ul' ? '</ul>' : '</ol>'); inList = false; }
-                    processedLines.push('');
-                    continue;
-                }
-                
-                // Regular text
-                if (inList) { processedLines.push(listType === 'ul' ? '</ul>' : '</ol>'); inList = false; }
-                processedLines.push(line);
-            }
-            
-            // Close any open list or table
-            if (inList) processedLines.push(listType === 'ul' ? '</ul>' : '</ol>');
-            if (inTable && tableRows.length > 0) {
-                processedLines.push('<table>');
-                const hasHeader = tableAlignments.length > 0;
-                const headerRow = hasHeader ? tableRows[0] : null;
-                const bodyRows = hasHeader ? tableRows.slice(1) : tableRows;
-                if (headerRow) {
-                    processedLines.push('<thead><tr>');
-                    headerRow.forEach((cell, idx) => processedLines.push(`<th style="text-align:${tableAlignments[idx] || 'left'}">${cell}</th>`));
-                    processedLines.push('</tr></thead>');
-                }
-                if (bodyRows.length > 0) {
-                    processedLines.push('<tbody>');
-                    bodyRows.forEach(row => {
-                        processedLines.push('<tr>');
-                        row.forEach((cell, idx) => processedLines.push(`<td style="text-align:${tableAlignments[idx] || 'left'}">${cell}</td>`));
-                        processedLines.push('</tr>');
-                    });
-                    processedLines.push('</tbody>');
-                }
-                processedLines.push('</table>');
-            }
-            
-            html = processedLines.join('\n');
-            
-            // Inline formatting
-            html = html.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
-            html = html.replace(/\*([^*\n]+?)\*/g, '<em>$1</em>');
-            html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
-            
-            // Paragraphs
-            html = html.split('\n\n').map(block => {
-                const t = block.trim();
-                if (!t) return '';
-                if (t.match(/^<(h[1-3]|ul|ol|pre|li|table|hr|div|p)/)) return block;
-                return '<p>' + t.replace(/\n/g, '<br>') + '</p>';
-            }).join('');
-            
-            return html;
-        }
-        
-        /**
          * Toggle between rendered view and edit mode for settings fields
          * @param {string} fieldName - 'businessSummary' or 'toneOfVoice'
          */
@@ -7105,7 +6967,7 @@
                 // Switch to view mode - render the markdown
                 const content = textarea.value.trim();
                 if (content) {
-                    rendered.innerHTML = renderSettingsMarkdown(content);
+                    rendered.innerHTML = window.renderSettingsMarkdown(content);
                     rendered.classList.remove('empty-state');
                 } else {
                     rendered.innerHTML = 'No content yet. Click the edit button to add.';
@@ -7148,9 +7010,6 @@
             });
         }
         
-        /**
-         * Render settings fields in view mode if they have content
-         */
         function renderSettingsFields() {
             ['businessSummary', 'toneOfVoice'].forEach(fieldName => {
                 const textareaId = fieldName === 'businessSummary' ? 'settingsBusinessSummary' : 'settingsToneOfVoice';
@@ -7163,7 +7022,7 @@
                 
                 const content = textarea.value.trim();
                 if (content) {
-                    rendered.innerHTML = renderSettingsMarkdown(content);
+                    rendered.innerHTML = window.renderSettingsMarkdown(content);
                     rendered.classList.remove('empty-state');
                     rendered.style.display = 'block';
                     textarea.style.display = 'none';
@@ -16544,6 +16403,13 @@
                         <div class="settings-rendered-view" id="toneOfVoiceRendered"></div>
                         <textarea id="settingsToneOfVoice" rows="6" placeholder="Describe your brand's tone of voice. For example: professional yet approachable, using clear language, avoiding jargon, emphasizing trust and reliability..." style="display: none;"></textarea>
                     </div>
+                </div>
+
+                <!-- Product Context -->
+                <div class="settings-card" id="productContextCard">
+                    <h2 class="settings-card-title">Product Context</h2>
+                    <p class="settings-card-description">Product details used when generating ads and emails. Add product contexts from PDP URLs, then select which product is live for AI prompts.</p>
+                    <div id="productContextContainer"></div>
                 </div>
 
                 <!-- Save Button -->

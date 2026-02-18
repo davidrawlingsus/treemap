@@ -11,12 +11,17 @@ import logging
 import json
 
 from app.database import get_db
-from app.models import Client, DataSource, Insight, Membership, User, Prompt, Action, PromptClient, ContextMenuGroup
+from app.models import Client, ClientProductContext, DataSource, Insight, Membership, User, Prompt, Action, PromptClient, ContextMenuGroup
 from app.schemas import (
     ClientCreate,
     ClientResponse,
     ClientLogoUpdate,
     ClientSettingsUpdate,
+    ProductContextExtractRequest,
+    ProductContextExtractResponse,
+    ProductContextCreate,
+    ProductContextUpdate,
+    ProductContextResponse,
     DataSourceResponse,
     InsightCreate,
     InsightUpdate,
@@ -273,6 +278,221 @@ def generate_tone_of_voice(
     except Exception as e:
         logger.error(f"Error generating tone of voice: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ---- Product Context endpoints ----
+
+@router.get("/{client_id}/product-contexts", response_model=List[ProductContextResponse])
+def list_product_contexts(
+    client_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List all product contexts for a client, ordered by sort_order with is_live first."""
+    verify_client_access(client_id, current_user, db)
+    contexts = (
+        db.query(ClientProductContext)
+        .filter(ClientProductContext.client_id == client_id)
+        .order_by(ClientProductContext.is_live.desc(), ClientProductContext.sort_order, ClientProductContext.created_at)
+        .all()
+    )
+    return contexts
+
+
+@router.post("/{client_id}/product-contexts/extract-from-url", response_model=ProductContextExtractResponse)
+def extract_product_context_from_url(
+    client_id: UUID,
+    payload: ProductContextExtractRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    llm_service=Depends(get_llm_service),
+):
+    """Fetch a PDP URL, extract product context via LLM. Does not persist."""
+    verify_client_access(client_id, current_user, db)
+    from app.services.web_crawler_service import WebCrawlerService
+
+    url = payload.url.strip()
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+
+    prompt = db.query(Prompt).filter(
+        Prompt.prompt_purpose == "product_context_extract",
+        Prompt.status == "live",
+    ).order_by(Prompt.version.desc()).first()
+
+    DEFAULT_EXTRACT_SYSTEM_MSG = (
+        "You are an expert at extracting product information from e-commerce product detail pages (PDPs).\n\n"
+        "You will receive the raw text content of a PDP. Extract the following into a structured, readable format "
+        "suitable for use when generating ads and marketing emails:\n\n"
+        "1. **Product name** – The main product title/name\n"
+        "2. **Pricing** – Price, any discounts, payment options, subscription pricing if applicable\n"
+        "3. **Unique features / differentiators** – Key benefits, specs, or selling points that distinguish this product\n"
+        "4. **Proof elements** – Reviews, ratings, certifications, awards, guarantees, testimonials\n"
+        "5. **Risk reversal** – Return policy, warranty, money-back guarantee, trial period\n\n"
+        "Output as clear, concise text that can be used as context for AI-generated ad copy and email content. "
+        "Use headers (##) for sections if helpful. Be selective – include only the most relevant information "
+        "for marketing purposes. Avoid redundant or overly promotional language from the page."
+    )
+
+    system_message = prompt.system_message if prompt else DEFAULT_EXTRACT_SYSTEM_MSG
+    llm_model = prompt.llm_model if prompt else "gpt-4o-mini"
+
+
+    crawler = WebCrawlerService()
+    page_content = crawler.fetch_single_page(url, max_chars=10000)
+    if not page_content:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not fetch or extract content from the URL.",
+        )
+
+    result = llm_service.execute_prompt(
+        system_message=system_message,
+        user_message=page_content,
+        model=llm_model,
+    )
+    content = result.get("content", "").strip()
+    if not content:
+        raise HTTPException(status_code=500, detail="LLM returned empty extraction")
+
+    name = _extract_product_name(content, url)
+
+    return ProductContextExtractResponse(
+        name=name,
+        context_text=content,
+        source_url=url,
+    )
+
+
+def _extract_product_name(content: str, url: str) -> str:
+    """Extract the actual product name from LLM-structured markdown output."""
+    lines = [l.strip() for l in content.split("\n") if l.strip()]
+    if not lines:
+        return "Product"
+
+    GENERIC_HEADERS = {"product name", "product", "name", "product title", "title"}
+
+    def _clean(text: str) -> str:
+        return text.replace("**", "").replace("__", "").strip()
+
+    for i, line in enumerate(lines):
+        stripped = line.lstrip("#").strip()
+        if _clean(stripped).lower() in GENERIC_HEADERS and i + 1 < len(lines):
+            next_line = lines[i + 1].lstrip("#").strip()
+            cleaned = _clean(next_line)
+            if cleaned.lower() not in GENERIC_HEADERS and cleaned:
+                return cleaned[:255]
+
+    first = _clean(lines[0].lstrip("#").strip())
+    if first.lower() not in GENERIC_HEADERS and first:
+        return first[:255]
+
+    slug = url.rstrip("/").split("/")[-1]
+    return slug.replace("-", " ").replace("_", " ").title()[:255] if slug else "Product"
+
+
+@router.post("/{client_id}/product-contexts", response_model=ProductContextResponse)
+def create_product_context(
+    client_id: UUID,
+    data: ProductContextCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Create a new product context. If first product, sets is_live=True."""
+    verify_client_access(client_id, current_user, db)
+    existing_count = db.query(ClientProductContext).filter(ClientProductContext.client_id == client_id).count()
+    is_first = existing_count == 0
+
+    pc = ClientProductContext(
+        client_id=client_id,
+        name=data.name,
+        context_text=data.context_text or "",
+        source_url=data.source_url,
+        is_live=is_first,
+        sort_order=existing_count,
+    )
+    db.add(pc)
+    db.commit()
+    db.refresh(pc)
+    logger.info(f"Created product context {pc.id} for client {client_id}")
+    return pc
+
+
+@router.put("/{client_id}/product-contexts/{pc_id}", response_model=ProductContextResponse)
+def update_product_context(
+    client_id: UUID,
+    pc_id: UUID,
+    data: ProductContextUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update a product context."""
+    verify_client_access(client_id, current_user, db)
+    pc = db.query(ClientProductContext).filter(
+        ClientProductContext.id == pc_id,
+        ClientProductContext.client_id == client_id,
+    ).first()
+    if not pc:
+        raise HTTPException(status_code=404, detail="Product context not found")
+    if data.name is not None:
+        pc.name = data.name
+    if data.context_text is not None:
+        pc.context_text = data.context_text
+    if data.source_url is not None:
+        pc.source_url = data.source_url
+    db.commit()
+    db.refresh(pc)
+    return pc
+
+
+@router.patch("/{client_id}/product-contexts/{pc_id}/set-live", response_model=ProductContextResponse)
+def set_product_context_live(
+    client_id: UUID,
+    pc_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Set this product context as live; unset others."""
+    verify_client_access(client_id, current_user, db)
+    pc = db.query(ClientProductContext).filter(
+        ClientProductContext.id == pc_id,
+        ClientProductContext.client_id == client_id,
+    ).first()
+    if not pc:
+        raise HTTPException(status_code=404, detail="Product context not found")
+    db.query(ClientProductContext).filter(ClientProductContext.client_id == client_id).update({ClientProductContext.is_live: False})
+    pc.is_live = True
+    db.commit()
+    db.refresh(pc)
+    return pc
+
+
+@router.delete("/{client_id}/product-contexts/{pc_id}")
+def delete_product_context(
+    client_id: UUID,
+    pc_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete a product context. If it was live and others exist, set another as live."""
+    verify_client_access(client_id, current_user, db)
+    pc = db.query(ClientProductContext).filter(
+        ClientProductContext.id == pc_id,
+        ClientProductContext.client_id == client_id,
+    ).first()
+    if not pc:
+        raise HTTPException(status_code=404, detail="Product context not found")
+    was_live = pc.is_live
+    db.delete(pc)
+    db.commit()
+    if was_live:
+        next_pc = db.query(ClientProductContext).filter(ClientProductContext.client_id == client_id).order_by(
+            ClientProductContext.sort_order, ClientProductContext.created_at
+        ).first()
+        if next_pc:
+            next_pc.is_live = True
+            db.commit()
+    return {"ok": True}
 
 
 @router.get("/{client_id}/sources", response_model=List[DataSourceResponse])
@@ -743,6 +963,14 @@ def execute_client_prompt(
         
         if client.tone_of_voice:
             user_message_parts.append(f"\n\nBrand Tone of Voice:\n{client.tone_of_voice}")
+
+        # Add live product context if available
+        live_product = db.query(ClientProductContext).filter(
+            ClientProductContext.client_id == client_id,
+            ClientProductContext.is_live == True
+        ).first()
+        if live_product and live_product.context_text:
+            user_message_parts.append(f"\n\nProduct Context:\n{live_product.context_text}")
         
         # Add voc_data as JSON
         voc_json = json.dumps(payload.voc_data, indent=2)

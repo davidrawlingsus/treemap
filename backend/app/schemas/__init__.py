@@ -30,6 +30,11 @@ from .client import (
     ClientResponse,
     ClientLogoUpdate,
     ClientSettingsUpdate,
+    ProductContextExtractRequest,
+    ProductContextExtractResponse,
+    ProductContextCreate,
+    ProductContextUpdate,
+    ProductContextResponse,
 )
 
 from .data_source import (
@@ -195,6 +200,11 @@ __all__ = [
     "ClientResponse",
     "ClientLogoUpdate",
     "ClientSettingsUpdate",
+    "ProductContextExtractRequest",
+    "ProductContextExtractResponse",
+    "ProductContextCreate",
+    "ProductContextUpdate",
+    "ProductContextResponse",
     # Data Source
     "DataSourceCreate",
     "DataSourceResponse",

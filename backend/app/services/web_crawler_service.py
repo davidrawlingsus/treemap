@@ -31,6 +31,26 @@ class WebCrawlerService:
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
     
+    def fetch_single_page(self, url: str, max_chars: int = 10000) -> Optional[str]:
+        """
+        Fetch and extract text content from a single page (e.g. a PDP).
+        Uses a higher character limit than crawl_brand_pages for content-heavy pages.
+
+        Args:
+            url: The page URL to fetch
+            max_chars: Maximum characters to return (default 10000 for PDPs)
+
+        Returns:
+            Extracted text content, or None on error
+        """
+        original_limit = self.max_chars_per_page
+        self.max_chars_per_page = max_chars
+        try:
+            text, _ = self._fetch_page_content(url)
+            return text
+        finally:
+            self.max_chars_per_page = original_limit
+
     def crawl_brand_pages(self, base_url: str, max_pages: int = 4) -> Dict:
         """
         Crawl a brand's website and extract copy from key pages.

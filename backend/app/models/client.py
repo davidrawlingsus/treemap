@@ -66,6 +66,12 @@ class Client(Base):
         cascade="all, delete-orphan",
         overlaps="prompts,clients"
     )
+    product_contexts = relationship(
+        "ClientProductContext",
+        back_populates="client",
+        cascade="all, delete-orphan",
+        order_by="ClientProductContext.sort_order, ClientProductContext.created_at"
+    )
 
     def __repr__(self):
         return f"<Client(id={self.id}, name={self.name}, slug={self.slug})>"

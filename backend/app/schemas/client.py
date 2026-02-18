@@ -109,6 +109,49 @@ class ClientSettingsUpdate(BaseModel):
     tone_of_voice: Optional[str] = Field(default=None, description="Brand tone of voice for consistent ad copy")
 
 
+# Product Context schemas
+class ProductContextExtractRequest(BaseModel):
+    """Request to extract product context from a PDP URL"""
+    url: str = Field(..., description="PDP URL to fetch and extract from")
+
+
+class ProductContextExtractResponse(BaseModel):
+    """Response from product context extraction (not persisted)"""
+    name: str = Field(..., description="Product name extracted")
+    context_text: str = Field(..., description="Extracted product context")
+    source_url: str = Field(..., description="PDP URL used")
+
+
+class ProductContextCreate(BaseModel):
+    """Create a new product context"""
+    name: str = Field(..., description="Product name")
+    context_text: str = Field(default="", description="Product context text")
+    source_url: Optional[str] = Field(default=None, description="PDP URL source")
+
+
+class ProductContextUpdate(BaseModel):
+    """Update an existing product context"""
+    name: Optional[str] = Field(default=None, description="Product name")
+    context_text: Optional[str] = Field(default=None, description="Product context text")
+    source_url: Optional[str] = Field(default=None, description="PDP URL source")
+
+
+class ProductContextResponse(BaseModel):
+    """Product context response"""
+    id: UUID
+    client_id: UUID
+    name: str
+    context_text: Optional[str] = None
+    source_url: Optional[str] = None
+    is_live: bool
+    sort_order: int
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
 # Resolve forward references
 AuthorizedDomainResponse.model_rebuild()
 AuthorizedEmailResponse.model_rebuild()
