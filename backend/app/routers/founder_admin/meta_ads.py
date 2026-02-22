@@ -49,8 +49,28 @@ _oauth_states = {}
 
 # ==================== OAuth Endpoints ====================
 
+@router.get("/api/meta/oauth/debug-redirect")
+def meta_oauth_debug_redirect(request: Request):
+    """Temporary diagnostic: shows what redirect_uri would be computed. Remove after debugging."""
+    settings = get_settings()
+    explicit = settings.meta_redirect_uri
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    host = request.headers.get("host", "localhost:8000")
+    derived = f"{scheme}://{host}/api/meta/oauth/callback"
+    return {
+        "meta_redirect_uri_setting": explicit,
+        "derived_redirect_uri": derived,
+        "would_use": explicit if explicit else derived,
+        "request_host": host,
+        "request_scheme": request.url.scheme,
+        "x_forwarded_proto": request.headers.get("x-forwarded-proto"),
+        "frontend_base_url": settings.frontend_base_url,
+    }
+
+
 @router.get("/api/meta/oauth/init")
 def meta_oauth_init(
+    request: Request,
     client_id: UUID = Query(..., description="Client ID to connect Meta account to"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -70,15 +90,27 @@ def meta_oauth_init(
     
     # Generate state token for CSRF protection
     state = secrets.token_urlsafe(32)
+    # Build redirect URI: use explicit setting, or derive from the incoming request
+    # so the callback hits this same backend server directly (not via a frontend proxy).
+    redirect_uri = settings.meta_redirect_uri
+    if not redirect_uri:
+        scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+        host = request.headers.get("host", "localhost:8000")
+        redirect_uri = f"{scheme}://{host}/api/meta/oauth/callback"
+    
     _oauth_states[state] = {
         "client_id": str(client_id),
         "user_id": str(current_user.id),
+        "redirect_uri": redirect_uri,
     }
     
-    # Build redirect URI
-    redirect_uri = settings.meta_redirect_uri
-    if not redirect_uri:
-        redirect_uri = f"{settings.frontend_base_url}/api/meta/oauth/callback"
+    # #region agent log
+    import json as _json, time as _time, pathlib as _pathlib
+    _dbg_path = _pathlib.Path("/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug-df77f4.log")
+    _dbg_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(_dbg_path, "a") as _f:
+        _f.write(_json.dumps({"sessionId":"df77f4","hypothesisId":"H5","location":"meta_ads.py:oauth_init","message":"redirect_uri resolution","data":{"meta_redirect_uri_setting":settings.meta_redirect_uri,"request_host":request.headers.get("host"),"request_scheme":request.url.scheme,"x_forwarded_proto":request.headers.get("x-forwarded-proto"),"final_redirect_uri":redirect_uri},"timestamp":_time.time()})+"\n")
+    # #endregion
     
     service = MetaAdsService(db)
     oauth_url = service.get_oauth_url(
@@ -161,10 +193,10 @@ async def meta_oauth_callback(
     client_id = state_data["client_id"]
     user_id = state_data["user_id"]
     
-    # Build redirect URI (must match what was used in init)
-    redirect_uri = settings.meta_redirect_uri
+    # Use the same redirect URI that was used in init (stored in state)
+    redirect_uri = state_data.get("redirect_uri")
     if not redirect_uri:
-        redirect_uri = f"{settings.frontend_base_url}/api/meta/oauth/callback"
+        redirect_uri = settings.meta_redirect_uri or f"{settings.frontend_base_url}/api/meta/oauth/callback"
     
     service = MetaAdsService(db)
     
