@@ -14,8 +14,8 @@ from app.models import MetaOAuthToken, FacebookAd, Client
 logger = logging.getLogger(__name__)
 
 # Meta API base URLs
-META_GRAPH_API_BASE = "https://graph.facebook.com/v21.0"
-META_OAUTH_BASE = "https://www.facebook.com/v21.0/dialog/oauth"
+META_GRAPH_API_BASE = "https://graph.facebook.com/v24.0"
+META_OAUTH_BASE = "https://www.facebook.com/v24.0/dialog/oauth"
 
 
 class MetaAdsService:
@@ -403,6 +403,16 @@ class MetaAdsService:
     
     # ==================== Ad Publishing Methods ====================
     
+    VIDEO_EXTENSIONS = ('.mp4', '.webm', '.mov', '.avi', '.mkv', '.m4v')
+    
+    @staticmethod
+    def is_video_url(url: str) -> bool:
+        """Check if a URL points to a video file based on extension."""
+        if not url:
+            return False
+        lower_url = url.lower()
+        return any(ext in lower_url for ext in MetaAdsService.VIDEO_EXTENSIONS)
+    
     async def upload_image(
         self,
         access_token: str,
@@ -434,46 +444,125 @@ class MetaAdsService:
             
             return result
     
+    async def upload_video(
+        self,
+        access_token: str,
+        ad_account_id: str,
+        video_url: str,
+    ) -> Dict[str, Any]:
+        """
+        Upload a video to Meta from URL.
+        
+        Returns:
+            Dict with video_id and thumbnail_url
+        """
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(
+                f"{META_GRAPH_API_BASE}/{ad_account_id}/advideos",
+                data={
+                    "file_url": video_url,
+                    "access_token": access_token,
+                }
+            )
+            
+            if not response.is_success:
+                try:
+                    error_data = response.json()
+                    error_obj = error_data.get("error", {})
+                    error_msg = error_obj.get("error_user_msg") or error_obj.get("message", response.text)
+                    raise Exception(f"Meta video upload error: {error_msg}")
+                except Exception:
+                    raise
+            
+            result = response.json()
+            video_id = result.get("id")
+            if not video_id:
+                raise Exception(f"Meta video upload: no video_id in response: {result}")
+            
+            # Fetch auto-generated thumbnail from the uploaded video
+            thumbnail_url = None
+            try:
+                thumb_response = await client.get(
+                    f"{META_GRAPH_API_BASE}/{video_id}",
+                    params={
+                        "access_token": access_token,
+                        "fields": "picture,thumbnails",
+                    }
+                )
+                if thumb_response.is_success:
+                    thumb_data = thumb_response.json()
+                    thumbnail_url = thumb_data.get("picture")
+                    if not thumbnail_url:
+                        thumbs = thumb_data.get("thumbnails", {}).get("data", [])
+                        if thumbs:
+                            thumbnail_url = thumbs[0].get("uri")
+                    logger.info(f"Video {video_id} thumbnail: {thumbnail_url}")
+            except Exception as e:
+                logger.warning(f"Failed to fetch video thumbnail: {e}")
+            
+            return {"video_id": video_id, "thumbnail_url": thumbnail_url}
+    
     async def create_ad_creative(
         self,
         access_token: str,
         ad_account_id: str,
         name: str,
         page_id: str,
-        image_hash: Optional[str],
         primary_text: str,
         headline: str,
         description: str,
         link_url: str,
         call_to_action: str,
+        image_hash: Optional[str] = None,
+        video_id: Optional[str] = None,
+        thumbnail_url: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Create an ad creative.
+        Create an ad creative (supports both image and video).
+        
+        For image ads: pass image_hash
+        For video ads: pass video_id (and optionally thumbnail_url)
         
         Returns:
             Dict with created creative id
         """
         import json
         
-        # Build object story spec for link ad
-        object_story_spec = {
-            "page_id": page_id,
-            "link_data": {
+        cta_spec = {
+            "type": call_to_action,
+            "value": {
                 "link": link_url,
-                "message": primary_text,
-                "name": headline,
-                "description": description,
-                "call_to_action": {
-                    "type": call_to_action,
-                    "value": {
-                        "link": link_url,
-                    }
-                }
             }
         }
         
-        if image_hash:
-            object_story_spec["link_data"]["image_hash"] = image_hash
+        if video_id:
+            # Video creative uses video_data spec
+            object_story_spec = {
+                "page_id": page_id,
+                "video_data": {
+                    "video_id": video_id,
+                    "message": primary_text,
+                    "title": headline,
+                    "link_description": description,
+                    "call_to_action": cta_spec,
+                }
+            }
+            if thumbnail_url:
+                object_story_spec["video_data"]["image_url"] = thumbnail_url
+        else:
+            # Image/link creative uses link_data spec
+            object_story_spec = {
+                "page_id": page_id,
+                "link_data": {
+                    "link": link_url,
+                    "message": primary_text,
+                    "name": headline,
+                    "description": description,
+                    "call_to_action": cta_spec,
+                }
+            }
+            if image_hash:
+                object_story_spec["link_data"]["image_hash"] = image_hash
         
         async with httpx.AsyncClient() as client:
             response = await client.post(
@@ -493,7 +582,6 @@ class MetaAdsService:
                     error_subcode = error_obj.get("error_subcode")
                     error_user_msg = error_obj.get("error_user_msg", "")
                     
-                    # Provide clearer message for common errors
                     if error_subcode == 1885183 or "development mode" in error_user_msg.lower():
                         raise Exception(
                             "Your Meta App is in Development Mode. "
@@ -522,17 +610,33 @@ class MetaAdsService:
             Dict with created ad id
         """
         async with httpx.AsyncClient() as client:
+            payload = {
+                "name": name,
+                "adset_id": adset_id,
+                "creative": f'{{"creative_id": "{creative_id}"}}',
+                "status": status,
+                "access_token": access_token,
+            }
+            
             response = await client.post(
                 f"{META_GRAPH_API_BASE}/{ad_account_id}/ads",
-                data={
-                    "name": name,
-                    "adset_id": adset_id,
-                    "creative": f'{{"creative_id": "{creative_id}"}}',
-                    "status": status,
-                    "access_token": access_token,
-                }
+                data=payload,
             )
-            response.raise_for_status()
+            
+            if not response.is_success:
+                try:
+                    error_data = response.json()
+                    error_obj = error_data.get("error", {})
+                    error_msg = error_obj.get("message", response.text)
+                    error_code = error_obj.get("code")
+                    error_subcode = error_obj.get("error_subcode")
+                    error_user_msg = error_obj.get("error_user_msg", "")
+                    
+                    logger.error(f"Meta ad creation failed: code={error_code} subcode={error_subcode} msg={error_user_msg or error_msg}")
+                    raise Exception(f"Meta API error: {error_user_msg or error_msg}")
+                except Exception:
+                    raise
+            
             return response.json()
     
     async def publish_ad(
@@ -572,12 +676,24 @@ class MetaAdsService:
         
         access_token = token.access_token
         
-        # Upload image if we have one
+        # Upload media (image or video) if present
         image_hash = None
-        image_url = ad.full_json.get("image_url") if ad.full_json else None
-        if image_url:
+        video_id = None
+        media_url = ad.full_json.get("image_url") if ad.full_json else None
+        is_video = self.is_video_url(media_url)
+        
+        thumbnail_url = None
+        if media_url and is_video:
             try:
-                image_result = await self.upload_image(access_token, ad_account_id, image_url)
+                video_result = await self.upload_video(access_token, ad_account_id, media_url)
+                video_id = video_result.get("video_id")
+                thumbnail_url = video_result.get("thumbnail_url")
+                logger.info(f"Uploaded video for ad {ad_id}, video_id: {video_id}, thumbnail: {thumbnail_url}")
+            except Exception as e:
+                logger.warning(f"Failed to upload video for ad {ad_id}: {e}")
+        elif media_url:
+            try:
+                image_result = await self.upload_image(access_token, ad_account_id, media_url)
                 image_hash = image_result.get("hash")
                 logger.info(f"Uploaded image for ad {ad_id}, hash: {image_hash}")
             except Exception as e:
@@ -585,23 +701,26 @@ class MetaAdsService:
         
         # Create the ad creative
         creative_name = ad_name or f"Creative - {ad.headline[:30]}"
+        
         creative_result = await self.create_ad_creative(
             access_token=access_token,
             ad_account_id=ad_account_id,
             name=creative_name,
             page_id=page_id,
-            image_hash=image_hash,
             primary_text=ad.primary_text,
             headline=ad.headline,
             description=ad.description or "",
             link_url=ad.destination_url or "https://example.com",
             call_to_action=ad.call_to_action,
+            image_hash=image_hash,
+            video_id=video_id,
+            thumbnail_url=thumbnail_url,
         )
         creative_id = creative_result.get("id")
         logger.info(f"Created creative {creative_id} for ad {ad_id}")
         
-        # Create the ad
         ad_meta_name = ad_name or f"Ad - {ad.headline[:30]}"
+        
         ad_result = await self.create_ad(
             access_token=access_token,
             ad_account_id=ad_account_id,

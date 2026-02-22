@@ -168,6 +168,30 @@ function renderErrorState(message) {
 }
 
 /**
+ * Render publish success state with animated checkmark
+ * @param {string} metaAdId - The Meta ad ID that was created
+ */
+function renderSuccessState(metaAdId) {
+    const container = getContentContainer();
+    container.innerHTML = `
+        <div class="meta-publish-modal__success">
+            <div class="meta-publish-modal__success-circle">
+                <svg class="meta-publish-modal__success-check" viewBox="0 0 36 36">
+                    <path d="M8 18 L15 25 L28 11" />
+                </svg>
+            </div>
+            <h3 class="meta-publish-modal__success-title">Ad Published</h3>
+            <p class="meta-publish-modal__success-text">Your ad is now live in Facebook Ads Manager with status Paused.</p>
+            <p class="meta-publish-modal__success-id">Ad ID: ${escapeHtml(metaAdId || '')}</p>
+            <button class="meta-publish-modal__btn meta-publish-modal__btn--primary meta-publish-modal__success-btn">Done</button>
+        </div>
+    `;
+    
+    container.querySelector('.meta-publish-modal__success-btn')
+        .addEventListener('click', hideMetaPublishModal);
+}
+
+/**
  * Render connect to Meta state
  */
 function renderConnectState() {
@@ -821,10 +845,8 @@ async function handlePublish() {
         );
         
         if (result.success) {
-            alert(`Ad published successfully!\nMeta Ad ID: ${result.meta_ad_id}`);
-            hideMetaPublishModal();
+            renderSuccessState(result.meta_ad_id);
             
-            // Refresh ads page if available
             if (window.renderAdsPage) {
                 window.renderAdsPage();
             }
