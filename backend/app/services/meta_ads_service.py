@@ -401,6 +401,31 @@ class MetaAdsService:
             
             return response.json()
     
+    # ==================== Text Preparation ====================
+    
+    @staticmethod
+    def prepare_text_for_meta(text: str) -> str:
+        """
+        Convert raw ad text (with literal escape sequences and markdown)
+        into clean plain text suitable for Facebook's API.
+        """
+        if not text:
+            return ""
+        import re
+        
+        # Convert literal escape sequences to actual characters
+        result = text.replace('\\n', '\n').replace('\\r', '\r').replace('\\"', '"')
+        
+        # Normalize line endings
+        result = result.replace('\r\n', '\n').replace('\r', '\n')
+        
+        # Strip markdown formatting (keep the text content)
+        result = re.sub(r'\*\*(.+?)\*\*', r'\1', result)  # **bold**
+        result = re.sub(r'\*(.+?)\*', r'\1', result)       # *italic*
+        result = re.sub(r'^#{1,6}\s+', '', result, flags=re.MULTILINE)  # # headers
+        
+        return result
+    
     # ==================== Ad Publishing Methods ====================
     
     VIDEO_EXTENSIONS = ('.mp4', '.webm', '.mov', '.avi', '.mkv', '.m4v')
@@ -420,23 +445,34 @@ class MetaAdsService:
         image_url: str,
     ) -> Dict[str, Any]:
         """
-        Upload an image to Meta from URL.
+        Upload an image to Meta by downloading bytes and uploading as file data.
         
         Returns:
             Dict with hash (image_hash)
         """
-        async with httpx.AsyncClient() as client:
+        from urllib.parse import urlparse
+        
+        endpoint = f"{META_GRAPH_API_BASE}/{ad_account_id}/adimages"
+        
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            img_resp = await client.get(image_url)
+            img_resp.raise_for_status()
+            img_bytes = img_resp.content
+            content_type = img_resp.headers.get("content-type", "image/jpeg")
+            filename = urlparse(image_url).path.split("/")[-1] or "image.jpg"
+            
             response = await client.post(
-                f"{META_GRAPH_API_BASE}/{ad_account_id}/adimages",
-                data={
-                    "url": image_url,
-                    "access_token": access_token,
-                }
+                endpoint,
+                data={"access_token": access_token},
+                files={"filename": (filename, img_bytes, content_type)},
             )
-            response.raise_for_status()
+            
+            if not response.is_success:
+                error_detail = response.text[:500]
+                raise Exception(f"Image upload failed ({response.status_code}): {error_detail}")
+            
             result = response.json()
             
-            # Response format: {"images": {"filename": {"hash": "...", "url": "..."}}}
             images = result.get("images", {})
             if images:
                 first_image = list(images.values())[0]
@@ -676,6 +712,11 @@ class MetaAdsService:
         
         access_token = token.access_token
         
+        # Prepare text fields for Meta (convert escape sequences, strip markdown)
+        clean_primary_text = self.prepare_text_for_meta(ad.primary_text)
+        clean_headline = self.prepare_text_for_meta(ad.headline)
+        clean_description = self.prepare_text_for_meta(ad.description or "")
+        
         # Upload media (image or video) if present
         image_hash = None
         video_id = None
@@ -707,9 +748,9 @@ class MetaAdsService:
             ad_account_id=ad_account_id,
             name=creative_name,
             page_id=page_id,
-            primary_text=ad.primary_text,
-            headline=ad.headline,
-            description=ad.description or "",
+            primary_text=clean_primary_text,
+            headline=clean_headline,
+            description=clean_description,
             link_url=ad.destination_url or "https://example.com",
             call_to_action=ad.call_to_action,
             image_hash=image_hash,
