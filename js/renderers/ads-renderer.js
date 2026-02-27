@@ -1145,9 +1145,7 @@ async function handleImageDelete(adId, mediaElement) {
         }
         
         // Update via API - pass null image_url to remove it
-        await updateFacebookAd(adId, { 
-            image_url: null
-        });
+        await updateFacebookAd(adId, { image_url: null });
         
         // Update cache - remove image_url from full_json
         const updatedFullJson = {

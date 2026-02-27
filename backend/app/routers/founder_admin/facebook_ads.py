@@ -115,10 +115,16 @@ def update_facebook_ad(
     update_data = ad_data.model_dump(exclude_unset=True)
     
     # Handle image_url - store it in full_json
-    image_url = update_data.pop('image_url', None)
-    if image_url is not None:
+    # Use sentinel to distinguish "not provided" from "explicitly set to null (remove)"
+    _sentinel = object()
+    image_url = update_data.pop('image_url', _sentinel)
+    
+    if image_url is not _sentinel:
         full_json = copy.deepcopy(ad.full_json) if ad.full_json else {}
-        full_json['image_url'] = image_url
+        if image_url is None:
+            full_json.pop('image_url', None)
+        else:
+            full_json['image_url'] = image_url
         ad.full_json = full_json
     
     # Handle angle - store it in full_json
