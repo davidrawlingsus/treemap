@@ -138,21 +138,6 @@
             return `<pre class="streaming-code-block"><code>${content}</code></pre>`;
         });
         
-        // Restore JSON block placeholders with the actual idea card HTML
-        jsonBlocks.forEach((htmlObject, index) => {
-            let ideaCardsHTML = '';
-            
-            // Add content section if present
-            if (htmlObject.content) {
-                ideaCardsHTML += `<div style="margin-bottom: 20px; padding: 8px 10px; background: #f0f4f8; border-left: 4px solid #B9F040; border-radius: 4px;"><p style="margin: 0; font-size: 16px; line-height: 1.4; color: #2d3748; font-weight: 500;">${DOM.escapeHtml(htmlObject.content)}</p></div>`;
-            }
-            
-            // Generate idea cards from the ideas array
-            ideaCardsHTML += htmlObject.ideas.map(idea => generateIdeaCardHTML(idea)).join('');
-            
-            html = html.replace(`___JSON_BLOCK_${index}___`, ideaCardsHTML);
-        });
-        
         // Split into lines for block-level processing
         const lines = html.split('\n');
         const processedLines = [];
@@ -402,7 +387,7 @@
         
         // Italic: *text* -> <em>text</em> (after bold, so we don't match **)
         html = html.replace(/\*([^*\n]+?)\*/g, '<em>$1</em>');
-        
+
         // Inline code: `code` -> <code>code</code> (but not inside <pre>)
         html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
         
@@ -410,6 +395,17 @@
         // followed by content get proper paragraph breaks (not just <br>)
         // This improves readability in TipTap editor
         html = html.replace(/(<strong>[^<]+:<\/strong>[^\n]*)\n([^<\n])/g, '$1</p><p>$2');
+        
+        // Restore JSON block placeholders with card HTML AFTER inline formatting
+        // so bold/italic regex doesn't convert asterisks inside card text
+        jsonBlocks.forEach((htmlObject, index) => {
+            let ideaCardsHTML = '';
+            if (htmlObject.content) {
+                ideaCardsHTML += `<div style="margin-bottom: 20px; padding: 8px 10px; background: #f0f4f8; border-left: 4px solid #B9F040; border-radius: 4px;"><p style="margin: 0; font-size: 16px; line-height: 1.4; color: #2d3748; font-weight: 500;">${DOM.escapeHtml(htmlObject.content)}</p></div>`;
+            }
+            ideaCardsHTML += htmlObject.ideas.map(idea => generateIdeaCardHTML(idea)).join('');
+            html = html.replace(`___JSON_BLOCK_${index}___`, ideaCardsHTML);
+        });
         
         // Convert double newlines to paragraph breaks, single newlines to <br>
         // But preserve block elements and don't add breaks inside lists
