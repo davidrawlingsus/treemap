@@ -187,6 +187,9 @@
         const sortDirection = state.get('tableSortDirection') || 'desc';
         const columnFilters = state.get('columnFilters') || {};
         const searchTerm = (state.get('searchTerm') || '').toLowerCase();
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ad9005'},body:JSON.stringify({sessionId:'ad9005',location:'prompt-list-renderer.js:renderPromptsTable',message:'Renderer called',data:{searchTerm,promptCount:prompts?.length,columnFilterKeys:Object.keys(columnFilters)},timestamp:Date.now(),hypothesisId:'C,D'})}).catch(()=>{});
+        // #endregion
 
         // Change container class for table view
         container.className = 'prompts-table-container';
@@ -212,6 +215,9 @@
                     || clientText.includes(searchTerm)
                     || (prompt.status || '').toLowerCase().includes(searchTerm);
             });
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ad9005'},body:JSON.stringify({sessionId:'ad9005',location:'prompt-list-renderer.js:searchFilter',message:'Search filter applied',data:{searchTerm,beforeCount:prompts.length,afterCount:filtered.length},timestamp:Date.now(),hypothesisId:'C,D'})}).catch(()=>{});
+            // #endregion
         }
 
         // Apply column filters

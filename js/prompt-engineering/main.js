@@ -489,7 +489,12 @@
         handleSearch() {
             const state = window.PromptEngineeringState;
             const input = this.elements.promptSearchInput;
-            state.set('searchTerm', input?.value.trim() || '');
+            const rawValue = input?.value;
+            const trimmed = rawValue?.trim() || '';
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ad9005'},body:JSON.stringify({sessionId:'ad9005',location:'main.js:handleSearch',message:'handleSearch called',data:{inputFound:!!input,rawValue,trimmed,elementsExist:!!this.elements},timestamp:Date.now(),hypothesisId:'A,B'})}).catch(()=>{});
+            // #endregion
+            state.set('searchTerm', trimmed);
             this.updateSearchClearButton();
             this.renderPromptsList();
         },
@@ -550,6 +555,9 @@
 
     // Export for debugging and HTML event handlers
     window.PromptEngineeringApp = PromptEngineeringApp;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ad9005'},body:JSON.stringify({sessionId:'ad9005',location:'main.js:moduleInit',message:'PromptEngineering global created',data:{hasHandleSearch:typeof PromptEngineeringApp.handleSearch},timestamp:Date.now(),hypothesisId:'A,E'})}).catch(()=>{});
+    // #endregion
     window.PromptEngineering = {
         handleSearch: () => PromptEngineeringApp.handleSearch(),
         updateSearchClearButton: () => PromptEngineeringApp.updateSearchClearButton(),
