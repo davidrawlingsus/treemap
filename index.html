@@ -11396,7 +11396,7 @@
                     if (prompt && prompt.name) {
                         const name = prompt.name;
                         // Common marketing abbreviations to keep in uppercase
-                        const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'A', 'B', 'PPC', 'SEM', 'SERP', 'SaaS', 'B2B', 'B2C', 'BOFU', 'MOFU', 'TOFU', 'GDPR', 'CTA', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];
+                        const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'A', 'B', 'PPC', 'SEM', 'SERP', 'SMS', 'SaaS', 'B2B', 'B2C', 'BOFU', 'MOFU', 'TOFU', 'GDPR', 'CTA', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];
                         
                         // Replace underscores and hyphens with spaces, then apply Title Case with abbreviation preservation
                         promptName = name
@@ -11416,6 +11416,16 @@
                 } catch (e) {
                     console.warn('[openAIExpertInsight] Failed to fetch prompt name:', e);
                 }
+
+                // Extract funnel step (TOFU/MOFU/BOFU) from prompt name for ad tagging
+                this.currentFunnelStep = (() => {
+                    if (!promptName) return null;
+                    const upper = promptName.toUpperCase();
+                    if (upper.includes('TOFU')) return 'TOFU';
+                    if (upper.includes('MOFU')) return 'MOFU';
+                    if (upper.includes('BOFU')) return 'BOFU';
+                    return null;
+                })();
                 
                 // Open slideout in create mode - this sets up the panel structure
                 // If using full aggregated data, pass minimal contextData with 'category' as origin_type
@@ -14981,7 +14991,7 @@
                     const groupedPrompts = await window.ClientPromptAPI.listPrompts(currentClientId);
                     promptGroupsContainer.innerHTML = '';
                     if (groupedPrompts && groupedPrompts.length > 0) {
-                        const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'A', 'B', 'PPC', 'SEM', 'SERP', 'SaaS', 'B2B', 'B2C', 'BOFU', 'MOFU', 'TOFU', 'GDPR', 'CTA', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];
+                        const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'A', 'B', 'PPC', 'SEM', 'SERP', 'SMS', 'SaaS', 'B2B', 'B2C', 'BOFU', 'MOFU', 'TOFU', 'GDPR', 'CTA', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];
                         const toTitleCase = (name) => {
                             return (name || '').replace(/_/g, ' ').replace(/-/g, ' ').split(' ')
                                 .map(word => {
