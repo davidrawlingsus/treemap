@@ -198,6 +198,12 @@ function renderAdCard(ad) {
                <button class="ads-card__angle-pill ads-card__angle-pill--empty" data-ad-id="${id}" title="Click to set angle">+ Angle</button>
            </div>`;
     
+    // Funnel step pill (TOFU / MOFU / BOFU)
+    const funnelStep = ad.full_json?.funnel_step || '';
+    const funnelPillHtml = funnelStep
+        ? `<span class="ads-card__funnel-pill ads-card__funnel-pill--${funnelStep.toLowerCase()}">${escapeHtml(funnelStep)}</span>`
+        : '';
+    
     return `
         <div class="ads-card" data-ad-id="${id}">
             <div class="ads-card__header">
@@ -211,6 +217,7 @@ function renderAdCard(ad) {
                             ${statusOptionsHtml}
                         </div>
                     </div>
+                    ${funnelPillHtml}
                     ${anglePillHtml}
                 </div>
                 <div class="ads-card__actions">

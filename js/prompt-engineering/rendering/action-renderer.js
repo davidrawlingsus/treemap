@@ -386,20 +386,26 @@
             throw new Error('Authentication not available. Please log in again.');
         }
 
-        // Get slideout panel context for action_id link
+        // Get slideout panel context for action_id link and funnel step
         const slideoutPanel = window.SlideoutPanel;
         const actionId = slideoutPanel?.currentActionId || null;
+        const funnelStep = slideoutPanel?.currentFunnelStep || null;
 
         // Map Facebook ad fields
+        const fullJson = { ...ideaData };
+        if (funnelStep) {
+            fullJson.funnel_step = funnelStep;
+        }
+
         const adData = {
             primary_text: ideaData.primary_text,
             headline: ideaData.headline,
             description: ideaData.description || null,
             call_to_action: ideaData.call_to_action,
             destination_url: ideaData.destination_url || null,
-            image_hash: null, // Image prompts removed - not using them
+            image_hash: null,
             voc_evidence: ideaData.voc_evidence || [],
-            full_json: ideaData, // Preserve complete JSON for FB API
+            full_json: fullJson,
             action_id: actionId,
             status: 'draft'
         };
