@@ -37,7 +37,6 @@
             // llm_model: []
         },
         statusFilter: '',
-        purposeFilter: '',
         searchTerm: '',
         clientMap: {},
         viewMode: 'table', // 'cards' or 'table'

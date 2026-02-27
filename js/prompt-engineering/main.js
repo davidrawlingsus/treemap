@@ -73,7 +73,6 @@
                 statusMessage: DOM.getElement('statusMessage'),
                 promptsContainer: DOM.getElement('promptsContainer'),
                 statusFilter: DOM.getElement('statusFilter'),
-                purposeFilter: DOM.getElement('purposeFilter'),
                 viewToggle: DOM.getElement('viewToggle', false),
                 // Modal elements
                 modalBackdrop: DOM.getElement('modalBackdrop'),
@@ -343,10 +342,6 @@
                 this.elements.statusFilter.addEventListener('change', debouncedLoadPrompts);
             }
 
-            if (this.elements.purposeFilter) {
-                this.elements.purposeFilter.addEventListener('change', debouncedLoadPrompts);
-            }
-
             // Logout button
             if (this.elements.logoutButton) {
                 this.elements.logoutButton.addEventListener('click', () => {
@@ -416,14 +411,10 @@
             const PromptAPI = window.PromptAPI;
 
             const statusFilter = this.elements.statusFilter?.value || '';
-            const purposeFilter = this.elements.purposeFilter?.value || '';
-
             state.set('statusFilter', statusFilter);
-            state.set('purposeFilter', purposeFilter);
 
             const filters = {};
             if (statusFilter) filters.status = statusFilter;
-            if (purposeFilter) filters.prompt_purpose = purposeFilter;
 
             try {
                 const prompts = await PromptAPI.list(filters, true);
@@ -431,9 +422,6 @@
 
                 // Render prompts list
                 this.renderPromptsList();
-
-                // Update purpose filter dropdown with new purposes from prompts
-                this.updatePurposeFilter();
 
                 // Refresh slideout filters if slideout is open
                 if (this.filterManager && this.slideoutManager && this.slideoutManager.slideout?.isOpen()) {
@@ -489,13 +477,7 @@
         handleSearch() {
             const state = window.PromptEngineeringState;
             const input = this.elements.promptSearchInput;
-            const rawValue = input?.value;
-            const trimmed = rawValue?.trim() || '';
-            // #region agent log
-            console.log('[DEBUG-ad9005] handleSearch called', {inputFound:!!input,rawValue,trimmed,elementsExist:!!this.elements});
-            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ad9005'},body:JSON.stringify({sessionId:'ad9005',location:'main.js:handleSearch',message:'handleSearch called',data:{inputFound:!!input,rawValue,trimmed,elementsExist:!!this.elements},timestamp:Date.now(),hypothesisId:'A,B'})}).catch(()=>{});
-            // #endregion
-            state.set('searchTerm', trimmed);
+            state.set('searchTerm', input?.value.trim() || '');
             this.updateSearchClearButton();
             this.renderPromptsList();
         },
@@ -522,44 +504,11 @@
             this.updateSearchClearButton();
             this.renderPromptsList();
             input.focus();
-        },
-
-        /**
-         * Update purpose filter dropdown
-         */
-        updatePurposeFilter() {
-            if (!this.elements.purposeFilter) return;
-
-            const state = window.PromptEngineeringState;
-            const prompts = state.get('prompts');
-            const uniquePurposes = [...new Set(prompts.map(p => p.prompt_purpose))].sort();
-
-            // Remove all options except "All Purposes"
-            Array.from(this.elements.purposeFilter.options).forEach(option => {
-                if (option.value !== '') {
-                    option.remove();
-                }
-            });
-
-            // Add purposes from prompts
-            uniquePurposes.forEach(purpose => {
-                const existingOptions = Array.from(this.elements.purposeFilter.options).map(opt => opt.value);
-                if (!existingOptions.includes(purpose)) {
-                    const option = document.createElement('option');
-                    option.value = purpose;
-                    option.textContent = window.PurposesManager.getDisplayName(purpose);
-                    this.elements.purposeFilter.appendChild(option);
-                }
-            });
         }
     };
 
     // Export for debugging and HTML event handlers
     window.PromptEngineeringApp = PromptEngineeringApp;
-    // #region agent log
-    console.log('[DEBUG-ad9005] moduleInit: PromptEngineering global created', {hasHandleSearch:typeof PromptEngineeringApp.handleSearch});
-    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ad9005'},body:JSON.stringify({sessionId:'ad9005',location:'main.js:moduleInit',message:'PromptEngineering global created',data:{hasHandleSearch:typeof PromptEngineeringApp.handleSearch},timestamp:Date.now(),hypothesisId:'A,E'})}).catch(()=>{});
-    // #endregion
     window.PromptEngineering = {
         handleSearch: () => PromptEngineeringApp.handleSearch(),
         updateSearchClearButton: () => PromptEngineeringApp.updateSearchClearButton(),
