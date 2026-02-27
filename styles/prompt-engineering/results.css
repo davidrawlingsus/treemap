@@ -112,6 +112,22 @@
     background: transparent;
 }
 
+/* When streaming content has idea cards, normalize bold/italic in paragraph
+   and list text so inconsistent LLM formatting doesn't cause visual jitter */
+.prompt-result-content:has(.pe-fb-ad-wrapper) p strong,
+.prompt-result-content:has(.pe-fb-ad-wrapper) li strong,
+.prompt-result-content:has(.pe-email-wrapper) p strong,
+.prompt-result-content:has(.pe-email-wrapper) li strong {
+    font-weight: inherit;
+}
+
+.prompt-result-content:has(.pe-fb-ad-wrapper) p em,
+.prompt-result-content:has(.pe-fb-ad-wrapper) li em,
+.prompt-result-content:has(.pe-email-wrapper) p em,
+.prompt-result-content:has(.pe-email-wrapper) li em {
+    font-style: inherit;
+}
+
 .prompt-result-content h1 {
     font-size: 26px;
     font-weight: 700;
