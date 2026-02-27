@@ -22,7 +22,8 @@ class LLMService:
     # List of Anthropic models to try in order if the requested model is not found
     # These are commonly available models, including the newer format
     ANTHROPIC_FALLBACK_MODELS = [
-        "claude-sonnet-4-5-20250929",  # Newer model format (from Anthropic sandbox)
+        "claude-opus-4-6",
+        "claude-sonnet-4-5-20250929",
         "claude-3-opus-20240229",
         "claude-3-5-sonnet-20241022", 
         "claude-3-haiku-20240307",
@@ -565,9 +566,10 @@ class LLMService:
             # Provide helpful suggestions for model not found errors
             if is_model_not_found:
                 suggested_models = [
+                    "claude-opus-4-6",
+                    "claude-sonnet-4-5-20250929",
                     "claude-3-5-sonnet-20241022",
                     "claude-3-opus-20240229",
-                    "claude-3-haiku-20240307"
                 ]
                 error_details += f". Suggested alternative models: {', '.join(suggested_models)}"
             
