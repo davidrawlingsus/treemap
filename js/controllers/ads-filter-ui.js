@@ -42,7 +42,6 @@ export function getStatusConfig(statusId) {
 // Filter field configuration
 export const ADS_FILTER_FIELDS = [
     { id: 'status', label: 'Status', icon: '📊', type: 'select' },
-    { id: 'funnel_step', label: 'Funnel Step', icon: '🔽', type: 'select' },
     { id: 'angle', label: 'Angle', icon: '🧪', type: 'select' },
     { id: 'origin', label: 'Origin', icon: '📍', type: 'select' }
 ];

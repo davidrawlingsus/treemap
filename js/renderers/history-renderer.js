@@ -102,13 +102,6 @@ export function renderHistoryTable() {
             .split(' ')
             .map(word => {
                 if (/^[Aa]&[Bb]$/.test(word)) return 'A & B';
-                if (word.includes('/')) {
-                    return word.split('/').map(part => {
-                        const upperPart = part.toUpperCase();
-                        if (abbreviations.includes(upperPart)) return upperPart;
-                        return part.charAt(0).toUpperCase() + part.substr(1).toLowerCase();
-                    }).join('/');
-                }
                 const upperWord = word.toUpperCase();
                 if (abbreviations.includes(upperWord)) {
                     return upperWord;

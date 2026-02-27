@@ -525,36 +525,6 @@
     color: #6347a9;
 }
 
-/* Funnel Step Pill */
-.ads-card__funnel-pill {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    white-space: nowrap;
-    max-width: 100px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.ads-card__funnel-pill--tofu {
-    background: rgba(59, 130, 246, 0.1);
-    color: #2563eb;
-}
-
-.ads-card__funnel-pill--mofu {
-    background: rgba(139, 92, 246, 0.1);
-    color: #7c3aed;
-}
-
-.ads-card__funnel-pill--bofu {
-    background: rgba(16, 185, 129, 0.1);
-    color: #059669;
-}
-
 /* Angle Dropdown (appended to body) */
 .ads-card__angle-dropdown {
     background: white;
