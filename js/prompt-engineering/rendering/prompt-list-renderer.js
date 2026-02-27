@@ -25,7 +25,7 @@
         { key: 'status', label: 'Status', sortable: true, filterable: true },
         { key: 'prompt_type', label: 'Type', sortable: true, filterable: true },
         { key: 'prompt_purpose', label: 'Purpose', sortable: true, filterable: true },
-        { key: 'client_facing', label: 'Client Facing', sortable: true, filterable: true },
+        { key: 'client_display', label: 'Client', sortable: true, filterable: true },
         { key: 'llm_model', label: 'Model', sortable: true, filterable: true },
         { key: 'updated_at', label: 'Updated', sortable: true, filterable: false },
         { key: 'actions', label: '', sortable: false, filterable: false }
@@ -164,6 +164,21 @@
     }
 
     /**
+     * Resolve the display text for the Client column based on prompt fields.
+     */
+    function resolveClientDisplay(prompt) {
+        if (!prompt.client_facing) return 'Not Client Facing';
+        if (prompt.all_clients) return 'General';
+
+        const clientMap = state.get('clientMap') || {};
+        const ids = prompt.client_ids || [];
+        if (ids.length === 0) return 'No Clients Assigned';
+
+        const names = ids.map(id => clientMap[id] || id).sort();
+        return names.join(', ');
+    }
+
+    /**
      * Render prompts as a sortable table
      */
     function renderPromptsTable(container, onEditClick) {
@@ -171,6 +186,7 @@
         const sortColumn = state.get('tableSortColumn') || 'updated_at';
         const sortDirection = state.get('tableSortDirection') || 'desc';
         const columnFilters = state.get('columnFilters') || {};
+        const searchTerm = (state.get('searchTerm') || '').toLowerCase();
 
         // Change container class for table view
         container.className = 'prompts-table-container';
@@ -185,8 +201,21 @@
             return;
         }
 
+        // Apply keyword search
+        let filtered = prompts;
+        if (searchTerm) {
+            filtered = filtered.filter(prompt => {
+                const clientText = resolveClientDisplay(prompt).toLowerCase();
+                return (prompt.name || '').toLowerCase().includes(searchTerm)
+                    || (prompt.prompt_purpose || '').toLowerCase().includes(searchTerm)
+                    || (prompt.llm_model || '').toLowerCase().includes(searchTerm)
+                    || clientText.includes(searchTerm)
+                    || (prompt.status || '').toLowerCase().includes(searchTerm);
+            });
+        }
+
         // Apply column filters
-        const filteredPrompts = applyColumnFilters(prompts, columnFilters);
+        const filteredPrompts = applyColumnFilters(filtered, columnFilters);
 
         // Sort prompts
         const sortedPrompts = sortPrompts([...filteredPrompts], sortColumn, sortDirection);
@@ -272,20 +301,16 @@
             for (const [column, values] of Object.entries(columnFilters)) {
                 if (!values || values.length === 0) continue;
                 
-                let promptValue = prompt[column];
-                
-                // Handle boolean fields
-                if (column === 'client_facing') {
-                    promptValue = promptValue ? 'Yes' : 'No';
+                let promptValue;
+                if (column === 'client_display') {
+                    promptValue = resolveClientDisplay(prompt);
+                } else {
+                    promptValue = prompt[column];
                 }
                 
-                // Handle null/undefined
                 if (promptValue == null) promptValue = '';
-                
-                // Convert to string for comparison
                 promptValue = String(promptValue);
                 
-                // Check if prompt value matches any of the filter values
                 if (!values.includes(promptValue)) {
                     return false;
                 }
@@ -302,11 +327,11 @@
         const values = new Set();
         
         prompts.forEach(prompt => {
-            let value = prompt[column];
-            
-            // Handle boolean fields
-            if (column === 'client_facing') {
-                value = value ? 'Yes' : 'No';
+            let value;
+            if (column === 'client_display') {
+                value = resolveClientDisplay(prompt);
+            } else {
+                value = prompt[column];
             }
             
             if (value != null && value !== '') {
@@ -323,7 +348,8 @@
     function renderTableRow(prompt) {
         const statusBadge = getStatusBadgeCompact(prompt.status);
         const typeBadge = getTypeBadgeCompact(prompt.prompt_type || 'system');
-        const clientFacingBadge = getClientFacingBadge(prompt.client_facing);
+        const clientDisplay = resolveClientDisplay(prompt);
+        const clientBadge = getClientDisplayBadge(clientDisplay);
         const updatedAt = prompt.updated_at ? new Date(prompt.updated_at).toLocaleDateString() : '—';
 
         return `
@@ -335,7 +361,7 @@
                 <td class="prompts-table-td">${statusBadge}</td>
                 <td class="prompts-table-td">${typeBadge}</td>
                 <td class="prompts-table-td prompts-table-purpose">${DOM.escapeHtml(prompt.prompt_purpose || '—')}</td>
-                <td class="prompts-table-td">${clientFacingBadge}</td>
+                <td class="prompts-table-td prompts-table-client">${clientBadge}</td>
                 <td class="prompts-table-td prompts-table-model">${DOM.escapeHtml(prompt.llm_model || '—')}</td>
                 <td class="prompts-table-td prompts-table-date">${updatedAt}</td>
                 <td class="prompts-table-td prompts-table-actions">
@@ -352,8 +378,8 @@
         const multiplier = direction === 'asc' ? 1 : -1;
 
         return prompts.sort((a, b) => {
-            let aVal = a[column];
-            let bVal = b[column];
+            let aVal = column === 'client_display' ? resolveClientDisplay(a) : a[column];
+            let bVal = column === 'client_display' ? resolveClientDisplay(b) : b[column];
 
             // Handle null/undefined
             if (aVal == null) aVal = '';
@@ -430,13 +456,16 @@
     }
 
     /**
-     * Client facing badge for table view
+     * Client display badge for table view
      */
-    function getClientFacingBadge(clientFacing) {
-        if (clientFacing) {
-            return `<span class="client-facing-badge yes" style="background: #f0fff4; border: 1px solid #c6f6d5; color: #22543d;">Yes</span>`;
+    function getClientDisplayBadge(clientDisplay) {
+        if (clientDisplay === 'Not Client Facing') {
+            return `<span class="client-display-badge" style="background: #f7fafc; border: 1px solid #e2e8f0; color: #718096;">${DOM.escapeHtml(clientDisplay)}</span>`;
         }
-        return `<span class="client-facing-badge no" style="background: #f7fafc; border: 1px solid #e2e8f0; color: #718096;">No</span>`;
+        if (clientDisplay === 'General') {
+            return `<span class="client-display-badge" style="background: #f0fff4; border: 1px solid #c6f6d5; color: #22543d;">${DOM.escapeHtml(clientDisplay)}</span>`;
+        }
+        return `<span class="client-display-badge" style="background: #e6f3ff; border: 1px solid #b3d9ff; color: #004085;">${DOM.escapeHtml(clientDisplay)}</span>`;
     }
 
     /**

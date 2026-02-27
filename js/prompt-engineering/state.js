@@ -38,6 +38,8 @@
         },
         statusFilter: '',
         purposeFilter: '',
+        searchTerm: '',
+        clientMap: {},
         viewMode: 'table', // 'cards' or 'table'
         tableSortColumn: 'updated_at', // Default sort column
         tableSortDirection: 'desc' // 'asc' or 'desc'

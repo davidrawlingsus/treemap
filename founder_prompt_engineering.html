@@ -96,13 +96,21 @@
                         </p>
                     </div>
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <select id="statusFilter" style="padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
+                        <div class="prompt-search-box">
+                            <input type="text" id="promptSearchInput" placeholder="Search prompts..."
+                                   oninput="window.PromptEngineering.handleSearch()"
+                                   onfocus="window.PromptEngineering.updateSearchClearButton()">
+                            <button id="promptSearchClear" class="prompt-search-clear"
+                                    onclick="window.PromptEngineering.clearSearch()"
+                                    title="Clear search">&times;</button>
+                        </div>
+                        <select id="statusFilter" style="padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; flex-shrink: 0;">
                             <option value="">All Statuses</option>
                             <option value="live">Live</option>
                             <option value="test">Test</option>
                             <option value="archived">Archived</option>
                         </select>
-                        <select id="purposeFilter" style="padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px;">
+                        <select id="purposeFilter" style="padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; flex-shrink: 0;">
                             <option value="">All Purposes</option>
                             <option value="summarize">Summarize</option>
                             <option value="headlines">Headlines</option>

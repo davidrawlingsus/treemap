@@ -135,6 +135,9 @@
                 closeSlideoutPanel: DOM.getElement('closeSlideoutPanel'),
                 slideoutChatInput: DOM.getElement('slideoutChatInput'),
                 slideoutChatSend: DOM.getElement('slideoutChatSend'),
+                // Search elements
+                promptSearchInput: DOM.getElement('promptSearchInput', false),
+                promptSearchClear: DOM.getElement('promptSearchClear', false),
                 // Filter elements
                 promptFiltersBtn: DOM.getElement('promptFiltersBtn', false),
                 promptFiltersDropdown: DOM.getElement('promptFiltersDropdown', false),
@@ -381,11 +384,27 @@
         async loadInitialData() {
             this.modalManager.showStatus('Loading prompts…', 'success');
             try {
+                await this.loadClientMap();
                 await this.loadPrompts();
                 this.modalManager.hideStatus();
             } catch (error) {
                 console.error('[APP] Failed to load initial data:', error);
                 this.modalManager.showStatus(error.message || 'Unable to load data.', 'error');
+            }
+        },
+
+        async loadClientMap() {
+            const state = window.PromptEngineeringState;
+            try {
+                const clients = await window.PromptAPI.listClients();
+                const clientMap = {};
+                (clients || []).forEach(c => {
+                    clientMap[c.id] = c.name || c.id;
+                });
+                state.set('clientMap', clientMap);
+            } catch (error) {
+                console.error('[APP] Failed to load clients:', error);
+                state.set('clientMap', {});
             }
         },
 
@@ -465,6 +484,41 @@
         },
 
         /**
+         * Handle search input
+         */
+        handleSearch() {
+            const state = window.PromptEngineeringState;
+            const input = this.elements.promptSearchInput;
+            state.set('searchTerm', input?.value.trim() || '');
+            this.updateSearchClearButton();
+            this.renderPromptsList();
+        },
+
+        /**
+         * Show/hide search clear button based on input value
+         */
+        updateSearchClearButton() {
+            const input = this.elements.promptSearchInput;
+            const clearBtn = this.elements.promptSearchClear;
+            if (!input || !clearBtn) return;
+            clearBtn.style.display = input.value.trim() ? 'flex' : 'none';
+        },
+
+        /**
+         * Clear search input and reset filter
+         */
+        clearSearch() {
+            const state = window.PromptEngineeringState;
+            const input = this.elements.promptSearchInput;
+            if (!input) return;
+            input.value = '';
+            state.set('searchTerm', '');
+            this.updateSearchClearButton();
+            this.renderPromptsList();
+            input.focus();
+        },
+
+        /**
          * Update purpose filter dropdown
          */
         updatePurposeFilter() {
@@ -494,8 +548,13 @@
         }
     };
 
-    // Export for debugging
+    // Export for debugging and HTML event handlers
     window.PromptEngineeringApp = PromptEngineeringApp;
+    window.PromptEngineering = {
+        handleSearch: () => PromptEngineeringApp.handleSearch(),
+        updateSearchClearButton: () => PromptEngineeringApp.updateSearchClearButton(),
+        clearSearch: () => PromptEngineeringApp.clearSearch()
+    };
 
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {
