@@ -156,6 +156,13 @@ from .meta_ads import (
     CreateAdSetResponse,
     PublishAdRequest,
     PublishAdResponse,
+    MetaMediaLibraryPaging,
+    MetaMediaLibraryItem,
+    MetaMediaLibraryResponse,
+    MetaMediaLibraryCountsResponse,
+    MetaMediaImportItem,
+    MetaMediaImportRequest,
+    MetaMediaImportResponse,
 )
 
 from .saved_email import (
@@ -303,6 +310,13 @@ __all__ = [
     "CreateAdSetResponse",
     "PublishAdRequest",
     "PublishAdResponse",
+    "MetaMediaLibraryPaging",
+    "MetaMediaLibraryItem",
+    "MetaMediaLibraryResponse",
+    "MetaMediaLibraryCountsResponse",
+    "MetaMediaImportItem",
+    "MetaMediaImportRequest",
+    "MetaMediaImportResponse",
     # Saved Emails
     "SavedEmailCreate",
     "SavedEmailUpdate",

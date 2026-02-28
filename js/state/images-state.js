@@ -163,6 +163,13 @@ export function clearImageSelections() {
 }
 
 /**
+ * Select all images currently in cache (for "Select all" button).
+ */
+export function selectAllImages() {
+    selectedImageIds = new Set(imagesCache.map((img) => img.id));
+}
+
+/**
  * Remove multiple images from cache
  * @param {string[]} imageIds - Array of image UUIDs
  */

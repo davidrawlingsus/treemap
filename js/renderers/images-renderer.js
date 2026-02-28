@@ -5,7 +5,7 @@
  */
 
 import { deleteAdImage } from '/js/services/api-ad-images.js';
-import { getImagesCache, getSelectedImageIds, toggleImageSelection, clearImageSelections, removeImagesFromCache } from '/js/state/images-state.js';
+import { getImagesCache, getSelectedImageIds, toggleImageSelection, clearImageSelections, removeImagesFromCache, selectAllImages } from '/js/state/images-state.js';
 import { escapeHtml } from '/js/utils/dom.js';
 
 // Re-export from extracted modules for backward compatibility
@@ -114,7 +114,7 @@ export function renderEmpty(container) {
             <div class="images-empty__icon">🖼️</div>
             <h3 class="images-empty__title">No images yet</h3>
             <p class="images-empty__text">Upload images to build your inventory</p>
-            <button class="images-empty__upload-btn" onclick="window.showImageUploadModal()">Upload Image</button>
+            <button class="images-empty__upload-btn" onclick="window.showImportMediaModal()">Upload Image</button>
         </div>
     `;
 }
@@ -459,12 +459,20 @@ function attachEventListeners(container) {
 }
 
 /**
- * Update bulk delete button visibility based on selection
+ * Update action buttons (Select all, Delete, Delete all) visibility based on cache and selection
  */
 export function updateBulkDeleteButton() {
-    const deleteBtn = document.getElementById('imagesBulkDeleteBtn');
+    const cache = getImagesCache();
+    const hasItems = cache.length > 0;
     const selectedCount = getSelectedImageIds().size;
-    
+
+    const selectAllBtn = document.getElementById('imagesSelectAllBtn');
+    const deleteBtn = document.getElementById('imagesBulkDeleteBtn');
+    const deleteAllBtn = document.getElementById('imagesDeleteAllBtn');
+
+    if (selectAllBtn) {
+        selectAllBtn.style.display = hasItems ? 'inline-flex' : 'none';
+    }
     if (deleteBtn) {
         if (selectedCount > 0) {
             deleteBtn.style.display = 'flex';
@@ -473,6 +481,77 @@ export function updateBulkDeleteButton() {
         } else {
             deleteBtn.style.display = 'none';
         }
+    }
+    if (deleteAllBtn) {
+        deleteAllBtn.style.display = hasItems ? 'inline-flex' : 'none';
+    }
+}
+
+/**
+ * Select all images in the grid and update UI
+ */
+export function handleImagesSelectAll() {
+    const cache = getImagesCache();
+    if (cache.length === 0) return;
+    selectAllImages();
+    const container = document.getElementById('imagesGrid');
+    if (container) {
+        container.querySelectorAll('.images-card').forEach((card) => {
+            card.classList.add('is-selected');
+            const input = card.querySelector('.images-card__checkbox input[type="checkbox"]');
+            if (input) input.checked = true;
+        });
+    }
+    updateBulkDeleteButton();
+}
+
+/**
+ * Delete all images in the library (with confirmation)
+ */
+export async function handleDeleteAllImages() {
+    const cache = getImagesCache();
+    if (cache.length === 0) return;
+    const count = cache.length;
+    if (!confirm(`Are you sure you want to delete all ${count} items? This cannot be undone.`)) return;
+
+    const deleteAllBtn = document.getElementById('imagesDeleteAllBtn');
+    const totalToDelete = cache.length;
+    if (deleteAllBtn) {
+        deleteAllBtn.classList.add('is-deleting');
+        deleteAllBtn.textContent = totalToDelete === 1 ? 'Deleting…' : `Deleting 0 of ${totalToDelete}…`;
+    }
+
+    const allIds = cache.map((img) => img.id);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (let i = 0; i < allIds.length; i++) {
+        const imageId = allIds[i];
+        try {
+            await deleteAdImage(imageId);
+            successCount++;
+        } catch (error) {
+            console.error(`[ImagesRenderer] Failed to delete ${imageId}:`, error);
+            failCount++;
+        }
+        if (deleteAllBtn && totalToDelete > 1) {
+            deleteAllBtn.textContent = `Deleting ${i + 1} of ${totalToDelete}…`;
+        }
+    }
+
+    removeImagesFromCache(allIds);
+    clearImageSelections();
+
+    if (window.renderImagesPage) window.renderImagesPage();
+    updateBulkDeleteButton();
+
+    if (deleteAllBtn) {
+        deleteAllBtn.classList.remove('is-deleting');
+        deleteAllBtn.textContent = 'Delete all';
+    }
+
+    if (failCount > 0) {
+        alert(`Deleted ${successCount}, failed to delete ${failCount}`);
     }
 }
 
@@ -613,6 +692,7 @@ export function appendImageToGrid(container, image) {
             }
         }
     });
+    updateBulkDeleteButton();
 }
 
 /**

@@ -717,28 +717,42 @@ class MetaAdsService:
         clean_headline = self.prepare_text_for_meta(ad.headline)
         clean_description = self.prepare_text_for_meta(ad.description or "")
         
-        # Upload media (image or video) if present
+        # Media: reuse existing Meta asset if ad was built from FB Connector media (same account)
         image_hash = None
         video_id = None
-        media_url = ad.full_json.get("image_url") if ad.full_json else None
-        is_video = self.is_video_url(media_url)
-        
         thumbnail_url = None
-        if media_url and is_video:
-            try:
-                video_result = await self.upload_video(access_token, ad_account_id, media_url)
-                video_id = video_result.get("video_id")
-                thumbnail_url = video_result.get("thumbnail_url")
-                logger.info(f"Uploaded video for ad {ad_id}, video_id: {video_id}, thumbnail: {thumbnail_url}")
-            except Exception as e:
-                logger.warning(f"Failed to upload video for ad {ad_id}: {e}")
-        elif media_url:
-            try:
-                image_result = await self.upload_image(access_token, ad_account_id, media_url)
-                image_hash = image_result.get("hash")
-                logger.info(f"Uploaded image for ad {ad_id}, hash: {image_hash}")
-            except Exception as e:
-                logger.warning(f"Failed to upload image for ad {ad_id}: {e}")
+        full_json = ad.full_json or {}
+        media_url = full_json.get("image_url")
+        meta_account = full_json.get("meta_ad_account_id")
+        meta_image_hash = full_json.get("meta_image_hash")
+        meta_video_id = full_json.get("meta_video_id")
+        meta_thumb = full_json.get("meta_thumbnail_url")
+        reuse_meta = (
+            meta_account == ad_account_id
+            and (meta_image_hash or meta_video_id)
+        )
+        if reuse_meta:
+            image_hash = meta_image_hash
+            video_id = meta_video_id
+            thumbnail_url = meta_thumb
+            logger.info(f"Reusing Meta asset for ad {ad_id}: image_hash={image_hash}, video_id={video_id}")
+        else:
+            is_video = self.is_video_url(media_url) if media_url else False
+            if media_url and is_video:
+                try:
+                    video_result = await self.upload_video(access_token, ad_account_id, media_url)
+                    video_id = video_result.get("video_id")
+                    thumbnail_url = video_result.get("thumbnail_url")
+                    logger.info(f"Uploaded video for ad {ad_id}, video_id: {video_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to upload video for ad {ad_id}: {e}")
+            elif media_url:
+                try:
+                    image_result = await self.upload_image(access_token, ad_account_id, media_url)
+                    image_hash = image_result.get("hash")
+                    logger.info(f"Uploaded image for ad {ad_id}, hash: {image_hash}")
+                except Exception as e:
+                    logger.warning(f"Failed to upload image for ad {ad_id}: {e}")
         
         # Create the ad creative
         creative_name = ad_name or f"Creative - {ad.headline[:30]}"
@@ -837,3 +851,135 @@ class MetaAdsService:
             
             data = response.json()
             return data.get("data", [])
+
+    # ==================== Media Library (adimages / advideos) ====================
+
+    async def list_ad_images(
+        self,
+        access_token: str,
+        ad_account_id: str,
+        limit: int = 50,
+        after: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        List images in the ad account's image library.
+
+        Returns:
+            Dict with "data" (list of image objects) and "paging" (after, next if present).
+        """
+        params = {
+            "access_token": access_token,
+            "fields": "hash,name,permalink_url,original_url,url_128,width,height,created_time",
+            "limit": limit,
+        }
+        if after:
+            params["after"] = after
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{META_GRAPH_API_BASE}/{ad_account_id}/adimages",
+                params=params,
+            )
+            response.raise_for_status()
+            result = response.json()
+            data = result.get("data", [])
+            paging = result.get("paging", {})
+            cursors = paging.get("cursors", {})
+            return {
+                "data": data,
+                "paging": {
+                    "after": cursors.get("after"),
+                    "next": paging.get("next"),
+                },
+            }
+
+    async def get_ad_images_total_count(
+        self,
+        access_token: str,
+        ad_account_id: str,
+    ) -> Optional[int]:
+        """
+        Return total number of images in the ad account (lightweight summary request).
+        Uses Meta's summary=total_count. Returns None if the API does not provide it.
+        """
+        params = {
+            "access_token": access_token,
+            "fields": "id",
+            "limit": 1,
+            "summary": "total_count",
+        }
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{META_GRAPH_API_BASE}/{ad_account_id}/adimages",
+                params=params,
+            )
+            response.raise_for_status()
+            result = response.json()
+            summary = result.get("summary") or {}
+            total = summary.get("total_count")
+            return int(total) if total is not None else None
+
+    async def get_ad_videos_total_count(
+        self,
+        access_token: str,
+        ad_account_id: str,
+    ) -> Optional[int]:
+        """
+        Return total number of videos in the ad account (lightweight summary request).
+        Uses summary=total_count if supported. Returns None if not available.
+        """
+        params = {
+            "access_token": access_token,
+            "fields": "id",
+            "limit": 1,
+            "summary": "total_count",
+        }
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{META_GRAPH_API_BASE}/{ad_account_id}/advideos",
+                params=params,
+            )
+            response.raise_for_status()
+            result = response.json()
+            summary = result.get("summary") or {}
+            total = summary.get("total_count")
+            return int(total) if total is not None else None
+
+    async def list_ad_videos(
+        self,
+        access_token: str,
+        ad_account_id: str,
+        limit: int = 50,
+        after: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        List videos in the ad account's video library.
+
+        Returns:
+            Dict with "data" (list of video objects) and "paging" (after, next if present).
+        """
+        params = {
+            "access_token": access_token,
+            "fields": "id,title,source,thumbnails,created_time,length,picture",
+            "limit": limit,
+        }
+        if after:
+            params["after"] = after
+
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{META_GRAPH_API_BASE}/{ad_account_id}/advideos",
+                params=params,
+            )
+            response.raise_for_status()
+            result = response.json()
+            data = result.get("data", [])
+            paging = result.get("paging", {})
+            cursors = paging.get("cursors", {})
+            return {
+                "data": data,
+                "paging": {
+                    "after": cursors.get("after"),
+                    "next": paging.get("next"),
+                },
+            }

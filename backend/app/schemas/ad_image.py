@@ -33,6 +33,8 @@ class AdImageResponse(BaseModel):
     library_id: Optional[str] = None
     source_url: Optional[str] = None
     import_job_id: Optional[UUID] = None
+    meta_ad_account_id: Optional[str] = None
+    meta_thumbnail_url: Optional[str] = None
 
     class Config:
         from_attributes = True

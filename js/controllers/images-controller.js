@@ -12,7 +12,7 @@ import {
     getImagesSortBy, setImagesSortBy,
     addImageToCache
 } from '/js/state/images-state.js';
-import { renderImagesGrid, showLoading, renderError, relayoutImagesGrid, cancelScheduledLayoutFromImageLoad } from '/js/renderers/images-renderer.js';
+import { renderImagesGrid, showLoading, renderError, relayoutImagesGrid, cancelScheduledLayoutFromImageLoad, updateBulkDeleteButton } from '/js/renderers/images-renderer.js';
 import { debounce } from '/js/utils/dom.js';
 
 // ============ Sort Initialization ============
@@ -539,4 +539,5 @@ export function renderImagesPage() {
     const sortBy = getImagesSortBy();
     const sortedImages = sortImages(images, sortBy);
     renderImagesGrid(container, sortedImages);
+    updateBulkDeleteButton();
 }

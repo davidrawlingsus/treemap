@@ -6,6 +6,8 @@ from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
 
+from .ad_image import AdImageResponse
+
 
 # ==================== OAuth Schemas ====================
 
@@ -137,3 +139,60 @@ class PublishAdResponse(BaseModel):
     meta_ad_id: Optional[str] = Field(None, description="Created Meta ad ID")
     meta_creative_id: Optional[str] = Field(None, description="Created creative ID")
     error: Optional[str] = Field(None, description="Error message if failed")
+
+
+# ==================== Media Library (FB Connector) Schemas ====================
+
+class MetaMediaLibraryPaging(BaseModel):
+    """Paging cursors for media library list. Use 'after' for single type; use image_after/video_after for type 'all'."""
+    after: Optional[str] = Field(None, description="Cursor for next page (single type)")
+    image_after: Optional[str] = Field(None, description="Cursor for next page of images (when media_type=all)")
+    video_after: Optional[str] = Field(None, description="Cursor for next page of videos (when media_type=all)")
+    next: Optional[str] = Field(None, description="URL for next page")
+
+
+class MetaMediaLibraryItem(BaseModel):
+    """Single image or video from Meta ad account library."""
+    type: str = Field(..., description="'image' or 'video'")
+    id: Optional[str] = Field(None, description="Meta hash (images) or video id (videos)")
+    name: Optional[str] = Field(None, description="Name/title")
+    thumbnail_url: Optional[str] = Field(None, description="Thumbnail URL for display")
+    original_url: Optional[str] = Field(None, description="Full-resolution URL for download")
+    source: Optional[str] = Field(None, description="Video source URL (videos only)")
+    width: Optional[int] = None
+    height: Optional[int] = None
+    created_time: Optional[str] = None
+    length: Optional[float] = Field(None, description="Video length in seconds")
+
+
+class MetaMediaLibraryResponse(BaseModel):
+    """Response for listing ad account media library."""
+    items: List[MetaMediaLibraryItem] = Field(default_factory=list)
+    paging: Optional[MetaMediaLibraryPaging] = Field(None)
+
+
+class MetaMediaLibraryCountsResponse(BaseModel):
+    """Total counts for media library (for progress). Null when API does not provide count."""
+    image_count: Optional[int] = Field(None, description="Total images in account")
+    video_count: Optional[int] = Field(None, description="Total videos in account")
+
+
+class MetaMediaImportItem(BaseModel):
+    """Single item to import from Meta media library."""
+    type: str = Field(..., description="'image' or 'video'")
+    hash: Optional[str] = Field(None, description="Meta image hash (for type=image)")
+    video_id: Optional[str] = Field(None, description="Meta video id (for type=video)")
+    original_url: str = Field(..., description="URL to download full-res asset")
+    filename: Optional[str] = Field(None, description="Suggested filename")
+    thumbnail_url: Optional[str] = Field(None, description="Thumbnail URL (videos)")
+
+
+class MetaMediaImportRequest(BaseModel):
+    """Request to import media from Meta ad account into local library."""
+    client_id: UUID = Field(..., description="Client to import into")
+    items: List[MetaMediaImportItem] = Field(..., min_length=1, description="Items to import")
+
+
+class MetaMediaImportResponse(BaseModel):
+    """Response after importing media from Meta."""
+    items: List[AdImageResponse] = Field(default_factory=list, description="Created AdImage records")

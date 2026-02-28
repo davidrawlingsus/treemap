@@ -19,6 +19,9 @@ function getAuthHeaders() {
  * @param {string} operation - Description of the operation
  */
 async function handleResponse(response, operation) {
+    if (response.status === 401 || response.status === 403) {
+        window.Auth?.showLogin?.();
+    }
     if (!response.ok) {
         const errorText = await response.text();
         let errorMessage;
@@ -280,6 +283,63 @@ export async function fetchMetaPixels(clientId) {
         { headers: getAuthHeaders() }
     );
     return handleResponse(response, 'Fetch Meta pixels');
+}
+
+// ==================== Media Library (FB Connector) Methods ====================
+
+/**
+ * Fetch total counts for media library (for progress). Call before Load All.
+ * @param {string} clientId - Client UUID
+ * @param {string} [mediaType='all'] - 'all', 'image', or 'video'
+ * @returns {Promise<{ image_count?: number|null, video_count?: number|null }>}
+ */
+export async function fetchMetaMediaLibraryCounts(clientId, mediaType = 'all') {
+    const params = new URLSearchParams({ client_id: clientId, media_type: mediaType });
+    const response = await fetch(
+        `${API_BASE_URL}/api/meta/media-library/counts?${params}`,
+        { headers: getAuthHeaders() }
+    );
+    return handleResponse(response, 'Fetch Meta media library counts');
+}
+
+/**
+ * Fetch media library (images and/or videos) from the client's Meta ad account
+ * @param {string} clientId - Client UUID
+ * @param {Object} [opts] - Optional: mediaType ('all'|'image'|'video'), limit, after (single-type cursor), image_after, video_after (for mediaType 'all')
+ * @returns {Promise<Object>} Response with items array and paging
+ */
+export async function fetchMetaMediaLibrary(clientId, opts = {}) {
+    const { mediaType = 'all', limit = 50, after, image_after, video_after } = opts;
+    const params = new URLSearchParams({ client_id: clientId, media_type: mediaType, limit });
+    if (after) params.set('after', after);
+    if (image_after) params.set('image_after', image_after);
+    if (video_after) params.set('video_after', video_after);
+    const response = await fetch(
+        `${API_BASE_URL}/api/meta/media-library?${params}`,
+        { headers: getAuthHeaders() }
+    );
+    return handleResponse(response, 'Fetch Meta media library');
+}
+
+/**
+ * Import selected media from Meta ad account into local library
+ * @param {string} clientId - Client UUID
+ * @param {Array<{type: string, hash?: string, video_id?: string, original_url: string, filename?: string, thumbnail_url?: string}>} items - Items to import
+ * @returns {Promise<Object>} Response with items array of created AdImage records
+ */
+export async function importMetaMedia(clientId, items) {
+    const response = await fetch(
+        `${API_BASE_URL}/api/meta/import-media`,
+        {
+            method: 'POST',
+            headers: {
+                ...getAuthHeaders(),
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ client_id: clientId, items }),
+        }
+    );
+    return handleResponse(response, 'Import Meta media');
 }
 
 // ==================== Publishing Methods ====================

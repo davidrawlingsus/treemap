@@ -24,6 +24,10 @@ class AdImage(Base):
     source_url = Column(Text, nullable=True)  # Original Meta Ads Library URL
     import_job_id = Column(UUID(as_uuid=True), ForeignKey('import_jobs.id', ondelete='SET NULL'), nullable=True)
 
+    # FB Connector: reuse existing Meta asset when pushing ad back (avoid duplicate in library)
+    meta_ad_account_id = Column(String(50), nullable=True)  # e.g. act_123456
+    meta_thumbnail_url = Column(Text, nullable=True)  # For videos, thumbnail URL for creative
+
     # Relationships
     client = relationship("Client", foreign_keys=[client_id])
     uploader = relationship("User", foreign_keys=[uploaded_by])

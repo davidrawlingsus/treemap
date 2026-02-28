@@ -5,11 +5,11 @@ Access: any authenticated user with access to the client (membership or founder)
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from uuid import UUID
-from typing import List
+from typing import List, Optional
 import logging
 
 from app.database import get_db
-from app.models import User, FacebookAd, Client
+from app.models import User, FacebookAd, Client, AdImage
 from app.schemas import FacebookAdCreate, FacebookAdUpdate, FacebookAdResponse, FacebookAdListResponse
 from app.auth import get_current_user
 from app.authorization import verify_client_access
@@ -18,6 +18,29 @@ import copy
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _enrich_full_json_meta_from_ad_image(db: Session, client_id: UUID, image_url: str) -> Optional[dict]:
+    """
+    If image_url points to an AdImage from FB Connector (has meta_ad_account_id and library_id),
+    return a dict to merge into full_json: meta_ad_account_id, meta_image_hash or meta_video_id, optional meta_thumbnail_url.
+    Otherwise return None.
+    """
+    ad_image = (
+        db.query(AdImage)
+        .filter(AdImage.client_id == client_id, AdImage.url == image_url)
+        .first()
+    )
+    if not ad_image or not ad_image.meta_ad_account_id or not ad_image.library_id:
+        return None
+    meta = {"meta_ad_account_id": ad_image.meta_ad_account_id}
+    if ad_image.content_type and ad_image.content_type.startswith("video/"):
+        meta["meta_video_id"] = ad_image.library_id
+        if ad_image.meta_thumbnail_url:
+            meta["meta_thumbnail_url"] = ad_image.meta_thumbnail_url
+    else:
+        meta["meta_image_hash"] = ad_image.library_id
+    return meta
 
 
 @router.get(
@@ -74,7 +97,14 @@ def create_facebook_ad(
     db.add(ad)
     db.commit()
     db.refresh(ad)
-    
+    # Enrich full_json with meta_* when image_url points to an AdImage from FB Connector
+    if ad.full_json and ad.full_json.get("image_url"):
+        meta_extra = _enrich_full_json_meta_from_ad_image(db, client_id, ad.full_json["image_url"])
+        if meta_extra:
+            ad.full_json = copy.deepcopy(ad.full_json) or {}
+            ad.full_json.update(meta_extra)
+            db.commit()
+            db.refresh(ad)
     logger.info(f"Created Facebook ad {ad.id} for client {client_id}")
     return FacebookAdResponse.model_validate(ad)
 
@@ -123,8 +153,20 @@ def update_facebook_ad(
         full_json = copy.deepcopy(ad.full_json) if ad.full_json else {}
         if image_url is None:
             full_json.pop('image_url', None)
+            full_json.pop('meta_ad_account_id', None)
+            full_json.pop('meta_image_hash', None)
+            full_json.pop('meta_video_id', None)
+            full_json.pop('meta_thumbnail_url', None)
         else:
             full_json['image_url'] = image_url
+            meta_extra = _enrich_full_json_meta_from_ad_image(db, ad.client_id, image_url)
+            if meta_extra:
+                full_json.update(meta_extra)
+            else:
+                full_json.pop('meta_ad_account_id', None)
+                full_json.pop('meta_image_hash', None)
+                full_json.pop('meta_video_id', None)
+                full_json.pop('meta_thumbnail_url', None)
         ad.full_json = full_json
     
     # Handle angle - store it in full_json
