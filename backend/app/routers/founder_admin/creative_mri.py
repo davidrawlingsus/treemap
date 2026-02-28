@@ -172,8 +172,6 @@ async def _run_report_stream(
     db: Session,
 ):
     """Async generator yielding SSE progress events and final report. Persists report to DB."""
-    # #region agent log
-    # #endregion
     client = db.query(Client).filter(Client.id == client_id).first()
     if not client:
         yield _format_sse({"error": "Client not found"})
@@ -309,8 +307,6 @@ async def _run_report_stream(
     db.commit()
     db.refresh(report_row)
     report_id = report_row.id
-    # #region agent log
-    # #endregion
 
     def _persist_progress(current: int, total: int, message: str) -> None:
         report_row.progress_current = current
@@ -331,8 +327,6 @@ async def _run_report_stream(
         progress_queue.put({"stage": stage, "current": current, "total": total, "message": message})
 
     def run_pipeline():
-        # #region agent log
-        # #endregion
         try:
             result = run_creative_mri_pipeline(
                 ads,
@@ -341,12 +335,8 @@ async def _run_report_stream(
                 system_message=system_message,
                 model=model,
             )
-            # #region agent log
-            # #endregion
             progress_queue.put({"report": result})
         except Exception as e:
-            # #region agent log
-            # #endregion
             pipeline_error.append(e)
         progress_queue.put(None)
 
@@ -371,8 +361,6 @@ async def _run_report_stream(
             await asyncio.sleep(0.05)
 
     await task
-    # #region agent log
-    # #endregion
 
     if pipeline_error:
         report_row.status = "failed"
@@ -381,8 +369,6 @@ async def _run_report_stream(
         yield _format_sse({"error": report_row.error_message})
     elif report_ref:
         report = report_ref[0]
-        # #region agent log
-        # #endregion
         yield _format_sse({"stage": "synthesize", "current": 0, "total": 1, "message": "Synthesizing executive summary..."})
         _persist_progress(0, 1, "Synthesizing executive summary...")
 
@@ -411,8 +397,6 @@ async def _run_report_stream(
         ads = report.get("ads") or []
         ads_with_media = sum(1 for a in ads if (a.get("media_items") or (a.get("media_thumbnail_url") or "").strip()))
         log_report_ads_serialized(str(report_id), len(ads), ads_with_media, ads)
-        # #region agent log
-        # #endregion
         yield _format_sse({"stage": "done", "report_id": str(report_id), "report": report})
 
 
@@ -464,9 +448,6 @@ def _run_and_save_report_sync(report_id: UUID, ads_or_import: dict, app) -> None
             else:
                 ads = ads_or_import.get("ads") or []
 
-            # #region agent log
-            # #endregion
-
             system_message, model = get_creative_mri_prompts(db)
 
             def progress_cb(stage: str, current: int, total: int, message: str) -> None:
@@ -487,8 +468,6 @@ def _run_and_save_report_sync(report_id: UUID, ads_or_import: dict, app) -> None
                 system_message=system_message,
                 model=model,
             )
-            # #region agent log
-            # #endregion
             synth_result = run_synthesize(result, llm_service, db)
             if synth_result:
                 result["synthesized_summary"] = synth_result
@@ -499,11 +478,7 @@ def _run_and_save_report_sync(report_id: UUID, ads_or_import: dict, app) -> None
             ads = result.get("ads") or []
             ads_with_media = sum(1 for a in ads if (a.get("media_items") or (a.get("media_thumbnail_url") or "").strip()))
             log_report_ads_serialized(str(report_id), len(ads), ads_with_media, ads)
-            # #region agent log
-            # #endregion
         except Exception as e:
-            # #region agent log
-            # #endregion
             logger.exception("Creative MRI pipeline failed for report %s", report_id)
             report_row.status = "failed"
             report_row.error_message = str(e)
@@ -575,8 +550,6 @@ async def run_creative_mri_report(
         ads_or_import = {"client_id": str(client_id), "import_id": str(import_id)}
 
     if stream:
-        # #region agent log
-        # #endregion
         return StreamingResponse(
             _run_report_stream(request, client_id, body, db),
             media_type="text/event-stream",
@@ -597,8 +570,6 @@ async def run_creative_mri_report(
     db.commit()
     db.refresh(report_row)
 
-    # #region agent log
-    # #endregion
     background_tasks.add_task(_run_and_save_report_sync, report_row.id, ads_or_import, request.app)
     return JSONResponse(status_code=202, content={"report_id": str(report_row.id)})
 

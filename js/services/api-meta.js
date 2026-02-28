@@ -343,6 +343,83 @@ export async function importMetaMedia(clientId, items) {
 }
 
 /**
+ * Import selected media with streaming: onProgress({ imported, failed, total }), onItem(item) per imported image.
+ * @param {string} clientId - Client UUID
+ * @param {Array<Object>} items - Same as importMetaMedia
+ * @param {function(Object): void} [onProgress] - Called with { imported, failed, total }
+ * @param {function(Object): void} [onItem] - Called with each created AdImage as it is imported
+ * @param {AbortSignal} [signal] - Optional abort signal to cancel the import
+ * @returns {Promise<Object>} Resolves with { items, failed_count } on success
+ */
+export async function importMetaMediaStream(clientId, items, onProgress = null, onItem = null, signal = null) {
+    const response = await fetch(
+        `${API_BASE_URL}/api/meta/import-media-stream`,
+        {
+            method: 'POST',
+            headers: {
+                ...getAuthHeaders(),
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ client_id: clientId, items }),
+            signal: signal || undefined,
+        }
+    );
+    if (!response.ok) {
+        const text = await response.text();
+        let msg;
+        try {
+            const j = JSON.parse(text);
+            msg = j.detail || j.error || text;
+        } catch {
+            msg = text;
+        }
+        throw new Error(msg || `Import media stream failed: ${response.status}`);
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || '';
+        for (const chunk of lines) {
+            const dataLine = chunk.split('\n').find((l) => l.startsWith('data: '));
+            if (!dataLine) continue;
+            try {
+                const data = JSON.parse(dataLine.slice(6));
+                if (data.type === 'progress' && typeof onProgress === 'function') {
+                    onProgress({ imported: data.imported ?? 0, failed: data.failed ?? 0, total: data.total ?? 0 });
+                } else if (data.type === 'item' && data.item && typeof onItem === 'function') {
+                    onItem(data.item);
+                } else if (data.type === 'result') {
+                    return { items: data.items || [], failed_count: data.failed_count ?? 0 };
+                } else if (data.type === 'error') {
+                    throw new Error(data.message || 'Import failed');
+                }
+            } catch (e) {
+                if (e instanceof SyntaxError) continue;
+                throw e;
+            }
+        }
+    }
+    if (buffer.trim()) {
+        const dataLine = buffer.split('\n').find((l) => l.startsWith('data: '));
+        if (dataLine) {
+            try {
+                const data = JSON.parse(dataLine.slice(6));
+                if (data.type === 'result') return { items: data.items || [], failed_count: data.failed_count ?? 0 };
+                if (data.type === 'error') throw new Error(data.message || 'Import failed');
+            } catch (e) {
+                if (!(e instanceof SyntaxError)) throw e;
+            }
+        }
+    }
+    throw new Error('Import stream ended without result');
+}
+
+/**
  * Import all media from Meta ad account (server-side list + import; no need to load thumbnails).
  * @param {string} clientId - Client UUID
  * @param {string} [mediaType='all'] - 'all', 'image', or 'video'
@@ -364,13 +441,15 @@ export async function importAllMetaMedia(clientId, mediaType = 'all') {
 }
 
 /**
- * Import all media with streaming progress. Calls onProgress({ imported, failed, pages_done }) as data arrives.
+ * Import all media with streaming progress. Calls onProgress({ imported, failed, pages_done }) and onItem(item) as data arrives.
  * @param {string} clientId - Client UUID
  * @param {string} [mediaType='all'] - 'all', 'image', or 'video'
  * @param {function(Object): void} [onProgress] - Called with { imported, failed, pages_done } on each progress event
+ * @param {function(Object): void} [onItem] - Called with each created AdImage as it is imported
+ * @param {AbortSignal} [signal] - Optional abort signal to cancel the import
  * @returns {Promise<Object>} Resolves with { items, failed_count } on success
  */
-export async function importAllMetaMediaStream(clientId, mediaType = 'all', onProgress = null) {
+export async function importAllMetaMediaStream(clientId, mediaType = 'all', onProgress = null, onItem = null, signal = null) {
     const response = await fetch(
         `${API_BASE_URL}/api/meta/import-all-stream`,
         {
@@ -380,6 +459,7 @@ export async function importAllMetaMediaStream(clientId, mediaType = 'all', onPr
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({ client_id: clientId, media_type: mediaType }),
+            signal: signal || undefined,
         }
     );
     if (!response.ok) {
@@ -409,6 +489,8 @@ export async function importAllMetaMediaStream(clientId, mediaType = 'all', onPr
                 const data = JSON.parse(dataLine.slice(6));
                 if (data.type === 'progress' && typeof onProgress === 'function') {
                     onProgress({ imported: data.imported ?? 0, failed: data.failed ?? 0, pages_done: data.pages_done ?? 0 });
+                } else if (data.type === 'item' && data.item && typeof onItem === 'function') {
+                    onItem(data.item);
                 } else if (data.type === 'result') {
                     return { items: data.items || [], failed_count: data.failed_count ?? 0 };
                 } else if (data.type === 'error') {

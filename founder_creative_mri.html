@@ -730,9 +730,6 @@
                 const exec = synth.executive_summary || {};
                 const dataset = synth.dataset_overview || {};
                 const actions = synth.top_5_high_impact_actions || [];
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'founder_creative_mri.html:renderSynthesizedSummary',message:'Impact actions render',data:{actionsCount:actions.length,synthKeys:Object.keys(synth),hypothesisId:'H4_H5'},timestamp:Date.now()})}).catch(()=>{});
-                // #endregion
                 const funnel = synth.funnel_analysis || {};
                 const hook = synth.hook_analysis || {};
                 const proof = synth.proof_and_credibility || {};

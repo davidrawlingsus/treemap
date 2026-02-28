@@ -869,7 +869,7 @@ class MetaAdsService:
         """
         params = {
             "access_token": access_token,
-            "fields": "hash,name,permalink_url,original_url,url_128,width,height,created_time",
+            "fields": "hash,name,permalink_url,original_url,url,url_128,width,height,created_time",
             "limit": limit,
         }
         if after:

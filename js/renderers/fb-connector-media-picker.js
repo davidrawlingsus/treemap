@@ -28,7 +28,7 @@ import { escapeHtml } from '/js/utils/dom.js';
  * @param {boolean} [options.loadAllPaused] - True when Load All was paused (e.g. rate limit); show Resume
  * @param {Function} [options.onRetryLoad] - Called when user clicks Try again after a load error
  * @param {Function} [options.onResumeLoadAll] - Called when user clicks Resume after Load All paused
- * @param {Object} [options.importProgress] - When Import all is running: { imported, failed } for progress text
+ * @param {Object} [options.importProgress] - When importing: { imported, failed, total? } (total = for Import selected)
  * @param {Function} [options.onError] - Called with error message
  */
 export function renderFbConnectorPicker(container, options) {
@@ -182,12 +182,21 @@ export function renderFbConnectorPicker(container, options) {
     if (importing) {
         const progress = document.createElement('div');
         progress.className = 'fb-connector-import-progress';
-        if (importProgress && (importProgress.imported > 0 || importProgress.failed > 0)) {
-            progress.textContent = `Importing… ${importProgress.imported} imported${importProgress.failed > 0 ? `, ${importProgress.failed} failed` : ''}`;
+        if (importProgress && (importProgress.imported > 0 || importProgress.failed > 0 || importProgress.total != null)) {
+            const total = importProgress.total;
+            if (total != null && total > 0) {
+                progress.textContent = `Importing… ${importProgress.imported ?? 0} of ${total}${importProgress.failed > 0 ? ` (${importProgress.failed} failed)` : ''}`;
+            } else {
+                progress.textContent = `Importing… ${importProgress.imported ?? 0} imported${importProgress.failed > 0 ? `, ${importProgress.failed} failed` : ''}`;
+            }
         } else {
             progress.textContent = 'Importing…';
         }
         container.appendChild(progress);
+        const notice = document.createElement('p');
+        notice.className = 'fb-connector-import-background-notice';
+        notice.textContent = 'You can close this dialog – the import will continue in the background.';
+        container.appendChild(notice);
     }
 
     // Event delegation: grid click -> toggle selection (card or checkbox)

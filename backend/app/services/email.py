@@ -1,27 +1,13 @@
-import json
 import logging
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from pathlib import Path
 from typing import List, Optional
 
 import requests
 
 
 logger = logging.getLogger(__name__)
-
-# #region agent log
-_DEBUG_LOG_PATH = Path(__file__).resolve().parents[3] / ".cursor" / "debug.log"
-
-def _agent_log(location: str, message: str, data: dict, hypothesis_id: str) -> None:
-    try:
-        _DEBUG_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        with open(_DEBUG_LOG_PATH, "a") as f:
-            f.write(json.dumps({"location": location, "message": message, "data": data, "hypothesisId": hypothesis_id, "timestamp": time.time() * 1000}) + "\n")
-    except Exception:
-        pass
-# #endregion
 
 
 @dataclass
@@ -59,9 +45,6 @@ class EmailService:
         Raises:
             RuntimeError: When the email fails to send.
         """
-        # #region agent log
-        _agent_log("email.py:send_magic_link_email", "entry", {"is_configured": self.is_configured(), "to_email_redacted": params.to_email[:3] + "***" if params.to_email else None}, "H3,H2")
-        # #endregion
         if not self.is_configured():
             logger.warning(
                 "EmailService is not configured; skipping magic-link email for %s",
@@ -159,9 +142,6 @@ class EmailService:
             payload["reply_to"] = (self.reply_to_email or "").replace("\r", "").replace("\n", "").strip()
 
         try:
-            # #region agent log
-            _agent_log("email.py:send_magic_link_email", "resend_post_start", {"from_repr": repr(from_value), "from_len": len(from_value)}, "H2")
-            # #endregion
             response = requests.post(
                 "https://api.resend.com/emails",
                 headers={
@@ -171,9 +151,6 @@ class EmailService:
                 json=payload,
                 timeout=10,
             )
-            # #region agent log
-            _agent_log("email.py:send_magic_link_email", "resend_post_response", {"status_code": response.status_code, "ok": response.ok}, "H2")
-            # #endregion
             response.raise_for_status()
         except requests.RequestException as exc:
             res = getattr(exc, "response", None)
@@ -188,9 +165,6 @@ class EmailService:
                         resend_message = (res.text or "").strip()[:500]
                     except Exception:
                         pass
-            # #region agent log
-            _agent_log("email.py:send_magic_link_email", "resend_post_error", {"excType": type(exc).__name__, "excMessage": str(exc), "response_status_code": status_code, "resend_message": resend_message}, "H2")
-            # #endregion
             logger.error(
                 "Failed to send magic-link email to %s: %s (Resend: %s)",
                 params.to_email,

@@ -226,10 +226,13 @@
       });
     } catch (error) {
       console.error('Magic-link request failed', error);
+      const isNetworkError = (error && error.message === 'Failed to fetch') ||
+        (error && typeof error.message === 'string' && error.message.toLowerCase().includes('network'));
+      const userMessage = isNetworkError
+        ? 'Could not reach the server. If you\'re running locally, make sure the backend is started (e.g. port 8000).'
+        : (error.message || 'We could not send a magic link. Please contact support.');
       showLoginMessages({
-        error:
-          error.message ||
-          'We could not send a magic link. Please contact support.',
+        error: userMessage,
       });
     } finally {
       if (emailInput) {

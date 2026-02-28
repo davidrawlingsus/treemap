@@ -15,7 +15,6 @@
     const VERCEL_BLOB_DOMAIN = 'neeuv3c4wu4qzcdw.public.blob.vercel-storage.com';
     const LOG_TO_CONSOLE = true;
     const MAX_LOG_ENTRIES = 500;
-    const DEBUG_SERVER_ENDPOINT = 'http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9';
 
     // State
     let isEnabled = false;
@@ -127,26 +126,6 @@
                 details
             );
         }
-
-        // #region agent log
-        // Send to debug server if available (hypothesisId: network/cdn issues, race conditions, timeouts)
-        try {
-            fetch(DEBUG_SERVER_ENDPOINT, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    location: 'image-monitor.js:logImageEvent',
-                    message: `Image ${type}`,
-                    data: entry,
-                    timestamp,
-                    sessionId,
-                    hypothesisId: type === 'load_error' ? 'H1-network' : 
-                                  type === 'load_timeout' ? 'H5-timeout' : 'tracking',
-                    runId: sessionId
-                })
-            }).catch(() => {}); // Silently fail if server not running
-        } catch {}
-        // #endregion agent log
     }
 
     /**
@@ -196,12 +175,8 @@
         img.addEventListener('load', function onLoad() {
             clearTimeout(loadTimeout);
             const duration = performance.now() - startTime;
-            
-            // #region agent log
-            // Check if image actually loaded with dimensions (hypothesis H2 - race condition)
             const hasValidDimensions = img.naturalWidth > 0 && img.naturalHeight > 0;
-            // #endregion agent log
-            
+
             logImageEvent('load_success', img, {
                 duration: Math.round(duration),
                 cached: duration < 50,
@@ -220,9 +195,6 @@
             logImageEvent('load_error', img, {
                 duration: Math.round(duration),
                 errorType: e.type,
-                // #region agent log
-                // Check network state (hypothesis H4 - DNS)
-                // #endregion agent log
                 networkState: navigator.onLine ? 'online' : 'offline',
                 hypothesisId: navigator.onLine ? 'H1-network' : 'H4-dns'
             });
@@ -275,13 +247,10 @@
                     mutation.target.tagName === 'IMG') {
                     const img = mutation.target;
                     if (isVercelBlobUrl(img.src)) {
-                        // #region agent log
                         logImageEvent('src_changed', img, {
                             oldSrc: mutation.oldValue,
-                            newSrc: img.src,
-                            hypothesisId: 'H2-race-condition'
+                            newSrc: img.src
                         });
-                        // #endregion agent log
                         // Re-track with new src
                         trackedImages.delete(img);
                         trackImage(img);
@@ -329,22 +298,6 @@
             
             if (stateChanged) {
                 lastNetworkState = networkState;
-                
-                // #region agent log
-                fetch(DEBUG_SERVER_ENDPOINT, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        location: 'image-monitor.js:networkMonitor',
-                        message: 'Network state changed',
-                        data: networkState,
-                        timestamp: Date.now(),
-                        sessionId,
-                        hypothesisId: networkState.online ? 'H3-network-quality' : 'H4-dns-offline'
-                    })
-                }).catch(() => {});
-                // #endregion agent log
-                
                 console.log('%c[ImageMonitor] Network state', 'color: #FF9800;', networkState);
             }
         };
@@ -381,22 +334,6 @@
         localStorage.setItem('imageMonitorEnabled', 'true');
         
         console.log('%c[ImageMonitor] Enabled', 'color: #4CAF50; font-weight: bold;', { sessionId });
-        
-        // #region agent log
-        fetch(DEBUG_SERVER_ENDPOINT, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                location: 'image-monitor.js:enable',
-                message: 'Image monitoring enabled',
-                data: { sessionId, userAgent: navigator.userAgent, url: window.location.href },
-                timestamp: Date.now(),
-                sessionId,
-                hypothesisId: 'session-start'
-            })
-        }).catch(() => {});
-        // #endregion agent log
-        
         setupObserver();
         scanExistingImages();
         startNetworkMonitor();
@@ -527,22 +464,7 @@
                 },
                 timestamp: Date.now()
             };
-            
-            // #region agent log
-            fetch(DEBUG_SERVER_ENDPOINT, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    location: 'image-monitor.js:checkBlobConnectivity',
-                    message: 'Blob connectivity check',
-                    data: result,
-                    timestamp: Date.now(),
-                    sessionId,
-                    hypothesisId: result.success ? 'H1-cdn-ok' : 'H1-cdn-fail'
-                })
-            }).catch(() => {});
-            // #endregion agent log
-            
+
             console.log('%c[ImageMonitor] Blob connectivity check', 
                         result.success ? 'color: #4CAF50;' : 'color: #f44336;', 
                         result);
@@ -556,22 +478,7 @@
                 duration,
                 timestamp: Date.now()
             };
-            
-            // #region agent log
-            fetch(DEBUG_SERVER_ENDPOINT, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    location: 'image-monitor.js:checkBlobConnectivity',
-                    message: 'Blob connectivity check failed',
-                    data: result,
-                    timestamp: Date.now(),
-                    sessionId,
-                    hypothesisId: 'H1-cdn-error'
-                })
-            }).catch(() => {});
-            // #endregion agent log
-            
+
             console.log('%c[ImageMonitor] Blob connectivity check FAILED', 'color: #f44336;', result);
             
             return result;
