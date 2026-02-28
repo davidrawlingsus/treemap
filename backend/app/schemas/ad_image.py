@@ -30,6 +30,7 @@ class AdImageResponse(BaseModel):
     uploaded_at: datetime
     uploaded_by: Optional[UUID] = None
     started_running_on: Optional[datetime] = None
+    meta_created_time: Optional[datetime] = Field(None, description="When asset was added to Meta (ad account API only)")
     library_id: Optional[str] = None
     source_url: Optional[str] = None
     import_job_id: Optional[UUID] = None

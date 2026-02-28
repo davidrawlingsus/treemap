@@ -185,6 +185,7 @@ class MetaMediaImportItem(BaseModel):
     original_url: str = Field(..., description="URL to download full-res asset")
     filename: Optional[str] = Field(None, description="Suggested filename")
     thumbnail_url: Optional[str] = Field(None, description="Thumbnail URL (videos)")
+    created_time: Optional[str] = Field(None, description="Meta ISO datetime when asset was added to account")
 
 
 class MetaMediaImportRequest(BaseModel):
@@ -196,3 +197,10 @@ class MetaMediaImportRequest(BaseModel):
 class MetaMediaImportResponse(BaseModel):
     """Response after importing media from Meta."""
     items: List[AdImageResponse] = Field(default_factory=list, description="Created AdImage records")
+    failed_count: int = Field(0, description="Number of items that failed (e.g. rate limit, download error)")
+
+
+class MetaImportAllRequest(BaseModel):
+    """Request to import all media from Meta ad account (server-side list + import, no thumbnail load)."""
+    client_id: UUID = Field(..., description="Client to import into")
+    media_type: str = Field("all", description="'all', 'image', or 'video'")

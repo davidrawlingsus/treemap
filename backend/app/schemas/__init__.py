@@ -163,6 +163,7 @@ from .meta_ads import (
     MetaMediaImportItem,
     MetaMediaImportRequest,
     MetaMediaImportResponse,
+    MetaImportAllRequest,
 )
 
 from .saved_email import (
@@ -317,6 +318,7 @@ __all__ = [
     "MetaMediaImportItem",
     "MetaMediaImportRequest",
     "MetaMediaImportResponse",
+    "MetaImportAllRequest",
     # Saved Emails
     "SavedEmailCreate",
     "SavedEmailUpdate",

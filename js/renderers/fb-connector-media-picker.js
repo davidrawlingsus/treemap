@@ -28,7 +28,11 @@ import { escapeHtml } from '/js/utils/dom.js';
  * @param {string} [options.mediaFilter='all'] - Current filter for active tab state
  * @param {Object} [options.loadAllProgress] - When Load All is running: { loaded: number, total: number|null }
  * @param {string} [options.loadError] - Error message when initial/media load failed (e.g. rate limit)
- * @param {Function} [options.onRetryLoad] - Called when user clicks Retry after a load error
+ * @param {boolean} [options.loadAllPaused] - True when Load All was paused (e.g. rate limit); show Resume
+ * @param {Function} [options.onRetryLoad] - Called when user clicks Try again after a load error
+ * @param {Function} [options.onResumeLoadAll] - Called when user clicks Resume after Load All paused
+ * @param {Function} [options.onImportAll] - Called when user clicks Import all (server-side list + import; no thumbnails loaded)
+ * @param {Object} [options.importProgress] - When Import all is running: { imported, failed } for progress text
  * @param {Function} [options.onError] - Called with error message
  */
 export function renderFbConnectorPicker(container, options) {
@@ -44,7 +48,10 @@ export function renderFbConnectorPicker(container, options) {
         mediaFilter = 'all',
         loadAllProgress = null,
         loadError = null,
+        loadAllPaused = false,
+        importProgress = null,
         onRetryLoad,
+        onResumeLoadAll,
         onConnect,
         onLoadMore,
         onLoadAll,
@@ -53,6 +60,7 @@ export function renderFbConnectorPicker(container, options) {
         onSelectAll,
         onDeselectAll,
         onFilterChange,
+        onImportAll,
     } = options;
 
     container.innerHTML = '';
@@ -101,13 +109,18 @@ export function renderFbConnectorPicker(container, options) {
     if (loadError) {
         const errorBanner = document.createElement('div');
         errorBanner.className = 'fb-connector-load-error';
+        const actionLabel = loadAllPaused ? 'Resume' : 'Try again';
         errorBanner.innerHTML = `
             <p class="fb-connector-load-error__message">${escapeHtml(loadError)}</p>
-            <button type="button" class="fb-connector-load-error__retry">Try again</button>
+            <button type="button" class="fb-connector-load-error__retry" data-action="${loadAllPaused ? 'resume' : 'retry'}">${escapeHtml(actionLabel)}</button>
         `;
-        const retryBtn = errorBanner.querySelector('.fb-connector-load-error__retry');
-        if (retryBtn && typeof onRetryLoad === 'function') {
-            retryBtn.addEventListener('click', () => onRetryLoad());
+        const actionBtn = errorBanner.querySelector('.fb-connector-load-error__retry');
+        if (actionBtn) {
+            if (loadAllPaused && typeof onResumeLoadAll === 'function') {
+                actionBtn.addEventListener('click', () => onResumeLoadAll());
+            } else if (!loadAllPaused && typeof onRetryLoad === 'function') {
+                actionBtn.addEventListener('click', () => onRetryLoad());
+            }
         }
         container.appendChild(errorBanner);
     }
@@ -120,6 +133,7 @@ export function renderFbConnectorPicker(container, options) {
         <button type="button" class="fb-connector-action-btn" data-action="deselect-all">Deselect All</button>
         <span class="fb-connector-selected-count">${selectedCount} selected</span>
         <button type="button" class="fb-connector-import-btn" data-action="import" ${selectedCount === 0 || importing ? 'disabled' : ''}>Import Selected (${selectedCount})</button>
+        ${typeof onImportAll === 'function' ? '<button type="button" class="fb-connector-import-all-btn" data-action="import-all" ' + (importing ? 'disabled' : '') + '>Import all</button>' : ''}
     `;
     container.appendChild(actionsRow);
 
@@ -198,7 +212,11 @@ export function renderFbConnectorPicker(container, options) {
     if (importing) {
         const progress = document.createElement('div');
         progress.className = 'fb-connector-import-progress';
-        progress.textContent = 'Importing…';
+        if (importProgress && (importProgress.imported > 0 || importProgress.failed > 0)) {
+            progress.textContent = `Importing… ${importProgress.imported} imported${importProgress.failed > 0 ? `, ${importProgress.failed} failed` : ''}`;
+        } else {
+            progress.textContent = 'Importing…';
+        }
         container.appendChild(progress);
     }
 
@@ -231,6 +249,10 @@ export function renderFbConnectorPicker(container, options) {
             thumbnail_url: it.type === 'video' ? it.thumbnail_url : undefined,
         }));
         if (typeof onImport === 'function') onImport(toImport);
+    });
+    actionsRow.querySelector('[data-action="import-all"]')?.addEventListener('click', () => {
+        if (importing || typeof onImportAll !== 'function') return;
+        onImportAll();
     });
 }
 

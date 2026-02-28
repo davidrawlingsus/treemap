@@ -3,10 +3,11 @@ Meta Ads management routes for OAuth and Marketing API.
 Access: any authenticated user with access to the client (membership or founder).
 """
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from uuid import UUID
 from typing import Optional
+from datetime import datetime, timezone
 import json
 import logging
 import os
@@ -43,6 +44,8 @@ from app.schemas import (
     MetaMediaLibraryCountsResponse,
     MetaMediaImportRequest,
     MetaMediaImportResponse,
+    MetaMediaImportItem,
+    MetaImportAllRequest,
 )
 from app.schemas.ad_image import AdImageResponse
 from app.auth import get_current_user
@@ -53,6 +56,19 @@ from app.services.meta_ads_service import MetaAdsService
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _parse_meta_created_time(s: Optional[str]) -> Optional[datetime]:
+    """Parse Meta API created_time (ISO string) to timezone-aware datetime."""
+    if not s:
+        return None
+    try:
+        n = s.strip().replace("Z", "+00:00")
+        if len(n) >= 5 and (n[-5] == "+" or n[-5] == "-") and ":" not in n[-3:]:
+            n = n[:-2] + ":" + n[-2:]
+        return datetime.fromisoformat(n)
+    except Exception:
+        return None
 
 # In-memory state storage for OAuth (in production, use Redis or DB)
 _oauth_states = {}
@@ -894,6 +910,76 @@ async def get_meta_media_library(
         raise HTTPException(status_code=502, detail=str(e))
 
 
+def _normalize_url(url: str) -> str:
+    if not url or not url.strip():
+        return url
+    u = url.strip()
+    if u.startswith("//"):
+        return "https:" + u
+    if not u.startswith("http://") and not u.startswith("https://"):
+        return "https://" + u
+    return u
+
+
+async def _import_one_meta_item(
+    db: Session,
+    client_id: UUID,
+    ad_account_id: str,
+    current_user: User,
+    item: MetaMediaImportItem,
+    blob_token: str,
+) -> tuple[Optional[AdImageResponse], bool]:
+    """Download one Meta media item, upload to blob, create AdImage. Returns (response, success)."""
+    try:
+        download_url = _normalize_url(item.original_url)
+        if not download_url.startswith("http"):
+            logger.warning("Skipping import item with invalid URL: %s", (item.original_url or "")[:80])
+            return (None, False)
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.get(download_url)
+            resp.raise_for_status()
+            content = resp.content
+            content_type = resp.headers.get("content-type", "image/jpeg")
+        if "video" in content_type:
+            content_type = "video/mp4"
+        ext = "jpg"
+        if "png" in content_type:
+            ext = "png"
+        elif "video" in content_type:
+            ext = "mp4"
+        random_suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=7))
+        unique_filename = f"ad-images/{client_id}/{int(time.time())}-{random_suffix}.{ext}"
+        import vercel_blob
+        blob = vercel_blob.put(unique_filename, content, {
+            "access": "public",
+            "contentType": content_type,
+            "token": blob_token,
+        })
+        blob_url = blob.get("url") if isinstance(blob, dict) else getattr(blob, "url", str(blob))
+        meta_hash_or_video_id = item.hash if item.type == "image" else item.video_id
+        filename = item.filename or (f"meta-{item.type}-{meta_hash_or_video_id or 'unknown'}.{ext}")
+        meta_created = _parse_meta_created_time(item.created_time)
+        image = AdImage(
+            client_id=client_id,
+            url=blob_url,
+            filename=filename,
+            file_size=len(content),
+            content_type=content_type,
+            uploaded_by=current_user.id,
+            library_id=meta_hash_or_video_id,
+            meta_ad_account_id=ad_account_id,
+            meta_thumbnail_url=item.thumbnail_url if item.type == "video" else None,
+            meta_created_time=meta_created,
+        )
+        db.add(image)
+        db.commit()
+        db.refresh(image)
+        return (AdImageResponse.model_validate(image), True)
+    except Exception as e:
+        logger.warning("Failed to import Meta media item %s: %s", (item.original_url or "")[:80], e)
+        return (None, False)
+
+
 @router.post("/api/meta/import-media", response_model=MetaMediaImportResponse)
 async def import_meta_media(
     request: MetaMediaImportRequest,
@@ -901,6 +987,13 @@ async def import_meta_media(
     current_user: User = Depends(get_current_user),
 ) -> MetaMediaImportResponse:
     """Import selected media from Meta ad account into local library (full-res download, Blob upload, AdImage records)."""
+    # #region agent log
+    try:
+        with open("/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug-6da1c5.log", "a") as f:
+            f.write(json.dumps({"sessionId": "6da1c5", "location": "meta_ads.py:import_meta_media:entry", "message": "Import media request", "data": {"items_count": len(request.items)}, "timestamp": int(time.time() * 1000)}) + "\n")
+    except Exception:
+        pass
+    # #endregion
     verify_client_access(request.client_id, current_user, db)
     service = MetaAdsService(db)
     token = service.get_token(str(request.client_id), str(current_user.id))
@@ -914,51 +1007,304 @@ async def import_meta_media(
     blob_token = os.getenv("BLOB_READ_WRITE_TOKEN")
     if not blob_token:
         raise HTTPException(status_code=500, detail="Blob storage not configured")
+
     created = []
+    failed_count = 0
     for item in request.items:
+        resp, ok = await _import_one_meta_item(db, request.client_id, ad_account_id, current_user, item, blob_token)
+        if ok:
+            created.append(resp)
+        else:
+            failed_count += 1
+    if not created and failed_count > 0:
+        raise HTTPException(status_code=502, detail=f"Import failed: all {failed_count} items failed (e.g. rate limit or download error). Try fewer items or try again later.")
+    return MetaMediaImportResponse(items=created, failed_count=failed_count)
+
+
+@router.post("/api/meta/import-all", response_model=MetaMediaImportResponse)
+async def import_all_meta_media(
+    request: MetaImportAllRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> MetaMediaImportResponse:
+    """Import all media from Meta ad account (server-side list + import). No need to load thumbnails in the UI."""
+    # #region agent log
+    try:
+        with open("/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug-6da1c5.log", "a") as f:
+            f.write(json.dumps({"sessionId": "6da1c5", "location": "meta_ads.py:import_all_meta_media:entry", "message": "Import all request", "data": {"client_id": str(request.client_id), "media_type": request.media_type}, "timestamp": int(time.time() * 1000)}) + "\n")
+    except Exception:
+        pass
+    # #endregion
+    verify_client_access(request.client_id, current_user, db)
+    service = MetaAdsService(db)
+    token = service.get_token(str(request.client_id), str(current_user.id))
+    if not token:
+        raise HTTPException(status_code=400, detail="No Meta token for this client")
+    if token.is_expired():
+        raise HTTPException(status_code=401, detail="Meta token expired, please reconnect")
+    ad_account_id = token.default_ad_account_id
+    if not ad_account_id:
+        raise HTTPException(status_code=400, detail="No default ad account set")
+    blob_token = os.getenv("BLOB_READ_WRITE_TOKEN")
+    if not blob_token:
+        raise HTTPException(status_code=500, detail="Blob storage not configured")
+
+    media_type = (request.media_type or "all").strip().lower()
+    if media_type not in ("all", "image", "video"):
+        media_type = "all"
+    page_size = 24
+    max_pages = 250
+    created: list = []
+    failed_count = 0
+    image_after: Optional[str] = None
+    video_after: Optional[str] = None
+    after: Optional[str] = None
+    pages_done = 0
+
+    while pages_done < max_pages:
+        to_import: list[MetaMediaImportItem] = []
+        request_images = media_type in ("all", "image") and (media_type != "all" or image_after is not None or video_after is None)
+        if request_images:
+            img_cursor = image_after if media_type == "all" else after
+            try:
+                img_result = await service.list_ad_images(
+                    token.access_token, ad_account_id, limit=page_size, after=img_cursor
+                )
+            except Exception as e:
+                logger.warning("Import-all: list_ad_images failed: %s", e)
+                break
+            for img in img_result.get("data", []):
+                to_import.append(MetaMediaImportItem(
+                    type="image",
+                    hash=img.get("hash"),
+                    original_url=img.get("original_url") or "",
+                    filename=f"{img.get('name')}.jpg" if img.get("name") else None,
+                    thumbnail_url=None,
+                    created_time=img.get("created_time"),
+                ))
+            img_paging = img_result.get("paging", {})
+            if media_type == "all":
+                image_after = img_paging.get("after")
+            else:
+                after = img_paging.get("after")
+
+        request_videos = media_type in ("all", "video") and (media_type != "all" or video_after is not None or image_after is None)
+        if request_videos:
+            vid_cursor = video_after if media_type == "all" else after
+            try:
+                vid_result = await service.list_ad_videos(
+                    token.access_token, ad_account_id, limit=page_size, after=vid_cursor
+                )
+            except Exception as e:
+                logger.warning("Import-all: list_ad_videos failed: %s", e)
+                if media_type != "all":
+                    break
+                request_videos = False
+            if request_videos:
+                thumb = None
+                for vid in vid_result.get("data", []):
+                    t = vid.get("picture")
+                    if not t and vid.get("thumbnails", {}).get("data"):
+                        thumbs = vid["thumbnails"]["data"]
+                        if thumbs:
+                            t = thumbs[0].get("uri")
+                    to_import.append(MetaMediaImportItem(
+                        type="video",
+                        video_id=vid.get("id"),
+                        original_url=vid.get("source") or "",
+                        filename=f"{vid.get('title')}.mp4" if vid.get("title") else None,
+                        thumbnail_url=t,
+                        created_time=vid.get("created_time"),
+                    ))
+                vid_paging = vid_result.get("paging", {})
+                if media_type == "all":
+                    video_after = vid_paging.get("after")
+                else:
+                    after = vid_paging.get("after")
+
+        if not to_import:
+            if media_type == "all":
+                if not image_after and not video_after:
+                    break
+            else:
+                break
+        for item in to_import:
+            resp, ok = await _import_one_meta_item(db, request.client_id, ad_account_id, current_user, item, blob_token)
+            if ok:
+                created.append(resp)
+            else:
+                failed_count += 1
+        pages_done += 1
+        # #region agent log
         try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.get(item.original_url)
-                resp.raise_for_status()
-                content = resp.content
-                content_type = resp.headers.get("content-type", "image/jpeg")
-            if "video" in content_type:
-                content_type = "video/mp4"
-            ext = "jpg"
-            if "png" in content_type:
-                ext = "png"
-            elif "video" in content_type:
-                ext = "mp4"
-            random_suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=7))
-            unique_filename = f"ad-images/{request.client_id}/{int(time.time())}-{random_suffix}.{ext}"
-            import vercel_blob
-            blob = vercel_blob.put(unique_filename, content, {
-                "access": "public",
-                "contentType": content_type,
-                "token": blob_token,
-            })
-            blob_url = blob.get("url") if isinstance(blob, dict) else getattr(blob, "url", str(blob))
-            meta_hash_or_video_id = item.hash if item.type == "image" else item.video_id
-            filename = item.filename or (f"meta-{item.type}-{meta_hash_or_video_id or 'unknown'}.{ext}")
-            image = AdImage(
-                client_id=request.client_id,
-                url=blob_url,
-                filename=filename,
-                file_size=len(content),
-                content_type=content_type,
-                uploaded_by=current_user.id,
-                library_id=meta_hash_or_video_id,
-                meta_ad_account_id=ad_account_id,
-                meta_thumbnail_url=item.thumbnail_url if item.type == "video" else None,
-            )
-            db.add(image)
-            db.commit()
-            db.refresh(image)
-            created.append(AdImageResponse.model_validate(image))
+            with open("/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug-6da1c5.log", "a") as f:
+                f.write(json.dumps({"sessionId": "6da1c5", "location": "meta_ads.py:import_all_meta_media:progress", "message": "Import all page done", "data": {"pages_done": pages_done, "imported": len(created), "failed_count": failed_count}, "timestamp": int(time.time() * 1000)}) + "\n")
+        except Exception:
+            pass
+        # #endregion
+        if media_type == "all":
+            if not image_after and not video_after:
+                break
+        else:
+            if not after:
+                break
+
+    # #region agent log
+    try:
+        with open("/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug-6da1c5.log", "a") as f:
+            f.write(json.dumps({"sessionId": "6da1c5", "location": "meta_ads.py:import_all_meta_media:exit", "message": "Import all done", "data": {"pages_done": pages_done, "imported": len(created), "failed_count": failed_count}, "timestamp": int(time.time() * 1000)}) + "\n")
+    except Exception:
+        pass
+    # #endregion
+    if not created and failed_count > 0:
+        # #region agent log
+        try:
+            with open("/Users/davidrawlings/Code/Marketable Project Folder/vizualizd/.cursor/debug-6da1c5.log", "a") as f:
+                f.write(json.dumps({"sessionId": "6da1c5", "location": "meta_ads.py:import_all_meta_media:raise", "message": "Import all: all items failed", "data": {"failed_count": failed_count, "pages_done": pages_done}, "timestamp": int(time.time() * 1000)}) + "\n")
+        except Exception:
+            pass
+        # #endregion
+        raise HTTPException(status_code=502, detail=f"Import failed: all {failed_count} items failed. Try again later.")
+    return MetaMediaImportResponse(items=created, failed_count=failed_count)
+
+
+@router.post("/api/meta/import-all-stream")
+async def import_all_meta_media_stream(
+    request: MetaImportAllRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Import all media from Meta with Server-Sent Events progress. Streams progress and final result."""
+    verify_client_access(request.client_id, current_user, db)
+    service = MetaAdsService(db)
+    token = service.get_token(str(request.client_id), str(current_user.id))
+    if not token:
+        raise HTTPException(status_code=400, detail="No Meta token for this client")
+    if token.is_expired():
+        raise HTTPException(status_code=401, detail="Meta token expired, please reconnect")
+    ad_account_id = token.default_ad_account_id
+    if not ad_account_id:
+        raise HTTPException(status_code=400, detail="No default ad account set")
+    blob_token = os.getenv("BLOB_READ_WRITE_TOKEN")
+    if not blob_token:
+        raise HTTPException(status_code=500, detail="Blob storage not configured")
+
+    media_type = (request.media_type or "all").strip().lower()
+    if media_type not in ("all", "image", "video"):
+        media_type = "all"
+    page_size = 24
+    max_pages = 250
+    created: list = []
+    failed_count = 0
+    image_after: Optional[str] = None
+    video_after: Optional[str] = None
+    after: Optional[str] = None
+    pages_done = 0
+
+    async def event_stream():
+        nonlocal created, failed_count, pages_done, image_after, video_after, after
+        try:
+            while pages_done < max_pages:
+                to_import: list[MetaMediaImportItem] = []
+                request_images = media_type in ("all", "image") and (media_type != "all" or image_after is not None or video_after is None)
+                if request_images:
+                    img_cursor = image_after if media_type == "all" else after
+                    try:
+                        img_result = await service.list_ad_images(
+                            token.access_token, ad_account_id, limit=page_size, after=img_cursor
+                        )
+                    except Exception as e:
+                        logger.warning("Import-all-stream: list_ad_images failed: %s", e)
+                        break
+                    for img in img_result.get("data", []):
+                        to_import.append(MetaMediaImportItem(
+                            type="image",
+                            hash=img.get("hash"),
+                            original_url=img.get("original_url") or "",
+                            filename=f"{img.get('name')}.jpg" if img.get("name") else None,
+                            thumbnail_url=None,
+                            created_time=img.get("created_time"),
+                        ))
+                    img_paging = img_result.get("paging", {})
+                    if media_type == "all":
+                        image_after = img_paging.get("after")
+                    else:
+                        after = img_paging.get("after")
+
+                request_videos = media_type in ("all", "video") and (media_type != "all" or video_after is not None or image_after is None)
+                if request_videos:
+                    vid_cursor = video_after if media_type == "all" else after
+                    try:
+                        vid_result = await service.list_ad_videos(
+                            token.access_token, ad_account_id, limit=page_size, after=vid_cursor
+                        )
+                    except Exception as e:
+                        logger.warning("Import-all-stream: list_ad_videos failed: %s", e)
+                        if media_type != "all":
+                            break
+                        request_videos = False
+                    if request_videos:
+                        for vid in vid_result.get("data", []):
+                            t = vid.get("picture")
+                            if not t and vid.get("thumbnails", {}).get("data"):
+                                thumbs = vid["thumbnails"]["data"]
+                                if thumbs:
+                                    t = thumbs[0].get("uri")
+                            to_import.append(MetaMediaImportItem(
+                                type="video",
+                                video_id=vid.get("id"),
+                                original_url=vid.get("source") or "",
+                                filename=f"{vid.get('title')}.mp4" if vid.get("title") else None,
+                                thumbnail_url=t,
+                                created_time=vid.get("created_time"),
+                            ))
+                        vid_paging = vid_result.get("paging", {})
+                        if media_type == "all":
+                            video_after = vid_paging.get("after")
+                        else:
+                            after = vid_paging.get("after")
+
+                if not to_import:
+                    if media_type == "all":
+                        if not image_after and not video_after:
+                            break
+                    else:
+                        break
+                for item in to_import:
+                    resp, ok = await _import_one_meta_item(db, request.client_id, ad_account_id, current_user, item, blob_token)
+                    if ok:
+                        created.append(resp)
+                    else:
+                        failed_count += 1
+                pages_done += 1
+                yield f"data: {json.dumps({'type': 'progress', 'imported': len(created), 'failed': failed_count, 'pages_done': pages_done})}\n\n".encode("utf-8")
+
+                if media_type == "all":
+                    if not image_after and not video_after:
+                        break
+                else:
+                    if not after:
+                        break
+
+            payload = {
+                "type": "result",
+                "items": [AdImageResponse.model_validate(x).model_dump() for x in created],
+                "failed_count": failed_count,
+            }
+            yield f"data: {json.dumps(payload)}\n\n".encode("utf-8")
         except Exception as e:
-            logger.warning("Failed to import Meta media item %s: %s", item.original_url[:80], e)
-            raise HTTPException(status_code=502, detail=f"Import failed: {e}")
-    return MetaMediaImportResponse(items=created)
+            logger.exception("Import-all-stream error")
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n".encode("utf-8")
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.post("/api/meta/publish-ad")

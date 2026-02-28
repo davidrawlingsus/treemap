@@ -15,6 +15,7 @@ import time
 import random
 import string
 import asyncio
+import traceback
 
 from app.database import get_db, SessionLocal
 from app.models import User, AdImage, Client, ImportJob
@@ -137,18 +138,39 @@ async def upload_ad_image(
 )
 def list_ad_images(
     client_id: UUID,
+    sort_by: Optional[str] = Query(
+        "uploaded_at",
+        description="Sort by: uploaded_at (import time), started_running_on (ad start), meta_created_time (Meta library date)",
+    ),
+    order: Optional[str] = Query("desc", description="Order: asc or desc"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """List all ad images for a client."""
     verify_client_access(client_id, current_user, db)
-    images = db.query(AdImage).filter(
-        AdImage.client_id == client_id
-    ).order_by(AdImage.uploaded_at.desc()).all()
-    
+    if sort_by == "started_running_on":
+        col = AdImage.started_running_on
+        nullable = True
+    elif sort_by == "meta_created_time":
+        col = AdImage.meta_created_time
+        nullable = True
+    else:
+        sort_by = "uploaded_at"
+        col = AdImage.uploaded_at
+        nullable = False
+    if order == "asc":
+        order_clause = col.asc().nullsfirst() if nullable else col.asc()
+    else:
+        order_clause = col.desc().nullslast() if nullable else col.desc()
+    images = (
+        db.query(AdImage)
+        .filter(AdImage.client_id == client_id)
+        .order_by(order_clause)
+        .all()
+    )
     return AdImageListResponse(
         items=[AdImageResponse.model_validate(img) for img in images],
-        total=len(images)
+        total=len(images),
     )
 
 
@@ -228,7 +250,8 @@ async def run_import_job(job_id: str, source_url: str, client_id: str, user_id: 
         # Import each media item
         imported_count = 0
         errors = []
-        
+        first_failure_logged = False
+
         for i, item in enumerate(media_items):
             try:
                 logger.info(f"Import job {job_id}: Processing {i + 1}/{len(media_items)}")
@@ -265,8 +288,15 @@ async def run_import_job(job_id: str, source_url: str, client_id: str, user_id: 
                     db.commit()
                 
             except Exception as e:
-                logger.warning(f"Import job {job_id}: Failed to import item {i + 1}: {e}")
                 errors.append(str(e))
+                logger.warning(f"Import job {job_id}: Failed to import item {i + 1}: {e}")
+                if not first_failure_logged:
+                    first_failure_logged = True
+                    logger.error(
+                        "Import job %s: first failure traceback:\n%s",
+                        job_id,
+                        traceback.format_exc(),
+                    )
         
         # Final update
         job.total_imported = imported_count
@@ -274,12 +304,17 @@ async def run_import_job(job_id: str, source_url: str, client_id: str, user_id: 
         job.completed_at = datetime.now(timezone.utc)
         if errors:
             job.error_message = f"{len(errors)} errors: " + "; ".join(errors[:5])
+            if len(errors) > 5:
+                job.error_message += f" (and {len(errors) - 5} more)"
         db.commit()
         
-        logger.info(f"Import job {job_id}: Complete. Imported {imported_count}/{len(media_items)} items")
+        logger.info(
+            "Import job %s: Complete. Imported %s/%s items. Errors: %s",
+            job_id, imported_count, len(media_items), len(errors),
+        )
         
     except Exception as e:
-        logger.error(f"Import job {job_id} failed: {e}")
+        logger.error("Import job %s failed: %s\n%s", job_id, e, traceback.format_exc())
         try:
             job = db.query(ImportJob).filter(ImportJob.id == job_id).first()
             if job:

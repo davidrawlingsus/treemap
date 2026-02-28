@@ -20,6 +20,7 @@ class AdImage(Base):
     
     # Meta Ads Library metadata
     started_running_on = Column(DateTime(timezone=True), nullable=True)
+    meta_created_time = Column(DateTime(timezone=True), nullable=True)  # When asset was added to Meta (ad account API only)
     library_id = Column(String(100), nullable=True)
     source_url = Column(Text, nullable=True)  # Original Meta Ads Library URL
     import_job_id = Column(UUID(as_uuid=True), ForeignKey('import_jobs.id', ondelete='SET NULL'), nullable=True)
