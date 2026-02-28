@@ -1975,6 +1975,16 @@ body.picker-open {
     cursor: not-allowed;
 }
 
+.import-media-modal__submit--secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+}
+
+.import-media-modal__submit--secondary:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.05);
+    opacity: 1;
+}
+
 /* ============ FB Connector tab ============ */
 .import-media-fb-connector-panel {
     min-height: 280px;
@@ -2227,6 +2237,7 @@ body.picker-open {
 }
 
 .fb-connector-card__thumb {
+    position: relative;
     aspect-ratio: 1;
     background: var(--bg, #f5f7fb);
     display: flex;
@@ -2245,19 +2256,59 @@ body.picker-open {
     color: var(--muted, #718096);
 }
 
-.fb-connector-card__check {
+/* Checkbox on hover (same pattern as .images-card__checkbox) */
+.fb-connector-card__checkbox {
     position: absolute;
-    top: 4px;
-    right: 4px;
-    width: 20px;
-    height: 20px;
+    top: 6px;
+    left: 6px;
+    width: 22px;
+    height: 22px;
+    cursor: pointer;
+    z-index: 4;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.fb-connector-card:hover .fb-connector-card__checkbox,
+.fb-connector-card--selected .fb-connector-card__checkbox {
+    opacity: 1;
+}
+
+.fb-connector-card__checkbox input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.fb-connector-card__checkbox-mark {
+    display: block;
+    width: 22px;
+    height: 22px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 2px solid rgba(0, 0, 0, 0.3);
     border-radius: 4px;
-    background: rgba(0, 0, 0, 0.5);
-    color: #fff;
-    font-size: 0.75rem;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.fb-connector-card__checkbox:hover .fb-connector-card__checkbox-mark {
+    border-color: var(--brand-color);
+}
+
+.fb-connector-card__checkbox input:checked + .fb-connector-card__checkbox-mark {
+    background: var(--brand-color);
+    border-color: var(--brand-color);
+}
+
+.fb-connector-card__checkbox input:checked + .fb-connector-card__checkbox-mark::after {
+    content: '✓';
     display: flex;
     align-items: center;
     justify-content: center;
+    width: 100%;
+    height: 100%;
+    color: #1a202c;
+    font-size: 12px;
 }
 
 .fb-connector-card__name {
@@ -2269,9 +2320,14 @@ body.picker-open {
     text-overflow: ellipsis;
 }
 
+.fb-connector-pagination {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+}
+
 .fb-connector-load-more {
-    margin: 12px auto;
-    display: block;
     padding: 8px 16px;
     font-size: 0.875rem;
     border: 1px solid var(--border, #e2e8f0);
@@ -2282,25 +2338,6 @@ body.picker-open {
 }
 
 .fb-connector-load-more:hover {
-    background: var(--bg, #f5f7fb);
-}
-
-.fb-connector-grid-wrap .fb-connector-load-more,
-.fb-connector-grid-wrap .fb-connector-load-all {
-    margin: 8px 6px;
-}
-
-.fb-connector-load-all {
-    padding: 8px 16px;
-    font-size: 0.875rem;
-    border: 1px solid var(--border, #e2e8f0);
-    background: var(--surface, #fff);
-    color: var(--text, #1a202c);
-    border-radius: 6px;
-    cursor: pointer;
-}
-
-.fb-connector-load-all:hover {
     background: var(--bg, #f5f7fb);
 }
 

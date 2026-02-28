@@ -615,6 +615,9 @@ export async function handleDeleteAllImages() {
     }
 }
 
+/** Default bulk delete button content (restored after progress). */
+const BULK_DELETE_BTN_HTML = '<img src="/images/delete_button.png" alt="Delete" width="18" height="18"><span>Delete</span><span class="images-bulk-delete__count">0</span>';
+
 /**
  * Handle bulk delete of selected images
  */
@@ -630,18 +633,26 @@ export async function handleBulkDelete() {
     if (!confirm(confirmMsg)) return;
 
     const deleteBtn = document.getElementById('imagesSelectionDeleteBtn');
-    if (deleteBtn) deleteBtn.classList.add('is-deleting');
+    const total = selectedIds.length;
+    if (deleteBtn) {
+        deleteBtn.classList.add('is-deleting');
+        deleteBtn.textContent = total === 1 ? 'Deleting…' : `Deleting 0 of ${total}…`;
+    }
     
     let successCount = 0;
     let failCount = 0;
     
-    for (const imageId of selectedIds) {
+    for (let i = 0; i < selectedIds.length; i++) {
+        const imageId = selectedIds[i];
         try {
             await deleteAdImage(imageId);
             successCount++;
         } catch (error) {
             console.error(`[ImagesRenderer] Failed to delete ${imageId}:`, error);
             failCount++;
+        }
+        if (deleteBtn && total > 1) {
+            deleteBtn.textContent = `Deleting ${i + 1} of ${total}…`;
         }
     }
     
@@ -650,9 +661,11 @@ export async function handleBulkDelete() {
     
     if (window.renderImagesPage) window.renderImagesPage();
     
+    if (deleteBtn) {
+        deleteBtn.classList.remove('is-deleting');
+        deleteBtn.innerHTML = BULK_DELETE_BTN_HTML;
+    }
     updateBulkDeleteButton();
-    
-    if (deleteBtn) deleteBtn.classList.remove('is-deleting');
 
     if (failCount > 0) {
         alert(`Deleted ${successCount}, failed to delete ${failCount}`);

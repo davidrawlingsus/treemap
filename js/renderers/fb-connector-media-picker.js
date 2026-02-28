@@ -19,19 +19,15 @@ import { escapeHtml } from '/js/utils/dom.js';
  * @param {Object} [options.paging] - { after, image_after, video_after, hasMore }
  * @param {Function} options.onConnect - Called when user clicks Connect to Meta
  * @param {Function} options.onLoadMore - Called when user clicks Load More (receives full paging object)
- * @param {Function} [options.onLoadAll] - Called when user clicks Load All (loads all remaining pages)
- * @param {Function} options.onImport - Called with array of selected items to import
+ * @param {Function} options.onImport - Called with array of selected items to import (may be triggered from footer)
  * @param {Function} options.onToggleSelection - Called with item key (type:id) when card is toggled
  * @param {Function} options.onSelectAll - Select all visible items
  * @param {Function} options.onDeselectAll - Deselect all
- * @param {Function} [options.onFilterChange] - Called with 'all'|'image'|'video' when filter tab changes
- * @param {string} [options.mediaFilter='all'] - Current filter for active tab state
  * @param {Object} [options.loadAllProgress] - When Load All is running: { loaded: number, total: number|null }
  * @param {string} [options.loadError] - Error message when initial/media load failed (e.g. rate limit)
  * @param {boolean} [options.loadAllPaused] - True when Load All was paused (e.g. rate limit); show Resume
  * @param {Function} [options.onRetryLoad] - Called when user clicks Try again after a load error
  * @param {Function} [options.onResumeLoadAll] - Called when user clicks Resume after Load All paused
- * @param {Function} [options.onImportAll] - Called when user clicks Import all (server-side list + import; no thumbnails loaded)
  * @param {Object} [options.importProgress] - When Import all is running: { imported, failed } for progress text
  * @param {Function} [options.onError] - Called with error message
  */
@@ -45,7 +41,6 @@ export function renderFbConnectorPicker(container, options) {
         loading = false,
         importing = false,
         paging = {},
-        mediaFilter = 'all',
         loadAllProgress = null,
         loadError = null,
         loadAllPaused = false,
@@ -54,13 +49,10 @@ export function renderFbConnectorPicker(container, options) {
         onResumeLoadAll,
         onConnect,
         onLoadMore,
-        onLoadAll,
         onImport,
         onToggleSelection,
         onSelectAll,
         onDeselectAll,
-        onFilterChange,
-        onImportAll,
     } = options;
 
     container.innerHTML = '';
@@ -88,24 +80,6 @@ export function renderFbConnectorPicker(container, options) {
     `;
     container.appendChild(header);
 
-    const filterRow = document.createElement('div');
-    filterRow.className = 'fb-connector-filter';
-    filterRow.innerHTML = `
-        <span class="fb-connector-filter__label">Show:</span>
-        <div class="fb-connector-filter__tabs" role="tablist">
-            <button type="button" class="fb-connector-filter__tab ${mediaFilter === 'all' ? 'active' : ''}" data-filter="all">All</button>
-            <button type="button" class="fb-connector-filter__tab ${mediaFilter === 'image' ? 'active' : ''}" data-filter="image">Images</button>
-            <button type="button" class="fb-connector-filter__tab ${mediaFilter === 'video' ? 'active' : ''}" data-filter="video">Videos</button>
-        </div>
-    `;
-    filterRow.querySelectorAll('.fb-connector-filter__tab').forEach((tab) => {
-        tab.addEventListener('click', () => {
-            const filter = tab.dataset.filter;
-            if (typeof onFilterChange === 'function') onFilterChange(filter);
-        });
-    });
-    container.appendChild(filterRow);
-
     if (loadError) {
         const errorBanner = document.createElement('div');
         errorBanner.className = 'fb-connector-load-error';
@@ -125,17 +99,15 @@ export function renderFbConnectorPicker(container, options) {
         container.appendChild(errorBanner);
     }
 
+    const selectedCount = items.filter((it) => selectedIds.has(itemKey(it))).length;
+    const allSelected = items.length > 0 && selectedCount === items.length;
+    const showSelectToggle = items.length > 0 && selectedCount > 0;
     const actionsRow = document.createElement('div');
     actionsRow.className = 'fb-connector-actions';
-    const selectedCount = items.filter((it) => selectedIds.has(itemKey(it))).length;
     actionsRow.innerHTML = `
-        <button type="button" class="fb-connector-action-btn" data-action="select-all">Select All</button>
-        <button type="button" class="fb-connector-action-btn" data-action="deselect-all">Deselect All</button>
-        <span class="fb-connector-selected-count">${selectedCount} selected</span>
-        <button type="button" class="fb-connector-import-btn" data-action="import" ${selectedCount === 0 || importing ? 'disabled' : ''}>Import Selected (${selectedCount})</button>
-        ${typeof onImportAll === 'function' ? '<button type="button" class="fb-connector-import-all-btn" data-action="import-all" ' + (importing ? 'disabled' : '') + '>Import all</button>' : ''}
+        ${showSelectToggle ? `<button type="button" class="fb-connector-action-btn fb-connector-select-toggle" data-action="select-deselect">${allSelected ? 'Deselect all' : 'Select all'}</button>` : ''}
     `;
-    container.appendChild(actionsRow);
+    if (actionsRow.innerHTML.trim()) container.appendChild(actionsRow);
 
     const gridWrap = document.createElement('div');
     gridWrap.className = 'fb-connector-grid-wrap';
@@ -180,34 +152,32 @@ export function renderFbConnectorPicker(container, options) {
                         : thumb
                             ? `<img src="${escapeHtmlForAttribute(thumb)}" alt="" loading="lazy" />`
                             : '<span class="fb-connector-card__placeholder">No preview</span>'}
+                    <label class="fb-connector-card__checkbox" data-item-key="${escapeHtmlForAttribute(key)}">
+                        <input type="checkbox" ${isSelected ? 'checked' : ''}>
+                        <span class="fb-connector-card__checkbox-mark"></span>
+                    </label>
                 </div>
-                <div class="fb-connector-card__check" aria-hidden="true">${isSelected ? '✓' : ''}</div>
                 <div class="fb-connector-card__name">${escapeHtml(String(name).slice(0, 40))}${String(name).length > 40 ? '…' : ''}</div>
             `;
             grid.appendChild(card);
         });
         gridWrap.appendChild(grid);
-
-        if (paging.hasMore) {
-            const loadMore = document.createElement('button');
-            loadMore.type = 'button';
-            loadMore.className = 'fb-connector-load-more';
-            loadMore.textContent = 'Load More';
-            loadMore.addEventListener('click', () => {
-                if (typeof onLoadMore === 'function') onLoadMore(paging);
-            });
-            gridWrap.appendChild(loadMore);
-            if (typeof onLoadAll === 'function') {
-                const loadAll = document.createElement('button');
-                loadAll.type = 'button';
-                loadAll.className = 'fb-connector-load-all';
-                loadAll.textContent = 'Load All';
-                loadAll.addEventListener('click', () => onLoadAll());
-                gridWrap.appendChild(loadAll);
-            }
-        }
     }
     container.appendChild(gridWrap);
+
+    if (!loading && items.length > 0 && paging.hasMore) {
+        const paginationRow = document.createElement('div');
+        paginationRow.className = 'fb-connector-pagination';
+        const loadMore = document.createElement('button');
+        loadMore.type = 'button';
+        loadMore.className = 'fb-connector-load-more';
+        loadMore.textContent = 'Load More';
+        loadMore.addEventListener('click', () => {
+            if (typeof onLoadMore === 'function') onLoadMore(paging);
+        });
+        paginationRow.appendChild(loadMore);
+        container.appendChild(paginationRow);
+    }
 
     if (importing) {
         const progress = document.createElement('div');
@@ -220,39 +190,24 @@ export function renderFbConnectorPicker(container, options) {
         container.appendChild(progress);
     }
 
-    // Event delegation: grid click -> toggle selection
+    // Event delegation: grid click -> toggle selection (card or checkbox)
     const grid = gridWrap.querySelector('.fb-connector-grid');
     if (grid && typeof onToggleSelection === 'function') {
         grid.addEventListener('click', (e) => {
+            const checkboxLabel = e.target.closest('.fb-connector-card__checkbox');
             const card = e.target.closest('.fb-connector-card');
-            if (card && card.dataset.itemKey) {
-                onToggleSelection(card.dataset.itemKey);
+            const key = checkboxLabel?.dataset.itemKey || card?.dataset?.itemKey;
+            if (key) {
+                e.preventDefault();
+                onToggleSelection(key);
             }
         });
     }
 
     // Actions
-    actionsRow.querySelector('[data-action="select-all"]')?.addEventListener('click', () => {
-        if (typeof onSelectAll === 'function') onSelectAll();
-    });
-    actionsRow.querySelector('[data-action="deselect-all"]')?.addEventListener('click', () => {
-        if (typeof onDeselectAll === 'function') onDeselectAll();
-    });
-    actionsRow.querySelector('[data-action="import"]')?.addEventListener('click', () => {
-        if (importing || selectedCount === 0) return;
-        const toImport = items.filter((it) => selectedIds.has(itemKey(it))).map((it) => ({
-            type: it.type,
-            hash: it.type === 'image' ? it.id : undefined,
-            video_id: it.type === 'video' ? it.id : undefined,
-            original_url: it.original_url || it.source || '',
-            filename: it.name ? `${it.name}.${it.type === 'video' ? 'mp4' : 'jpg'}` : undefined,
-            thumbnail_url: it.type === 'video' ? it.thumbnail_url : undefined,
-        }));
-        if (typeof onImport === 'function') onImport(toImport);
-    });
-    actionsRow.querySelector('[data-action="import-all"]')?.addEventListener('click', () => {
-        if (importing || typeof onImportAll !== 'function') return;
-        onImportAll();
+    actionsRow.querySelector('[data-action="select-deselect"]')?.addEventListener('click', () => {
+        if (allSelected && typeof onDeselectAll === 'function') onDeselectAll();
+        else if (typeof onSelectAll === 'function') onSelectAll();
     });
 }
 

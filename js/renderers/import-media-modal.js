@@ -260,6 +260,8 @@ export function showImportMediaModal(onImageAdded) {
             
             <div class="import-media-modal__footer" id="importMediaFooter">
                 <button class="import-media-modal__cancel">Cancel</button>
+                <button class="import-media-modal__submit import-media-modal__submit--secondary import-media-fb-import-all" id="importMediaFbConnectorImportAllBtn" style="display: none;">Import all</button>
+                <button class="import-media-modal__submit import-media-fb-import-selected" id="importMediaFbConnectorImportBtn" style="display: none;" disabled>Import Selected (0)</button>
                 <button class="import-media-modal__submit" id="importMediaMetaSubmit" style="display: none;">Import from Meta</button>
             </div>
         </div>
@@ -329,10 +331,29 @@ export function showImportMediaModal(onImageAdded) {
         // Update footer buttons based on tab
         if (tabName === 'upload') {
             metaSubmitBtn.style.display = 'none';
+            const fbImportBtn = overlay.querySelector('#importMediaFbConnectorImportBtn');
+            const fbImportAllBtn = overlay.querySelector('#importMediaFbConnectorImportAllBtn');
+            if (fbImportBtn) fbImportBtn.style.display = 'none';
+            if (fbImportAllBtn) fbImportAllBtn.style.display = 'none';
         } else if (tabName === 'fb-connector') {
             metaSubmitBtn.style.display = 'none';
+            const fbImportBtn = overlay.querySelector('#importMediaFbConnectorImportBtn');
+            const fbImportAllBtn = overlay.querySelector('#importMediaFbConnectorImportAllBtn');
+            if (fbImportBtn) {
+                fbImportBtn.style.display = '';
+                fbImportBtn.disabled = true;
+                fbImportBtn.textContent = 'Import Selected (0)';
+            }
+            if (fbImportAllBtn) {
+                fbImportAllBtn.style.display = '';
+                fbImportAllBtn.disabled = fbConnectorImporting;
+            }
             refreshFbConnectorTab();
         } else {
+            const fbImportBtn = overlay.querySelector('#importMediaFbConnectorImportBtn');
+            const fbImportAllBtn = overlay.querySelector('#importMediaFbConnectorImportAllBtn');
+            if (fbImportBtn) fbImportBtn.style.display = 'none';
+            if (fbImportAllBtn) fbImportAllBtn.style.display = 'none';
             metaSubmitBtn.style.display = 'block';
             const url = metaUrlInput.value.trim();
             metaSubmitBtn.disabled = !url || !isValidMetaAdsLibraryUrl(url);
@@ -341,7 +362,6 @@ export function showImportMediaModal(onImageAdded) {
 
     // ============ FB Connector tab state and refresh ============
     let fbConnectorTokenStatus = null;
-    let fbConnectorFilter = 'all';
     let fbConnectorItems = [];
     let fbConnectorPaging = { after: null, hasMore: false };
     let fbConnectorSelectedIds = new Set();
@@ -362,15 +382,11 @@ export function showImportMediaModal(onImageAdded) {
         while (fbConnectorPaging.hasMore && iter < maxLoadAllIterations) {
             iter++;
             const opts = {
-                mediaType: fbConnectorFilter,
+                mediaType: 'all',
                 limit: 50,
             };
-            if (fbConnectorFilter === 'all') {
-                if (fbConnectorPaging.image_after) opts.image_after = fbConnectorPaging.image_after;
-                if (fbConnectorPaging.video_after) opts.video_after = fbConnectorPaging.video_after;
-            } else {
-                opts.after = fbConnectorPaging.after;
-            }
+            if (fbConnectorPaging.image_after) opts.image_after = fbConnectorPaging.image_after;
+            if (fbConnectorPaging.video_after) opts.video_after = fbConnectorPaging.video_after;
             try {
                 const res = await fetchMetaMediaLibrary(clientId, opts);
                 const newItems = res.items || [];
@@ -415,6 +431,7 @@ export function showImportMediaModal(onImageAdded) {
         // #endregion
         if (!panel) return;
         fbConnectorLoading = true;
+        renderFbConnectorContent();
         try {
             fbConnectorTokenStatus = await checkMetaTokenStatus(clientId);
         } catch (e) {
@@ -434,7 +451,7 @@ export function showImportMediaModal(onImageAdded) {
             fbConnectorSelectedIds = new Set();
             try {
                 const res = await fetchMetaMediaLibrary(clientId, {
-                    mediaType: fbConnectorFilter,
+                    mediaType: 'all',
                     limit: 24,
                 });
                 fbConnectorItems = res.items || [];
@@ -469,6 +486,82 @@ export function showImportMediaModal(onImageAdded) {
         renderFbConnectorContent();
     }
 
+    function updateFbConnectorFooterImportButton() {
+        if (currentTab !== 'fb-connector') return;
+        const btn = overlay.querySelector('#importMediaFbConnectorImportBtn');
+        const importAllBtn = overlay.querySelector('#importMediaFbConnectorImportAllBtn');
+        if (btn) {
+            const selectedCount = fbConnectorItems.filter((it) => fbConnectorSelectedIds.has(`${it.type}:${it.id || ''}`)).length;
+            btn.textContent = `Import Selected (${selectedCount})`;
+            btn.disabled = selectedCount === 0 || fbConnectorImporting;
+        }
+        if (importAllBtn) importAllBtn.disabled = fbConnectorImporting;
+    }
+
+    async function doFbConnectorImport(toImport) {
+        if (!toImport.length) return;
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6da1c5'},body:JSON.stringify({sessionId:'6da1c5',location:'import-media-modal.js:onImport:entry',message:'Import selected',data:{toImportCount:toImport.length},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+        fbConnectorImporting = true;
+        renderFbConnectorContent();
+        try {
+            const res = await importMetaMedia(clientId, toImport);
+            (res.items || []).forEach((img) => {
+                addImageToCache(img);
+                if (onImageAdded) onImageAdded(img);
+            });
+            fbConnectorSelectedIds.clear();
+            fbConnectorImporting = false;
+            renderFbConnectorContent();
+            const imported = (res.items || []).length;
+            const failed = res.failed_count ?? 0;
+            if (failed > 0) {
+                alert(`Imported ${imported} items. ${failed} failed (e.g. rate limit). Try again later for failed items.`);
+            }
+            setTimeout(() => closeModal(), 500);
+        } catch (e) {
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6da1c5'},body:JSON.stringify({sessionId:'6da1c5',location:'import-media-modal.js:onImport:catch',message:'Import failed',data:{error:String(e?.message||e),name:e?.name},timestamp:Date.now()})}).catch(()=>{});
+            // #endregion
+            fbConnectorImporting = false;
+            renderFbConnectorContent();
+            console.error('[ImportMediaModal] FB Connector import failed:', e);
+            alert('Import failed: ' + (e.message || e));
+        }
+    }
+
+    async function doFbConnectorImportAll() {
+        fbConnectorImporting = true;
+        fbConnectorImportProgress = null;
+        renderFbConnectorContent();
+        try {
+            const res = await importAllMetaMediaStream(clientId, 'all', (p) => {
+                fbConnectorImportProgress = { imported: p.imported, failed: p.failed };
+                renderFbConnectorContent();
+            });
+            fbConnectorImporting = false;
+            fbConnectorImportProgress = null;
+            (res.items || []).forEach((img) => {
+                addImageToCache(img);
+                if (onImageAdded) onImageAdded(img);
+            });
+            renderFbConnectorContent();
+            const imported = (res.items || []).length;
+            const failed = res.failed_count ?? 0;
+            if (failed > 0) {
+                alert(`Imported ${imported} items. ${failed} failed (e.g. rate limit). Try again later for failed items.`);
+            }
+            setTimeout(() => closeModal(), 500);
+        } catch (e) {
+            fbConnectorImporting = false;
+            fbConnectorImportProgress = null;
+            renderFbConnectorContent();
+            console.error('[ImportMediaModal] Import all failed:', e);
+            alert('Import all failed: ' + (e.message || e));
+        }
+    }
+
     function renderFbConnectorContent() {
         const panel = overlay.querySelector('#importMediaFbConnectorPanel');
         // #region agent log
@@ -485,7 +578,6 @@ export function showImportMediaModal(onImageAdded) {
             loading: fbConnectorLoading,
             importing: fbConnectorImporting,
             paging: fbConnectorPaging,
-            mediaFilter: fbConnectorFilter,
             loadAllProgress: fbConnectorLoadAllProgress,
             loadError: fbConnectorLoadError,
             loadAllPaused: fbConnectorLoadAllPaused,
@@ -504,11 +596,8 @@ export function showImportMediaModal(onImageAdded) {
             },
             onLoadMore: async (cursorOrPaging) => {
                 try {
-                    const opts = {
-                        mediaType: fbConnectorFilter,
-                        limit: 24,
-                    };
-                    if (fbConnectorFilter === 'all' && typeof cursorOrPaging === 'object' && cursorOrPaging !== null) {
+                    const opts = { mediaType: 'all', limit: 24 };
+                    if (typeof cursorOrPaging === 'object' && cursorOrPaging !== null) {
                         if (cursorOrPaging.image_after) opts.image_after = cursorOrPaging.image_after;
                         if (cursorOrPaging.video_after) opts.video_after = cursorOrPaging.video_after;
                     } else {
@@ -528,92 +617,7 @@ export function showImportMediaModal(onImageAdded) {
                     console.error('[ImportMediaModal] FB Connector load more failed:', e);
                 }
             },
-            onLoadAll: async () => {
-                try {
-                    fbConnectorLoading = true;
-                    fbConnectorLoadAllProgress = null;
-                    fbConnectorLoadError = null;
-                    fbConnectorLoadAllPaused = false;
-                    renderFbConnectorContent();
-                    let total = null;
-                    try {
-                        const counts = await fetchMetaMediaLibraryCounts(clientId, fbConnectorFilter);
-                        if (fbConnectorFilter === 'all') {
-                            const ic = counts.image_count ?? 0;
-                            const vc = counts.video_count ?? 0;
-                            total = (counts.image_count != null || counts.video_count != null) ? ic + vc : null;
-                        } else if (fbConnectorFilter === 'image') {
-                            total = counts.image_count ?? null;
-                        } else {
-                            total = counts.video_count ?? null;
-                        }
-                    } catch (_) {
-                        total = null;
-                    }
-                    fbConnectorLoadAllProgress = { loaded: fbConnectorItems.length, total };
-                    renderFbConnectorContent();
-                    await runLoadAllLoop();
-                } catch (e) {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6da1c5'},body:JSON.stringify({sessionId:'6da1c5',location:'import-media-modal.js:onLoadAll:catch',message:'Load All threw',data:{error:String(e?.message||e),loaded:fbConnectorItems.length},timestamp:Date.now()})}).catch(()=>{});
-                    // #endregion
-                    console.error('[ImportMediaModal] FB Connector load all failed:', e);
-                    fbConnectorLoadError = (e?.message || String(e)).slice(0, 200);
-                } finally {
-                    fbConnectorLoading = false;
-                    if (!fbConnectorLoadAllPaused) fbConnectorLoadAllProgress = null;
-                    renderFbConnectorContent();
-                }
-            },
-            onResumeLoadAll: async () => {
-                if (!fbConnectorLoadAllPaused) return;
-                fbConnectorLoadError = null;
-                fbConnectorLoadAllPaused = false;
-                fbConnectorLoading = true;
-                renderFbConnectorContent();
-                try {
-                    await runLoadAllLoop();
-                } catch (e) {
-                    console.error('[ImportMediaModal] FB Connector resume load all failed:', e);
-                    fbConnectorLoadError = (e?.message || String(e)).slice(0, 200);
-                } finally {
-                    fbConnectorLoading = false;
-                    if (!fbConnectorLoadAllPaused) fbConnectorLoadAllProgress = null;
-                    renderFbConnectorContent();
-                }
-            },
-            onImport: async (toImport) => {
-                if (!toImport.length) return;
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6da1c5'},body:JSON.stringify({sessionId:'6da1c5',location:'import-media-modal.js:onImport:entry',message:'Import selected',data:{toImportCount:toImport.length},timestamp:Date.now()})}).catch(()=>{});
-                // #endregion
-                fbConnectorImporting = true;
-                renderFbConnectorContent();
-                try {
-                    const res = await importMetaMedia(clientId, toImport);
-                    (res.items || []).forEach((img) => {
-                        addImageToCache(img);
-                        if (onImageAdded) onImageAdded(img);
-                    });
-                    fbConnectorSelectedIds.clear();
-                    fbConnectorImporting = false;
-                    renderFbConnectorContent();
-                    const imported = (res.items || []).length;
-                    const failed = res.failed_count ?? 0;
-                    if (failed > 0) {
-                        alert(`Imported ${imported} items. ${failed} failed (e.g. rate limit). Try again later for failed items.`);
-                    }
-                    setTimeout(() => closeModal(), 500);
-                } catch (e) {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6da1c5'},body:JSON.stringify({sessionId:'6da1c5',location:'import-media-modal.js:onImport:catch',message:'Import failed',data:{error:String(e?.message||e),name:e?.name},timestamp:Date.now()})}).catch(()=>{});
-                    // #endregion
-                    fbConnectorImporting = false;
-                    renderFbConnectorContent();
-                    console.error('[ImportMediaModal] FB Connector import failed:', e);
-                    alert('Import failed: ' + (e.message || e));
-                }
-            },
+            onImport: (toImport) => doFbConnectorImport(toImport),
             onToggleSelection: (key) => {
                 if (fbConnectorSelectedIds.has(key)) {
                     fbConnectorSelectedIds.delete(key);
@@ -630,53 +634,8 @@ export function showImportMediaModal(onImageAdded) {
                 fbConnectorSelectedIds.clear();
                 renderFbConnectorContent();
             },
-            onImportAll: async () => {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6da1c5'},body:JSON.stringify({sessionId:'6da1c5',location:'import-media-modal.js:onImportAll:entry',message:'Import all started',data:{clientId,filter:fbConnectorFilter},timestamp:Date.now()})}).catch(()=>{});
-                // #endregion
-                fbConnectorImporting = true;
-                fbConnectorImportProgress = null;
-                renderFbConnectorContent();
-                try {
-                    const res = await importAllMetaMediaStream(clientId, fbConnectorFilter, (p) => {
-                        fbConnectorImportProgress = { imported: p.imported, failed: p.failed };
-                        renderFbConnectorContent();
-                    });
-                    fbConnectorImporting = false;
-                    fbConnectorImportProgress = null;
-                    (res.items || []).forEach((img) => {
-                        addImageToCache(img);
-                        if (onImageAdded) onImageAdded(img);
-                    });
-                    renderFbConnectorContent();
-                    const imported = (res.items || []).length;
-                    const failed = res.failed_count ?? 0;
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6da1c5'},body:JSON.stringify({sessionId:'6da1c5',location:'import-media-modal.js:onImportAll:success',message:'Import all done',data:{imported,failed},timestamp:Date.now()})}).catch(()=>{});
-                    // #endregion
-                    if (failed > 0) {
-                        alert(`Imported ${imported} items. ${failed} failed (e.g. rate limit). Try again later for failed items.`);
-                    }
-                    setTimeout(() => closeModal(), 500);
-                } catch (e) {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/0ea04ade-be37-4438-ba64-4de28c7d11e9',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'6da1c5'},body:JSON.stringify({sessionId:'6da1c5',location:'import-media-modal.js:onImportAll:catch',message:'Import all failed',data:{error:String(e?.message||e)},timestamp:Date.now()})}).catch(()=>{});
-                    // #endregion
-                    fbConnectorImporting = false;
-                    fbConnectorImportProgress = null;
-                    renderFbConnectorContent();
-                    console.error('[ImportMediaModal] Import all failed:', e);
-                    alert('Import all failed: ' + (e.message || e));
-                }
-            },
-            onFilterChange: (filter) => {
-                fbConnectorFilter = filter;
-                fbConnectorItems = [];
-                fbConnectorPaging = { after: null, hasMore: false };
-                fbConnectorSelectedIds = new Set();
-                refreshFbConnectorTab();
-            },
         });
+        updateFbConnectorFooterImportButton();
     }
     
     tabs.forEach(tab => {
@@ -969,6 +928,28 @@ export function showImportMediaModal(onImageAdded) {
         }
     });
     
+    // ============ FB Connector footer buttons ============
+    const fbConnectorImportBtn = overlay.querySelector('#importMediaFbConnectorImportBtn');
+    const fbConnectorImportAllBtn = overlay.querySelector('#importMediaFbConnectorImportAllBtn');
+    if (fbConnectorImportBtn) {
+        fbConnectorImportBtn.addEventListener('click', () => {
+            const toImport = fbConnectorItems
+                .filter((it) => fbConnectorSelectedIds.has(`${it.type}:${it.id || ''}`))
+                .map((it) => ({
+                    type: it.type,
+                    hash: it.type === 'image' ? it.id : undefined,
+                    video_id: it.type === 'video' ? it.id : undefined,
+                    original_url: it.original_url || it.source || '',
+                    filename: it.name ? `${it.name}.${it.type === 'video' ? 'mp4' : 'jpg'}` : undefined,
+                    thumbnail_url: it.type === 'video' ? it.thumbnail_url : undefined,
+                }));
+            doFbConnectorImport(toImport);
+        });
+    }
+    if (fbConnectorImportAllBtn) {
+        fbConnectorImportAllBtn.addEventListener('click', () => doFbConnectorImportAll());
+    }
+
     // ============ Modal Close Handlers ============
     
     closeBtn.addEventListener('click', closeModal);
