@@ -253,7 +253,38 @@
     outline-offset: -3px;
 }
 
-/* Action buttons wrapper (Select all, Delete, Delete all) */
+/* Bottom selection bar (shown when user has clicked a checkbox) */
+.images-selection-bar {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    padding: 12px 24px;
+    background: var(--surface, #fff);
+    border-top: 1px solid var(--border, #e2e8f0);
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+}
+
+.images-selection-bar.is-visible {
+    display: flex;
+}
+
+.images-selection-bar .images-action-btn,
+.images-selection-bar .images-bulk-delete-btn {
+    flex-shrink: 0;
+}
+
+.images-selection-bar .images-bulk-delete-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Action buttons wrapper (legacy / shared button styles) */
 .images-action-buttons {
     display: flex;
     align-items: center;

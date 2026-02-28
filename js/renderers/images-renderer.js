@@ -420,6 +420,9 @@ function formatFileSize(bytes) {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
+/** True after user has clicked a checkbox at least once (shows bottom selection bar). */
+let selectionModeActive = false;
+
 /**
  * Attach event listeners using event delegation
  */
@@ -437,11 +440,11 @@ function attachEventListeners(container) {
             
             const input = checkbox.querySelector('input[type="checkbox"]');
             if (input) input.checked = isSelected;
-            
-            updateBulkDeleteButton();
+            selectionModeActive = true;
+            updateSelectionBar();
             return;
         }
-        
+
         const imageCard = e.target.closest('.images-card');
         if (imageCard && !e.target.closest('.images-card__checkbox')) {
             const imageId = imageCard.dataset.imageId;
@@ -456,35 +459,61 @@ function attachEventListeners(container) {
             return;
         }
     });
+
+    container.addEventListener('change', (e) => {
+        const input = e.target;
+        if (input.type === 'checkbox' && input.closest('.images-card__checkbox')) {
+            const checkbox = input.closest('.images-card__checkbox');
+            const imageId = checkbox?.dataset.imageId;
+            if (!imageId) return;
+            const selected = getSelectedImageIds();
+            const nowChecked = input.checked;
+            if (nowChecked && !selected.has(imageId)) {
+                toggleImageSelection(imageId);
+            } else if (!nowChecked && selected.has(imageId)) {
+                toggleImageSelection(imageId);
+            }
+            const card = checkbox.closest('.images-card');
+            if (card) card.classList.toggle('is-selected', input.checked);
+            selectionModeActive = true;
+            updateSelectionBar();
+        }
+    });
 }
 
 /**
- * Update action buttons (Select all, Delete, Delete all) visibility based on cache and selection
+ * Update bottom selection bar visibility and button state
  */
-export function updateBulkDeleteButton() {
+function updateSelectionBar() {
     const cache = getImagesCache();
     const hasItems = cache.length > 0;
-    const selectedCount = getSelectedImageIds().size;
+    const selectedIds = getSelectedImageIds();
+    const selectedCount = selectedIds.size;
+    const allSelected = hasItems && selectedCount === cache.length;
 
-    const selectAllBtn = document.getElementById('imagesSelectAllBtn');
-    const deleteBtn = document.getElementById('imagesBulkDeleteBtn');
-    const deleteAllBtn = document.getElementById('imagesDeleteAllBtn');
+    const bar = document.getElementById('imagesSelectionBar');
+    const selectDeselectBtn = document.getElementById('imagesSelectDeselectAllBtn');
+    const deleteBtn = document.getElementById('imagesSelectionDeleteBtn');
 
-    if (selectAllBtn) {
-        selectAllBtn.style.display = hasItems ? 'inline-flex' : 'none';
+    if (!bar || !selectDeselectBtn || !deleteBtn) return;
+
+    if (selectionModeActive && hasItems) {
+        bar.classList.add('is-visible');
+        bar.setAttribute('aria-hidden', 'false');
+        selectDeselectBtn.textContent = allSelected ? 'Deselect all' : 'Select all';
+        deleteBtn.disabled = selectedCount === 0;
+        const countSpan = deleteBtn.querySelector('.images-bulk-delete__count');
+        if (countSpan) countSpan.textContent = selectedCount;
+    } else {
+        if (!hasItems) selectionModeActive = false;
+        bar.classList.remove('is-visible');
+        bar.setAttribute('aria-hidden', 'true');
     }
-    if (deleteBtn) {
-        if (selectedCount > 0) {
-            deleteBtn.style.display = 'flex';
-            const countSpan = deleteBtn.querySelector('.images-bulk-delete__count');
-            if (countSpan) countSpan.textContent = selectedCount;
-        } else {
-            deleteBtn.style.display = 'none';
-        }
-    }
-    if (deleteAllBtn) {
-        deleteAllBtn.style.display = hasItems ? 'inline-flex' : 'none';
-    }
+}
+
+/** Kept for backward compatibility (controller / post-render). */
+export function updateBulkDeleteButton() {
+    updateSelectionBar();
 }
 
 /**
@@ -493,6 +522,7 @@ export function updateBulkDeleteButton() {
 export function handleImagesSelectAll() {
     const cache = getImagesCache();
     if (cache.length === 0) return;
+    selectionModeActive = true;
     selectAllImages();
     const container = document.getElementById('imagesGrid');
     if (container) {
@@ -502,7 +532,37 @@ export function handleImagesSelectAll() {
             if (input) input.checked = true;
         });
     }
-    updateBulkDeleteButton();
+    updateSelectionBar();
+}
+
+/**
+ * Deselect all images and update UI
+ */
+export function handleImagesDeselectAll() {
+    clearImageSelections();
+    const container = document.getElementById('imagesGrid');
+    if (container) {
+        container.querySelectorAll('.images-card').forEach((card) => {
+            card.classList.remove('is-selected');
+            const input = card.querySelector('.images-card__checkbox input[type="checkbox"]');
+            if (input) input.checked = false;
+        });
+    }
+    updateSelectionBar();
+}
+
+/**
+ * Toggle select all / deselect all (used by bottom bar button)
+ */
+export function handleImagesSelectDeselectAll() {
+    const cache = getImagesCache();
+    if (cache.length === 0) return;
+    const allSelected = getSelectedImageIds().size === cache.length;
+    if (allSelected) {
+        handleImagesDeselectAll();
+    } else {
+        handleImagesSelectAll();
+    }
 }
 
 /**
@@ -568,8 +628,8 @@ export async function handleBulkDelete() {
         : `Are you sure you want to delete ${selectedIds.length} items?`;
     
     if (!confirm(confirmMsg)) return;
-    
-    const deleteBtn = document.getElementById('imagesBulkDeleteBtn');
+
+    const deleteBtn = document.getElementById('imagesSelectionDeleteBtn');
     if (deleteBtn) deleteBtn.classList.add('is-deleting');
     
     let successCount = 0;
@@ -593,7 +653,7 @@ export async function handleBulkDelete() {
     updateBulkDeleteButton();
     
     if (deleteBtn) deleteBtn.classList.remove('is-deleting');
-    
+
     if (failCount > 0) {
         alert(`Deleted ${successCount}, failed to delete ${failCount}`);
     }

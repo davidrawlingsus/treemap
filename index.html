@@ -394,7 +394,8 @@
         import {
             handleBulkDelete as imagesRendererHandleBulkDelete,
             handleImagesSelectAll as imagesRendererHandleImagesSelectAll,
-            handleDeleteAllImages as imagesRendererHandleDeleteAllImages,
+            handleImagesDeselectAll as imagesRendererHandleImagesDeselectAll,
+            handleImagesSelectDeselectAll as imagesRendererHandleImagesSelectDeselectAll,
             updateBulkDeleteButton as imagesRendererUpdateBulkDeleteButton,
             appendImageToGrid as imagesRendererAppendImageToGrid
         } from '/js/renderers/images-renderer.js';
@@ -625,7 +626,8 @@
         window.showImageUploadModal = imagesRendererShowImageUploadModal;
         window.handleBulkDelete = imagesRendererHandleBulkDelete;
         window.handleImagesSelectAll = imagesRendererHandleImagesSelectAll;
-        window.handleDeleteAllImages = imagesRendererHandleDeleteAllImages;
+        window.handleImagesDeselectAll = imagesRendererHandleImagesDeselectAll;
+        window.handleImagesSelectDeselectAll = imagesRendererHandleImagesSelectDeselectAll;
         window.updateBulkDeleteButton = imagesRendererUpdateBulkDeleteButton;
         window.showImagePickerModal = imagesRendererShowImagePickerModal;
         window.showMetaImportModal = metaImportShowMetaImportModal;
@@ -16294,15 +16296,6 @@
     <div id="images-section" class="spa-section">
         <div class="control-bar" style="position: relative;">
             <h1 style="margin: 0; font-size: 20px; font-weight: 600; color: #37352f; margin-right: 0.5rem;">Media Library</h1>
-            <div class="images-action-buttons">
-                <button id="imagesSelectAllBtn" class="images-action-btn" onclick="window.handleImagesSelectAll()" style="display: none;">Select all</button>
-                <button id="imagesBulkDeleteBtn" class="images-bulk-delete-btn" onclick="window.handleBulkDelete()" style="display: none;">
-                    <img src="/images/delete_button.png" alt="Delete" width="18" height="18">
-                    <span>Delete</span>
-                    <span class="images-bulk-delete__count">0</span>
-                </button>
-                <button id="imagesDeleteAllBtn" class="images-delete-all-btn" onclick="window.handleDeleteAllImages()" style="display: none;">Delete all</button>
-            </div>
             <div class="images-size-toolbar">
                 <label for="imagesSizeSlider" class="images-size-label">Size</label>
                 <input type="range" id="imagesSizeSlider" class="images-size-slider" min="2" max="8" value="4" step="1">
@@ -16339,6 +16332,16 @@
 
         <div class="images-container">
             <div id="imagesGrid" class="images-grid"></div>
+        </div>
+
+        <!-- Bottom selection bar (shown when user clicks a checkbox) -->
+        <div id="imagesSelectionBar" class="images-selection-bar" aria-hidden="true">
+            <button id="imagesSelectDeselectAllBtn" class="images-action-btn" type="button" onclick="window.handleImagesSelectDeselectAll()">Select all</button>
+            <button id="imagesSelectionDeleteBtn" class="images-bulk-delete-btn" type="button" onclick="window.handleBulkDelete()" disabled>
+                <img src="/images/delete_button.png" alt="Delete" width="18" height="18">
+                <span>Delete</span>
+                <span class="images-bulk-delete__count">0</span>
+            </button>
         </div>
     </div> <!-- End images-section -->
 
