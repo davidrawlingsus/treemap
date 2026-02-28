@@ -2112,6 +2112,68 @@ body.picker-open {
     color: var(--muted, #718096);
 }
 
+.fb-connector-header__change-account {
+    font-size: 0.875rem;
+    color: var(--text, #1a202c);
+    text-decoration: underline;
+    margin-left: 0.25em;
+}
+
+.fb-connector-header__change-account:hover {
+    color: var(--muted, #718096);
+}
+
+.fb-connector-select-account {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px 0;
+}
+
+.fb-connector-select-account__label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text, #1a202c);
+}
+
+.fb-connector-select-account__select {
+    padding: 8px 12px;
+    font-size: 0.875rem;
+    border: 1px solid var(--border, #e2e8f0);
+    background: var(--surface, #fff);
+    color: var(--text, #1a202c);
+    border-radius: 6px;
+    min-width: 0;
+}
+
+.fb-connector-select-account__btn {
+    padding: 8px 16px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    background: var(--brand-color, #B9F040);
+    color: var(--text, #1a202c);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    align-self: flex-start;
+    transition: opacity 0.2s ease;
+}
+
+.fb-connector-select-account__btn:hover:not(:disabled) {
+    opacity: 0.9;
+}
+
+.fb-connector-select-account__btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.fb-connector-select-account__empty {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--muted, #718096);
+}
+
 .fb-connector-filter {
     display: flex;
     align-items: center;

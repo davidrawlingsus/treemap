@@ -30,12 +30,26 @@ import { escapeHtml } from '/js/utils/dom.js';
  * @param {Function} [options.onResumeLoadAll] - Called when user clicks Resume after Load All paused
  * @param {Object} [options.importProgress] - When importing: { imported, failed, total? } (total = for Import selected)
  * @param {Function} [options.onError] - Called with error message
+ * @param {boolean} [options.needsAdAccount] - Show ad account selector (no default or change)
+ * @param {Array<{id: string, name?: string}>} [options.adAccounts] - List of ad accounts for selector
+ * @param {string|null} [options.selectedAdAccountId] - Selected ad account id in dropdown
+ * @param {string} [options.setAdAccountError] - Error when set default ad account failed
+ * @param {Function} [options.onSetAdAccount] - Called with (adAccountId, adAccountName) when user clicks Set default & continue
+ * @param {Function} [options.onAdAccountSelectionChange] - Called with adAccountId when dropdown selection changes
+ * @param {Function} [options.onChangeAdAccount] - Called when user clicks Change ad account
  */
 export function renderFbConnectorPicker(container, options) {
     const {
         connected = false,
         accountName = '',
         adAccountName = '',
+        needsAdAccount = false,
+        adAccounts = [],
+        selectedAdAccountId = null,
+        setAdAccountError = null,
+        onSetAdAccount,
+        onAdAccountSelectionChange,
+        onChangeAdAccount,
         items = [],
         selectedIds = new Set(),
         loading = false,
@@ -75,10 +89,72 @@ export function renderFbConnectorPicker(container, options) {
 
     const header = document.createElement('div');
     header.className = 'fb-connector-header';
+    const showChangeLink = !needsAdAccount && adAccountName && typeof onChangeAdAccount === 'function';
     header.innerHTML = `
-        <p class="fb-connector-header__account">${escapeHtml(accountName || 'Meta account')}${adAccountName ? ` · ${escapeHtml(adAccountName)}` : ''}</p>
+        <p class="fb-connector-header__account">${escapeHtml(accountName || 'Meta account')}${adAccountName ? ` · ${escapeHtml(adAccountName)}` : ''}${showChangeLink ? ' <a href="#" class="fb-connector-header__change-account">Change ad account</a>' : ''}</p>
     `;
+    if (showChangeLink) {
+        const changeLink = header.querySelector('.fb-connector-header__change-account');
+        if (changeLink) {
+            changeLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                onChangeAdAccount();
+            });
+        }
+    }
     container.appendChild(header);
+
+    if (connected && needsAdAccount) {
+        if (setAdAccountError) {
+            const errorBanner = document.createElement('div');
+            errorBanner.className = 'fb-connector-load-error';
+            errorBanner.innerHTML = `
+                <p class="fb-connector-load-error__message">${escapeHtml(setAdAccountError)}</p>
+            `;
+            container.appendChild(errorBanner);
+        }
+        const selectBlock = document.createElement('div');
+        selectBlock.className = 'fb-connector-select-account';
+        if (adAccounts.length === 0) {
+            selectBlock.innerHTML = `
+                <p class="fb-connector-select-account__empty">No ad accounts found. Check your Meta connection and permissions.</p>
+            `;
+        } else {
+            const selectId = 'fb-connector-ad-account-select';
+            selectBlock.innerHTML = `
+                <label class="fb-connector-select-account__label" for="${selectId}">Ad account</label>
+                <select class="fb-connector-select-account__select" id="${selectId}">
+                    <option value="">Select ad account...</option>
+                    ${adAccounts.map((acc) => `
+                        <option value="${escapeHtmlForAttribute(acc.id)}" ${acc.id === selectedAdAccountId ? 'selected' : ''}>${escapeHtml((acc.name || acc.id) + ' (' + acc.id + ')')}</option>
+                    `).join('')}
+                </select>
+                <button type="button" class="fb-connector-select-account__btn" ${selectedAdAccountId ? '' : 'disabled'}>Set default & continue</button>
+            `;
+            const selectEl = selectBlock.querySelector('.fb-connector-select-account__select');
+            const btnEl = selectBlock.querySelector('.fb-connector-select-account__btn');
+            if (selectEl && btnEl) {
+                const updateButtonState = () => {
+                    const val = selectEl.value;
+                    btnEl.disabled = !val;
+                    if (typeof onAdAccountSelectionChange === 'function') {
+                        onAdAccountSelectionChange(val || null);
+                    }
+                };
+                selectEl.addEventListener('change', updateButtonState);
+                updateButtonState();
+                btnEl.addEventListener('click', () => {
+                    const id = selectEl.value;
+                    if (!id) return;
+                    const acc = adAccounts.find((a) => a.id === id);
+                    const name = acc ? (acc.name || acc.id) : id;
+                    if (typeof onSetAdAccount === 'function') onSetAdAccount(id, name);
+                });
+            }
+        }
+        container.appendChild(selectBlock);
+        return;
+    }
 
     if (loadError) {
         const errorBanner = document.createElement('div');

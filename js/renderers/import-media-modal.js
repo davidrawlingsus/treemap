@@ -12,6 +12,8 @@ import {
 } from '/js/services/api-meta-import.js';
 import {
     checkMetaTokenStatus,
+    fetchMetaAdAccounts,
+    setDefaultMetaAdAccount,
     fetchMetaMediaLibrary,
     fetchMetaMediaLibraryCounts,
     importMetaMediaStream,
@@ -430,6 +432,14 @@ export function showImportMediaModal(onImageAdded) {
     let fbConnectorLoadAllPaused = false;
     /** When Import all is running: { imported, failed } for progress display. */
     let fbConnectorImportProgress = null;
+    /** True when we should show the ad account selector (no default or user clicked Change). */
+    let fbConnectorNeedsAdAccount = false;
+    /** List of ad accounts from fetchMetaAdAccounts. */
+    let fbConnectorAdAccounts = [];
+    /** Selected ad account id in the dropdown. */
+    let fbConnectorSelectedAdAccountId = null;
+    /** Error message when set default ad account fails (shown in selector view). */
+    let fbConnectorSetAdAccountError = null;
 
     async function runLoadAllLoop() {
         let iter = 0;
@@ -474,6 +484,7 @@ export function showImportMediaModal(onImageAdded) {
         const panel = overlay.querySelector('#importMediaFbConnectorPanel');
         if (!panel) return;
         fbConnectorLoading = true;
+        fbConnectorSetAdAccountError = null;
         renderFbConnectorContent();
         try {
             fbConnectorTokenStatus = await checkMetaTokenStatus(clientId);
@@ -482,8 +493,26 @@ export function showImportMediaModal(onImageAdded) {
             console.error('[ImportMediaModal] FB Connector token check failed:', e);
         }
         fbConnectorLoading = false;
-        const willFetch = !!(fbConnectorTokenStatus?.has_token && !fbConnectorTokenStatus?.is_expired);
-        if (willFetch) {
+        const connected = !!(fbConnectorTokenStatus?.has_token && !fbConnectorTokenStatus?.is_expired);
+        const hasDefaultAdAccount = !!(fbConnectorTokenStatus?.default_ad_account_id);
+
+        if (connected && !hasDefaultAdAccount) {
+            fbConnectorNeedsAdAccount = true;
+            fbConnectorLoadError = null;
+            try {
+                const accountsRes = await fetchMetaAdAccounts(clientId);
+                fbConnectorAdAccounts = accountsRes?.items || [];
+                fbConnectorSelectedAdAccountId = fbConnectorAdAccounts.length === 1 ? fbConnectorAdAccounts[0].id : null;
+            } catch (e) {
+                console.error('[ImportMediaModal] Fetch ad accounts failed:', e);
+                fbConnectorAdAccounts = [];
+                fbConnectorSetAdAccountError = e?.message || 'Failed to load ad accounts.';
+            }
+            renderFbConnectorContent();
+            return;
+        }
+
+        if (connected && hasDefaultAdAccount && !fbConnectorNeedsAdAccount) {
             fbConnectorLoading = true;
             fbConnectorLoadError = null;
             fbConnectorItems = [];
@@ -505,14 +534,44 @@ export function showImportMediaModal(onImageAdded) {
             } catch (e) {
                 console.error('[ImportMediaModal] FB Connector fetch failed:', e);
                 const msg = e?.message || String(e);
-                fbConnectorLoadError = msg.includes('too many calls') || msg.includes('rate')
-                    ? 'Meta is temporarily limiting requests for this ad account. Please try again in a few minutes.'
-                    : (msg.length > 120 ? msg.slice(0, 120) + '…' : msg);
+                const isNoDefault = msg.includes('No default ad account set');
+                if (isNoDefault) {
+                    fbConnectorNeedsAdAccount = true;
+                    fbConnectorLoadError = null;
+                    try {
+                        const accountsRes = await fetchMetaAdAccounts(clientId);
+                        fbConnectorAdAccounts = accountsRes?.items || [];
+                        fbConnectorSelectedAdAccountId = fbConnectorAdAccounts.length === 1 ? fbConnectorAdAccounts[0].id : null;
+                    } catch (err) {
+                        console.error('[ImportMediaModal] Fetch ad accounts failed:', err);
+                        fbConnectorAdAccounts = [];
+                        fbConnectorSetAdAccountError = err?.message || 'Failed to load ad accounts.';
+                    }
+                } else {
+                    fbConnectorLoadError = msg.includes('too many calls') || msg.includes('rate')
+                        ? 'Meta is temporarily limiting requests for this ad account. Please try again in a few minutes.'
+                        : (msg.length > 120 ? msg.slice(0, 120) + '…' : msg);
+                }
                 if (typeof window.onImportMediaFbConnectorError === 'function') {
                     window.onImportMediaFbConnectorError(e);
                 }
             }
             fbConnectorLoading = false;
+        }
+        renderFbConnectorContent();
+    }
+
+    async function fetchFbConnectorAdAccountsAndShowSelector() {
+        fbConnectorNeedsAdAccount = true;
+        fbConnectorSetAdAccountError = null;
+        try {
+            const accountsRes = await fetchMetaAdAccounts(clientId);
+            fbConnectorAdAccounts = accountsRes?.items || [];
+            fbConnectorSelectedAdAccountId = fbConnectorTokenStatus?.default_ad_account_id || (fbConnectorAdAccounts.length === 1 ? fbConnectorAdAccounts[0].id : null);
+        } catch (e) {
+            console.error('[ImportMediaModal] Fetch ad accounts failed:', e);
+            fbConnectorAdAccounts = [];
+            fbConnectorSetAdAccountError = e?.message || 'Failed to load ad accounts.';
         }
         renderFbConnectorContent();
     }
@@ -653,6 +712,35 @@ export function showImportMediaModal(onImageAdded) {
         }
     }
 
+    async function handleSetAdAccount(adAccountId, adAccountName) {
+        fbConnectorSetAdAccountError = null;
+        try {
+            await setDefaultMetaAdAccount(clientId, adAccountId, adAccountName || null);
+            fbConnectorNeedsAdAccount = false;
+            fbConnectorTokenStatus = await checkMetaTokenStatus(clientId);
+            fbConnectorLoading = true;
+            fbConnectorLoadError = null;
+            fbConnectorItems = [];
+            fbConnectorPaging = { after: null, hasMore: false };
+            fbConnectorSelectedIds = new Set();
+            renderFbConnectorContent();
+            const res = await fetchMetaMediaLibrary(clientId, { mediaType: 'all', limit: 24 });
+            fbConnectorItems = res.items || [];
+            const p = res.paging;
+            fbConnectorPaging = {
+                after: p?.after || null,
+                image_after: p?.image_after || null,
+                video_after: p?.video_after || null,
+                hasMore: !!(p && (p.after || p.image_after || p.video_after)),
+            };
+        } catch (e) {
+            console.error('[ImportMediaModal] Set default ad account failed:', e);
+            fbConnectorSetAdAccountError = e?.message || 'Failed to set ad account.';
+        }
+        fbConnectorLoading = false;
+        renderFbConnectorContent();
+    }
+
     function renderFbConnectorContent() {
         const panel = overlay.querySelector('#importMediaFbConnectorPanel');
         if (!panel) return;
@@ -661,6 +749,10 @@ export function showImportMediaModal(onImageAdded) {
             connected,
             accountName: fbConnectorTokenStatus?.meta_user_name || '',
             adAccountName: fbConnectorTokenStatus?.default_ad_account_name || '',
+            needsAdAccount: fbConnectorNeedsAdAccount,
+            adAccounts: fbConnectorAdAccounts,
+            selectedAdAccountId: fbConnectorSelectedAdAccountId,
+            setAdAccountError: fbConnectorSetAdAccountError,
             items: fbConnectorItems,
             selectedIds: fbConnectorSelectedIds,
             loading: fbConnectorLoading,
@@ -670,6 +762,12 @@ export function showImportMediaModal(onImageAdded) {
             loadError: fbConnectorLoadError,
             loadAllPaused: fbConnectorLoadAllPaused,
             importProgress: fbConnectorImportProgress,
+            onSetAdAccount: handleSetAdAccount,
+            onAdAccountSelectionChange: (id) => {
+                fbConnectorSelectedAdAccountId = id || null;
+                renderFbConnectorContent();
+            },
+            onChangeAdAccount: () => fetchFbConnectorAdAccountsAndShowSelector(),
             onRetryLoad: () => {
                 fbConnectorLoadError = null;
                 refreshFbConnectorTab();
