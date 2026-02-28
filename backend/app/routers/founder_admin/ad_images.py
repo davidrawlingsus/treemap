@@ -5,7 +5,7 @@ Access: any authenticated user with access to the client (membership or founder)
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, BackgroundTasks
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import desc, or_, not_
+from sqlalchemy import desc, or_, not_, func
 from uuid import UUID
 from typing import List, Optional
 from datetime import datetime, timezone
@@ -29,6 +29,16 @@ from app.authorization import verify_client_access
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Filenames treated as auto-generated video thumbnails (excluded from list and rejected on import)
+UNTITLED_THUMBNAIL_FILENAMES = frozenset(("untitled.jpg", "untitled.jpeg", "untitled.png", "untitled.webp"))
+
+
+def _is_untitled_thumbnail(filename: Optional[str]) -> bool:
+    """True if filename is an auto-generated thumbnail (e.g. untitled.jpg) that we exclude."""
+    if not filename:
+        return False
+    return filename.strip().lower() in UNTITLED_THUMBNAIL_FILENAMES
 
 
 # ==================== Ad Image Upload Endpoints ====================
@@ -56,7 +66,11 @@ async def upload_ad_image_to_blob(
             status_code=400,
             content={"error": "No file provided"}
         )
-    
+    if _is_untitled_thumbnail(file.filename or ""):
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Auto-generated thumbnails (e.g. untitled.jpg) cannot be uploaded"}
+        )
     try:
         # Read file content
         content = await file.read()
@@ -110,6 +124,11 @@ async def upload_ad_image(
 ):
     """Upload a new ad image (metadata only - file already uploaded to Vercel Blob)."""
     verify_client_access(client_id, current_user, db)
+    if _is_untitled_thumbnail(filename):
+        raise HTTPException(
+            status_code=400,
+            detail="Auto-generated thumbnails (e.g. untitled.jpg) cannot be added to the library",
+        )
     try:
         file_size_int = int(file_size)
     except (ValueError, TypeError):
@@ -169,6 +188,7 @@ def list_ad_images(
     base_query = (
         db.query(AdImage)
         .filter(AdImage.client_id == client_id)
+        .filter(not_(func.lower(AdImage.filename).in_(list(UNTITLED_THUMBNAIL_FILENAMES))))
     )
     if media_type == "video":
         base_query = base_query.filter(AdImage.content_type.like("video%"))

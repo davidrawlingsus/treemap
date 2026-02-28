@@ -141,14 +141,18 @@ export async function uploadAdImage(clientId, file) {
 function getSortParams(sortBy) {
     switch (sortBy) {
         case 'oldest':
-            return { sort_by: 'uploaded_at', order: 'asc' };
+            return { sort_by: 'meta_created_time', order: 'asc' };
         case 'running_longest':
             return { sort_by: 'started_running_on', order: 'asc' };
         case 'running_newest':
             return { sort_by: 'started_running_on', order: 'desc' };
+        case 'library_oldest':
+            return { sort_by: 'meta_created_time', order: 'asc' };
+        case 'library_newest':
+            return { sort_by: 'meta_created_time', order: 'desc' };
         case 'newest':
         default:
-            return { sort_by: 'uploaded_at', order: 'desc' };
+            return { sort_by: 'meta_created_time', order: 'desc' };
     }
 }
 

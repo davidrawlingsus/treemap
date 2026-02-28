@@ -51,6 +51,7 @@ from app.schemas.ad_image import AdImageResponse
 from app.auth import get_current_user
 from app.authorization import verify_client_access
 from app.config import get_settings
+from app.routers.founder_admin.ad_images import _is_untitled_thumbnail
 from app.services.meta_ads_service import MetaAdsService
 
 logger = logging.getLogger(__name__)
@@ -930,6 +931,8 @@ async def _import_one_meta_item(
     blob_token: str,
 ) -> tuple[Optional[AdImageResponse], bool]:
     """Download one Meta media item, upload to blob, create AdImage. Returns (response, success)."""
+    if _is_untitled_thumbnail(item.filename):
+        return (None, False)
     try:
         download_url = _normalize_url(item.original_url)
         if not download_url.startswith("http"):

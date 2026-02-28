@@ -351,7 +351,8 @@ function renderImageCard(image) {
     const isVideo = isVideoType(contentType);
     const isSelected = getSelectedImageIds().has(image.id);
     
-    // Meta Ads Library metadata
+    // Meta Ads Library metadata: prefer "date added to Meta library", else "started running", else import date
+    const metaCreatedTime = image.meta_created_time; // When client added to Facebook ad media library (ad account API only)
     const startedRunningOn = image.started_running_on;
     const libraryId = image.library_id;
     const hasMetaData = startedRunningOn || libraryId;
@@ -401,7 +402,7 @@ function renderImageCard(image) {
             <div class="images-card__info">
                 <div class="images-card__filename" title="${filename}">${filename}</div>
                 <div class="images-card__meta">${formatFileSize(image.file_size || 0)}</div>
-                ${image.uploaded_at ? `<div class="images-card__meta images-card__meta-date-added" title="Date added to library">Added ${formatDate(image.uploaded_at)}</div>` : ''}
+                ${metaCreatedTime ? `<div class="images-card__meta images-card__meta-date-added" title="Date added to Facebook ad media library">Added to library ${formatDate(metaCreatedTime)}</div>` : startedRunningOn ? `<div class="images-card__meta images-card__meta-date-added" title="Ad started running">Started running ${formatDate(startedRunningOn)}</div>` : image.uploaded_at ? `<div class="images-card__meta images-card__meta-date-added" title="Imported into Vizualizd">Imported ${formatDate(image.uploaded_at)}</div>` : ''}
                 ${metadataHtml}
             </div>
         </div>

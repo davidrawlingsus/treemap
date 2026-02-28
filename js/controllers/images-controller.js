@@ -131,6 +131,10 @@ function updateSortCheckmarks(selectedSort) {
     document.getElementById('sortCheckOldest').textContent = selectedSort === 'oldest' ? '✓' : '';
     document.getElementById('sortCheckRunningLongest').textContent = selectedSort === 'running_longest' ? '✓' : '';
     document.getElementById('sortCheckRunningNewest').textContent = selectedSort === 'running_newest' ? '✓' : '';
+    const libNewestEl = document.getElementById('sortCheckLibraryNewest');
+    const libOldestEl = document.getElementById('sortCheckLibraryOldest');
+    if (libNewestEl) libNewestEl.textContent = selectedSort === 'library_newest' ? '✓' : '';
+    if (libOldestEl) libOldestEl.textContent = selectedSort === 'library_oldest' ? '✓' : '';
 }
 
 /**
@@ -539,6 +543,47 @@ async function loadFirstPage() {
 }
 
 /**
+ * Get the scrollable ancestor of an element (has overflow-y auto/scroll and scrollable content).
+ * @param {HTMLElement} el
+ * @returns {{ element: HTMLElement | null, scrollTop: number } | null}
+ */
+function getScrollPosition(el) {
+    if (!el) return null;
+    const win = el.ownerDocument?.defaultView || window;
+    let scrollTop = win.scrollY ?? win.pageYOffset ?? document.documentElement.scrollTop;
+    let scrollable = null;
+    let node = el.parentElement;
+    while (node && node !== document.body) {
+        const style = win.getComputedStyle(node);
+        const overflowY = style.overflowY;
+        const canScroll = (overflowY === 'auto' || overflowY === 'scroll' || overflowY === 'overlay') &&
+            node.scrollHeight > node.clientHeight;
+        if (canScroll) {
+            scrollable = node;
+            scrollTop = node.scrollTop;
+            break;
+        }
+        node = node.parentElement;
+    }
+    return { element: scrollable || (win === window ? document.documentElement : null), scrollTop };
+}
+
+/**
+ * Restore scroll position after a re-render so the user stays in place.
+ * @param {{ element: HTMLElement | null, scrollTop: number } | null} saved
+ */
+function restoreScrollPosition(saved) {
+    if (!saved) return;
+    requestAnimationFrame(() => {
+        if (saved.element && saved.element !== document.documentElement) {
+            saved.element.scrollTop = saved.scrollTop;
+        } else {
+            window.scrollTo(0, saved.scrollTop);
+        }
+    });
+}
+
+/**
  * Load next page and append to grid.
  */
 export async function loadMoreImagesPage() {
@@ -547,6 +592,8 @@ export async function loadMoreImagesPage() {
     const cache = getImagesCache();
     const total = getImagesTotal();
     if (!container || !clientId || cache.length >= total) return;
+
+    const savedScroll = getScrollPosition(container);
 
     const loadMoreEl = document.getElementById('imagesLoadMoreBtn');
     const loadMoreWrap = document.getElementById('imagesLoadMoreWrap');
@@ -565,6 +612,7 @@ export async function loadMoreImagesPage() {
         setImagesTotal(response.total ?? total);
         renderImagesPage();
         updateLoadMoreVisibility();
+        restoreScrollPosition(savedScroll);
     } catch (error) {
         console.error('[ImagesController] Load more failed:', error);
         updateLoadMoreVisibility();
