@@ -30,18 +30,18 @@ function sortImages(images, sortBy) {
     
     switch (sortBy) {
         case 'newest':
-            // Sort by created_at descending (newest first)
+            // Sort by uploaded_at descending (newest first). API returns uploaded_at, not created_at.
             sorted.sort((a, b) => {
-                const dateA = new Date(a.created_at || 0);
-                const dateB = new Date(b.created_at || 0);
+                const dateA = new Date(a.uploaded_at || a.created_at || 0);
+                const dateB = new Date(b.uploaded_at || b.created_at || 0);
                 return dateB - dateA;
             });
             break;
         case 'oldest':
-            // Sort by created_at ascending (oldest first)
+            // Sort by uploaded_at ascending (oldest first). API returns uploaded_at, not created_at.
             sorted.sort((a, b) => {
-                const dateA = new Date(a.created_at || 0);
-                const dateB = new Date(b.created_at || 0);
+                const dateA = new Date(a.uploaded_at || a.created_at || 0);
+                const dateB = new Date(b.uploaded_at || b.created_at || 0);
                 return dateA - dateB;
             });
             break;
