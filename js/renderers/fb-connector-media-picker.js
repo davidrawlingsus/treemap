@@ -72,6 +72,10 @@ export function renderFbConnectorPicker(container, options) {
     container.innerHTML = '';
     container.className = 'fb-connector-picker';
 
+    // #region agent log (production: check console for [DEBUG-FB])
+    console.info('[DEBUG-FB] picker received', { adAccountName: adAccountName || '(empty)', needsAdAccount, adAccountsLength: adAccounts?.length ?? 0, showChangeLink: !needsAdAccount && !!adAccountName });
+    // #endregion
+
     if (!connected) {
         const notConnected = document.createElement('div');
         notConnected.className = 'fb-connector-not-connected';

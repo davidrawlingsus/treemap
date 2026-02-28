@@ -492,9 +492,21 @@ export function showImportMediaModal(onImageAdded) {
             fbConnectorTokenStatus = { has_token: false, is_expired: false };
             console.error('[ImportMediaModal] FB Connector token check failed:', e);
         }
+        // #region agent log (production: check console for [DEBUG-FB])
+        console.info('[DEBUG-FB] refreshFbConnectorTab token', { defaultId: fbConnectorTokenStatus?.default_ad_account_id ?? null, defaultName: fbConnectorTokenStatus?.default_ad_account_name ?? null, hasToken: !!fbConnectorTokenStatus?.has_token });
+        // #endregion
         fbConnectorLoading = false;
         const connected = !!(fbConnectorTokenStatus?.has_token && !fbConnectorTokenStatus?.is_expired);
         const hasDefaultAdAccount = !!(fbConnectorTokenStatus?.default_ad_account_id);
+
+        if (connected && hasDefaultAdAccount && !fbConnectorTokenStatus?.default_ad_account_name) {
+            try {
+                const accountsRes = await fetchMetaAdAccounts(clientId);
+                fbConnectorAdAccounts = accountsRes?.items || [];
+            } catch (e) {
+                console.warn('[ImportMediaModal] Fetch ad accounts for display name failed:', e);
+            }
+        }
 
         if (connected && !hasDefaultAdAccount) {
             fbConnectorNeedsAdAccount = true;
@@ -745,10 +757,21 @@ export function showImportMediaModal(onImageAdded) {
         const panel = overlay.querySelector('#importMediaFbConnectorPanel');
         if (!panel) return;
         const connected = !!(fbConnectorTokenStatus?.has_token && !fbConnectorTokenStatus?.is_expired);
+        const defaultId = fbConnectorTokenStatus?.default_ad_account_id || null;
+        let adAccountName = fbConnectorTokenStatus?.default_ad_account_name || '';
+        if (!adAccountName && defaultId && fbConnectorAdAccounts?.length) {
+            const acc = fbConnectorAdAccounts.find((a) => a.id === defaultId);
+            adAccountName = acc ? (acc.name || acc.id) : `Account (${defaultId})`;
+        } else if (!adAccountName && defaultId) {
+            adAccountName = `Account (${defaultId})`;
+        }
+        // #region agent log (production: check console for [DEBUG-FB])
+        console.info('[DEBUG-FB] renderFbConnectorContent', { defaultId: fbConnectorTokenStatus?.default_ad_account_id ?? null, defaultName: fbConnectorTokenStatus?.default_ad_account_name ?? null, adAccountNamePassed: adAccountName, needsAdAccount: fbConnectorNeedsAdAccount, adAccountsLength: fbConnectorAdAccounts?.length ?? 0, loadError: !!fbConnectorLoadError });
+        // #endregion
         renderFbConnectorPicker(panel, {
             connected,
             accountName: fbConnectorTokenStatus?.meta_user_name || '',
-            adAccountName: fbConnectorTokenStatus?.default_ad_account_name || '',
+            adAccountName,
             needsAdAccount: fbConnectorNeedsAdAccount,
             adAccounts: fbConnectorAdAccounts,
             selectedAdAccountId: fbConnectorSelectedAdAccountId,
