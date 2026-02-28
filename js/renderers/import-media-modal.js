@@ -610,6 +610,23 @@ export function showImportMediaModal(onImageAdded) {
         if (importAllBtn) importAllBtn.disabled = fbConnectorImporting;
     }
 
+    /** Update only the clicked card and footer for selection; avoids full re-render and scroll reset. */
+    function updateFbConnectorSelectionUI(key) {
+        const panel = overlay.querySelector('#importMediaFbConnectorPanel');
+        if (!panel) return;
+        const cards = panel.querySelectorAll('.fb-connector-card');
+        for (const card of cards) {
+            if (card.dataset.itemKey === key) {
+                const isSelected = fbConnectorSelectedIds.has(key);
+                card.classList.toggle('fb-connector-card--selected', isSelected);
+                const checkbox = card.querySelector('.fb-connector-card__checkbox input[type="checkbox"]');
+                if (checkbox) checkbox.checked = isSelected;
+                break;
+            }
+        }
+        updateFbConnectorFooterImportButton();
+    }
+
     async function doFbConnectorImport(toImport) {
         if (!toImport.length) return;
         const total = toImport.length;
@@ -847,7 +864,7 @@ export function showImportMediaModal(onImageAdded) {
                 } else {
                     fbConnectorSelectedIds.add(key);
                 }
-                renderFbConnectorContent();
+                updateFbConnectorSelectionUI(key);
             },
             onSelectAll: () => {
                 fbConnectorItems.forEach((it) => fbConnectorSelectedIds.add(`${it.type}:${it.id || ''}`));
