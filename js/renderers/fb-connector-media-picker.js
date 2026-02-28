@@ -141,11 +141,13 @@ export function renderFbConnectorPicker(container, options) {
                 const updateButtonState = () => {
                     const val = selectEl.value;
                     btnEl.disabled = !val;
-                    if (typeof onAdAccountSelectionChange === 'function') {
-                        onAdAccountSelectionChange(val || null);
-                    }
                 };
-                selectEl.addEventListener('change', updateButtonState);
+                selectEl.addEventListener('change', () => {
+                    updateButtonState();
+                    if (typeof onAdAccountSelectionChange === 'function') {
+                        onAdAccountSelectionChange(selectEl.value || null);
+                    }
+                });
                 updateButtonState();
                 btnEl.addEventListener('click', () => {
                     const id = selectEl.value;
