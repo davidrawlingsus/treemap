@@ -10,6 +10,8 @@ import {
     getImagesCurrentClientId, setImagesCurrentClientId,
     getImagesColumnCount, setImagesColumnCount,
     getImagesSortBy, setImagesSortBy,
+    getImagesTotal, setImagesTotal,
+    getImagesMediaTypeFilter, setImagesMediaTypeFilter,
     addImageToCache
 } from '/js/state/images-state.js';
 import { renderImagesGrid, showLoading, renderError, relayoutImagesGrid, cancelScheduledLayoutFromImageLoad, updateBulkDeleteButton } from '/js/renderers/images-renderer.js';
@@ -104,7 +106,9 @@ function initSortDropdown() {
             setImagesSortBy(sortBy);
             updateSortCheckmarks(sortBy);
             closeSortDropdown();
-            renderImagesPage();
+            setImagesCache([]);
+            setImagesTotal(0);
+            loadFirstPage();
         });
     });
     
@@ -148,6 +152,36 @@ function closeSortDropdown() {
     if (dropdown) {
         dropdown.classList.remove('is-open');
     }
+}
+
+// ============ Media Type Filter ============
+
+let mediaTypeFilterInitialized = false;
+
+function initMediaTypeFilter() {
+    if (mediaTypeFilterInitialized) return;
+    const options = document.querySelectorAll('.images-media-type-option');
+    if (!options.length) return;
+
+    const updateActive = (mediaType) => {
+        options.forEach((el) => {
+            el.classList.toggle('is-active', el.dataset.mediaType === mediaType);
+        });
+    };
+    updateActive(getImagesMediaTypeFilter());
+
+    options.forEach((option) => {
+        option.addEventListener('click', () => {
+            const mediaType = option.dataset.mediaType;
+            if (!mediaType) return;
+            setImagesMediaTypeFilter(mediaType);
+            updateActive(mediaType);
+            setImagesCache([]);
+            setImagesTotal(0);
+            loadFirstPage();
+        });
+    });
+    mediaTypeFilterInitialized = true;
 }
 
 // ============ Slider Initialization ============
@@ -368,9 +402,11 @@ async function handleViewportDrop(files, clientId) {
         updateUploadBanner(banner, i + 1, totalFiles);
     }
     
-    // Re-render the grid
+    // Re-render the grid (cache now has new items; keep total at least cache length for "Showing X of Y")
+    setImagesTotal(Math.max(getImagesTotal(), getImagesCache().length));
     renderImagesPage();
-    
+    updateLoadMoreVisibility();
+
     // Show results
     if (failCount === 0) {
         updateUploadBanner(banner, totalFiles, totalFiles, true, `Uploaded ${successCount} file(s)`);
@@ -464,28 +500,121 @@ function updateUploadBanner(banner, current, total, done = false, message = null
     }
 }
 
+// ============ Pagination ============
+
+const IMAGES_PAGE_SIZE = 60;
+
+/**
+ * Load first page of images and render (used on init and when sort/media filter changes).
+ */
+async function loadFirstPage() {
+    const container = document.getElementById('imagesGrid');
+    const clientId = window.appStateGet?.('currentClientId') || document.getElementById('clientSelect')?.value;
+    if (!container || !clientId) return;
+
+    showLoading(container);
+    setImagesLoading(true);
+    setImagesError(null);
+    try {
+        const response = await fetchAdImages(clientId, {
+            limit: IMAGES_PAGE_SIZE,
+            offset: 0,
+            sortBy: getImagesSortBy(),
+            mediaType: getImagesMediaTypeFilter(),
+        });
+        const items = response.items || [];
+        setImagesCache(items);
+        setImagesTotal(response.total ?? 0);
+        setImagesCurrentClientId(clientId);
+        setImagesLoading(false);
+        renderImagesPage();
+        updateLoadMoreVisibility();
+    } catch (error) {
+        console.error('[ImagesController] Failed to load images:', error);
+        setImagesLoading(false);
+        setImagesError(error.message);
+        renderError(container, error.message);
+        updateLoadMoreVisibility();
+    }
+}
+
+/**
+ * Load next page and append to grid.
+ */
+export async function loadMoreImagesPage() {
+    const container = document.getElementById('imagesGrid');
+    const clientId = getImagesCurrentClientId();
+    const cache = getImagesCache();
+    const total = getImagesTotal();
+    if (!container || !clientId || cache.length >= total) return;
+
+    const loadMoreEl = document.getElementById('imagesLoadMoreBtn');
+    const loadMoreWrap = document.getElementById('imagesLoadMoreWrap');
+    if (loadMoreEl) loadMoreEl.disabled = true;
+    if (loadMoreWrap) loadMoreWrap.classList.add('is-loading');
+
+    try {
+        const response = await fetchAdImages(clientId, {
+            limit: IMAGES_PAGE_SIZE,
+            offset: cache.length,
+            sortBy: getImagesSortBy(),
+            mediaType: getImagesMediaTypeFilter(),
+        });
+        const newItems = response.items || [];
+        setImagesCache([...cache, ...newItems]);
+        setImagesTotal(response.total ?? total);
+        renderImagesPage();
+        updateLoadMoreVisibility();
+    } catch (error) {
+        console.error('[ImagesController] Load more failed:', error);
+        updateLoadMoreVisibility();
+    } finally {
+        if (loadMoreEl) loadMoreEl.disabled = false;
+        if (loadMoreWrap) loadMoreWrap.classList.remove('is-loading');
+    }
+}
+
+/**
+ * Show/hide Load more area and update "Showing X of Y" text.
+ */
+function updateLoadMoreVisibility() {
+    const wrap = document.getElementById('imagesLoadMoreWrap');
+    const btn = document.getElementById('imagesLoadMoreBtn');
+    const countEl = document.getElementById('imagesLoadMoreCount');
+    const cache = getImagesCache();
+    const total = getImagesTotal();
+
+    if (!wrap) return;
+    if (total === 0 && cache.length === 0) {
+        wrap.classList.add('is-hidden');
+        return;
+    }
+    wrap.classList.remove('is-hidden');
+    if (countEl) countEl.textContent = `Showing ${cache.length} of ${total}`;
+    if (btn) {
+        btn.disabled = cache.length >= total;
+        btn.textContent = cache.length >= total ? 'All loaded' : 'Load more';
+    }
+}
+
 // ============ Page Initialization ============
 
 /**
  * Initialize the Images page - load and render images
  */
 export async function initImagesPage() {
-    // Initialize controls first (before any rendering)
     initSizeSlider();
     initSortDropdown();
-    
-    // Initialize viewport drag-and-drop
+    initMediaTypeFilter();
     initViewportDragDrop();
-    
+
     const container = document.getElementById('imagesGrid');
     if (!container) {
         console.error('[ImagesController] imagesGrid container not found');
         return;
     }
-    
-    const clientId = window.appStateGet?.('currentClientId') || 
-                     document.getElementById('clientSelect')?.value;
-    
+
+    const clientId = window.appStateGet?.('currentClientId') || document.getElementById('clientSelect')?.value;
     if (!clientId) {
         container.innerHTML = `
             <div class="images-empty">
@@ -494,36 +623,21 @@ export async function initImagesPage() {
                 <p class="images-empty__text">Please select a client first</p>
             </div>
         `;
+        updateLoadMoreVisibility();
         return;
     }
-    
+
     const cachedClientId = getImagesCurrentClientId();
     const cachedImages = getImagesCache();
-    
-    if (cachedClientId === clientId && cachedImages.length > 0) {
+    const sameClientAndHasCache = cachedClientId === clientId && cachedImages.length > 0;
+
+    if (sameClientAndHasCache) {
         renderImagesPage();
+        updateLoadMoreVisibility();
         return;
     }
-    
-    showLoading(container);
-    setImagesLoading(true);
-    setImagesError(null);
-    
-    try {
-        const response = await fetchAdImages(clientId);
-        const images = response.items || [];
-        
-        setImagesCache(images);
-        setImagesCurrentClientId(clientId);
-        setImagesLoading(false);
-        
-        renderImagesPage();
-    } catch (error) {
-        console.error('[ImagesController] Failed to load images:', error);
-        setImagesLoading(false);
-        setImagesError(error.message);
-        renderError(container, error.message);
-    }
+
+    await loadFirstPage();
 }
 
 /**

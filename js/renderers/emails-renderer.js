@@ -1008,8 +1008,8 @@ async function handleImageSelection(emailId, mockup) {
             return;
         }
         
-        // Fetch images for the client
-        const response = await fetchAdImages(clientId);
+        // Fetch images for the client (larger limit for picker choice)
+        const response = await fetchAdImages(clientId, { limit: 200, offset: 0 });
         const images = response.items || [];
         
         if (images.length === 0) {

@@ -12,6 +12,8 @@ let imagesCurrentClientId = null;
 let imagesColumnCount = null; // null means use default (4)
 let selectedImageIds = new Set(); // Track selected images for bulk operations
 let imagesSortBy = null; // null means use default ('newest')
+let imagesTotal = 0; // Total count from API (for pagination "X of Y")
+let imagesMediaTypeFilter = null; // null means use default ('all'); 'all' | 'image' | 'video'
 
 /**
  * Get cached images
@@ -216,6 +218,55 @@ export function setImagesSortBy(sortBy) {
 }
 
 /**
+ * Get total count from last API response (for pagination)
+ * @returns {number}
+ */
+export function getImagesTotal() {
+    return imagesTotal;
+}
+
+/**
+ * Set total count from API
+ * @param {number} total
+ */
+export function setImagesTotal(total) {
+    imagesTotal = total;
+}
+
+/**
+ * Get media type filter
+ * @returns {string} 'all' | 'image' | 'video'
+ */
+export function getImagesMediaTypeFilter() {
+    if (imagesMediaTypeFilter !== null) {
+        return imagesMediaTypeFilter;
+    }
+    try {
+        const stored = localStorage.getItem('imagesMediaTypeFilter');
+        if (stored === 'all' || stored === 'image' || stored === 'video') {
+            imagesMediaTypeFilter = stored;
+            return stored;
+        }
+    } catch (e) {
+        // localStorage not available or error
+    }
+    return 'all';
+}
+
+/**
+ * Set media type filter
+ * @param {string} mediaType - 'all' | 'image' | 'video'
+ */
+export function setImagesMediaTypeFilter(mediaType) {
+    imagesMediaTypeFilter = mediaType;
+    try {
+        localStorage.setItem('imagesMediaTypeFilter', mediaType);
+    } catch (e) {
+        // localStorage not available or error
+    }
+}
+
+/**
  * Clear all images state
  */
 export function clearImagesState() {
@@ -223,6 +274,7 @@ export function clearImagesState() {
     imagesLoading = false;
     imagesError = null;
     imagesCurrentClientId = null;
+    imagesTotal = 0;
     selectedImageIds.clear();
-    // Note: Don't clear imagesColumnCount or imagesSortBy - they're user preferences
+    // Note: Don't clear imagesColumnCount, imagesSortBy or imagesMediaTypeFilter - they're user preferences
 }

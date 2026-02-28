@@ -134,16 +134,51 @@ export async function uploadAdImage(clientId, file) {
 }
 
 /**
- * Fetch all ad images for a client
+ * Map frontend sort key to backend sort_by and order
+ * @param {string} sortBy - Frontend: newest, oldest, running_longest, running_newest
+ * @returns {{ sort_by: string, order: string }}
+ */
+function getSortParams(sortBy) {
+    switch (sortBy) {
+        case 'oldest':
+            return { sort_by: 'uploaded_at', order: 'asc' };
+        case 'running_longest':
+            return { sort_by: 'started_running_on', order: 'asc' };
+        case 'running_newest':
+            return { sort_by: 'started_running_on', order: 'desc' };
+        case 'newest':
+        default:
+            return { sort_by: 'uploaded_at', order: 'desc' };
+    }
+}
+
+/**
+ * Fetch ad images for a client with optional pagination and filters.
  * @param {string} clientId - Client UUID
+ * @param {Object} [options] - Optional: limit, offset, sortBy, mediaType
+ * @param {number} [options.limit=60] - Page size
+ * @param {number} [options.offset=0] - Pagination offset
+ * @param {string} [options.sortBy=newest] - Frontend sort: newest, oldest, running_longest, running_newest
+ * @param {string} [options.mediaType=all] - Filter: all, image, video
  * @returns {Promise<Object>} Object with items array and total count
  */
-export async function fetchAdImages(clientId) {
-    const response = await fetch(
-        `${getApiBaseUrl()}/api/clients/${clientId}/ad-images`,
-        { headers: getAuthHeaders() }
-    );
-    
+export async function fetchAdImages(clientId, options = {}) {
+    const {
+        limit = 60,
+        offset = 0,
+        sortBy = 'newest',
+        mediaType = 'all',
+    } = options;
+    const { sort_by, order } = getSortParams(sortBy);
+    const params = new URLSearchParams({
+        limit: String(limit),
+        offset: String(offset),
+        sort_by,
+        order,
+        media_type: mediaType,
+    });
+    const url = `${getApiBaseUrl()}/api/clients/${clientId}/ad-images?${params.toString()}`;
+    const response = await fetch(url, { headers: getAuthHeaders() });
     await handleResponseError(response);
     return response.json();
 }

@@ -5,7 +5,7 @@ Access: any authenticated user with access to the client (membership or founder)
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, BackgroundTasks
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, or_, not_
 from uuid import UUID
 from typing import List, Optional
 from datetime import datetime, timezone
@@ -143,10 +143,13 @@ def list_ad_images(
         description="Sort by: uploaded_at (import time), started_running_on (ad start), meta_created_time (Meta library date)",
     ),
     order: Optional[str] = Query("desc", description="Order: asc or desc"),
+    limit: int = Query(60, ge=1, le=200, description="Number of items per page"),
+    offset: int = Query(0, ge=0, description="Offset for pagination"),
+    media_type: str = Query("all", description="Filter: all, image, video"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """List all ad images for a client."""
+    """List ad images for a client with optional pagination and media type filter."""
     verify_client_access(client_id, current_user, db)
     if sort_by == "started_running_on":
         col = AdImage.started_running_on
@@ -162,15 +165,29 @@ def list_ad_images(
         order_clause = col.asc().nullsfirst() if nullable else col.asc()
     else:
         order_clause = col.desc().nullslast() if nullable else col.desc()
-    images = (
+
+    base_query = (
         db.query(AdImage)
         .filter(AdImage.client_id == client_id)
+    )
+    if media_type == "video":
+        base_query = base_query.filter(AdImage.content_type.like("video%"))
+    elif media_type == "image":
+        base_query = base_query.filter(
+            or_(AdImage.content_type.is_(None), not_(AdImage.content_type.like("video%")))
+        )
+
+    total = base_query.count()
+    images = (
+        base_query
         .order_by(order_clause)
+        .offset(offset)
+        .limit(limit)
         .all()
     )
     return AdImageListResponse(
         items=[AdImageResponse.model_validate(img) for img in images],
-        total=len(images),
+        total=total,
     )
 
 

@@ -821,6 +821,43 @@ body.picker-open {
     white-space: nowrap;
 }
 
+/* Media Type Filter (All / Images / Videos) */
+.images-media-type-filter {
+    display: flex;
+    align-items: center;
+    margin-left: 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    background: var(--surface);
+}
+
+.images-media-type-option {
+    padding: 8px 14px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--muted);
+    background: transparent;
+    border: none;
+    border-right: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.images-media-type-option:last-child {
+    border-right: none;
+}
+
+.images-media-type-option:hover {
+    color: var(--text);
+    background: rgba(0, 0, 0, 0.04);
+}
+
+.images-media-type-option.is-active {
+    color: var(--text);
+    background: var(--brand-color);
+}
+
 /* Sort Button and Dropdown */
 .images-sort-menu-container {
     margin-left: 8px;
@@ -1228,6 +1265,52 @@ body.picker-open {
 /* Make container position relative for overlay positioning */
 .images-container {
     position: relative;
+}
+
+/* Load More (pagination) */
+.images-load-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 24px 16px;
+    flex-wrap: wrap;
+}
+
+.images-load-more.is-hidden {
+    display: none;
+}
+
+.images-load-more.is-loading .images-load-more__btn {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.images-load-more__count {
+    font-size: 0.875rem;
+    color: var(--muted);
+}
+
+.images-load-more__btn {
+    padding: 8px 20px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.images-load-more__btn:hover:not(:disabled) {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: var(--brand-color);
+}
+
+.images-load-more__btn:disabled {
+    cursor: default;
+    color: var(--muted);
 }
 
 /* Upload Progress Banner */

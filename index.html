@@ -383,7 +383,8 @@
         import {
             initImagesPage as imagesControllerInitImagesPage,
             renderImagesPage as imagesControllerRenderImagesPage,
-            toggleSortDropdown as imagesControllerToggleSortDropdown
+            toggleSortDropdown as imagesControllerToggleSortDropdown,
+            loadMoreImagesPage as imagesControllerLoadMoreImagesPage
         } from '/js/controllers/images-controller.js';
         import {
             showImageUploadModal as imagesRendererShowImageUploadModal
@@ -623,6 +624,7 @@
         window.handleAdsFindReplaceReplaceAll = adsFindReplaceHandleReplaceAll;
         window.initImagesPage = imagesControllerInitImagesPage;
         window.renderImagesPage = imagesControllerRenderImagesPage;
+        window.handleLoadMoreImages = imagesControllerLoadMoreImagesPage;
         window.showImageUploadModal = imagesRendererShowImageUploadModal;
         window.handleBulkDelete = imagesRendererHandleBulkDelete;
         window.handleImagesSelectAll = imagesRendererHandleImagesSelectAll;
@@ -16304,6 +16306,11 @@
             <button class="images-import-btn" onclick="window.showImportMediaModal()">
                 Import Media
             </button>
+            <div class="images-media-type-filter" role="group" aria-label="Media type">
+                <button type="button" class="images-media-type-option is-active" data-media-type="all">All</button>
+                <button type="button" class="images-media-type-option" data-media-type="image">Images</button>
+                <button type="button" class="images-media-type-option" data-media-type="video">Videos</button>
+            </div>
             <div class="images-sort-menu-container" style="position: relative;">
                 <button class="images-sort-btn" id="imagesSortBtn" onclick="window.toggleImagesSortMenu(event)" type="button" aria-label="Sort options">
                     <img src="/images/filter_list.svg" alt="" aria-hidden="true" width="20" height="20">
@@ -16332,6 +16339,10 @@
 
         <div class="images-container">
             <div id="imagesGrid" class="images-grid"></div>
+            <div id="imagesLoadMoreWrap" class="images-load-more is-hidden">
+                <span id="imagesLoadMoreCount" class="images-load-more__count"></span>
+                <button type="button" id="imagesLoadMoreBtn" class="images-load-more__btn" onclick="window.handleLoadMoreImages()">Load more</button>
+            </div>
         </div>
 
         <!-- Bottom selection bar (shown when user clicks a checkbox) -->
