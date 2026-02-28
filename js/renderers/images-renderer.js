@@ -401,6 +401,7 @@ function renderImageCard(image) {
             <div class="images-card__info">
                 <div class="images-card__filename" title="${filename}">${filename}</div>
                 <div class="images-card__meta">${formatFileSize(image.file_size || 0)}</div>
+                ${image.uploaded_at ? `<div class="images-card__meta images-card__meta-date-added" title="Date added to library">Added ${formatDate(image.uploaded_at)}</div>` : ''}
                 ${metadataHtml}
             </div>
         </div>

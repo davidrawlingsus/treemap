@@ -439,6 +439,10 @@
     color: var(--muted);
 }
 
+.images-card__meta-date-added {
+    margin-top: 2px;
+}
+
 /* Meta Ads Library metadata */
 .images-card__meta-extra {
     display: flex;
@@ -2313,6 +2317,12 @@ body.picker-open {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+}
+
+.fb-connector-card__date {
+    padding: 0 6px 4px;
+    font-size: 0.625rem;
+    color: var(--muted, #718096);
 }
 
 .fb-connector-pagination {

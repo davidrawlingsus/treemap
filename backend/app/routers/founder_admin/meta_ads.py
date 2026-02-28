@@ -1103,7 +1103,10 @@ async def import_all_meta_media(
 
     while pages_done < max_pages:
         to_import: list[MetaMediaImportItem] = []
+        # Decide what to fetch using cursors at loop start (before any updates)
         request_images = media_type in ("all", "image") and (media_type != "all" or image_after is not None or video_after is None)
+        request_videos = media_type in ("all", "video") and (media_type != "all" or video_after is not None or image_after is None)
+
         if request_images:
             img_cursor = image_after if media_type == "all" else after
             try:
@@ -1128,39 +1131,39 @@ async def import_all_meta_media(
             else:
                 after = img_paging.get("after")
 
-            request_videos = media_type in ("all", "video") and (media_type != "all" or video_after is not None or image_after is None)
-            if request_videos:
-                vid_cursor = video_after if media_type == "all" else after
-                try:
-                    vid_result = await service.list_ad_videos(
-                        token.access_token, ad_account_id, limit=page_size, after=vid_cursor
-                    )
-                except Exception as e:
-                    logger.warning("Import-all: list_ad_videos failed: %s", e)
-            if media_type != "all":
-                break
-            request_videos = False
-            if request_videos:
-                thumb = None
-                for vid in vid_result.get("data", []):
-                    t = vid.get("picture")
-                    if not t and vid.get("thumbnails", {}).get("data"):
-                        thumbs = vid["thumbnails"]["data"]
-                        if thumbs:
-                            t = thumbs[0].get("uri")
-                    to_import.append(MetaMediaImportItem(
-                        type="video",
-                        video_id=vid.get("id"),
-                        original_url=vid.get("source") or "",
-                        filename=f"{vid.get('title')}.mp4" if vid.get("title") else None,
-                        thumbnail_url=t,
-                        created_time=vid.get("created_time"),
-                    ))
-                vid_paging = vid_result.get("paging", {})
-                if media_type == "all":
-                    video_after = vid_paging.get("after")
-                else:
-                    after = vid_paging.get("after")
+        vid_result = None
+        if request_videos:
+            vid_cursor = video_after if media_type == "all" else after
+            try:
+                vid_result = await service.list_ad_videos(
+                    token.access_token, ad_account_id, limit=page_size, after=vid_cursor
+                )
+            except Exception as e:
+                logger.warning("Import-all: list_ad_videos failed: %s", e)
+                request_videos = False
+        if request_videos and vid_result is not None:
+            thumb = None
+            for vid in vid_result.get("data", []):
+                t = vid.get("picture")
+                if not t and vid.get("thumbnails", {}).get("data"):
+                    thumbs = vid["thumbnails"]["data"]
+                    if thumbs:
+                        t = thumbs[0].get("uri")
+                to_import.append(MetaMediaImportItem(
+                    type="video",
+                    video_id=vid.get("id"),
+                    original_url=vid.get("source") or "",
+                    filename=f"{vid.get('title')}.mp4" if vid.get("title") else None,
+                    thumbnail_url=t,
+                    created_time=vid.get("created_time"),
+                ))
+            vid_paging = vid_result.get("paging", {})
+            if media_type == "all":
+                video_after = vid_paging.get("after")
+            else:
+                after = vid_paging.get("after")
+        if media_type != "all":
+            break
 
         if not to_import:
             if media_type == "all":
@@ -1225,7 +1228,10 @@ async def import_all_meta_media_stream(
         try:
             while pages_done < max_pages:
                 to_import: list[MetaMediaImportItem] = []
+                # Decide what to fetch using cursors at loop start (before any updates)
                 request_images = media_type in ("all", "image") and (media_type != "all" or image_after is not None or video_after is None)
+                request_videos = media_type in ("all", "video") and (media_type != "all" or video_after is not None or image_after is None)
+
                 if request_images:
                     img_cursor = image_after if media_type == "all" else after
                     try:
@@ -1250,7 +1256,7 @@ async def import_all_meta_media_stream(
                     else:
                         after = img_paging.get("after")
 
-                request_videos = media_type in ("all", "video") and (media_type != "all" or video_after is not None or image_after is None)
+                vid_result = None
                 if request_videos:
                     vid_cursor = video_after if media_type == "all" else after
                     try:
@@ -1262,26 +1268,28 @@ async def import_all_meta_media_stream(
                         if media_type != "all":
                             break
                         request_videos = False
-                    if request_videos:
-                        for vid in vid_result.get("data", []):
-                            t = vid.get("picture")
-                            if not t and vid.get("thumbnails", {}).get("data"):
-                                thumbs = vid["thumbnails"]["data"]
-                                if thumbs:
-                                    t = thumbs[0].get("uri")
-                            to_import.append(MetaMediaImportItem(
-                                type="video",
-                                video_id=vid.get("id"),
-                                original_url=vid.get("source") or "",
-                                filename=f"{vid.get('title')}.mp4" if vid.get("title") else None,
-                                thumbnail_url=t,
-                                created_time=vid.get("created_time"),
-                            ))
-                        vid_paging = vid_result.get("paging", {})
-                        if media_type == "all":
-                            video_after = vid_paging.get("after")
-                        else:
-                            after = vid_paging.get("after")
+                if request_videos and vid_result is not None:
+                    for vid in vid_result.get("data", []):
+                        t = vid.get("picture")
+                        if not t and vid.get("thumbnails", {}).get("data"):
+                            thumbs = vid["thumbnails"]["data"]
+                            if thumbs:
+                                t = thumbs[0].get("uri")
+                        to_import.append(MetaMediaImportItem(
+                            type="video",
+                            video_id=vid.get("id"),
+                            original_url=vid.get("source") or "",
+                            filename=f"{vid.get('title')}.mp4" if vid.get("title") else None,
+                            thumbnail_url=t,
+                            created_time=vid.get("created_time"),
+                        ))
+                    vid_paging = vid_result.get("paging", {})
+                    if media_type == "all":
+                        video_after = vid_paging.get("after")
+                    else:
+                        after = vid_paging.get("after")
+                if media_type != "all":
+                    break
 
                 if not to_import:
                     if media_type == "all":

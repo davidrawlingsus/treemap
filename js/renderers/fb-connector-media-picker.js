@@ -145,6 +145,7 @@ export function renderFbConnectorPicker(container, options) {
             card.setAttribute('role', 'listitem');
             const thumb = item.thumbnail_url || item.original_url || item.source || '';
             const name = item.name || item.id || (item.type === 'image' ? 'Image' : 'Video');
+            const dateAdded = item.created_time ? formatMetaDate(item.created_time) : '';
             card.innerHTML = `
                 <div class="fb-connector-card__thumb">
                     ${item.type === 'video' && thumb
@@ -158,6 +159,7 @@ export function renderFbConnectorPicker(container, options) {
                     </label>
                 </div>
                 <div class="fb-connector-card__name">${escapeHtml(String(name).slice(0, 40))}${String(name).length > 40 ? '…' : ''}</div>
+                ${dateAdded ? `<div class="fb-connector-card__date" title="Date added (Meta)">${escapeHtml(dateAdded)}</div>` : ''}
             `;
             grid.appendChild(card);
         });
@@ -222,6 +224,16 @@ export function renderFbConnectorPicker(container, options) {
 
 function itemKey(item) {
     return `${item.type}:${item.id || ''}`;
+}
+
+function formatMetaDate(isoStr) {
+    if (!isoStr) return '';
+    try {
+        const d = new Date(isoStr);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch {
+        return '';
+    }
 }
 
 function escapeHtmlForAttribute(text) {
