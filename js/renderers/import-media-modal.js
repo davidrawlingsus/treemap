@@ -386,6 +386,7 @@ export function showImportMediaModal(onImageAdded) {
         
         // Update footer buttons based on tab
         if (tabName === 'upload') {
+            if (cancelBtn) cancelBtn.style.display = '';
             metaSubmitBtn.style.display = 'none';
             const fbImportBtn = overlay.querySelector('#importMediaFbConnectorImportBtn');
             const fbImportAllBtn = overlay.querySelector('#importMediaFbConnectorImportAllBtn');
@@ -395,17 +396,20 @@ export function showImportMediaModal(onImageAdded) {
             metaSubmitBtn.style.display = 'none';
             const fbImportBtn = overlay.querySelector('#importMediaFbConnectorImportBtn');
             const fbImportAllBtn = overlay.querySelector('#importMediaFbConnectorImportAllBtn');
+            const showFbFooter = !fbConnectorNeedsAdAccount;
+            if (cancelBtn) cancelBtn.style.display = showFbFooter ? '' : 'none';
             if (fbImportBtn) {
-                fbImportBtn.style.display = '';
+                fbImportBtn.style.display = showFbFooter ? '' : 'none';
                 fbImportBtn.disabled = true;
                 fbImportBtn.textContent = 'Import Selected (0)';
             }
             if (fbImportAllBtn) {
-                fbImportAllBtn.style.display = '';
+                fbImportAllBtn.style.display = showFbFooter ? '' : 'none';
                 fbImportAllBtn.disabled = fbConnectorImporting;
             }
             refreshFbConnectorTab();
         } else {
+            if (cancelBtn) cancelBtn.style.display = '';
             const fbImportBtn = overlay.querySelector('#importMediaFbConnectorImportBtn');
             const fbImportAllBtn = overlay.querySelector('#importMediaFbConnectorImportAllBtn');
             if (fbImportBtn) fbImportBtn.style.display = 'none';
@@ -855,6 +859,15 @@ export function showImportMediaModal(onImageAdded) {
             },
         });
         updateFbConnectorFooterImportButton();
+        if (currentTab === 'fb-connector') {
+            const showFbFooter = !fbConnectorNeedsAdAccount;
+            const cancelBtnEl = overlay.querySelector('.import-media-modal__cancel');
+            const fbImportBtnEl = overlay.querySelector('#importMediaFbConnectorImportBtn');
+            const fbImportAllBtnEl = overlay.querySelector('#importMediaFbConnectorImportAllBtn');
+            if (cancelBtnEl) cancelBtnEl.style.display = showFbFooter ? '' : 'none';
+            if (fbImportBtnEl) fbImportBtnEl.style.display = showFbFooter ? '' : 'none';
+            if (fbImportAllBtnEl) fbImportAllBtnEl.style.display = showFbFooter ? '' : 'none';
+        }
     }
     
     tabs.forEach(tab => {
