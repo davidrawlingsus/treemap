@@ -748,6 +748,7 @@ async def list_pages(
 async def get_meta_media_library_counts(
     client_id: UUID = Query(...),
     media_type: str = Query("all", description="all, image, or video"),
+    ad_account_id: Optional[str] = Query(None, description="Ad account to use; if omitted, token default is used"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> MetaMediaLibraryCountsResponse:
@@ -759,7 +760,7 @@ async def get_meta_media_library_counts(
         raise HTTPException(status_code=400, detail="No Meta token for this client")
     if token.is_expired():
         raise HTTPException(status_code=401, detail="Meta token expired, please reconnect")
-    ad_account_id = token.default_ad_account_id
+    ad_account_id = ad_account_id or token.default_ad_account_id
     if not ad_account_id:
         raise HTTPException(
             status_code=400,
@@ -802,6 +803,7 @@ async def get_meta_media_library(
     after: Optional[str] = Query(None, description="Cursor for single-type pagination"),
     image_after: Optional[str] = Query(None, description="Cursor for next images (media_type=all)"),
     video_after: Optional[str] = Query(None, description="Cursor for next videos (media_type=all)"),
+    ad_account_id: Optional[str] = Query(None, description="Ad account to use; if omitted, token default is used"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> MetaMediaLibraryResponse:
@@ -813,7 +815,7 @@ async def get_meta_media_library(
         raise HTTPException(status_code=400, detail="No Meta token for this client")
     if token.is_expired():
         raise HTTPException(status_code=401, detail="Meta token expired, please reconnect")
-    ad_account_id = token.default_ad_account_id
+    ad_account_id = ad_account_id or token.default_ad_account_id
     if not ad_account_id:
         raise HTTPException(
             status_code=400,
@@ -997,9 +999,9 @@ async def import_meta_media(
         raise HTTPException(status_code=400, detail="No Meta token for this client")
     if token.is_expired():
         raise HTTPException(status_code=401, detail="Meta token expired, please reconnect")
-    ad_account_id = token.default_ad_account_id
+    ad_account_id = request.ad_account_id or token.default_ad_account_id
     if not ad_account_id:
-        raise HTTPException(status_code=400, detail="No default ad account set")
+        raise HTTPException(status_code=400, detail="No ad account set. Please select an ad account.")
     blob_token = os.getenv("BLOB_READ_WRITE_TOKEN")
     if not blob_token:
         raise HTTPException(status_code=500, detail="Blob storage not configured")
@@ -1031,9 +1033,9 @@ async def import_meta_media_stream(
         raise HTTPException(status_code=400, detail="No Meta token for this client")
     if token.is_expired():
         raise HTTPException(status_code=401, detail="Meta token expired, please reconnect")
-    ad_account_id = token.default_ad_account_id
+    ad_account_id = request.ad_account_id or token.default_ad_account_id
     if not ad_account_id:
-        raise HTTPException(status_code=400, detail="No default ad account set")
+        raise HTTPException(status_code=400, detail="No ad account set. Please select an ad account.")
     blob_token = os.getenv("BLOB_READ_WRITE_TOKEN")
     if not blob_token:
         raise HTTPException(status_code=500, detail="Blob storage not configured")
@@ -1085,9 +1087,9 @@ async def import_all_meta_media(
         raise HTTPException(status_code=400, detail="No Meta token for this client")
     if token.is_expired():
         raise HTTPException(status_code=401, detail="Meta token expired, please reconnect")
-    ad_account_id = token.default_ad_account_id
+    ad_account_id = request.ad_account_id or token.default_ad_account_id
     if not ad_account_id:
-        raise HTTPException(status_code=400, detail="No default ad account set")
+        raise HTTPException(status_code=400, detail="No ad account set. Please select an ad account.")
     blob_token = os.getenv("BLOB_READ_WRITE_TOKEN")
     if not blob_token:
         raise HTTPException(status_code=500, detail="Blob storage not configured")
@@ -1207,9 +1209,9 @@ async def import_all_meta_media_stream(
         raise HTTPException(status_code=400, detail="No Meta token for this client")
     if token.is_expired():
         raise HTTPException(status_code=401, detail="Meta token expired, please reconnect")
-    ad_account_id = token.default_ad_account_id
+    ad_account_id = request.ad_account_id or token.default_ad_account_id
     if not ad_account_id:
-        raise HTTPException(status_code=400, detail="No default ad account set")
+        raise HTTPException(status_code=400, detail="No ad account set. Please select an ad account.")
     blob_token = os.getenv("BLOB_READ_WRITE_TOKEN")
     if not blob_token:
         raise HTTPException(status_code=500, detail="Blob storage not configured")

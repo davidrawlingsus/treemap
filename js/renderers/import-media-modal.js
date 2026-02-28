@@ -13,7 +13,6 @@ import {
 import {
     checkMetaTokenStatus,
     fetchMetaAdAccounts,
-    setDefaultMetaAdAccount,
     fetchMetaMediaLibrary,
     fetchMetaMediaLibraryCounts,
     importMetaMediaStream,
@@ -440,18 +439,25 @@ export function showImportMediaModal(onImageAdded) {
     let fbConnectorSelectedAdAccountId = null;
     /** Error message when set default ad account fails (shown in selector view). */
     let fbConnectorSetAdAccountError = null;
+    /** Ad account used for this modal session only (not persisted). When set, overrides token default for media/import calls. */
+    let fbConnectorSessionAdAccountId = null;
+    /** Display name for session ad account (for header). */
+    let fbConnectorSessionAdAccountName = null;
+
+    function getFbConnectorAdAccountId() {
+        return fbConnectorSessionAdAccountId || fbConnectorTokenStatus?.default_ad_account_id || null;
+    }
 
     async function runLoadAllLoop() {
         let iter = 0;
         const maxLoadAllIterations = 250;
         while (fbConnectorPaging.hasMore && iter < maxLoadAllIterations) {
             iter++;
-            const opts = {
-                mediaType: 'all',
-                limit: 50,
-            };
+            const opts = { mediaType: 'all', limit: 50 };
             if (fbConnectorPaging.image_after) opts.image_after = fbConnectorPaging.image_after;
             if (fbConnectorPaging.video_after) opts.video_after = fbConnectorPaging.video_after;
+            const adId = getFbConnectorAdAccountId();
+            if (adId) opts.ad_account_id = adId;
             try {
                 const res = await fetchMetaMediaLibrary(clientId, opts);
                 const newItems = res.items || [];
@@ -530,11 +536,11 @@ export function showImportMediaModal(onImageAdded) {
             fbConnectorItems = [];
             fbConnectorPaging = { after: null, hasMore: false };
             fbConnectorSelectedIds = new Set();
+            const adId = getFbConnectorAdAccountId();
+            const fetchOpts = { mediaType: 'all', limit: 24 };
+            if (adId) fetchOpts.ad_account_id = adId;
             try {
-                const res = await fetchMetaMediaLibrary(clientId, {
-                    mediaType: 'all',
-                    limit: 24,
-                });
+                const res = await fetchMetaMediaLibrary(clientId, fetchOpts);
                 fbConnectorItems = res.items || [];
                 const p = res.paging;
                 fbConnectorPaging = {
@@ -625,7 +631,8 @@ export function showImportMediaModal(onImageAdded) {
                 (img) => {
                     onImageAdded(img);
                 },
-                currentImportAbortController.signal
+                currentImportAbortController.signal,
+                getFbConnectorAdAccountId()
             );
             currentImportAbortController = null;
             const imported = (res.items || []).length;
@@ -687,7 +694,8 @@ export function showImportMediaModal(onImageAdded) {
                 (img) => {
                     onImageAdded(img);
                 },
-                currentImportAbortController.signal
+                currentImportAbortController.signal,
+                getFbConnectorAdAccountId()
             );
             currentImportAbortController = null;
             const imported = (res.items || []).length;
@@ -726,17 +734,17 @@ export function showImportMediaModal(onImageAdded) {
 
     async function handleSetAdAccount(adAccountId, adAccountName) {
         fbConnectorSetAdAccountError = null;
+        fbConnectorSessionAdAccountId = adAccountId;
+        fbConnectorSessionAdAccountName = adAccountName || null;
+        fbConnectorNeedsAdAccount = false;
+        fbConnectorLoading = true;
+        fbConnectorLoadError = null;
+        fbConnectorItems = [];
+        fbConnectorPaging = { after: null, hasMore: false };
+        fbConnectorSelectedIds = new Set();
+        renderFbConnectorContent();
         try {
-            await setDefaultMetaAdAccount(clientId, adAccountId, adAccountName || null);
-            fbConnectorNeedsAdAccount = false;
-            fbConnectorTokenStatus = await checkMetaTokenStatus(clientId);
-            fbConnectorLoading = true;
-            fbConnectorLoadError = null;
-            fbConnectorItems = [];
-            fbConnectorPaging = { after: null, hasMore: false };
-            fbConnectorSelectedIds = new Set();
-            renderFbConnectorContent();
-            const res = await fetchMetaMediaLibrary(clientId, { mediaType: 'all', limit: 24 });
+            const res = await fetchMetaMediaLibrary(clientId, { mediaType: 'all', limit: 24, ad_account_id: adAccountId });
             fbConnectorItems = res.items || [];
             const p = res.paging;
             fbConnectorPaging = {
@@ -746,8 +754,8 @@ export function showImportMediaModal(onImageAdded) {
                 hasMore: !!(p && (p.after || p.image_after || p.video_after)),
             };
         } catch (e) {
-            console.error('[ImportMediaModal] Set default ad account failed:', e);
-            fbConnectorSetAdAccountError = e?.message || 'Failed to set ad account.';
+            console.error('[ImportMediaModal] Fetch media failed:', e);
+            fbConnectorSetAdAccountError = e?.message || 'Failed to load media.';
         }
         fbConnectorLoading = false;
         renderFbConnectorContent();
@@ -757,13 +765,13 @@ export function showImportMediaModal(onImageAdded) {
         const panel = overlay.querySelector('#importMediaFbConnectorPanel');
         if (!panel) return;
         const connected = !!(fbConnectorTokenStatus?.has_token && !fbConnectorTokenStatus?.is_expired);
-        const defaultId = fbConnectorTokenStatus?.default_ad_account_id || null;
-        let adAccountName = fbConnectorTokenStatus?.default_ad_account_name || '';
-        if (!adAccountName && defaultId && fbConnectorAdAccounts?.length) {
-            const acc = fbConnectorAdAccounts.find((a) => a.id === defaultId);
-            adAccountName = acc ? (acc.name || acc.id) : `Account (${defaultId})`;
-        } else if (!adAccountName && defaultId) {
-            adAccountName = `Account (${defaultId})`;
+        const effectiveAdAccountId = getFbConnectorAdAccountId();
+        let adAccountName = fbConnectorSessionAdAccountName || fbConnectorTokenStatus?.default_ad_account_name || '';
+        if (!adAccountName && effectiveAdAccountId && fbConnectorAdAccounts?.length) {
+            const acc = fbConnectorAdAccounts.find((a) => a.id === effectiveAdAccountId);
+            adAccountName = acc ? (acc.name || acc.id) : `Account (${effectiveAdAccountId})`;
+        } else if (!adAccountName && effectiveAdAccountId) {
+            adAccountName = `Account (${effectiveAdAccountId})`;
         }
         // #region agent log (production: check console for [DEBUG-FB])
         console.info('[DEBUG-FB] renderFbConnectorContent', { defaultId: fbConnectorTokenStatus?.default_ad_account_id ?? null, defaultName: fbConnectorTokenStatus?.default_ad_account_name ?? null, adAccountNamePassed: adAccountName, needsAdAccount: fbConnectorNeedsAdAccount, adAccountsLength: fbConnectorAdAccounts?.length ?? 0, loadError: !!fbConnectorLoadError });
@@ -806,6 +814,8 @@ export function showImportMediaModal(onImageAdded) {
             onLoadMore: async (cursorOrPaging) => {
                 try {
                     const opts = { mediaType: 'all', limit: 24 };
+                    const adId = getFbConnectorAdAccountId();
+                    if (adId) opts.ad_account_id = adId;
                     if (typeof cursorOrPaging === 'object' && cursorOrPaging !== null) {
                         if (cursorOrPaging.image_after) opts.image_after = cursorOrPaging.image_after;
                         if (cursorOrPaging.video_after) opts.video_after = cursorOrPaging.video_after;

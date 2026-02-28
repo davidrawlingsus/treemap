@@ -133,7 +133,7 @@ export function renderFbConnectorPicker(container, options) {
                         <option value="${escapeHtmlForAttribute(acc.id)}" ${acc.id === selectedAdAccountId ? 'selected' : ''}>${escapeHtml((acc.name || acc.id) + ' (' + acc.id + ')')}</option>
                     `).join('')}
                 </select>
-                <button type="button" class="fb-connector-select-account__btn" ${selectedAdAccountId ? '' : 'disabled'}>Set default & continue</button>
+                <button type="button" class="fb-connector-select-account__btn" ${selectedAdAccountId ? '' : 'disabled'}>Choose account</button>
             `;
             const selectEl = selectBlock.querySelector('.fb-connector-select-account__select');
             const btnEl = selectBlock.querySelector('.fb-connector-select-account__btn');

@@ -293,8 +293,9 @@ export async function fetchMetaPixels(clientId) {
  * @param {string} [mediaType='all'] - 'all', 'image', or 'video'
  * @returns {Promise<{ image_count?: number|null, video_count?: number|null }>}
  */
-export async function fetchMetaMediaLibraryCounts(clientId, mediaType = 'all') {
+export async function fetchMetaMediaLibraryCounts(clientId, mediaType = 'all', adAccountId = null) {
     const params = new URLSearchParams({ client_id: clientId, media_type: mediaType });
+    if (adAccountId) params.set('ad_account_id', adAccountId);
     const response = await fetch(
         `${API_BASE_URL}/api/meta/media-library/counts?${params}`,
         { headers: getAuthHeaders() }
@@ -309,11 +310,12 @@ export async function fetchMetaMediaLibraryCounts(clientId, mediaType = 'all') {
  * @returns {Promise<Object>} Response with items array and paging
  */
 export async function fetchMetaMediaLibrary(clientId, opts = {}) {
-    const { mediaType = 'all', limit = 50, after, image_after, video_after } = opts;
+    const { mediaType = 'all', limit = 50, after, image_after, video_after, ad_account_id: adAccountId } = opts;
     const params = new URLSearchParams({ client_id: clientId, media_type: mediaType, limit });
     if (after) params.set('after', after);
     if (image_after) params.set('image_after', image_after);
     if (video_after) params.set('video_after', video_after);
+    if (adAccountId) params.set('ad_account_id', adAccountId);
     const response = await fetch(
         `${API_BASE_URL}/api/meta/media-library?${params}`,
         { headers: getAuthHeaders() }
@@ -351,7 +353,9 @@ export async function importMetaMedia(clientId, items) {
  * @param {AbortSignal} [signal] - Optional abort signal to cancel the import
  * @returns {Promise<Object>} Resolves with { items, failed_count } on success
  */
-export async function importMetaMediaStream(clientId, items, onProgress = null, onItem = null, signal = null) {
+export async function importMetaMediaStream(clientId, items, onProgress = null, onItem = null, signal = null, adAccountId = null) {
+    const body = { client_id: clientId, items };
+    if (adAccountId) body.ad_account_id = adAccountId;
     const response = await fetch(
         `${API_BASE_URL}/api/meta/import-media-stream`,
         {
@@ -360,7 +364,7 @@ export async function importMetaMediaStream(clientId, items, onProgress = null, 
                 ...getAuthHeaders(),
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ client_id: clientId, items }),
+            body: JSON.stringify(body),
             signal: signal || undefined,
         }
     );
@@ -449,7 +453,9 @@ export async function importAllMetaMedia(clientId, mediaType = 'all') {
  * @param {AbortSignal} [signal] - Optional abort signal to cancel the import
  * @returns {Promise<Object>} Resolves with { items, failed_count } on success
  */
-export async function importAllMetaMediaStream(clientId, mediaType = 'all', onProgress = null, onItem = null, signal = null) {
+export async function importAllMetaMediaStream(clientId, mediaType = 'all', onProgress = null, onItem = null, signal = null, adAccountId = null) {
+    const body = { client_id: clientId, media_type: mediaType };
+    if (adAccountId) body.ad_account_id = adAccountId;
     const response = await fetch(
         `${API_BASE_URL}/api/meta/import-all-stream`,
         {
@@ -458,7 +464,7 @@ export async function importAllMetaMediaStream(clientId, mediaType = 'all', onPr
                 ...getAuthHeaders(),
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ client_id: clientId, media_type: mediaType }),
+            body: JSON.stringify(body),
             signal: signal || undefined,
         }
     );

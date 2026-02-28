@@ -192,6 +192,7 @@ class MetaMediaImportRequest(BaseModel):
     """Request to import media from Meta ad account into local library."""
     client_id: UUID = Field(..., description="Client to import into")
     items: List[MetaMediaImportItem] = Field(..., min_length=1, description="Items to import")
+    ad_account_id: Optional[str] = Field(None, description="Meta ad account ID to use; if omitted, token default is used")
 
 
 class MetaMediaImportResponse(BaseModel):
@@ -204,3 +205,4 @@ class MetaImportAllRequest(BaseModel):
     """Request to import all media from Meta ad account (server-side list + import, no thumbnail load)."""
     client_id: UUID = Field(..., description="Client to import into")
     media_type: str = Field("all", description="'all', 'image', or 'video'")
+    ad_account_id: Optional[str] = Field(None, description="Meta ad account ID to use; if omitted, token default is used")
