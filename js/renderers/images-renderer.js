@@ -4,8 +4,20 @@
  * Follows renderer pattern - accepts container and data, handles DOM only.
  */
 
-import { deleteAdImage } from '/js/services/api-ad-images.js';
-import { getImagesCache, getSelectedImageIds, toggleImageSelection, clearImageSelections, removeImagesFromCache, selectAllImages } from '/js/state/images-state.js';
+import { deleteAdImage, fetchAdImages } from '/js/services/api-ad-images.js';
+import {
+    getImagesCache,
+    getSelectedImageIds,
+    toggleImageSelection,
+    clearImageSelections,
+    removeImagesFromCache,
+    setSelectedImageIds,
+    getImagesCurrentClientId,
+    getImagesSortBy,
+    getImagesMediaTypeFilter,
+    getImagesMetricFilters,
+    getImagesTotal
+} from '/js/state/images-state.js';
 import { escapeHtml } from '/js/utils/dom.js';
 
 // Re-export from extracted modules for backward compatibility
@@ -491,7 +503,8 @@ function updateSelectionBar() {
     const hasItems = cache.length > 0;
     const selectedIds = getSelectedImageIds();
     const selectedCount = selectedIds.size;
-    const allSelected = hasItems && selectedCount === cache.length;
+    const total = getImagesTotal();
+    const allSelected = total > 0 ? selectedCount >= total : (hasItems && selectedCount === cache.length);
 
     const bar = document.getElementById('imagesSelectionBar');
     const selectDeselectBtn = document.getElementById('imagesSelectDeselectAllBtn');
@@ -519,21 +532,83 @@ export function updateBulkDeleteButton() {
 }
 
 /**
+ * Update the visual selected state for cards currently rendered in the grid.
+ */
+function syncVisibleSelectionUI() {
+    const selectedIds = getSelectedImageIds();
+    const container = document.getElementById('imagesGrid');
+    if (!container) return;
+    container.querySelectorAll('.images-card').forEach((card) => {
+        const imageId = card.dataset.imageId;
+        const selected = !!imageId && selectedIds.has(imageId);
+        card.classList.toggle('is-selected', selected);
+        const input = card.querySelector('.images-card__checkbox input[type="checkbox"]');
+        if (input) input.checked = selected;
+    });
+}
+
+/**
+ * Fetch all image IDs for current client/filter context across pagination.
+ * @returns {Promise<Set<string>>}
+ */
+async function fetchAllSelectableImageIds() {
+    const clientId = getImagesCurrentClientId() || window.appStateGet?.('currentClientId') || document.getElementById('clientSelect')?.value;
+    if (!clientId) return new Set();
+
+    const ids = new Set();
+    const pageSize = 200;
+    let offset = 0;
+    let expectedTotal = null;
+
+    while (true) {
+        const response = await fetchAdImages(clientId, {
+            limit: pageSize,
+            offset,
+            sortBy: getImagesSortBy(),
+            mediaType: getImagesMediaTypeFilter(),
+            ...getImagesMetricFilters(),
+        });
+        const items = response.items || [];
+        expectedTotal = Number.isFinite(response.total) ? response.total : expectedTotal;
+        items.forEach((item) => {
+            if (item?.id) ids.add(item.id);
+        });
+        offset += items.length;
+        if (items.length < pageSize) break;
+        if (Number.isFinite(expectedTotal) && ids.size >= expectedTotal) break;
+    }
+    return ids;
+}
+
+/**
  * Select all images in the grid and update UI
  */
-export function handleImagesSelectAll() {
+export async function handleImagesSelectAll() {
     const cache = getImagesCache();
-    if (cache.length === 0) return;
-    selectionModeActive = true;
-    selectAllImages();
-    const container = document.getElementById('imagesGrid');
-    if (container) {
-        container.querySelectorAll('.images-card').forEach((card) => {
-            card.classList.add('is-selected');
-            const input = card.querySelector('.images-card__checkbox input[type="checkbox"]');
-            if (input) input.checked = true;
-        });
+    const total = getImagesTotal();
+    if (cache.length === 0 && total === 0) return;
+
+    const selectDeselectBtn = document.getElementById('imagesSelectDeselectAllBtn');
+    if (selectDeselectBtn) {
+        selectDeselectBtn.disabled = true;
+        selectDeselectBtn.textContent = 'Selecting...';
     }
+
+    let selectedIds;
+    try {
+        selectedIds = await fetchAllSelectableImageIds();
+    } catch (error) {
+        console.error('[ImagesRenderer] Failed to select all images across pages:', error);
+        alert(`Failed to select all media: ${error.message}`);
+        if (selectDeselectBtn) selectDeselectBtn.disabled = false;
+        updateSelectionBar();
+        return;
+    }
+
+    selectionModeActive = true;
+    setSelectedImageIds(selectedIds);
+    syncVisibleSelectionUI();
+    if (selectDeselectBtn) selectDeselectBtn.disabled = false;
     updateSelectionBar();
 }
 
@@ -542,28 +617,22 @@ export function handleImagesSelectAll() {
  */
 export function handleImagesDeselectAll() {
     clearImageSelections();
-    const container = document.getElementById('imagesGrid');
-    if (container) {
-        container.querySelectorAll('.images-card').forEach((card) => {
-            card.classList.remove('is-selected');
-            const input = card.querySelector('.images-card__checkbox input[type="checkbox"]');
-            if (input) input.checked = false;
-        });
-    }
+    syncVisibleSelectionUI();
     updateSelectionBar();
 }
 
 /**
  * Toggle select all / deselect all (used by bottom bar button)
  */
-export function handleImagesSelectDeselectAll() {
+export async function handleImagesSelectDeselectAll() {
     const cache = getImagesCache();
-    if (cache.length === 0) return;
-    const allSelected = getSelectedImageIds().size === cache.length;
+    const total = getImagesTotal();
+    if (cache.length === 0 && total === 0) return;
+    const allSelected = total > 0 ? getSelectedImageIds().size >= total : getSelectedImageIds().size === cache.length;
     if (allSelected) {
         handleImagesDeselectAll();
     } else {
-        handleImagesSelectAll();
+        await handleImagesSelectAll();
     }
 }
 

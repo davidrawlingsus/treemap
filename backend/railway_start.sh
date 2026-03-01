@@ -30,14 +30,17 @@ with engine.begin() as conn:
     print(f"Current alembic_version rows: {rows}")
 
     # Hotfix for overlap where both ancestor and descendant are present.
-    if "055_backfill_ad_image_perf" in rows and "054_add_ad_image_performance_table" in rows:
-        conn.execute(
+    # Some environments have short revision ids (e.g. "054"), others have full ids.
+    if "055_backfill_ad_image_perf" in rows:
+        removed = conn.execute(
             text(
                 "DELETE FROM alembic_version "
-                "WHERE version_num = '054_add_ad_image_performance_table'"
+                "WHERE version_num <> '055_backfill_ad_image_perf' "
+                "AND (version_num = '054' OR version_num LIKE '054%')"
             )
-        )
-        print("Removed stale ancestor revision row: 054_add_ad_image_performance_table")
+        ).rowcount or 0
+        if removed:
+            print(f"Removed {removed} stale 054* ancestor revision row(s)")
 PY
 
 echo "📦 Running database migrations..."

@@ -169,6 +169,14 @@ export function clearImageSelections() {
 }
 
 /**
+ * Replace selected image IDs set.
+ * @param {Iterable<string>} imageIds - Iterable of image UUIDs
+ */
+export function setSelectedImageIds(imageIds) {
+    selectedImageIds = new Set(imageIds || []);
+}
+
+/**
  * Select all images currently in cache (for "Select all" button).
  */
 export function selectAllImages() {
