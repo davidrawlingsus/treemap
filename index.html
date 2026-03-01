@@ -384,7 +384,8 @@
             initImagesPage as imagesControllerInitImagesPage,
             renderImagesPage as imagesControllerRenderImagesPage,
             toggleSortDropdown as imagesControllerToggleSortDropdown,
-            loadMoreImagesPage as imagesControllerLoadMoreImagesPage
+            loadMoreImagesPage as imagesControllerLoadMoreImagesPage,
+            setImagesViewMode as imagesControllerSetImagesViewMode
         } from '/js/controllers/images-controller.js';
         import {
             showImageUploadModal as imagesRendererShowImageUploadModal
@@ -635,6 +636,7 @@
         window.showMetaImportModal = metaImportShowMetaImportModal;
         window.showImportMediaModal = importMediaShowImportMediaModal;
         window.toggleImagesSortMenu = imagesControllerToggleSortDropdown;
+        window.setImagesViewMode = imagesControllerSetImagesViewMode;
         
         // Expose appendImageToGrid for real-time updates from imports
         window.appendImageToGrid = function(image) {
@@ -16311,6 +16313,12 @@
                 <button type="button" class="images-media-type-option" data-media-type="image">Images</button>
                 <button type="button" class="images-media-type-option" data-media-type="video">Videos</button>
             </div>
+            <div class="images-metric-filters">
+                <input type="number" id="imagesMinClicks" min="0" step="1" placeholder="Min clicks" class="images-metric-filter-input">
+                <input type="number" id="imagesMinRevenue" min="0" step="0.01" placeholder="Min revenue" class="images-metric-filter-input">
+                <input type="number" id="imagesMinImpressions" min="0" step="1" placeholder="Min impressions" class="images-metric-filter-input">
+                <input type="number" id="imagesMinSpend" min="0" step="0.01" placeholder="Min spend" class="images-metric-filter-input">
+            </div>
             <div class="images-sort-menu-container" style="position: relative;">
                 <button class="images-sort-btn" id="imagesSortBtn" onclick="window.toggleImagesSortMenu(event)" type="button" aria-label="Sort options">
                     <img src="/images/filter_list.svg" alt="" aria-hidden="true" width="20" height="20">
@@ -16341,7 +16349,73 @@
                         <span>Library Oldest</span>
                         <span class="images-sort-option__check" id="sortCheckLibraryOldest"></span>
                     </button>
+                    <div class="images-sort-dropdown__header">Performance</div>
+                    <button class="images-sort-option" data-sort="revenue_desc">
+                        <span>Revenue Highest</span>
+                        <span class="images-sort-option__check" id="sortCheckRevenueDesc"></span>
+                    </button>
+                    <button class="images-sort-option" data-sort="revenue_asc">
+                        <span>Revenue Lowest</span>
+                        <span class="images-sort-option__check" id="sortCheckRevenueAsc"></span>
+                    </button>
+                    <button class="images-sort-option" data-sort="roas_desc">
+                        <span>ROAS Highest</span>
+                        <span class="images-sort-option__check" id="sortCheckRoasDesc"></span>
+                    </button>
+                    <button class="images-sort-option" data-sort="roas_asc">
+                        <span>ROAS Lowest</span>
+                        <span class="images-sort-option__check" id="sortCheckRoasAsc"></span>
+                    </button>
+                    <button class="images-sort-option" data-sort="ctr_desc">
+                        <span>CTR Highest</span>
+                        <span class="images-sort-option__check" id="sortCheckCtrDesc"></span>
+                    </button>
+                    <button class="images-sort-option" data-sort="ctr_asc">
+                        <span>CTR Lowest</span>
+                        <span class="images-sort-option__check" id="sortCheckCtrAsc"></span>
+                    </button>
+                    <button class="images-sort-option" data-sort="clicks_desc">
+                        <span>Clicks Highest</span>
+                        <span class="images-sort-option__check" id="sortCheckClicksDesc"></span>
+                    </button>
+                    <button class="images-sort-option" data-sort="clicks_asc">
+                        <span>Clicks Lowest</span>
+                        <span class="images-sort-option__check" id="sortCheckClicksAsc"></span>
+                    </button>
+                    <button class="images-sort-option" data-sort="impressions_desc">
+                        <span>Impressions Highest</span>
+                        <span class="images-sort-option__check" id="sortCheckImpressionsDesc"></span>
+                    </button>
+                    <button class="images-sort-option" data-sort="impressions_asc">
+                        <span>Impressions Lowest</span>
+                        <span class="images-sort-option__check" id="sortCheckImpressionsAsc"></span>
+                    </button>
+                    <button class="images-sort-option" data-sort="spend_desc">
+                        <span>Spend Highest</span>
+                        <span class="images-sort-option__check" id="sortCheckSpendDesc"></span>
+                    </button>
+                    <button class="images-sort-option" data-sort="spend_asc">
+                        <span>Spend Lowest</span>
+                        <span class="images-sort-option__check" id="sortCheckSpendAsc"></span>
+                    </button>
                 </div>
+            </div>
+            <div class="ads-view-toggle images-view-toggle" id="imagesViewToggle">
+                <button type="button" class="ads-view-toggle__btn images-view-toggle__btn active" data-view="gallery" title="Gallery view" onclick="window.setImagesViewMode('gallery')">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <rect x="1" y="1" width="6" height="6" rx="1"/>
+                        <rect x="9" y="1" width="6" height="6" rx="1"/>
+                        <rect x="1" y="9" width="6" height="6" rx="1"/>
+                        <rect x="9" y="9" width="6" height="6" rx="1"/>
+                    </svg>
+                </button>
+                <button type="button" class="ads-view-toggle__btn images-view-toggle__btn" data-view="table" title="Table view" onclick="window.setImagesViewMode('table')">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <rect x="1" y="2" width="14" height="2" rx="1"/>
+                        <rect x="1" y="7" width="14" height="2" rx="1"/>
+                        <rect x="1" y="12" width="14" height="2" rx="1"/>
+                    </svg>
+                </button>
             </div>
         </div>
 

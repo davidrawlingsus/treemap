@@ -983,3 +983,322 @@ class MetaAdsService:
                     "next": paging.get("next"),
                 },
             }
+
+    @staticmethod
+    def _safe_float(value: Any, default: float = 0.0) -> float:
+        try:
+            if value is None:
+                return default
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _safe_int(value: Any, default: int = 0) -> int:
+        try:
+            if value is None:
+                return default
+            return int(float(value))
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _parse_meta_datetime(value: Any) -> Optional[datetime]:
+        if not value or not isinstance(value, str):
+            return None
+        candidate = value.replace("Z", "+00:00")
+        try:
+            return datetime.fromisoformat(candidate)
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _extract_action_value(
+        items: Any,
+        action_types: set[str],
+    ) -> float:
+        if not isinstance(items, list):
+            return 0.0
+        for action in items:
+            if not isinstance(action, dict):
+                continue
+            action_type = (action.get("action_type") or "").strip().lower()
+            if action_type in action_types:
+                return MetaAdsService._safe_float(action.get("value"), 0.0)
+        return 0.0
+
+    @staticmethod
+    def _extract_action_count(
+        items: Any,
+        action_types: set[str],
+    ) -> int:
+        if not isinstance(items, list):
+            return 0
+        for action in items:
+            if not isinstance(action, dict):
+                continue
+            action_type = (action.get("action_type") or "").strip().lower()
+            if action_type in action_types:
+                return MetaAdsService._safe_int(action.get("value"), 0)
+        return 0
+
+    @staticmethod
+    def _extract_creative_media_keys(creative: Dict[str, Any]) -> list[tuple[str, str]]:
+        """Return list of (media_key, media_type) from the creative payload."""
+        out: list[tuple[str, str]] = []
+
+        def add_key(key: Any, media_type: str) -> None:
+            if not key or not isinstance(key, str):
+                return
+            key = key.strip()
+            if not key:
+                return
+            out.append((key, media_type))
+
+        add_key(creative.get("image_hash"), "image")
+
+        object_story_spec = creative.get("object_story_spec") or {}
+        if isinstance(object_story_spec, dict):
+            link_data = object_story_spec.get("link_data") or {}
+            if isinstance(link_data, dict):
+                add_key(link_data.get("image_hash"), "image")
+            photo_data = object_story_spec.get("photo_data") or {}
+            if isinstance(photo_data, dict):
+                add_key(photo_data.get("image_hash"), "image")
+            video_data = object_story_spec.get("video_data") or {}
+            if isinstance(video_data, dict):
+                add_key(video_data.get("video_id"), "video")
+
+        asset_feed_spec = creative.get("asset_feed_spec") or {}
+        if isinstance(asset_feed_spec, dict):
+            for img in asset_feed_spec.get("images") or []:
+                if isinstance(img, dict):
+                    add_key(img.get("hash"), "image")
+            for vid in asset_feed_spec.get("videos") or []:
+                if isinstance(vid, dict):
+                    add_key(vid.get("video_id"), "video")
+
+        # De-duplicate but preserve order.
+        seen = set()
+        deduped: list[tuple[str, str]] = []
+        for key, media_type in out:
+            token = f"{media_type}:{key}"
+            if token in seen:
+                continue
+            seen.add(token)
+            deduped.append((key, media_type))
+        return deduped
+
+    @staticmethod
+    def _extract_creative_copy(creative: Dict[str, Any]) -> Dict[str, Any]:
+        """Normalize best-effort copy fields from creative payload."""
+        object_story_spec = creative.get("object_story_spec") or {}
+        if not isinstance(object_story_spec, dict):
+            object_story_spec = {}
+        link_data = object_story_spec.get("link_data") or {}
+        if not isinstance(link_data, dict):
+            link_data = {}
+        video_data = object_story_spec.get("video_data") or {}
+        if not isinstance(video_data, dict):
+            video_data = {}
+
+        cta_type = None
+        cta = video_data.get("call_to_action") or link_data.get("call_to_action") or {}
+        if isinstance(cta, dict):
+            cta_type = cta.get("type")
+
+        destination_url = (
+            video_data.get("link")
+            or link_data.get("link")
+            or creative.get("link_url")
+        )
+
+        return {
+            "ad_primary_text": (
+                creative.get("body")
+                or video_data.get("message")
+                or link_data.get("message")
+            ),
+            "ad_headline": (
+                creative.get("title")
+                or video_data.get("title")
+                or link_data.get("name")
+            ),
+            "ad_description": (
+                creative.get("description")
+                or video_data.get("link_description")
+                or link_data.get("description")
+            ),
+            "ad_call_to_action": cta_type,
+            "destination_url": destination_url,
+        }
+
+    async def list_ads_with_creative_and_insights(
+        self,
+        access_token: str,
+        ad_account_id: str,
+        limit: int = 100,
+        after: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        List ads with creative + lifetime insights, paginated.
+        """
+        fields = ",".join(
+            [
+                "id",
+                "name",
+                "created_time",
+                "creative{id,image_hash,body,title,object_story_spec,asset_feed_spec}",
+                # Meta rejects date_preset(lifetime); use maximum for full available range.
+                "insights.date_preset(maximum){impressions,clicks,spend,actions,action_values}",
+            ]
+        )
+        params = {
+            "access_token": access_token,
+            "fields": fields,
+            "limit": limit,
+        }
+        if after:
+            params["after"] = after
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.get(
+                f"{META_GRAPH_API_BASE}/{ad_account_id}/ads",
+                params=params,
+            )
+            response.raise_for_status()
+            result = response.json()
+            data = result.get("data", [])
+            paging = result.get("paging", {})
+            cursors = paging.get("cursors", {})
+            return {
+                "data": data,
+                "paging": {
+                    "after": cursors.get("after"),
+                    "next": paging.get("next"),
+                },
+            }
+
+    async def build_media_performance_lookup(
+        self,
+        access_token: str,
+        ad_account_id: str,
+        max_pages: int = 300,
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Build a map keyed by Meta media key (image_hash/video_id) with the
+        best-performing ad row (highest revenue, then clicks, then recency).
+        """
+        lookup: Dict[str, Dict[str, Any]] = {}
+        cursor = None
+        pages = 0
+
+        purchase_value_types = {
+            "purchase",
+            "omni_purchase",
+            "onsite_web_purchase",
+            "offsite_conversion.fb_pixel_purchase",
+        }
+        purchase_count_types = {
+            "purchase",
+            "omni_purchase",
+            "onsite_web_purchase",
+            "offsite_conversion.fb_pixel_purchase",
+        }
+
+        while pages < max_pages:
+            page = await self.list_ads_with_creative_and_insights(
+                access_token=access_token,
+                ad_account_id=ad_account_id,
+                limit=100,
+                after=cursor,
+            )
+            ads = page.get("data", [])
+            if not ads:
+                break
+
+            for ad in ads:
+                creative = ad.get("creative") or {}
+                if not isinstance(creative, dict):
+                    continue
+                media_keys = self._extract_creative_media_keys(creative)
+                if not media_keys:
+                    continue
+
+                insights_data = (ad.get("insights") or {}).get("data") or []
+                insight = insights_data[0] if insights_data else {}
+
+                spend = self._safe_float(insight.get("spend"), 0.0)
+                impressions = self._safe_int(insight.get("impressions"), 0)
+                clicks = self._safe_int(insight.get("clicks"), 0)
+                actions = insight.get("actions") or []
+                action_values = insight.get("action_values") or []
+                revenue = self._extract_action_value(action_values, purchase_value_types)
+                purchases = self._extract_action_count(actions, purchase_count_types)
+                ctr = (clicks / impressions) if impressions > 0 else 0.0
+                roas = (revenue / spend) if spend > 0 else 0.0
+
+                copy_fields = self._extract_creative_copy(creative)
+                started_running_on = self._parse_meta_datetime(ad.get("created_time"))
+                base_candidate = {
+                    "meta_ad_account_id": ad_account_id,
+                    "meta_ad_id": ad.get("id"),
+                    "meta_creative_id": creative.get("id"),
+                    "revenue": revenue,
+                    "spend": spend,
+                    "impressions": impressions,
+                    "clicks": clicks,
+                    "purchases": purchases,
+                    "ctr": ctr,
+                    "roas": roas,
+                    "started_running_on": started_running_on,
+                    **copy_fields,
+                }
+
+                for media_key, media_type in media_keys:
+                    candidate = {
+                        **base_candidate,
+                        "media_key": media_key,
+                        "media_type": media_type,
+                    }
+                    existing = lookup.get(media_key)
+                    if not existing:
+                        lookup[media_key] = candidate
+                        continue
+
+                    existing_revenue = self._safe_float(existing.get("revenue"), 0.0)
+                    existing_clicks = self._safe_int(existing.get("clicks"), 0)
+                    existing_started = existing.get("started_running_on")
+                    if not isinstance(existing_started, datetime):
+                        existing_started = datetime.min
+                    candidate_started = candidate.get("started_running_on")
+                    if not isinstance(candidate_started, datetime):
+                        candidate_started = datetime.min
+
+                    should_replace = (
+                        candidate["revenue"] > existing_revenue
+                        or (
+                            candidate["revenue"] == existing_revenue
+                            and candidate["clicks"] > existing_clicks
+                        )
+                        or (
+                            candidate["revenue"] == existing_revenue
+                            and candidate["clicks"] == existing_clicks
+                            and candidate_started > existing_started
+                        )
+                    )
+                    if should_replace:
+                        lookup[media_key] = candidate
+
+            pages += 1
+            cursor = (page.get("paging") or {}).get("after")
+            if not cursor:
+                break
+
+        logger.info(
+            "Built media performance lookup for %s: %s keys across %s pages",
+            ad_account_id,
+            len(lookup),
+            pages,
+        )
+        return lookup

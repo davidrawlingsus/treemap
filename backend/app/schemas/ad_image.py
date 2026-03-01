@@ -36,6 +36,23 @@ class AdImageResponse(BaseModel):
     import_job_id: Optional[UUID] = None
     meta_ad_account_id: Optional[str] = None
     meta_thumbnail_url: Optional[str] = None
+    # Import-time performance + best-performing ad copy
+    revenue: Optional[float] = None
+    spend: Optional[float] = None
+    impressions: Optional[int] = None
+    clicks: Optional[int] = None
+    purchases: Optional[int] = None
+    ctr: Optional[float] = None
+    roas: Optional[float] = None
+    ad_primary_text: Optional[str] = None
+    ad_headline: Optional[str] = None
+    ad_description: Optional[str] = None
+    ad_call_to_action: Optional[str] = None
+    destination_url: Optional[str] = None
+    started_running_on_best_ad: Optional[datetime] = None
+    meta_ad_id: Optional[str] = None
+    meta_creative_id: Optional[str] = None
+    performance_last_synced_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

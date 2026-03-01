@@ -18,7 +18,7 @@ import asyncio
 import traceback
 
 from app.database import get_db, SessionLocal
-from app.models import User, AdImage, Client, ImportJob
+from app.models import User, AdImage, Client, ImportJob, AdImagePerformance
 from app.schemas import (
     AdImageCreate, AdImageResponse, AdImageListResponse,
     ImportJobCreate, ImportJobResponse, ImportJobListResponse, ImportJobStatusResponse
@@ -165,12 +165,27 @@ def list_ad_images(
     limit: int = Query(60, ge=1, le=200, description="Number of items per page"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     media_type: str = Query("all", description="Filter: all, image, video"),
+    min_clicks: Optional[int] = Query(None, ge=0, description="Minimum clicks filter"),
+    min_revenue: Optional[float] = Query(None, ge=0, description="Minimum revenue filter"),
+    min_impressions: Optional[int] = Query(None, ge=0, description="Minimum impressions filter"),
+    min_spend: Optional[float] = Query(None, ge=0, description="Minimum spend filter"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """List ad images for a client with optional pagination and media type filter."""
     verify_client_access(client_id, current_user, db)
-    if sort_by == "started_running_on":
+    performance_col_map = {
+        "revenue": AdImagePerformance.revenue,
+        "roas": AdImagePerformance.roas,
+        "ctr": AdImagePerformance.ctr,
+        "clicks": AdImagePerformance.clicks,
+        "impressions": AdImagePerformance.impressions,
+        "spend": AdImagePerformance.spend,
+    }
+    if sort_by in performance_col_map:
+        col = performance_col_map[sort_by]
+        nullable = True
+    elif sort_by == "started_running_on":
         col = AdImage.started_running_on
         nullable = True
     elif sort_by == "meta_created_time":
@@ -186,7 +201,8 @@ def list_ad_images(
         order_clause = col.desc().nullslast() if nullable else col.desc()
 
     base_query = (
-        db.query(AdImage)
+        db.query(AdImage, AdImagePerformance)
+        .outerjoin(AdImagePerformance, AdImagePerformance.ad_image_id == AdImage.id)
         .filter(AdImage.client_id == client_id)
         .filter(not_(func.lower(AdImage.filename).in_(list(UNTITLED_THUMBNAIL_FILENAMES))))
     )
@@ -196,19 +212,49 @@ def list_ad_images(
         base_query = base_query.filter(
             or_(AdImage.content_type.is_(None), not_(AdImage.content_type.like("video%")))
         )
+    if min_clicks is not None:
+        base_query = base_query.filter(func.coalesce(AdImagePerformance.clicks, 0) >= min_clicks)
+    if min_revenue is not None:
+        base_query = base_query.filter(func.coalesce(AdImagePerformance.revenue, 0) >= min_revenue)
+    if min_impressions is not None:
+        base_query = base_query.filter(func.coalesce(AdImagePerformance.impressions, 0) >= min_impressions)
+    if min_spend is not None:
+        base_query = base_query.filter(func.coalesce(AdImagePerformance.spend, 0) >= min_spend)
 
     total = base_query.count()
-    images = (
+    image_rows = (
         base_query
         .order_by(order_clause)
         .offset(offset)
         .limit(limit)
         .all()
     )
-    return AdImageListResponse(
-        items=[AdImageResponse.model_validate(img) for img in images],
-        total=total,
-    )
+
+    def _serialize(img: AdImage, perf: Optional[AdImagePerformance]) -> AdImageResponse:
+        payload = AdImageResponse.model_validate(img).model_dump(mode="python")
+        if perf:
+            payload.update({
+                "revenue": float(perf.revenue) if perf.revenue is not None else None,
+                "spend": float(perf.spend) if perf.spend is not None else None,
+                "impressions": perf.impressions,
+                "clicks": perf.clicks,
+                "purchases": perf.purchases,
+                "ctr": float(perf.ctr) if perf.ctr is not None else None,
+                "roas": float(perf.roas) if perf.roas is not None else None,
+                "ad_primary_text": perf.ad_primary_text,
+                "ad_headline": perf.ad_headline,
+                "ad_description": perf.ad_description,
+                "ad_call_to_action": perf.ad_call_to_action,
+                "destination_url": perf.destination_url,
+                "started_running_on_best_ad": perf.started_running_on,
+                "meta_ad_id": perf.meta_ad_id,
+                "meta_creative_id": perf.meta_creative_id,
+                "performance_last_synced_at": perf.last_synced_at,
+            })
+        return AdImageResponse.model_validate(payload)
+
+    items = [_serialize(img, perf) for img, perf in image_rows]
+    return AdImageListResponse(items=items, total=total)
 
 
 @router.delete(

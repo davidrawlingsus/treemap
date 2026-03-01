@@ -21,7 +21,7 @@ import hmac
 
 import httpx
 from app.database import get_db
-from app.models import User, Client, MetaOAuthToken, AdImage
+from app.models import User, Client, MetaOAuthToken, AdImage, AdImagePerformance
 from app.schemas import (
     MetaOAuthInitResponse,
     MetaTokenStatusResponse,
@@ -924,6 +924,55 @@ def _normalize_url(url: str) -> str:
     return u
 
 
+def _upsert_ad_image_performance(
+    db: Session,
+    image: AdImage,
+    candidate: dict,
+) -> None:
+    """Create/update one best-performance row for the imported image."""
+    existing = (
+        db.query(AdImagePerformance)
+        .filter(AdImagePerformance.ad_image_id == image.id)
+        .first()
+    )
+    row = existing or AdImagePerformance(ad_image_id=image.id, client_id=image.client_id)
+
+    revenue = float(candidate.get("revenue") or 0.0)
+    spend = float(candidate.get("spend") or 0.0)
+    impressions = int(candidate.get("impressions") or 0)
+    clicks = int(candidate.get("clicks") or 0)
+    ctr = float(candidate.get("ctr") or 0.0)
+    roas = float(candidate.get("roas") or 0.0)
+
+    row.client_id = image.client_id
+    row.meta_ad_account_id = candidate.get("meta_ad_account_id") or image.meta_ad_account_id
+    row.meta_ad_id = candidate.get("meta_ad_id")
+    row.meta_creative_id = candidate.get("meta_creative_id")
+    row.media_key = candidate.get("media_key") or image.library_id
+    row.media_type = candidate.get("media_type")
+    row.ad_primary_text = candidate.get("ad_primary_text")
+    row.ad_headline = candidate.get("ad_headline")
+    row.ad_description = candidate.get("ad_description")
+    row.ad_call_to_action = candidate.get("ad_call_to_action")
+    row.destination_url = candidate.get("destination_url")
+    row.started_running_on = candidate.get("started_running_on")
+    row.revenue = revenue
+    row.spend = spend
+    row.impressions = impressions
+    row.clicks = clicks
+    row.purchases = int(candidate.get("purchases") or 0)
+    row.ctr = ctr
+    row.roas = roas
+    row.last_synced_at = datetime.now(timezone.utc)
+
+    db.add(row)
+    # Keep started_running_on on AdImage in sync with selected best ad.
+    if row.started_running_on:
+        image.started_running_on = row.started_running_on
+        db.add(image)
+    db.commit()
+
+
 async def _import_one_meta_item(
     db: Session,
     client_id: UUID,
@@ -931,6 +980,7 @@ async def _import_one_meta_item(
     current_user: User,
     item: MetaMediaImportItem,
     blob_token: str,
+    performance_lookup: Optional[dict[str, dict]] = None,
 ) -> tuple[Optional[AdImageResponse], bool]:
     """Download one Meta media item, upload to blob, create AdImage. Returns (response, success)."""
     if _is_untitled_thumbnail(item.filename):
@@ -979,7 +1029,41 @@ async def _import_one_meta_item(
         db.add(image)
         db.commit()
         db.refresh(image)
-        return (AdImageResponse.model_validate(image), True)
+        perf_for_response = None
+        if performance_lookup and meta_hash_or_video_id:
+            perf = performance_lookup.get(meta_hash_or_video_id)
+            if perf:
+                try:
+                    _upsert_ad_image_performance(db, image, perf)
+                    perf_for_response = perf
+                except Exception as perf_err:
+                    db.rollback()
+                    logger.warning(
+                        "Failed to persist performance for media key %s: %s",
+                        meta_hash_or_video_id,
+                        perf_err,
+                    )
+        response_payload = AdImageResponse.model_validate(image).model_dump(mode="python")
+        if perf_for_response:
+            response_payload.update({
+                "revenue": perf_for_response.get("revenue"),
+                "spend": perf_for_response.get("spend"),
+                "impressions": perf_for_response.get("impressions"),
+                "clicks": perf_for_response.get("clicks"),
+                "purchases": perf_for_response.get("purchases"),
+                "ctr": perf_for_response.get("ctr"),
+                "roas": perf_for_response.get("roas"),
+                "ad_primary_text": perf_for_response.get("ad_primary_text"),
+                "ad_headline": perf_for_response.get("ad_headline"),
+                "ad_description": perf_for_response.get("ad_description"),
+                "ad_call_to_action": perf_for_response.get("ad_call_to_action"),
+                "destination_url": perf_for_response.get("destination_url"),
+                "started_running_on_best_ad": perf_for_response.get("started_running_on"),
+                "meta_ad_id": perf_for_response.get("meta_ad_id"),
+                "meta_creative_id": perf_for_response.get("meta_creative_id"),
+                "performance_last_synced_at": datetime.now(timezone.utc),
+            })
+        return (AdImageResponse.model_validate(response_payload), True)
     except Exception as e:
         logger.warning("Failed to import Meta media item %s: %s", (item.original_url or "")[:80], e)
         return (None, False)
@@ -1005,11 +1089,27 @@ async def import_meta_media(
     blob_token = os.getenv("BLOB_READ_WRITE_TOKEN")
     if not blob_token:
         raise HTTPException(status_code=500, detail="Blob storage not configured")
+    try:
+        performance_lookup = await service.build_media_performance_lookup(
+            token.access_token,
+            ad_account_id,
+        )
+    except Exception as e:
+        logger.warning("Meta performance lookup failed during import-media; continuing without performance: %s", e)
+        performance_lookup = {}
 
     created = []
     failed_count = 0
     for item in request.items:
-        resp, ok = await _import_one_meta_item(db, request.client_id, ad_account_id, current_user, item, blob_token)
+        resp, ok = await _import_one_meta_item(
+            db,
+            request.client_id,
+            ad_account_id,
+            current_user,
+            item,
+            blob_token,
+            performance_lookup=performance_lookup,
+        )
         if ok:
             created.append(resp)
         else:
@@ -1039,6 +1139,14 @@ async def import_meta_media_stream(
     blob_token = os.getenv("BLOB_READ_WRITE_TOKEN")
     if not blob_token:
         raise HTTPException(status_code=500, detail="Blob storage not configured")
+    try:
+        performance_lookup = await service.build_media_performance_lookup(
+            token.access_token,
+            ad_account_id,
+        )
+    except Exception as e:
+        logger.warning("Meta performance lookup failed during import-media-stream; continuing without performance: %s", e)
+        performance_lookup = {}
 
     total = len(request.items)
     created: list = []
@@ -1049,7 +1157,13 @@ async def import_meta_media_stream(
         try:
             for i, item in enumerate(request.items):
                 resp, ok = await _import_one_meta_item(
-                    db, request.client_id, ad_account_id, current_user, item, blob_token
+                    db,
+                    request.client_id,
+                    ad_account_id,
+                    current_user,
+                    item,
+                    blob_token,
+                    performance_lookup=performance_lookup,
                 )
                 if ok:
                     created.append(resp)
@@ -1093,6 +1207,14 @@ async def import_all_meta_media(
     blob_token = os.getenv("BLOB_READ_WRITE_TOKEN")
     if not blob_token:
         raise HTTPException(status_code=500, detail="Blob storage not configured")
+    try:
+        performance_lookup = await service.build_media_performance_lookup(
+            token.access_token,
+            ad_account_id,
+        )
+    except Exception as e:
+        logger.warning("Meta performance lookup failed during import-all; continuing without performance: %s", e)
+        performance_lookup = {}
 
     media_type = (request.media_type or "all").strip().lower()
     if media_type not in ("all", "image", "video"):
@@ -1177,7 +1299,15 @@ async def import_all_meta_media(
             else:
                 break
         for item in to_import:
-            resp, ok = await _import_one_meta_item(db, request.client_id, ad_account_id, current_user, item, blob_token)
+            resp, ok = await _import_one_meta_item(
+                db,
+                request.client_id,
+                ad_account_id,
+                current_user,
+                item,
+                blob_token,
+                performance_lookup=performance_lookup,
+            )
             if ok:
                 created.append(resp)
             else:
@@ -1215,6 +1345,14 @@ async def import_all_meta_media_stream(
     blob_token = os.getenv("BLOB_READ_WRITE_TOKEN")
     if not blob_token:
         raise HTTPException(status_code=500, detail="Blob storage not configured")
+    try:
+        performance_lookup = await service.build_media_performance_lookup(
+            token.access_token,
+            ad_account_id,
+        )
+    except Exception as e:
+        logger.warning("Meta performance lookup failed during import-all-stream; continuing without performance: %s", e)
+        performance_lookup = {}
 
     media_type = (request.media_type or "all").strip().lower()
     if media_type not in ("all", "image", "video"):
@@ -1303,7 +1441,15 @@ async def import_all_meta_media_stream(
                     else:
                         break
                 for item in to_import:
-                    resp, ok = await _import_one_meta_item(db, request.client_id, ad_account_id, current_user, item, blob_token)
+                    resp, ok = await _import_one_meta_item(
+                        db,
+                        request.client_id,
+                        ad_account_id,
+                        current_user,
+                        item,
+                        blob_token,
+                        performance_lookup=performance_lookup,
+                    )
                     if ok:
                         created.append(resp)
                         yield f"data: {json.dumps({'type': 'item', 'item': resp.model_dump(mode='json')})}\n\n".encode("utf-8")

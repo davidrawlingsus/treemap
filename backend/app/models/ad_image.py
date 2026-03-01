@@ -33,6 +33,13 @@ class AdImage(Base):
     client = relationship("Client", foreign_keys=[client_id])
     uploader = relationship("User", foreign_keys=[uploaded_by])
     import_job = relationship("ImportJob", back_populates="images")
+    performance = relationship(
+        "AdImagePerformance",
+        uselist=False,
+        back_populates="ad_image",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     def __repr__(self):
         return f"<AdImage(id={self.id}, filename={self.filename}, client_id={self.client_id})>"

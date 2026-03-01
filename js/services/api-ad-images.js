@@ -140,6 +140,30 @@ export async function uploadAdImage(clientId, file) {
  */
 function getSortParams(sortBy) {
     switch (sortBy) {
+        case 'revenue_desc':
+            return { sort_by: 'revenue', order: 'desc' };
+        case 'revenue_asc':
+            return { sort_by: 'revenue', order: 'asc' };
+        case 'roas_desc':
+            return { sort_by: 'roas', order: 'desc' };
+        case 'roas_asc':
+            return { sort_by: 'roas', order: 'asc' };
+        case 'ctr_desc':
+            return { sort_by: 'ctr', order: 'desc' };
+        case 'ctr_asc':
+            return { sort_by: 'ctr', order: 'asc' };
+        case 'clicks_desc':
+            return { sort_by: 'clicks', order: 'desc' };
+        case 'clicks_asc':
+            return { sort_by: 'clicks', order: 'asc' };
+        case 'impressions_desc':
+            return { sort_by: 'impressions', order: 'desc' };
+        case 'impressions_asc':
+            return { sort_by: 'impressions', order: 'asc' };
+        case 'spend_desc':
+            return { sort_by: 'spend', order: 'desc' };
+        case 'spend_asc':
+            return { sort_by: 'spend', order: 'asc' };
         case 'oldest':
             return { sort_by: 'meta_created_time', order: 'asc' };
         case 'running_longest':
@@ -172,6 +196,10 @@ export async function fetchAdImages(clientId, options = {}) {
         offset = 0,
         sortBy = 'newest',
         mediaType = 'all',
+        minClicks = null,
+        minRevenue = null,
+        minImpressions = null,
+        minSpend = null,
     } = options;
     const { sort_by, order } = getSortParams(sortBy);
     const params = new URLSearchParams({
@@ -181,6 +209,10 @@ export async function fetchAdImages(clientId, options = {}) {
         order,
         media_type: mediaType,
     });
+    if (Number.isFinite(minClicks)) params.set('min_clicks', String(minClicks));
+    if (Number.isFinite(minRevenue)) params.set('min_revenue', String(minRevenue));
+    if (Number.isFinite(minImpressions)) params.set('min_impressions', String(minImpressions));
+    if (Number.isFinite(minSpend)) params.set('min_spend', String(minSpend));
     const url = `${getApiBaseUrl()}/api/clients/${clientId}/ad-images?${params.toString()}`;
     const response = await fetch(url, { headers: getAuthHeaders() });
     await handleResponseError(response);

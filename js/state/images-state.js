@@ -14,6 +14,9 @@ let selectedImageIds = new Set(); // Track selected images for bulk operations
 let imagesSortBy = null; // null means use default ('newest')
 let imagesTotal = 0; // Total count from API (for pagination "X of Y")
 let imagesMediaTypeFilter = null; // null means use default ('all'); 'all' | 'image' | 'video'
+let imagesViewMode = null; // null means default ('gallery'); 'gallery' | 'table'
+let imagesMetricFilters = null; // { minClicks, minRevenue, minImpressions, minSpend }
+let imagesTableColumns = null; // visible metric columns in table view
 
 /**
  * Get cached images
@@ -261,6 +264,129 @@ export function setImagesMediaTypeFilter(mediaType) {
     imagesMediaTypeFilter = mediaType;
     try {
         localStorage.setItem('imagesMediaTypeFilter', mediaType);
+    } catch (e) {
+        // localStorage not available or error
+    }
+}
+
+/**
+ * Get images view mode
+ * @returns {string} 'gallery' | 'table'
+ */
+export function getImagesViewMode() {
+    if (imagesViewMode !== null) {
+        return imagesViewMode;
+    }
+    try {
+        const stored = localStorage.getItem('imagesViewMode');
+        if (stored === 'gallery' || stored === 'table') {
+            imagesViewMode = stored;
+            return stored;
+        }
+    } catch (e) {
+        // localStorage not available or error
+    }
+    return 'gallery';
+}
+
+/**
+ * Set images view mode
+ * @param {string} mode - 'gallery' | 'table'
+ */
+export function setImagesViewMode(mode) {
+    const validMode = mode === 'table' ? 'table' : 'gallery';
+    imagesViewMode = validMode;
+    try {
+        localStorage.setItem('imagesViewMode', validMode);
+    } catch (e) {
+        // localStorage not available or error
+    }
+}
+
+/**
+ * Get metric filters for images API
+ * @returns {{ minClicks: number|null, minRevenue: number|null, minImpressions: number|null, minSpend: number|null }}
+ */
+export function getImagesMetricFilters() {
+    if (imagesMetricFilters !== null) {
+        return imagesMetricFilters;
+    }
+    const defaults = { minClicks: null, minRevenue: null, minImpressions: null, minSpend: null };
+    try {
+        const raw = localStorage.getItem('imagesMetricFilters');
+        if (!raw) {
+            imagesMetricFilters = defaults;
+            return defaults;
+        }
+        const parsed = JSON.parse(raw);
+        imagesMetricFilters = {
+            minClicks: Number.isFinite(parsed?.minClicks) ? parsed.minClicks : null,
+            minRevenue: Number.isFinite(parsed?.minRevenue) ? parsed.minRevenue : null,
+            minImpressions: Number.isFinite(parsed?.minImpressions) ? parsed.minImpressions : null,
+            minSpend: Number.isFinite(parsed?.minSpend) ? parsed.minSpend : null,
+        };
+        return imagesMetricFilters;
+    } catch (e) {
+        imagesMetricFilters = defaults;
+        return defaults;
+    }
+}
+
+/**
+ * Set metric filters for images API
+ * @param {{ minClicks?: number|null, minRevenue?: number|null, minImpressions?: number|null, minSpend?: number|null }} filters
+ */
+export function setImagesMetricFilters(filters = {}) {
+    const current = getImagesMetricFilters();
+    imagesMetricFilters = {
+        minClicks: Number.isFinite(filters.minClicks) ? filters.minClicks : (filters.minClicks === null ? null : current.minClicks),
+        minRevenue: Number.isFinite(filters.minRevenue) ? filters.minRevenue : (filters.minRevenue === null ? null : current.minRevenue),
+        minImpressions: Number.isFinite(filters.minImpressions) ? filters.minImpressions : (filters.minImpressions === null ? null : current.minImpressions),
+        minSpend: Number.isFinite(filters.minSpend) ? filters.minSpend : (filters.minSpend === null ? null : current.minSpend),
+    };
+    try {
+        localStorage.setItem('imagesMetricFilters', JSON.stringify(imagesMetricFilters));
+    } catch (e) {
+        // localStorage not available or error
+    }
+}
+
+const DEFAULT_TABLE_COLUMNS = ['revenue', 'roas', 'ctr', 'clicks', 'impressions', 'spend'];
+
+/**
+ * Get visible metric columns for media table view
+ * @returns {string[]}
+ */
+export function getImagesTableColumns() {
+    if (imagesTableColumns !== null) {
+        return imagesTableColumns;
+    }
+    try {
+        const raw = localStorage.getItem('imagesTableColumns');
+        if (!raw) {
+            imagesTableColumns = [...DEFAULT_TABLE_COLUMNS];
+            return imagesTableColumns;
+        }
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.every(v => typeof v === 'string')) {
+            imagesTableColumns = parsed;
+            return imagesTableColumns;
+        }
+    } catch (e) {
+        // localStorage not available or error
+    }
+    imagesTableColumns = [...DEFAULT_TABLE_COLUMNS];
+    return imagesTableColumns;
+}
+
+/**
+ * Set visible metric columns for media table view
+ * @param {string[]} columns
+ */
+export function setImagesTableColumns(columns) {
+    imagesTableColumns = Array.isArray(columns) ? columns.filter(c => typeof c === 'string') : [...DEFAULT_TABLE_COLUMNS];
+    try {
+        localStorage.setItem('imagesTableColumns', JSON.stringify(imagesTableColumns));
     } catch (e) {
         // localStorage not available or error
     }

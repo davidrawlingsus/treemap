@@ -12,9 +12,13 @@ import {
     getImagesSortBy, setImagesSortBy,
     getImagesTotal, setImagesTotal,
     getImagesMediaTypeFilter, setImagesMediaTypeFilter,
+    getImagesViewMode, setImagesViewMode as setImagesViewModeState,
+    getImagesMetricFilters, setImagesMetricFilters,
+    getImagesTableColumns, setImagesTableColumns,
     addImageToCache
 } from '/js/state/images-state.js';
 import { renderImagesGrid, showLoading, renderError, relayoutImagesGrid, cancelScheduledLayoutFromImageLoad, updateBulkDeleteButton } from '/js/renderers/images-renderer.js';
+import { renderImagesTable } from '/js/renderers/images-table-renderer.js';
 import { debounce } from '/js/utils/dom.js';
 
 // ============ Sort Initialization ============
@@ -135,6 +139,24 @@ function updateSortCheckmarks(selectedSort) {
     const libOldestEl = document.getElementById('sortCheckLibraryOldest');
     if (libNewestEl) libNewestEl.textContent = selectedSort === 'library_newest' ? '✓' : '';
     if (libOldestEl) libOldestEl.textContent = selectedSort === 'library_oldest' ? '✓' : '';
+    const perfIds = [
+        ['sortCheckRevenueDesc', 'revenue_desc'],
+        ['sortCheckRevenueAsc', 'revenue_asc'],
+        ['sortCheckRoasDesc', 'roas_desc'],
+        ['sortCheckRoasAsc', 'roas_asc'],
+        ['sortCheckCtrDesc', 'ctr_desc'],
+        ['sortCheckCtrAsc', 'ctr_asc'],
+        ['sortCheckClicksDesc', 'clicks_desc'],
+        ['sortCheckClicksAsc', 'clicks_asc'],
+        ['sortCheckImpressionsDesc', 'impressions_desc'],
+        ['sortCheckImpressionsAsc', 'impressions_asc'],
+        ['sortCheckSpendDesc', 'spend_desc'],
+        ['sortCheckSpendAsc', 'spend_asc'],
+    ];
+    perfIds.forEach(([id, key]) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = selectedSort === key ? '✓' : '';
+    });
 }
 
 /**
@@ -186,6 +208,77 @@ function initMediaTypeFilter() {
         });
     });
     mediaTypeFilterInitialized = true;
+}
+
+// ============ View Toggle ============
+
+let viewToggleInitialized = false;
+
+function updateViewToggleUI() {
+    const viewMode = getImagesViewMode();
+    const buttons = document.querySelectorAll('.images-view-toggle__btn');
+    buttons.forEach((btn) => {
+        btn.classList.toggle('active', btn.dataset.view === viewMode);
+    });
+}
+
+function initViewToggle() {
+    if (viewToggleInitialized) return;
+    const buttons = document.querySelectorAll('.images-view-toggle__btn');
+    if (!buttons.length) return;
+    buttons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const mode = btn.dataset.view;
+            if (!mode) return;
+            setImagesViewMode(mode);
+        });
+    });
+    viewToggleInitialized = true;
+}
+
+export function setImagesViewMode(mode) {
+    setImagesViewModeState(mode);
+    updateViewToggleUI();
+    renderImagesPage();
+}
+
+// ============ Metric Filters ============
+
+let metricFiltersInitialized = false;
+const applyMetricFiltersDebounced = debounce(() => {
+    setImagesCache([]);
+    setImagesTotal(0);
+    loadFirstPage();
+}, 250);
+
+function initMetricFilters() {
+    if (metricFiltersInitialized) return;
+    const minClicksInput = document.getElementById('imagesMinClicks');
+    const minRevenueInput = document.getElementById('imagesMinRevenue');
+    const minImpressionsInput = document.getElementById('imagesMinImpressions');
+    const minSpendInput = document.getElementById('imagesMinSpend');
+    if (!minClicksInput || !minRevenueInput || !minImpressionsInput || !minSpendInput) return;
+
+    const filters = getImagesMetricFilters();
+    minClicksInput.value = Number.isFinite(filters.minClicks) ? String(filters.minClicks) : '';
+    minRevenueInput.value = Number.isFinite(filters.minRevenue) ? String(filters.minRevenue) : '';
+    minImpressionsInput.value = Number.isFinite(filters.minImpressions) ? String(filters.minImpressions) : '';
+    minSpendInput.value = Number.isFinite(filters.minSpend) ? String(filters.minSpend) : '';
+
+    const handleChange = () => {
+        setImagesMetricFilters({
+            minClicks: minClicksInput.value === '' ? null : Number(minClicksInput.value),
+            minRevenue: minRevenueInput.value === '' ? null : Number(minRevenueInput.value),
+            minImpressions: minImpressionsInput.value === '' ? null : Number(minImpressionsInput.value),
+            minSpend: minSpendInput.value === '' ? null : Number(minSpendInput.value),
+        });
+        applyMetricFiltersDebounced();
+    };
+
+    [minClicksInput, minRevenueInput, minImpressionsInput, minSpendInput].forEach((el) => {
+        el.addEventListener('input', handleChange);
+    });
+    metricFiltersInitialized = true;
 }
 
 // ============ Slider Initialization ============
@@ -525,6 +618,7 @@ async function loadFirstPage() {
             offset: 0,
             sortBy: getImagesSortBy(),
             mediaType: getImagesMediaTypeFilter(),
+            ...getImagesMetricFilters(),
         });
         const items = response.items || [];
         setImagesCache(items);
@@ -606,6 +700,7 @@ export async function loadMoreImagesPage() {
             offset: cache.length,
             sortBy: getImagesSortBy(),
             mediaType: getImagesMediaTypeFilter(),
+            ...getImagesMetricFilters(),
         });
         const newItems = response.items || [];
         setImagesCache([...cache, ...newItems]);
@@ -654,6 +749,8 @@ export async function initImagesPage() {
     initSizeSlider();
     initSortDropdown();
     initMediaTypeFilter();
+    initViewToggle();
+    initMetricFilters();
     initViewportDragDrop();
 
     const container = document.getElementById('imagesGrid');
@@ -700,6 +797,19 @@ export function renderImagesPage() {
     const images = getImagesCache();
     const sortBy = getImagesSortBy();
     const sortedImages = sortImages(images, sortBy);
-    renderImagesGrid(container, sortedImages);
+    const viewMode = getImagesViewMode();
+    updateViewToggleUI();
+
+    if (viewMode === 'table') {
+        renderImagesTable(container, sortedImages, {
+            columns: getImagesTableColumns(),
+            onColumnsChange: (columns) => {
+                setImagesTableColumns(columns);
+                renderImagesPage();
+            }
+        });
+    } else {
+        renderImagesGrid(container, sortedImages);
+    }
     updateBulkDeleteButton();
 }
