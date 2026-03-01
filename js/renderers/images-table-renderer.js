@@ -213,10 +213,11 @@ export function renderImagesTable(container, images, options = {}) {
             <table class="images-table">
                 <thead>
                     <tr>
-                        <th>Media</th>
+                        <th class="images-table__sticky-col images-table__sticky-head">Media</th>
                         ${validColumns.map((key) => `
-                            <th>
+                            <th class="images-table__metric-head" data-col="${escapeHtml(key)}" draggable="true">
                                 <div class="images-table__th-content">
+                                    <span class="images-table__drag-handle" title="Drag to reorder">⋮⋮</span>
                                     <span>${escapeHtml(COLUMN_DEFS[key].label)}</span>
                                     <button type="button" class="images-table__remove-col" data-remove-column="${escapeHtml(key)}" aria-label="Remove column">×</button>
                                 </div>
@@ -228,7 +229,7 @@ export function renderImagesTable(container, images, options = {}) {
                 <tbody>
                     ${images.map((image) => `
                         <tr data-image-id="${escapeHtml(image.id || '')}">
-                            <td class="images-table__media-col">
+                            <td class="images-table__media-col images-table__sticky-col">
                                 ${renderThumbCell(image)}
                                 <div class="images-table__media-meta">
                                     <div class="images-table__filename" title="${escapeHtml(image.filename || '')}">${escapeHtml(image.filename || 'Untitled')}</div>
@@ -275,6 +276,40 @@ export function renderImagesTable(container, images, options = {}) {
             pickerMenu.classList.remove('is-open');
         }, { once: true });
     }
+
+    let draggingCol = null;
+    container.querySelectorAll('.images-table__metric-head').forEach((th) => {
+        th.addEventListener('dragstart', (e) => {
+            draggingCol = th.dataset.col;
+            th.classList.add('is-dragging');
+            if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+        });
+        th.addEventListener('dragend', () => {
+            th.classList.remove('is-dragging');
+            container.querySelectorAll('.images-table__metric-head').forEach((el) => el.classList.remove('is-drop-target'));
+        });
+        th.addEventListener('dragover', (e) => {
+            if (!draggingCol || draggingCol === th.dataset.col) return;
+            e.preventDefault();
+            th.classList.add('is-drop-target');
+        });
+        th.addEventListener('dragleave', () => {
+            th.classList.remove('is-drop-target');
+        });
+        th.addEventListener('drop', (e) => {
+            e.preventDefault();
+            th.classList.remove('is-drop-target');
+            const targetCol = th.dataset.col;
+            if (!draggingCol || !targetCol || draggingCol === targetCol || typeof onColumnsChange !== 'function') return;
+            const next = [...validColumns];
+            const from = next.indexOf(draggingCol);
+            const to = next.indexOf(targetCol);
+            if (from < 0 || to < 0) return;
+            next.splice(from, 1);
+            next.splice(to, 0, draggingCol);
+            onColumnsChange(next);
+        });
+    });
 
     container.querySelectorAll('.images-table__thumb-btn').forEach((btn) => {
         btn.addEventListener('mouseenter', () => {

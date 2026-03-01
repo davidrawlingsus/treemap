@@ -384,6 +384,7 @@
             initImagesPage as imagesControllerInitImagesPage,
             renderImagesPage as imagesControllerRenderImagesPage,
             toggleSortDropdown as imagesControllerToggleSortDropdown,
+            toggleFilterDropdown as imagesControllerToggleFilterDropdown,
             loadMoreImagesPage as imagesControllerLoadMoreImagesPage,
             setImagesViewMode as imagesControllerSetImagesViewMode
         } from '/js/controllers/images-controller.js';
@@ -636,6 +637,7 @@
         window.showMetaImportModal = metaImportShowMetaImportModal;
         window.showImportMediaModal = importMediaShowImportMediaModal;
         window.toggleImagesSortMenu = imagesControllerToggleSortDropdown;
+        window.toggleImagesFilterMenu = imagesControllerToggleFilterDropdown;
         window.setImagesViewMode = imagesControllerSetImagesViewMode;
         
         // Expose appendImageToGrid for real-time updates from imports
@@ -16308,114 +16310,145 @@
             <button class="images-import-btn" onclick="window.showImportMediaModal()">
                 Import Media
             </button>
-            <div class="images-media-type-filter" role="group" aria-label="Media type">
-                <button type="button" class="images-media-type-option is-active" data-media-type="all">All</button>
-                <button type="button" class="images-media-type-option" data-media-type="image">Images</button>
-                <button type="button" class="images-media-type-option" data-media-type="video">Videos</button>
-            </div>
-            <div class="images-metric-filters">
-                <input type="number" id="imagesMinClicks" min="0" step="1" placeholder="Min clicks" class="images-metric-filter-input">
-                <input type="number" id="imagesMinRevenue" min="0" step="0.01" placeholder="Min revenue" class="images-metric-filter-input">
-                <input type="number" id="imagesMinImpressions" min="0" step="1" placeholder="Min impressions" class="images-metric-filter-input">
-                <input type="number" id="imagesMinSpend" min="0" step="0.01" placeholder="Min spend" class="images-metric-filter-input">
-            </div>
-            <div class="images-sort-menu-container" style="position: relative;">
-                <button class="images-sort-btn" id="imagesSortBtn" onclick="window.toggleImagesSortMenu(event)" type="button" aria-label="Sort options">
-                    <img src="/images/filter_list.svg" alt="" aria-hidden="true" width="20" height="20">
-                </button>
-                <div class="images-sort-dropdown" id="imagesSortDropdown">
-                    <div class="images-sort-dropdown__header">Sort by</div>
-                    <button class="images-sort-option" data-sort="newest">
-                        <span>Newest First</span>
-                        <span class="images-sort-option__check" id="sortCheckNewest">✓</span>
+            <div class="images-control-bar-right">
+                <div class="images-sort-menu-container" style="position: relative;">
+                    <button class="images-sort-btn" id="imagesSortBtn" onclick="window.toggleImagesSortMenu(event)" type="button" aria-label="Sort options">
+                        <img src="/images/sort_icon.svg" alt="" aria-hidden="true" width="16" height="16">
                     </button>
-                    <button class="images-sort-option" data-sort="oldest">
-                        <span>Oldest First</span>
-                        <span class="images-sort-option__check" id="sortCheckOldest"></span>
+                    <div class="images-sort-dropdown" id="imagesSortDropdown">
+                        <div class="images-sort-dropdown__header">Sort by</div>
+                        <button class="images-sort-option" data-sort="newest">
+                            <span>Newest First</span>
+                            <span class="images-sort-option__check" id="sortCheckNewest">✓</span>
+                        </button>
+                        <button class="images-sort-option" data-sort="oldest">
+                            <span>Oldest First</span>
+                            <span class="images-sort-option__check" id="sortCheckOldest"></span>
+                        </button>
+                        <button class="images-sort-option" data-sort="running_longest">
+                            <span>Running Longest</span>
+                            <span class="images-sort-option__check" id="sortCheckRunningLongest"></span>
+                        </button>
+                        <button class="images-sort-option" data-sort="running_newest">
+                            <span>Running Most Recent</span>
+                            <span class="images-sort-option__check" id="sortCheckRunningNewest"></span>
+                        </button>
+                        <button class="images-sort-option" data-sort="library_newest">
+                            <span>Library Newest</span>
+                            <span class="images-sort-option__check" id="sortCheckLibraryNewest"></span>
+                        </button>
+                        <button class="images-sort-option" data-sort="library_oldest">
+                            <span>Library Oldest</span>
+                            <span class="images-sort-option__check" id="sortCheckLibraryOldest"></span>
+                        </button>
+                        <div class="images-sort-dropdown__header">Performance</div>
+                        <button class="images-sort-option" data-sort="revenue_desc">
+                            <span>Revenue Highest</span>
+                            <span class="images-sort-option__check" id="sortCheckRevenueDesc"></span>
+                        </button>
+                        <button class="images-sort-option" data-sort="revenue_asc">
+                            <span>Revenue Lowest</span>
+                            <span class="images-sort-option__check" id="sortCheckRevenueAsc"></span>
+                        </button>
+                        <button class="images-sort-option" data-sort="roas_desc">
+                            <span>ROAS Highest</span>
+                            <span class="images-sort-option__check" id="sortCheckRoasDesc"></span>
+                        </button>
+                        <button class="images-sort-option" data-sort="roas_asc">
+                            <span>ROAS Lowest</span>
+                            <span class="images-sort-option__check" id="sortCheckRoasAsc"></span>
+                        </button>
+                        <button class="images-sort-option" data-sort="ctr_desc">
+                            <span>CTR Highest</span>
+                            <span class="images-sort-option__check" id="sortCheckCtrDesc"></span>
+                        </button>
+                        <button class="images-sort-option" data-sort="ctr_asc">
+                            <span>CTR Lowest</span>
+                            <span class="images-sort-option__check" id="sortCheckCtrAsc"></span>
+                        </button>
+                        <button class="images-sort-option" data-sort="clicks_desc">
+                            <span>Clicks Highest</span>
+                            <span class="images-sort-option__check" id="sortCheckClicksDesc"></span>
+                        </button>
+                        <button class="images-sort-option" data-sort="clicks_asc">
+                            <span>Clicks Lowest</span>
+                            <span class="images-sort-option__check" id="sortCheckClicksAsc"></span>
+                        </button>
+                        <button class="images-sort-option" data-sort="impressions_desc">
+                            <span>Impressions Highest</span>
+                            <span class="images-sort-option__check" id="sortCheckImpressionsDesc"></span>
+                        </button>
+                        <button class="images-sort-option" data-sort="impressions_asc">
+                            <span>Impressions Lowest</span>
+                            <span class="images-sort-option__check" id="sortCheckImpressionsAsc"></span>
+                        </button>
+                        <button class="images-sort-option" data-sort="spend_desc">
+                            <span>Spend Highest</span>
+                            <span class="images-sort-option__check" id="sortCheckSpendDesc"></span>
+                        </button>
+                        <button class="images-sort-option" data-sort="spend_asc">
+                            <span>Spend Lowest</span>
+                            <span class="images-sort-option__check" id="sortCheckSpendAsc"></span>
+                        </button>
+                    </div>
+                </div>
+                <div class="images-filter-menu-container" style="position: relative;">
+                    <button class="images-sort-btn images-filter-btn" id="imagesFilterBtn" onclick="window.toggleImagesFilterMenu(event)" type="button" aria-label="Filter options">
+                        <img src="/images/filter_alt_icon.svg" alt="" aria-hidden="true" width="16" height="16">
+                        <span id="imagesFilterBadge" class="images-filter-badge"></span>
                     </button>
-                    <button class="images-sort-option" data-sort="running_longest">
-                        <span>Running Longest</span>
-                        <span class="images-sort-option__check" id="sortCheckRunningLongest"></span>
+                    <div class="images-sort-dropdown images-filter-dropdown" id="imagesFilterDropdown">
+                        <div class="images-sort-dropdown__header">Filters</div>
+                        <div class="images-filter-media-type images-media-type-filter" role="group" aria-label="Media type">
+                            <button type="button" class="images-media-type-option is-active" data-media-type="all">All</button>
+                            <button type="button" class="images-media-type-option" data-media-type="image">Images</button>
+                            <button type="button" class="images-media-type-option" data-media-type="video">Videos</button>
+                        </div>
+                        <div class="images-filter-fields">
+                            <label class="images-filter-field">
+                                <span>Min clicks</span>
+                                <input type="number" id="imagesMinClicks" min="0" step="1" placeholder="0" class="images-metric-filter-input">
+                            </label>
+                            <label class="images-filter-field">
+                                <span>Min revenue</span>
+                                <input type="number" id="imagesMinRevenue" min="0" step="0.01" placeholder="0" class="images-metric-filter-input">
+                            </label>
+                            <label class="images-filter-field">
+                                <span>Min impressions</span>
+                                <input type="number" id="imagesMinImpressions" min="0" step="1" placeholder="0" class="images-metric-filter-input">
+                            </label>
+                            <label class="images-filter-field">
+                                <span>Min spend</span>
+                                <input type="number" id="imagesMinSpend" min="0" step="0.01" placeholder="0" class="images-metric-filter-input">
+                            </label>
+                        </div>
+                        <label class="images-filter-toggle-row">
+                            <input type="checkbox" id="imagesHideDuplicates" class="images-filter-toggle-checkbox">
+                            <span>Hide duplicates (same image + metrics)</span>
+                        </label>
+                        <div class="images-filter-actions">
+                            <button type="button" id="imagesFilterClearBtn" class="images-filter-action-btn images-filter-action-btn--ghost">Clear</button>
+                            <button type="button" id="imagesFilterApplyBtn" class="images-filter-action-btn">Apply</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="ads-view-toggle images-view-toggle" id="imagesViewToggle">
+                    <button type="button" class="ads-view-toggle__btn images-view-toggle__btn active" data-view="gallery" title="Gallery view" onclick="window.setImagesViewMode('gallery')">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <rect x="1" y="1" width="6" height="6" rx="1"/>
+                            <rect x="9" y="1" width="6" height="6" rx="1"/>
+                            <rect x="1" y="9" width="6" height="6" rx="1"/>
+                            <rect x="9" y="9" width="6" height="6" rx="1"/>
+                        </svg>
                     </button>
-                    <button class="images-sort-option" data-sort="running_newest">
-                        <span>Running Most Recent</span>
-                        <span class="images-sort-option__check" id="sortCheckRunningNewest"></span>
-                    </button>
-                    <button class="images-sort-option" data-sort="library_newest">
-                        <span>Library Newest</span>
-                        <span class="images-sort-option__check" id="sortCheckLibraryNewest"></span>
-                    </button>
-                    <button class="images-sort-option" data-sort="library_oldest">
-                        <span>Library Oldest</span>
-                        <span class="images-sort-option__check" id="sortCheckLibraryOldest"></span>
-                    </button>
-                    <div class="images-sort-dropdown__header">Performance</div>
-                    <button class="images-sort-option" data-sort="revenue_desc">
-                        <span>Revenue Highest</span>
-                        <span class="images-sort-option__check" id="sortCheckRevenueDesc"></span>
-                    </button>
-                    <button class="images-sort-option" data-sort="revenue_asc">
-                        <span>Revenue Lowest</span>
-                        <span class="images-sort-option__check" id="sortCheckRevenueAsc"></span>
-                    </button>
-                    <button class="images-sort-option" data-sort="roas_desc">
-                        <span>ROAS Highest</span>
-                        <span class="images-sort-option__check" id="sortCheckRoasDesc"></span>
-                    </button>
-                    <button class="images-sort-option" data-sort="roas_asc">
-                        <span>ROAS Lowest</span>
-                        <span class="images-sort-option__check" id="sortCheckRoasAsc"></span>
-                    </button>
-                    <button class="images-sort-option" data-sort="ctr_desc">
-                        <span>CTR Highest</span>
-                        <span class="images-sort-option__check" id="sortCheckCtrDesc"></span>
-                    </button>
-                    <button class="images-sort-option" data-sort="ctr_asc">
-                        <span>CTR Lowest</span>
-                        <span class="images-sort-option__check" id="sortCheckCtrAsc"></span>
-                    </button>
-                    <button class="images-sort-option" data-sort="clicks_desc">
-                        <span>Clicks Highest</span>
-                        <span class="images-sort-option__check" id="sortCheckClicksDesc"></span>
-                    </button>
-                    <button class="images-sort-option" data-sort="clicks_asc">
-                        <span>Clicks Lowest</span>
-                        <span class="images-sort-option__check" id="sortCheckClicksAsc"></span>
-                    </button>
-                    <button class="images-sort-option" data-sort="impressions_desc">
-                        <span>Impressions Highest</span>
-                        <span class="images-sort-option__check" id="sortCheckImpressionsDesc"></span>
-                    </button>
-                    <button class="images-sort-option" data-sort="impressions_asc">
-                        <span>Impressions Lowest</span>
-                        <span class="images-sort-option__check" id="sortCheckImpressionsAsc"></span>
-                    </button>
-                    <button class="images-sort-option" data-sort="spend_desc">
-                        <span>Spend Highest</span>
-                        <span class="images-sort-option__check" id="sortCheckSpendDesc"></span>
-                    </button>
-                    <button class="images-sort-option" data-sort="spend_asc">
-                        <span>Spend Lowest</span>
-                        <span class="images-sort-option__check" id="sortCheckSpendAsc"></span>
+                    <button type="button" class="ads-view-toggle__btn images-view-toggle__btn" data-view="table" title="Table view" onclick="window.setImagesViewMode('table')">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                            <rect x="1" y="2" width="14" height="2" rx="1"/>
+                            <rect x="1" y="7" width="14" height="2" rx="1"/>
+                            <rect x="1" y="12" width="14" height="2" rx="1"/>
+                        </svg>
                     </button>
                 </div>
-            </div>
-            <div class="ads-view-toggle images-view-toggle" id="imagesViewToggle">
-                <button type="button" class="ads-view-toggle__btn images-view-toggle__btn active" data-view="gallery" title="Gallery view" onclick="window.setImagesViewMode('gallery')">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                        <rect x="1" y="1" width="6" height="6" rx="1"/>
-                        <rect x="9" y="1" width="6" height="6" rx="1"/>
-                        <rect x="1" y="9" width="6" height="6" rx="1"/>
-                        <rect x="9" y="9" width="6" height="6" rx="1"/>
-                    </svg>
-                </button>
-                <button type="button" class="ads-view-toggle__btn images-view-toggle__btn" data-view="table" title="Table view" onclick="window.setImagesViewMode('table')">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                        <rect x="1" y="2" width="14" height="2" rx="1"/>
-                        <rect x="1" y="7" width="14" height="2" rx="1"/>
-                        <rect x="1" y="12" width="14" height="2" rx="1"/>
-                    </svg>
-                </button>
             </div>
         </div>
 

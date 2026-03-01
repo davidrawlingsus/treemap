@@ -15,6 +15,7 @@ import {
     getImagesViewMode, setImagesViewMode as setImagesViewModeState,
     getImagesMetricFilters, setImagesMetricFilters,
     getImagesTableColumns, setImagesTableColumns,
+    getImagesHideDuplicates, setImagesHideDuplicates,
     addImageToCache
 } from '/js/state/images-state.js';
 import { renderImagesGrid, showLoading, renderError, relayoutImagesGrid, cancelScheduledLayoutFromImageLoad, updateBulkDeleteButton } from '/js/renderers/images-renderer.js';
@@ -122,6 +123,10 @@ function initSortDropdown() {
         if (container && !container.contains(e.target)) {
             closeSortDropdown();
         }
+        const filterContainer = document.querySelector('.images-filter-menu-container');
+        if (filterContainer && !filterContainer.contains(e.target)) {
+            closeFilterDropdown();
+        }
     });
     
     sortInitialized = true;
@@ -164,6 +169,7 @@ function updateSortCheckmarks(selectedSort) {
  */
 export function toggleSortDropdown(e) {
     e.stopPropagation();
+    closeFilterDropdown();
     const dropdown = document.getElementById('imagesSortDropdown');
     if (dropdown) {
         dropdown.classList.toggle('is-open');
@@ -175,6 +181,28 @@ export function toggleSortDropdown(e) {
  */
 function closeSortDropdown() {
     const dropdown = document.getElementById('imagesSortDropdown');
+    if (dropdown) {
+        dropdown.classList.remove('is-open');
+    }
+}
+
+/**
+ * Toggle filter dropdown visibility
+ */
+export function toggleFilterDropdown(e) {
+    e.stopPropagation();
+    closeSortDropdown();
+    const dropdown = document.getElementById('imagesFilterDropdown');
+    if (dropdown) {
+        dropdown.classList.toggle('is-open');
+    }
+}
+
+/**
+ * Close filter dropdown
+ */
+function closeFilterDropdown() {
+    const dropdown = document.getElementById('imagesFilterDropdown');
     if (dropdown) {
         dropdown.classList.remove('is-open');
     }
@@ -202,6 +230,7 @@ function initMediaTypeFilter() {
             if (!mediaType) return;
             setImagesMediaTypeFilter(mediaType);
             updateActive(mediaType);
+            updateMetricFilterBadge();
             setImagesCache([]);
             setImagesTotal(0);
             loadFirstPage();
@@ -239,6 +268,10 @@ function initViewToggle() {
 export function setImagesViewMode(mode) {
     setImagesViewModeState(mode);
     updateViewToggleUI();
+    const sizeToolbar = document.querySelector('.images-size-toolbar');
+    if (sizeToolbar) {
+        sizeToolbar.style.display = mode === 'table' ? 'none' : 'flex';
+    }
     renderImagesPage();
 }
 
@@ -251,33 +284,86 @@ const applyMetricFiltersDebounced = debounce(() => {
     loadFirstPage();
 }, 250);
 
+function updateMetricFilterBadge() {
+    const badge = document.getElementById('imagesFilterBadge');
+    if (!badge) return;
+    const { minClicks, minRevenue, minImpressions, minSpend } = getImagesMetricFilters();
+    const metricCount = [minClicks, minRevenue, minImpressions, minSpend].filter((v) => Number.isFinite(v)).length;
+    const mediaTypeCount = getImagesMediaTypeFilter() !== 'all' ? 1 : 0;
+    const dedupeCount = getImagesHideDuplicates() ? 1 : 0;
+    const activeCount = metricCount + mediaTypeCount + dedupeCount;
+    badge.textContent = activeCount > 0 ? String(activeCount) : '';
+    badge.classList.toggle('is-visible', activeCount > 0);
+}
+
 function initMetricFilters() {
     if (metricFiltersInitialized) return;
     const minClicksInput = document.getElementById('imagesMinClicks');
     const minRevenueInput = document.getElementById('imagesMinRevenue');
     const minImpressionsInput = document.getElementById('imagesMinImpressions');
     const minSpendInput = document.getElementById('imagesMinSpend');
-    if (!minClicksInput || !minRevenueInput || !minImpressionsInput || !minSpendInput) return;
+    const hideDuplicatesInput = document.getElementById('imagesHideDuplicates');
+    const applyBtn = document.getElementById('imagesFilterApplyBtn');
+    const clearBtn = document.getElementById('imagesFilterClearBtn');
+    if (!minClicksInput || !minRevenueInput || !minImpressionsInput || !minSpendInput || !hideDuplicatesInput || !applyBtn || !clearBtn) return;
 
     const filters = getImagesMetricFilters();
     minClicksInput.value = Number.isFinite(filters.minClicks) ? String(filters.minClicks) : '';
     minRevenueInput.value = Number.isFinite(filters.minRevenue) ? String(filters.minRevenue) : '';
     minImpressionsInput.value = Number.isFinite(filters.minImpressions) ? String(filters.minImpressions) : '';
     minSpendInput.value = Number.isFinite(filters.minSpend) ? String(filters.minSpend) : '';
+    hideDuplicatesInput.checked = getImagesHideDuplicates();
 
-    const handleChange = () => {
+    const collectAndSave = () => {
         setImagesMetricFilters({
             minClicks: minClicksInput.value === '' ? null : Number(minClicksInput.value),
             minRevenue: minRevenueInput.value === '' ? null : Number(minRevenueInput.value),
             minImpressions: minImpressionsInput.value === '' ? null : Number(minImpressionsInput.value),
             minSpend: minSpendInput.value === '' ? null : Number(minSpendInput.value),
         });
-        applyMetricFiltersDebounced();
+        setImagesHideDuplicates(hideDuplicatesInput.checked);
+        updateMetricFilterBadge();
     };
 
     [minClicksInput, minRevenueInput, minImpressionsInput, minSpendInput].forEach((el) => {
-        el.addEventListener('input', handleChange);
+        el.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                collectAndSave();
+                closeFilterDropdown();
+                applyMetricFiltersDebounced();
+            }
+        });
     });
+
+    applyBtn.addEventListener('click', () => {
+        collectAndSave();
+        closeFilterDropdown();
+        applyMetricFiltersDebounced();
+    });
+
+    clearBtn.addEventListener('click', () => {
+        minClicksInput.value = '';
+        minRevenueInput.value = '';
+        minImpressionsInput.value = '';
+        minSpendInput.value = '';
+        hideDuplicatesInput.checked = false;
+        setImagesMediaTypeFilter('all');
+        document.querySelectorAll('.images-media-type-option').forEach((el) => {
+            el.classList.toggle('is-active', el.dataset.mediaType === 'all');
+        });
+        setImagesMetricFilters({
+            minClicks: null,
+            minRevenue: null,
+            minImpressions: null,
+            minSpend: null,
+        });
+        setImagesHideDuplicates(false);
+        updateMetricFilterBadge();
+        closeFilterDropdown();
+        applyMetricFiltersDebounced();
+    });
+
+    updateMetricFilterBadge();
     metricFiltersInitialized = true;
 }
 
@@ -752,6 +838,11 @@ export async function initImagesPage() {
     initViewToggle();
     initMetricFilters();
     initViewportDragDrop();
+    updateViewToggleUI();
+    const sizeToolbar = document.querySelector('.images-size-toolbar');
+    if (sizeToolbar) {
+        sizeToolbar.style.display = getImagesViewMode() === 'table' ? 'none' : 'flex';
+    }
 
     const container = document.getElementById('imagesGrid');
     if (!container) {
@@ -798,18 +889,42 @@ export function renderImagesPage() {
     const sortBy = getImagesSortBy();
     const sortedImages = sortImages(images, sortBy);
     const viewMode = getImagesViewMode();
+    const dedupedImages = (viewMode === 'table' && getImagesHideDuplicates())
+        ? dedupeImagesForTable(sortedImages)
+        : sortedImages;
     updateViewToggleUI();
 
     if (viewMode === 'table') {
-        renderImagesTable(container, sortedImages, {
+        renderImagesTable(container, dedupedImages, {
             columns: getImagesTableColumns(),
             onColumnsChange: (columns) => {
                 setImagesTableColumns(columns);
                 renderImagesPage();
-            }
+            },
         });
     } else {
         renderImagesGrid(container, sortedImages);
     }
     updateBulkDeleteButton();
+}
+
+function dedupeImagesForTable(images = []) {
+    const seen = new Set();
+    return images.filter((image) => {
+        const key = [
+            image.id || '',
+            image.revenue ?? '',
+            image.roas ?? '',
+            image.ctr ?? '',
+            image.clicks ?? '',
+            image.impressions ?? '',
+            image.spend ?? '',
+            image.purchases ?? '',
+            image.started_running_on_best_ad || '',
+            image.meta_ad_id || ''
+        ].join('|');
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
 }

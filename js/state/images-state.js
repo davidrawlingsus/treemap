@@ -17,6 +17,7 @@ let imagesMediaTypeFilter = null; // null means use default ('all'); 'all' | 'im
 let imagesViewMode = null; // null means default ('gallery'); 'gallery' | 'table'
 let imagesMetricFilters = null; // { minClicks, minRevenue, minImpressions, minSpend }
 let imagesTableColumns = null; // visible metric columns in table view
+let imagesHideDuplicates = null; // table-only dedupe toggle
 
 /**
  * Get cached images
@@ -387,6 +388,39 @@ export function setImagesTableColumns(columns) {
     imagesTableColumns = Array.isArray(columns) ? columns.filter(c => typeof c === 'string') : [...DEFAULT_TABLE_COLUMNS];
     try {
         localStorage.setItem('imagesTableColumns', JSON.stringify(imagesTableColumns));
+    } catch (e) {
+        // localStorage not available or error
+    }
+}
+
+/**
+ * Get dedupe toggle for images table view
+ * @returns {boolean}
+ */
+export function getImagesHideDuplicates() {
+    if (imagesHideDuplicates !== null) {
+        return imagesHideDuplicates;
+    }
+    try {
+        const stored = localStorage.getItem('imagesHideDuplicates');
+        if (stored === 'true' || stored === 'false') {
+            imagesHideDuplicates = stored === 'true';
+            return imagesHideDuplicates;
+        }
+    } catch (e) {
+        // localStorage not available or error
+    }
+    return false;
+}
+
+/**
+ * Set dedupe toggle for images table view
+ * @param {boolean} enabled
+ */
+export function setImagesHideDuplicates(enabled) {
+    imagesHideDuplicates = !!enabled;
+    try {
+        localStorage.setItem('imagesHideDuplicates', imagesHideDuplicates ? 'true' : 'false');
     } catch (e) {
         // localStorage not available or error
     }
