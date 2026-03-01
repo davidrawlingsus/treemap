@@ -880,24 +880,33 @@ body.picker-open {
 }
 
 .images-sort-btn {
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
     padding: 0;
-    background: transparent;
-    border: 1px solid var(--border);
+    position: relative;
+    background: #fff;
+    border: 1px solid #d6d9df;
     border-radius: 6px;
+    color: #111;
     cursor: pointer;
-    transition: background 0.2s ease, border-color 0.2s ease;
-    color: #475569;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
 }
 
 .images-sort-btn:hover {
-    background: rgba(0, 0, 0, 0.05);
-    border-color: var(--brand-color);
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+    border-color: #111;
+    color: #111;
+    box-shadow: none;
+}
+
+.images-sort-btn:focus,
+.images-sort-btn:focus-visible {
+    outline: none;
+    border-color: #111;
+    box-shadow: 0 0 0 1px #111;
 }
 
 .images-sort-btn svg {
@@ -905,13 +914,9 @@ body.picker-open {
 }
 
 .images-sort-btn img {
+    width: 18px;
+    height: 18px;
     display: block;
-    opacity: 0.84;
-    transition: opacity 0.15s ease;
-}
-
-.images-sort-btn:hover img {
-    opacity: 1;
 }
 
 .images-sort-dropdown {
@@ -976,8 +981,16 @@ body.picker-open {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-left: 8px;
-    margin-right: 16px;
+    margin: 0;
+}
+
+#images-section > .control-bar > .images-size-toolbar,
+.images-control-bar .images-size-toolbar {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
 }
 
 .images-metric-filter-input {
@@ -996,24 +1009,25 @@ body.picker-open {
 
 .images-filter-badge {
     position: absolute;
-    top: -5px;
-    right: -5px;
-    min-width: 16px;
-    height: 16px;
-    padding: 0 4px;
-    border-radius: 10px;
-    font-size: 0.68rem;
+    top: -4px;
+    right: -4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #111;
+    color: #fff;
+    font-size: 11px;
     font-weight: 600;
-    line-height: 16px;
-    color: #0f172a;
-    background: var(--brand-color);
-    border: 1px solid #fff;
+    line-height: 1;
     display: none;
-    text-align: center;
+    align-items: center;
+    justify-content: center;
+    border: none;
 }
 
 .images-filter-badge.is-visible {
-    display: inline-block;
+    display: flex;
 }
 
 .images-filter-fields {
@@ -1076,6 +1090,39 @@ body.picker-open {
 
 .images-view-toggle {
     margin-left: 0;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: rgba(55, 53, 47, 0.06);
+    border-radius: 6px;
+    padding: 2px;
+}
+
+.images-view-toggle .images-view-toggle__btn {
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 4px;
+    background: #fff;
+    color: #37352f;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.images-view-toggle .images-view-toggle__btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.images-view-toggle .images-view-toggle__btn:hover {
+    color: rgba(55, 53, 47, 0.8);
+}
+
+.images-view-toggle .images-view-toggle__btn.active {
+    background: transparent;
+    color: rgba(55, 53, 47, 0.3);
+    box-shadow: none;
+    cursor: default;
 }
 
 .images-table-wrap {
@@ -1741,6 +1788,16 @@ body.picker-open {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
+    .images-control-bar .images-size-toolbar {
+        position: static;
+        left: auto;
+        top: auto;
+        transform: none;
+        margin-left: 8px;
+    }
+}
+
+@media (max-width: 768px) {
     .images-grid-sizer,
     .images-card {
         width: 100%; /* Single column on mobile */
@@ -1767,26 +1824,51 @@ body.picker-open {
         font-size: 0.75rem;
         min-width: 24px;
     }
+
+    .images-import-btn {
+        right: 16px;
+        bottom: 16px;
+        width: 52px;
+        height: 52px;
+        font-size: 1.7rem;
+    }
 }
 
 /* ==================== Meta Ads Library Import ==================== */
 
 /* Import Button */
 .images-import-btn {
-    padding: 8px 16px;
-    background: rgba(0, 0, 0, 0.04);
-    color: var(--text);
-    border: none;
-    border-radius: 6px;
-    font-weight: 500;
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    width: 58px;
+    height: 58px;
+    padding: 0;
+    border: 1px solid rgba(15, 23, 42, 0.15);
+    border-radius: 50%;
+    background: var(--brand-color);
+    color: #1a1a1a;
+    font-size: 2rem;
+    line-height: 1;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s ease;
-    margin-left: 8px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.25);
+    z-index: 1200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .images-import-btn:hover {
-    background: var(--brand-color);
-    color: #1a1a1a;
+    filter: brightness(0.98);
+    transform: translateY(-1px);
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.3);
+}
+
+.images-import-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.24);
 }
 
 /* Meta Import Modal Overlay */
