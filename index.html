@@ -4764,10 +4764,16 @@
             if (!searchInput) return;
             
             const searchTerm = searchInput.value.trim();
+            const slideoutSearchHasFocus = document.activeElement?.id === 'slideoutSearch';
+            const shouldFocusSlideoutSearch = slideoutSearchHasFocus || Boolean(window.SlideoutPanel?.isOpen);
             
             // Show/hide clear button
             if (clearBtn) {
                 clearBtn.style.display = searchTerm ? 'flex' : 'none';
+            }
+
+            if (window.SlideoutPanel?.syncHeaderSearchInput) {
+                window.SlideoutPanel.syncHeaderSearchInput(searchTerm, false);
             }
             
             // Update search-active class based on search term and slideout state
@@ -4820,6 +4826,12 @@
                         window.SlideoutPanel.currentCategoryName
                     );
                 }
+                if (window.SlideoutPanel.setHeaderSearchMode) {
+                    window.SlideoutPanel.setHeaderSearchMode(true);
+                }
+                if (window.SlideoutPanel.syncHeaderSearchInput) {
+                    window.SlideoutPanel.syncHeaderSearchInput(searchTerm, shouldFocusSlideoutSearch);
+                }
             }
         }
         
@@ -4827,6 +4839,9 @@
             const searchInput = document.getElementById('treemapSearch');
             const clearBtn = document.getElementById('treemapSearchClear');
             const searchContainer = document.querySelector('.treemap-header');
+            const slideoutSearchInput = document.getElementById('slideoutSearch');
+            const slideoutClearBtn = document.getElementById('slideoutSearchClear');
+            const wasClearedFromSlideout = document.activeElement?.id === 'slideoutSearch' || document.activeElement?.id === 'slideoutSearchClear';
             
             if (searchInput) {
                 searchInput.value = '';
@@ -4834,7 +4849,17 @@
                     clearBtn.style.display = 'none';
                 }
                 // Focus the search input after clearing
-                searchInput.focus();
+                if (!wasClearedFromSlideout) {
+                    searchInput.focus();
+                }
+            }
+
+            // Keep slideout search UI fully synchronized when clear is pressed in either place.
+            if (slideoutSearchInput) {
+                slideoutSearchInput.value = '';
+            }
+            if (slideoutClearBtn) {
+                slideoutClearBtn.style.display = 'none';
             }
             
             // Remove search-active class
@@ -4848,6 +4873,12 @@
                 const currentTitle = document.getElementById('slideoutTitle');
                 if (currentTitle && currentTitle.textContent.includes('Search:')) {
                     window.SlideoutPanel.verbatimSearchTerm = '';
+                    if (window.SlideoutPanel.syncHeaderSearchInput) {
+                        window.SlideoutPanel.syncHeaderSearchInput('', false);
+                    }
+                    if (window.SlideoutPanel.setHeaderSearchMode) {
+                        window.SlideoutPanel.setHeaderSearchMode(false);
+                    }
                 }
             }
             
@@ -10579,6 +10610,7 @@
             currentChartTopicName: null,  // Current chart view topic (if any)
             currentChartDataSourceId: null,  // Current chart view data source
             currentChartDimensionName: null,  // Current chart view dimension
+            headerSearchDebounceTimer: null,
             
             init() {
                 const tab = document.getElementById('slideoutTab');
@@ -10613,8 +10645,74 @@
                         this.close();
                     }
                 });
+
+                const headerSearchInput = document.getElementById('slideoutSearch');
+                if (headerSearchInput) {
+                    headerSearchInput.addEventListener('input', () => this.handleHeaderSearchInput(false));
+                    headerSearchInput.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            this.handleHeaderSearchInput(true);
+                        }
+                    });
+                }
                 
                 console.log('Slideout Panel initialized');
+            },
+
+            setHeaderSearchMode(enabled) {
+                const panel = document.getElementById('slideoutPanel');
+                const searchContainer = document.getElementById('slideoutSearchContainer');
+                if (panel) {
+                    panel.classList.toggle('slideout-search-mode', Boolean(enabled));
+                }
+                if (searchContainer) {
+                    searchContainer.style.display = enabled ? 'flex' : 'none';
+                }
+            },
+
+            syncHeaderSearchInput(searchTerm = '', shouldFocus = false) {
+                const searchInput = document.getElementById('slideoutSearch');
+                const clearBtn = document.getElementById('slideoutSearchClear');
+                if (!searchInput) return;
+
+                searchInput.value = searchTerm;
+                if (clearBtn) {
+                    clearBtn.style.display = searchTerm && searchTerm.trim() ? 'flex' : 'none';
+                }
+
+                if (shouldFocus) {
+                    requestAnimationFrame(() => {
+                        searchInput.focus();
+                        const cursorPos = searchInput.value.length;
+                        searchInput.setSelectionRange(cursorPos, cursorPos);
+                    });
+                }
+            },
+
+            handleHeaderSearchInput(runImmediately = false) {
+                const headerSearchInput = document.getElementById('slideoutSearch');
+                const treemapSearchInput = document.getElementById('treemapSearch');
+                if (!headerSearchInput || !treemapSearchInput) return;
+
+                const searchTerm = headerSearchInput.value;
+                this.verbatimSearchTerm = searchTerm.trim();
+                this.syncHeaderSearchInput(searchTerm, false);
+                this.setHeaderSearchMode(true);
+                treemapSearchInput.value = searchTerm;
+
+                const runSearch = () => {
+                    if (typeof handleTreemapSearch === 'function') {
+                        handleTreemapSearch();
+                    }
+                };
+
+                clearTimeout(this.headerSearchDebounceTimer);
+                if (runImmediately) {
+                    runSearch();
+                    return;
+                }
+                this.headerSearchDebounceTimer = setTimeout(runSearch, 300);
             },
             
             handleExpandToggle() {
@@ -10681,6 +10779,7 @@
                 
                 this.currentContext = { client_uuid, data_source, dimension_ref };
                 this.currentMode = 'ai-insights';
+                this.setHeaderSearchMode(false);
                 
                 // Open UI
                 const panel = document.getElementById('slideoutPanel');
@@ -10750,6 +10849,13 @@
                 this.currentTopicName = topicName;
                 this.currentCategoryName = categoryName;
                 this.verbatimSearchTerm = '';
+                const isTreemapSearchMode = typeof topicName === 'string' && topicName.startsWith('Search:');
+                const parsedSearchTerm = isTreemapSearchMode
+                    ? (topicName.match(/^Search:\s*"([^"]*)"/)?.[1] || '')
+                    : '';
+                if (parsedSearchTerm) {
+                    this.verbatimSearchTerm = parsedSearchTerm;
+                }
                 
                 // Update UI (unless already updated by caller)
                 if (!skipUIUpdates) {
@@ -10761,15 +10867,12 @@
                     const searchBox = document.getElementById('slideoutSearch');
                     const settingsBtn = document.getElementById('slideoutSettingsBtn');
                     
-                    // Show search and settings for verbatims
+                    // Show header search only for treemap search result mode
                     if (searchBox) {
-                        searchBox.style.display = 'block';
-                        // Also show the wrapper div that contains the search box
-                        const searchContainer = document.getElementById('slideoutSearchContainer');
-                        if (searchContainer) {
-                            searchContainer.style.display = 'block';
-                        }
+                        searchBox.style.display = isTreemapSearchMode ? 'block' : 'none';
                     }
+                    this.setHeaderSearchMode(isTreemapSearchMode);
+                    this.syncHeaderSearchInput(this.verbatimSearchTerm, isTreemapSearchMode);
                     if (settingsBtn) settingsBtn.style.display = 'block';
                     
                     // For verbatims mode, keep title as h2 (not editable)
@@ -10819,6 +10922,7 @@
                 this.updateBackButton();
                 
                 this.currentMode = 'create-insight';
+                this.setHeaderSearchMode(false);
                 this.createInsightContext = contextData;
                 this.currentInsightId = null; // No existing insight
                 
@@ -10914,6 +11018,7 @@
                 }
                 
                 this.currentMode = 'insight-notes';
+                this.setHeaderSearchMode(false);
                 this.currentInsightId = insightId;
                 
                 // Open UI
@@ -11628,6 +11733,7 @@
                     return;
                 }
                 this.currentMode = 'ad-iterate';
+                this.setHeaderSearchMode(false);
                 this.isOpen = true;
                 panel.classList.add('open');
                 overlay.classList.add('visible');
@@ -11783,6 +11889,7 @@
                 this.navigationStack = [];
                 this.updateBackButton();
                 this.currentMode = 'ai-overview';
+                this.setHeaderSearchMode(false);
                 this.currentOverviewInsightId = null; // Reset on new overview
 
                 const panel = document.getElementById('slideoutPanel');
@@ -13116,6 +13223,7 @@
                 // Only reset currentMode if we're not in history mode (history mode persists)
                 // Actually, we should reset it - when closing, we want to clear the mode
                 this.currentMode = null;
+                this.setHeaderSearchMode(false);
                 this.currentInsightId = null;
                 this.currentInsightData = null;
                 this.currentOverviewInsightId = null;
@@ -13238,6 +13346,7 @@
                             const insight = await response.json();
                             this.currentInsightData = insight;
                             this.currentMode = 'insight-notes';
+                            this.setHeaderSearchMode(false);
                             this.currentInsightId = previousState.data.insightId;
                             
                             // Update ALL UI elements at once (before content update)
@@ -13259,6 +13368,7 @@
                 } else if (previousState.level === 'chart') {
                     // Restore chart view
                     this.currentMode = 'chart';
+                    this.setHeaderSearchMode(false);
                     
                     // Update ALL UI elements at once (before content update)
                     if (title) {
@@ -13341,6 +13451,7 @@
                 console.log('[BreadcrumbNav] renderChartView called:', { categoryName, topicName, dataSourceId, dimensionName, skipUIUpdates });
                 
                 this.currentMode = 'chart';
+                this.setHeaderSearchMode(false);
                 // Track current chart state
                 this.currentChartCategoryName = categoryName;
                 this.currentChartTopicName = topicName;
@@ -13733,7 +13844,8 @@
                 // Setup search input (preserve existing value if re-rendering)
                 const searchInput = document.getElementById('slideoutSearch');
                 const clearBtn = document.getElementById('slideoutSearchClear');
-                if (searchInput) {
+                const isHeaderSearchMode = document.getElementById('slideoutPanel')?.classList.contains('slideout-search-mode');
+                if (searchInput && isHeaderSearchMode) {
                     // Only clear if this is a fresh render (verbatimSearchTerm is empty)
                     if (!this.verbatimSearchTerm) {
                         searchInput.value = '';
@@ -13748,6 +13860,8 @@
                     if (clearBtn) {
                         clearBtn.style.display = this.verbatimSearchTerm && this.verbatimSearchTerm.trim() ? 'flex' : 'none';
                     }
+                } else if (clearBtn) {
+                    clearBtn.style.display = 'none';
                 }
                 
                 // Show settings button
@@ -14420,6 +14534,7 @@
                 
                 // Set mode to 'history' so setCurrentDimension won't close the panel
                 this.currentMode = 'history';
+                this.setHeaderSearchMode(false);
                 this.isOpen = true;
                 
                 // Use origin from action if available, otherwise create a minimal default origin
@@ -15836,12 +15951,29 @@
                     <path d="M12 4l-6 6 6 6"/>
                 </svg>
             </button>
-            <div style="flex: 1;">
+            <div id="slideoutTitleContainer" style="flex: 1; min-width: 0;">
                 <div id="slideoutTitle" 
                      contenteditable="true" 
                      style="font-size: 1.5rem; font-weight: 600; font-family: 'Lato', sans-serif; color: oklch(0.145 0 0); outline: none; min-height: 1.75rem; line-height: 1.2;"
                      data-placeholder="Insight Title">AI-Generated Insights</div>
                 <p id="slideoutSubtitle" class="overlay-subtitle" style="display: none; margin-top: 4px; font-size: 13px; color: #666;"></p>
+            </div>
+            <div id="slideoutSearchContainer" class="slideout-header-search-container" style="display: none;">
+                <div class="slideout-header-search-input-wrapper">
+                    <input
+                        type="text"
+                        id="slideoutSearch"
+                        class="slideout-header-search-input"
+                        placeholder="Search verbatims by keyword..."
+                    />
+                    <button
+                        id="slideoutSearchClear"
+                        class="slideout-header-search-clear"
+                        onclick="clearTreemapSearch()"
+                        title="Clear search"
+                        style="display: none;"
+                    >&times;</button>
+                </div>
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
                 <button id="slideoutSettingsBtn" class="settings-button" onclick="toggleSlideoutSettings()" title="Card Settings" style="display: none;">

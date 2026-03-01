@@ -5708,6 +5708,62 @@ mark.highlight-brand {
     justify-content: space-between;
     align-items: center;
     background: oklch(1 0 0);
+    gap: 10px;
+}
+
+.slideout-header-search-container {
+    flex: 1;
+    min-width: 0;
+    justify-content: flex-start;
+}
+
+.slideout-header-search-input-wrapper {
+    position: relative;
+    width: 100%;
+    max-width: 320px;
+}
+
+.slideout-header-search-input {
+    width: 100%;
+    padding: 10px 38px 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: 'Lato', sans-serif;
+}
+
+.slideout-header-search-input:focus {
+    outline: none;
+    border-color: #B9F040;
+    box-shadow: 0 0 0 3px rgba(185, 240, 64, 0.12);
+}
+
+.slideout-header-search-clear {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #999;
+    font-size: 18px;
+    line-height: 1;
+    width: 24px;
+    height: 24px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 3px;
+}
+
+.slideout-header-search-clear:hover {
+    background: #f0f0f0;
+    color: #667eea;
+}
+
+.ai-insights-panel.slideout-search-mode #slideoutTitleContainer {
+    display: none;
 }
 
 .ai-close-btn {
