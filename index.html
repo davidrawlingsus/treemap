@@ -385,8 +385,7 @@
             renderImagesPage as imagesControllerRenderImagesPage,
             toggleSortDropdown as imagesControllerToggleSortDropdown,
             toggleFilterDropdown as imagesControllerToggleFilterDropdown,
-            loadMoreImagesPage as imagesControllerLoadMoreImagesPage,
-            setImagesViewMode as imagesControllerSetImagesViewMode
+            loadMoreImagesPage as imagesControllerLoadMoreImagesPage
         } from '/js/controllers/images-controller.js';
         import {
             showImageUploadModal as imagesRendererShowImageUploadModal
@@ -638,7 +637,6 @@
         window.showImportMediaModal = importMediaShowImportMediaModal;
         window.toggleImagesSortMenu = imagesControllerToggleSortDropdown;
         window.toggleImagesFilterMenu = imagesControllerToggleFilterDropdown;
-        window.setImagesViewMode = imagesControllerSetImagesViewMode;
         
         // Expose appendImageToGrid for real-time updates from imports
         window.appendImageToGrid = function(image) {
@@ -16437,7 +16435,7 @@
                     </div>
                 </div>
                 <div class="ads-view-toggle images-view-toggle" id="imagesViewToggle">
-                    <button type="button" class="ads-view-toggle__btn images-view-toggle__btn active" data-view="gallery" title="Gallery view" onclick="window.setImagesViewMode('gallery')">
+                <button type="button" class="ads-view-toggle__btn images-view-toggle__btn active" data-view="gallery" title="Gallery view">
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                             <rect x="1" y="1" width="6" height="6" rx="1"/>
                             <rect x="9" y="1" width="6" height="6" rx="1"/>
@@ -16445,7 +16443,7 @@
                             <rect x="9" y="9" width="6" height="6" rx="1"/>
                         </svg>
                     </button>
-                    <button type="button" class="ads-view-toggle__btn images-view-toggle__btn" data-view="table" title="Table view" onclick="window.setImagesViewMode('table')">
+                <button type="button" class="ads-view-toggle__btn images-view-toggle__btn" data-view="table" title="Table view">
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                             <rect x="1" y="2" width="14" height="2" rx="1"/>
                             <rect x="1" y="7" width="14" height="2" rx="1"/>
