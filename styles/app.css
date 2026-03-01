@@ -537,15 +537,20 @@ body.slideout-open {
  }
 
 .treemap-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
     padding: 20px 24px 16px 24px;
     border-bottom: 1px solid #E6EBF3;
 }
 
 .treemap-header-top {
     display: flex;
-    justify-content: space-between;
     align-items: center;
     gap: 12px;
+    flex: 1;
+    min-width: 0;
 }
 
 .treemap-title {
@@ -569,33 +574,23 @@ body.slideout-open {
     opacity: 0.7;
 }
 
-.treemap-search-container {
-    position: relative;
-    padding: 12px 24px;
-    border-bottom: 1px solid #E6EBF3;
-}
-
-.treemap-container.collapsed .treemap-search-container {
-    display: none;
-}
-
 .treemap-search-input-wrapper {
     position: relative;
     display: inline-block;
 }
 
 /* Bring search input and clear button above slideout overlay when search is active and slideout is visible */
-body.slideout-open .treemap-search-container.search-active .treemap-search-input-wrapper {
+body.slideout-open .treemap-header.search-active .treemap-search-input-wrapper {
     position: relative;
     z-index: 10001;
 }
 
-body.slideout-open .treemap-search-container.search-active .treemap-search-input {
+body.slideout-open .treemap-header.search-active .treemap-search-input {
     background: white;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-body.slideout-open .treemap-search-container.search-active .treemap-search-clear {
+body.slideout-open .treemap-header.search-active .treemap-search-clear {
     z-index: 10002;
 }
 

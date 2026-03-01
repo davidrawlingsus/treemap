@@ -983,14 +983,7 @@
                 <div class="treemap-header">
                     <div class="treemap-header-top">
                         <h2 class="treemap-title">Topic Distribution</h2>
-                        <button class="chart__toggle" onclick="toggleTreemap(this)" aria-label="Toggle treemap visibility">
-                            <svg class="chart__toggle-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M4 6 L8 10 L12 6" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </button>
                     </div>
-                </div>
-                <div class="treemap-search-container">
                     <div class="treemap-search-input-wrapper">
                         <input
                             type="text"
@@ -1006,6 +999,11 @@
                             style="display: none;"
                         >&times;</button>
                     </div>
+                    <button class="chart__toggle" onclick="toggleTreemap(this)" aria-label="Toggle treemap visibility">
+                        <svg class="chart__toggle-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 6 L8 10 L12 6" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
                 </div>
                 <div class="treemap-svg-container">
                     <div class="loading" id="loading">Loading data...</div>
@@ -4761,7 +4759,7 @@
         function handleTreemapSearch() {
             const searchInput = document.getElementById('treemapSearch');
             const clearBtn = document.getElementById('treemapSearchClear');
-            const searchContainer = document.querySelector('.treemap-search-container');
+            const searchContainer = document.querySelector('.treemap-header');
             
             if (!searchInput) return;
             
@@ -4828,7 +4826,7 @@
         function clearTreemapSearch() {
             const searchInput = document.getElementById('treemapSearch');
             const clearBtn = document.getElementById('treemapSearchClear');
-            const searchContainer = document.querySelector('.treemap-search-container');
+            const searchContainer = document.querySelector('.treemap-header');
             
             if (searchInput) {
                 searchInput.value = '';
@@ -4866,7 +4864,7 @@
         // Update search bar z-index based on slideout state and search term
         function updateTreemapSearchZIndex() {
             const searchInput = document.getElementById('treemapSearch');
-            const searchContainer = document.querySelector('.treemap-search-container');
+            const searchContainer = document.querySelector('.treemap-header');
             
             if (!searchContainer || !searchInput) return;
             
