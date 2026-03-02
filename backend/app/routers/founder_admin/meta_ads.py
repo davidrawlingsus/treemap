@@ -37,6 +37,8 @@ from app.schemas import (
     MetaAdSetListResponse,
     CreateAdSetRequest,
     CreateAdSetResponse,
+    LeadForm,
+    LeadFormListResponse,
     PublishAdRequest,
     PublishAdResponse,
     MetaMediaLibraryResponse,
@@ -700,6 +702,7 @@ async def list_adsets(
                 campaign_id=campaign_id,
                 daily_budget=daily_budget,
                 lifetime_budget=lifetime_budget,
+                optimization_goal=a.get("optimization_goal"),
             ))
         except (KeyError, TypeError) as e:
             logger.warning(f"Skipping malformed adset: {a} - {e}")
@@ -749,6 +752,45 @@ async def create_adset(
     except Exception as e:
         logger.error(f"Failed to create adset: {e}")
         raise HTTPException(status_code=400, detail=str(e))
+
+
+# ==================== Lead Form Endpoints ====================
+
+@router.get("/api/meta/lead-forms")
+async def list_lead_forms(
+    page_id: str = Query(...),
+    client_id: UUID = Query(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> LeadFormListResponse:
+    """List lead forms for a Facebook page."""
+    verify_client_access(client_id, current_user, db)
+    service = MetaAdsService(db)
+    token = service.get_token(str(client_id), str(current_user.id))
+    
+    if not token:
+        raise HTTPException(status_code=400, detail="No Meta token for this client")
+    
+    try:
+        forms = await service.list_lead_forms(token.access_token, page_id)
+    except Exception as e:
+        logger.error(f"Failed to list lead forms: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    
+    items = []
+    for f in forms:
+        try:
+            form_id = str(f["id"]) if f.get("id") is not None else ""
+            items.append(LeadForm(
+                id=form_id,
+                name=f.get("name", ""),
+                status=f.get("status"),
+            ))
+        except (KeyError, TypeError) as e:
+            logger.warning(f"Skipping malformed lead form: {f} - {e}")
+            continue
+    
+    return LeadFormListResponse(items=items, total=len(items))
 
 
 # ==================== Pixel Endpoints ====================
@@ -2350,6 +2392,7 @@ async def publish_ad(
             page_id=page_id,
             ad_name=request.name,
             status=request.status,
+            lead_form_id=request.lead_form_id,
         )
         
         return PublishAdResponse(

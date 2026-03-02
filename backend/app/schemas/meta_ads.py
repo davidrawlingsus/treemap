@@ -93,6 +93,7 @@ class MetaAdSet(BaseModel):
     campaign_id: str = Field(..., description="Parent campaign ID")
     daily_budget: Optional[str] = Field(None, description="Daily budget in cents")
     lifetime_budget: Optional[str] = Field(None, description="Lifetime budget in cents")
+    optimization_goal: Optional[str] = Field(None, description="Optimization goal (e.g. LEAD_GENERATION)")
 
 
 class MetaAdSetListResponse(BaseModel):
@@ -122,6 +123,21 @@ class CreateAdSetResponse(BaseModel):
     name: str
 
 
+# ==================== Lead Form Schemas ====================
+
+class LeadForm(BaseModel):
+    """Meta lead form info."""
+    id: str = Field(..., description="Lead form ID")
+    name: str = Field(..., description="Form name")
+    status: Optional[str] = Field(None, description="Form status")
+
+
+class LeadFormListResponse(BaseModel):
+    """Response for listing lead forms."""
+    items: List[LeadForm]
+    total: int
+
+
 # ==================== Ad Publishing Schemas ====================
 
 class PublishAdRequest(BaseModel):
@@ -131,6 +147,7 @@ class PublishAdRequest(BaseModel):
     ad_account_id: str = Field(..., description="Meta ad account ID")
     name: Optional[str] = Field(None, description="Optional name for the ad in Meta")
     status: str = Field("PAUSED", description="Initial ad status in Meta")
+    lead_form_id: Optional[str] = Field(None, description="Lead form ID for lead ads (required when adset is lead)")
 
 
 class PublishAdResponse(BaseModel):

@@ -41,7 +41,7 @@ class MetaAdsService:
         Returns:
             OAuth authorization URL
         """
-        scopes = "ads_management,ads_read,business_management,pages_show_list"
+        scopes = "ads_management,ads_read,business_management,pages_show_list,pages_manage_ads"
         
         params = {
             "client_id": self.settings.meta_app_id,
@@ -317,7 +317,7 @@ class MetaAdsService:
                 f"{META_GRAPH_API_BASE}/{campaign_id}/adsets",
                 params={
                     "access_token": access_token,
-                    "fields": "id,name,status,daily_budget,lifetime_budget",
+                    "fields": "id,name,status,daily_budget,lifetime_budget,optimization_goal",
                     "limit": 100,
                 }
             )
@@ -636,6 +636,105 @@ class MetaAdsService:
             
             return response.json()
     
+    # Map ad CTA to Meta lead ad CTA types (SIGN_UP, LEARN_MORE, GET_QUOTE, etc.)
+    _LEAD_CTA_MAP = {
+        "SIGN_UP": "SIGN_UP",
+        "LEARN_MORE": "LEARN_MORE",
+        "GET_QUOTE": "GET_QUOTE",
+        "DOWNLOAD": "DOWNLOAD",
+        "APPLY_NOW": "APPLY_NOW",
+        "SUBSCRIBE": "SUBSCRIBE",
+        "SHOP_NOW": "LEARN_MORE",  # fallback
+        "CONTACT_US": "LEARN_MORE",
+        "BOOK_NOW": "GET_QUOTE",
+    }
+    
+    async def create_lead_ad_creative(
+        self,
+        access_token: str,
+        ad_account_id: str,
+        name: str,
+        page_id: str,
+        primary_text: str,
+        headline: str,
+        description: str,
+        lead_form_id: str,
+        call_to_action: str,
+        image_hash: Optional[str] = None,
+        video_id: Optional[str] = None,
+        thumbnail_url: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Create an ad creative for lead form ads.
+        Uses link_data or video_data with call_to_action.value.lead_gen_form_id.
+        """
+        import json
+        
+        cta_type = self._LEAD_CTA_MAP.get(
+            (call_to_action or "SIGN_UP").upper(), "SIGN_UP"
+        )
+        cta_spec = {
+            "type": cta_type,
+            "value": {"lead_gen_form_id": lead_form_id},
+        }
+        
+        if video_id:
+            object_story_spec = {
+                "page_id": page_id,
+                "video_data": {
+                    "video_id": video_id,
+                    "message": primary_text,
+                    "title": headline,
+                    "link_description": description,
+                    "call_to_action": cta_spec,
+                }
+            }
+            if thumbnail_url:
+                object_story_spec["video_data"]["image_url"] = thumbnail_url
+        else:
+            object_story_spec = {
+                "page_id": page_id,
+                "link_data": {
+                    "link": "https://fb.me/",
+                    "message": primary_text,
+                    "name": headline,
+                    "description": description,
+                    "call_to_action": cta_spec,
+                }
+            }
+            if image_hash:
+                object_story_spec["link_data"]["image_hash"] = image_hash
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{META_GRAPH_API_BASE}/{ad_account_id}/adcreatives",
+                data={
+                    "name": name,
+                    "object_story_spec": json.dumps(object_story_spec),
+                    "access_token": access_token,
+                }
+            )
+            
+            if not response.is_success:
+                try:
+                    error_data = response.json()
+                    error_obj = error_data.get("error", {})
+                    error_msg = error_obj.get("message", response.text)
+                    error_subcode = error_obj.get("error_subcode")
+                    error_user_msg = error_obj.get("error_user_msg", "")
+                    
+                    if error_subcode == 1885183 or "development mode" in error_user_msg.lower():
+                        raise Exception(
+                            "Your Meta App is in Development Mode. "
+                            "Go to developers.facebook.com, select your app, and switch to Live mode to publish ads."
+                        )
+                    
+                    raise Exception(f"Meta API error: {error_user_msg or error_msg}")
+                except Exception:
+                    raise
+            
+            return response.json()
+    
     async def create_ad(
         self,
         access_token: str,
@@ -690,6 +789,7 @@ class MetaAdsService:
         page_id: str,
         ad_name: Optional[str] = None,
         status: str = "PAUSED",
+        lead_form_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Publish a local Facebook ad to Meta.
@@ -763,20 +863,36 @@ class MetaAdsService:
         # Create the ad creative
         creative_name = ad_name or f"Creative - {ad.headline[:30]}"
         
-        creative_result = await self.create_ad_creative(
-            access_token=access_token,
-            ad_account_id=ad_account_id,
-            name=creative_name,
-            page_id=page_id,
-            primary_text=clean_primary_text,
-            headline=clean_headline,
-            description=clean_description,
-            link_url=ad.destination_url or "https://example.com",
-            call_to_action=ad.call_to_action,
-            image_hash=image_hash,
-            video_id=video_id,
-            thumbnail_url=thumbnail_url,
-        )
+        if lead_form_id:
+            creative_result = await self.create_lead_ad_creative(
+                access_token=access_token,
+                ad_account_id=ad_account_id,
+                name=creative_name,
+                page_id=page_id,
+                primary_text=clean_primary_text,
+                headline=clean_headline,
+                description=clean_description,
+                lead_form_id=lead_form_id,
+                call_to_action=ad.call_to_action,
+                image_hash=image_hash,
+                video_id=video_id,
+                thumbnail_url=thumbnail_url,
+            )
+        else:
+            creative_result = await self.create_ad_creative(
+                access_token=access_token,
+                ad_account_id=ad_account_id,
+                name=creative_name,
+                page_id=page_id,
+                primary_text=clean_primary_text,
+                headline=clean_headline,
+                description=clean_description,
+                link_url=ad.destination_url or "https://example.com",
+                call_to_action=ad.call_to_action,
+                image_hash=image_hash,
+                video_id=video_id,
+                thumbnail_url=thumbnail_url,
+            )
         creative_id = creative_result.get("id")
         logger.info(f"Created creative {creative_id} for ad {ad_id}")
         
@@ -801,6 +917,36 @@ class MetaAdsService:
             "meta_ad_id": meta_ad_id,
             "meta_creative_id": creative_id,
         }
+    
+    # ==================== Lead Form Methods ====================
+    
+    async def list_lead_forms(
+        self,
+        access_token: str,
+        page_id: str,
+    ) -> List[Dict[str, Any]]:
+        """
+        List lead forms for a Facebook page.
+        
+        Returns:
+            List of lead form dicts with id, name, status
+        """
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{META_GRAPH_API_BASE}/{page_id}/leadgen_forms",
+                params={
+                    "access_token": access_token,
+                    "fields": "id,name,status",
+                    "limit": 100,
+                }
+            )
+            data = response.json() if response.content else {}
+            if not response.is_success:
+                error_obj = data.get("error", {})
+                error_user_msg = error_obj.get("error_user_msg", "")
+                error_msg = error_obj.get("message", response.text)
+                raise Exception(f"Meta API error: {error_user_msg or error_msg}")
+            return data.get("data", [])
     
     # ==================== Pixel Methods ====================
     

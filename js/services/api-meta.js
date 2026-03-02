@@ -285,6 +285,22 @@ export async function fetchMetaPixels(clientId) {
     return handleResponse(response, 'Fetch Meta pixels');
 }
 
+// ==================== Lead Form Methods ====================
+
+/**
+ * Fetch lead forms for a Facebook page
+ * @param {string} clientId - Client UUID
+ * @param {string} pageId - Meta page ID
+ * @returns {Promise<Object>} Response with items array of lead forms
+ */
+export async function fetchMetaLeadForms(clientId, pageId) {
+    const response = await fetch(
+        `${API_BASE_URL}/api/meta/lead-forms?client_id=${clientId}&page_id=${pageId}`,
+        { headers: getAuthHeaders() }
+    );
+    return handleResponse(response, 'Fetch Meta lead forms');
+}
+
 // ==================== Media Library (FB Connector) Methods ====================
 
 /**
@@ -628,9 +644,20 @@ export async function resumeImportAllMetaMediaAsyncJob(jobId) {
  * @param {string} pageId - Facebook page ID
  * @param {string} [name] - Optional ad name
  * @param {string} [status='PAUSED'] - Initial ad status
+ * @param {string} [leadFormId] - Lead form ID for lead ads (required when adset is lead)
  * @returns {Promise<Object>} Response with meta_ad_id and meta_creative_id
  */
-export async function publishAdToMeta(clientId, adId, adsetId, adAccountId, pageId, name = null, status = 'PAUSED') {
+export async function publishAdToMeta(clientId, adId, adsetId, adAccountId, pageId, name = null, status = 'PAUSED', leadFormId = null) {
+    const body = {
+        ad_id: adId,
+        adset_id: adsetId,
+        ad_account_id: adAccountId,
+        name: name,
+        status: status,
+    };
+    if (leadFormId) {
+        body.lead_form_id = leadFormId;
+    }
     const response = await fetch(
         `${API_BASE_URL}/api/meta/publish-ad?client_id=${clientId}&page_id=${pageId}`,
         {
@@ -639,13 +666,7 @@ export async function publishAdToMeta(clientId, adId, adsetId, adAccountId, page
                 ...getAuthHeaders(),
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({
-                ad_id: adId,
-                adset_id: adsetId,
-                ad_account_id: adAccountId,
-                name: name,
-                status: status,
-            }),
+            body: JSON.stringify(body),
         }
     );
     return handleResponse(response, 'Publish ad to Meta');

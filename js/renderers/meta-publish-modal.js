@@ -16,6 +16,7 @@ import {
     createMetaAdset,
     fetchMetaPages,
     fetchMetaPixels,
+    fetchMetaLeadForms,
     publishAdToMeta,
 } from '/js/services/api-meta.js';
 import {
@@ -42,6 +43,9 @@ import {
     setMetaPages,
     getSelectedPageId,
     setSelectedPageId,
+    getSelectedLeadFormId,
+    setSelectedLeadFormId,
+    isLeadContext,
     initMetaStateFromToken,
     isPublishConfigComplete,
 } from '/js/state/meta-state.js';
@@ -51,6 +55,7 @@ let currentAdId = null;
 let currentAdIds = null; // Array when bulk publish
 let currentClientId = null;
 let cachedPixels = []; // Local cache for pixels
+let cachedLeadForms = []; // Local cache for lead forms
 
 /**
  * Show the Meta publish modal for an ad or multiple ads
@@ -511,6 +516,14 @@ function renderPublishState(adData, bulkCount = 0) {
                 </div>
             </div>
             
+            <div class="meta-publish-modal__section meta-publish-modal__section--lead-form" id="leadFormSection" style="display: none;">
+                <label class="meta-publish-modal__label">Lead Form</label>
+                <select class="meta-publish-modal__select" id="metaLeadFormSelect">
+                    <option value="">Select lead form...</option>
+                </select>
+                <p class="meta-publish-modal__hint" id="leadFormHint" style="display: none;">No lead forms found for this page. Create forms in Meta Business Suite or Ads Manager.</p>
+            </div>
+            
             <div class="meta-publish-modal__actions">
                 <button class="meta-publish-modal__btn meta-publish-modal__btn--secondary" id="cancelPublishBtn">Cancel</button>
                 <button class="meta-publish-modal__btn meta-publish-modal__btn--primary" id="publishBtn" ${!isPublishConfigComplete() ? 'disabled' : ''}>
@@ -522,6 +535,9 @@ function renderPublishState(adData, bulkCount = 0) {
     
     // Attach event listeners
     attachFormListeners();
+    
+    // Update lead form section (show/hide, load forms) based on current selections
+    updateLeadFormSection();
 }
 
 /**
@@ -569,7 +585,8 @@ function attachFormListeners() {
     const pageSelect = container.querySelector('#metaPageSelect');
     pageSelect?.addEventListener('change', (e) => {
         setSelectedPageId(e.target.value || null);
-        updatePublishButton();
+        setSelectedLeadFormId(null); // Forms are per-page
+        updateFormState();
     });
     
     // Campaign select
@@ -606,6 +623,13 @@ function attachFormListeners() {
             setSelectedAdsetId(value || null);
         }
         
+        updateFormState();
+    });
+    
+    // Lead form select
+    const leadFormSelect = container.querySelector('#metaLeadFormSelect');
+    leadFormSelect?.addEventListener('change', (e) => {
+        setSelectedLeadFormId(e.target.value || null);
         updatePublishButton();
     });
     
@@ -705,7 +729,81 @@ function updateFormState() {
         `;
     }
     
+    updateLeadFormSection();
     updatePublishButton();
+}
+
+/**
+ * Load lead forms for the selected page and update the lead form section
+ */
+async function loadLeadForms() {
+    const container = getContentContainer();
+    const select = container.querySelector('#metaLeadFormSelect');
+    const hint = container.querySelector('#leadFormHint');
+    if (!select || !hint) return;
+    
+    const pageId = getSelectedPageId();
+    if (!pageId) {
+        select.innerHTML = '<option value="">Select a page first</option>';
+        select.disabled = true;
+        hint.style.display = 'none';
+        return;
+    }
+    
+    select.innerHTML = '<option value="">Loading forms...</option>';
+    select.disabled = true;
+    hint.style.display = 'none';
+    
+    try {
+        const response = await fetchMetaLeadForms(currentClientId, pageId);
+        cachedLeadForms = response.items || [];
+        const selectedId = getSelectedLeadFormId();
+        
+        if (cachedLeadForms.length === 0) {
+            select.innerHTML = '<option value="">No lead forms found</option>';
+            select.disabled = true;
+            hint.style.display = 'block';
+            setSelectedLeadFormId(null);
+        } else {
+            select.innerHTML = `
+                <option value="">Select lead form...</option>
+                ${cachedLeadForms.map(f => `
+                    <option value="${escapeHtml(f.id)}" ${f.id === selectedId ? 'selected' : ''}>
+                        ${escapeHtml(f.name || f.id)}
+                    </option>
+                `).join('')}
+            `;
+            select.disabled = false;
+            hint.style.display = 'none';
+            if (selectedId && !cachedLeadForms.find(f => f.id === selectedId)) {
+                setSelectedLeadFormId(null);
+            }
+        }
+    } catch (error) {
+        console.error('[MetaPublishModal] Failed to load lead forms:', error);
+        select.innerHTML = '<option value="">Failed to load lead forms</option>';
+        select.disabled = true;
+        hint.style.display = 'none';
+    }
+    updatePublishButton();
+}
+
+/**
+ * Update lead form section visibility and content based on lead context
+ */
+async function updateLeadFormSection() {
+    const container = getContentContainer();
+    const section = container.querySelector('#leadFormSection');
+    if (!section) return;
+    
+    if (isLeadContext()) {
+        section.style.display = 'block';
+        await loadLeadForms();
+    } else {
+        section.style.display = 'none';
+        setSelectedLeadFormId(null);
+        updatePublishButton();
+    }
 }
 
 /**
@@ -895,12 +993,16 @@ async function handlePublish() {
                 btn.textContent = `Publishing ${i + 1} of ${adIds.length}...`;
             }
             
+            const leadFormId = isLeadContext() ? getSelectedLeadFormId() : null;
             const result = await publishAdToMeta(
                 currentClientId,
                 adIds[i],
                 adsetId,
                 adAccountId,
-                pageId
+                pageId,
+                null,
+                'PAUSED',
+                leadFormId
             );
             
             if (result.success) {

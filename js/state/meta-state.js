@@ -14,6 +14,7 @@ let selectedAdAccountId = null;
 let selectedCampaignId = null;
 let selectedAdsetId = null;
 let selectedPageId = null;
+let selectedLeadFormId = null;
 
 // ==================== Token Status ====================
 
@@ -54,6 +55,7 @@ export function clearMetaState() {
     selectedCampaignId = null;
     selectedAdsetId = null;
     selectedPageId = null;
+    selectedLeadFormId = null;
 }
 
 // ==================== Ad Accounts ====================
@@ -287,9 +289,43 @@ export function getPublishConfig() {
 }
 
 /**
+ * Get selected lead form ID
+ * @returns {string|null}
+ */
+export function getSelectedLeadFormId() {
+    return selectedLeadFormId;
+}
+
+/**
+ * Set selected lead form ID
+ * @param {string|null} id - Lead form ID
+ */
+export function setSelectedLeadFormId(id) {
+    selectedLeadFormId = id;
+}
+
+/**
+ * Check if in lead ad context (campaign or adset is for leads)
+ * @returns {boolean}
+ */
+export function isLeadContext() {
+    const campaign = getSelectedCampaign();
+    const adset = getSelectedAdset();
+    return (
+        campaign?.objective === 'OUTCOME_LEADS' ||
+        adset?.optimization_goal === 'LEAD_GENERATION'
+    );
+}
+
+/**
  * Check if publish configuration is complete
  * @returns {boolean}
  */
 export function isPublishConfigComplete() {
-    return !!(selectedAdAccountId && selectedCampaignId && selectedAdsetId && selectedPageId);
+    const base = !!(selectedAdAccountId && selectedCampaignId && selectedAdsetId && selectedPageId);
+    if (!base) return false;
+    if (isLeadContext()) {
+        return !!selectedLeadFormId;
+    }
+    return true;
 }

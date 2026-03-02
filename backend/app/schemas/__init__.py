@@ -154,6 +154,8 @@ from .meta_ads import (
     MetaAdSetListResponse,
     CreateAdSetRequest,
     CreateAdSetResponse,
+    LeadForm,
+    LeadFormListResponse,
     PublishAdRequest,
     PublishAdResponse,
     MetaMediaLibraryPaging,
