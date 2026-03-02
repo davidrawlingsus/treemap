@@ -16,7 +16,11 @@ import {
     fetchMetaMediaLibrary,
     fetchMetaMediaLibraryCounts,
     importMetaMediaStream,
-    importAllMetaMediaStream,
+    startImportAllMetaMediaAsync,
+    getImportAllMetaMediaAsyncJob,
+    listImportAllMetaMediaAsyncJobs,
+    cancelImportAllMetaMediaAsyncJob,
+    resumeImportAllMetaMediaAsyncJob,
     openMetaOAuthPopup,
 } from '/js/services/api-meta.js';
 import { addImageToCache } from '/js/state/images-state.js';
@@ -26,21 +30,32 @@ import { renderFbConnectorPicker } from '/js/renderers/fb-connector-media-picker
 
 // Track active jobs and their polling intervals
 const activeJobs = new Map(); // jobId -> { interval, addedImageIds, onComplete }
+const activeAsyncImportAllJobs = new Map(); // jobId -> { interval, addedImageIds, onUpdate, onItem, onComplete }
 
 // Persistent progress bar for FB Connector import (survives modal close)
 let globalImportProgressEl = null;
 /** AbortController for the current in-flight import; cleared when import ends or is cancelled. */
 let currentImportAbortController = null;
+/** Active async import-all job id controlled by global progress cancel. */
+let currentAsyncImportAllJobId = null;
 
 function getOrCreatePersistentImportProgressEl() {
     if (!globalImportProgressEl || !globalImportProgressEl.isConnected) {
         globalImportProgressEl = document.createElement('div');
         globalImportProgressEl.className = 'import-media-global-progress';
-        globalImportProgressEl.innerHTML = '<span class="import-media-global-progress__text"></span><div class="import-media-global-progress__bar-wrap"><div class="import-media-global-progress__bar"></div></div><button type="button" class="import-media-global-progress__cancel">Cancel</button>';
+        globalImportProgressEl.innerHTML = '<span class="import-media-global-progress__text"></span><div class="import-media-global-progress__bar-wrap"><div class="import-media-global-progress__bar"></div></div><button type="button" class="import-media-global-progress__resume" style="display:none;">Resume</button><button type="button" class="import-media-global-progress__cancel">Cancel</button>';
         document.body.appendChild(globalImportProgressEl);
         const cancelBtn = globalImportProgressEl.querySelector('.import-media-global-progress__cancel');
         if (cancelBtn) {
-            cancelBtn.addEventListener('click', () => {
+            cancelBtn.addEventListener('click', async () => {
+                if (currentAsyncImportAllJobId) {
+                    try {
+                        await cancelImportAllMetaMediaAsyncJob(currentAsyncImportAllJobId);
+                    } catch (e) {
+                        console.warn('[ImportMediaModal] Failed to cancel async import-all:', e);
+                    }
+                    return;
+                }
                 if (currentImportAbortController) {
                     currentImportAbortController.abort();
                 }
@@ -53,6 +68,7 @@ function getOrCreatePersistentImportProgressEl() {
 function updatePersistentImportProgress(opts) {
     if (opts === null) {
         currentImportAbortController = null;
+        currentAsyncImportAllJobId = null;
         if (globalImportProgressEl?.isConnected) {
             globalImportProgressEl.remove();
         }
@@ -63,16 +79,26 @@ function updatePersistentImportProgress(opts) {
     const textEl = el.querySelector('.import-media-global-progress__text');
     const bar = el.querySelector('.import-media-global-progress__bar');
     const cancelBtn = el.querySelector('.import-media-global-progress__cancel');
+    const resumeBtn = el.querySelector('.import-media-global-progress__resume');
     if (textEl) textEl.textContent = opts.text || '';
     if (bar) {
         const pct = opts.total != null && opts.total > 0 ? Math.min(100, ((opts.imported ?? 0) / opts.total) * 100) : 0;
         bar.style.width = `${pct}%`;
     }
+    if (resumeBtn) {
+        if (opts.showResume && typeof opts.onResume === 'function') {
+            resumeBtn.style.display = '';
+            resumeBtn.onclick = () => opts.onResume();
+        } else {
+            resumeBtn.style.display = 'none';
+            resumeBtn.onclick = null;
+        }
+    }
     if (opts.complete) {
         el.classList.add('import-media-global-progress--complete');
         if (cancelBtn) cancelBtn.style.display = 'none';
     } else if (cancelBtn) {
-        cancelBtn.style.display = '';
+        cancelBtn.style.display = opts.hideCancel ? 'none' : '';
     }
 }
 
@@ -220,6 +246,67 @@ function startBackgroundPolling(jobId, onComplete = null) {
     return jobData;
 }
 
+function stopAsyncImportAllJobPolling(jobId) {
+    const jobData = activeAsyncImportAllJobs.get(jobId);
+    if (jobData?.interval) {
+        clearInterval(jobData.interval);
+    }
+    activeAsyncImportAllJobs.delete(jobId);
+}
+
+async function pollAsyncImportAllJob(jobId) {
+    const jobData = activeAsyncImportAllJobs.get(jobId);
+    if (!jobData) return;
+    try {
+        const status = await getImportAllMetaMediaAsyncJob(jobId);
+        const job = status?.job || null;
+        if (!job) return;
+
+        if (typeof jobData.onUpdate === 'function') {
+            jobData.onUpdate(job);
+        }
+        const recentImages = Array.isArray(status?.recent_images) ? status.recent_images : [];
+        if (recentImages.length && typeof jobData.onItem === 'function') {
+            for (const image of recentImages) {
+                if (!jobData.addedImageIds.has(image.id)) {
+                    jobData.addedImageIds.add(image.id);
+                    jobData.onItem(image);
+                }
+            }
+        }
+
+        if (['complete', 'failed', 'cancelled'].includes(job.status)) {
+            stopAsyncImportAllJobPolling(jobId);
+            if (typeof jobData.onComplete === 'function') {
+                jobData.onComplete(job);
+            }
+        }
+    } catch (e) {
+        console.warn('[ImportMediaModal] Async import-all polling error:', e);
+    }
+}
+
+function startAsyncImportAllJobPolling(jobId, { onUpdate = null, onItem = null, onComplete = null } = {}) {
+    const existing = activeAsyncImportAllJobs.get(jobId);
+    if (existing) {
+        existing.onUpdate = onUpdate;
+        existing.onItem = onItem;
+        existing.onComplete = onComplete;
+        return existing;
+    }
+    const jobData = {
+        interval: null,
+        addedImageIds: new Set(),
+        onUpdate,
+        onItem,
+        onComplete,
+    };
+    activeAsyncImportAllJobs.set(jobId, jobData);
+    jobData.interval = setInterval(() => pollAsyncImportAllJob(jobId), 2000);
+    pollAsyncImportAllJob(jobId);
+    return jobData;
+}
+
 // ============ Main Modal Function ============
 
 /**
@@ -316,6 +403,7 @@ export function showImportMediaModal(onImageAdded) {
             
             <div class="import-media-modal__footer" id="importMediaFooter">
                 <button class="import-media-modal__cancel">Cancel</button>
+                <button class="import-media-modal__submit import-media-modal__submit--secondary import-media-fb-cancel-import" id="importMediaFbConnectorCancelImportBtn" style="display: none;">Cancel Import</button>
                 <button class="import-media-modal__submit import-media-modal__submit--secondary import-media-fb-import-all" id="importMediaFbConnectorImportAllBtn" style="display: none;">Import all</button>
                 <button class="import-media-modal__submit import-media-fb-import-selected" id="importMediaFbConnectorImportBtn" style="display: none;" disabled>Import Selected (0)</button>
                 <button class="import-media-modal__submit" id="importMediaMetaSubmit" style="display: none;">Import from Meta</button>
@@ -328,6 +416,7 @@ export function showImportMediaModal(onImageAdded) {
     // Get references to elements
     const closeBtn = overlay.querySelector('.import-media-modal__close');
     const cancelBtn = overlay.querySelector('.import-media-modal__cancel');
+    const fbConnectorCancelImportBtn = overlay.querySelector('#importMediaFbConnectorCancelImportBtn');
     const tabs = overlay.querySelectorAll('.import-media-tab');
     const tabContents = overlay.querySelectorAll('.import-media-tab-content');
     const footerEl = overlay.querySelector('#importMediaFooter');
@@ -390,12 +479,15 @@ export function showImportMediaModal(onImageAdded) {
             metaSubmitBtn.style.display = 'none';
             const fbImportBtn = overlay.querySelector('#importMediaFbConnectorImportBtn');
             const fbImportAllBtn = overlay.querySelector('#importMediaFbConnectorImportAllBtn');
+            const fbCancelImportBtn = overlay.querySelector('#importMediaFbConnectorCancelImportBtn');
             if (fbImportBtn) fbImportBtn.style.display = 'none';
             if (fbImportAllBtn) fbImportAllBtn.style.display = 'none';
+            if (fbCancelImportBtn) fbCancelImportBtn.style.display = 'none';
         } else if (tabName === 'fb-connector') {
             metaSubmitBtn.style.display = 'none';
             const fbImportBtn = overlay.querySelector('#importMediaFbConnectorImportBtn');
             const fbImportAllBtn = overlay.querySelector('#importMediaFbConnectorImportAllBtn');
+            const fbCancelImportBtn = overlay.querySelector('#importMediaFbConnectorCancelImportBtn');
             const showFbFooter = !fbConnectorNeedsAdAccount;
             if (cancelBtn) cancelBtn.style.display = showFbFooter ? '' : 'none';
             if (fbImportBtn) {
@@ -407,13 +499,19 @@ export function showImportMediaModal(onImageAdded) {
                 fbImportAllBtn.style.display = showFbFooter ? '' : 'none';
                 fbImportAllBtn.disabled = fbConnectorImporting;
             }
+            if (fbCancelImportBtn) {
+                fbCancelImportBtn.style.display = showFbFooter && fbConnectorImporting ? '' : 'none';
+                fbCancelImportBtn.disabled = !fbConnectorImporting;
+            }
             refreshFbConnectorTab();
         } else {
             if (cancelBtn) cancelBtn.style.display = '';
             const fbImportBtn = overlay.querySelector('#importMediaFbConnectorImportBtn');
             const fbImportAllBtn = overlay.querySelector('#importMediaFbConnectorImportAllBtn');
+            const fbCancelImportBtn = overlay.querySelector('#importMediaFbConnectorCancelImportBtn');
             if (fbImportBtn) fbImportBtn.style.display = 'none';
             if (fbImportAllBtn) fbImportAllBtn.style.display = 'none';
+            if (fbCancelImportBtn) fbCancelImportBtn.style.display = 'none';
             metaSubmitBtn.style.display = 'block';
             const url = metaUrlInput.value.trim();
             metaSubmitBtn.disabled = !url || !isValidMetaAdsLibraryUrl(url);
@@ -427,6 +525,11 @@ export function showImportMediaModal(onImageAdded) {
     let fbConnectorSelectedIds = new Set();
     let fbConnectorLoading = false;
     let fbConnectorImporting = false;
+    /** Async import-all job snapshot for FB Connector. */
+    let fbConnectorAsyncImportJob = null;
+    let fbConnectorAsyncImportJobId = null;
+    /** Prevent duplicate auto video follow-up runs per modal session. */
+    let fbConnectorAutoVideoFollowupTriggered = false;
     /** When Load All is running: { loaded, total } (total may be null if API has no count). */
     let fbConnectorLoadAllProgress = null;
     /** Error message when initial media fetch fails (e.g. rate limit). Cleared on retry or successful load. */
@@ -450,6 +553,145 @@ export function showImportMediaModal(onImageAdded) {
 
     function getFbConnectorAdAccountId() {
         return fbConnectorSessionAdAccountId || fbConnectorTokenStatus?.default_ad_account_id || null;
+    }
+
+    function applyFbConnectorAsyncJobState(job) {
+        fbConnectorAsyncImportJob = job || null;
+        fbConnectorAsyncImportJobId = job?.id || null;
+        currentAsyncImportAllJobId = fbConnectorAsyncImportJobId;
+        const status = job?.status || null;
+        const phase = (job?.progress_payload?.phase || 'media_ingest');
+        fbConnectorImporting = status === 'pending' || status === 'running';
+        if (job) {
+            fbConnectorImportProgress = {
+                imported: Number(job.total_imported || 0),
+                failed: Number(job.failed_count || 0),
+            };
+        } else {
+            fbConnectorImportProgress = null;
+        }
+
+        if (fbConnectorImporting) {
+            const importingText = phase === 'performance_enrichment'
+                ? `Syncing performance… ${job?.progress_payload?.perf_matched_images || 0} matched${(job?.progress_payload?.perf_target_keys || 0) > 0 ? ` / ${job.progress_payload.perf_target_keys} keys` : ''}`
+                : `Importing media… ${job.total_imported || 0} imported${(job.failed_count || 0) > 0 ? `, ${job.failed_count} failed` : ''}`;
+            updatePersistentImportProgress({
+                text: importingText,
+                imported: Number(job.total_imported || 0),
+                failed: Number(job.failed_count || 0),
+                total: null,
+            });
+        } else if (status === 'cancelled') {
+            updatePersistentImportProgress({
+                complete: true,
+                text: 'Import cancelled. Click Resume to continue from last checkpoint.',
+                showResume: true,
+                onResume: () => {
+                    if (fbConnectorAsyncImportJobId) resumeFbConnectorImportAllJob(fbConnectorAsyncImportJobId);
+                },
+                hideCancel: true,
+            });
+        } else if (status === 'failed') {
+            updatePersistentImportProgress({
+                complete: true,
+                text: `Import paused: ${job.error_message || 'job failed'}`,
+                showResume: true,
+                onResume: () => {
+                    if (fbConnectorAsyncImportJobId) resumeFbConnectorImportAllJob(fbConnectorAsyncImportJobId);
+                },
+                hideCancel: true,
+            });
+        } else if (status === 'complete') {
+            updatePersistentImportProgress({
+                complete: true,
+                text: `Import complete. ${job.total_imported || 0} imported${(job.failed_count || 0) > 0 ? `, ${job.failed_count} failed` : ''}.`,
+                hideCancel: true,
+            });
+            setTimeout(() => updatePersistentImportProgress(null), 3000);
+        }
+    }
+
+    function handleFbConnectorAsyncImportItem(image) {
+        if (!image) return;
+        if (typeof onImageAdded === 'function') {
+            onImageAdded(image);
+        } else {
+            appendImageToGridRealtime(image);
+        }
+    }
+
+    function attachFbConnectorAsyncImportPolling(jobId) {
+        startAsyncImportAllJobPolling(jobId, {
+            onUpdate: (job) => {
+                applyFbConnectorAsyncJobState(job);
+                if (overlay.isConnected) {
+                    renderFbConnectorContent();
+                    updateFbConnectorFooterImportButton();
+                }
+            },
+            onItem: (image) => {
+                handleFbConnectorAsyncImportItem(image);
+            },
+            onComplete: (job) => {
+                applyFbConnectorAsyncJobState(job);
+                if (overlay.isConnected) {
+                    renderFbConnectorContent();
+                    updateFbConnectorFooterImportButton();
+                }
+                // If "all" completed but no videos were imported, queue a dedicated video pass.
+                const importedVideoCount = Number(job?.progress_payload?.imported_video_count || 0);
+                if (
+                    job?.status === 'complete' &&
+                    job?.media_type === 'all' &&
+                    importedVideoCount === 0 &&
+                    !fbConnectorAutoVideoFollowupTriggered
+                ) {
+                    fbConnectorAutoVideoFollowupTriggered = true;
+                    updatePersistentImportProgress({
+                        text: 'Images complete. Starting video-only follow-up import…',
+                        imported: 0,
+                        failed: 0,
+                        total: null,
+                    });
+                    startFbConnectorVideoOnlyFollowupImport();
+                }
+            },
+        });
+    }
+
+    async function startFbConnectorVideoOnlyFollowupImport() {
+        try {
+            const startRes = await startImportAllMetaMediaAsync(clientId, {
+                mediaType: 'video',
+                adAccountId: getFbConnectorAdAccountId(),
+                pageSize: 5,
+                delaySeconds: 6.0,
+                includePerformanceLookup: true,
+            });
+            fbConnectorAsyncImportJobId = startRes.job_id;
+            currentAsyncImportAllJobId = startRes.job_id;
+            attachFbConnectorAsyncImportPolling(startRes.job_id);
+        } catch (e) {
+            console.error('[ImportMediaModal] Auto video follow-up start failed:', e);
+            updatePersistentImportProgress({
+                complete: true,
+                text: `Video follow-up failed to start: ${e?.message || e}`,
+                hideCancel: true,
+            });
+            setTimeout(() => updatePersistentImportProgress(null), 5000);
+        }
+    }
+
+    async function resumeFbConnectorImportAllJob(jobId) {
+        try {
+            await resumeImportAllMetaMediaAsyncJob(jobId);
+            attachFbConnectorAsyncImportPolling(jobId);
+        } catch (e) {
+            console.error('[ImportMediaModal] Resume import-all failed:', e);
+            if (overlay.isConnected) {
+                alert('Failed to resume import: ' + (e?.message || e));
+            }
+        }
     }
 
     async function runLoadAllLoop() {
@@ -535,12 +777,27 @@ export function showImportMediaModal(onImageAdded) {
         }
 
         if (connected && hasDefaultAdAccount && !fbConnectorNeedsAdAccount) {
+            const adId = getFbConnectorAdAccountId();
+            try {
+                const jobsRes = await listImportAllMetaMediaAsyncJobs(clientId, { adAccountId: adId, limit: 5 });
+                const jobs = Array.isArray(jobsRes?.items) ? jobsRes.items : [];
+                const activeJob = jobs.find((j) => j.status === 'running' || j.status === 'pending');
+                if (activeJob) {
+                    applyFbConnectorAsyncJobState(activeJob);
+                    attachFbConnectorAsyncImportPolling(activeJob.id);
+                } else if (jobs.length > 0 && (jobs[0].status === 'failed' || jobs[0].status === 'cancelled')) {
+                    applyFbConnectorAsyncJobState(jobs[0]);
+                } else {
+                    applyFbConnectorAsyncJobState(null);
+                }
+            } catch (jobErr) {
+                console.warn('[ImportMediaModal] Failed to fetch async import-all jobs:', jobErr);
+            }
             fbConnectorLoading = true;
             fbConnectorLoadError = null;
             fbConnectorItems = [];
             fbConnectorPaging = { after: null, hasMore: false };
             fbConnectorSelectedIds = new Set();
-            const adId = getFbConnectorAdAccountId();
             const fetchOpts = { mediaType: 'all', limit: 24 };
             if (adId) fetchOpts.ad_account_id = adId;
             try {
@@ -602,12 +859,21 @@ export function showImportMediaModal(onImageAdded) {
         if (currentTab !== 'fb-connector') return;
         const btn = overlay.querySelector('#importMediaFbConnectorImportBtn');
         const importAllBtn = overlay.querySelector('#importMediaFbConnectorImportAllBtn');
+        const cancelImportBtn = overlay.querySelector('#importMediaFbConnectorCancelImportBtn');
         if (btn) {
             const selectedCount = fbConnectorItems.filter((it) => fbConnectorSelectedIds.has(`${it.type}:${it.id || ''}`)).length;
             btn.textContent = `Import Selected (${selectedCount})`;
             btn.disabled = selectedCount === 0 || fbConnectorImporting;
         }
-        if (importAllBtn) importAllBtn.disabled = fbConnectorImporting;
+        if (importAllBtn) {
+            const canResume = !!(fbConnectorAsyncImportJob && (fbConnectorAsyncImportJob.status === 'failed' || fbConnectorAsyncImportJob.status === 'cancelled'));
+            importAllBtn.textContent = canResume ? 'Resume Import' : 'Import all';
+            importAllBtn.disabled = fbConnectorImporting;
+        }
+        if (cancelImportBtn) {
+            cancelImportBtn.style.display = fbConnectorImporting ? '' : 'none';
+            cancelImportBtn.disabled = !fbConnectorImporting;
+        }
     }
 
     /** Update only the clicked card and footer for selection; avoids full re-render and scroll reset. */
@@ -692,64 +958,59 @@ export function showImportMediaModal(onImageAdded) {
     }
 
     async function doFbConnectorImportAll() {
+        const canResume = !!(fbConnectorAsyncImportJobId && fbConnectorAsyncImportJob && (fbConnectorAsyncImportJob.status === 'failed' || fbConnectorAsyncImportJob.status === 'cancelled'));
+        if (canResume) {
+            await resumeFbConnectorImportAllJob(fbConnectorAsyncImportJobId);
+            return;
+        }
+
         fbConnectorImporting = true;
-        fbConnectorImportProgress = null;
-        currentImportAbortController = new AbortController();
+        fbConnectorImportProgress = { imported: 0, failed: 0 };
         renderFbConnectorContent();
-        updatePersistentImportProgress({ text: 'Importing… 0 imported', imported: 0, failed: 0 });
+        updatePersistentImportProgress({ text: 'Starting import…', imported: 0, failed: 0, total: null });
         try {
-            const res = await importAllMetaMediaStream(
-                clientId,
-                'all',
-                (p) => {
-                    const imported = p.imported ?? 0;
-                    const failed = p.failed ?? 0;
-                    fbConnectorImportProgress = { imported, failed };
-                    if (overlay.isConnected) renderFbConnectorContent();
-                    updatePersistentImportProgress({
-                        text: `Importing… ${imported} imported${failed > 0 ? `, ${failed} failed` : ''}`,
-                        imported,
-                        failed,
-                    });
-                },
-                (img) => {
-                    onImageAdded(img);
-                },
-                currentImportAbortController.signal,
-                getFbConnectorAdAccountId()
-            );
-            currentImportAbortController = null;
-            const imported = (res.items || []).length;
-            const failed = res.failed_count ?? 0;
-            fbConnectorImporting = false;
-            fbConnectorImportProgress = null;
-            if (overlay.isConnected) renderFbConnectorContent();
-            updatePersistentImportProgress({
-                complete: true,
-                text: `Import complete. ${imported} item${imported !== 1 ? 's' : ''} added.${failed > 0 ? ` ${failed} failed.` : ''}`,
+            const startRes = await startImportAllMetaMediaAsync(clientId, {
+                mediaType: 'all',
+                adAccountId: getFbConnectorAdAccountId(),
+                pageSize: 10,
+                delaySeconds: 2.0,
+                includePerformanceLookup: true,
             });
-            setTimeout(() => {
-                updatePersistentImportProgress(null);
-                if (overlay.isConnected) setTimeout(closeModal, 0);
-            }, 3000);
-            if (failed > 0 && overlay.isConnected) {
-                alert(`Imported ${imported} items. ${failed} failed (e.g. rate limit). Try again later for failed items.`);
-            }
+            fbConnectorAsyncImportJobId = startRes.job_id;
+            currentAsyncImportAllJobId = startRes.job_id;
+            attachFbConnectorAsyncImportPolling(startRes.job_id);
         } catch (e) {
-            currentImportAbortController = null;
+            const msg = e?.message || String(e || '');
+            if (msg.includes('already in progress')) {
+                try {
+                    const jobsRes = await listImportAllMetaMediaAsyncJobs(clientId, {
+                        adAccountId: getFbConnectorAdAccountId(),
+                        limit: 5,
+                    });
+                    const jobs = Array.isArray(jobsRes?.items) ? jobsRes.items : [];
+                    const activeJob = jobs.find((j) => j.status === 'running' || j.status === 'pending');
+                    if (activeJob) {
+                        fbConnectorAsyncImportJobId = activeJob.id;
+                        currentAsyncImportAllJobId = activeJob.id;
+                        attachFbConnectorAsyncImportPolling(activeJob.id);
+                        return;
+                    }
+                } catch (listErr) {
+                    console.warn('[ImportMediaModal] Failed to recover existing import-all job:', listErr);
+                }
+            }
             fbConnectorImporting = false;
             fbConnectorImportProgress = null;
             if (overlay.isConnected) renderFbConnectorContent();
-            const cancelled = e.name === 'AbortError';
             updatePersistentImportProgress({
                 complete: true,
-                text: cancelled ? 'Import cancelled.' : `Import failed: ${e?.message || e}`,
+                text: `Import failed: ${msg}`,
+                showResume: false,
+                hideCancel: true,
             });
-            setTimeout(() => updatePersistentImportProgress(null), cancelled ? 3000 : 4000);
-            if (!cancelled) {
-                console.error('[ImportMediaModal] Import all failed:', e);
-                if (overlay.isConnected) alert('Import all failed: ' + (e.message || e));
-            }
+            setTimeout(() => updatePersistentImportProgress(null), 4000);
+            console.error('[ImportMediaModal] Import all failed:', e);
+            if (overlay.isConnected) alert('Import all failed: ' + msg);
         }
     }
 
@@ -794,6 +1055,13 @@ export function showImportMediaModal(onImageAdded) {
         } else if (!adAccountName && effectiveAdAccountId) {
             adAccountName = `Account (${effectiveAdAccountId})`;
         }
+        const canResumeAsyncImport = !!(
+            fbConnectorAsyncImportJob &&
+            (fbConnectorAsyncImportJob.status === 'failed' || fbConnectorAsyncImportJob.status === 'cancelled')
+        );
+        const asyncImportBanner = canResumeAsyncImport
+            ? `Import ${fbConnectorAsyncImportJob.status}. ${fbConnectorAsyncImportJob.error_message || 'You can resume from the last checkpoint.'}`
+            : null;
         // #region agent log (production: check console for [DEBUG-FB])
         console.info('[DEBUG-FB] renderFbConnectorContent', { defaultId: fbConnectorTokenStatus?.default_ad_account_id ?? null, defaultName: fbConnectorTokenStatus?.default_ad_account_name ?? null, adAccountNamePassed: adAccountName, needsAdAccount: fbConnectorNeedsAdAccount, adAccountsLength: fbConnectorAdAccounts?.length ?? 0, loadError: !!fbConnectorLoadError });
         // #endregion
@@ -811,8 +1079,8 @@ export function showImportMediaModal(onImageAdded) {
             importing: fbConnectorImporting,
             paging: fbConnectorPaging,
             loadAllProgress: fbConnectorLoadAllProgress,
-            loadError: fbConnectorLoadError,
-            loadAllPaused: fbConnectorLoadAllPaused,
+            loadError: fbConnectorLoadError || asyncImportBanner,
+            loadAllPaused: fbConnectorLoadAllPaused || canResumeAsyncImport,
             importProgress: fbConnectorImportProgress,
             onSetAdAccount: handleSetAdAccount,
             onAdAccountSelectionChange: (id) => {
@@ -823,6 +1091,16 @@ export function showImportMediaModal(onImageAdded) {
             onRetryLoad: () => {
                 fbConnectorLoadError = null;
                 refreshFbConnectorTab();
+            },
+            onResumeLoadAll: () => {
+                if (canResumeAsyncImport && fbConnectorAsyncImportJobId) {
+                    resumeFbConnectorImportAllJob(fbConnectorAsyncImportJobId);
+                    return;
+                }
+                fbConnectorLoadAllPaused = false;
+                fbConnectorLoadError = null;
+                runLoadAllLoop();
+                renderFbConnectorContent();
             },
             onConnect: async () => {
                 try {
@@ -881,9 +1159,11 @@ export function showImportMediaModal(onImageAdded) {
             const cancelBtnEl = overlay.querySelector('.import-media-modal__cancel');
             const fbImportBtnEl = overlay.querySelector('#importMediaFbConnectorImportBtn');
             const fbImportAllBtnEl = overlay.querySelector('#importMediaFbConnectorImportAllBtn');
+            const fbCancelImportBtnEl = overlay.querySelector('#importMediaFbConnectorCancelImportBtn');
             if (cancelBtnEl) cancelBtnEl.style.display = showFbFooter ? '' : 'none';
             if (fbImportBtnEl) fbImportBtnEl.style.display = showFbFooter ? '' : 'none';
             if (fbImportAllBtnEl) fbImportAllBtnEl.style.display = showFbFooter ? '' : 'none';
+            if (fbCancelImportBtnEl) fbCancelImportBtnEl.style.display = showFbFooter && fbConnectorImporting ? '' : 'none';
         }
     }
     
@@ -1180,6 +1460,7 @@ export function showImportMediaModal(onImageAdded) {
     // ============ FB Connector footer buttons ============
     const fbConnectorImportBtn = overlay.querySelector('#importMediaFbConnectorImportBtn');
     const fbConnectorImportAllBtn = overlay.querySelector('#importMediaFbConnectorImportAllBtn');
+    const fbConnectorCancelBtn = overlay.querySelector('#importMediaFbConnectorCancelImportBtn');
     if (fbConnectorImportBtn) {
         fbConnectorImportBtn.addEventListener('click', () => {
             const toImport = fbConnectorItems
@@ -1197,6 +1478,27 @@ export function showImportMediaModal(onImageAdded) {
     }
     if (fbConnectorImportAllBtn) {
         fbConnectorImportAllBtn.addEventListener('click', () => doFbConnectorImportAll());
+    }
+    if (fbConnectorCancelBtn) {
+        fbConnectorCancelBtn.addEventListener('click', async () => {
+            if (!fbConnectorAsyncImportJobId) return;
+            try {
+                await cancelImportAllMetaMediaAsyncJob(fbConnectorAsyncImportJobId);
+                const status = await getImportAllMetaMediaAsyncJob(fbConnectorAsyncImportJobId);
+                if (status?.job) {
+                    applyFbConnectorAsyncJobState(status.job);
+                }
+                if (overlay.isConnected) {
+                    renderFbConnectorContent();
+                    updateFbConnectorFooterImportButton();
+                }
+            } catch (e) {
+                console.error('[ImportMediaModal] Cancel import-all failed:', e);
+                if (overlay.isConnected) {
+                    alert('Failed to cancel import: ' + (e?.message || e));
+                }
+            }
+        });
     }
 
     // ============ Modal Close Handlers ============

@@ -3,6 +3,8 @@ Meta/Facebook Marketing API service.
 Handles OAuth token exchange and Marketing API calls.
 """
 import logging
+import asyncio
+import random
 import httpx
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
@@ -319,8 +321,12 @@ class MetaAdsService:
                     "limit": 100,
                 }
             )
-            response.raise_for_status()
-            data = response.json()
+            data = response.json() if response.content else {}
+            if not response.is_success:
+                error_obj = data.get("error", {})
+                error_user_msg = error_obj.get("error_user_msg", "")
+                error_msg = error_obj.get("message", response.text)
+                raise Exception(f"Meta API error: {error_user_msg or error_msg}")
             return data.get("data", [])
     
     async def create_adset(
@@ -854,6 +860,105 @@ class MetaAdsService:
 
     # ==================== Media Library (adimages / advideos) ====================
 
+    RETRYABLE_META_ERROR_CODES = {
+        1,      # API unknown/internal error
+        2,      # Service temporarily unavailable
+        4,      # Application request limit reached
+        17,     # User request limit reached
+        32,     # Page request limit reached
+        613,    # Calls to this API have exceeded the rate limit
+        80004,  # Too many calls to this ad-account
+    }
+    RETRYABLE_META_ERROR_SUBCODES = {
+        2446079,  # Ad-account specific throttle subcode seen in logs
+    }
+
+    async def _meta_get_with_retries(
+        self,
+        endpoint: str,
+        params: Dict[str, Any],
+        *,
+        timeout_seconds: float = 60.0,
+        max_attempts: int = 5,
+        base_backoff_seconds: float = 1.5,
+    ) -> Dict[str, Any]:
+        """
+        Execute a Meta Graph GET request with retry/backoff for transient throttles.
+        """
+        url = f"{META_GRAPH_API_BASE}/{endpoint.lstrip('/')}"
+        last_exception: Optional[Exception] = None
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                async with httpx.AsyncClient(timeout=timeout_seconds) as client:
+                    response = await client.get(url, params=params)
+            except httpx.RequestError as exc:
+                last_exception = exc
+                if attempt >= max_attempts:
+                    break
+                jitter = random.uniform(0.0, 0.6)
+                delay = base_backoff_seconds * (2 ** (attempt - 1)) + jitter
+                logger.warning(
+                    "Meta request error, retrying in %.2fs (attempt %s/%s) endpoint=%s error=%s",
+                    delay,
+                    attempt,
+                    max_attempts,
+                    endpoint,
+                    exc,
+                )
+                await asyncio.sleep(delay)
+                continue
+
+            if response.is_success:
+                return response.json()
+
+            status_code = response.status_code
+            error_code = None
+            error_subcode = None
+            body_excerpt = (response.text or "")[:600]
+            try:
+                err = (response.json() or {}).get("error") or {}
+                error_code = err.get("code")
+                error_subcode = err.get("error_subcode")
+            except Exception:
+                pass
+
+            retryable = (
+                status_code in {429, 500, 502, 503, 504}
+                or (error_code in self.RETRYABLE_META_ERROR_CODES)
+                or (error_subcode in self.RETRYABLE_META_ERROR_SUBCODES)
+            )
+            if retryable and attempt < max_attempts:
+                jitter = random.uniform(0.0, 0.8)
+                delay = base_backoff_seconds * (2 ** (attempt - 1)) + jitter
+                logger.warning(
+                    (
+                        "Meta request throttled/error, retrying in %.2fs "
+                        "(attempt %s/%s) endpoint=%s status=%s code=%s subcode=%s body=%s"
+                    ),
+                    delay,
+                    attempt,
+                    max_attempts,
+                    endpoint,
+                    status_code,
+                    error_code,
+                    error_subcode,
+                    body_excerpt,
+                )
+                await asyncio.sleep(delay)
+                continue
+
+            message = (
+                f"Meta request failed endpoint={endpoint} status={status_code} "
+                f"code={error_code} subcode={error_subcode} body={body_excerpt}"
+            )
+            last_exception = httpx.HTTPStatusError(message, request=response.request, response=response)
+            break
+
+        if isinstance(last_exception, Exception):
+            raise last_exception
+        raise RuntimeError(f"Meta request failed endpoint={endpoint} with unknown error")
+
     async def list_ad_images(
         self,
         access_token: str,
@@ -875,23 +980,23 @@ class MetaAdsService:
         if after:
             params["after"] = after
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{META_GRAPH_API_BASE}/{ad_account_id}/adimages",
-                params=params,
-            )
-            response.raise_for_status()
-            result = response.json()
-            data = result.get("data", [])
-            paging = result.get("paging", {})
-            cursors = paging.get("cursors", {})
-            return {
-                "data": data,
-                "paging": {
-                    "after": cursors.get("after"),
-                    "next": paging.get("next"),
-                },
-            }
+        result = await self._meta_get_with_retries(
+            f"{ad_account_id}/adimages",
+            params,
+            timeout_seconds=60.0,
+            max_attempts=5,
+            base_backoff_seconds=1.5,
+        )
+        data = result.get("data", [])
+        paging = result.get("paging", {})
+        cursors = paging.get("cursors", {})
+        return {
+            "data": data,
+            "paging": {
+                "after": cursors.get("after"),
+                "next": paging.get("next"),
+            },
+        }
 
     async def get_ad_images_total_count(
         self,
@@ -966,23 +1071,23 @@ class MetaAdsService:
         if after:
             params["after"] = after
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                f"{META_GRAPH_API_BASE}/{ad_account_id}/advideos",
-                params=params,
-            )
-            response.raise_for_status()
-            result = response.json()
-            data = result.get("data", [])
-            paging = result.get("paging", {})
-            cursors = paging.get("cursors", {})
-            return {
-                "data": data,
-                "paging": {
-                    "after": cursors.get("after"),
-                    "next": paging.get("next"),
-                },
-            }
+        result = await self._meta_get_with_retries(
+            f"{ad_account_id}/advideos",
+            params,
+            timeout_seconds=60.0,
+            max_attempts=5,
+            base_backoff_seconds=1.5,
+        )
+        data = result.get("data", [])
+        paging = result.get("paging", {})
+        cursors = paging.get("cursors", {})
+        return {
+            "data": data,
+            "paging": {
+                "after": cursors.get("after"),
+                "next": paging.get("next"),
+            },
+        }
 
     @staticmethod
     def _safe_float(value: Any, default: float = 0.0) -> float:
@@ -1041,6 +1146,16 @@ class MetaAdsService:
             if action_type in action_types:
                 return MetaAdsService._safe_int(action.get("value"), 0)
         return 0
+
+    @staticmethod
+    def _normalize_media_key(value: Any) -> Optional[str]:
+        """Normalize media key for stable lookup matching across Meta payload variants."""
+        if not value or not isinstance(value, str):
+            return None
+        normalized = value.strip()
+        if not normalized:
+            return None
+        return normalized.lower()
 
     @staticmethod
     def _extract_creative_media_keys(creative: Dict[str, Any]) -> list[tuple[str, str]]:
@@ -1133,6 +1248,30 @@ class MetaAdsService:
             "destination_url": destination_url,
         }
 
+    @staticmethod
+    def _should_replace_lookup_candidate(existing: Dict[str, Any], candidate: Dict[str, Any]) -> bool:
+        """Compare two lookup rows and decide whether candidate should replace existing."""
+        existing_revenue = MetaAdsService._safe_float(existing.get("revenue"), 0.0)
+        existing_clicks = MetaAdsService._safe_int(existing.get("clicks"), 0)
+        existing_started = existing.get("started_running_on")
+        if not isinstance(existing_started, datetime):
+            existing_started = datetime.min
+        candidate_started = candidate.get("started_running_on")
+        if not isinstance(candidate_started, datetime):
+            candidate_started = datetime.min
+        return (
+            candidate["revenue"] > existing_revenue
+            or (
+                candidate["revenue"] == existing_revenue
+                and candidate["clicks"] > existing_clicks
+            )
+            or (
+                candidate["revenue"] == existing_revenue
+                and candidate["clicks"] == existing_clicks
+                and candidate_started > existing_started
+            )
+        )
+
     async def list_ads_with_creative_and_insights(
         self,
         access_token: str,
@@ -1147,6 +1286,8 @@ class MetaAdsService:
             [
                 "id",
                 "name",
+                "adset_id",
+                "adset{name}",
                 "created_time",
                 "creative{id,image_hash,body,title,object_story_spec,asset_feed_spec}",
                 # Meta rejects date_preset(lifetime); use maximum for full available range.
@@ -1161,23 +1302,23 @@ class MetaAdsService:
         if after:
             params["after"] = after
 
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.get(
-                f"{META_GRAPH_API_BASE}/{ad_account_id}/ads",
-                params=params,
-            )
-            response.raise_for_status()
-            result = response.json()
-            data = result.get("data", [])
-            paging = result.get("paging", {})
-            cursors = paging.get("cursors", {})
-            return {
-                "data": data,
-                "paging": {
-                    "after": cursors.get("after"),
-                    "next": paging.get("next"),
-                },
-            }
+        result = await self._meta_get_with_retries(
+            f"{ad_account_id}/ads",
+            params,
+            timeout_seconds=60.0,
+            max_attempts=5,
+            base_backoff_seconds=1.5,
+        )
+        data = result.get("data", [])
+        paging = result.get("paging", {})
+        cursors = paging.get("cursors", {})
+        return {
+            "data": data,
+            "paging": {
+                "after": cursors.get("after"),
+                "next": paging.get("next"),
+            },
+        }
 
     async def build_media_performance_lookup(
         self,
@@ -1205,12 +1346,191 @@ class MetaAdsService:
             "onsite_web_purchase",
             "offsite_conversion.fb_pixel_purchase",
         }
+        ads_seen = 0
+        ads_with_creative = 0
+        ads_with_media_keys = 0
+        ads_with_insights = 0
+        candidate_rows = 0
+        replacements = 0
+        positive_revenue_rows = 0
+        zero_revenue_rows = 0
 
         while pages < max_pages:
+            try:
+                page = await self.list_ads_with_creative_and_insights(
+                    access_token=access_token,
+                    ad_account_id=ad_account_id,
+                    limit=50,
+                    after=cursor,
+                )
+            except Exception as exc:
+                logger.warning(
+                    (
+                        "Meta ads page failed building performance lookup; using partial lookup "
+                        "(ad_account=%s page=%s cursor_present=%s): %s"
+                    ),
+                    ad_account_id,
+                    pages + 1,
+                    bool(cursor),
+                    exc,
+                )
+                break
+            ads = page.get("data", [])
+            if not ads:
+                logger.info(
+                    "Performance lookup page %s for %s returned no ads; stopping",
+                    pages + 1,
+                    ad_account_id,
+                )
+                break
+            logger.info(
+                "Performance lookup page %s for %s: %s ads (cursor_present=%s)",
+                pages + 1,
+                ad_account_id,
+                len(ads),
+                bool((page.get("paging") or {}).get("after")),
+            )
+
+            for ad in ads:
+                ads_seen += 1
+                creative = ad.get("creative") or {}
+                if not isinstance(creative, dict):
+                    continue
+                ads_with_creative += 1
+                media_keys = self._extract_creative_media_keys(creative)
+                if not media_keys:
+                    continue
+                ads_with_media_keys += 1
+
+                insights_data = (ad.get("insights") or {}).get("data") or []
+                insight = insights_data[0] if insights_data else {}
+                if insight:
+                    ads_with_insights += 1
+
+                spend = self._safe_float(insight.get("spend"), 0.0)
+                impressions = self._safe_int(insight.get("impressions"), 0)
+                clicks = self._safe_int(insight.get("clicks"), 0)
+                actions = insight.get("actions") or []
+                action_values = insight.get("action_values") or []
+                revenue = self._extract_action_value(action_values, purchase_value_types)
+                purchases = self._extract_action_count(actions, purchase_count_types)
+                ctr = (clicks / impressions) if impressions > 0 else 0.0
+                roas = (revenue / spend) if spend > 0 else 0.0
+                if revenue > 0:
+                    positive_revenue_rows += 1
+                else:
+                    zero_revenue_rows += 1
+
+                copy_fields = self._extract_creative_copy(creative)
+                started_running_on = self._parse_meta_datetime(ad.get("created_time"))
+                base_candidate = {
+                    "meta_ad_account_id": ad_account_id,
+                    "meta_ad_id": ad.get("id"),
+                    "meta_creative_id": creative.get("id"),
+                    "meta_adset_id": ad.get("adset_id") or (ad.get("adset") or {}).get("id"),
+                    "meta_adset_name": (ad.get("adset") or {}).get("name"),
+                    "revenue": revenue,
+                    "spend": spend,
+                    "impressions": impressions,
+                    "clicks": clicks,
+                    "purchases": purchases,
+                    "ctr": ctr,
+                    "roas": roas,
+                    "started_running_on": started_running_on,
+                    **copy_fields,
+                }
+
+                for media_key, media_type in media_keys:
+                    normalized_key = self._normalize_media_key(media_key)
+                    if not normalized_key:
+                        continue
+                    candidate_rows += 1
+                    candidate = {
+                        **base_candidate,
+                        "media_key": media_key,
+                        "media_type": media_type,
+                    }
+                    existing = lookup.get(normalized_key)
+                    if not existing:
+                        lookup[normalized_key] = candidate
+                        continue
+
+                    if self._should_replace_lookup_candidate(existing, candidate):
+                        lookup[normalized_key] = candidate
+                        replacements += 1
+
+            pages += 1
+            cursor = (page.get("paging") or {}).get("after")
+            if not cursor:
+                break
+
+        logger.info(
+            (
+                "Built media performance lookup for %s: %s keys across %s pages "
+                "(ads_seen=%s ads_with_creative=%s ads_with_media_keys=%s "
+                "ads_with_insights=%s candidate_rows=%s replacements=%s "
+                "positive_revenue_rows=%s zero_revenue_rows=%s)"
+            ),
+            ad_account_id,
+            len(lookup),
+            pages,
+            ads_seen,
+            ads_with_creative,
+            ads_with_media_keys,
+            ads_with_insights,
+            candidate_rows,
+            replacements,
+            positive_revenue_rows,
+            zero_revenue_rows,
+        )
+        return lookup
+
+    async def build_targeted_media_performance_lookup(
+        self,
+        access_token: str,
+        ad_account_id: str,
+        target_media_keys: set[str] | List[str],
+        *,
+        max_pages: int = 120,
+    ) -> Dict[str, Dict[str, Any]]:
+        """
+        Build performance lookup for a bounded set of media keys.
+
+        This is intentionally narrower than build_media_performance_lookup() so
+        enrichment can complete faster after media ingest.
+        """
+        normalized_targets = {
+            key for key in (
+                self._normalize_media_key(k) for k in (target_media_keys or [])
+            ) if key
+        }
+        if not normalized_targets:
+            return {}
+
+        lookup: Dict[str, Dict[str, Any]] = {}
+        unresolved = set(normalized_targets)
+        cursor = None
+        pages = 0
+        replacements = 0
+
+        purchase_value_types = {
+            "purchase",
+            "omni_purchase",
+            "onsite_web_purchase",
+            "offsite_conversion.fb_pixel_purchase",
+        }
+        purchase_count_types = {
+            "purchase",
+            "omni_purchase",
+            "onsite_web_purchase",
+            "offsite_conversion.fb_pixel_purchase",
+        }
+
+        while pages < max_pages and unresolved:
             page = await self.list_ads_with_creative_and_insights(
                 access_token=access_token,
                 ad_account_id=ad_account_id,
-                limit=100,
+                limit=50,
                 after=cursor,
             )
             ads = page.get("data", [])
@@ -1227,7 +1547,6 @@ class MetaAdsService:
 
                 insights_data = (ad.get("insights") or {}).get("data") or []
                 insight = insights_data[0] if insights_data else {}
-
                 spend = self._safe_float(insight.get("spend"), 0.0)
                 impressions = self._safe_int(insight.get("impressions"), 0)
                 clicks = self._safe_int(insight.get("clicks"), 0)
@@ -1244,6 +1563,8 @@ class MetaAdsService:
                     "meta_ad_account_id": ad_account_id,
                     "meta_ad_id": ad.get("id"),
                     "meta_creative_id": creative.get("id"),
+                    "meta_adset_id": ad.get("adset_id") or (ad.get("adset") or {}).get("id"),
+                    "meta_adset_name": (ad.get("adset") or {}).get("name"),
                     "revenue": revenue,
                     "spend": spend,
                     "impressions": impressions,
@@ -1256,39 +1577,22 @@ class MetaAdsService:
                 }
 
                 for media_key, media_type in media_keys:
+                    normalized_key = self._normalize_media_key(media_key)
+                    if not normalized_key or normalized_key not in normalized_targets:
+                        continue
                     candidate = {
                         **base_candidate,
                         "media_key": media_key,
                         "media_type": media_type,
                     }
-                    existing = lookup.get(media_key)
+                    existing = lookup.get(normalized_key)
                     if not existing:
-                        lookup[media_key] = candidate
+                        lookup[normalized_key] = candidate
+                        unresolved.discard(normalized_key)
                         continue
-
-                    existing_revenue = self._safe_float(existing.get("revenue"), 0.0)
-                    existing_clicks = self._safe_int(existing.get("clicks"), 0)
-                    existing_started = existing.get("started_running_on")
-                    if not isinstance(existing_started, datetime):
-                        existing_started = datetime.min
-                    candidate_started = candidate.get("started_running_on")
-                    if not isinstance(candidate_started, datetime):
-                        candidate_started = datetime.min
-
-                    should_replace = (
-                        candidate["revenue"] > existing_revenue
-                        or (
-                            candidate["revenue"] == existing_revenue
-                            and candidate["clicks"] > existing_clicks
-                        )
-                        or (
-                            candidate["revenue"] == existing_revenue
-                            and candidate["clicks"] == existing_clicks
-                            and candidate_started > existing_started
-                        )
-                    )
-                    if should_replace:
-                        lookup[media_key] = candidate
+                    if self._should_replace_lookup_candidate(existing, candidate):
+                        lookup[normalized_key] = candidate
+                        replacements += 1
 
             pages += 1
             cursor = (page.get("paging") or {}).get("after")
@@ -1296,9 +1600,15 @@ class MetaAdsService:
                 break
 
         logger.info(
-            "Built media performance lookup for %s: %s keys across %s pages",
+            (
+                "Built targeted performance lookup for %s: keys=%s/%s pages=%s "
+                "replacements=%s unresolved=%s"
+            ),
             ad_account_id,
             len(lookup),
+            len(normalized_targets),
             pages,
+            replacements,
+            len(unresolved),
         )
         return lookup

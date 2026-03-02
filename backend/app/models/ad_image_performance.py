@@ -18,6 +18,8 @@ class AdImagePerformance(Base):
     meta_ad_account_id = Column(String(50), nullable=True)
     meta_ad_id = Column(String(64), nullable=True)
     meta_creative_id = Column(String(64), nullable=True)
+    meta_adset_id = Column(String(64), nullable=True)
+    meta_adset_name = Column(String(255), nullable=True)
     media_key = Column(String(128), nullable=True)  # image_hash or video_id
     media_type = Column(String(16), nullable=True)  # image or video
 

@@ -19,6 +19,9 @@ let adsSortOrder = 'desc';
 // View mode state
 let adsViewMode = 'grid'; // 'grid' | 'kanban'
 
+// Bulk selection state (for bulk publish)
+let adsSelectedIds = new Set();
+
 /**
  * Get cached ads
  * @returns {Array} Array of ad objects
@@ -95,6 +98,7 @@ export function clearAdsState() {
     adsSortBy = 'created_at';
     adsSortOrder = 'desc';
     adsViewMode = 'grid';
+    adsSelectedIds = new Set();
 }
 
 // ============ Search State ============
@@ -246,6 +250,45 @@ export function getAdsViewMode() {
  */
 export function setAdsViewMode(mode) {
     adsViewMode = mode;
+}
+
+// ============ Bulk Selection State ============
+
+/**
+ * Get selected ad IDs for bulk publish
+ * @returns {Set<string>}
+ */
+export function getSelectedAdIds() {
+    return adsSelectedIds;
+}
+
+/**
+ * Toggle ad selection
+ * @param {string} adId - Ad UUID
+ */
+export function toggleAdSelection(adId) {
+    if (adsSelectedIds.has(adId)) {
+        adsSelectedIds.delete(adId);
+    } else {
+        adsSelectedIds.add(adId);
+    }
+    adsSelectedIds = new Set(adsSelectedIds); // Trigger reactivity
+}
+
+/**
+ * Check if ad is selected
+ * @param {string} adId - Ad UUID
+ * @returns {boolean}
+ */
+export function isAdSelected(adId) {
+    return adsSelectedIds.has(adId);
+}
+
+/**
+ * Clear all ad selections
+ */
+export function clearAdsSelection() {
+    adsSelectedIds = new Set();
 }
 
 // Expose state functions globally for legacy compatibility

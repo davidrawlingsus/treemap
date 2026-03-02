@@ -32,6 +32,7 @@ import {
     getSelectedCampaignId,
     setSelectedCampaignId,
     addCampaignToCache,
+    getSelectedCampaign,
     getMetaAdsets,
     setMetaAdsets,
     getSelectedAdsetId,
@@ -47,16 +48,19 @@ import {
 
 let modalElement = null;
 let currentAdId = null;
+let currentAdIds = null; // Array when bulk publish
 let currentClientId = null;
 let cachedPixels = []; // Local cache for pixels
 
 /**
- * Show the Meta publish modal for an ad
- * @param {string} adId - Local ad UUID
- * @param {Object} adData - Ad data for preview
+ * Show the Meta publish modal for an ad or multiple ads
+ * @param {string|string[]} adIdOrIds - Local ad UUID or array of UUIDs for bulk publish
+ * @param {Object|Object[]} adData - Ad data for preview (single) or array of ads (bulk)
  */
-export async function showMetaPublishModal(adId, adData = {}) {
-    currentAdId = adId;
+export async function showMetaPublishModal(adIdOrIds, adData = {}) {
+    const isBulk = Array.isArray(adIdOrIds);
+    currentAdIds = isBulk ? adIdOrIds : null;
+    currentAdId = isBulk ? adIdOrIds[0] : adIdOrIds;
     currentClientId = window.appStateGet?.('currentClientId') || 
                       document.getElementById('clientSelect')?.value;
     
@@ -85,7 +89,8 @@ export async function showMetaPublishModal(adId, adData = {}) {
         } else {
             // Load data and show publish UI
             await loadInitialData();
-            renderPublishState(adData);
+            const previewData = isBulk ? (Array.isArray(adData) ? adData[0] : {}) : adData;
+            renderPublishState(previewData, isBulk ? currentAdIds.length : 0);
         }
     } catch (error) {
         console.error('[MetaPublishModal] Error:', error);
@@ -101,6 +106,7 @@ export function hideMetaPublishModal() {
         modalElement.classList.remove('active');
     }
     currentAdId = null;
+    currentAdIds = null;
 }
 
 /**
@@ -187,6 +193,34 @@ function renderSuccessState(metaAdId) {
         </div>
     `;
     
+    container.querySelector('.meta-publish-modal__success-btn')
+        .addEventListener('click', hideMetaPublishModal);
+}
+
+/**
+ * Render bulk publish success state
+ * @param {number} successCount - Number of ads published successfully
+ * @param {number} totalCount - Total number of ads attempted
+ * @param {Array} failed - Array of { adId, error } for failures
+ */
+function renderBulkSuccessState(successCount, totalCount, failed) {
+    const container = getContentContainer();
+    const failedMsg = failed.length > 0
+        ? `<p class="meta-publish-modal__success-text meta-publish-modal__success-text--muted">${failed.length} failed.</p>`
+        : '';
+    container.innerHTML = `
+        <div class="meta-publish-modal__success">
+            <div class="meta-publish-modal__success-circle">
+                <svg class="meta-publish-modal__success-check" viewBox="0 0 36 36">
+                    <path d="M8 18 L15 25 L28 11" />
+                </svg>
+            </div>
+            <h3 class="meta-publish-modal__success-title">${successCount} Ad${successCount !== 1 ? 's' : ''} Published</h3>
+            <p class="meta-publish-modal__success-text">${successCount} of ${totalCount} ads are now in Facebook Ads Manager with status Paused.</p>
+            ${failedMsg}
+            <button class="meta-publish-modal__btn meta-publish-modal__btn--primary meta-publish-modal__success-btn">Done</button>
+        </div>
+    `;
     container.querySelector('.meta-publish-modal__success-btn')
         .addEventListener('click', hideMetaPublishModal);
 }
@@ -332,8 +366,9 @@ async function loadPixels() {
 /**
  * Render the main publish state
  * @param {Object} adData - Ad data for preview
+ * @param {number} [bulkCount=0] - Number of ads when bulk publish (0 = single)
  */
-function renderPublishState(adData) {
+function renderPublishState(adData, bulkCount = 0) {
     const container = getContentContainer();
     const tokenStatus = getMetaTokenStatus();
     const adAccounts = getMetaAdAccounts();
@@ -479,7 +514,7 @@ function renderPublishState(adData) {
             <div class="meta-publish-modal__actions">
                 <button class="meta-publish-modal__btn meta-publish-modal__btn--secondary" id="cancelPublishBtn">Cancel</button>
                 <button class="meta-publish-modal__btn meta-publish-modal__btn--primary" id="publishBtn" ${!isPublishConfigComplete() ? 'disabled' : ''}>
-                    Publish to Facebook
+                    ${bulkCount > 1 ? `Publish ${bulkCount} ads to Facebook` : 'Publish to Facebook'}
                 </button>
             </div>
         </div>
@@ -722,7 +757,7 @@ async function handleCreateCampaign() {
         const result = await createMetaCampaign(currentClientId, campaignData);
         
         // Add to cache and select
-        addCampaignToCache({ id: result.id, name: result.name, status: 'PAUSED' });
+        addCampaignToCache({ id: result.id, name: result.name, status: 'PAUSED', objective });
         setSelectedCampaignId(result.id);
         
         // Hide form and reset fields
@@ -791,12 +826,22 @@ async function handleCreateAdset() {
             status: 'PAUSED',
         };
         
-        // Add promoted_object for optimization goals that require it
+        // Add promoted_object for optimization goals/objectives that require it
         if (optimizationGoal === 'OFFSITE_CONVERSIONS' && pixelId) {
             adsetData.promoted_object = {
                 pixel_id: pixelId,
                 custom_event_type: 'PURCHASE', // Default to PURCHASE, could make configurable
             };
+        } else if (optimizationGoal === 'LEAD_GENERATION' || getSelectedCampaign()?.objective === 'OUTCOME_LEADS') {
+            // Lead ads require promoted_object with page_id (Meta API requirement)
+            const pageId = getSelectedPageId();
+            if (!pageId) {
+                alert('Please select a Facebook Page first. Lead ads require a page to collect form submissions.');
+                btn.disabled = false;
+                btn.textContent = 'Create';
+                return;
+            }
+            adsetData.promoted_object = { page_id: pageId };
         }
         
         const result = await createMetaAdset(currentClientId, adsetData);
@@ -831,34 +876,65 @@ async function handleCreateAdset() {
 async function handlePublish() {
     const container = getContentContainer();
     const btn = container.querySelector('#publishBtn');
+    const adIds = currentAdIds || [currentAdId];
+    const isBulk = adIds.length > 1;
     
     btn.disabled = true;
-    btn.textContent = 'Publishing...';
+    btn.textContent = isBulk ? `Publishing 1 of ${adIds.length}...` : 'Publishing...';
+    
+    const adsetId = getSelectedAdsetId();
+    const adAccountId = getSelectedAdAccountId();
+    const pageId = getSelectedPageId();
     
     try {
-        const result = await publishAdToMeta(
-            currentClientId,
-            currentAdId,
-            getSelectedAdsetId(),
-            getSelectedAdAccountId(),
-            getSelectedPageId()
-        );
+        const successIds = [];
+        const failed = [];
         
-        if (result.success) {
-            renderSuccessState(result.meta_ad_id);
-            
-            if (window.renderAdsPage) {
-                window.renderAdsPage();
+        for (let i = 0; i < adIds.length; i++) {
+            if (isBulk) {
+                btn.textContent = `Publishing ${i + 1} of ${adIds.length}...`;
             }
+            
+            const result = await publishAdToMeta(
+                currentClientId,
+                adIds[i],
+                adsetId,
+                adAccountId,
+                pageId
+            );
+            
+            if (result.success) {
+                successIds.push(result.meta_ad_id);
+            } else {
+                failed.push({ adId: adIds[i], error: result.error || 'Unknown error' });
+            }
+        }
+        
+        if (failed.length > 0 && successIds.length === 0) {
+            throw new Error(failed[0].error || 'Publishing failed');
+        }
+        
+        if (isBulk) {
+            renderBulkSuccessState(successIds.length, adIds.length, failed);
         } else {
-            throw new Error(result.error || 'Publishing failed');
+            renderSuccessState(successIds[0]);
+        }
+        
+        if (window.renderAdsPage) {
+            window.renderAdsPage();
+        }
+        if (window.clearAdsSelection) {
+            window.clearAdsSelection();
+        }
+        if (window.updateBulkPublishButton) {
+            window.updateBulkPublishButton();
         }
         
     } catch (error) {
         console.error('[MetaPublishModal] Publish error:', error);
         alert('Failed to publish ad: ' + error.message);
         btn.disabled = false;
-        btn.textContent = 'Publish to Facebook';
+        btn.textContent = isBulk ? `Publish ${adIds.length} ads to Facebook` : 'Publish to Facebook';
     }
 }
 

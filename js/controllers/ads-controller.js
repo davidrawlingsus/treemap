@@ -10,10 +10,12 @@ import {
     getAdsCurrentClientId, setAdsCurrentClientId,
     getAdsSearchTerm, setAdsSearchTerm,
     getAdsFilters, getAdsSortOrder, setAdsSortOrder,
-    getAdsViewMode, setAdsViewMode as stateSetViewMode
+    getAdsViewMode, setAdsViewMode as stateSetViewMode,
+    getSelectedAdIds, clearAdsSelection
 } from '/js/state/ads-state.js';
-import { renderAdsGrid, showLoading, renderError } from '/js/renderers/ads-renderer.js';
+import { renderAdsGrid, showLoading, renderError, updateBulkPublishButton } from '/js/renderers/ads-renderer.js';
 import { renderAdsKanban } from '/js/renderers/ads-kanban-renderer.js';
+import { showMetaPublishModal } from '/js/renderers/meta-publish-modal.js';
 import {
     populateAdsFilterOptions,
     openAdsFilterValueDialog as filterUIOpenDialog,
@@ -100,6 +102,18 @@ export function renderAdsPage() {
     } else {
         renderAdsGrid(container, filteredAds);
     }
+    updateBulkPublishButton();
+}
+
+/**
+ * Handle bulk publish - open modal with selected ads
+ */
+export function handleAdsBulkPublish() {
+    const selectedIds = Array.from(getSelectedAdIds());
+    if (selectedIds.length === 0) return;
+    const ads = getAdsCache().filter(a => selectedIds.includes(a.id));
+    if (ads.length === 0) return;
+    showMetaPublishModal(selectedIds, ads);
 }
 
 // ============ Filtering & Sorting Logic ============

@@ -2,7 +2,7 @@
 Ad Image schemas for CRUD operations.
 """
 from pydantic import BaseModel, Field
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from datetime import datetime
 from uuid import UUID
 
@@ -52,6 +52,8 @@ class AdImageResponse(BaseModel):
     started_running_on_best_ad: Optional[datetime] = None
     meta_ad_id: Optional[str] = None
     meta_creative_id: Optional[str] = None
+    meta_adset_id: Optional[str] = None
+    meta_adset_name: Optional[str] = None
     performance_last_synced_at: Optional[datetime] = None
 
     class Config:
@@ -77,12 +79,20 @@ class ImportJobResponse(BaseModel):
     user_id: Optional[UUID] = None
     source_url: str
     status: str
+    job_type: str = "meta_ads_library"
+    ad_account_id: Optional[str] = None
+    media_type: Optional[str] = None
     total_found: int
     total_imported: int
     error_message: Optional[str] = None
+    progress_payload: Optional[Dict[str, Any]] = None
+    failed_count: int = 0
+    skipped_count: int = 0
     created_at: datetime
     started_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    last_heartbeat_at: Optional[datetime] = None
+    rate_limited_until: Optional[datetime] = None
 
     class Config:
         from_attributes = True

@@ -323,6 +323,28 @@ export function relayoutImagesGrid() {
 }
 
 /**
+ * Tear down grid-only layout/runtime state when switching away from grid view.
+ * This prevents stale Masonry height/positioning from affecting table view.
+ * @param {HTMLElement} [container]
+ */
+export function teardownImagesGrid(container = null) {
+    cancelScheduledLayoutFromImageLoad(false);
+    if (window.imagesIntersectionObserver) {
+        window.imagesIntersectionObserver.disconnect();
+        window.imagesIntersectionObserver = null;
+    }
+    if (masonryInstance) {
+        masonryInstance.destroy();
+        masonryInstance = null;
+    }
+
+    const target = container || document.getElementById('imagesGrid');
+    if (!target) return;
+    target.style.removeProperty('height');
+    target.style.removeProperty('position');
+}
+
+/**
  * Check if content type is video
  * @param {string} contentType - MIME type
  * @returns {boolean}
@@ -436,6 +458,8 @@ function formatFileSize(bytes) {
 
 /** True after user has clicked a checkbox at least once (shows bottom selection bar). */
 let selectionModeActive = false;
+/** Tracks when "Select all" action has explicitly selected all rows across pages. */
+let allImagesExplicitlySelected = false;
 
 /**
  * Attach event listeners using event delegation
@@ -448,6 +472,7 @@ function attachEventListeners(container) {
             e.preventDefault();
             const imageId = checkbox.dataset.imageId;
             const isSelected = toggleImageSelection(imageId);
+            if (!isSelected) allImagesExplicitlySelected = false;
             
             const card = checkbox.closest('.images-card');
             if (card) card.classList.toggle('is-selected', isSelected);
@@ -487,6 +512,7 @@ function attachEventListeners(container) {
             } else if (!nowChecked && selected.has(imageId)) {
                 toggleImageSelection(imageId);
             }
+            if (!input.checked) allImagesExplicitlySelected = false;
             const card = checkbox.closest('.images-card');
             if (card) card.classList.toggle('is-selected', input.checked);
             selectionModeActive = true;
@@ -504,7 +530,8 @@ function updateSelectionBar() {
     const selectedIds = getSelectedImageIds();
     const selectedCount = selectedIds.size;
     const total = getImagesTotal();
-    const allSelected = total > 0 ? selectedCount >= total : (hasItems && selectedCount === cache.length);
+    const computedAllSelected = total > 0 ? selectedCount >= total : (hasItems && selectedCount === cache.length);
+    const allSelected = allImagesExplicitlySelected || computedAllSelected;
 
     const bar = document.getElementById('imagesSelectionBar');
     const selectDeselectBtn = document.getElementById('imagesSelectDeselectAllBtn');
@@ -520,9 +547,16 @@ function updateSelectionBar() {
         const countSpan = deleteBtn.querySelector('.images-bulk-delete__count');
         if (countSpan) countSpan.textContent = selectedCount;
     } else {
-        if (!hasItems) selectionModeActive = false;
+        if (!hasItems) {
+            selectionModeActive = false;
+            allImagesExplicitlySelected = false;
+        }
         bar.classList.remove('is-visible');
         bar.setAttribute('aria-hidden', 'true');
+    }
+
+    if (selectedCount === 0) {
+        allImagesExplicitlySelected = false;
     }
 }
 
@@ -606,6 +640,7 @@ export async function handleImagesSelectAll() {
     }
 
     selectionModeActive = true;
+    allImagesExplicitlySelected = true;
     setSelectedImageIds(selectedIds);
     syncVisibleSelectionUI();
     if (selectDeselectBtn) selectDeselectBtn.disabled = false;
@@ -616,6 +651,7 @@ export async function handleImagesSelectAll() {
  * Deselect all images and update UI
  */
 export function handleImagesDeselectAll() {
+    allImagesExplicitlySelected = false;
     clearImageSelections();
     syncVisibleSelectionUI();
     updateSelectionBar();

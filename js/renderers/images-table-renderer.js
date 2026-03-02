@@ -96,6 +96,29 @@ function positionPreview(anchorEl, previewEl) {
     previewEl.style.top = `${top}px`;
 }
 
+function bindAutoReposition(anchorEl, previewEl) {
+    if (!anchorEl || !previewEl) return;
+
+    const reposition = () => {
+        // Skip if preview is no longer shown.
+        if (!previewEl.classList.contains('visible')) return;
+        positionPreview(anchorEl, previewEl);
+    };
+
+    // Reposition after first paint and a short delay for late layout changes.
+    requestAnimationFrame(reposition);
+    setTimeout(reposition, 120);
+
+    // Reposition once media dimensions are known.
+    previewEl.querySelectorAll('img').forEach((img) => {
+        img.addEventListener('load', reposition, { once: true });
+    });
+    previewEl.querySelectorAll('video').forEach((video) => {
+        video.addEventListener('loadedmetadata', reposition, { once: true });
+        video.addEventListener('loadeddata', reposition, { once: true });
+    });
+}
+
 function showPreview(row, thumbEl) {
     if (!row) return;
     const preview = getPreviewContainer();
@@ -132,6 +155,7 @@ function showPreview(row, thumbEl) {
     }
     positionPreview(thumbEl, preview);
     preview.classList.add('visible');
+    bindAutoReposition(thumbEl, preview);
 }
 
 function hidePreview() {

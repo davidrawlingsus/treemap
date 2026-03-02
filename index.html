@@ -355,7 +355,8 @@
         } from '/js/renderers/chart-renderer.js';
         import {
             initAdsPage as adsControllerInitAdsPage,
-            renderAdsPage as adsControllerRenderAdsPage
+            renderAdsPage as adsControllerRenderAdsPage,
+            handleAdsBulkPublish as adsControllerHandleAdsBulkPublish
         } from '/js/controllers/ads-controller.js';
         import { renderSettingsMarkdown } from '/js/utils/markdown.js';
         import {
@@ -378,8 +379,12 @@
             handleAdsFindReplaceReplaceAll as adsFindReplaceHandleReplaceAll
         } from '/js/controllers/ads-find-replace-controller.js';
         import {
-            clearAdsState as adsStateClearAdsState
+            clearAdsState as adsStateClearAdsState,
+            clearAdsSelection as adsStateClearAdsSelection
         } from '/js/state/ads-state.js';
+        import {
+            updateBulkPublishButton as adsRendererUpdateBulkPublishButton
+        } from '/js/renderers/ads-renderer.js';
         import {
             initImagesPage as imagesControllerInitImagesPage,
             renderImagesPage as imagesControllerRenderImagesPage,
@@ -615,6 +620,7 @@
         window.adsControllerInitAdsPage = adsControllerInitAdsPage;
         window.initAdsPage = adsControllerInitAdsPage;
         window.renderAdsPage = adsControllerRenderAdsPage;
+        window.handleAdsBulkPublish = adsControllerHandleAdsBulkPublish;
         window.emailsControllerInitEmailsPage = emailsControllerInitEmailsPage;
         window.initEmailsPage = emailsControllerInitEmailsPage;
         window.renderEmailsPage = emailsControllerRenderEmailsPage;
@@ -623,6 +629,8 @@
         window.handleAdsFindReplaceSearch = adsFindReplaceHandleSearch;
         window.handleAdsFindReplaceReplace = adsFindReplaceHandleReplace;
         window.handleAdsFindReplaceReplaceAll = adsFindReplaceHandleReplaceAll;
+        window.clearAdsSelection = adsStateClearAdsSelection;
+        window.updateBulkPublishButton = adsRendererUpdateBulkPublishButton;
         window.initImagesPage = imagesControllerInitImagesPage;
         window.renderImagesPage = imagesControllerRenderImagesPage;
         window.handleLoadMoreImages = imagesControllerLoadMoreImagesPage;
@@ -16235,6 +16243,11 @@
                 </div>
             </div>
             
+            <!-- Bulk Publish Button (shown when ads selected) -->
+            <button class="ads-bulk-publish-button" id="adsBulkPublishBtn" onclick="handleAdsBulkPublish()" type="button" aria-label="Bulk publish selected ads" title="Publish selected ads to Meta" style="display: none;">
+                <img src="/images/publish_icon.svg" alt="" width="16" height="16" style="margin-right: 6px;">
+                <span id="adsBulkPublishLabel">Bulk publish</span>
+            </button>
             <!-- Find & Replace Button -->
             <button class="ads-find-replace-button" onclick="openAdsFindReplaceModal()" type="button" aria-label="Find and replace" title="Find and replace text in ads">
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-right: 4px;">

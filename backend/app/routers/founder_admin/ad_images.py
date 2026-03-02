@@ -249,6 +249,8 @@ def list_ad_images(
                 "started_running_on_best_ad": perf.started_running_on,
                 "meta_ad_id": perf.meta_ad_id,
                 "meta_creative_id": perf.meta_creative_id,
+                "meta_adset_id": perf.meta_adset_id,
+                "meta_adset_name": perf.meta_adset_name,
                 "performance_last_synced_at": perf.last_synced_at,
             })
         return AdImageResponse.model_validate(payload)

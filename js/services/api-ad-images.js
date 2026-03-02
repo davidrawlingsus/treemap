@@ -174,6 +174,8 @@ function getSortParams(sortBy) {
             return { sort_by: 'meta_created_time', order: 'asc' };
         case 'library_newest':
             return { sort_by: 'meta_created_time', order: 'desc' };
+        case 'uploaded_newest':
+            return { sort_by: 'uploaded_at', order: 'desc' };
         case 'newest':
         default:
             return { sort_by: 'meta_created_time', order: 'desc' };

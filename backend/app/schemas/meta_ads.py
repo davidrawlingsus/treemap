@@ -206,3 +206,20 @@ class MetaImportAllRequest(BaseModel):
     client_id: UUID = Field(..., description="Client to import into")
     media_type: str = Field("all", description="'all', 'image', or 'video'")
     ad_account_id: Optional[str] = Field(None, description="Meta ad account ID to use; if omitted, token default is used")
+
+
+class MetaImportAllAsyncRequest(BaseModel):
+    """Request to enqueue a long-running Meta media import."""
+    client_id: UUID = Field(..., description="Client to import into")
+    media_type: str = Field("all", description="'all', 'image', or 'video'")
+    ad_account_id: Optional[str] = Field(None, description="Meta ad account ID to use; if omitted, token default is used")
+    page_size: int = Field(10, ge=1, le=50, description="Items per API page fetch")
+    delay_seconds: float = Field(2.0, ge=0.0, le=60.0, description="Delay between page batches")
+    include_performance_lookup: bool = Field(True, description="Fetch performance + ad copy lookup for imported media")
+    max_items: Optional[int] = Field(None, ge=1, description="Optional cap for this run")
+
+
+class MetaImportAllAsyncStartResponse(BaseModel):
+    """Response after enqueuing a long-running import."""
+    job_id: UUID
+    status: str

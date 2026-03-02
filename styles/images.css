@@ -2982,6 +2982,21 @@ body.picker-open {
     flex-shrink: 0;
 }
 
+.import-media-global-progress__resume {
+    padding: 6px 12px;
+    font-size: 0.8125rem;
+    border: 1px solid var(--border, #e2e8f0);
+    background: var(--brand-color, #B9F040);
+    color: var(--text, #1a202c);
+    border-radius: 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.import-media-global-progress__resume:hover {
+    filter: brightness(0.97);
+}
+
 .import-media-global-progress__cancel:hover {
     background: var(--bg, #f5f7fb);
 }

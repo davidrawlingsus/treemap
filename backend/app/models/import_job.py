@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Text, Integer, ForeignKey
+from sqlalchemy import Column, String, DateTime, Text, Integer, ForeignKey, JSON
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -15,8 +15,11 @@ class ImportJob(Base):
     user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     source_url = Column(Text, nullable=False)  # Meta Ads Library URL
     
-    # Job status: pending, running, complete, failed
+    # Job status: pending, running, complete, failed, cancelled
     status = Column(String(20), default='pending', nullable=False)
+    job_type = Column(String(50), default='meta_ads_library', nullable=False)
+    ad_account_id = Column(String(50), nullable=True)
+    media_type = Column(String(20), nullable=True)
     
     # Progress tracking
     total_found = Column(Integer, default=0)
@@ -24,11 +27,16 @@ class ImportJob(Base):
     
     # Error handling
     error_message = Column(Text, nullable=True)
+    progress_payload = Column(JSON, nullable=True)
+    failed_count = Column(Integer, default=0)
+    skipped_count = Column(Integer, default=0)
     
     # Timestamps
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     started_at = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
+    last_heartbeat_at = Column(DateTime(timezone=True), nullable=True)
+    rate_limited_until = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     client = relationship("Client", foreign_keys=[client_id])

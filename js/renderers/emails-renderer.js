@@ -1008,8 +1008,9 @@ async function handleImageSelection(emailId, mockup) {
             return;
         }
         
-        // Fetch images for the client (larger limit for picker choice)
-        const response = await fetchAdImages(clientId, { limit: 200, offset: 0 });
+        // Fetch images for the client (larger limit for picker choice). Use uploaded_newest
+        // so manually uploaded images (NULL meta_created_time) appear in the first page.
+        const response = await fetchAdImages(clientId, { limit: 200, offset: 0, sortBy: 'uploaded_newest' });
         const images = response.items || [];
         
         if (images.length === 0) {

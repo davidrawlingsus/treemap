@@ -5,7 +5,7 @@
  */
 
 import { updateFacebookAd } from '/js/services/api-facebook-ads.js';
-import { updateAdInCache, getAdsSearchTerm, getAdsFilters, getAdsCache } from '/js/state/ads-state.js';
+import { updateAdInCache, getAdsSearchTerm, getAdsFilters, getAdsCache, isAdSelected, toggleAdSelection } from '/js/state/ads-state.js';
 import { AD_STATUS_OPTIONS, normalizeStatus, getStatusConfig } from '/js/controllers/ads-filter-ui.js';
 import { escapeHtml } from '/js/utils/dom.js';
 import { renderFBAdMockup, formatCTA, extractDomain, formatPrimaryText } from '/js/renderers/fb-ad-mockup.js';
@@ -47,6 +47,9 @@ export function renderAdsKanban(container, ads) {
     
     // Initialize hover preview
     initKanbanHoverPreview(container);
+    
+    // Initialize bulk select handlers
+    initKanbanSelectHandlers(container);
 }
 
 /**
@@ -105,9 +108,13 @@ function renderKanbanCard(ad) {
     const headline = escapeHtml(ad.headline || 'Untitled Ad');
     const primaryText = escapeHtml((ad.primary_text || '').substring(0, 100));
     const angle = escapeHtml(ad.full_json?.angle || '');
+    const selected = isAdSelected(ad.id);
     
     return `
         <div class="ads-kanban__card" draggable="true" data-ad-id="${id}">
+            <label class="ads-kanban__card-select" title="Select for bulk publish">
+                <input type="checkbox" class="ads-kanban__card-select-input" data-ad-id="${id}" ${selected ? 'checked' : ''} aria-label="Select ad">
+            </label>
             <div class="ads-kanban__card-headline">${headline}</div>
             ${angle ? `<div class="ads-kanban__card-type">${angle}</div>` : ''}
             ${primaryText ? `<div class="ads-kanban__card-preview">${primaryText}${ad.primary_text?.length > 100 ? '...' : ''}</div>` : ''}
@@ -249,6 +256,25 @@ function hidePreview() {
     if (previewContainer) {
         previewContainer.classList.remove('visible');
     }
+}
+
+/**
+ * Initialize bulk select checkbox handlers
+ * @param {HTMLElement} container - The Kanban board container
+ */
+function initKanbanSelectHandlers(container) {
+    container.addEventListener('click', (e) => {
+        const selectEl = e.target.closest('.ads-kanban__card-select');
+        if (selectEl) {
+            e.stopPropagation();
+            const input = selectEl.querySelector('.ads-kanban__card-select-input');
+            const adId = input?.dataset?.adId;
+            if (adId) {
+                toggleAdSelection(adId);
+                window.updateBulkPublishButton?.();
+            }
+        }
+    });
 }
 
 /**

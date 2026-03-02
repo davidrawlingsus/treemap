@@ -18,7 +18,7 @@ import {
     getImagesHideDuplicates, setImagesHideDuplicates,
     addImageToCache
 } from '/js/state/images-state.js';
-import { renderImagesGrid, showLoading, renderError, relayoutImagesGrid, cancelScheduledLayoutFromImageLoad, updateBulkDeleteButton } from '/js/renderers/images-renderer.js';
+import { renderImagesGrid, showLoading, renderError, relayoutImagesGrid, cancelScheduledLayoutFromImageLoad, teardownImagesGrid, updateBulkDeleteButton } from '/js/renderers/images-renderer.js';
 import { renderImagesTable } from '/js/renderers/images-table-renderer.js';
 import { debounce } from '/js/utils/dom.js';
 
@@ -895,6 +895,7 @@ export function renderImagesPage() {
     updateViewToggleUI();
 
     if (viewMode === 'table') {
+        teardownImagesGrid(container);
         renderImagesTable(container, dedupedImages, {
             columns: getImagesTableColumns(),
             onColumnsChange: (columns) => {

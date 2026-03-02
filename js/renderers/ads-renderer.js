@@ -5,7 +5,7 @@
  */
 
 import { deleteFacebookAd, updateFacebookAd } from '/js/services/api-facebook-ads.js';
-import { getAdsCache, removeAdFromCache, updateAdInCache, getAdsSearchTerm, getAdsFilters } from '/js/state/ads-state.js';
+import { getAdsCache, removeAdFromCache, updateAdInCache, getAdsSearchTerm, getAdsFilters, getSelectedAdIds, toggleAdSelection, isAdSelected, clearAdsSelection } from '/js/state/ads-state.js';
 import { AD_STATUS_OPTIONS, normalizeStatus, getStatusConfig } from '/js/controllers/ads-filter-ui.js';
 import { escapeHtml } from '/js/utils/dom.js';
 import { renderFBAdMockup, formatCTA, extractDomain, formatPrimaryText } from '/js/renderers/fb-ad-mockup.js';
@@ -110,6 +110,24 @@ export function renderAdsGrid(container, ads) {
     
     // Initialize Masonry for horizontal-first reading order
     initMasonry(container);
+    
+    updateBulkPublishButton();
+}
+
+/**
+ * Update bulk publish button visibility and label based on selection
+ */
+export function updateBulkPublishButton() {
+    const btn = document.getElementById('adsBulkPublishBtn');
+    const label = document.getElementById('adsBulkPublishLabel');
+    if (!btn || !label) return;
+    const count = getSelectedAdIds().size;
+    if (count > 0) {
+        btn.style.display = '';
+        label.textContent = count === 1 ? 'Bulk publish' : `Bulk publish (${count})`;
+    } else {
+        btn.style.display = 'none';
+    }
 }
 
 /**
@@ -204,10 +222,14 @@ function renderAdCard(ad) {
         ? `<span class="ads-card__funnel-pill ads-card__funnel-pill--${funnelStep.toLowerCase()}">${escapeHtml(funnelStep)}</span>`
         : '';
     
+    const isSelected = isAdSelected(id);
     return `
         <div class="ads-card" data-ad-id="${id}">
             <div class="ads-card__header">
                 <div class="ads-card__header-left">
+                    <label class="ads-card__select" title="Select for bulk publish">
+                        <input type="checkbox" class="ads-card__select-input" data-ad-id="${id}" ${isSelected ? 'checked' : ''} aria-label="Select ad">
+                    </label>
                     <div class="ads-card__status-wrapper">
                         <button class="ads-card__status ${statusClass}" data-ad-id="${id}" title="Click to change status">
                             ${escapeHtml(statusConfig.label)}
@@ -485,6 +507,19 @@ function attachEventListeners(container) {
     
     // Create and store new click handler
     _adsContainerClickHandler = async (e) => {
+        // Handle bulk select checkbox (label or input)
+        const selectEl = e.target.closest('.ads-card__select');
+        if (selectEl) {
+            e.stopPropagation();
+            const input = selectEl.querySelector('.ads-card__select-input');
+            const adId = input?.dataset?.adId;
+            if (adId) {
+                toggleAdSelection(adId);
+                updateBulkPublishButton();
+            }
+            return;
+        }
+
         // Handle edit icon click
         const editIcon = e.target.closest('.pe-fb-ad__edit-icon');
         if (editIcon) {
@@ -1057,8 +1092,9 @@ async function handleImageSelection(adId, mediaElement) {
             return;
         }
         
-        // Fetch images for the client (larger limit for picker choice)
-        const response = await fetchAdImages(clientId, { limit: 200, offset: 0 });
+        // Fetch images for the client (larger limit for picker choice). Use uploaded_newest
+        // so manually uploaded images (NULL meta_created_time) appear in the first page.
+        const response = await fetchAdImages(clientId, { limit: 200, offset: 0, sortBy: 'uploaded_newest' });
         const images = response.items || [];
         
         if (images.length === 0) {
@@ -1068,7 +1104,7 @@ async function handleImageSelection(adId, mediaElement) {
         
         const { setImagesCache } = await import('/js/state/images-state.js');
         setImagesCache(images);
-        
+
         // Show picker modal
         showImagePickerModal(async (imageUrl) => {
             try {

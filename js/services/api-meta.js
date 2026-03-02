@@ -523,6 +523,100 @@ export async function importAllMetaMediaStream(clientId, mediaType = 'all', onPr
     throw new Error('Import all ended without result');
 }
 
+/**
+ * Start long-running import-all async job (non-SSE).
+ * @param {string} clientId - Client UUID
+ * @param {Object} [opts]
+ * @returns {Promise<{job_id: string, status: string}>}
+ */
+export async function startImportAllMetaMediaAsync(clientId, opts = {}) {
+    const body = {
+        client_id: clientId,
+        media_type: opts.mediaType || 'all',
+        ad_account_id: opts.adAccountId || null,
+        page_size: opts.pageSize ?? 10,
+        delay_seconds: opts.delaySeconds ?? 2.0,
+        include_performance_lookup: opts.includePerformanceLookup ?? true,
+        max_items: opts.maxItems ?? null,
+    };
+    const response = await fetch(
+        `${API_BASE_URL}/api/meta/import-all-async`,
+        {
+            method: 'POST',
+            headers: {
+                ...getAuthHeaders(),
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
+        }
+    );
+    return handleResponse(response, 'Start async import-all');
+}
+
+/**
+ * Get async import-all job status.
+ * @param {string} jobId - Import job UUID
+ * @returns {Promise<{job: Object, is_task_attached: boolean, recent_images: Array}>}
+ */
+export async function getImportAllMetaMediaAsyncJob(jobId) {
+    const response = await fetch(
+        `${API_BASE_URL}/api/meta/import-all-async/jobs/${encodeURIComponent(jobId)}`,
+        { headers: getAuthHeaders() }
+    );
+    return handleResponse(response, 'Get async import-all job status');
+}
+
+/**
+ * List async import-all jobs for a client.
+ * @param {string} clientId - Client UUID
+ * @param {Object} [opts] - { adAccountId, limit }
+ * @returns {Promise<{items: Array, total: number}>}
+ */
+export async function listImportAllMetaMediaAsyncJobs(clientId, opts = {}) {
+    const params = new URLSearchParams({
+        client_id: clientId,
+        limit: String(opts.limit ?? 10),
+    });
+    if (opts.adAccountId) params.set('ad_account_id', opts.adAccountId);
+    const response = await fetch(
+        `${API_BASE_URL}/api/meta/import-all-async/jobs?${params.toString()}`,
+        { headers: getAuthHeaders() }
+    );
+    return handleResponse(response, 'List async import-all jobs');
+}
+
+/**
+ * Cancel a running async import-all job.
+ * @param {string} jobId - Import job UUID
+ * @returns {Promise<{success: boolean, job: Object}>}
+ */
+export async function cancelImportAllMetaMediaAsyncJob(jobId) {
+    const response = await fetch(
+        `${API_BASE_URL}/api/meta/import-all-async/jobs/${encodeURIComponent(jobId)}/cancel`,
+        {
+            method: 'POST',
+            headers: getAuthHeaders(),
+        }
+    );
+    return handleResponse(response, 'Cancel async import-all job');
+}
+
+/**
+ * Resume a cancelled/failed async import-all job.
+ * @param {string} jobId - Import job UUID
+ * @returns {Promise<{success: boolean, job: Object}>}
+ */
+export async function resumeImportAllMetaMediaAsyncJob(jobId) {
+    const response = await fetch(
+        `${API_BASE_URL}/api/meta/import-all-async/jobs/${encodeURIComponent(jobId)}/resume`,
+        {
+            method: 'POST',
+            headers: getAuthHeaders(),
+        }
+    );
+    return handleResponse(response, 'Resume async import-all job');
+}
+
 // ==================== Publishing Methods ====================
 
 /**
