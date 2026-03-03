@@ -935,7 +935,7 @@ class MetaAdsService:
         creative_id = creative_result.get("id")
         logger.info(f"Created creative {creative_id} for ad {ad_id}")
         
-        ad_meta_name = ad_name or f"Ad - {ad.headline[:30]}"
+        ad_meta_name = ad_name or (ad.headline[:30] if ad.headline else "Ad")
         
         ad_result = await self.create_ad(
             access_token=access_token,

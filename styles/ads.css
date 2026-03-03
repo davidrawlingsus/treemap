@@ -480,6 +480,11 @@
     color: #6b7280;
 }
 
+.ads-card__status--published {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
 /* Legacy status colors for backwards compatibility */
 .ads-card__status--ready {
     background: #d1fae5;
