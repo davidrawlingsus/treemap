@@ -14,6 +14,7 @@ export const AD_STATUS_OPTIONS = [
     { id: 'draft', label: 'Draft', color: '#fef3c7', textColor: '#92400e' },
     { id: 'queued', label: 'Queued', color: '#e0e7ff', textColor: '#3730a3' },
     { id: 'testing', label: 'Testing', color: '#fce7f3', textColor: '#9d174d' },
+    { id: 'published', label: 'Published', color: '#dbeafe', textColor: '#1e40af' },
     { id: 'live', label: 'Live', color: '#d1fae5', textColor: '#065f46' },
     { id: 'retired', label: 'Retired', color: '#f3f4f6', textColor: '#6b7280' }
 ];
@@ -25,7 +26,8 @@ export const AD_STATUS_OPTIONS = [
  */
 export function normalizeStatus(status) {
     const validStatuses = AD_STATUS_OPTIONS.map(s => s.id);
-    const normalized = (status || 'draft').toLowerCase();
+    let normalized = (status || 'draft').toLowerCase();
+    if (normalized === 'exported') normalized = 'published'; // legacy alias
     return validStatuses.includes(normalized) ? normalized : 'draft';
 }
 

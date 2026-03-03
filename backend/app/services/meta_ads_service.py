@@ -949,7 +949,7 @@ class MetaAdsService:
         logger.info(f"Created Meta ad {meta_ad_id} for local ad {ad_id}")
         
         # Update local ad status
-        ad.status = "exported"
+        ad.status = "published"
         self.db.commit()
         
         return {

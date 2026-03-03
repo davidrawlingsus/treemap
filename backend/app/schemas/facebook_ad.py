@@ -19,7 +19,7 @@ class FacebookAdCreate(BaseModel):
     full_json: Dict[str, Any] = Field(..., description="Complete original JSON for FB API")
     insight_id: Optional[UUID] = Field(None, description="Link to insight if saved to one")
     action_id: Optional[UUID] = Field(None, description="Link to source action/history item")
-    status: Optional[str] = Field(default="draft", description="Ad status: draft, ready, exported")
+    status: Optional[str] = Field(default="draft", description="Ad status: draft, queued, testing, published, live, retired")
 
 
 class FacebookAdUpdate(BaseModel):
