@@ -385,6 +385,17 @@ function renderPublishState(adData, bulkCount = 0) {
     const selectedAdsetId = getSelectedAdsetId();
     const selectedPageId = getSelectedPageId();
     
+    // Lead ads require ad sets with destination_type=ON_AD
+    const displayAdsets = isLeadContext()
+        ? adsets.filter(a => a.destination_type === 'ON_AD')
+        : adsets;
+    const validSelectedAdsetId = displayAdsets.some(a => a.id === selectedAdsetId)
+        ? selectedAdsetId
+        : null;
+    if (validSelectedAdsetId !== selectedAdsetId) {
+        setSelectedAdsetId(validSelectedAdsetId);
+    }
+    
     container.innerHTML = `
         <div class="meta-publish-modal__form">
             <div class="meta-publish-modal__connected-as">
@@ -467,8 +478,9 @@ function renderPublishState(adData, bulkCount = 0) {
                 <select class="meta-publish-modal__select" id="metaAdsetSelect" ${!selectedCampaignId ? 'disabled' : ''}>
                     <option value="">Select ad set...</option>
                     <option value="__new__">+ Create New Ad Set</option>
-                    ${adsets.map(a => `
-                        <option value="${escapeHtml(a.id)}" ${a.id === selectedAdsetId ? 'selected' : ''}>
+                    ${displayAdsets.length === 0 && isLeadContext() ? '<option value="" disabled>No lead ad sets — create one below</option>' : ''}
+                    ${displayAdsets.map(a => `
+                        <option value="${escapeHtml(a.id)}" ${a.id === validSelectedAdsetId ? 'selected' : ''}>
                             ${escapeHtml(a.name)} (${escapeHtml(a.status)})
                         </option>
                     `).join('')}
@@ -618,6 +630,10 @@ function attachFormListeners() {
         if (value === '__new__') {
             container.querySelector('#createAdsetForm').style.display = 'block';
             setSelectedAdsetId(null);
+            if (isLeadContext()) {
+                const optGoal = container.querySelector('#newAdsetOptimizationGoal');
+                if (optGoal) optGoal.value = 'LEAD_GENERATION';
+            }
         } else {
             container.querySelector('#createAdsetForm').style.display = 'none';
             setSelectedAdsetId(value || null);
@@ -931,7 +947,7 @@ async function handleCreateAdset() {
                 custom_event_type: 'PURCHASE', // Default to PURCHASE, could make configurable
             };
         } else if (optimizationGoal === 'LEAD_GENERATION' || getSelectedCampaign()?.objective === 'OUTCOME_LEADS') {
-            // Lead ads require promoted_object with page_id (Meta API requirement)
+            // Lead ads require promoted_object with page_id and destination_type ON_AD
             const pageId = getSelectedPageId();
             if (!pageId) {
                 alert('Please select a Facebook Page first. Lead ads require a page to collect form submissions.');
@@ -940,12 +956,19 @@ async function handleCreateAdset() {
                 return;
             }
             adsetData.promoted_object = { page_id: pageId };
+            adsetData.destination_type = 'ON_AD';
         }
         
         const result = await createMetaAdset(currentClientId, adsetData);
         
-        // Add to cache and select
-        addAdsetToCache({ id: result.id, name: result.name, status: 'PAUSED' });
+        // Add to cache and select (include destination_type for lead ad sets)
+        const cachedAdset = {
+            id: result.id,
+            name: result.name,
+            status: 'PAUSED',
+            ...(adsetData.destination_type && { destination_type: adsetData.destination_type }),
+        };
+        addAdsetToCache(cachedAdset);
         setSelectedAdsetId(result.id);
         
         // Hide form and reset fields

@@ -94,6 +94,7 @@ class MetaAdSet(BaseModel):
     daily_budget: Optional[str] = Field(None, description="Daily budget in cents")
     lifetime_budget: Optional[str] = Field(None, description="Lifetime budget in cents")
     optimization_goal: Optional[str] = Field(None, description="Optimization goal (e.g. LEAD_GENERATION)")
+    destination_type: Optional[str] = Field(None, description="Destination type (e.g. ON_AD for lead ads)")
 
 
 class MetaAdSetListResponse(BaseModel):
@@ -115,6 +116,7 @@ class CreateAdSetRequest(BaseModel):
     targeting: Optional[dict] = Field(None, description="Targeting specification")
     # Required for certain optimization goals (e.g., OFFSITE_CONVERSIONS needs pixel_id)
     promoted_object: Optional[dict] = Field(None, description="Promoted object (pixel_id for conversions, etc.)")
+    destination_type: Optional[str] = Field(None, description="For lead ads use ON_AD")
 
 
 class CreateAdSetResponse(BaseModel):

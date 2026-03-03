@@ -41,7 +41,7 @@ class MetaAdsService:
         Returns:
             OAuth authorization URL
         """
-        scopes = "ads_management,ads_read,business_management,pages_show_list,pages_manage_ads"
+        scopes = "ads_management,ads_read,business_management,pages_show_list"
         
         params = {
             "client_id": self.settings.meta_app_id,
@@ -317,7 +317,7 @@ class MetaAdsService:
                 f"{META_GRAPH_API_BASE}/{campaign_id}/adsets",
                 params={
                     "access_token": access_token,
-                    "fields": "id,name,status,daily_budget,lifetime_budget,optimization_goal",
+                    "fields": "id,name,status,daily_budget,lifetime_budget,optimization_goal,destination_type",
                     "limit": 100,
                 }
             )
@@ -328,6 +328,28 @@ class MetaAdsService:
                 error_msg = error_obj.get("message", response.text)
                 raise Exception(f"Meta API error: {error_user_msg or error_msg}")
             return data.get("data", [])
+    
+    async def get_adset(
+        self,
+        access_token: str,
+        adset_id: str,
+    ) -> Dict[str, Any]:
+        """Fetch a single ad set by ID."""
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                f"{META_GRAPH_API_BASE}/{adset_id}",
+                params={
+                    "access_token": access_token,
+                    "fields": "id,name,destination_type,optimization_goal",
+                }
+            )
+            data = response.json() if response.content else {}
+            if not response.is_success:
+                error_obj = data.get("error", {})
+                error_user_msg = error_obj.get("error_user_msg", "")
+                error_msg = error_obj.get("message", response.text)
+                raise Exception(f"Meta API error: {error_user_msg or error_msg}")
+            return data
     
     async def create_adset(
         self,
@@ -342,6 +364,7 @@ class MetaAdsService:
         status: str = "PAUSED",
         targeting: Optional[Dict] = None,
         promoted_object: Optional[Dict] = None,
+        destination_type: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Create a new adset.
@@ -351,10 +374,15 @@ class MetaAdsService:
             lifetime_budget: Lifetime budget in cents
             targeting: Targeting specification dict
             promoted_object: Required for certain optimization goals (e.g., OFFSITE_CONVERSIONS needs pixel_id)
+            destination_type: For lead ads use ON_AD; auto-set when optimization_goal=LEAD_GENERATION
         
         Returns:
             Dict with created adset id
         """
+        # Lead ads require destination_type=ON_AD
+        if destination_type is None and optimization_goal == "LEAD_GENERATION":
+            destination_type = "ON_AD"
+        
         # Default targeting if not provided (broad targeting)
         if targeting is None:
             targeting = {
@@ -383,6 +411,8 @@ class MetaAdsService:
                 data["lifetime_budget"] = lifetime_budget
             if promoted_object:
                 data["promoted_object"] = json_module.dumps(promoted_object)
+            if destination_type:
+                data["destination_type"] = destination_type
             
             response = await client.post(
                 f"{META_GRAPH_API_BASE}/{ad_account_id}/adsets",
@@ -864,6 +894,15 @@ class MetaAdsService:
         creative_name = ad_name or f"Creative - {ad.headline[:30]}"
         
         if lead_form_id:
+            # Lead ads require ad set with destination_type=ON_AD
+            adset_info = await self.get_adset(access_token, adset_id)
+            dest_type = adset_info.get("destination_type")
+            if dest_type != "ON_AD":
+                raise Exception(
+                    "The selected ad set must be configured for lead ads (ON_AD destination). "
+                    "Please select an ad set created for lead generation, or create a new ad set "
+                    "with the lead ads option in Meta Ads Manager."
+                )
             creative_result = await self.create_lead_ad_creative(
                 access_token=access_token,
                 ad_account_id=ad_account_id,
@@ -927,15 +966,27 @@ class MetaAdsService:
     ) -> List[Dict[str, Any]]:
         """
         List lead forms for a Facebook page.
+        Requires a Page Access Token; fetches it from me/accounts if user token provided.
         
         Returns:
             List of lead form dicts with id, name, status
         """
+        page_token = access_token
+        pages = await self.list_pages(access_token)
+        for p in pages:
+            if str(p.get("id")) == str(page_id) and p.get("access_token"):
+                page_token = p["access_token"]
+                break
+        else:
+            raise Exception(
+                "Meta API error: Page not found or no page access. "
+                "Ensure the page is connected and you have manage access."
+            )
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 f"{META_GRAPH_API_BASE}/{page_id}/leadgen_forms",
                 params={
-                    "access_token": access_token,
+                    "access_token": page_token,
                     "fields": "id,name,status",
                     "limit": 100,
                 }

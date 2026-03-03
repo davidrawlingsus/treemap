@@ -703,6 +703,7 @@ async def list_adsets(
                 daily_budget=daily_budget,
                 lifetime_budget=lifetime_budget,
                 optimization_goal=a.get("optimization_goal"),
+                destination_type=a.get("destination_type"),
             ))
         except (KeyError, TypeError) as e:
             logger.warning(f"Skipping malformed adset: {a} - {e}")
@@ -747,6 +748,7 @@ async def create_adset(
             status=request.status,
             targeting=request.targeting,
             promoted_object=request.promoted_object,
+            destination_type=request.destination_type,
         )
         return CreateAdSetResponse(id=result["id"], name=request.name)
     except Exception as e:
