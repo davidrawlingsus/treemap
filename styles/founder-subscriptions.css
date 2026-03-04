@@ -1,0 +1,291 @@
+/* Founder Subscriptions Admin Styles */
+
+.subscriptions-table-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.subscriptions-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.subscriptions-table thead {
+    background: #f8fafc;
+    border-bottom: 1px solid var(--border);
+}
+
+.subscriptions-table th {
+    padding: 12px 16px;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+.subscriptions-table td {
+    padding: 14px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+}
+
+.subscriptions-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.subscriptions-table tbody tr:hover {
+    background: #fafbfd;
+}
+
+/* Plan badge */
+.plan-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.plan-badge--basic {
+    background: #f1f5f9;
+    color: var(--muted);
+    border: 1px solid var(--border);
+}
+
+.plan-badge--pro {
+    background: rgba(185, 240, 64, 0.15);
+    color: #4a7c00;
+    border: 1px solid rgba(185, 240, 64, 0.4);
+}
+
+.plan-badge--enterprise {
+    background: rgba(99, 102, 241, 0.1);
+    color: #4338ca;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.plan-badge--none {
+    background: #fff5f5;
+    color: var(--danger);
+    border: 1px solid #fed7d7;
+}
+
+/* Override badge */
+.override-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(251, 191, 36, 0.15);
+    color: #92400e;
+    border: 1px solid rgba(251, 191, 36, 0.4);
+    margin-left: 6px;
+}
+
+/* Status indicator */
+.status-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+}
+
+.status-dot--active {
+    background: var(--success);
+}
+
+.status-dot--canceled {
+    background: var(--danger);
+}
+
+.status-dot--past_due {
+    background: #f59e0b;
+}
+
+.status-dot--trialing {
+    background: #6366f1;
+}
+
+/* Trial usage bar */
+.trial-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.trial-bar__track {
+    flex: 1;
+    height: 6px;
+    background: #f1f5f9;
+    border-radius: 3px;
+    overflow: hidden;
+    min-width: 60px;
+}
+
+.trial-bar__fill {
+    height: 100%;
+    background: var(--brand-color);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.trial-bar__fill--exhausted {
+    background: var(--danger);
+}
+
+.trial-bar__label {
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+}
+
+/* Action buttons in table rows */
+.row-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.btn-xs {
+    padding: 5px 10px;
+    font-size: 12px;
+    border-radius: 6px;
+}
+
+/* Filter bar */
+.filter-bar {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.filter-bar select {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    background: var(--surface);
+    cursor: pointer;
+}
+
+.filter-bar select:focus {
+    outline: none;
+    border-color: var(--brand-color);
+}
+
+/* Usage records panel */
+.usage-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.usage-panel__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.usage-panel__header h3 {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.usage-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.usage-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: #f8fafc;
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.usage-item__action {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.usage-item__meta {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+/* Plans section */
+.plans-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+}
+
+.plan-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+}
+
+.plan-card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.plan-card__name {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.plan-card__detail {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 4px;
+}
+
+.plan-card__actions {
+    margin-top: 12px;
+    display: flex;
+    gap: 8px;
+}
+
+/* Inline edit field */
+.inline-edit {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.inline-edit input {
+    width: 60px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    text-align: center;
+}
+
+.inline-edit input:focus {
+    outline: none;
+    border-color: var(--brand-color);
+}

@@ -22,6 +22,9 @@ from app.models.ad_library_media import AdLibraryMedia
 from app.models.ad_image_performance import AdImagePerformance
 from app.models.creative_mri_report import CreativeMRIReport
 from app.models.client_product_context import ClientProductContext
+from app.models.plan import Plan
+from app.models.subscription import Subscription
+from app.models.usage_record import UsageRecord
 
 __all__ = [
     "Client",
@@ -52,6 +55,9 @@ __all__ = [
     "AdImagePerformance",
     "CreativeMRIReport",
     "ClientProductContext",
+    "Plan",
+    "Subscription",
+    "UsageRecord",
 ]
 
 

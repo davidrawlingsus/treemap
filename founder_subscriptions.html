@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Founder Admin - Subscriptions</title>
+    <link rel="icon" href="/images/favicon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles/founder-admin.css">
+    <link rel="stylesheet" href="/styles/founder-subscriptions.css">
+    <script src="/config.js"></script>
+    <script src="/auth.js"></script>
+    <script src="/js/founder-admin-common.js"></script>
+</head>
+<body>
+    <div id="loginOverlay" class="login-overlay hidden">
+        <div class="login-container">
+            <div id="loginFormSection">
+                <h2>Sign in</h2>
+                <p class="login-subtext">Enter your work email and we'll email you a secure magic link.</p>
+                <input type="email" id="loginEmail" placeholder="you@company.com" autocomplete="email">
+                <button id="loginButton" type="button">Send Magic Link</button>
+                <div id="loginError" class="login-error"></div>
+                <div id="loginSuccess" class="login-success"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="appShell">
+        <header>
+            <div>
+                <nav class="breadcrumbs">
+                    <a href="/founder_admin.html">Founder Admin</a>
+                    <span class="breadcrumbs-separator">›</span>
+                    <span>Subscriptions</span>
+                </nav>
+                <h1>Subscriptions &amp; Plans</h1>
+                <div class="subtitle">
+                    Manage client plans, subscriptions, manual overrides, and view trial usage.
+                </div>
+            </div>
+            <div class="founder-meta">
+                <span id="founderEmail"></span>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-secondary" id="refreshButton">Refresh</button>
+                    <button class="btn btn-ghost" id="logoutButton">Logout</button>
+                </div>
+            </div>
+        </header>
+        <main>
+            <div class="content">
+                <div id="statusMessage" class="status-message"></div>
+
+                <!-- Plans Section -->
+                <div class="toolbar">
+                    <div>
+                        <h2 style="font-size: 18px; font-weight: 600;">Plans</h2>
+                        <p style="font-size: 14px; color: var(--muted); margin-top: 6px;">
+                            Configure trial limits and features for each tier.
+                        </p>
+                    </div>
+                </div>
+                <div id="plansContainer" class="plans-grid"></div>
+
+                <!-- Subscriptions Section -->
+                <div class="toolbar">
+                    <div>
+                        <h2 style="font-size: 18px; font-weight: 600;">Client Subscriptions</h2>
+                        <p style="font-size: 14px; color: var(--muted); margin-top: 6px;">
+                            View and manage which plan each client is on.
+                        </p>
+                    </div>
+                    <div class="filter-bar">
+                        <select id="planFilter">
+                            <option value="">All plans</option>
+                            <option value="none">No plan</option>
+                            <option value="basic">Basic</option>
+                            <option value="pro">Pro</option>
+                            <option value="enterprise">Enterprise</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="subscriptionsContainer"></div>
+
+                <!-- Usage Panel (shown when viewing a client) -->
+                <div id="usagePanel" class="usage-panel" style="display: none;">
+                    <div class="usage-panel__header">
+                        <h3>Usage Records: <span id="usageClientName"></span></h3>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="btn btn-danger btn-xs" id="resetUsageButton">Reset Trial</button>
+                            <button class="btn btn-secondary btn-xs" id="closeUsageButton">Close</button>
+                        </div>
+                    </div>
+                    <div id="usageList" class="usage-list"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const { DOM, API, AuthUtils } = window.FounderAdmin;
+
+        let plans = [];
+        let subscriptions = [];
+        let currentUsageClientId = null;
+
+        function renderPlans() {
+            const container = document.getElementById('plansContainer');
+            if (!plans.length) {
+                container.innerHTML = '<div class="empty-state">No plans found. Check database seed.</div>';
+                return;
+            }
+            container.innerHTML = plans.map(plan => `
+                <div class="plan-card" data-plan-id="${plan.id}">
+                    <div class="plan-card__header">
+                        <span class="plan-card__name">${DOM.escapeHtml(plan.display_name)}</span>
+                        <span class="plan-badge plan-badge--${plan.name}">${plan.name}</span>
+                    </div>
+                    <div class="plan-card__detail">Trial limit: <strong class="inline-edit">
+                        <input type="number" value="${plan.trial_limit}" min="0"
+                               data-plan-id="${plan.id}" data-field="trial_limit"
+                               class="plan-inline-edit" title="Edit trial limit">
+                    </strong></div>
+                    <div class="plan-card__detail">Features: ${Object.entries(plan.features || {}).filter(([,v]) => v).map(([k]) => k).join(', ') || 'none'}</div>
+                    <div class="plan-card__detail">Price: ${plan.price_monthly_cents === 0 ? 'Free' : '$' + (plan.price_monthly_cents / 100).toFixed(2) + '/mo'}</div>
+                </div>
+            `).join('');
+
+            container.querySelectorAll('.plan-inline-edit').forEach(input => {
+                input.addEventListener('change', async (e) => {
+                    const planId = e.target.dataset.planId;
+                    const field = e.target.dataset.field;
+                    const value = parseInt(e.target.value, 10);
+                    try {
+                        await API.put(`/api/founder/plans/${planId}`, { [field]: value });
+                        showStatus('success', `Plan updated: ${field} = ${value}`);
+                        await loadPlans();
+                    } catch (err) {
+                        showStatus('error', `Failed to update plan: ${err.message}`);
+                    }
+                });
+            });
+        }
+
+        function renderSubscriptions() {
+            const container = document.getElementById('subscriptionsContainer');
+            const filter = document.getElementById('planFilter').value;
+
+            let filtered = subscriptions;
+            if (filter === 'none') {
+                filtered = subscriptions.filter(s => !s.plan_name);
+            } else if (filter) {
+                filtered = subscriptions.filter(s => s.plan_name === filter);
+            }
+
+            if (!filtered.length) {
+                container.innerHTML = '<div class="empty-state">No clients match this filter.</div>';
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="subscriptions-table-wrap">
+                    <table class="subscriptions-table">
+                        <thead>
+                            <tr>
+                                <th>Client</th>
+                                <th>Plan</th>
+                                <th>Status</th>
+                                <th>Trial Usage</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${filtered.map(sub => renderSubscriptionRow(sub)).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            container.addEventListener('click', handleTableAction);
+            container.addEventListener('change', handlePlanChange);
+        }
+
+        function renderSubscriptionRow(sub) {
+            const planBadgeClass = sub.plan_name ? `plan-badge--${sub.plan_name}` : 'plan-badge--none';
+            const planLabel = sub.plan_display_name || 'No plan';
+            const overrideBadge = sub.is_manual_override ? '<span class="override-badge">Override</span>' : '';
+
+            const statusDot = sub.subscription_status
+                ? `<span class="status-dot status-dot--${sub.subscription_status}"></span>${sub.subscription_status}`
+                : '<span style="color: var(--muted);">—</span>';
+
+            const trialLimit = sub.trial_limit || 0;
+            const trialUses = sub.trial_uses || 0;
+            const pct = trialLimit > 0 ? Math.min((trialUses / trialLimit) * 100, 100) : 0;
+            const exhausted = trialLimit > 0 && trialUses >= trialLimit;
+            const trialBar = trialLimit > 0
+                ? `<div class="trial-bar">
+                       <div class="trial-bar__track">
+                           <div class="trial-bar__fill ${exhausted ? 'trial-bar__fill--exhausted' : ''}" style="width: ${pct}%"></div>
+                       </div>
+                       <span class="trial-bar__label">${trialUses}/${trialLimit}</span>
+                   </div>`
+                : '<span style="color: var(--muted); font-size: 12px;">Unlimited</span>';
+
+            const planOptions = plans.map(p =>
+                `<option value="${p.id}" ${p.name === sub.plan_name ? 'selected' : ''}>${p.display_name}</option>`
+            ).join('');
+
+            const hasSubscription = !!sub.subscription_id;
+
+            return `
+                <tr data-client-id="${sub.client_id}">
+                    <td>
+                        <div style="font-weight: 600;">${DOM.escapeHtml(sub.client_name)}</div>
+                        <div style="font-size: 12px; color: var(--muted);">${DOM.escapeHtml(sub.client_slug)}</div>
+                    </td>
+                    <td>
+                        <span class="plan-badge ${planBadgeClass}">${DOM.escapeHtml(planLabel)}</span>
+                        ${overrideBadge}
+                    </td>
+                    <td>${statusDot}</td>
+                    <td>${trialBar}</td>
+                    <td>
+                        <div class="row-actions">
+                            <select class="btn btn-secondary btn-xs plan-select" data-client-id="${sub.client_id}" data-has-subscription="${hasSubscription}">
+                                <option value="">Assign plan...</option>
+                                ${planOptions}
+                                ${hasSubscription ? '<option value="__remove__">Remove plan</option>' : ''}
+                            </select>
+                            <button class="btn btn-secondary btn-xs" data-action="usage" data-client-id="${sub.client_id}" data-client-name="${DOM.escapeHtmlForAttribute(sub.client_name)}">Usage</button>
+                            ${!sub.is_manual_override && hasSubscription ? `<button class="btn btn-ghost btn-xs" data-action="grant-override" data-client-id="${sub.client_id}">Grant Override</button>` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }
+
+        async function handlePlanChange(e) {
+            const select = e.target.closest('.plan-select');
+            if (!select) return;
+
+            const clientId = select.dataset.clientId;
+            const hasSubscription = select.dataset.hasSubscription === 'true';
+            const value = select.value;
+
+            if (!value) return;
+
+            try {
+                if (value === '__remove__') {
+                    await API.delete(`/api/founder/subscriptions/${clientId}`);
+                    showStatus('success', 'Subscription removed');
+                } else if (hasSubscription) {
+                    await API.put(`/api/founder/subscriptions/${clientId}`, {
+                        plan_id: value,
+                        is_manual_override: true,
+                    });
+                    showStatus('success', 'Plan updated');
+                } else {
+                    await API.post('/api/founder/subscriptions', {
+                        client_id: clientId,
+                        plan_id: value,
+                        is_manual_override: true,
+                        status: 'active',
+                    });
+                    showStatus('success', 'Plan assigned');
+                }
+                await loadSubscriptions();
+            } catch (err) {
+                showStatus('error', `Failed: ${err.message}`);
+                select.value = '';
+            }
+        }
+
+        async function handleTableAction(e) {
+            const btn = e.target.closest('[data-action]');
+            if (!btn) return;
+
+            const action = btn.dataset.action;
+            const clientId = btn.dataset.clientId;
+
+            if (action === 'usage') {
+                currentUsageClientId = clientId;
+                document.getElementById('usageClientName').textContent = btn.dataset.clientName;
+                document.getElementById('usagePanel').style.display = 'block';
+                await loadUsage(clientId);
+            }
+
+            if (action === 'grant-override') {
+                try {
+                    await API.put(`/api/founder/subscriptions/${clientId}`, { is_manual_override: true });
+                    showStatus('success', 'Manual override granted');
+                    await loadSubscriptions();
+                } catch (err) {
+                    showStatus('error', `Failed: ${err.message}`);
+                }
+            }
+        }
+
+        async function loadUsage(clientId) {
+            const container = document.getElementById('usageList');
+            container.innerHTML = '<div style="color: var(--muted); padding: 12px;">Loading...</div>';
+            try {
+                const records = await API.get(`/api/founder/subscriptions/${clientId}/usage`);
+                if (!records.length) {
+                    container.innerHTML = '<div style="color: var(--muted); padding: 12px;">No usage records yet.</div>';
+                    return;
+                }
+                container.innerHTML = records.map(r => `
+                    <div class="usage-item">
+                        <span class="usage-item__action">${DOM.escapeHtml(r.action_type)}</span>
+                        <span class="usage-item__meta">
+                            ${DOM.escapeHtml(r.user_email || 'Unknown user')}
+                            &middot; ${new Date(r.created_at).toLocaleString()}
+                        </span>
+                    </div>
+                `).join('');
+            } catch (err) {
+                container.innerHTML = `<div style="color: var(--danger); padding: 12px;">Error: ${DOM.escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        async function loadPlans() {
+            try {
+                plans = await API.get('/api/founder/plans');
+                renderPlans();
+            } catch (err) {
+                showStatus('error', `Failed to load plans: ${err.message}`);
+            }
+        }
+
+        async function loadSubscriptions() {
+            try {
+                subscriptions = await API.get('/api/founder/subscriptions');
+                renderSubscriptions();
+            } catch (err) {
+                showStatus('error', `Failed to load subscriptions: ${err.message}`);
+            }
+        }
+
+        function showStatus(type, message) {
+            const el = document.getElementById('statusMessage');
+            DOM.showStatus(el, message, type);
+            if (message) {
+                setTimeout(() => DOM.showStatus(el, null), 4000);
+            }
+        }
+
+        async function initializePage(userInfo) {
+            Auth.hideLogin();
+            const loginOverlay = document.getElementById('loginOverlay');
+            if (loginOverlay) loginOverlay.classList.add('hidden');
+
+            document.getElementById('appShell').style.display = 'flex';
+            document.getElementById('founderEmail').textContent = userInfo.email || '';
+
+            await Promise.all([loadPlans(), loadSubscriptions()]);
+
+            document.getElementById('planFilter').addEventListener('change', renderSubscriptions);
+
+            document.getElementById('refreshButton').addEventListener('click', async () => {
+                await Promise.all([loadPlans(), loadSubscriptions()]);
+                showStatus('success', 'Refreshed');
+            });
+
+            document.getElementById('logoutButton').addEventListener('click', () => Auth.handleLogout());
+
+            document.getElementById('closeUsageButton').addEventListener('click', () => {
+                document.getElementById('usagePanel').style.display = 'none';
+                currentUsageClientId = null;
+            });
+
+            document.getElementById('resetUsageButton').addEventListener('click', async () => {
+                if (!currentUsageClientId) return;
+                if (!confirm('Reset all trial usage for this client? This cannot be undone.')) return;
+                try {
+                    await API.delete(`/api/founder/subscriptions/${currentUsageClientId}/usage`);
+                    showStatus('success', 'Trial usage reset');
+                    await loadUsage(currentUsageClientId);
+                    await loadSubscriptions();
+                } catch (err) {
+                    showStatus('error', `Failed: ${err.message}`);
+                }
+            });
+        }
+
+        AuthUtils.initializeAuth(initializePage);
+        AuthUtils.setupAuthListeners(initializePage);
+    </script>
+</body>
+</html>

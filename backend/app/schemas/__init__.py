@@ -170,6 +170,16 @@ from .meta_ads import (
     MetaImportAllAsyncStartResponse,
 )
 
+from .billing import (
+    PlanResponse,
+    PlanUpdateRequest,
+    SubscriptionResponse,
+    SubscriptionCreateRequest,
+    SubscriptionUpdateRequest,
+    ClientSubscriptionSummary,
+    UsageRecordResponse,
+)
+
 from .saved_email import (
     SavedEmailCreate,
     SavedEmailUpdate,
@@ -333,5 +343,13 @@ __all__ = [
     "EmailPositionUpdate",
     "BatchReorderRequest",
     "BatchReorderResponse",
+    # Billing
+    "PlanResponse",
+    "PlanUpdateRequest",
+    "SubscriptionResponse",
+    "SubscriptionCreateRequest",
+    "SubscriptionUpdateRequest",
+    "ClientSubscriptionSummary",
+    "UsageRecordResponse",
 ]
 

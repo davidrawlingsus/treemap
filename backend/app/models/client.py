@@ -72,6 +72,12 @@ class Client(Base):
         cascade="all, delete-orphan",
         order_by="ClientProductContext.sort_order, ClientProductContext.created_at"
     )
+    subscription = relationship(
+        "Subscription",
+        back_populates="client",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self):
         return f"<Client(id={self.id}, name={self.name}, slug={self.slug})>"
