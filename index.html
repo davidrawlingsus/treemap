@@ -6814,6 +6814,96 @@
         // Settings Page JavaScript
         // Uses state from /js/state/settings-state.js and API from /js/services/api-settings.js
         
+        function renderBillingSection(clientId) {
+            const container = document.getElementById('billingContainer');
+            if (!container) return;
+
+            const userInfo = Auth?.getStoredUserInfo?.();
+            if (userInfo?.is_founder) {
+                container.innerHTML = '<p style="color: var(--muted); font-size: 14px;">Founder accounts bypass billing.</p>';
+                return;
+            }
+
+            const plan = subStateGetCurrentPlan();
+            const displayName = subStateGetPlanDisplayName();
+            const isBasic = subStateIsBasicPlan();
+            const trialRemaining = subStateGetTrialUsesRemaining();
+            const trialLimit = subStateGetTrialLimit();
+
+            let html = '';
+
+            if (!plan) {
+                html = `
+                    <div class="billing-plan-row">
+                        <span class="billing-label">Current Plan</span>
+                        <span class="billing-value">No plan assigned</span>
+                    </div>
+                    <a href="/pricing.html" class="billing-action-btn">View Plans</a>
+                `;
+            } else {
+                html = `
+                    <div class="billing-plan-row">
+                        <span class="billing-label">Current Plan</span>
+                        <span class="billing-value"><span class="nav-plan-badge nav-plan-badge--${escapeHtml(plan)}">${escapeHtml(displayName || plan)}</span></span>
+                    </div>
+                `;
+
+                if (isBasic && trialRemaining !== null && trialLimit) {
+                    const used = trialLimit - trialRemaining;
+                    const pct = Math.min((used / trialLimit) * 100, 100);
+                    const exhausted = trialRemaining <= 0;
+                    html += `
+                        <div class="billing-plan-row">
+                            <span class="billing-label">Free Generations</span>
+                            <span class="billing-value">
+                                <div class="billing-trial-bar">
+                                    <div class="billing-trial-bar__fill ${exhausted ? 'billing-trial-bar__fill--exhausted' : ''}" style="width: ${pct}%"></div>
+                                </div>
+                                ${trialRemaining} of ${trialLimit} remaining
+                            </span>
+                        </div>
+                        <a href="/pricing.html" class="billing-action-btn">Upgrade to Pro</a>
+                    `;
+                } else if (!isBasic) {
+                    html += `
+                        <div class="billing-plan-row">
+                            <span class="billing-label">AI Generations</span>
+                            <span class="billing-value">Unlimited</span>
+                        </div>
+                        <button type="button" class="billing-action-btn billing-action-btn--secondary" id="manageBillingBtn">Manage Billing</button>
+                    `;
+                }
+            }
+
+            container.innerHTML = html;
+
+            const manageBtn = container.querySelector('#manageBillingBtn');
+            if (manageBtn) {
+                manageBtn.addEventListener('click', async () => {
+                    manageBtn.disabled = true;
+                    manageBtn.textContent = 'Loading...';
+                    const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+                    try {
+                        const response = await fetch(`${API_BASE_URL}/api/billing/portal`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                ...Auth.getAuthHeaders(),
+                            },
+                            body: JSON.stringify({ client_id: clientId }),
+                        });
+                        if (!response.ok) throw new Error('Failed to open billing portal');
+                        const data = await response.json();
+                        if (data.portal_url) window.location.href = data.portal_url;
+                    } catch (e) {
+                        alert('Unable to open billing portal. Please try again.');
+                        manageBtn.disabled = false;
+                        manageBtn.textContent = 'Manage Billing';
+                    }
+                });
+            }
+        }
+
         async function initSettingsPage() {
             // Get client ID from URL params or global state
             const urlParams = new URLSearchParams(window.location.search);
@@ -6845,6 +6935,7 @@
             
             window.productContextInitEventDelegation();
             await loadClientSettings();
+            renderBillingSection(effectiveClientId);
             window.settingsStateSetSettingsInitialized(true);
         }
         
@@ -16843,6 +16934,13 @@
                     <h2 class="settings-card-title">Product Context</h2>
                     <p class="settings-card-description">Product details used when generating ads and emails. Add product contexts from PDP URLs, then select which product is live for AI prompts.</p>
                     <div id="productContextContainer"></div>
+                </div>
+
+                <!-- Billing -->
+                <div class="settings-card" id="billingCard">
+                    <h2 class="settings-card-title">Billing &amp; Plan</h2>
+                    <p class="settings-card-description">Manage your subscription and billing details.</p>
+                    <div id="billingContainer" class="billing-container"></div>
                 </div>
 
                 <!-- Save Button -->
