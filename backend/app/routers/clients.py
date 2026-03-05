@@ -880,6 +880,20 @@ def list_client_prompts(
         if group_id in groups_dict:
             groups_dict[group_id]["prompts"].append(PromptMenuItem(id=p.id, name=p.name))
     
+    # Within each group, order prompts so TOFU/MOFU/BOFU appear together in journey order (TOFU, MOFU, BOFU), then others (e.g. Full Funnel)
+    def _prompt_menu_order(item: PromptMenuItem) -> tuple:
+        name_upper = (item.name or "").upper()
+        if "TOFU" in name_upper:
+            return (0, item.name or "")
+        if "MOFU" in name_upper:
+            return (1, item.name or "")
+        if "BOFU" in name_upper:
+            return (2, item.name or "")
+        return (3, item.name or "")
+
+    for g in groups_dict.values():
+        g["prompts"] = sorted(g["prompts"], key=_prompt_menu_order)
+
     # Sort by sort_order, then by label
     sorted_groups = sorted(groups_dict.values(), key=lambda x: (x["sort_order"], x["label"]))
     return [ClientPromptsGroupedItem(**g) for g in sorted_groups]
