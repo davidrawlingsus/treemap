@@ -12,6 +12,7 @@ import json
 
 from app.database import get_db
 from app.models import Client, ClientProductContext, DataSource, Insight, Membership, User, Prompt, Action, PromptClient, ContextMenuGroup
+from app.services.usage_service import check_trial_limit, record_usage
 from app.schemas import (
     ClientCreate,
     ClientResponse,
@@ -939,6 +940,22 @@ def execute_client_prompt(
     """
     # Verify client access
     verify_client_access(client_id, current_user, db)
+
+    # Founders bypass trial limits entirely
+    if not current_user.is_founder:
+        trial_info = check_trial_limit(client_id, db)
+        if not trial_info["allowed"]:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "trial_limit_exceeded",
+                    "message": "You've used all your free generations. Upgrade to Pro for unlimited access.",
+                    "limit": trial_info["limit"],
+                    "used": trial_info["used"],
+                    "remaining": 0,
+                    "plan_name": trial_info["plan_name"],
+                },
+            )
     
     # Get prompt
     prompt = db.query(Prompt).filter(Prompt.id == prompt_id).first()
@@ -1003,6 +1020,7 @@ def execute_client_prompt(
         
         if stream:
             # Store values before creating generator (to avoid session issues)
+            current_user_id_value = current_user.id
             prompt_id_value = prompt.id
             prompt_system_message = prompt.system_message
             prompt_llm_model = prompt.llm_model
@@ -1076,6 +1094,15 @@ def execute_client_prompt(
                             save_db.add(action)
                             save_db.commit()
                             logger.info(f"Client prompt execution saved to database. Content length: {len(result.get('content', ''))}")
+
+                            record_usage(
+                                client_id=client_id_value,
+                                user_id=current_user_id_value,
+                                action_type="prompt_execution",
+                                db=save_db,
+                                prompt_id=prompt_id_value,
+                                metadata={"model": result.get("model"), "tokens": result.get("tokens_used")},
+                            )
                         except Exception as save_error:
                             logger.error(f"Error saving client prompt execution to database: {save_error}", exc_info=True)
                             save_db.rollback()

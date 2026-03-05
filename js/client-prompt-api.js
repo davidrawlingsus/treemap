@@ -134,16 +134,31 @@
                 });
 
                 if (!response.ok) {
-                    // Handle auth errors
-                    if (response.status === 401 || response.status === 403) {
+                    if (response.status === 403) {
+                        let errorData = null;
+                        try { errorData = await response.json(); } catch (e) { /* ignore */ }
+                        const detail = errorData?.detail;
+                        if (detail && typeof detail === 'object' && detail.code === 'trial_limit_exceeded') {
+                            const err = new Error(detail.message || 'Trial limit exceeded');
+                            err.code = 'trial_limit_exceeded';
+                            err.limit = detail.limit;
+                            err.used = detail.used;
+                            err.remaining = detail.remaining;
+                            err.planName = detail.plan_name;
+                            throw err;
+                        }
                         throw new Error('Authentication required');
                     }
 
-                    // Try to parse error response
+                    if (response.status === 401) {
+                        throw new Error('Authentication required');
+                    }
+
                     let errorMessage = `Request failed with status ${response.status}`;
                     try {
                         const errorData = await response.json();
-                        errorMessage = errorData.detail || errorData.message || errorMessage;
+                        const detail = errorData.detail || errorData.message;
+                        errorMessage = typeof detail === 'string' ? detail : (detail ? JSON.stringify(detail) : errorMessage);
                     } catch (e) {
                         const errorText = await response.text();
                         if (errorText) errorMessage = errorText;
@@ -181,7 +196,9 @@
                                         onChunk(data.content);
                                     }
                                 } else if (data.type === 'done') {
-                                    // Streaming complete
+                                    if (window.subStateDecrementTrialUse) {
+                                        window.subStateDecrementTrialUse();
+                                    }
                                     if (onDone) {
                                         onDone({
                                             tokens_used: data.tokens_used,
@@ -189,7 +206,7 @@
                                             content: data.content
                                         });
                                     }
-                                    return; // Exit loop
+                                    return;
                                 } else if (data.type === 'error') {
                                     // Error from server
                                     const error = new Error(data.error || 'Streaming error');

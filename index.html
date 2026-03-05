@@ -7008,6 +7008,13 @@
             if (!nav) return;
 
             let container = nav.querySelector('#navPlanIndicator');
+
+            const userInfo = Auth?.getStoredUserInfo?.();
+            if (userInfo?.is_founder) {
+                if (container) container.style.display = 'none';
+                return;
+            }
+
             const plan = subStateGetCurrentPlan();
             const displayName = subStateGetPlanDisplayName();
             const trialRemaining = subStateGetTrialUsesRemaining();
