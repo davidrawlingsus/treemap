@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pricing - MapTheGap</title>
+    <link rel="icon" href="/images/favicon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles/pricing.css">
+    <script src="/config.js"></script>
+    <script src="/auth.js"></script>
+    <script src="/header.js"></script>
+</head>
+<body>
+    <main class="pricing-page">
+        <section class="pricing-hero">
+            <h1 class="pricing-hero__title">Turn customer feedback into<br>high-converting marketing</h1>
+            <p class="pricing-hero__subtitle">
+                VoC-driven ads, emails, and SEO strategy that actually resonate &mdash; because they come from what your customers already said.
+            </p>
+        </section>
+
+        <section class="pricing-cards">
+            <div class="pricing-card" data-plan="basic">
+                <div class="pricing-card__header">
+                    <span class="pricing-card__name">Basic</span>
+                    <div class="pricing-card__price">
+                        <span class="pricing-card__amount">$250</span>
+                        <span class="pricing-card__period">/month</span>
+                    </div>
+                    <p class="pricing-card__desc">VoC data processing and visualization with a taste of AI-powered marketing.</p>
+                </div>
+                <ul class="pricing-card__features">
+                    <li>VoC data processing &amp; visualization</li>
+                    <li>Treemaps, charts &amp; verbatims</li>
+                    <li>Manual insight table</li>
+                    <li>History view</li>
+                    <li>CSV data upload</li>
+                    <li>5 free AI generations (ads, emails, SEO)</li>
+                </ul>
+                <div class="pricing-card__cta">
+                    <button class="pricing-btn pricing-btn--outline" data-plan="basic">Get Started</button>
+                </div>
+            </div>
+
+            <div class="pricing-card pricing-card--featured" data-plan="pro">
+                <div class="pricing-card__badge">Most Popular</div>
+                <div class="pricing-card__header">
+                    <span class="pricing-card__name">Pro</span>
+                    <div class="pricing-card__price">
+                        <span class="pricing-card__amount">$950</span>
+                        <span class="pricing-card__period">/month</span>
+                    </div>
+                    <p class="pricing-card__desc">Unlimited AI-generated marketing directly from your voice-of-customer data.</p>
+                </div>
+                <ul class="pricing-card__features">
+                    <li><strong>Everything in Basic, plus:</strong></li>
+                    <li>Unlimited AI generations</li>
+                    <li>Facebook Ad creation &amp; iteration</li>
+                    <li>Email sequence generation</li>
+                    <li>SEO strategy from VoC</li>
+                    <li>Media library</li>
+                    <li>Product context &amp; full settings</li>
+                    <li>Push ads direct to Facebook</li>
+                </ul>
+                <div class="pricing-card__cta">
+                    <button class="pricing-btn pricing-btn--primary" data-plan="pro">Get Started</button>
+                </div>
+            </div>
+
+            <div class="pricing-card" data-plan="enterprise">
+                <div class="pricing-card__header">
+                    <span class="pricing-card__name">Enterprise</span>
+                    <div class="pricing-card__price">
+                        <span class="pricing-card__amount">Custom</span>
+                    </div>
+                    <p class="pricing-card__desc">For teams needing priority support, custom integrations, and dedicated onboarding.</p>
+                </div>
+                <ul class="pricing-card__features">
+                    <li><strong>Everything in Pro, plus:</strong></li>
+                    <li>Priority support</li>
+                    <li>Custom integrations</li>
+                    <li>Dedicated onboarding</li>
+                    <li>Higher API limits</li>
+                    <li>Custom reporting</li>
+                </ul>
+                <div class="pricing-card__cta">
+                    <button class="pricing-btn pricing-btn--outline" data-plan="enterprise">Contact Us</button>
+                </div>
+            </div>
+        </section>
+
+        <section class="pricing-comparison">
+            <h2 class="pricing-comparison__title">Feature Comparison</h2>
+            <div class="pricing-comparison__table-wrap">
+                <table class="pricing-comparison__table">
+                    <thead>
+                        <tr>
+                            <th>Feature</th>
+                            <th>Basic</th>
+                            <th>Pro</th>
+                            <th>Enterprise</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>VoC Data Processing</td>
+                            <td class="check">&#10003;</td>
+                            <td class="check">&#10003;</td>
+                            <td class="check">&#10003;</td>
+                        </tr>
+                        <tr>
+                            <td>Treemap &amp; Chart Visualization</td>
+                            <td class="check">&#10003;</td>
+                            <td class="check">&#10003;</td>
+                            <td class="check">&#10003;</td>
+                        </tr>
+                        <tr>
+                            <td>Verbatims Explorer</td>
+                            <td class="check">&#10003;</td>
+                            <td class="check">&#10003;</td>
+                            <td class="check">&#10003;</td>
+                        </tr>
+                        <tr>
+                            <td>Manual Insights Table</td>
+                            <td class="check">&#10003;</td>
+                            <td class="check">&#10003;</td>
+                            <td class="check">&#10003;</td>
+                        </tr>
+                        <tr>
+                            <td>AI-Powered Ad Generation</td>
+                            <td>5 free</td>
+                            <td class="check">Unlimited</td>
+                            <td class="check">Unlimited</td>
+                        </tr>
+                        <tr>
+                            <td>AI Email Sequence Creation</td>
+                            <td>5 free</td>
+                            <td class="check">Unlimited</td>
+                            <td class="check">Unlimited</td>
+                        </tr>
+                        <tr>
+                            <td>AI SEO Strategy</td>
+                            <td>5 free</td>
+                            <td class="check">Unlimited</td>
+                            <td class="check">Unlimited</td>
+                        </tr>
+                        <tr>
+                            <td>Push Ads to Facebook</td>
+                            <td class="dash">&mdash;</td>
+                            <td class="check">&#10003;</td>
+                            <td class="check">&#10003;</td>
+                        </tr>
+                        <tr>
+                            <td>Media Library</td>
+                            <td class="dash">&mdash;</td>
+                            <td class="check">&#10003;</td>
+                            <td class="check">&#10003;</td>
+                        </tr>
+                        <tr>
+                            <td>Product Context &amp; Settings</td>
+                            <td class="dash">&mdash;</td>
+                            <td class="check">&#10003;</td>
+                            <td class="check">&#10003;</td>
+                        </tr>
+                        <tr>
+                            <td>Priority Support</td>
+                            <td class="dash">&mdash;</td>
+                            <td class="dash">&mdash;</td>
+                            <td class="check">&#10003;</td>
+                        </tr>
+                        <tr>
+                            <td>Custom Integrations</td>
+                            <td class="dash">&mdash;</td>
+                            <td class="dash">&mdash;</td>
+                            <td class="check">&#10003;</td>
+                        </tr>
+                        <tr>
+                            <td>Dedicated Onboarding</td>
+                            <td class="dash">&mdash;</td>
+                            <td class="dash">&mdash;</td>
+                            <td class="check">&#10003;</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="pricing-footer">
+            <p>Questions? <a href="mailto:david@mapthegap.ai">Get in touch</a></p>
+        </section>
+    </main>
+
+    <div id="pricingToast" class="pricing-toast"></div>
+
+    <script>
+        const PLAN_ORDER = ['basic', 'pro', 'enterprise'];
+
+        function getCurrentPlanFromAuth() {
+            try {
+                const token = localStorage.getItem('visualizd_auth_token');
+                const userInfoStr = localStorage.getItem('visualizd_user_info');
+                if (!token || !userInfoStr) return null;
+
+                const userInfo = JSON.parse(userInfoStr);
+                const clients = userInfo.accessible_clients || [];
+                if (clients.length === 0) return null;
+
+                const savedState = localStorage.getItem('visualizd_nav_state');
+                let selectedClientId = null;
+                if (savedState) {
+                    try {
+                        const state = JSON.parse(savedState);
+                        selectedClientId = state.clientId;
+                    } catch (e) { /* ignore */ }
+                }
+
+                const client = selectedClientId
+                    ? clients.find(c => c.id === selectedClientId) || clients[0]
+                    : clients[0];
+
+                return client.plan_name || null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function updateCTAs() {
+            const currentPlan = getCurrentPlanFromAuth();
+            const currentIndex = currentPlan ? PLAN_ORDER.indexOf(currentPlan) : -1;
+
+            document.querySelectorAll('.pricing-card').forEach(card => {
+                const plan = card.dataset.plan;
+                const planIndex = PLAN_ORDER.indexOf(plan);
+                const btn = card.querySelector('.pricing-btn');
+                const existingBadge = card.querySelector('.pricing-card__current');
+
+                if (existingBadge) existingBadge.remove();
+
+                if (currentPlan && plan === currentPlan) {
+                    const badge = document.createElement('div');
+                    badge.className = 'pricing-card__current';
+                    badge.textContent = 'Current Plan';
+                    card.querySelector('.pricing-card__header').prepend(badge);
+                    btn.textContent = 'Current Plan';
+                    btn.disabled = true;
+                    btn.classList.add('pricing-btn--disabled');
+                } else if (currentPlan && planIndex < currentIndex) {
+                    btn.textContent = 'Current Plan';
+                    btn.disabled = true;
+                    btn.classList.add('pricing-btn--disabled');
+                } else if (plan === 'enterprise') {
+                    btn.textContent = 'Contact Us';
+                } else if (currentPlan && planIndex > currentIndex) {
+                    btn.textContent = 'Upgrade';
+                }
+            });
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('pricingToast');
+            toast.textContent = message;
+            toast.classList.add('visible');
+            setTimeout(() => toast.classList.remove('visible'), 3000);
+        }
+
+        document.querySelectorAll('.pricing-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const plan = btn.closest('.pricing-card')?.dataset.plan;
+                if (btn.disabled) return;
+
+                if (plan === 'enterprise') {
+                    window.location.href = 'mailto:david@mapthegap.ai?subject=Enterprise%20Plan%20Inquiry';
+                    return;
+                }
+
+                showToast('Stripe checkout coming soon. Contact us to get started.');
+            });
+        });
+
+        updateCTAs();
+    </script>
+</body>
+</html>
