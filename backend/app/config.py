@@ -92,6 +92,11 @@ class Settings(BaseSettings):
     anthropic_api_key: str | None = Field(default=None)
     gemini_api_key: str | None = Field(default=None)
     founder_admin_password: str = Field(default="tuj@yew2zmw*ZVN8uht")
+    stripe_secret_key: str | None = Field(default=None)
+    stripe_publishable_key: str | None = Field(default=None)
+    stripe_webhook_secret: str | None = Field(default=None)
+    stripe_basic_price_id: str | None = Field(default=None)
+    stripe_pro_price_id: str | None = Field(default=None)
 
     def get_database_url(self) -> str:
         """

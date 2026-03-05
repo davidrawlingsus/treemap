@@ -260,11 +260,73 @@
             });
         }
 
-        function showToast(message) {
+        function showToast(message, isError = false) {
             const toast = document.getElementById('pricingToast');
             toast.textContent = message;
+            toast.style.background = isError ? '#e53e3e' : '#1a202c';
             toast.classList.add('visible');
-            setTimeout(() => toast.classList.remove('visible'), 3000);
+            setTimeout(() => toast.classList.remove('visible'), 4000);
+        }
+
+        function getClientId() {
+            try {
+                const savedState = localStorage.getItem('visualizd_nav_state');
+                if (savedState) {
+                    const state = JSON.parse(savedState);
+                    if (state.clientId) return state.clientId;
+                }
+                const userInfoStr = localStorage.getItem('visualizd_user_info');
+                if (userInfoStr) {
+                    const userInfo = JSON.parse(userInfoStr);
+                    const clients = userInfo.accessible_clients || [];
+                    if (clients.length > 0) return clients[0].id;
+                }
+            } catch (e) { /* ignore */ }
+            return null;
+        }
+
+        function getAuthToken() {
+            return localStorage.getItem('visualizd_auth_token');
+        }
+
+        async function startCheckout(planName) {
+            const token = getAuthToken();
+            if (!token) {
+                window.location.href = '/index.html';
+                return;
+            }
+
+            const clientId = getClientId();
+            if (!clientId) {
+                showToast('No client selected. Please log in first.', true);
+                return;
+            }
+
+            const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/billing/checkout`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ client_id: clientId, plan_name: planName }),
+                });
+
+                if (!response.ok) {
+                    const err = await response.json().catch(() => ({}));
+                    const detail = typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail || 'Checkout failed');
+                    showToast(detail, true);
+                    return;
+                }
+
+                const data = await response.json();
+                if (data.checkout_url) {
+                    window.location.href = data.checkout_url;
+                }
+            } catch (e) {
+                showToast('Network error. Please try again.', true);
+            }
         }
 
         document.querySelectorAll('.pricing-btn').forEach(btn => {
@@ -277,9 +339,18 @@
                     return;
                 }
 
-                showToast('Stripe checkout coming soon. Contact us to get started.');
+                startCheckout(plan);
             });
         });
+
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('checkout') === 'success') {
+            showToast('Payment successful! Your plan has been upgraded.');
+            window.history.replaceState({}, '', '/pricing.html');
+        } else if (urlParams.get('checkout') === 'canceled') {
+            showToast('Checkout canceled.', true);
+            window.history.replaceState({}, '', '/pricing.html');
+        }
 
         updateCTAs();
     </script>

@@ -334,6 +334,9 @@ app.include_router(dimensions.router)
 from app.routers import founder_admin
 app.include_router(founder_admin.router)
 
+# Include billing router (Stripe checkout, portal, webhooks)
+from app.routers import billing
+app.include_router(billing.router)
 
 
 if __name__ == "__main__":
