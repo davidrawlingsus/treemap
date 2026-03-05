@@ -26,6 +26,7 @@
     
     <!-- App styles (extracted from inline) -->
     <link rel="stylesheet" href="/styles/app.css">
+    <link rel="stylesheet" href="/styles/upgrade-prompts.css">
     <link rel="stylesheet" href="/styles/ads.css">
     <link rel="stylesheet" href="/styles/emails.css">
     <link rel="stylesheet" href="/styles/emails-lanes.css">
@@ -133,6 +134,12 @@
             setActivePlan as subStateSetActivePlan,
             decrementTrialUse as subStateDecrementTrialUse,
         } from '/js/state/subscription-state.js';
+        import {
+            showUpgradeModal as upgradeShowModal,
+            dismissUpgradeModal as upgradeDismissModal,
+            renderTrialCounter as upgradeRenderTrialCounter,
+            renderUpgradeBanner as upgradeRenderBanner,
+        } from '/js/renderers/upgrade-prompt-renderer.js';
         import {
             getRawData as vizStateGetRawData,
             setRawData as vizStateSetRawData,
@@ -517,6 +524,11 @@
         window.subStateSetClientPlans = subStateSetClientPlans;
         window.subStateSetActivePlan = subStateSetActivePlan;
         window.subStateDecrementTrialUse = subStateDecrementTrialUse;
+
+        // Upgrade prompt renderer
+        window.upgradeShowModal = upgradeShowModal;
+        window.upgradeRenderTrialCounter = upgradeRenderTrialCounter;
+        window.upgradeRenderBanner = upgradeRenderBanner;
 
         // Make visualization state functions available globally for backward compatibility
         window.vizStateGetRawData = vizStateGetRawData;
@@ -6438,6 +6450,7 @@
                 if (typeof initAdsPage === 'function') {
                     initAdsPage();
                 }
+                if (adsSection) upgradeRenderBanner(adsSection, 'ad');
                 
                 // Scroll to top to ensure ads section is visible
                 window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -6462,6 +6475,8 @@
                     mainContainer.setAttribute('data-view', 'emails');
                 }
                 
+                if (emailsSection) upgradeRenderBanner(emailsSection, 'email');
+
                 // Initialize emails page
                 window.emailsInitialized = false;
                 if (typeof initEmailsPage === 'function') {
@@ -11772,6 +11787,11 @@
                         // onError
                         (error) => {
                             console.error('[openAIExpertInsight] Streaming error:', error);
+                            if (error.code === 'trial_limit_exceeded') {
+                                upgradeShowModal(error);
+                                this.close();
+                                return;
+                            }
                             const contentDiv = streamingItem.querySelector('.prompt-result-content');
                             if (contentDiv) {
                                 contentDiv.innerHTML = `<p style="color: oklch(0.577 0.245 27.325);">Error: ${escapeHtml(error.message || 'Unknown error occurred')}</p>`;
@@ -11876,6 +11896,11 @@
                         },
                         (error) => {
                             console.error('[openAdIterate] Streaming error:', error);
+                            if (error.code === 'trial_limit_exceeded') {
+                                upgradeShowModal(error);
+                                this.close();
+                                return;
+                            }
                             const contentDiv = streamingItem.querySelector('.prompt-result-content');
                             if (contentDiv) {
                                 contentDiv.innerHTML = `<p style="color: oklch(0.577 0.245 27.325);">Error: ${escapeHtml(error.message || 'Unknown error occurred')}</p>`;
@@ -15260,6 +15285,10 @@
                 }
             }
             
+            if (typeof upgradeRenderTrialCounter === 'function') {
+                upgradeRenderTrialCounter(contextMenu);
+            }
+
             // Position menu at cursor, ensuring it stays within viewport
             // First, make menu visible but off-screen to measure its dimensions
             contextMenu.style.visibility = 'hidden';

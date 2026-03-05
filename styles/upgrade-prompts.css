@@ -1,0 +1,207 @@
+/* Upgrade Modal Overlay */
+.upgrade-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    padding: 24px;
+}
+
+.upgrade-modal-overlay.visible {
+    opacity: 1;
+}
+
+.upgrade-modal {
+    background: var(--surface, #ffffff);
+    border-radius: 16px;
+    box-shadow: 0 30px 60px -12px rgba(15, 23, 42, 0.4);
+    max-width: 440px;
+    width: 100%;
+    padding: 40px 36px 32px;
+    text-align: center;
+    position: relative;
+}
+
+.upgrade-modal__close {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    background: none;
+    border: none;
+    font-size: 22px;
+    color: var(--muted, #718096);
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px;
+}
+
+.upgrade-modal__close:hover {
+    color: var(--text, #1a202c);
+}
+
+.upgrade-modal__icon {
+    color: var(--brand-color, #B9F040);
+    margin-bottom: 16px;
+}
+
+.upgrade-modal__title {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text, #1a202c);
+    margin-bottom: 12px;
+    font-family: 'Lato', sans-serif;
+}
+
+.upgrade-modal__body {
+    font-size: 14px;
+    color: var(--muted, #718096);
+    line-height: 1.6;
+    margin-bottom: 24px;
+}
+
+.upgrade-modal__features {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 28px;
+}
+
+.upgrade-modal__feature {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text, #1a202c);
+    padding: 8px 12px;
+    background: #f8fafc;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 8px;
+    text-align: left;
+}
+
+.upgrade-modal__feature::before {
+    content: "✓ ";
+    color: #4a7c00;
+    font-weight: 700;
+}
+
+.upgrade-modal__cta {
+    display: block;
+    width: 100%;
+    padding: 14px 24px;
+    background: var(--brand-color, #B9F040);
+    color: #000;
+    font-size: 15px;
+    font-weight: 700;
+    border: none;
+    border-radius: 10px;
+    text-decoration: none;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-family: 'Lato', sans-serif;
+    margin-bottom: 12px;
+}
+
+.upgrade-modal__cta:hover {
+    background: #a0d636;
+}
+
+.upgrade-modal__dismiss {
+    background: none;
+    border: none;
+    color: var(--muted, #718096);
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px 8px;
+    font-family: 'Lato', sans-serif;
+}
+
+.upgrade-modal__dismiss:hover {
+    color: var(--text, #1a202c);
+}
+
+/* Context Menu Trial Counter */
+.ctx-trial-counter {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border, #e2e8f0);
+    background: #f8fafc;
+}
+
+.ctx-trial-counter__bar {
+    width: 40px;
+    height: 4px;
+    background: #e2e8f0;
+    border-radius: 2px;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.ctx-trial-counter__fill {
+    height: 100%;
+    background: var(--brand-color, #B9F040);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.ctx-trial-counter__fill--exhausted {
+    background: #e53e3e;
+}
+
+.ctx-trial-counter__label {
+    font-size: 11px;
+    color: var(--muted, #718096);
+    white-space: nowrap;
+}
+
+.ctx-trial-counter__upgrade {
+    font-size: 11px;
+    font-weight: 600;
+    color: #4a7c00;
+    text-decoration: none;
+    margin-left: auto;
+}
+
+.ctx-trial-counter__upgrade:hover {
+    text-decoration: underline;
+}
+
+/* Upgrade Banner (Ads/Emails sections) */
+.upgrade-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #f0fdf4, #ecfdf5);
+    border: 1px solid rgba(185, 240, 64, 0.3);
+    border-radius: 10px;
+    margin-bottom: 16px;
+}
+
+.upgrade-banner__text {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text, #1a202c);
+}
+
+.upgrade-banner__cta {
+    font-size: 13px;
+    font-weight: 700;
+    color: #4a7c00;
+    text-decoration: none;
+    padding: 6px 14px;
+    border: 1px solid rgba(185, 240, 64, 0.5);
+    border-radius: 6px;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+
+.upgrade-banner__cta:hover {
+    background: rgba(185, 240, 64, 0.15);
+}
