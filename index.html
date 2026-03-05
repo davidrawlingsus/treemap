@@ -11546,12 +11546,17 @@
             
             async openAIExpertInsight(contextData, promptId, useFullAggregatedData = false) {
                 console.log('[openAIExpertInsight] Called with contextData:', contextData, 'promptId:', promptId, 'useFullAggregatedData:', useFullAggregatedData);
-                
+
+                if (subStateIsTrialExhausted()) {
+                    upgradeShowModal({ limit: subStateGetTrialLimit(), used: subStateGetTrialLimit(), remaining: 0 });
+                    return;
+                }
+
                 if (!currentClientId) {
                     alert('No client selected');
                     return;
                 }
-                
+
                 if (!window.ClientPromptAPI) {
                     alert('Error: Client prompt API not loaded');
                     return;
@@ -11818,6 +11823,11 @@
             },
 
             async openAdIterate(ad) {
+                if (subStateIsTrialExhausted()) {
+                    upgradeShowModal({ limit: subStateGetTrialLimit(), used: subStateGetTrialLimit(), remaining: 0 });
+                    return;
+                }
+
                 const clientId = currentClientId || window.appStateGetCurrentClientId?.() || document.getElementById('clientSelect')?.value;
                 if (!clientId) {
                     alert('No client selected');
