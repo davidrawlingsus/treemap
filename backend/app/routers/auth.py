@@ -21,7 +21,7 @@ from app.auth import (
 )
 from app.services import MagicLinkEmailParams
 from app.utils import build_email_service
-from app.authorization import get_user_clients
+from app.authorization import get_user_clients, get_client_plan_info
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 logger = logging.getLogger(__name__)
@@ -459,6 +459,19 @@ def get_current_user_info(
     # Get all accessible clients using centralized authorization logic
     accessible_clients = get_user_clients(current_user, db)
     
+    client_responses = []
+    for c in accessible_clients:
+        plan_info = get_client_plan_info(c.id, db)
+        client_responses.append(ClientResponse(
+            id=c.id,
+            name=c.name,
+            slug=c.slug,
+            is_active=c.is_active,
+            created_at=c.created_at,
+            updated_at=c.updated_at,
+            **plan_info,
+        ))
+
     return UserWithClients(
         id=current_user.id,
         email=current_user.email,
@@ -467,13 +480,6 @@ def get_current_user_info(
         is_active=current_user.is_active,
         email_verified_at=current_user.email_verified_at,
         created_at=current_user.created_at,
-        accessible_clients=[ClientResponse(
-            id=c.id,
-            name=c.name,
-            slug=c.slug,
-            is_active=c.is_active,
-            created_at=c.created_at,
-            updated_at=c.updated_at
-        ) for c in accessible_clients]
+        accessible_clients=client_responses,
     )
 

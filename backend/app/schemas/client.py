@@ -39,6 +39,11 @@ class ClientResponse(BaseModel):
     logo_url: Optional[str] = None
     header_color: Optional[str] = None
     tone_of_voice: Optional[str] = None
+    plan_name: Optional[str] = None
+    plan_display_name: Optional[str] = None
+    plan_features: Optional[dict] = None
+    trial_limit: Optional[int] = None
+    trial_uses_remaining: Optional[int] = None
     created_at: datetime
     updated_at: Optional[datetime]
 

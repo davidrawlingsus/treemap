@@ -6,7 +6,64 @@ from sqlalchemy.orm import Session, joinedload
 from uuid import UUID
 from typing import List
 
-from app.models import Client, Membership, User
+from app.models import Client, Membership, User, Subscription, Plan, UsageRecord
+
+
+def get_client_plan_info(client_id: UUID, db: Session) -> dict:
+    """
+    Get a client's plan info and trial usage for embedding in API responses.
+
+    Returns a dict with plan_name, plan_display_name, plan_features,
+    trial_limit, and trial_uses_remaining. Returns defaults (no plan)
+    if the client has no subscription.
+    """
+    from sqlalchemy import func
+
+    subscription = (
+        db.query(Subscription)
+        .filter(Subscription.client_id == client_id, Subscription.status == "active")
+        .first()
+    )
+
+    if not subscription:
+        return {
+            "plan_name": None,
+            "plan_display_name": None,
+            "plan_features": None,
+            "trial_limit": None,
+            "trial_uses_remaining": None,
+        }
+
+    plan = db.query(Plan).filter(Plan.id == subscription.plan_id).first()
+    if not plan:
+        return {
+            "plan_name": None,
+            "plan_display_name": None,
+            "plan_features": None,
+            "trial_limit": None,
+            "trial_uses_remaining": None,
+        }
+
+    trial_limit = plan.trial_limit
+    trial_uses_remaining = None
+    if trial_limit > 0:
+        usage_count = (
+            db.query(func.count(UsageRecord.id))
+            .filter(
+                UsageRecord.client_id == client_id,
+                UsageRecord.action_type == "prompt_execution",
+            )
+            .scalar()
+        )
+        trial_uses_remaining = max(0, trial_limit - usage_count)
+
+    return {
+        "plan_name": plan.name,
+        "plan_display_name": plan.display_name,
+        "plan_features": plan.features,
+        "trial_limit": trial_limit if trial_limit > 0 else None,
+        "trial_uses_remaining": trial_uses_remaining,
+    }
 
 
 def verify_client_access(client_id: UUID, current_user: User, db: Session) -> Client:

@@ -120,6 +120,20 @@
             resetState as appStateResetState
         } from '/js/state/app-state.js';
         import {
+            getCurrentPlan as subStateGetCurrentPlan,
+            getPlanDisplayName as subStateGetPlanDisplayName,
+            getPlanFeatures as subStateGetPlanFeatures,
+            getTrialLimit as subStateGetTrialLimit,
+            getTrialUsesRemaining as subStateGetTrialUsesRemaining,
+            canAccess as subStateCanAccess,
+            isTrialActive as subStateIsTrialActive,
+            isTrialExhausted as subStateIsTrialExhausted,
+            isBasicPlan as subStateIsBasicPlan,
+            setClientPlans as subStateSetClientPlans,
+            setActivePlan as subStateSetActivePlan,
+            decrementTrialUse as subStateDecrementTrialUse,
+        } from '/js/state/subscription-state.js';
+        import {
             getRawData as vizStateGetRawData,
             setRawData as vizStateSetRawData,
             getFullRawData as vizStateGetFullRawData,
@@ -491,7 +505,19 @@
         window.appStateGetState = appStateGetState;
         window.appStateSetState = appStateSetState;
         window.appStateResetState = appStateResetState;
-        
+
+        // Subscription state
+        window.subStateGetCurrentPlan = subStateGetCurrentPlan;
+        window.subStateGetPlanDisplayName = subStateGetPlanDisplayName;
+        window.subStateGetTrialLimit = subStateGetTrialLimit;
+        window.subStateGetTrialUsesRemaining = subStateGetTrialUsesRemaining;
+        window.subStateCanAccess = subStateCanAccess;
+        window.subStateIsBasicPlan = subStateIsBasicPlan;
+        window.subStateIsTrialExhausted = subStateIsTrialExhausted;
+        window.subStateSetClientPlans = subStateSetClientPlans;
+        window.subStateSetActivePlan = subStateSetActivePlan;
+        window.subStateDecrementTrialUse = subStateDecrementTrialUse;
+
         // Make visualization state functions available globally for backward compatibility
         window.vizStateGetRawData = vizStateGetRawData;
         window.vizStateSetRawData = vizStateSetRawData;
@@ -1955,7 +1981,9 @@
             }
             currentClientId = clientId;
             window.appStateSetCurrentClientId(clientId);
-            
+            subStateSetActivePlan(clientId);
+            updateNavPlanBadge();
+
             // Sync Insights tab client ID to keep both tabs in sync
             if (typeof insightsCurrentClientId !== 'undefined') {
                 insightsCurrentClientId = clientId;
@@ -2062,6 +2090,7 @@
             authenticatedUser = userInfo;
             showHeaderUserInfo(userInfo);
             updateAccessibleClients(userInfo.accessible_clients || []);
+            subStateSetClientPlans(userInfo.accessible_clients || []);
             
             // Show/hide founder admin nav items
             const adminNavItem = document.getElementById('navFounderAdmin');
@@ -6974,6 +7003,58 @@
             }
         }
         
+        function updateNavPlanBadge() {
+            const nav = document.querySelector('.app-navigation');
+            if (!nav) return;
+
+            let container = nav.querySelector('#navPlanIndicator');
+            const plan = subStateGetCurrentPlan();
+            const displayName = subStateGetPlanDisplayName();
+            const trialRemaining = subStateGetTrialUsesRemaining();
+            const isBasic = subStateIsBasicPlan();
+
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'navPlanIndicator';
+                container.className = 'nav-plan-indicator';
+                const logoContainer = nav.querySelector('#navClientLogoContainer');
+                if (logoContainer) {
+                    nav.insertBefore(container, logoContainer);
+                } else {
+                    nav.appendChild(container);
+                }
+            }
+
+            if (!plan) {
+                container.style.display = 'none';
+                return;
+            }
+
+            container.style.display = 'flex';
+            const badgeClass = `nav-plan-badge--${plan}`;
+            let html = `<span class="nav-plan-badge ${badgeClass}">${escapeHtml(displayName || plan)}</span>`;
+
+            if (isBasic && trialRemaining !== null) {
+                const limit = subStateGetTrialLimit();
+                const used = limit - trialRemaining;
+                const pct = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
+                const exhausted = trialRemaining <= 0;
+                html += `
+                    <div class="nav-trial-counter">
+                        <div class="nav-trial-bar">
+                            <div class="nav-trial-bar__fill ${exhausted ? 'nav-trial-bar__fill--exhausted' : ''}" style="width: ${pct}%"></div>
+                        </div>
+                        <span class="nav-trial-label">${trialRemaining} of ${limit} free</span>
+                    </div>
+                    <a href="/pricing.html" class="nav-upgrade-link">Upgrade</a>
+                `;
+            }
+
+            container.innerHTML = html;
+        }
+
+        window.addEventListener('subscription:trialUpdated', () => updateNavPlanBadge());
+
         function updateHeaderLogo(logoUrl, headerColor) {
             // Update the nav client logo if it exists
             const logoContainer = document.querySelector('.nav-client-logo-container');
