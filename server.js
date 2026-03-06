@@ -54,7 +54,9 @@ app.get('/config.js', (req, res) => {
   res.set('Cache-Control', 'no-store');
   const isLocalBackend = API_BASE_URL.includes('localhost:8000') || API_BASE_URL.includes('127.0.0.1:8000');
   const urlForFrontend = isLocalBackend ? 'http://localhost:8000' : API_BASE_URL;
-  res.send(`window.APP_CONFIG = { API_BASE_URL: '${urlForFrontend}' };`);
+  const posthogKey = process.env.POSTHOG_API_KEY || '';
+  const posthogJs = posthogKey ? `, POSTHOG_API_KEY: ${JSON.stringify(posthogKey)}` : '';
+  res.send(`window.APP_CONFIG = { API_BASE_URL: '${urlForFrontend}'${posthogJs} };`);
 });
 
 // API routes must be BEFORE express.static to avoid conflicts

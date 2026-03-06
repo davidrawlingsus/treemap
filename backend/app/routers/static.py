@@ -49,7 +49,9 @@ if (frontend_path / "index.html").exists():
         if not api_url or api_url == "http://" or api_url == "https://":
             api_url = "http://localhost:8000"
         
-        config_content = f"window.APP_CONFIG = {{ API_BASE_URL: '{api_url}' }};"
+        posthog_key = os.getenv("POSTHOG_API_KEY", "")
+        posthog_js = f", POSTHOG_API_KEY: {repr(posthog_key)}" if posthog_key else ""
+        config_content = f"window.APP_CONFIG = {{ API_BASE_URL: '{api_url}'{posthog_js} }};"
         return Response(content=config_content, media_type="application/javascript")
     
     @router.get("/styles.css")
