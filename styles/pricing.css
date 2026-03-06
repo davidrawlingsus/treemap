@@ -46,6 +46,14 @@
     text-shadow: 0 2px 24px rgba(0,0,0,0.3);
 }
 
+.pricing-hero__title-lead {
+    font-size: 1.12em;
+}
+
+.pricing-hero__title-accent {
+    color: var(--pricing-brand);
+}
+
 .pricing-hero__subtitle {
     font-size: 18px;
     font-weight: 400;
