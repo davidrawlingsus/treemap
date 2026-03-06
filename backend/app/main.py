@@ -338,6 +338,10 @@ app.include_router(founder_admin.router)
 from app.routers import billing
 app.include_router(billing.router)
 
+# Include help chat router (site widget + Slack bridge)
+from app.routers import help_chat
+app.include_router(help_chat.router)
+
 
 if __name__ == "__main__":
     import uvicorn

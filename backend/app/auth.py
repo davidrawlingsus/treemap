@@ -19,8 +19,9 @@ from app.models import User
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Bearer token scheme for token extraction
+# Bearer token schemes for token extraction
 security = HTTPBearer()
+optional_security = HTTPBearer(auto_error=False)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -49,11 +50,8 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     return encoded_jwt
 
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db),
-) -> User:
-    """Get the current authenticated user from a Bearer token."""
+def _get_user_from_token(token: str, db: Session) -> User:
+    """Resolve a user from a Bearer token."""
     settings = get_settings()
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -61,7 +59,6 @@ def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        token = credentials.credentials
         payload = jwt.decode(
             token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm]
         )
@@ -82,6 +79,24 @@ def get_current_user(
         )
 
     return user
+
+
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db),
+) -> User:
+    """Get the current authenticated user from a Bearer token."""
+    return _get_user_from_token(credentials.credentials, db)
+
+
+def get_optional_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(optional_security),
+    db: Session = Depends(get_db),
+) -> User | None:
+    """Get the current user when a valid Bearer token is present."""
+    if credentials is None:
+        return None
+    return _get_user_from_token(credentials.credentials, db)
 
 
 def get_current_active_founder(

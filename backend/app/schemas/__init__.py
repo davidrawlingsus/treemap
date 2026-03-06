@@ -189,6 +189,13 @@ from .saved_email import (
     BatchReorderRequest,
     BatchReorderResponse,
 )
+from .help_chat import (
+    HelpChatEnsureConversationRequest,
+    HelpChatMessageCreate,
+    HelpChatMessageResponse,
+    HelpChatConversationResponse,
+    HelpChatWebhookResponse,
+)
 
 # Resolve forward references after all schemas are imported
 # This is necessary for Pydantic v2 when using forward references
@@ -343,6 +350,12 @@ __all__ = [
     "EmailPositionUpdate",
     "BatchReorderRequest",
     "BatchReorderResponse",
+    # Help Chat
+    "HelpChatEnsureConversationRequest",
+    "HelpChatMessageCreate",
+    "HelpChatMessageResponse",
+    "HelpChatConversationResponse",
+    "HelpChatWebhookResponse",
     # Billing
     "PlanResponse",
     "PlanUpdateRequest",

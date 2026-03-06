@@ -37,6 +37,7 @@
     <link rel="stylesheet" href="/styles/emails.css">
     <link rel="stylesheet" href="/styles/emails-lanes.css">
     <link rel="stylesheet" href="/styles/images.css">
+    <link rel="stylesheet" href="/styles/help-chat.css">
     
     <script src="/config.js?v=5"></script>
     <!-- PostHog init disabled for stability test
@@ -45,6 +46,15 @@
     </script>
     -->
     <script src="/auth.js"></script>
+    <script type="module">
+        import { initHelpChat } from '/js/controllers/help-chat-controller.js';
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => initHelpChat());
+        } else {
+            initHelpChat();
+        }
+    </script>
     <!-- Image loading monitor for debugging intermittent Vercel Blob issues -->
     <script src="/js/utils/image-monitor.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>

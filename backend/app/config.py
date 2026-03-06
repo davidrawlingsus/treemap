@@ -97,6 +97,9 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str | None = Field(default=None)
     stripe_basic_price_id: str | None = Field(default=None)
     stripe_pro_price_id: str | None = Field(default=None)
+    slack_bot_token: str | None = Field(default=None)
+    slack_signing_secret: str | None = Field(default=None)
+    slack_help_channel_id: str | None = Field(default=None)
 
     def get_database_url(self) -> str:
         """
@@ -145,6 +148,14 @@ class Settings(BaseSettings):
     def is_production(self) -> bool:
         """Check if running in production environment."""
         return self.environment.lower() in {"production", "prod", "production2"}
+
+    def is_slack_help_configured(self) -> bool:
+        """Return True when help-chat Slack integration is configured."""
+        return bool(
+            (self.slack_bot_token or "").strip()
+            and (self.slack_signing_secret or "").strip()
+            and (self.slack_help_channel_id or "").strip()
+        )
 
 
 def get_cors_origins(settings: Settings) -> list[str]:
