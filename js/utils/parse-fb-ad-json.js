@@ -65,6 +65,19 @@
     }
 
     /**
+     * Convert literal \uXXXX sequences (six characters: backslash, u, 4 hex digits) to actual Unicode.
+     * LLMs sometimes output \\u00a3 in JSON so after parse we get the literal \u00a3 instead of £.
+     * @param {string} str - Text that may contain literal \uXXXX
+     * @returns {string} Text with literal escapes replaced by characters
+     */
+    function unescapeLiteralUnicode(str) {
+        if (str == null || typeof str !== 'string') return str;
+        return str.replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) =>
+            String.fromCharCode(parseInt(hex, 16))
+        );
+    }
+
+    /**
      * Strip bold (and italic) formatting from ad copy so it always renders as regular weight.
      * Removes markdown (**text**, *text*) and HTML (<strong>, <b>).
      * @param {string} str - Raw text that may contain bold/italic markup
@@ -136,6 +149,11 @@
         if (idea.primary_text != null) idea.primary_text = stripBoldFromText(idea.primary_text);
         if (idea.headline != null) idea.headline = stripBoldFromText(idea.headline);
         if (idea.description != null) idea.description = stripBoldFromText(idea.description);
+
+        // Convert literal \uXXXX in ad copy to real characters (e.g. \u00a3 -> £)
+        if (idea.primary_text != null) idea.primary_text = unescapeLiteralUnicode(idea.primary_text);
+        if (idea.headline != null) idea.headline = unescapeLiteralUnicode(idea.headline);
+        if (idea.description != null) idea.description = unescapeLiteralUnicode(idea.description);
 
         return idea;
     }
