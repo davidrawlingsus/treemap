@@ -69,6 +69,9 @@ export function renderTrialCounter(container) {
     const existing = container.querySelector('.ctx-trial-counter');
     if (existing) existing.remove();
 
+    const userInfo = window.Auth?.getStoredUserInfo?.();
+    if (userInfo?.is_founder) return;
+
     const isBasic = window.subStateIsBasicPlan?.();
     if (!isBasic) return;
 

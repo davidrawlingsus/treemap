@@ -11121,10 +11121,10 @@
                 this.renderVerbatims(verbatims, topicName, categoryName);
             },
             
-            async openCreateInsight(contextData, fromContextMenu = false, initialTitle = null) {
+            async openCreateInsight(contextData, fromContextMenu = false, initialTitle = null, forStreaming = false) {
                 console.log('[SlideoutPanel.openCreateInsight] Called with contextData:', contextData);
                 console.log('[SlideoutPanel.openCreateInsight] currentClientId:', currentClientId);
-                console.log('[SlideoutPanel.openCreateInsight] fromContextMenu:', fromContextMenu);
+                console.log('[SlideoutPanel.openCreateInsight] fromContextMenu:', fromContextMenu, 'forStreaming:', forStreaming);
                 
                 if (!currentClientId) {
                     console.error('[SlideoutPanel.openCreateInsight] No client selected');
@@ -11203,8 +11203,8 @@
                 
                 this.isOpen = true;
                 
-                // Focus the title input after panel is opened
-                if (title) {
+                // Focus the title input after panel is opened (only when not streaming)
+                if (!forStreaming && title) {
                     setTimeout(() => {
                         title.focus();
                     }, 100);
@@ -11217,6 +11217,23 @@
                 // Update search bar z-index when slideout opens
                 if (typeof updateTreemapSearchZIndex === 'function') {
                     updateTreemapSearchZIndex();
+                }
+                
+                if (forStreaming) {
+                    // AI Expert streaming: leave content empty so caller can render streaming UI immediately.
+                    // Set createInsightOrigin so "Create insight" from idea cards still works.
+                    this.createInsightOrigin = {
+                        origin_type: contextData.type || contextData.origin_type || 'category',
+                        process_voc_id: contextData.process_voc_id || null,
+                        project_name: contextData.project_name || null,
+                        data_source: contextData.data_source || null,
+                        dimension_ref: contextData.dimension_ref || null,
+                        dimension_name: contextData.dimension_name || null,
+                        category: contextData.category || null,
+                        topic_label: contextData.topic_label || null,
+                    };
+                    if (content) content.innerHTML = '';
+                    return;
                 }
                 
                 // Initialize panel with empty form, pre-populated with context
@@ -11650,7 +11667,8 @@
             async openAIExpertInsight(contextData, promptId, useFullAggregatedData = false) {
                 console.log('[openAIExpertInsight] Called with contextData:', contextData, 'promptId:', promptId, 'useFullAggregatedData:', useFullAggregatedData);
 
-                if (subStateIsTrialExhausted()) {
+                const userInfo = window.Auth?.getStoredUserInfo?.();
+                if (!userInfo?.is_founder && subStateIsTrialExhausted()) {
                     upgradeShowModal({ limit: subStateGetTrialLimit(), used: subStateGetTrialLimit(), remaining: 0 });
                     return;
                 }
@@ -11779,25 +11797,18 @@
                     project_name: currentProjectName || null,
                     data_source: currentDataSourceId || null
                 } : contextData;
-                // Pass promptName as initialTitle to set title BEFORE panel opens (prevents "New Insight" flash)
-                await this.openCreateInsight(contextDataForCreate, true, promptName);
+                // Pass promptName as initialTitle and forStreaming=true so we never render create-insight UI (avoids flicker)
+                await this.openCreateInsight(contextDataForCreate, true, promptName, true);
                 
-                // Wait a bit for the panel to fully initialize
-                await new Promise(resolve => setTimeout(resolve, 100));
-                
-                // Get origin from createInsightOrigin (set by openCreateInsight/initializeCreateInsightPanel)
+                // Get origin from createInsightOrigin (set by openCreateInsight when forStreaming)
                 const origin = this.createInsightOrigin || null;
                 
-                // Get content container - this is where we'll show streaming
+                // Get content container - this is where we'll show streaming (already empty when forStreaming)
                 const content = document.getElementById('slideoutContent');
                 if (!content) {
                     console.error('[openAIExpertInsight] Content container not found');
                     return;
                 }
-                
-                // Clear the content area (but keep the panel structure from openCreateInsight)
-                // The insight editor is in a separate section, so we can stream into content
-                content.innerHTML = '';
                 
                 // Create streaming result item in the content area
                 const streamingItem = renderer.createStreamingResultItem(
@@ -11926,7 +11937,8 @@
             },
 
             async openAdIterate(ad) {
-                if (subStateIsTrialExhausted()) {
+                const userInfo = window.Auth?.getStoredUserInfo?.();
+                if (!userInfo?.is_founder && subStateIsTrialExhausted()) {
                     upgradeShowModal({ limit: subStateGetTrialLimit(), used: subStateGetTrialLimit(), remaining: 0 });
                     return;
                 }
