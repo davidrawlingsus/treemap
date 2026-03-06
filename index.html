@@ -7157,7 +7157,8 @@
 
             container.style.display = 'flex';
             const badgeClass = `nav-plan-badge--${plan}`;
-            let html = `<span class="nav-plan-badge ${badgeClass}">${escapeHtml(displayName || plan)}</span>`;
+            const badgeLabel = isBasic ? 'TRIAL' : (displayName || plan);
+            let html = `<span class="nav-plan-badge ${badgeClass}">${escapeHtml(badgeLabel)}</span>`;
 
             if (isBasic && trialRemaining !== null) {
                 const limit = subStateGetTrialLimit();

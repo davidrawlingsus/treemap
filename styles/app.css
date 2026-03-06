@@ -105,11 +105,12 @@ body.slideout-open {
 /* Nav Plan Indicator */
 .nav-plan-indicator {
     display: none;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 3px;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
     margin-left: auto;
     margin-right: 12px;
+    white-space: nowrap;
 }
 
 .nav-plan-badge {
@@ -144,12 +145,12 @@ body.slideout-open {
 .nav-trial-counter {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
 }
 
 .nav-trial-bar {
-    width: 48px;
-    height: 4px;
+    width: 56px;
+    height: 5px;
     background: #e2e8f0;
     border-radius: 2px;
     overflow: hidden;
@@ -167,14 +168,15 @@ body.slideout-open {
 }
 
 .nav-trial-label {
-    font-size: 10px;
+    font-size: 11px;
+    font-weight: 500;
     color: #94a3b8;
     white-space: nowrap;
 }
 
 .nav-upgrade-link {
-    font-size: 10px;
-    font-weight: 600;
+    font-size: 11px;
+    font-weight: 700;
     color: #4a7c00;
     text-decoration: none;
     transition: opacity 0.2s;
