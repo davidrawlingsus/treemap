@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, StreamingResponse
 from sqlalchemy.orm import Session, joinedload
 
 from app.auth import get_optional_current_user
@@ -385,26 +385,27 @@ async def slack_events(
     db: Session = Depends(get_db),
     slack_service: SlackHelpChatService = Depends(get_slack_service),
 ):
+    payload = await request.body()
+    try:
+        body = json.loads(payload.decode("utf-8") or "{}")
+    except json.JSONDecodeError as exc:
+        raise HTTPException(status_code=400, detail="Invalid Slack payload") from exc
+
+    # Slack URL verification can happen before the app is fully configured.
+    if body.get("type") == "url_verification":
+        return PlainTextResponse(body.get("challenge", ""))
+
     try:
         slack_service.ensure_configured()
     except RuntimeError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
 
-    payload = await request.body()
     if not slack_service.verify_signature(
         payload,
         request.headers.get("x-slack-request-timestamp"),
         request.headers.get("x-slack-signature"),
     ):
         raise HTTPException(status_code=400, detail="Invalid Slack signature")
-
-    try:
-        body = json.loads(payload.decode("utf-8") or "{}")
-    except json.JSONDecodeError as exc:
-        raise HTTPException(status_code=400, detail="Invalid Slack payload") from exc
-
-    if body.get("type") == "url_verification":
-        return JSONResponse({"challenge": body.get("challenge")})
 
     if body.get("type") != "event_callback":
         return {"ok": True}

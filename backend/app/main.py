@@ -121,9 +121,6 @@ if cors_allow_origins:
     logger.info("Allowing additional CORS origins: %s", cors_allow_origins)
 
 
-# Create tables
-Base.metadata.create_all(bind=engine)
-
 app = FastAPI(title="Visualizd API", version="0.1.0")
 
 
