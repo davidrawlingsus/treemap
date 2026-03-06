@@ -65,6 +65,24 @@
     }
 
     /**
+     * Strip bold (and italic) formatting from ad copy so it always renders as regular weight.
+     * Removes markdown (**text**, *text*) and HTML (<strong>, <b>).
+     * @param {string} str - Raw text that may contain bold/italic markup
+     * @returns {string} Plain text with markup removed
+     */
+    function stripBoldFromText(str) {
+        if (str == null || typeof str !== 'string') return str;
+        let s = str;
+        // Markdown bold: **text** then *text* (italic), remove delimiters only
+        s = s.replace(/\*\*([\s\S]*?)\*\*/g, '$1');
+        s = s.replace(/\*([\s\S]*?)\*/g, '$1');
+        // HTML bold
+        s = s.replace(/<strong[^>]*>([\s\S]*?)<\/strong>/gi, '$1');
+        s = s.replace(/<b[^>]*>([\s\S]*?)<\/b>/gi, '$1');
+        return s;
+    }
+
+    /**
      * Detect if object looks like a Facebook ad idea (has required fields).
      * @param {object} idea
      * @returns {boolean}
@@ -114,11 +132,17 @@
             idea.angle = idea.testType;
         }
 
+        // Ensure primary text, headline, description are always regular weight (no bold/italic markup)
+        if (idea.primary_text != null) idea.primary_text = stripBoldFromText(idea.primary_text);
+        if (idea.headline != null) idea.headline = stripBoldFromText(idea.headline);
+        if (idea.description != null) idea.description = stripBoldFromText(idea.description);
+
         return idea;
     }
 
     window.ParseFbAdJson = {
         parseJsonBlock,
-        normalizeFacebookAdIdea
+        normalizeFacebookAdIdea,
+        stripBoldFromText
     };
 })();

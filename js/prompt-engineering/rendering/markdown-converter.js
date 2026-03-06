@@ -391,6 +391,10 @@
         }
         
         html = processedLines.join('\n');
+
+        // Strip ** or * that wrap only a placeholder so the later ** -> <strong> pass doesn't wrap the whole card
+        html = html.replace(/\*\*\s*___JSON_BLOCK_(\d+)___\s*\*\*/g, '___JSON_BLOCK_$1___');
+        html = html.replace(/\*\s*___JSON_BLOCK_(\d+)___\s*\*/g, '___JSON_BLOCK_$1___');
         
         // Restore JSON block placeholders with the actual idea card HTML
         jsonBlocks.forEach((htmlObject, index) => {
@@ -586,12 +590,13 @@
         const vocEvidence = idea.voc_evidence || [];
 
         // Format primary text - convert to HTML with proper paragraph spacing
-        // First unescape JSON sequences, then normalize line breaks
+        // First unescape JSON sequences, then normalize line breaks; strip bold/italic markup so it always renders regular
         let rawText = primaryText
             .replace(/\\n/g, '\n')      // Convert escaped \n to actual newlines
             .replace(/\\"/g, '"')        // Unescape quotes
             .replace(/\r\n/g, '\n')      // Normalize Windows line breaks
             .replace(/\r/g, '\n');       // Normalize old Mac line breaks
+        rawText = (window.ParseFbAdJson?.stripBoldFromText && window.ParseFbAdJson.stripBoldFromText(rawText)) || rawText;
         
         // Split into paragraphs (double newline = paragraph break)
         // Then convert single newlines within paragraphs to <br>
