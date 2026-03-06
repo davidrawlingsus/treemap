@@ -54,8 +54,16 @@
                     replacements.push({ start: match.index, end: prevLastIndex, html: match[0] });
                     continue;
                 }
-                const jsonData = JSON.parse(jsonContent);
+                const parseJson = window.ParseFbAdJson?.parseJsonBlock || JSON.parse;
+                const normalizeFbAd = window.ParseFbAdJson?.normalizeFacebookAdIdea;
+                const jsonData = parseJson(jsonContent);
                 const vocFromPreceding = extractVocEvidenceFromPrecedingText(precedingText);
+
+                function maybeNormalizeFbAd(idea) {
+                    if (normalizeFbAd && idea && idea.primary_text && idea.headline && idea.call_to_action) {
+                        normalizeFbAd(idea);
+                    }
+                }
 
                 // When VoC is extracted and added to card data, also include the VoC section
                 // in the replacement range so it's removed from the markdown (prevents duplication
@@ -70,6 +78,7 @@
 
                 if (jsonData.ideas && Array.isArray(jsonData.ideas)) {
                     const ideas = jsonData.ideas;
+                    ideas.forEach(maybeNormalizeFbAd);
                     if (vocFromPreceding.length > 0 && ideas.length > 0) {
                         const lastIdea = ideas[ideas.length - 1];
                         if (lastIdea && !(lastIdea.voc_evidence?.length)) {
@@ -81,6 +90,7 @@
                     replacements.push({ start: replStart, end: prevLastIndex, placeholder: jsonBlocks.length - 1 });
                 } else if (Array.isArray(jsonData)) {
                     const ideas = jsonData;
+                    ideas.forEach(maybeNormalizeFbAd);
                     if (vocFromPreceding.length > 0 && ideas.length > 0) {
                         const lastIdea = ideas[ideas.length - 1];
                         if (lastIdea && !(lastIdea.voc_evidence?.length)) {
@@ -91,6 +101,7 @@
                     replacements.push({ start: replStart, end: prevLastIndex, placeholder: jsonBlocks.length - 1 });
                 } else {
                     const idea = jsonData;
+                    maybeNormalizeFbAd(idea);
                     const isFBAd = !!(idea.primary_text && idea.headline && idea.call_to_action);
                     const isEmail = !!(idea.subject_line && idea.body_text);
                     if ((isFBAd || isEmail) && vocFromPreceding.length > 0 && !(idea.voc_evidence?.length)) {
