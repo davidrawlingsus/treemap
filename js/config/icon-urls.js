@@ -21,6 +21,7 @@ export const ICON_URLS = {
   pinned: `${IMAGES}/pinned_item.svg`,
   aiInsights: `${IMAGES}/ai_insights.png`,
   metaIcon: `${IMAGES}/meta-icon.webp`,
+  helpChat: 'https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/chat_icon.svg',
   prevArrow: `${IMAGES}/arrow_up.png`,
   nextArrow: `${IMAGES}/arrow_down.png`,
 };

@@ -1,3 +1,5 @@
+import { ICON_URLS } from '/js/config/icon-urls.js';
+
 function createMessageElement(message) {
     const messageEl = document.createElement('div');
     messageEl.className = `help-chat-message help-chat-message--${message.sender_type || 'visitor'}`;
@@ -20,8 +22,8 @@ export function createHelpChatWidget() {
     const root = document.createElement('aside');
     root.className = 'help-chat-widget';
     root.innerHTML = `
-        <button class="help-chat-launcher" type="button" aria-expanded="false" aria-controls="helpChatPanel">
-            <span class="help-chat-launcher__label">Need help?</span>
+        <button class="help-chat-launcher" type="button" aria-expanded="false" aria-controls="helpChatPanel" aria-label="Open help chat">
+            <img class="help-chat-launcher__icon" src="${ICON_URLS.helpChat}" alt="" aria-hidden="true">
             <span class="help-chat-launcher__badge" hidden>0</span>
         </button>
         <section class="help-chat-panel" id="helpChatPanel" aria-hidden="true">

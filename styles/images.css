@@ -1826,11 +1826,9 @@ body.picker-open {
     }
 
     .images-import-btn {
-        right: 16px;
-        bottom: 16px;
-        width: 52px;
-        height: 52px;
-        font-size: 1.7rem;
+        height: 44px;
+        padding: 0 14px;
+        font-size: 0.9rem;
     }
 }
 
@@ -1838,37 +1836,38 @@ body.picker-open {
 
 /* Import Button */
 .images-import-btn {
-    position: fixed;
-    right: 24px;
-    bottom: 24px;
-    width: 58px;
-    height: 58px;
-    padding: 0;
-    border: 1px solid rgba(15, 23, 42, 0.15);
-    border-radius: 50%;
-    background: var(--brand-color);
-    color: #1a1a1a;
-    font-size: 2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    padding: 0 16px;
+    border: 1px solid #d6d9df;
+    border-radius: 6px;
+    background: #fff;
+    color: #111;
+    font-size: 0.875rem;
     line-height: 1;
     font-weight: 600;
     cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
-    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.25);
-    z-index: 1200;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    white-space: nowrap;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease, background 0.2s ease;
 }
 
 .images-import-btn:hover {
-    filter: brightness(0.98);
-    transform: translateY(-1px);
-    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.3);
+    border-color: #111;
+    color: #111;
+    box-shadow: none;
 }
 
 .images-import-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.24);
+    background: #f8fafc;
+}
+
+.images-import-btn:focus,
+.images-import-btn:focus-visible {
+    outline: none;
+    border-color: #111;
+    box-shadow: 0 0 0 1px #111;
 }
 
 /* Meta Import Modal Overlay */
