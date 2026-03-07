@@ -1,5 +1,17 @@
 import { ICON_URLS } from '/js/config/icon-urls.js';
 
+function getMessageSenderLabel(message) {
+    const senderLabel = (message.sender_label || '').trim();
+
+    if (message.sender_type === 'operator') {
+        if (!senderLabel || senderLabel.toLowerCase() === 'support') {
+            return 'David R';
+        }
+    }
+
+    return senderLabel || 'You';
+}
+
 function createMessageElement(message) {
     const messageEl = document.createElement('div');
     messageEl.className = `help-chat-message help-chat-message--${message.sender_type || 'visitor'}`;
@@ -7,7 +19,7 @@ function createMessageElement(message) {
 
     const metaEl = document.createElement('div');
     metaEl.className = 'help-chat-message__meta';
-    metaEl.textContent = message.sender_label || (message.sender_type === 'operator' ? 'Support' : 'You');
+    metaEl.textContent = getMessageSenderLabel(message);
 
     const bodyEl = document.createElement('div');
     bodyEl.className = 'help-chat-message__body';
@@ -68,7 +80,7 @@ export function renderHelpChatMessages(refs, messages) {
     if (!messages.length) {
         const emptyState = document.createElement('div');
         emptyState.className = 'help-chat-empty-state';
-        emptyState.textContent = 'Ask a question and I will reply here.';
+        emptyState.textContent = "Hey, this is David - whatever you type here goes straight to my Slack. Ask me anything and I'll reply as soon as I can. Thanks!";
         fragment.appendChild(emptyState);
     } else {
         messages.forEach((message) => {

@@ -442,7 +442,7 @@ async def slack_events(
     message = ChatMessage(
         conversation_id=thread.conversation_id,
         sender_type="operator",
-        sender_label="Support",
+        sender_label="David R",
         body=(event.get("text") or "").strip(),
         slack_channel_id=channel_id,
         slack_ts=message_ts,
