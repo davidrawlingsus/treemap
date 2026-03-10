@@ -114,19 +114,32 @@ function buildEnsurePayload() {
     };
 }
 
-async function bootstrapConversation() {
+async function bootstrapConversation(retryAfterClear = false) {
     if (isHiddenByAuthOverlay()) {
         return;
     }
 
-    const response = await ensureHelpChatConversation(buildEnsurePayload());
-    hasBootstrappedConversation = true;
-    setVisitorToken(response.visitor_token);
-    setConversationId(response.id);
-    setMessages(response.messages || []);
-    renderMessages();
-    connectStream();
-    setHelpChatStatus(refs, '');
+    try {
+        const response = await ensureHelpChatConversation(buildEnsurePayload());
+        hasBootstrappedConversation = true;
+        setVisitorToken(response.visitor_token);
+        setConversationId(response.id);
+        setMessages(response.messages || []);
+        renderMessages();
+        connectStream();
+        setHelpChatStatus(refs, '');
+    } catch (err) {
+        const isAccessDenied =
+            err?.message?.includes('do not have access') ||
+            err?.message?.includes('access to this conversation');
+        if (isAccessDenied && !retryAfterClear) {
+            setConversationId(null);
+            setVisitorToken(null);
+            return bootstrapConversation(true);
+        }
+        setHelpChatStatus(refs, 'Chat unavailable. Please refresh to try again.');
+        console.error('Help chat bootstrap failed', err);
+    }
 }
 
 function handleIncomingMessage(message) {

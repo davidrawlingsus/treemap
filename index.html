@@ -124,6 +124,10 @@
             loadQuestions as vocDataApiLoadQuestions
         } from '/js/services/api-voc-data.js';
         import {
+            loadLeadRuns as leadgenVocApiLoadLeadRuns,
+            loadLeadRunData as leadgenVocApiLoadLeadRunData
+        } from '/js/services/api-leadgen-voc.js';
+        import {
             loadInsights as insightsApiLoadInsights,
             createInsight as insightsApiCreateInsight,
             updateInsight as insightsApiUpdateInsight,
@@ -515,6 +519,8 @@
         window.vocDataApiLoadVocData = vocDataApiLoadVocData;
         window.vocDataApiLoadDimensionNames = vocDataApiLoadDimensionNames;
         window.vocDataApiLoadQuestions = vocDataApiLoadQuestions;
+        window.leadgenVocApiLoadLeadRuns = leadgenVocApiLoadLeadRuns;
+        window.leadgenVocApiLoadLeadRunData = leadgenVocApiLoadLeadRunData;
         
         // Make insights API available globally for wrapper functions
         window.insightsApiLoadInsights = insightsApiLoadInsights;
@@ -900,6 +906,10 @@
             <div class="data-source-selector__content">
                 <div class="filter-panels">
                     <div class="filter-panel active" id="clientPanel" role="tabpanel" aria-labelledby="clientTab">
+                        <div class="lead-mode-toggle founder-admin hidden" id="leadModeToggle">
+                            <button type="button" class="lead-mode-toggle__btn active" id="modeClientsBtn" data-mode="clients">Clients</button>
+                            <button type="button" class="lead-mode-toggle__btn" id="modeLeadsBtn" data-mode="leads">Leads</button>
+                        </div>
                         <label for="clientSelect">Business:</label>
                         <select id="clientSelect">
                             <option value="">Loading...</option>
@@ -1404,6 +1414,8 @@
         let currentProjectName = null;
         let currentDataSourceId = null;
         let currentQuestionRefKey = null;
+        let currentDataMode = 'clients';
+        let currentLeadRunId = null;
         let allClients = [];
         let clientProjects = [];
         let clientSources = [];
@@ -1522,7 +1534,9 @@
                 clientId: currentClientId,
                 projectName: currentProjectName,
                 dataSourceId: currentDataSourceId,
-                questionRefKey: currentQuestionRefKey
+                questionRefKey: currentQuestionRefKey,
+                dataMode: currentDataMode,
+                leadRunId: currentLeadRunId
             };
             window.appStateSetState(localState);
             // Get state from module and save to storage
@@ -1568,10 +1582,10 @@
         ];
 
 
-        // Authentication helpers provided by auth.js
+        // Authentication helpers provided by auth.js (global Auth from auth.js)
         let accessibleClients = [];
         let accessibleClientIds = new Set();
-        let authenticatedUser = null;
+        let authenticatedUser = (typeof Auth !== 'undefined' && typeof Auth.getStoredUserInfo === 'function') ? Auth.getStoredUserInfo() : null;
 
         const FILTER_TAB_CONFIG = [
             { key: 'client', tabId: 'clientTab', panelId: 'clientPanel', selectId: 'clientSelect' },
@@ -1739,6 +1753,91 @@
             requestAnimationFrame(() => {
                 setTimeout(() => autoSizeFilterSelects(), 0);
             });
+        }
+
+        function applyDataModeUI() {
+            const businessLabel = document.querySelector('label[for="clientSelect"]');
+            if (businessLabel) {
+                businessLabel.textContent = currentDataMode === 'leads' ? 'Lead Run:' : 'Business:';
+            }
+
+            const modeClientsBtn = document.getElementById('modeClientsBtn');
+            const modeLeadsBtn = document.getElementById('modeLeadsBtn');
+            if (modeClientsBtn && modeLeadsBtn) {
+                modeClientsBtn.classList.toggle('active', currentDataMode === 'clients');
+                modeLeadsBtn.classList.toggle('active', currentDataMode === 'leads');
+            }
+
+            const showHierarchy = currentDataMode === 'clients';
+            setTabVisibility('project', showHierarchy);
+            setTabVisibility('source', showHierarchy);
+
+            if (!showHierarchy) {
+                const projectSelect = document.getElementById('projectSelect');
+                const sourceSelect = document.getElementById('sourceSelect');
+                if (projectSelect) {
+                    projectSelect.innerHTML = '<option value="">Not used in lead mode</option>';
+                }
+                if (sourceSelect) {
+                    sourceSelect.innerHTML = '<option value="">Not used in lead mode</option>';
+                }
+                currentProjectName = null;
+                currentDataSourceId = null;
+            }
+            syncFilterTabState();
+        }
+
+        function setupLeadModeToggle() {
+            const toggle = document.getElementById('leadModeToggle');
+            if (!toggle) {
+                return;
+            }
+            const isFounder = !!authenticatedUser?.is_founder;
+            if (!isFounder) {
+                toggle.classList.add('hidden');
+                currentDataMode = 'clients';
+                return;
+            }
+
+            toggle.classList.remove('hidden');
+            const savedState = loadState();
+            if (savedState?.dataMode === 'leads') {
+                currentDataMode = 'leads';
+                currentLeadRunId = savedState.leadRunId || currentLeadRunId;
+            }
+
+            const modeClientsBtn = document.getElementById('modeClientsBtn');
+            const modeLeadsBtn = document.getElementById('modeLeadsBtn');
+            if (modeClientsBtn && !modeClientsBtn.dataset.bound) {
+                modeClientsBtn.dataset.bound = 'true';
+                modeClientsBtn.addEventListener('click', async () => {
+                    if (currentDataMode === 'clients') return;
+                    currentDataMode = 'clients';
+                    currentLeadRunId = null;
+                    currentClientId = null;
+                    currentProjectName = null;
+                    currentDataSourceId = null;
+                    currentQuestionRefKey = null;
+                    saveState();
+                    applyDataModeUI();
+                    await loadClients();
+                });
+            }
+            if (modeLeadsBtn && !modeLeadsBtn.dataset.bound) {
+                modeLeadsBtn.dataset.bound = 'true';
+                modeLeadsBtn.addEventListener('click', async () => {
+                    if (currentDataMode === 'leads') return;
+                    currentDataMode = 'leads';
+                    currentClientId = null;
+                    currentProjectName = null;
+                    currentDataSourceId = null;
+                    currentQuestionRefKey = null;
+                    saveState();
+                    applyDataModeUI();
+                    await loadClients();
+                });
+            }
+            applyDataModeUI();
         }
 
         // Auto-size filter selects to fit their content, with truncation if needed
@@ -2142,6 +2241,7 @@
                     promptsNavItem.classList.add('hidden');
                 }
             }
+            setupLeadModeToggle();
 
             if (accessibleClients.length === 0) {
                 const errorEl = document.getElementById('accountSelectionError');
@@ -2253,6 +2353,21 @@
         // Load available clients - uses API module for fetching, handles DOM/state
         async function loadClients() {
             console.log('loadClients() called');
+            const urlParamsForMode = new URLSearchParams(window.location.search);
+            const urlMode = urlParamsForMode.get('mode');
+            const urlRunId = urlParamsForMode.get('run_id');
+            const isFounder = !!authenticatedUser?.is_founder;
+            if (isFounder && (urlMode === 'clients' || urlMode === 'leads')) {
+                currentDataMode = urlMode;
+            }
+            if (isFounder && urlRunId) {
+                currentLeadRunId = urlRunId;
+            }
+            applyDataModeUI();
+            if (currentDataMode === 'leads') {
+                await loadLeadRunsForSelector();
+                return;
+            }
             try {
                 // Fetch clients using API module
                 allClients = await window.clientsApiLoadClients({
@@ -2473,10 +2588,93 @@
                 syncFilterTabState();
             }
         }
+
+        async function loadLeadRunsForSelector() {
+            try {
+                const runs = await window.leadgenVocApiLoadLeadRuns(getAuthHeaders);
+                const select = document.getElementById('clientSelect');
+                if (!select) return;
+
+                allClients = [];
+                clientProjects = [];
+                clientSources = [];
+                select.innerHTML = '';
+
+                if (!runs.length) {
+                    select.innerHTML = '<option value="">No lead runs available</option>';
+                    select.disabled = true;
+                    currentLeadRunId = null;
+                    syncFilterTabState();
+                    return;
+                }
+
+                select.disabled = false;
+                runs.forEach((run, idx) => {
+                    const option = document.createElement('option');
+                    option.value = run.run_id;
+                    option.textContent = `${run.company_name} (${run.company_domain})`;
+                    option.dataset.companyName = run.company_name || '';
+                    select.appendChild(option);
+                    if (!currentLeadRunId && idx === 0) {
+                        currentLeadRunId = run.run_id;
+                    }
+                });
+
+                const savedState = loadState();
+                const urlRunId = new URLSearchParams(window.location.search).get('run_id');
+                if (savedState?.leadRunId && runs.some((run) => run.run_id === savedState.leadRunId)) {
+                    currentLeadRunId = savedState.leadRunId;
+                }
+                if (urlRunId && runs.some((run) => run.run_id === urlRunId)) {
+                    currentLeadRunId = urlRunId;
+                }
+
+                if (currentLeadRunId) {
+                    select.value = currentLeadRunId;
+                }
+                currentClientId = currentLeadRunId;
+                saveState();
+
+                select.removeEventListener('change', handleLeadRunSelectionChange);
+                select.addEventListener('change', handleLeadRunSelectionChange);
+
+                syncFilterTabState();
+                if (currentLeadRunId) {
+                    await loadDataSource(currentLeadRunId, null);
+                }
+            } catch (error) {
+                console.error('Error loading lead runs:', error);
+                const select = document.getElementById('clientSelect');
+                if (select) {
+                    select.innerHTML = '<option value="">Error loading lead runs</option>';
+                }
+                syncFilterTabState();
+            }
+        }
+
+        async function handleLeadRunSelectionChange(e) {
+            const runId = e.target.value || null;
+            if (!runId || runId === currentLeadRunId) return;
+            currentLeadRunId = runId;
+            currentClientId = runId;
+            currentProjectName = null;
+            currentDataSourceId = null;
+            currentQuestionRefKey = null;
+            dimensionFilters = {};
+            saveState();
+            await loadDataSource(runId, null);
+        }
         
         // Load projects for a specific client - wrapper that uses API module for fetching, handles DOM/state
         async function loadClientProjects(clientId, savedState = null) {
             console.log(`loadClientProjects() called for client: ${clientId}`);
+            if (currentDataMode === 'leads') {
+                currentProjectName = null;
+                currentDataSourceId = null;
+                await loadDataSource(clientId, null, savedState);
+                syncFilterTabState();
+                return;
+            }
             try {
                 // Restore saved project name if available
                 if (savedState && savedState.projectName) {
@@ -2571,6 +2769,12 @@
         // Load sources for a specific client - wrapper that uses API module for fetching, handles DOM/state
         async function loadClientSources(clientId, savedState = null) {
             console.log(`loadClientSources() called for client: ${clientId}, project: ${currentProjectName || 'None'}`);
+            if (currentDataMode === 'leads') {
+                currentDataSourceId = null;
+                await loadDataSource(clientId, null, savedState);
+                syncFilterTabState();
+                return;
+            }
             try {
                 // Fetch sources using API module
                 clientSources = await window.dataSourcesApiLoadSources(clientId, currentProjectName, getAuthHeaders);
@@ -2685,6 +2889,20 @@
         
         // Update breadcrumb display
         function updateBreadcrumb(questionRefKey) {
+            if (currentDataMode === 'leads') {
+                const runSelect = document.getElementById('clientSelect');
+                const selectedOption = runSelect?.options?.[runSelect.selectedIndex];
+                const base = selectedOption?.textContent || 'Lead Run';
+                let breadcrumb = `Lead > ${base}`;
+                if (questionRefKey) {
+                    breadcrumb += ` > ${questionRefKey.replace('ref_', 'Q')}`;
+                }
+                const headerP = document.querySelector('.header p');
+                if (headerP && !headerP.classList.contains('breadcrumb-display')) {
+                    headerP.innerHTML = `Topic visualization and analysis<br><span class="breadcrumb-display">${breadcrumb}</span>`;
+                }
+                return;
+            }
             const client = allClients.find(c => c.client_uuid === currentClientId);
             const source = currentDataSourceId ? clientSources.find(s => s.data_source === currentDataSourceId) : null;
             
@@ -2873,7 +3091,9 @@
                 setLoading(true);
                 
                 // Fetch VOC data using API module
-                const processVocRows = await window.vocDataApiLoadVocData(clientUuid, currentProjectName, dataSource, getAuthHeaders);
+                const processVocRows = currentDataMode === 'leads'
+                    ? await window.leadgenVocApiLoadLeadRunData(clientUuid, getAuthHeaders)
+                    : await window.vocDataApiLoadVocData(clientUuid, currentProjectName, dataSource, getAuthHeaders);
                 console.log(`Loaded ${processVocRows.length} process_voc rows`);
                 
                 // Store raw process_voc rows
@@ -3243,6 +3463,7 @@
                     height = 600;
                 }
                 
+                setupLeadModeToggle();
                 console.log('Loading clients...');
                 // Load clients from API (which will cascade to sources and data)
                 await loadClients();
@@ -6768,17 +6989,22 @@
             if (navVisualizations) {
                 let vizUrl = '/';
                 const vizParams = new URLSearchParams();
-                if (clientUuid) {
+                if (currentDataMode === 'leads') {
+                    vizParams.set('mode', 'leads');
+                    if (currentLeadRunId) {
+                        vizParams.set('run_id', currentLeadRunId);
+                    }
+                } else if (clientUuid) {
                     vizParams.set('client_uuid', clientUuid);
                 }
                 if (authToken) {
                     vizParams.set('auth_token', authToken);
                 }
                 // Preserve visualization state when navigating back
-                if (currentProject) {
+                if (currentProject && currentDataMode === 'clients') {
                     vizParams.set('project', currentProject);
                 }
-                if (currentSource) {
+                if (currentSource && currentDataMode === 'clients') {
                     vizParams.set('source', currentSource);
                 }
                 if (currentDimension) {
