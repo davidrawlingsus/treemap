@@ -297,8 +297,11 @@
     // Mark as processing IMMEDIATELY to prevent duplicate processing
     global.sessionStorage.setItem(magicLinkKey, 'processing');
 
-    // Remove params from URL FIRST to prevent double verification attempts
-    const cleanUrl = global.location.pathname + global.location.hash;
+    // Remove only magic-link params to prevent duplicate verification attempts,
+    // while preserving routing params (e.g. mode=leads&run_id=...).
+    params.delete('token');
+    params.delete('email');
+    const cleanUrl = `${global.location.pathname}${params.toString() ? `?${params.toString()}` : ''}${global.location.hash}`;
     global.history.replaceState({}, global.document.title, cleanUrl);
 
     showLogin();
