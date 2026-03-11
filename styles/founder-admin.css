@@ -595,6 +595,41 @@ body.slideout-open .modal-backdrop {
     gap: 12px;
 }
 
+.tools-panel {
+    width: min(960px, 100%);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.tools-search {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+}
+
+.tools-search input {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: var(--font-lato);
+}
+
+.tools-search input:focus {
+    outline: none;
+    border-color: var(--brand-color);
+    box-shadow: 0 0 0 3px rgba(185, 240, 64, 0.15);
+}
+
+.tools-search-meta {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
 .tool-list-item {
     background: var(--surface);
     border: 1px solid var(--border);

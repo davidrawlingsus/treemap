@@ -51,7 +51,17 @@
             </div>
         </header>
         <main>
-            <section class="tools-list" aria-label="Founder tools">
+            <div class="tools-panel">
+                <div class="tools-search" role="search">
+                    <input
+                        type="search"
+                        id="toolSearchInput"
+                        placeholder="Search tools by name or description..."
+                        aria-label="Search founder tools"
+                    >
+                    <p class="tools-search-meta" id="toolSearchMeta"></p>
+                </div>
+                <section class="tools-list" id="toolsList" aria-label="Founder tools">
                 <article class="tool-list-item">
                     <div>
                         <h2>Subscriptions &amp; Plans</h2>
@@ -72,6 +82,13 @@
                         <p>Inspect lead-gen runs and review processed JSON outputs on a dedicated page.</p>
                     </div>
                     <a class="btn btn-primary" href="/founder_leadgen_runs.html">Open Tool</a>
+                </article>
+                <article class="tool-list-item">
+                    <div>
+                        <h2>Trustpilot Intake</h2>
+                        <p>Open the Trustpilot lead-gen intake flow to generate fresh runs from a company domain.</p>
+                    </div>
+                    <a class="btn btn-primary" href="/trustpilot-intake.html">Open Tool</a>
                 </article>
                 <article class="tool-list-item">
                     <div>
@@ -122,7 +139,8 @@
                     </div>
                     <a class="btn btn-primary" href="/founder_creative_mri.html">Open Tool</a>
                 </article>
-            </section>
+                </section>
+            </div>
         </main>
     </div>
 
@@ -133,9 +151,46 @@
             appShell: document.getElementById('appShell'),
             founderEmail: document.getElementById('founderEmail'),
             logoutButton: document.getElementById('logoutButton'),
+            toolSearchInput: document.getElementById('toolSearchInput'),
+            toolSearchMeta: document.getElementById('toolSearchMeta'),
+            toolsList: document.getElementById('toolsList'),
         };
 
         let founderInfo = null;
+        let toolSearchInitialized = false;
+
+        function applyToolFilter(query) {
+            if (!elements.toolsList) return;
+
+            const normalizedQuery = (query || '').trim().toLowerCase();
+            const toolItems = Array.from(elements.toolsList.querySelectorAll('.tool-list-item'));
+            let visibleCount = 0;
+
+            toolItems.forEach((item) => {
+                const title = item.querySelector('h2')?.textContent?.toLowerCase() || '';
+                const description = item.querySelector('p')?.textContent?.toLowerCase() || '';
+                const searchableText = `${title} ${description}`;
+                const isMatch = !normalizedQuery || searchableText.includes(normalizedQuery);
+
+                item.style.display = isMatch ? '' : 'none';
+                if (isMatch) visibleCount += 1;
+            });
+
+            if (elements.toolSearchMeta) {
+                elements.toolSearchMeta.textContent = normalizedQuery
+                    ? `Showing ${visibleCount} result${visibleCount === 1 ? '' : 's'}`
+                    : `Showing ${visibleCount} tools`;
+            }
+        }
+
+        function initializeToolSearch() {
+            if (toolSearchInitialized || !elements.toolSearchInput) return;
+            elements.toolSearchInput.addEventListener('input', (event) => {
+                applyToolFilter(event.target.value);
+            });
+            applyToolFilter('');
+            toolSearchInitialized = true;
+        }
 
         // Wait for auth.js to be fully loaded
         function waitForAuth() {
@@ -230,6 +285,7 @@
             console.log('[FOUNDER_ADMIN] initializePage called');
             console.log('[FOUNDER_ADMIN] founderInfo:', founderInfo);
             showAppShell();
+            initializeToolSearch();
         }
 
         // Initialize authentication check after Auth is ready
