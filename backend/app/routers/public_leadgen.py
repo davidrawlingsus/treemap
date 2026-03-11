@@ -122,6 +122,9 @@ def build_trustpilot_llm_input(
                 reviews=pre_llm_rows,
                 product_context=company_context,
                 resume_run_id=body.resume_run_id,
+                db=db,
+                use_prompt_db=True,
+                strict_prompt_db=False,
                 strict_mode=True,
             )
             run_id = coding_result.get("run_id")

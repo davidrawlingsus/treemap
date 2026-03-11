@@ -1,6 +1,7 @@
 from app.services.voc_coding_chain_service import (
     VocCodingChainError,
     _init_checkpoint_state,
+    _load_voc_prompt_chain_bundle,
     determine_batch_strategy,
     finalize_checkpoint,
     load_checkpoint,
@@ -80,3 +81,18 @@ def test_checkpoint_save_load_finalize(tmp_path):
     completed = load_checkpoint(settings, "run_abc")
     assert completed is not None
     assert completed["status"] == "completed"
+
+
+def test_load_prompt_bundle_falls_back_when_db_disabled():
+    bundle = _load_voc_prompt_chain_bundle(db=None, use_prompt_db=False, strict_prompt_db=False)
+    assert bundle["discover_system"]
+    assert bundle["code_user"]
+    assert bundle["refine_user"]
+
+
+def test_load_prompt_bundle_requires_db_when_strict():
+    try:
+        _load_voc_prompt_chain_bundle(db=None, use_prompt_db=True, strict_prompt_db=True)
+        assert False, "Expected VocCodingChainError when DB required"
+    except VocCodingChainError as exc:
+        assert exc.step == "config"

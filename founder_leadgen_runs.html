@@ -42,6 +42,7 @@
             <div class="founder-meta">
                 <span id="founderEmail"></span>
                 <div class="leadgen-actions">
+                    <a class="btn btn-secondary" id="editVocPromptsLink" href="/founder_prompt_engineering.html?prompt_search=voc_">Edit VOC Chain Prompts</a>
                     <button class="btn btn-secondary" id="refreshButton">Refresh</button>
                     <button class="btn btn-ghost" id="logoutButton">Logout</button>
                 </div>
@@ -102,6 +103,8 @@
         function renderRuns(runs) {
             if (!runs.length) {
                 elements.runsList.innerHTML = '<div class="empty-state">No lead runs found.</div>';
+                elements.jsonOutput.textContent = 'No lead runs found.';
+                elements.visualizeLink.href = '/';
                 return;
             }
             elements.runsList.innerHTML = runs.map((run) => {
@@ -111,10 +114,16 @@
                 const status = escapeHtml(run.coding_status || 'unknown');
                 const reviews = Number(run.review_count || 0);
                 return `
-                    <button type="button" class="leadgen-run-item ${selectedRunId === run.run_id ? 'active' : ''}" data-run-id="${runId}">
-                        <span class="leadgen-run-item__title">${company}</span>
-                        <span class="leadgen-run-item__meta">${domain} • ${reviews} reviews • ${status}</span>
-                    </button>
+                    <div class="leadgen-run-row">
+                        <button type="button" class="leadgen-run-item ${selectedRunId === run.run_id ? 'active' : ''}" data-run-id="${runId}">
+                            <span class="leadgen-run-item__title">${company}</span>
+                            <span class="leadgen-run-item__meta">${domain} • ${reviews} reviews • ${status}</span>
+                        </button>
+                        <div class="leadgen-run-row__actions">
+                            <button type="button" class="leadgen-run-rerun" data-run-id="${runId}" aria-label="Rerun run ${company}">Re-run</button>
+                            <button type="button" class="leadgen-run-delete" data-run-id="${runId}" aria-label="Delete run ${company}">Delete</button>
+                        </div>
+                    </div>
                 `;
             }).join('');
 
@@ -122,6 +131,20 @@
                 button.addEventListener('click', () => {
                     const runId = button.getAttribute('data-run-id');
                     loadRun(runId);
+                });
+            });
+            elements.runsList.querySelectorAll('.leadgen-run-delete').forEach((button) => {
+                button.addEventListener('click', async () => {
+                    const runId = button.getAttribute('data-run-id');
+                    if (!runId) return;
+                    await deleteRun(runId);
+                });
+            });
+            elements.runsList.querySelectorAll('.leadgen-run-rerun').forEach((button) => {
+                button.addEventListener('click', async () => {
+                    const runId = button.getAttribute('data-run-id');
+                    if (!runId) return;
+                    await rerunRun(runId);
                 });
             });
         }
@@ -149,6 +172,52 @@
             if (selectedRunId) {
                 await loadRun(selectedRunId);
             }
+        }
+
+        async function deleteRun(runId) {
+            const confirmed = window.confirm('Delete this lead run and all its rows? This cannot be undone.');
+            if (!confirmed) return;
+
+            showStatus(`Deleting run ${runId}...`);
+            const response = await fetch(`${API_BASE_URL}/api/founder-admin/leadgen-runs/${encodeURIComponent(runId)}`, {
+                method: 'DELETE',
+                headers: Auth.getAuthHeaders(),
+            });
+            if (!response.ok) {
+                throw new Error(`Failed to delete run (${response.status})`);
+            }
+
+            if (selectedRunId === runId) {
+                selectedRunId = null;
+                elements.jsonOutput.textContent = 'Select a run to inspect its payload.';
+                elements.visualizeLink.href = '/';
+            }
+            await loadRuns();
+            showStatus('Run deleted successfully.');
+        }
+
+        async function rerunRun(runId) {
+            const confirmed = window.confirm('Re-run coding for this run using the current VOC prompts? Existing coded output will be overwritten.');
+            if (!confirmed) return;
+
+            showStatus(`Re-running ${runId}...`);
+            const response = await fetch(`${API_BASE_URL}/api/founder-admin/leadgen-runs/${encodeURIComponent(runId)}/rerun`, {
+                method: 'POST',
+                headers: Auth.getAuthHeaders(),
+            });
+            if (!response.ok) {
+                let detail = `Failed to rerun (${response.status})`;
+                try {
+                    const body = await response.json();
+                    if (body?.detail) detail = body.detail;
+                } catch (_err) {}
+                throw new Error(detail);
+            }
+
+            selectedRunId = runId;
+            await loadRuns();
+            await loadRun(runId);
+            showStatus('Run reprocessed successfully.');
         }
 
         async function loadRun(runId) {

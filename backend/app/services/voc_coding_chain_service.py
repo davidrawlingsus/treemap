@@ -15,6 +15,10 @@ import uuid
 
 import httpx
 from json_repair import repair_json
+from sqlalchemy import func
+from sqlalchemy.orm import Session
+
+from app.models.prompt import Prompt
 
 from app.services.voc_coding_chain_prompts import (
     CODE_SCHEMA,
@@ -29,6 +33,10 @@ from app.services.voc_coding_chain_prompts import (
 )
 
 logger = logging.getLogger(__name__)
+
+VOC_DISCOVER_PROMPT_PURPOSE = "voc_discover"
+VOC_CODE_PROMPT_PURPOSE = "voc_code"
+VOC_REFINE_PROMPT_PURPOSE = "voc_refine"
 
 
 class VocCodingChainError(RuntimeError):
@@ -269,6 +277,72 @@ def call_claude_json_schema(
         raise VocCodingChainError("llm_call", f"Claude call failed: {exc}") from exc
 
 
+def _get_live_prompt_by_purpose(db: Session, purpose: str) -> Optional[Prompt]:
+    purpose_lower = (purpose or "").strip().lower()
+    if not purpose_lower:
+        return None
+    return (
+        db.query(Prompt)
+        .filter(func.lower(Prompt.prompt_purpose) == purpose_lower, Prompt.status == "live")
+        .order_by(Prompt.version.desc(), Prompt.updated_at.desc(), Prompt.created_at.desc())
+        .first()
+    )
+
+
+def _load_voc_prompt_chain_bundle(
+    *,
+    db: Optional[Session],
+    use_prompt_db: bool,
+    strict_prompt_db: bool,
+) -> Dict[str, str]:
+    fallback = {
+        "discover_system": DISCOVER_SYSTEM_PROMPT,
+        "discover_user": DISCOVER_USER_PROMPT,
+        "code_system": CODE_SYSTEM_PROMPT,
+        "code_user": CODE_USER_PROMPT,
+        "refine_system": REFINE_SYSTEM_PROMPT,
+        "refine_user": REFINE_USER_PROMPT,
+    }
+
+    if not use_prompt_db:
+        return fallback
+    if db is None:
+        if strict_prompt_db:
+            raise VocCodingChainError("config", "Database session is required for prompt DB lookup")
+        return fallback
+
+    discover = _get_live_prompt_by_purpose(db, VOC_DISCOVER_PROMPT_PURPOSE)
+    code = _get_live_prompt_by_purpose(db, VOC_CODE_PROMPT_PURPOSE)
+    refine = _get_live_prompt_by_purpose(db, VOC_REFINE_PROMPT_PURPOSE)
+
+    missing = []
+    if not discover:
+        missing.append(VOC_DISCOVER_PROMPT_PURPOSE)
+    if not code:
+        missing.append(VOC_CODE_PROMPT_PURPOSE)
+    if not refine:
+        missing.append(VOC_REFINE_PROMPT_PURPOSE)
+    if missing:
+        if strict_prompt_db:
+            raise VocCodingChainError("config", f"Missing live DB prompts for purposes: {', '.join(missing)}")
+        return fallback
+
+    bundle = {
+        "discover_system": (discover.system_message or "").strip(),
+        "discover_user": (discover.prompt_message or "").strip(),
+        "code_system": (code.system_message or "").strip(),
+        "code_user": (code.prompt_message or "").strip(),
+        "refine_system": (refine.system_message or "").strip(),
+        "refine_user": (refine.prompt_message or "").strip(),
+    }
+
+    invalid_fields = [key for key, value in bundle.items() if not value]
+    if invalid_fields:
+        raise VocCodingChainError("config", f"Prompt DB fields are empty: {', '.join(invalid_fields)}")
+
+    return bundle
+
+
 def _compute_coding_stats(codebook: Dict[str, Any], coded_reviews: List[Dict[str, Any]]) -> Dict[str, Any]:
     total = len(coded_reviews)
     no_match_count = sum(1 for row in coded_reviews if row.get("status") == "NO_MATCH")
@@ -306,6 +380,8 @@ def _code_reviews_in_batches(
     state: Dict[str, Any],
     pass_name: str,
     model: str,
+    system_prompt: str,
+    user_prompt_template: str,
     temperature: float,
     max_tokens: int,
     strict_mode: bool,
@@ -329,8 +405,8 @@ def _code_reviews_in_batches(
                 payload = call_claude_json_schema(
                     settings=settings,
                     model=model,
-                    system_prompt=CODE_SYSTEM_PROMPT,
-                    user_prompt=CODE_USER_PROMPT.format(
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt_template.format(
                         codebook=json.dumps(codebook, ensure_ascii=True),
                         reviews=review_text,
                     ),
@@ -371,8 +447,8 @@ def _code_reviews_in_batches(
                         single_payload = call_claude_json_schema(
                             settings=settings,
                             model=model,
-                            system_prompt=CODE_SYSTEM_PROMPT,
-                            user_prompt=CODE_USER_PROMPT.format(
+                            system_prompt=system_prompt,
+                            user_prompt=user_prompt_template.format(
                                 codebook=json.dumps(codebook, ensure_ascii=True),
                                 reviews=single_text,
                             ),
@@ -429,6 +505,10 @@ def run_voc_coding_chain(
     reviews: List[Dict[str, Any]],
     product_context: Dict[str, Any],
     resume_run_id: Optional[str] = None,
+    run_id_override: Optional[str] = None,
+    db: Optional[Session] = None,
+    use_prompt_db: bool = False,
+    strict_prompt_db: bool = False,
     strict_mode: bool = True,
 ) -> Dict[str, Any]:
     if not reviews:
@@ -452,7 +532,12 @@ def run_voc_coding_chain(
     discovery_cap = getattr(settings, "voc_coding_discovery_sample_size", 100)
     strategy = determine_batch_strategy(len(reviews), batch_size, discovery_cap)
 
-    run_id = resume_run_id or uuid.uuid4().hex
+    run_id = run_id_override or resume_run_id or uuid.uuid4().hex
+    prompt_bundle = _load_voc_prompt_chain_bundle(
+        db=db,
+        use_prompt_db=use_prompt_db,
+        strict_prompt_db=strict_prompt_db,
+    )
     state = load_checkpoint(settings, run_id) if resume_run_id else None
     if state is None:
         state = _init_checkpoint_state(run_id, len(reviews), strategy)
@@ -465,8 +550,8 @@ def run_voc_coding_chain(
         discover = call_claude_json_schema(
             settings=settings,
             model=getattr(settings, "voc_coding_discover_model", "claude-sonnet-4-5-20250929"),
-            system_prompt=DISCOVER_SYSTEM_PROMPT,
-            user_prompt=DISCOVER_USER_PROMPT.format(
+            system_prompt=prompt_bundle["discover_system"],
+            user_prompt=prompt_bundle["discover_user"].format(
                 product_context=context_text,
                 review_count=len(sample_reviews),
                 reviews=_format_reviews_for_discovery(sample_reviews),
@@ -485,6 +570,8 @@ def run_voc_coding_chain(
         state=state,
         pass_name="code_v1",
         model=getattr(settings, "voc_coding_code_model", "claude-haiku-4-5-20251001"),
+        system_prompt=prompt_bundle["code_system"],
+        user_prompt_template=prompt_bundle["code_user"],
         temperature=float(getattr(settings, "voc_coding_code_temperature", 0.2)),
         max_tokens=int(getattr(settings, "voc_coding_code_max_tokens", 4096)),
         strict_mode=strict_mode,
@@ -495,8 +582,8 @@ def run_voc_coding_chain(
         refined = call_claude_json_schema(
             settings=settings,
             model=getattr(settings, "voc_coding_refine_model", "claude-sonnet-4-5-20250929"),
-            system_prompt=REFINE_SYSTEM_PROMPT,
-            user_prompt=REFINE_USER_PROMPT.format(
+            system_prompt=prompt_bundle["refine_system"],
+            user_prompt=prompt_bundle["refine_user"].format(
                 product_context=context_text,
                 codebook=json.dumps(state["codebook_v1"], ensure_ascii=True),
                 stats=json.dumps(stats_v1, ensure_ascii=True),
@@ -516,6 +603,8 @@ def run_voc_coding_chain(
         state=state,
         pass_name="recode_final",
         model=getattr(settings, "voc_coding_code_model", "claude-haiku-4-5-20251001"),
+        system_prompt=prompt_bundle["code_system"],
+        user_prompt_template=prompt_bundle["code_user"],
         temperature=float(getattr(settings, "voc_coding_code_temperature", 0.2)),
         max_tokens=int(getattr(settings, "voc_coding_code_max_tokens", 4096)),
         strict_mode=strict_mode,

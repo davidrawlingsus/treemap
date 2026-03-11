@@ -34,16 +34,17 @@
          */
         async listPrompts(clientId) {
             try {
-                const response = await fetch(`${API_BASE_URL}/api/clients/${clientId}/prompts`, {
+                const endpoint = `${API_BASE_URL}/api/clients/${clientId}/prompts`;
+                const response = await fetch(endpoint, {
                     method: 'GET',
                     headers: getAuthHeaders()
                 });
 
                 if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ detail: response.statusText }));
                     if (response.status === 401 || response.status === 403) {
                         throw new Error('Authentication required');
                     }
-                    const errorData = await response.json().catch(() => ({ detail: response.statusText }));
                     throw new Error(errorData.detail || `Request failed with status ${response.status}`);
                 }
 
@@ -94,6 +95,149 @@
                     timestamp: new Date().toISOString()
                 });
                 throw error;
+            }
+        },
+
+        async listLeadContentPrompts() {
+            try {
+                const promptsEndpoint = `${API_BASE_URL}/api/founder/prompts?status=live&prompt_purpose=lead-content`;
+                const promptsResponse = await fetch(promptsEndpoint, {
+                    method: 'GET',
+                    headers: getAuthHeaders()
+                });
+                if (!promptsResponse.ok) {
+                    const errorData = await promptsResponse.json().catch(() => ({ detail: promptsResponse.statusText }));
+                    throw new Error(errorData.detail || `Failed to load lead-content prompts (${promptsResponse.status})`);
+                }
+
+                const prompts = await promptsResponse.json();
+                if (!Array.isArray(prompts) || prompts.length === 0) {
+                    return [];
+                }
+
+                let groupsById = {};
+                try {
+                    const groupsEndpoint = `${API_BASE_URL}/api/founder/context-menu-groups`;
+                    const groupsResponse = await fetch(groupsEndpoint, {
+                        method: 'GET',
+                        headers: getAuthHeaders()
+                    });
+                    if (groupsResponse.ok) {
+                        const groups = await groupsResponse.json();
+                        groupsById = (groups || []).reduce((acc, group) => {
+                            if (group?.id) {
+                                acc[group.id] = group;
+                            }
+                            return acc;
+                        }, {});
+                    }
+                } catch (error) {
+                    console.warn('[CLIENT_PROMPT_API] listLeadContentPrompts() context menu groups unavailable, using fallback group', error);
+                }
+
+                const fallbackGroupId = 'lead-content';
+                const grouped = {};
+                prompts.forEach((prompt) => {
+                    const groupId = prompt.context_menu_group_id || fallbackGroupId;
+                    const groupMeta = groupsById[groupId];
+                    if (!grouped[groupId]) {
+                        grouped[groupId] = {
+                            id: groupId,
+                            label: groupMeta?.label || 'Lead Content',
+                            sort_order: Number.isFinite(groupMeta?.sort_order) ? groupMeta.sort_order : 999,
+                            prompts: []
+                        };
+                    }
+                    grouped[groupId].prompts.push({
+                        id: prompt.id,
+                        name: prompt.name
+                    });
+                });
+
+                return Object.values(grouped)
+                    .map((group) => ({
+                        ...group,
+                        prompts: group.prompts.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                    }))
+                    .sort((a, b) => (a.sort_order - b.sort_order) || (a.label || '').localeCompare(b.label || ''));
+            } catch (error) {
+                console.error('[CLIENT_PROMPT_API] listLeadContentPrompts() error', {
+                    error: error.message || String(error),
+                    timestamp: new Date().toISOString()
+                });
+                throw error;
+            }
+        },
+
+        async executeLeadStream(promptId, vocData, onChunk, onDone, onError, origin = null) {
+            const endpoint = `${API_BASE_URL}/api/founder/prompts/${promptId}/execute?stream=true`;
+            const userMessagePayload = {
+                voc_data: vocData,
+                origin: origin || null
+            };
+            const userMessage = [
+                'Lead Voice of Customer Data:',
+                JSON.stringify(userMessagePayload, null, 2)
+            ].join('\n\n');
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ user_message: userMessage })
+                });
+
+                if (!response.ok) {
+                    if (response.status === 401 || response.status === 403) {
+                        throw new Error('Authentication required');
+                    }
+                    let errorMessage = `Request failed with status ${response.status}`;
+                    try {
+                        const errorData = await response.json();
+                        errorMessage = errorData.detail || errorData.message || errorMessage;
+                    } catch (e) {
+                        const errorText = await response.text();
+                        if (errorText) errorMessage = errorText;
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n\n');
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        if (!line.startsWith('data: ')) continue;
+                        const data = JSON.parse(line.substring(6));
+                        if (data.type === 'chunk' && data.content) {
+                            if (onChunk) onChunk(data.content);
+                        } else if (data.type === 'done') {
+                            if (onDone) onDone({ tokens_used: data.tokens_used, model: data.model, content: data.content });
+                            return;
+                        } else if (data.type === 'error') {
+                            const error = new Error(data.error || 'Streaming error');
+                            if (onError) onError(error); else throw error;
+                            return;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('[CLIENT_PROMPT_API] executeLeadStream() error', {
+                    promptId,
+                    error: error.message || String(error),
+                    timestamp: new Date().toISOString()
+                });
+                if (onError) {
+                    onError(error);
+                } else {
+                    throw error;
+                }
             }
         },
 

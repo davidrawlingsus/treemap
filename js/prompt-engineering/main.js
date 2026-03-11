@@ -45,6 +45,7 @@
 
             // Get all DOM elements
             this.elements = this.getElements();
+            this.applyUrlFilters();
 
             // Initialize authentication
             await this.initAuth();
@@ -57,6 +58,23 @@
 
             // Load initial data
             await this.loadInitialData();
+        },
+
+        applyUrlFilters() {
+            const state = window.PromptEngineeringState;
+            const params = new URLSearchParams(window.location.search);
+            const promptSearch = (params.get('prompt_search') || '').trim();
+            const status = (params.get('status') || '').trim();
+            if (promptSearch) {
+                state.set('searchTerm', promptSearch);
+                if (this.elements.promptSearchInput) {
+                    this.elements.promptSearchInput.value = promptSearch;
+                    this.updateSearchClearButton();
+                }
+            }
+            if (status && this.elements.statusFilter) {
+                this.elements.statusFilter.value = status;
+            }
         },
 
         /**

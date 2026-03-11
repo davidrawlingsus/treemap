@@ -109,6 +109,15 @@ def get_leadgen_run(db: Session, run_id: str) -> Optional[LeadgenVocRun]:
     return db.query(LeadgenVocRun).filter(LeadgenVocRun.run_id == run_id).first()
 
 
+def delete_leadgen_run(db: Session, run_id: str) -> bool:
+    run = get_leadgen_run(db, run_id)
+    if run is None:
+        return False
+    db.delete(run)
+    db.flush()
+    return True
+
+
 def get_leadgen_rows_as_process_voc_dicts(db: Session, run_id: str) -> List[Dict[str, Any]]:
     rows = (
         db.query(LeadgenVocRow)

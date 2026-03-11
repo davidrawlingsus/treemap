@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.auth import get_current_active_founder
+from app.services.voc_coding_chain_service import VocCodingChainError
 
 client = TestClient(app)
 
@@ -54,6 +55,119 @@ def test_founder_leadgen_processed_json(monkeypatch):
     body = response.json()
     assert body["run_id"] == "run_abc"
     assert body["payload"]["process_voc_rows_import_ready"][0]["respondent_id"] == "tp_1"
+
+    app.dependency_overrides.clear()
+
+
+def test_founder_delete_leadgen_run_success(monkeypatch):
+    app.dependency_overrides[get_current_active_founder] = _override_founder
+
+    monkeypatch.setattr("app.routers.founder_admin.leadgen_voc.delete_leadgen_run", lambda db, run_id: True)
+
+    response = client.delete("/api/founder-admin/leadgen-runs/run_abc")
+    assert response.status_code == 204
+
+    app.dependency_overrides.clear()
+
+
+def test_founder_delete_leadgen_run_not_found(monkeypatch):
+    app.dependency_overrides[get_current_active_founder] = _override_founder
+
+    monkeypatch.setattr("app.routers.founder_admin.leadgen_voc.delete_leadgen_run", lambda db, run_id: False)
+
+    response = client.delete("/api/founder-admin/leadgen-runs/missing")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Lead-gen run not found"
+
+    app.dependency_overrides.clear()
+
+
+def test_founder_rerun_leadgen_run_success(monkeypatch):
+    app.dependency_overrides[get_current_active_founder] = _override_founder
+
+    sample_run = SimpleNamespace(
+        run_id="run_abc",
+        work_email="person@acme.com",
+        company_domain="acme.com",
+        company_url="https://acme.com",
+        company_name="Acme",
+        payload={"company_context": {"context_text": "Acme context"}},
+    )
+    rows = [
+        {
+            "respondent_id": "tp_1",
+            "value": "Great delivery",
+            "survey_metadata": {"rating": 5},
+            "topics": [],
+            "overall_sentiment": None,
+            "processed": False,
+            "dimension_ref": "ref_trustpilot_reviews",
+        }
+    ]
+
+    monkeypatch.setattr("app.routers.founder_admin.leadgen_voc.get_leadgen_run", lambda db, run_id: sample_run)
+    monkeypatch.setattr("app.routers.founder_admin.leadgen_voc.get_leadgen_rows_as_process_voc_dicts", lambda db, run_id: rows)
+    monkeypatch.setattr(
+        "app.routers.founder_admin.leadgen_voc.run_voc_coding_chain",
+        lambda **kwargs: {"run_id": "run_abc", "coded_reviews": [{"respondent_id": "tp_1", "topics": [], "overall_sentiment": "positive"}]},
+    )
+    monkeypatch.setattr(
+        "app.routers.founder_admin.leadgen_voc.merge_coded_reviews_into_rows",
+        lambda process_voc_rows, coded_reviews: [{**process_voc_rows[0], "overall_sentiment": "positive", "topics": [], "processed": True}],
+    )
+    monkeypatch.setattr("app.routers.founder_admin.leadgen_voc.validate_import_ready_rows", lambda rows: None)
+
+    captured = {}
+
+    def _upsert(db, **kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(run_id=kwargs["run_id"], review_count=kwargs["review_count"], coding_status=kwargs["coding_status"])
+
+    monkeypatch.setattr("app.routers.founder_admin.leadgen_voc.upsert_leadgen_run_with_rows", _upsert)
+
+    response = client.post("/api/founder-admin/leadgen-runs/run_abc/rerun")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["run_id"] == "run_abc"
+    assert captured["run_id"] == "run_abc"
+    assert captured["review_count"] == 1
+
+    app.dependency_overrides.clear()
+
+
+def test_founder_rerun_leadgen_run_not_found(monkeypatch):
+    app.dependency_overrides[get_current_active_founder] = _override_founder
+    monkeypatch.setattr("app.routers.founder_admin.leadgen_voc.get_leadgen_run", lambda db, run_id: None)
+
+    response = client.post("/api/founder-admin/leadgen-runs/missing/rerun")
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Lead-gen run not found"
+
+    app.dependency_overrides.clear()
+
+
+def test_founder_rerun_leadgen_run_prompt_config_error(monkeypatch):
+    app.dependency_overrides[get_current_active_founder] = _override_founder
+
+    sample_run = SimpleNamespace(
+        run_id="run_abc",
+        work_email="person@acme.com",
+        company_domain="acme.com",
+        company_url="https://acme.com",
+        company_name="Acme",
+        payload={"company_context": {"context_text": "Acme context"}},
+    )
+    rows = [{"respondent_id": "tp_1", "value": "Great", "survey_metadata": {"rating": 5}, "dimension_ref": "ref_trustpilot_reviews"}]
+    monkeypatch.setattr("app.routers.founder_admin.leadgen_voc.get_leadgen_run", lambda db, run_id: sample_run)
+    monkeypatch.setattr("app.routers.founder_admin.leadgen_voc.get_leadgen_rows_as_process_voc_dicts", lambda db, run_id: rows)
+    monkeypatch.setattr(
+        "app.routers.founder_admin.leadgen_voc.run_voc_coding_chain",
+        lambda **kwargs: (_ for _ in ()).throw(VocCodingChainError("config", "Missing live DB prompts")),
+    )
+
+    response = client.post("/api/founder-admin/leadgen-runs/run_abc/rerun")
+    assert response.status_code == 502
+    assert "[config]" in response.json()["detail"]
 
     app.dependency_overrides.clear()
 
