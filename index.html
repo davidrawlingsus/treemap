@@ -1526,12 +1526,16 @@
         // Flag to prevent auto-launch loops
         let hasAutoLaunched = false;
         let isInitializing = false;
+        let lastClientsModeClientId = null;
         
         // Save current state to localStorage - uses storage module
         function saveState() {
+            const persistedClientId = currentDataMode === 'clients'
+                ? (currentClientId || lastClientsModeClientId || null)
+                : (lastClientsModeClientId || null);
             // Sync local variables to module state
             const localState = {
-                clientId: currentClientId,
+                clientId: persistedClientId,
                 projectName: currentProjectName,
                 dataSourceId: currentDataSourceId,
                 questionRefKey: currentQuestionRefKey,
@@ -1539,9 +1543,8 @@
                 leadRunId: currentLeadRunId
             };
             window.appStateSetState(localState);
-            // Get state from module and save to storage
-            const state = window.appStateGetState();
-            window.storageSaveState(state);
+            // Save full local state (including mode fields) directly to storage
+            window.storageSaveState(localState);
         }
         
         // Load state from localStorage - uses storage module with fallback
@@ -2123,6 +2126,9 @@
                 return;
             }
             currentClientId = clientId;
+            if (currentDataMode === 'clients') {
+                lastClientsModeClientId = clientId;
+            }
             window.appStateSetCurrentClientId(clientId);
             subStateSetActivePlan(clientId);
             updateNavPlanBadge();
@@ -2423,6 +2429,7 @@
                     );
                     if (matchingClient) {
                         currentClientId = urlClientUuid;
+                        lastClientsModeClientId = currentClientId;
                         window.appStateSetCurrentClientId(urlClientUuid);
                         console.log('Restored client from URL:', currentClientId);
                         // Restore other state from URL if present
@@ -2449,6 +2456,7 @@
                     );
                     if (matchingClient) {
                         currentClientId = savedState.clientId;
+                        lastClientsModeClientId = currentClientId;
                         window.appStateSetCurrentClientId(savedState.clientId);
                         console.log('Restored client from saved state:', currentClientId);
                     }
@@ -2488,6 +2496,7 @@
                     );
                     if (preferredClient) {
                         currentClientId = preferredClient.id;
+                        lastClientsModeClientId = currentClientId;
                     }
                 }
 
@@ -2655,6 +2664,9 @@
                 return; // No change or same client
             }
             currentClientId = newClientId;
+            if (currentDataMode === 'clients') {
+                lastClientsModeClientId = newClientId;
+            }
 
             // Sync Insights tab client ID to keep both tabs in sync
             if (typeof insightsCurrentClientId !== 'undefined') {

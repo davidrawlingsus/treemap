@@ -4,6 +4,7 @@ Apify integration for fetching Trustpilot reviews.
 
 import logging
 from typing import Any, Dict, List, Optional
+import math
 
 from fastapi import HTTPException
 
@@ -50,6 +51,9 @@ def normalize_apify_review(item: Dict[str, Any]) -> Dict[str, Any]:
 
 def _build_actor_input(domain: str, max_reviews: int) -> Dict[str, Any]:
     review_url = infer_trustpilot_review_url(domain)
+    # Trustpilot pages commonly expose around 20 reviews per page.
+    # Avoid hard-capping at page 1 so larger max_reviews can be fetched.
+    estimated_pages = max(1, math.ceil(max_reviews / 20))
     return {
         "companyWebsite": review_url,
         "contentToExtract": "companyInformationAndReviews",
@@ -59,7 +63,7 @@ def _build_actor_input(domain: str, max_reviews: int) -> Dict[str, Any]:
         "filterByVerified": True,
         "filterByCountryOfReviewers": "",
         "startFromPageNumber": 1,
-        "endAtPageNumber": 1,
+        "endAtPageNumber": estimated_pages,
         "filterByDatePeriod": "any date",
         "Proxy configuration": {"useApifyProxy": False},
         # Keep desired count in payload for observability/debugging.
