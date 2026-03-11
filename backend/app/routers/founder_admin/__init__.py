@@ -19,6 +19,7 @@ from .ad_library_imports import router as ad_library_imports_router
 from .voc_ads_comparison import router as voc_ads_comparison_router
 from .creative_mri import router as creative_mri_router
 from .subscriptions import router as subscriptions_router
+from .leadgen_voc import router as leadgen_voc_router
 
 # Create main router that includes all sub-routers
 router = APIRouter(tags=["founder-admin"])
@@ -39,4 +40,5 @@ router.include_router(ad_library_imports_router)
 router.include_router(voc_ads_comparison_router)
 router.include_router(creative_mri_router)
 router.include_router(subscriptions_router)
+router.include_router(leadgen_voc_router)
 

@@ -319,6 +319,10 @@ app.include_router(data_sources.router)
 from app.routers import voc
 app.include_router(voc.router)
 
+# Include lead VOC router (founder-only lead run visualization endpoints)
+from app.routers import voc_leads
+app.include_router(voc_leads.router)
+
 # Include clients router
 from app.routers import clients
 app.include_router(clients.router)
@@ -338,6 +342,10 @@ app.include_router(billing.router)
 # Include help chat router (site widget + Slack bridge)
 from app.routers import help_chat
 app.include_router(help_chat.router)
+
+# Include public leadgen router (no-auth intake flow)
+from app.routers import public_leadgen
+app.include_router(public_leadgen.router)
 
 
 if __name__ == "__main__":

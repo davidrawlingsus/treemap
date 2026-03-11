@@ -1,0 +1,138 @@
+{
+  "model": "claude-sonnet-4-5-20250929",
+  "max_tokens": 8192,
+  "temperature": 0.4,
+  "system": "You are a senior qualitative researcher refining a VoC codebook. You will receive:\n1. The current codebook (v1)\n2. Coding statistics showing how themes were distributed across reviews\n3. Any NO_MATCH reviews that didn't fit the v1 codebook\n\nYour job is to PRODUCE A COMPLETE UPDATED CODEBOOK (v1.1) with all improvements applied. Do not output recommendations — output the actual codebook. The downstream system will re-code all reviews against your updated codebook automatically.\n\nThe codebook feeds a Facebook ad engine (8 creative lanes) and email sequence engine (6 objection types). A good codebook means:\n1. Every theme has clear ad utility — hand the theme + verbatims to a copywriter and they know what ad to write\n2. The 8 creative lanes have reasonable coverage — not all themes mapping to one lane\n3. Negative themes are preserved — they become objection-handling ads\n4. Themes are specific enough to test (one theme = one ad hypothesis) but not so granular they only have 1 review\n5. Theme names use customer language, not marketing jargon\n\nOPERATIONS TO APPLY:\n\nMERGE — If two themes share >70% of the same verbatims, or the distinction wouldn't change which ad you'd write, combine them into one theme in the output. Pick the more vivid customer-language label.\n\nSPLIT — If a theme covers >25% of all reviews, or its verbatims describe clearly different experiences, split it into 2-3 more specific themes in the output.\n\nADD — If 2+ NO_MATCH reviews share a common pattern, create a new theme for them in the output. Name it in customer language. Assign a creative lane and email objection.\n\nRENAME — If the verbatims suggest a more vivid customer-language label, use the better name in the output.\n\nREMAP — If a theme's verbatims better suit a different creative lane or email objection, update the mapping in the output.\n\nSUNSET — If a theme has only 1 review, low confidence, and no emotionally charged content, remove it from the output.\n\nNO-CHANGE — If a theme is healthy, keep it exactly as-is in the output.\n\nIMPORTANT:\n- The output must be a COMPLETE codebook — every theme that survives must be in it, with all fields populated\n- Merged themes: combine the example_verbatims from both source themes\n- Split themes: distribute the example_verbatims appropriately\n- Added themes: pull example_verbatims from the NO_MATCH reviews\n- The changelog field documents what you did and why (for audit trail)\n- If the v1 codebook was already healthy (low NO_MATCH rate, good lane coverage, good specificity), output it with minimal changes and note that in the changelog",
+  "messages": [
+    {
+      "role": "user",
+      "content": "PRODUCT CONTEXT:\n{{product_context}}\n\n---\n\nCURRENT CODEBOOK (v1):\n{{codebook}}\n\n---\n\nCODING STATISTICS:\n{{stats}}\n\n---\n\nNO_MATCH REVIEWS (reviews that didn't fit any theme):\n{{no_matches}}\n\n---\n\nTASK: Refine this codebook and output the COMPLETE UPDATED codebook v1.1 with all improvements applied.\n\nRULES:\n- The categories array IS the complete codebook — not a diff, not recommendations, the ACTUAL codebook\n- Every surviving theme must have all fields populated (label, code, description, sentiment_direction, emotional_dimension, primary_creative_lane, primary_email_objection, example_verbatims, review_count, confidence)\n- example_verbatims must be EXACT quotes from the original reviews (not paraphrased)\n- The changelog must document every operation you performed, including NO_CHANGE for themes you kept as-is (so the system can verify completeness)\n- Be conservative: don't reorganise for tidiness. Only change what makes a material difference to ad or email generation quality.\n- If the v1 codebook was healthy: output it mostly unchanged, log NO_CHANGE for each theme, and set a high health score"
+    }
+  ],
+  "output_config": {
+    "format": {
+      "type": "json_schema",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "codebook_version": { "type": "string" },
+          "refined_from": { "type": "string" },
+          "review_count_analyzed": { "type": "integer" },
+          "health_assessment": {
+            "type": "object",
+            "properties": {
+              "overall_score": { "type": "number" },
+              "total_themes": { "type": "integer" },
+              "themes_with_high_ad_utility": { "type": "integer" },
+              "previous_no_match_rate": { "type": "number" },
+              "lane_coverage": {
+                "type": "object",
+                "properties": {
+                  "Surprise": { "type": "integer" },
+                  "Story": { "type": "integer" },
+                  "Curiosity": { "type": "integer" },
+                  "Guidance": { "type": "integer" },
+                  "Instructional": { "type": "integer" },
+                  "Hyperbole": { "type": "integer" },
+                  "Newness": { "type": "integer" },
+                  "Ranking": { "type": "integer" }
+                },
+                "required": ["Surprise", "Story", "Curiosity", "Guidance", "Instructional", "Hyperbole", "Newness", "Ranking"],
+                "additionalProperties": false
+              },
+              "lanes_with_zero_coverage": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "objection_coverage": {
+                "type": "object",
+                "properties": {
+                  "price_sensitivity": { "type": "integer" },
+                  "urgency": { "type": "integer" },
+                  "product_fit": { "type": "integer" },
+                  "comparison_paralysis": { "type": "integer" },
+                  "buyers_remorse": { "type": "integer" },
+                  "distraction": { "type": "integer" }
+                },
+                "required": ["price_sensitivity", "urgency", "product_fit", "comparison_paralysis", "buyers_remorse", "distraction"],
+                "additionalProperties": false
+              }
+            },
+            "required": ["overall_score", "total_themes", "themes_with_high_ad_utility", "previous_no_match_rate", "lane_coverage", "lanes_with_zero_coverage", "objection_coverage"],
+            "additionalProperties": false
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "category": { "type": "string" },
+                "category_code": { "type": "string" },
+                "themes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "label": { "type": "string" },
+                      "code": { "type": "string" },
+                      "description": { "type": "string" },
+                      "sentiment_direction": {
+                        "type": "string",
+                        "enum": ["positive", "negative", "mixed"]
+                      },
+                      "emotional_dimension": { "type": "string" },
+                      "primary_creative_lane": {
+                        "type": "string",
+                        "enum": ["Surprise", "Story", "Curiosity", "Guidance", "Instructional", "Hyperbole", "Newness", "Ranking"]
+                      },
+                      "secondary_creative_lane": {
+                        "type": ["string", "null"],
+                        "enum": ["Surprise", "Story", "Curiosity", "Guidance", "Instructional", "Hyperbole", "Newness", "Ranking", null]
+                      },
+                      "primary_email_objection": {
+                        "type": "string",
+                        "enum": ["price_sensitivity", "urgency", "product_fit", "comparison_paralysis", "buyers_remorse", "distraction", "none"]
+                      },
+                      "example_verbatims": {
+                        "type": "array",
+                        "items": { "type": "string" }
+                      },
+                      "review_count": { "type": "integer" },
+                      "confidence": { "type": "number" }
+                    },
+                    "required": ["label", "code", "description", "sentiment_direction", "emotional_dimension", "primary_creative_lane", "primary_email_objection", "example_verbatims", "review_count", "confidence"],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": ["category", "category_code", "themes"],
+              "additionalProperties": false
+            }
+          },
+          "changelog": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "action": {
+                  "type": "string",
+                  "enum": ["MERGE", "SPLIT", "ADD", "RENAME", "REMAP", "SUNSET", "NO_CHANGE"]
+                },
+                "target_codes": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                },
+                "result_code": { "type": ["string", "null"] },
+                "rationale": { "type": "string" }
+              },
+              "required": ["action", "target_codes", "rationale"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["codebook_version", "refined_from", "review_count_analyzed", "health_assessment", "categories", "changelog"],
+        "additionalProperties": false
+      }
+    }
+  }
+}

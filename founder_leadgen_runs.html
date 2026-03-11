@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Founder Admin - Lead-Gen VOC Runs</title>
+    <link rel="icon" href="/images/favicon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles/founder-admin.css">
+    <link rel="stylesheet" href="/styles/founder-leadgen-runs.css">
+    <script src="/config.js"></script>
+    <script src="/auth.js"></script>
+</head>
+<body>
+    <div id="loginOverlay" class="login-overlay hidden">
+        <div class="login-container">
+            <div id="loginFormSection">
+                <h2>Sign in</h2>
+                <p class="login-subtext">Enter your work email and we'll email you a secure magic link.</p>
+                <input type="email" id="loginEmail" placeholder="you@company.com" autocomplete="email">
+                <button id="loginButton" type="button">Send Magic Link</button>
+                <div id="loginError" class="login-error"></div>
+                <div id="loginSuccess" class="login-success"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="appShell">
+        <header>
+            <div>
+                <nav class="breadcrumbs">
+                    <a href="/founder_admin.html">Founder Admin</a>
+                    <span class="breadcrumbs-separator">›</span>
+                    <span>Lead-Gen VOC Runs</span>
+                </nav>
+                <h1>Lead-Gen VOC Runs</h1>
+                <div class="subtitle">Inspect stored lead runs and review processed JSON outputs.</div>
+            </div>
+            <div class="founder-meta">
+                <span id="founderEmail"></span>
+                <div class="leadgen-actions">
+                    <button class="btn btn-secondary" id="refreshButton">Refresh</button>
+                    <button class="btn btn-ghost" id="logoutButton">Logout</button>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="content">
+                <div id="statusMessage" class="status-message"></div>
+                <div id="runsList" class="leadgen-runs-list"></div>
+
+                <section class="leadgen-details">
+                    <div class="leadgen-details__header">
+                        <h2>Processed JSON</h2>
+                        <a class="btn btn-secondary" id="visualizeLink" href="/">Open in Visualization</a>
+                    </div>
+                    <pre id="jsonOutput" class="leadgen-json-output">Select a run to inspect its payload.</pre>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+        const elements = {
+            appShell: document.getElementById('appShell'),
+            founderEmail: document.getElementById('founderEmail'),
+            logoutButton: document.getElementById('logoutButton'),
+            refreshButton: document.getElementById('refreshButton'),
+            statusMessage: document.getElementById('statusMessage'),
+            runsList: document.getElementById('runsList'),
+            jsonOutput: document.getElementById('jsonOutput'),
+            visualizeLink: document.getElementById('visualizeLink'),
+        };
+
+        let founder = null;
+        let selectedRunId = null;
+
+        function showStatus(message, type = 'success') {
+            if (!message) {
+                elements.statusMessage.style.display = 'none';
+                elements.statusMessage.textContent = '';
+                elements.statusMessage.classList.remove('success', 'error');
+                return;
+            }
+            elements.statusMessage.textContent = message;
+            elements.statusMessage.style.display = 'block';
+            elements.statusMessage.classList.remove('success', 'error');
+            elements.statusMessage.classList.add(type);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text ?? '';
+            return div.innerHTML;
+        }
+
+        function renderRuns(runs) {
+            if (!runs.length) {
+                elements.runsList.innerHTML = '<div class="empty-state">No lead runs found.</div>';
+                return;
+            }
+            elements.runsList.innerHTML = runs.map((run) => {
+                const runId = escapeHtml(run.run_id);
+                const company = escapeHtml(run.company_name || run.company_domain || 'Unknown');
+                const domain = escapeHtml(run.company_domain || '');
+                const status = escapeHtml(run.coding_status || 'unknown');
+                const reviews = Number(run.review_count || 0);
+                return `
+                    <button type="button" class="leadgen-run-item ${selectedRunId === run.run_id ? 'active' : ''}" data-run-id="${runId}">
+                        <span class="leadgen-run-item__title">${company}</span>
+                        <span class="leadgen-run-item__meta">${domain} • ${reviews} reviews • ${status}</span>
+                    </button>
+                `;
+            }).join('');
+
+            elements.runsList.querySelectorAll('.leadgen-run-item').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const runId = button.getAttribute('data-run-id');
+                    loadRun(runId);
+                });
+            });
+        }
+
+        async function loadRuns() {
+            showStatus('Loading lead runs...');
+            const response = await fetch(`${API_BASE_URL}/api/founder-admin/leadgen-runs?limit=200`, {
+                headers: Auth.getAuthHeaders(),
+            });
+            if (!response.ok) {
+                throw new Error(`Failed to load lead runs (${response.status})`);
+            }
+            const payload = await response.json();
+            const runs = payload.items || [];
+
+            const urlRunId = new URLSearchParams(window.location.search).get('run_id');
+            if (urlRunId && runs.some((run) => run.run_id === urlRunId)) {
+                selectedRunId = urlRunId;
+            } else if (!selectedRunId && runs.length) {
+                selectedRunId = runs[0].run_id;
+            }
+
+            renderRuns(runs);
+            showStatus();
+            if (selectedRunId) {
+                await loadRun(selectedRunId);
+            }
+        }
+
+        async function loadRun(runId) {
+            selectedRunId = runId;
+            showStatus(`Loading run ${runId}...`);
+            const response = await fetch(`${API_BASE_URL}/api/founder-admin/leadgen-runs/${encodeURIComponent(runId)}/processed-json`, {
+                headers: Auth.getAuthHeaders(),
+            });
+            if (!response.ok) {
+                throw new Error(`Failed to load run JSON (${response.status})`);
+            }
+            const payload = await response.json();
+            elements.jsonOutput.textContent = JSON.stringify(payload.payload || {}, null, 2);
+            elements.visualizeLink.href = `/?mode=leads&run_id=${encodeURIComponent(runId)}`;
+            elements.runsList.querySelectorAll('.leadgen-run-item').forEach((button) => {
+                const isActive = button.getAttribute('data-run-id') === runId;
+                button.classList.toggle('active', isActive);
+            });
+            showStatus();
+        }
+
+        function initializePage(userInfo) {
+            founder = userInfo;
+            elements.founderEmail.textContent = founder?.email || '';
+            Auth.hideLogin();
+            elements.appShell.style.display = 'flex';
+            loadRuns().catch((error) => {
+                showStatus(error.message || 'Failed to load lead runs.', 'error');
+            });
+        }
+
+        Auth.checkAuth().then((authenticated) => {
+            if (!authenticated) return;
+            const userInfo = Auth.getStoredUserInfo();
+            if (!userInfo?.is_founder) {
+                Auth.showLogin();
+                const errorEl = document.getElementById('loginError');
+                if (errorEl) {
+                    errorEl.textContent = 'Access denied: founder privileges required.';
+                    errorEl.style.display = 'block';
+                }
+                return;
+            }
+            initializePage(userInfo);
+        });
+
+        window.addEventListener('auth:authenticated', (event) => {
+            const userInfo = event.detail?.user;
+            if (userInfo?.is_founder) {
+                initializePage(userInfo);
+            }
+        });
+
+        elements.refreshButton.addEventListener('click', () => {
+            loadRuns().catch((error) => showStatus(error.message || 'Failed to refresh.', 'error'));
+        });
+        elements.logoutButton.addEventListener('click', () => Auth.handleLogout());
+    </script>
+</body>
+</html>

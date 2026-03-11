@@ -20,3 +20,4 @@ vercel-blob==0.4.2
 playwright==1.49.0
 google-genai>=1.0.0
 stripe>=8.0.0
+apify-client

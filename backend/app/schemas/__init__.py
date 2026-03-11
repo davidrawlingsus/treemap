@@ -196,6 +196,17 @@ from .help_chat import (
     HelpChatConversationResponse,
     HelpChatWebhookResponse,
 )
+from .public_leadgen import (
+    TrustpilotLeadgenRequest,
+    TrustpilotLeadgenResponse,
+    TrustpilotLeadgenErrorResponse,
+)
+from .leadgen_voc import (
+    LeadgenVocRunSummary,
+    LeadgenVocRunListResponse,
+    LeadgenVocProcessedJsonResponse,
+    LeadgenVocRowsResponse,
+)
 
 # Resolve forward references after all schemas are imported
 # This is necessary for Pydantic v2 when using forward references
@@ -356,6 +367,14 @@ __all__ = [
     "HelpChatMessageResponse",
     "HelpChatConversationResponse",
     "HelpChatWebhookResponse",
+    # Public leadgen
+    "TrustpilotLeadgenRequest",
+    "TrustpilotLeadgenResponse",
+    "TrustpilotLeadgenErrorResponse",
+    "LeadgenVocRunSummary",
+    "LeadgenVocRunListResponse",
+    "LeadgenVocProcessedJsonResponse",
+    "LeadgenVocRowsResponse",
     # Billing
     "PlanResponse",
     "PlanUpdateRequest",

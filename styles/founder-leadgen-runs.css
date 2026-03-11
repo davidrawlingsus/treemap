@@ -1,0 +1,62 @@
+.leadgen-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.leadgen-runs-list {
+    display: grid;
+    gap: 10px;
+}
+
+.leadgen-run-item {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    background: var(--surface);
+    text-align: left;
+    cursor: pointer;
+}
+
+.leadgen-run-item.active {
+    border-color: var(--brand-color);
+    box-shadow: 0 0 0 2px rgba(185, 240, 64, 0.2);
+}
+
+.leadgen-run-item__title {
+    display: block;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.leadgen-run-item__meta {
+    display: block;
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 12px;
+}
+
+.leadgen-details {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.leadgen-details__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.leadgen-json-output {
+    background: #0f172a;
+    color: #d1d5db;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 12px;
+    line-height: 1.5;
+    max-height: 60vh;
+    overflow: auto;
+}

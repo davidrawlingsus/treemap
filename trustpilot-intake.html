@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trustpilot Intake</title>
+    <link rel="icon" href="/images/favicon.png" type="image/png">
+    <script src="/config.js"></script>
+    <link rel="stylesheet" href="/static/styles/trustpilot-intake.css">
+</head>
+<body>
+    <main class="intake-page">
+        <section class="intake-card">
+            <h1 class="intake-title">Trustpilot Processing Intake</h1>
+            <p class="intake-subtitle">
+                Enter a work email to generate an LLM-ready Trustpilot JSON payload.
+            </p>
+
+            <form id="trustpilotIntakeForm" class="intake-form" novalidate>
+                <label for="workEmail" class="input-label">Work email</label>
+                <input
+                    id="workEmail"
+                    name="workEmail"
+                    class="text-input"
+                    type="email"
+                    autocomplete="email"
+                    placeholder="name@company.com"
+                    required
+                >
+
+                <label for="companyUrl" class="input-label">Company URL (optional override)</label>
+                <input
+                    id="companyUrl"
+                    name="companyUrl"
+                    class="text-input"
+                    type="url"
+                    autocomplete="url"
+                    placeholder="https://company.com"
+                >
+
+                <label for="maxReviews" class="input-label">Max Trustpilot reviews</label>
+                <input
+                    id="maxReviews"
+                    name="maxReviews"
+                    class="text-input"
+                    type="number"
+                    min="1"
+                    max="250"
+                    value="50"
+                    required
+                >
+
+                <label class="checkbox-row" for="includeDebugData">
+                    <input
+                        id="includeDebugData"
+                        name="includeDebugData"
+                        type="checkbox"
+                    >
+                    <span>Include debug data (normalized reviews + intermediate rows)</span>
+                </label>
+
+                <button id="submitButton" class="submit-button" type="submit">
+                    Generate JSON
+                </button>
+            </form>
+
+            <div id="statusMessage" class="status-message" aria-live="polite"></div>
+            <ol id="progressSteps" class="progress-steps" aria-live="polite">
+                <li data-step="request">Request accepted</li>
+                <li data-step="fetch">Fetching Trustpilot reviews</li>
+                <li data-step="discover">LLM step 1 (discover codebook)</li>
+                <li data-step="code">LLM step 2 (code reviews)</li>
+                <li data-step="refine">LLM step 3 (refine and recode)</li>
+                <li data-step="persist">Persisting run and returning payload</li>
+            </ol>
+        </section>
+    </main>
+
+    <script type="module" src="/static/js/controllers/trustpilot-intake-controller.js"></script>
+</body>
+</html>

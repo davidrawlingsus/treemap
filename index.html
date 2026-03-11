@@ -1820,7 +1820,13 @@
                     currentQuestionRefKey = null;
                     saveState();
                     applyDataModeUI();
-                    await loadClients();
+                    const params = new URLSearchParams(window.location.search);
+                    params.set('mode', 'clients');
+                    params.delete('run_id');
+                    const nextQuery = params.toString();
+                    const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash || ''}`;
+                    window.history.replaceState({}, '', nextUrl);
+                    await loadClients(false, true);
                 });
             }
             if (modeLeadsBtn && !modeLeadsBtn.dataset.bound) {
@@ -1834,7 +1840,12 @@
                     currentQuestionRefKey = null;
                     saveState();
                     applyDataModeUI();
-                    await loadClients();
+                    const params = new URLSearchParams(window.location.search);
+                    params.set('mode', 'leads');
+                    const nextQuery = params.toString();
+                    const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash || ''}`;
+                    window.history.replaceState({}, '', nextUrl);
+                    await loadClients(false);
                 });
             }
             applyDataModeUI();
@@ -2351,16 +2362,16 @@
             : (window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000');
         
         // Load available clients - uses API module for fetching, handles DOM/state
-        async function loadClients() {
+        async function loadClients(respectUrlMode = true, forceDataReload = false) {
             console.log('loadClients() called');
             const urlParamsForMode = new URLSearchParams(window.location.search);
             const urlMode = urlParamsForMode.get('mode');
             const urlRunId = urlParamsForMode.get('run_id');
             const isFounder = !!authenticatedUser?.is_founder;
-            if (isFounder && (urlMode === 'clients' || urlMode === 'leads')) {
+            if (respectUrlMode && isFounder && (urlMode === 'clients' || urlMode === 'leads')) {
                 currentDataMode = urlMode;
             }
-            if (isFounder && urlRunId) {
+            if (respectUrlMode && isFounder && urlRunId) {
                 currentLeadRunId = urlRunId;
             }
             applyDataModeUI();
@@ -2513,42 +2524,10 @@
                     }
                 }
                 
-                // Add change listener (remove existing one first to avoid duplicates)
-                const handleClientChange = async (e) => {
-                    const newClientId = e.target.value;
-                    if (!newClientId || newClientId === currentClientId) {
-                        return; // No change or same client
-                    }
-                    currentClientId = newClientId;
-                    
-                    // Sync Insights tab client ID to keep both tabs in sync
-                    if (typeof insightsCurrentClientId !== 'undefined') {
-                        insightsCurrentClientId = newClientId;
-                    }
-                    
-                    // Load insights for the visualizations panel (async, doesn't block)
-                    if (typeof loadInsightsPage === 'function') {
-                        loadInsightsPage().catch(err => console.warn('Failed to load insights for panel:', err));
-                    }
-                    
-                    // Update header logo for the selected client
-                    const selectedClient = allClients.find(c => c.client_uuid === newClientId);
-                    if (selectedClient && typeof window.updateHeaderLogo === 'function') {
-                        window.updateHeaderLogo(selectedClient.logo_url, selectedClient.header_color);
-                    }
-                    
-                    currentProjectName = null; // Reset project when client changes
-                    currentDataSourceId = null; // Reset data source when client changes
-                    currentQuestionRefKey = null; // Reset question when client changes
-                    dimensionFilters = {}; // Clear dimension filters when client changes
-                    saveState();
-                    updateAddDataButton(); // Update Add button with new client
-                    await loadClientProjects(currentClientId);
-                    renderFavourites(); // Re-render favourites for new client
-                };
-                // Remove any existing listener
-                select.removeEventListener('change', handleClientChange);
-                select.addEventListener('change', handleClientChange);
+                // Add change listener (remove mode-specific listeners first)
+                select.removeEventListener('change', handleLeadRunSelectionChange);
+                select.removeEventListener('change', handleClientSelectionChange);
+                select.addEventListener('change', handleClientSelectionChange);
                 
                 // Load projects for the selected client (only if not already loading from selectClientAndLaunch)
                 // Create a combined state object with priority: URL params > current globals > saved state
@@ -2566,7 +2545,7 @@
                 const isMainVisible = mainContainer && mainContainer.style.display !== 'none';
                 const isInitialized = document.querySelector('.treemap-svg-container') !== null;
                 // Load if: not auto-launched yet, OR main is not visible, OR (main is visible but not initialized - refresh scenario)
-                const shouldAutoLoad = !hasAutoLaunched || !isMainVisible || (isMainVisible && !isInitialized);
+                const shouldAutoLoad = forceDataReload || !hasAutoLaunched || !isMainVisible || (isMainVisible && !isInitialized);
                 
                 if (currentClientId && shouldAutoLoad) {
                     console.log(`Loading projects for client: ${currentClientId} with state:`, restoreState);
@@ -2629,12 +2608,17 @@
                     currentLeadRunId = urlRunId;
                 }
 
+                const hasCurrentLeadOption = runs.some((run) => run.run_id === currentLeadRunId);
+                if (!hasCurrentLeadOption) {
+                    currentLeadRunId = runs[0]?.run_id || null;
+                }
                 if (currentLeadRunId) {
                     select.value = currentLeadRunId;
                 }
                 currentClientId = currentLeadRunId;
                 saveState();
 
+                select.removeEventListener('change', handleClientSelectionChange);
                 select.removeEventListener('change', handleLeadRunSelectionChange);
                 select.addEventListener('change', handleLeadRunSelectionChange);
 
@@ -2663,6 +2647,39 @@
             dimensionFilters = {};
             saveState();
             await loadDataSource(runId, null);
+        }
+
+        async function handleClientSelectionChange(e) {
+            const newClientId = e.target.value;
+            if (!newClientId || newClientId === currentClientId) {
+                return; // No change or same client
+            }
+            currentClientId = newClientId;
+
+            // Sync Insights tab client ID to keep both tabs in sync
+            if (typeof insightsCurrentClientId !== 'undefined') {
+                insightsCurrentClientId = newClientId;
+            }
+
+            // Load insights for the visualizations panel (async, doesn't block)
+            if (typeof loadInsightsPage === 'function') {
+                loadInsightsPage().catch(err => console.warn('Failed to load insights for panel:', err));
+            }
+
+            // Update header logo for the selected client
+            const selectedClient = allClients.find(c => c.client_uuid === newClientId);
+            if (selectedClient && typeof window.updateHeaderLogo === 'function') {
+                window.updateHeaderLogo(selectedClient.logo_url, selectedClient.header_color);
+            }
+
+            currentProjectName = null; // Reset project when client changes
+            currentDataSourceId = null; // Reset data source when client changes
+            currentQuestionRefKey = null; // Reset question when client changes
+            dimensionFilters = {}; // Clear dimension filters when client changes
+            saveState();
+            updateAddDataButton(); // Update Add button with new client
+            await loadClientProjects(currentClientId);
+            renderFavourites(); // Re-render favourites for new client
         }
         
         // Load projects for a specific client - wrapper that uses API module for fetching, handles DOM/state
@@ -3098,6 +3115,9 @@
                 
                 // Store raw process_voc rows
                 fullRawData = processVocRows;
+                // Force regroup/re-render against the new dataset each load.
+                rawData = [];
+                dimensionFilteredData = [];
                 
                 // Update treemap title with question text if available
                 updateTreemapTitle();
@@ -15375,6 +15395,14 @@
 
         function updateInsightsAutoFilter() {
             if (!currentClientId) return;
+            if (currentDataMode === 'leads') {
+                allInsights = [];
+                const tbody = document.getElementById('insightsTableBody');
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>Insights unavailable in Leads mode</h3><p>Switch to Clients mode to load client insights.</p></td></tr>';
+                }
+                return;
+            }
             
             // Always show all insights (no filtering)
             const badge = document.getElementById('insightsFilterBadge');
@@ -15388,6 +15416,9 @@
 
         async function loadInsights(filters = {}) {
             if (!currentClientId) return;
+            if (currentDataMode === 'leads') {
+                return;
+            }
             
             const tbody = document.getElementById('insightsTableBody');
             if (!tbody) return;

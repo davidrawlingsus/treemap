@@ -1,0 +1,71 @@
+{
+  "model": "claude-haiku-4-5-20251001",
+  "max_tokens": 4096,
+  "temperature": 0.2,
+  "system": "You are a content coder. Your job is to read customer reviews and code each one against a predefined codebook of themes.\n\nFor each review, you will:\n1. Assign 1-3 topics from the codebook (most reviews will have 1-2)\n2. Extract a headline of 3-7 words taken VERBATIM from the review text (not invented, not paraphrased — actual words from the review)\n3. Rate the emotional intensity of the review: low (factual/neutral), medium (clear sentiment), high (vivid, emotionally charged language that would stop someone scrolling)\n4. Determine overall sentiment: positive, negative, or mixed\n5. If the review genuinely doesn't fit ANY theme in the codebook, mark it as NO_MATCH\n\nCRITICAL RULES:\n\n- Headlines must be VERBATIM snippets from the review text. If the review says \"Every. Single. Meal, that I have had from Prep Kitchen, I have absolutely loved!!\" then a valid headline is \"absolutely loved every single meal\" — you can reorder slightly for readability but every word must come from the review.\n\n- Emotional intensity matters because the ad engine prioritises high-intensity verbatims:\n  * LOW: \"Food is tasty\" (factual, minimal emotion)\n  * MEDIUM: \"Really good quality and the delivery was very good\" (positive but measured)\n  * HIGH: \"I cannot tell you how fussy I am about food... Every. Single. Meal... I have absolutely loved!!\" (vivid, emphatic, would make good ad copy)\n\n- A review can have topics with DIFFERENT sentiments. Example: \"Tasty meals but smaller than expected\" = positive taste + negative portions.\n\n- For very short or vague reviews (\"Great Taste\", \"Just Awful\"), still code them — assign the closest theme and note low confidence.\n\n- Confidence score per topic: 0.7 = borderline fit, 0.85 = good fit, 0.95+ = perfect fit",
+  "messages": [
+    {
+      "role": "user",
+      "content": "CODEBOOK:\n{{codebook}}\n\n---\n\nREVIEWS TO CODE:\n\n{{reviews}}\n\n---\n\nTASK: Code each review against the codebook.\n\nRULES:\n- Every review must appear in the output, even if it's a NO_MATCH\n- headlines are VERBATIM from the review — do not invent words\n- 1-3 topics per review (most will have 1-2)\n- Use the exact category, label, and code values from the codebook — do not invent new ones\n- If a review covers a topic not in the codebook, mark the REVIEW as NO_MATCH (do not create new themes — that's Step 3's job)"
+    }
+  ],
+  "output_config": {
+    "format": {
+      "type": "json_schema",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "coded_reviews": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "respondent_id": { "type": "string" },
+                "overall_sentiment": {
+                  "type": "string",
+                  "enum": ["positive", "negative", "mixed"]
+                },
+                "emotional_intensity": {
+                  "type": "string",
+                  "enum": ["low", "medium", "high"]
+                },
+                "status": {
+                  "type": "string",
+                  "enum": ["CODED", "NO_MATCH"]
+                },
+                "topics": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "category": { "type": "string" },
+                      "label": { "type": "string" },
+                      "code": { "type": "string" },
+                      "sentiment": {
+                        "type": "string",
+                        "enum": ["positive", "negative", "mixed"]
+                      },
+                      "headline": { "type": "string" },
+                      "emotional_intensity": {
+                        "type": "string",
+                        "enum": ["low", "medium", "high"]
+                      },
+                      "confidence": { "type": "number" }
+                    },
+                    "required": ["category", "label", "code", "sentiment", "headline", "emotional_intensity", "confidence"],
+                    "additionalProperties": false
+                  }
+                },
+                "no_match_reason": { "type": ["string", "null"] }
+              },
+              "required": ["respondent_id", "overall_sentiment", "emotional_intensity", "status", "topics"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["coded_reviews"],
+        "additionalProperties": false
+      }
+    }
+  }
+}

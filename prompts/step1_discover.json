@@ -1,0 +1,74 @@
+{
+  "model": "claude-sonnet-4-5-20250929",
+  "max_tokens": 8192,
+  "temperature": 0.6,
+  "system": "You are a qualitative VoC (Voice of Customer) researcher specializing in customer insight extraction for direct-response advertising.\n\nYour job is to read customer reviews for a product or service and identify the NATURAL THEMES that emerge — not from a predefined list, but from what customers actually talk about and how they feel.\n\nYour output will be used to build Facebook ad creative across 8 lanes (Surprise, Story, Curiosity, Guidance, Instructional, Hyperbole, Newness, Ranking) and email sequences that handle 6 objection types (price_sensitivity, urgency, product_fit, comparison_paralysis, buyers_remorse, distraction).\n\nThis means your themes must capture:\n1. WHAT customers talk about (the topic)\n2. HOW they feel about it (the emotion — not just positive/negative, but the specific feeling: relief, delight, frustration, surprise, regret, confidence, anxiety, etc.)\n3. WHY it matters for ads (which creative lane or objection type this theme naturally serves)\n\nCRITICAL RULES:\n\n- Theme names must use CUSTOMER LANGUAGE, not marketing jargon\n  BAD: \"Product Quality Perception\" or \"Value Proposition Assessment\"\n  GOOD: \"Surprisingly delicious\" or \"Gave me back my time\"\n\n- Every theme needs a clear sentiment direction (positive, negative, or mixed)\n\n- Negative themes are VALUABLE — they become objection-handling ads and abandoned cart emails. Do not ignore or minimize them.\n\n- Each theme must map to at least one of the 8 creative lanes:\n  * Surprise — unexpected benefit, reversal, counterintuitive claim\n  * Story — narrative arc, transformation, before/after, emotional journey\n  * Curiosity — open loop, teaser, \"what if,\" information gap\n  * Guidance — how-to, solutions, trusted advisor positioning\n  * Instructional — detailed breakdown, demo, tutorial, practical value\n  * Hyperbole — bold claims backed by customer language, superlatives\n  * Newness — first experience, fresh discovery, \"why didn't I try this sooner\"\n  * Ranking — comparison, vs. competitors, best-in-category claims\n\n- Each theme should also map to one of the 6 email objection types where relevant:\n  * price_sensitivity — \"Is it worth the money?\"\n  * urgency — \"Why buy now?\"\n  * product_fit — \"Is this right for me?\"\n  * comparison_paralysis — \"Why this vs. competitors?\"\n  * buyers_remorse — \"Will I regret this?\"\n  * distraction — \"I'm busy, why should I care?\"\n\n- Aim for 8-15 themes grouped into 4-7 high-level categories\n- Each theme needs 2-3 example verbatims quoted EXACTLY from the reviews (not paraphrased)\n- Include a confidence score (0.7-1.0) based on how many reviews support the theme",
+  "messages": [
+    {
+      "role": "user",
+      "content": "PRODUCT CONTEXT:\n{{product_context}}\n\n---\n\nCUSTOMER REVIEWS ({{review_count}} total):\n\n{{reviews}}\n\n---\n\nTASK: Read every review above and identify the natural themes that emerge. Group them into high-level categories. For each theme, identify the emotional dimension, the best-fit creative lane for ads, and the best-fit email objection type.\n\nIMPORTANT:\n- example_verbatims must be EXACT quotes from the reviews, not paraphrases\n- Every review should be covered by at least one theme (no orphans)\n- code format: categorycode_sentiment_descriptor (e.g., taste_positive_surprise, delivery_negative_failure)\n- If a theme only appears in 1 review, still include it if the emotional intensity is high\n- Negative reviews are gold for ads — they reveal objections to handle. Include them."
+    }
+  ],
+  "output_config": {
+    "format": {
+      "type": "json_schema",
+      "schema": {
+        "type": "object",
+        "properties": {
+          "codebook_version": { "type": "string" },
+          "review_count_analyzed": { "type": "integer" },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "category": { "type": "string" },
+                "category_code": { "type": "string" },
+                "themes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "label": { "type": "string" },
+                      "code": { "type": "string" },
+                      "description": { "type": "string" },
+                      "sentiment_direction": {
+                        "type": "string",
+                        "enum": ["positive", "negative", "mixed"]
+                      },
+                      "emotional_dimension": { "type": "string" },
+                      "primary_creative_lane": {
+                        "type": "string",
+                        "enum": ["Surprise", "Story", "Curiosity", "Guidance", "Instructional", "Hyperbole", "Newness", "Ranking"]
+                      },
+                      "secondary_creative_lane": {
+                        "type": ["string", "null"],
+                        "enum": ["Surprise", "Story", "Curiosity", "Guidance", "Instructional", "Hyperbole", "Newness", "Ranking", null]
+                      },
+                      "primary_email_objection": {
+                        "type": "string",
+                        "enum": ["price_sensitivity", "urgency", "product_fit", "comparison_paralysis", "buyers_remorse", "distraction", "none"]
+                      },
+                      "example_verbatims": {
+                        "type": "array",
+                        "items": { "type": "string" }
+                      },
+                      "review_count": { "type": "integer" },
+                      "confidence": { "type": "number" }
+                    },
+                    "required": ["label", "code", "description", "sentiment_direction", "emotional_dimension", "primary_creative_lane", "primary_email_objection", "example_verbatims", "review_count", "confidence"],
+                    "additionalProperties": false
+                  }
+                }
+              },
+              "required": ["category", "category_code", "themes"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["codebook_version", "review_count_analyzed", "categories"],
+        "additionalProperties": false
+      }
+    }
+  }
+}

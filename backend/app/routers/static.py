@@ -139,6 +139,17 @@ if (frontend_path / "choose-data-source.html").exists():
         """Serve the choose data source page"""
         return FileResponse(frontend_path / "choose-data-source.html")
 
+if (frontend_path / "trustpilot-intake.html").exists():
+    @router.get("/trustpilot-intake", response_class=FileResponse)
+    def serve_trustpilot_intake():
+        """Serve the public Trustpilot intake page."""
+        return FileResponse(frontend_path / "trustpilot-intake.html")
+
+    @router.get("/trustpilot-intake.html", response_class=FileResponse)
+    def serve_trustpilot_intake_html():
+        """Serve the public Trustpilot intake page."""
+        return FileResponse(frontend_path / "trustpilot-intake.html")
+
 if (frontend_path / "founder_voc_editor.html").exists():
     @router.get("/founder_voc_editor", response_class=FileResponse)
     def serve_founder_voc_editor():

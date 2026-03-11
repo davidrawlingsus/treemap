@@ -414,6 +414,30 @@ body.slideout-open {
     min-width: 0;
 }
 
+.lead-mode-toggle {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid #d6d9df;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-right: 4px;
+}
+
+.lead-mode-toggle__btn {
+    border: none;
+    background: #fff;
+    color: #4a4f5a;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 10px;
+    cursor: pointer;
+}
+
+.lead-mode-toggle__btn.active {
+    background: #111827;
+    color: #fff;
+}
+
 .filter-panel label {
     font-weight: 500;
     color: #333;
