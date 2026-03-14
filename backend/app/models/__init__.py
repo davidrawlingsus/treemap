@@ -27,6 +27,8 @@ from app.models.plan import Plan
 from app.models.subscription import Subscription
 from app.models.usage_record import UsageRecord
 from app.models.leadgen_voc import LeadgenVocRun, LeadgenVocRow
+from app.models.shopify_store_connection import ShopifyStoreConnection
+from app.models.shopify_survey_response_raw import ShopifySurveyResponseRaw
 
 __all__ = [
     "Client",
@@ -66,6 +68,8 @@ __all__ = [
     "UsageRecord",
     "LeadgenVocRun",
     "LeadgenVocRow",
+    "ShopifyStoreConnection",
+    "ShopifySurveyResponseRaw",
 ]
 
 

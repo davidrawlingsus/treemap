@@ -193,3 +193,14 @@ if (frontend_path / "founder_creative_mri.html").exists():
     def serve_founder_creative_mri_html():
         """Serve the founder Creative MRI page"""
         return FileResponse(frontend_path / "founder_creative_mri.html")
+
+if (frontend_path / "founder_shopify_survey.html").exists():
+    @router.get("/founder_shopify_survey", response_class=FileResponse)
+    def serve_founder_shopify_survey():
+        """Serve the founder Shopify survey mapping page"""
+        return FileResponse(frontend_path / "founder_shopify_survey.html")
+
+    @router.get("/founder_shopify_survey.html", response_class=FileResponse)
+    def serve_founder_shopify_survey_html():
+        """Serve the founder Shopify survey mapping page"""
+        return FileResponse(frontend_path / "founder_shopify_survey.html")

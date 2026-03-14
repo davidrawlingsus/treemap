@@ -1,0 +1,102 @@
+.actions {
+    display: flex;
+    gap: 8px;
+}
+
+.shopify-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.mapping-form {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr 0.8fr auto;
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 16px;
+}
+
+.mapping-form label,
+.filter-row label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.mapping-form input,
+.mapping-form select,
+.filter-row input,
+.filter-row select {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 14px;
+    color: var(--text);
+    background: #fff;
+}
+
+.store-connections-list {
+    display: grid;
+    gap: 10px;
+}
+
+.shopify-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: center;
+}
+
+.shopify-card-content h3 {
+    margin: 0 0 4px;
+    font-size: 15px;
+}
+
+.shopify-card-content p {
+    margin: 0;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.filter-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 12px;
+}
+
+.responses-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.responses-table th,
+.responses-table td {
+    border: 1px solid var(--border);
+    padding: 8px;
+    text-align: left;
+    vertical-align: top;
+}
+
+.responses-table th {
+    background: #f8fafc;
+    font-weight: 700;
+}
+
+.empty-state {
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    color: var(--muted);
+    font-size: 13px;
+}

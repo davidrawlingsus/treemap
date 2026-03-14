@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Founder Admin - Shopify Survey</title>
+    <link rel="icon" href="/images/favicon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles/founder-admin.css">
+    <link rel="stylesheet" href="/styles/founder-shopify-survey.css">
+    <script src="/config.js"></script>
+    <script src="/auth.js"></script>
+</head>
+<body>
+    <div id="loginOverlay" class="login-overlay hidden">
+        <div class="login-container">
+            <div id="loginFormSection">
+                <h2>Sign in</h2>
+                <p class="login-subtext">Enter your work email and we'll email you a secure magic link.</p>
+                <input type="email" id="loginEmail" placeholder="you@company.com" autocomplete="email">
+                <button id="loginButton" type="button">Send Magic Link</button>
+                <div id="loginError" class="login-error"></div>
+                <div id="loginSuccess" class="login-success"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="appShell">
+        <header>
+            <div>
+                <nav class="breadcrumbs">
+                    <a href="/founder_admin.html">Founder Admin</a>
+                    <span class="breadcrumbs-separator">›</span>
+                    <span>Shopify Survey Mapping</span>
+                </nav>
+                <h1>Shopify Survey Mapping</h1>
+                <div class="subtitle">Map Shopify shops to clients and inspect raw Thank You survey submissions.</div>
+            </div>
+            <div class="founder-meta">
+                <span id="founderEmail"></span>
+                <div class="actions">
+                    <button class="btn btn-secondary" id="refreshButton" type="button">Refresh</button>
+                    <button class="btn btn-ghost" id="logoutButton" type="button">Logout</button>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <div class="content">
+                <div id="statusMessage" class="status-message"></div>
+
+                <section class="shopify-section">
+                    <h2>Store Mapping</h2>
+                    <form id="mappingForm" class="mapping-form">
+                        <label>
+                            Shop Domain
+                            <input id="shopDomainInput" type="text" placeholder="your-store.myshopify.com" required>
+                        </label>
+                        <label>
+                            Client
+                            <select id="clientSelect"></select>
+                        </label>
+                        <label>
+                            Status
+                            <select id="statusSelect">
+                                <option value="active">active</option>
+                                <option value="uninstalled">uninstalled</option>
+                            </select>
+                        </label>
+                        <button class="btn btn-primary" type="submit">Save Mapping</button>
+                    </form>
+                    <div id="storeConnectionsList" class="store-connections-list"></div>
+                </section>
+
+                <section class="shopify-section">
+                    <h2>Raw Survey Responses</h2>
+                    <div class="filter-row">
+                        <label>
+                            Client Filter
+                            <select id="filterClientSelect"></select>
+                        </label>
+                        <label>
+                            Shop Filter
+                            <input id="filterShopDomainInput" type="text" placeholder="your-store.myshopify.com">
+                        </label>
+                        <button class="btn btn-secondary" type="button" id="applyFilterButton">Apply Filters</button>
+                    </div>
+                    <div id="responsesContainer"></div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script type="module" src="/js/controllers/shopify-admin-controller.js"></script>
+</body>
+</html>

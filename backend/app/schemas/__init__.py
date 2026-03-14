@@ -207,6 +207,14 @@ from .leadgen_voc import (
     LeadgenVocProcessedJsonResponse,
     LeadgenVocRowsResponse,
 )
+from .shopify import (
+    ShopifySurveyIngestRequest,
+    ShopifySurveyIngestResponse,
+    ShopifyStoreConnectionCreate,
+    ShopifyStoreConnectionResponse,
+    ShopifySurveyRawResponseItem,
+    ShopifySurveyRawResponseList,
+)
 
 # Resolve forward references after all schemas are imported
 # This is necessary for Pydantic v2 when using forward references
@@ -375,6 +383,13 @@ __all__ = [
     "LeadgenVocRunListResponse",
     "LeadgenVocProcessedJsonResponse",
     "LeadgenVocRowsResponse",
+    # Shopify
+    "ShopifySurveyIngestRequest",
+    "ShopifySurveyIngestResponse",
+    "ShopifyStoreConnectionCreate",
+    "ShopifyStoreConnectionResponse",
+    "ShopifySurveyRawResponseItem",
+    "ShopifySurveyRawResponseList",
     # Billing
     "PlanResponse",
     "PlanUpdateRequest",

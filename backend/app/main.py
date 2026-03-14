@@ -347,6 +347,10 @@ app.include_router(help_chat.router)
 from app.routers import public_leadgen
 app.include_router(public_leadgen.router)
 
+# Include Shopify survey ingest router
+from app.routers import shopify
+app.include_router(shopify.router)
+
 
 if __name__ == "__main__":
     import uvicorn

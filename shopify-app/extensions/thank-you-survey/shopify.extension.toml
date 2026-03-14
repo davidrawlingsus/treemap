@@ -1,0 +1,58 @@
+name = "thank-you-survey"
+uid = "36589f62-9892-39cb-2f34-f27a46d18b634b74a298"
+type = "ui_extension"
+api_version = "2025-10"
+
+[[extensions]]
+name = "thank-you-survey"
+handle = "thank-you-survey"
+type = "ui_extension"
+
+[[extensions.targeting]]
+target = "purchase.thank-you.block.render"
+module = "./src/ThankYouPageSurvey.jsx"
+
+[[extensions.targeting]]
+target = "customer-account.order-status.block.render"
+module = "./src/OrderStatusPageSurvey.jsx"
+
+[extensions.capabilities]
+network_access = true
+api_access = true
+
+[[extensions.settings.fields]]
+key = "survey_title"
+type = "single_line_text_field"
+name = "Survey title"
+description = "Displayed at the top of the survey block."
+
+[[extensions.settings.fields]]
+key = "question_step_1"
+type = "single_line_text_field"
+name = "Step 1 question"
+
+[[extensions.settings.fields]]
+key = "question_step_2"
+type = "single_line_text_field"
+name = "Step 2 question"
+
+[[extensions.settings.fields]]
+key = "question_step_3"
+type = "single_line_text_field"
+name = "Step 3 question (optional)"
+
+[[extensions.settings.fields]]
+key = "submit_label"
+type = "single_line_text_field"
+name = "Submit button label"
+
+[[extensions.settings.fields]]
+key = "success_message"
+type = "single_line_text_field"
+name = "Success message"
+
+[[extensions.settings.fields]]
+key = "api_base_url"
+type = "single_line_text_field"
+name = "Shopify app API base URL"
+description = "Example: https://your-shopify-app-service.com"
