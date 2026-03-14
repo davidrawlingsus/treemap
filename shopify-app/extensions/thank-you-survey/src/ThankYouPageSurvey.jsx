@@ -87,7 +87,7 @@ function ThankYouSurvey() {
       shop_domain: shopify?.shop?.myshopifyDomain || "",
       shopify_order_id: shopify?.orderConfirmation?.order?.id || null,
       order_gid: shopify?.orderConfirmation?.order?.id || null,
-      customer_reference: shopify?.customer?.email || null,
+      customer_reference: null,
       survey_version: "v1",
       answers: questions.reduce((accumulator, question) => {
         accumulator[question.key] = {

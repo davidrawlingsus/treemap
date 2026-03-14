@@ -17,7 +17,7 @@ function OrderStatusSurvey() {
       shop_domain: shopify?.shop?.myshopifyDomain || "",
       shopify_order_id: shopify?.order?.id || null,
       order_gid: shopify?.order?.id || null,
-      customer_reference: shopify?.customer?.email || null,
+      customer_reference: null,
       survey_version: "v1-order-status",
       answers: {
         step_1: {

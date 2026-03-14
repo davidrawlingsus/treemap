@@ -150,6 +150,17 @@ if (frontend_path / "trustpilot-intake.html").exists():
         """Serve the public Trustpilot intake page."""
         return FileResponse(frontend_path / "trustpilot-intake.html")
 
+if (frontend_path / "connect-shopify.html").exists():
+    @router.get("/connect-shopify", response_class=FileResponse)
+    def serve_connect_shopify():
+        """Serve the public Shopify connect page."""
+        return FileResponse(frontend_path / "connect-shopify.html")
+
+    @router.get("/connect-shopify.html", response_class=FileResponse)
+    def serve_connect_shopify_html():
+        """Serve the public Shopify connect page."""
+        return FileResponse(frontend_path / "connect-shopify.html")
+
 if (frontend_path / "founder_voc_editor.html").exists():
     @router.get("/founder_voc_editor", response_class=FileResponse)
     def serve_founder_voc_editor():

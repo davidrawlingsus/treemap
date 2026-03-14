@@ -25,6 +25,23 @@ class ShopifySurveyIngestResponse(BaseModel):
     submitted_at: datetime
 
 
+class ShopifyStoreConnectionSyncRequest(BaseModel):
+    shop_domain: str = Field(min_length=3, max_length=255)
+    status: str = Field(default="active", min_length=1, max_length=50)
+    installed_at: datetime | None = None
+    uninstalled_at: datetime | None = None
+    offline_access_token: str | None = Field(default=None, max_length=512)
+    offline_access_scopes: str | None = Field(default=None, max_length=512)
+    clear_offline_token: bool = False
+
+
+class ShopifyStoreTokenResponse(BaseModel):
+    shop_domain: str
+    has_offline_access_token: bool
+    offline_access_token: str | None = None
+    offline_access_scopes: str | None = None
+
+
 class ShopifyStoreConnectionBase(BaseModel):
     shop_domain: str = Field(min_length=3, max_length=255)
     client_uuid: UUID | None = None

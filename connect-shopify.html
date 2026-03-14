@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Install MapTheGap on Shopify</title>
+    <link rel="icon" href="/images/favicon.png" type="image/png">
+    <link rel="stylesheet" href="/styles/connect-shopify.css">
+</head>
+<body>
+    <main class="connect-page">
+        <section class="connect-card">
+            <h1 class="connect-title">Install MapTheGap on Shopify</h1>
+            <p class="connect-subtitle">
+                Enter your Shopify store domain to install the app.
+            </p>
+
+            <form id="connectShopifyForm" class="connect-form" novalidate>
+                <label for="shopDomain" class="input-label">Shopify store domain</label>
+                <div class="domain-row">
+                    <input
+                        id="shopDomain"
+                        name="shopDomain"
+                        class="text-input"
+                        type="text"
+                        autocomplete="off"
+                        placeholder="your-store"
+                        required
+                    >
+                    <span class="domain-suffix">.myshopify.com</span>
+                </div>
+
+                <button id="installAppButton" class="install-button" type="submit">
+                    Install app
+                </button>
+            </form>
+
+            <p id="statusMessage" class="status-message" aria-live="polite"></p>
+        </section>
+    </main>
+
+    <script type="module" src="/js/controllers/connect-shopify-controller.js"></script>
+</body>
+</html>

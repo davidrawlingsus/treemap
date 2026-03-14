@@ -182,3 +182,52 @@ def test_founder_shopify_store_connections_and_raw_list(monkeypatch):
     assert delete_response.status_code == 204
 
     app.dependency_overrides.clear()
+
+
+def test_shopify_store_sync_and_token_fetch(monkeypatch):
+    fake_db = FakeSession()
+    app.dependency_overrides[get_db] = lambda: fake_db
+    monkeypatch.setattr(
+        "app.routers.shopify.get_settings",
+        lambda: SimpleNamespace(
+            shopify_ingest_shared_secret="test-secret",
+            shopify_ingest_max_payload_bytes=500000,
+        ),
+    )
+
+    sync_response = client.post(
+        "/api/shopify/store-connections/sync",
+        json={
+            "shop_domain": "example-store.myshopify.com",
+            "status": "active",
+            "installed_at": datetime.now(timezone.utc).isoformat(),
+            "offline_access_token": "shpat_test",
+            "offline_access_scopes": "read_orders",
+            "clear_offline_token": False,
+        },
+        headers={"X-Vizualizd-Shopify-Secret": "test-secret"},
+    )
+    assert sync_response.status_code == 200
+    assert sync_response.json()["has_offline_access_token"] is True
+
+    token_response = client.get(
+        "/api/shopify/store-connections/example-store.myshopify.com/offline-token",
+        headers={"X-Vizualizd-Shopify-Secret": "test-secret"},
+    )
+    assert token_response.status_code == 200
+    assert token_response.json()["offline_access_token"] == "shpat_test"
+
+    clear_response = client.post(
+        "/api/shopify/store-connections/sync",
+        json={
+            "shop_domain": "example-store.myshopify.com",
+            "status": "uninstalled",
+            "uninstalled_at": datetime.now(timezone.utc).isoformat(),
+            "clear_offline_token": True,
+        },
+        headers={"X-Vizualizd-Shopify-Secret": "test-secret"},
+    )
+    assert clear_response.status_code == 200
+    assert clear_response.json()["has_offline_access_token"] is False
+
+    app.dependency_overrides.clear()

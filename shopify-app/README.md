@@ -15,10 +15,22 @@ Copy `.env.example` to `.env` and configure:
 - `SHOPIFY_API_KEY`
 - `SHOPIFY_API_SECRET`
 - `SHOPIFY_APP_URL`
+- `SHOPIFY_SCOPES` (recommended: `read_orders`)
 - `SHOPIFY_WEBHOOK_SECRET`
 - `VIZUALIZD_BACKEND_URL`
 - `VIZUALIZD_SHOPIFY_INGEST_SECRET`
 - `SHOPIFY_SURVEY_FORWARD_TIMEOUT_MS`
+- `SHOPIFY_ADMIN_API_VERSION` (optional, default `2026-01`)
+- `SHOPIFY_ADMIN_ACCESS_TOKEN` (optional fallback token for Admin API order lookup)
+- `SHOPIFY_ADMIN_ACCESS_TOKENS_JSON` (optional per-shop token map JSON)
+- `SHOPIFY_ADMIN_LOOKUP_TIMEOUT_MS` (optional, default `7000`)
+- `SHOPIFY_STORE_SYNC_TIMEOUT_MS` (optional, default `10000`)
+
+Example per-shop token map:
+
+```json
+{"store-a.myshopify.com":"shpat_xxx","store-b.myshopify.com":"shpat_yyy"}
+```
 
 ## Dev run
 
@@ -28,6 +40,12 @@ npm run dev
 ```
 
 This scaffold keeps Shopify-specific runtime/tooling isolated from the existing vizualizd frontend architecture.
+
+## OAuth + uninstall flow
+
+- `GET /auth?shop={shop}.myshopify.com`: starts OAuth install
+- `GET /auth/callback`: exchanges code for offline token and syncs store connection to vizualizd backend
+- `POST /webhooks/app/uninstalled`: verifies webhook signature and marks store connection as uninstalled + clears token
 
 ## Dev store E2E checklist
 

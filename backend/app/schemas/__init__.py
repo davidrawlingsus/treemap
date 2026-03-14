@@ -210,6 +210,8 @@ from .leadgen_voc import (
 from .shopify import (
     ShopifySurveyIngestRequest,
     ShopifySurveyIngestResponse,
+    ShopifyStoreConnectionSyncRequest,
+    ShopifyStoreTokenResponse,
     ShopifyStoreConnectionCreate,
     ShopifyStoreConnectionResponse,
     ShopifySurveyRawResponseItem,
@@ -386,6 +388,8 @@ __all__ = [
     # Shopify
     "ShopifySurveyIngestRequest",
     "ShopifySurveyIngestResponse",
+    "ShopifyStoreConnectionSyncRequest",
+    "ShopifyStoreTokenResponse",
     "ShopifyStoreConnectionCreate",
     "ShopifyStoreConnectionResponse",
     "ShopifySurveyRawResponseItem",

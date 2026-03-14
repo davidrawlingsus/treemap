@@ -15,6 +15,9 @@ class ShopifyStoreConnection(Base):
     status = Column(String(50), nullable=False, default="active")
     installed_at = Column(DateTime(timezone=True), nullable=True)
     uninstalled_at = Column(DateTime(timezone=True), nullable=True)
+    offline_access_token = Column(String(512), nullable=True)
+    offline_access_scopes = Column(String(512), nullable=True)
+    token_updated_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),

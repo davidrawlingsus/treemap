@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -5,13 +7,27 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.database import get_db
 from app.models import ShopifyStoreConnection, ShopifySurveyResponseRaw
-from app.schemas import ShopifySurveyIngestRequest, ShopifySurveyIngestResponse
+from app.schemas import (
+    ShopifyStoreConnectionSyncRequest,
+    ShopifyStoreTokenResponse,
+    ShopifySurveyIngestRequest,
+    ShopifySurveyIngestResponse,
+)
 
 router = APIRouter(prefix="/api/shopify", tags=["shopify"])
 
 
 def _normalize_shop_domain(value: str) -> str:
     return value.strip().lower()
+
+
+def _require_shopify_ingest_secret(x_vizualizd_shopify_secret: str | None) -> None:
+    settings = get_settings()
+    expected_secret = (settings.shopify_ingest_shared_secret or "").strip()
+    if not expected_secret:
+        raise HTTPException(status_code=503, detail="Shopify ingest secret is not configured")
+    if not x_vizualizd_shopify_secret or x_vizualizd_shopify_secret.strip() != expected_secret:
+        raise HTTPException(status_code=401, detail="Invalid Shopify ingest secret")
 
 
 @router.post("/survey-responses/raw", response_model=ShopifySurveyIngestResponse, status_code=201)
@@ -21,12 +37,8 @@ def ingest_shopify_raw_survey_response(
     db: Session = Depends(get_db),
     x_vizualizd_shopify_secret: str | None = Header(default=None),
 ):
+    _require_shopify_ingest_secret(x_vizualizd_shopify_secret)
     settings = get_settings()
-    expected_secret = (settings.shopify_ingest_shared_secret or "").strip()
-    if not expected_secret:
-        raise HTTPException(status_code=503, detail="Shopify ingest secret is not configured")
-    if not x_vizualizd_shopify_secret or x_vizualizd_shopify_secret.strip() != expected_secret:
-        raise HTTPException(status_code=401, detail="Invalid Shopify ingest secret")
 
     content_length = request.headers.get("content-length")
     if content_length and content_length.isdigit():
@@ -105,4 +117,81 @@ def ingest_shopify_raw_survey_response(
         client_uuid=record.client_uuid,
         deduplicated=False,
         submitted_at=record.submitted_at,
+    )
+
+
+@router.post("/store-connections/sync", status_code=200)
+def sync_shopify_store_connection(
+    payload: ShopifyStoreConnectionSyncRequest,
+    db: Session = Depends(get_db),
+    x_vizualizd_shopify_secret: str | None = Header(default=None),
+):
+    _require_shopify_ingest_secret(x_vizualizd_shopify_secret)
+    normalized_shop_domain = _normalize_shop_domain(payload.shop_domain)
+    if not normalized_shop_domain:
+        raise HTTPException(status_code=400, detail="shop_domain is required")
+
+    existing = (
+        db.query(ShopifyStoreConnection)
+        .filter(ShopifyStoreConnection.shop_domain == normalized_shop_domain)
+        .first()
+    )
+    now = datetime.now(timezone.utc)
+    if existing is None:
+        existing = ShopifyStoreConnection(
+            shop_domain=normalized_shop_domain,
+            status=payload.status,
+            installed_at=payload.installed_at,
+            uninstalled_at=payload.uninstalled_at,
+        )
+        db.add(existing)
+
+    existing.status = payload.status
+    if payload.installed_at is not None:
+        existing.installed_at = payload.installed_at
+    if payload.uninstalled_at is not None:
+        existing.uninstalled_at = payload.uninstalled_at
+
+    if payload.clear_offline_token:
+        existing.offline_access_token = None
+        existing.offline_access_scopes = None
+        existing.token_updated_at = now
+    elif payload.offline_access_token:
+        existing.offline_access_token = payload.offline_access_token
+        existing.offline_access_scopes = payload.offline_access_scopes
+        existing.token_updated_at = now
+
+    db.commit()
+    db.refresh(existing)
+    return {
+        "shop_domain": existing.shop_domain,
+        "status": existing.status,
+        "has_offline_access_token": bool(existing.offline_access_token),
+    }
+
+
+@router.get("/store-connections/{shop_domain}/offline-token", response_model=ShopifyStoreTokenResponse)
+def get_shopify_store_offline_token(
+    shop_domain: str,
+    db: Session = Depends(get_db),
+    x_vizualizd_shopify_secret: str | None = Header(default=None),
+):
+    _require_shopify_ingest_secret(x_vizualizd_shopify_secret)
+    normalized_shop_domain = _normalize_shop_domain(shop_domain)
+    if not normalized_shop_domain:
+        raise HTTPException(status_code=400, detail="shop_domain is required")
+
+    existing = (
+        db.query(ShopifyStoreConnection)
+        .filter(ShopifyStoreConnection.shop_domain == normalized_shop_domain)
+        .first()
+    )
+    if existing is None:
+        raise HTTPException(status_code=404, detail="Shopify store connection not found")
+
+    return ShopifyStoreTokenResponse(
+        shop_domain=existing.shop_domain,
+        has_offline_access_token=bool(existing.offline_access_token),
+        offline_access_token=existing.offline_access_token,
+        offline_access_scopes=existing.offline_access_scopes,
     )
