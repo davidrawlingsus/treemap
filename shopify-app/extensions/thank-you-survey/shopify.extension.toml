@@ -27,19 +27,76 @@ name = "Survey title"
 description = "Displayed at the top of the survey block."
 
 [[extensions.settings.fields]]
-key = "question_step_1"
+key = "survey_description"
 type = "single_line_text_field"
-name = "Step 1 question"
+name = "Survey description (optional)"
+description = "Leave empty to hide the intro text."
 
 [[extensions.settings.fields]]
-key = "question_step_2"
+key = "q1_type"
 type = "single_line_text_field"
-name = "Step 2 question"
+name = "Q1 type"
+description = "choice_list, text, or textarea"
 
 [[extensions.settings.fields]]
-key = "question_step_3"
+key = "q1_text"
 type = "single_line_text_field"
-name = "Step 3 question (optional)"
+name = "Q1 text"
+
+[[extensions.settings.fields]]
+key = "q1_required"
+type = "boolean"
+name = "Q1 required"
+
+[[extensions.settings.fields]]
+key = "q1_options"
+type = "single_line_text_field"
+name = "Q1 options (comma-separated)"
+description = "Used when Q1 type is choice_list"
+
+[[extensions.settings.fields]]
+key = "q2_type"
+type = "single_line_text_field"
+name = "Q2 type"
+description = "choice_list, text, or textarea"
+
+[[extensions.settings.fields]]
+key = "q2_text"
+type = "single_line_text_field"
+name = "Q2 text"
+
+[[extensions.settings.fields]]
+key = "q2_required"
+type = "boolean"
+name = "Q2 required"
+
+[[extensions.settings.fields]]
+key = "q2_options"
+type = "single_line_text_field"
+name = "Q2 options (comma-separated)"
+description = "Used when Q2 type is choice_list"
+
+[[extensions.settings.fields]]
+key = "q3_type"
+type = "single_line_text_field"
+name = "Q3 type"
+description = "choice_list, text, or textarea"
+
+[[extensions.settings.fields]]
+key = "q3_text"
+type = "single_line_text_field"
+name = "Q3 text"
+
+[[extensions.settings.fields]]
+key = "q3_required"
+type = "boolean"
+name = "Q3 required"
+
+[[extensions.settings.fields]]
+key = "q3_options"
+type = "single_line_text_field"
+name = "Q3 options (comma-separated)"
+description = "Used when Q3 type is choice_list"
 
 [[extensions.settings.fields]]
 key = "submit_label"
