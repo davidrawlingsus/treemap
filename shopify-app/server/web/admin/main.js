@@ -198,7 +198,7 @@ async function loadSurvey(surveyId) {
 function applyToEditor(survey) {
   state.activeSurvey = survey;
   const src = survey.draft_version || survey.active_version || null;
-  const isLive = Boolean(survey.active_version_id);
+  const isLive = surveyIsLive(survey);
 
   state.draft = {
     questions: (src?.questions ?? []).map(q => ({ ...q, options: q.options ?? [] })),
@@ -237,7 +237,7 @@ function markDirty() {
 }
 
 function collectDraftFromForm() {
-  const isLive = Boolean(state.activeSurvey?.active_version_id);
+  const isLive = surveyIsLive(state.activeSurvey);
   return {
     title: el("surveyTitle")?.value?.trim() ?? "",
     status: isLive ? "active" : "inactive",
