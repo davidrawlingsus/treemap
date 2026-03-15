@@ -178,7 +178,7 @@ function ThankYouSurvey() {
           if (question.type === "choice_list") {
             return (
               <s-stack key={question.key} gap="base">
-                <s-text><strong>{question.label}</strong></s-text>
+                <s-text>{question.label}</s-text>
                 <s-choice-list
                   name={question.key}
                   value={value}
@@ -196,7 +196,7 @@ function ThankYouSurvey() {
 
           return (
             <s-stack key={question.key} gap="base">
-              <s-text><strong>{question.label}</strong></s-text>
+              <s-text>{question.label}</s-text>
               {question.type === "textarea" ? (
                 <s-text-area
                   value={value}
