@@ -57,8 +57,6 @@ function el(id) { return document.getElementById(id); }
 // ─── VIEW ROUTER ─────────────────────────────────────────────────────────────
 function navigate(view, surveyId = null) {
   state.view = view;
-  // Toggle body class so CSS can propagate height into the editor flex layout
-  document.body.classList.toggle("is-editor-mode", view === "editor");
   el("view-list").hidden = view !== "list";
   el("view-editor").hidden = view !== "editor";
 
