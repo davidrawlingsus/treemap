@@ -12,15 +12,15 @@
   <body>
     <div id="app">
       <header class="topbar">
-        <s-heading>Post-purchase Survey Builder</s-heading>
-        <s-text appearance="subdued">Build, schedule, and publish checkout surveys.</s-text>
+        <h1>Post-purchase Survey Builder</h1>
+        <p>Build, schedule, and publish checkout surveys.</p>
       </header>
 
       <section class="layout">
         <aside class="panel surveys-panel">
           <div class="panel-header">
             <h2>Surveys</h2>
-            <s-button id="createSurveyBtn">New survey</s-button>
+            <button id="createSurveyBtn" class="btn">New survey</button>
           </div>
           <div id="surveyList" class="list"></div>
         </aside>
@@ -29,9 +29,9 @@
           <div class="panel-header">
             <h2 id="builderTitle">Survey editor</h2>
             <div class="actions">
-              <s-button id="saveDraftBtn">Save draft</s-button>
-              <s-button id="publishBtn" variant="primary">Publish</s-button>
-              <s-button id="unpublishBtn">Unpublish</s-button>
+              <button id="saveDraftBtn" class="btn">Save draft</button>
+              <button id="publishBtn" class="btn btn-primary">Publish</button>
+              <button id="unpublishBtn" class="btn btn-secondary">Unpublish</button>
             </div>
           </div>
           <div id="actionStatus" class="action-status" aria-live="polite"></div>
@@ -55,7 +55,7 @@
           <section class="subpanel">
             <div class="panel-header">
               <h3>Questions (drag and drop)</h3>
-              <s-button id="addQuestionBtn">Add question</s-button>
+              <button id="addQuestionBtn" class="btn">Add question</button>
             </div>
             <div id="questionList" class="question-list"></div>
           </section>
@@ -63,7 +63,7 @@
           <section class="subpanel">
             <div class="panel-header">
               <h3>Conditional logic</h3>
-              <s-button id="addRuleBtn">Add rule</s-button>
+              <button id="addRuleBtn" class="btn">Add rule</button>
             </div>
             <div id="ruleList" class="rule-list"></div>
           </section>
@@ -71,7 +71,7 @@
           <section class="subpanel">
             <div class="panel-header">
               <h3>Responses</h3>
-              <s-button id="refreshResponsesBtn">Refresh</s-button>
+              <button id="refreshResponsesBtn" class="btn">Refresh</button>
             </div>
             <div id="responseList" class="response-list"></div>
           </section>
@@ -79,6 +79,6 @@
       </section>
     </div>
 
-    <script type="module" src="/app/main.js?v=20260315c"></script>
+    <script type="module" src="/app/main.js?v=20260315d"></script>
   </body>
 </html>
