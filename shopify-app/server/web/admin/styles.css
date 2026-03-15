@@ -74,6 +74,9 @@
 /* ─── RESET & BASE ───────────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; }
 
+/* Full-height propagation needed for the editor two-column layout */
+html, body { height: 100%; }
+
 body {
   margin: 0;
   font-family: var(--font);
@@ -84,7 +87,16 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-#app { min-height: 100vh; }
+#app { min-height: 100%; }
+
+/* In editor mode JS adds .is-editor-mode to body, locking scroll and
+   propagating 100% height down to the flex container */
+body.is-editor-mode,
+body.is-editor-mode #app,
+body.is-editor-mode #view-editor {
+  height: 100%;
+  overflow: hidden;
+}
 
 /* ─── VIEWS ─────────────────────────────────────────────────────────────── */
 .view { display: block; }
@@ -148,8 +160,7 @@ body {
 /* ─── EDITOR LAYOUT ─────────────────────────────────────────────────────── */
 .editor-layout {
   display: flex;
-  height: 100vh;
-  overflow: hidden;
+  height: 100%;
 }
 
 .editor-panel {
@@ -551,6 +562,7 @@ body {
   flex-direction: column;
   background: #e8eaed;
   overflow: hidden;
+  min-width: 0; /* prevent flex child from overflowing */
 }
 
 .preview-header {

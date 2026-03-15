@@ -43,6 +43,7 @@ export function registerAdminRoutes(app, config) {
   });
 
   app.get("/app/styles.css", (_req, res) => {
+    res.set("Cache-Control", "no-store");
     res.type("text/css");
     res.sendFile(resolveAdminFile("styles.css"));
   });
