@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="shopify-api-key" content="%SHOPIFY_API_KEY%" />
     <title>MapTheGap Surveys</title>
-    <link rel="stylesheet" href="/app/styles.css?v=20260315l" />
+    <link rel="stylesheet" href="/app/styles.css?v=20260315m" />
     <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
   </head>
   <body>
@@ -218,10 +218,34 @@
                     <p class="cko-survey-empty">Add questions above to preview your survey here.</p>
                   </div>
 
-                  <!-- Static "order confirmed" section for realism -->
+                  <!-- Your order is confirmed -->
                   <div class="cko-info-block">
-                    <p class="cko-info-block__title">Your order is confirmed</p>
-                    <p class="cko-info-block__body">You'll receive an email when your order is ready.</p>
+                    <h2 class="cko-info-block__title">Your order is confirmed</h2>
+                    <p class="cko-info-block__body">You'll receive a confirmation email soon</p>
+                  </div>
+
+                  <!-- Order details -->
+                  <div class="cko-info-block">
+                    <h2 class="cko-info-block__title">Order details</h2>
+                    <div class="cko-details-grid">
+                      <section class="cko-details-col">
+                        <h3 class="cko-details-heading">Contact information</h3>
+                        <p class="cko-details-text">alex@example.com</p>
+
+                        <h3 class="cko-details-heading">Shipping address</h3>
+                        <address class="cko-details-text">Alex Smith<br>34 Castle Street<br>Dublin, D02 TN97<br>Ireland</address>
+
+                        <h3 class="cko-details-heading">Shipping method</h3>
+                        <p class="cko-details-text">Standard (3–5 business days)</p>
+                      </section>
+                      <section class="cko-details-col">
+                        <h3 class="cko-details-heading">Payment method</h3>
+                        <p class="cko-details-text">Credit card</p>
+
+                        <h3 class="cko-details-heading">Billing address</h3>
+                        <address class="cko-details-text">Alex Smith<br>34 Castle Street<br>Dublin, D02 TN97<br>Ireland</address>
+                      </section>
+                    </div>
                   </div>
 
                 </div>
@@ -238,6 +262,6 @@
 
     </div><!-- /#app -->
 
-    <script type="module" src="/app/main.js?v=20260315l"></script>
+    <script type="module" src="/app/main.js?v=20260315m"></script>
   </body>
 </html>

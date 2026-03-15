@@ -824,6 +824,16 @@ body {
 .cko-info-block__title { margin: 0 0 4px; font-size: 15px; font-weight: 600; color: #111827; }
 .cko-info-block__body { margin: 0; font-size: 13px; color: #6b7280; line-height: 1.5; }
 
+.cko-details-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 24px;
+  margin-top: 12px;
+}
+.cko-details-col { display: flex; flex-direction: column; gap: 12px; }
+.cko-details-heading { margin: 0 0 2px; font-size: 12px; font-weight: 600; color: #111827; }
+.cko-details-text { margin: 0; font-size: 12px; color: #6b7280; line-height: 1.5; font-style: normal; }
+
 /* ─── TOAST ─────────────────────────────────────────────────────────────── */
 .toast-region {
   position: fixed;
