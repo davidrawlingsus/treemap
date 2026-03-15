@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="shopify-api-key" content="%SHOPIFY_API_KEY%" />
     <title>MapTheGap Surveys</title>
-    <link rel="stylesheet" href="/app/styles.css?v=20260315k" />
+    <link rel="stylesheet" href="/app/styles.css?v=20260315l" />
     <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
   </head>
   <body>
@@ -200,26 +200,31 @@
             <div class="preview-viewport" id="previewViewport">
               <div class="checkout-mock" id="checkoutMock">
 
-                <!-- Simulated Shopify checkout thank-you header -->
-                <div class="checkout-mock__header">
-                  <div class="checkout-mock__check">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="20" height="20" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+                <!-- Shopify thank-you page header -->
+                <div class="cko-header">
+                  <div class="cko-check-circle">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
                   </div>
                   <div>
-                    <p class="checkout-mock__order">Order #1234</p>
-                    <h2 class="checkout-mock__thankyou">Thank you, Alex!</h2>
+                    <p class="cko-order-ref">Order #1234</p>
+                    <h1 class="cko-thankyou">Thank you, Alex!</h1>
                   </div>
                 </div>
 
-                <p class="checkout-mock__shipping-note">Your order is confirmed. You'll receive a confirmation email shortly.</p>
+                <div class="cko-body">
 
-                <div class="checkout-mock__divider"></div>
+                  <!-- Live survey preview -->
+                  <div id="surveyPreviewCard" class="cko-survey-block">
+                    <p class="cko-survey-empty">Add questions above to preview your survey here.</p>
+                  </div>
 
-                <!-- Live survey preview -->
-                <div id="surveyPreviewCard" class="survey-preview">
-                  <p class="survey-preview__empty">Add questions above to preview your survey here.</p>
+                  <!-- Static "order confirmed" section for realism -->
+                  <div class="cko-info-block">
+                    <p class="cko-info-block__title">Your order is confirmed</p>
+                    <p class="cko-info-block__body">You'll receive an email when your order is ready.</p>
+                  </div>
+
                 </div>
-
               </div>
             </div>
 
@@ -233,6 +238,6 @@
 
     </div><!-- /#app -->
 
-    <script type="module" src="/app/main.js?v=20260315k"></script>
+    <script type="module" src="/app/main.js?v=20260315l"></script>
   </body>
 </html>

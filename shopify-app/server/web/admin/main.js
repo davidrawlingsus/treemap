@@ -579,7 +579,7 @@ function renderPreview() {
   el("nextStepBtn")?.toggleAttribute("disabled", state.previewStep >= total - 1 || total === 0);
 
   if (!total) {
-    container.innerHTML = `<p class="survey-preview__empty">Add questions above to preview your survey here.</p>`;
+    container.innerHTML = `<p class="cko-survey-empty">Add questions above to preview your survey here.</p>`;
     return;
   }
 
@@ -589,33 +589,31 @@ function renderPreview() {
   if (q.answer_type === "choice_list") {
     const opts = (q.options ?? []).filter(Boolean);
     if (opts.length) {
-      inputHtml = `<div class="preview-choices">
+      inputHtml = `<div class="cko-choices">
         ${opts.map(opt => `
-          <label class="preview-choice">
+          <label class="cko-choice">
             <input type="radio" name="pq-${state.previewStep}" value="${escAttr(opt)}" />
             <span>${escHtml(opt)}</span>
           </label>
         `).join("")}
       </div>`;
     } else {
-      inputHtml = `<p class="preview-hint">Add options to see choices here.</p>`;
+      inputHtml = `<p class="cko-hint">Add options to see choices here.</p>`;
     }
   } else if (q.answer_type === "multi_line_text") {
-    inputHtml = `<textarea class="preview-textarea" placeholder="Your answer…" rows="3"></textarea>`;
+    inputHtml = `<textarea class="cko-textarea" rows="4"></textarea>`;
   } else {
-    inputHtml = `<input class="preview-text-input" type="text" placeholder="Your answer…" />`;
+    inputHtml = `<input class="cko-input" type="text" />`;
   }
 
   container.innerHTML = `
-    <p class="preview-question-text">
-      ${escHtml(q.title || "Your question will appear here")}${q.is_required ? '<span class="preview-required">*</span>' : ""}
+    <p class="cko-q">
+      ${escHtml(q.title || "Your question will appear here")}${q.is_required ? '<span class="cko-req">*</span>' : ""}
     </p>
     ${inputHtml}
-    <div class="preview-actions">
-      ${state.previewStep > 0
-        ? `<button class="preview-btn preview-btn--ghost">&larr; Back</button>`
-        : ""}
-      <button class="preview-btn preview-btn--primary">${isLast ? (el("submitLabel")?.value?.trim() || "Submit feedback") : "Next &rarr;"}</button>
+    <div class="cko-actions">
+      ${state.previewStep > 0 ? `<button class="cko-btn cko-btn--ghost">&larr; Back</button>` : ""}
+      <button class="cko-btn">${isLast ? (el("submitLabel")?.value?.trim() || "Submit feedback") : "Next &rarr;"}</button>
     </div>
   `;
 }
