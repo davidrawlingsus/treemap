@@ -155,11 +155,10 @@ function buildSurveyCard(survey) {
   card.innerHTML = `
     <div class="survey-card__header">
       <span class="badge ${isLive ? "badge--live" : "badge--draft"}">${isLive ? "Live" : "Draft"}</span>
-      ${isLive ? `
-        <label class="card-live-toggle" title="End survey">
-          <input type="checkbox" class="toggle-input" checked />
-          <span class="card-live-toggle__label">Live</span>
-        </label>` : ""}
+      <label class="card-live-toggle" title="${isLive ? "End survey" : "Go live"}">
+        <input type="checkbox" class="toggle-input" ${isLive ? "checked" : ""} />
+        <span class="card-live-toggle__label">${isLive ? "Live" : "Off"}</span>
+      </label>
     </div>
     <h3 class="survey-card__title">${escHtml(survey.title || "Untitled survey")}</h3>
     <p class="survey-card__meta">${survey.description ? escHtml(survey.description) : '<span style="color:var(--color-text-disabled)">No description</span>'}</p>
@@ -168,20 +167,25 @@ function buildSurveyCard(survey) {
     </div>
   `;
   card.querySelector("[data-action='edit']").addEventListener("click", () => navigate("editor", survey.id));
-  if (isLive) {
-    card.querySelector(".toggle-input").addEventListener("change", async (e) => {
-      e.preventDefault(); // we control the state, not the checkbox
-      try {
-        await api(`/api/admin/surveys/${survey.id}/unpublish`, "POST", {});
-        await loadSurveys();
-        renderSurveyGrid();
+  card.querySelector(".toggle-input").addEventListener("change", async (e) => {
+    const toggleEl = e.target;
+    toggleEl.disabled = true; // prevent double-click during request
+    try {
+      if (isLive) {
+        await endSurvey(survey.id);
         showToast(`"${survey.title}" ended`, "success");
-      } catch (err) {
-        e.target.checked = true; // revert on failure
-        showToast(err.message || "Could not end survey.", "error");
+      } else {
+        await api(`/api/admin/surveys/${survey.id}/publish`, "POST", {});
+        showToast(`"${survey.title}" is now live`, "success");
       }
-    });
-  }
+      await loadSurveys();
+      renderSurveyGrid();
+    } catch (err) {
+      toggleEl.checked = isLive; // revert on failure
+      toggleEl.disabled = false;
+      showToast(err.message || "Could not update survey status.", "error");
+    }
+  });
   return card;
 }
 
@@ -659,21 +663,40 @@ async function handlePublish() {
   }
 }
 
+// Shared unpublish+preserve — works from both the card (no state.draft) and the editor.
+// Fetches questions from the API before unpublishing so they are never lost.
+async function endSurvey(surveyId) {
+  // Capture questions from the live version before we unpublish
+  const { survey: current } = await api(`/api/admin/surveys/${surveyId}`);
+  const src = current.active_version || current.draft_version;
+  const questions = (src?.questions ?? []).map(q => ({ ...q }));
+  const display_rules = (src?.display_rules ?? []).map(r => ({ ...r }));
+
+  await api(`/api/admin/surveys/${surveyId}/unpublish`, "POST", {});
+
+  // After unpublishing, restore questions into a draft_version if they'd be lost
+  if (questions.length) {
+    await api(`/api/admin/surveys/${surveyId}`, "PUT", {
+      title: current.title,
+      status: "inactive",
+      description: current.description ?? "",
+      draft_version: {
+        template_key: src?.template_key ?? null,
+        starts_at: src?.starts_at ?? null,
+        ends_at: src?.ends_at ?? null,
+        settings: {},
+        questions: questions.map((q, i) => ({ ...q, question_key: `q${i + 1}`, position: i })),
+        display_rules,
+      },
+    });
+  }
+}
+
 async function handleUnpublish() {
   if (!state.activeSurvey?.id) return;
-  const surveyId = state.activeSurvey.id;
-  const preserved = {
-    questions: (state.draft?.questions ?? []).map(q => ({ ...q })),
-    display_rules: (state.draft?.display_rules ?? []).map(r => ({ ...r })),
-  };
   try {
-    await api(`/api/admin/surveys/${surveyId}/unpublish`, "POST", {});
-    await loadSurvey(surveyId);
-    if (preserved.questions.length && !(state.draft?.questions?.length)) {
-      state.draft = preserved;
-      await api(`/api/admin/surveys/${surveyId}`, "PUT", collectDraftFromForm());
-      await loadSurvey(surveyId);
-    }
+    await endSurvey(state.activeSurvey.id);
+    await loadSurvey(state.activeSurvey.id);
     await loadSurveys();
     renderSurveyGrid();
     showToast("Survey turned off", "success");

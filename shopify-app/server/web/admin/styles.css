@@ -134,6 +134,9 @@ body {
 .card-live-toggle__label {
   font-size: var(--text-xs);
   font-weight: var(--fw-medium);
+  color: var(--color-text-muted);
+}
+.toggle-input:checked ~ .card-live-toggle__label {
   color: var(--color-success);
 }
 .card-live-toggle .toggle-input {
