@@ -168,7 +168,6 @@ function ThankYouSurvey() {
   return (
     <s-box border="base" padding="base" borderRadius="base">
       <s-stack gap="base">
-        <s-heading>{settings.title}</s-heading>
         {runtimeLoading ? <s-text appearance="subdued">Loading latest survey...</s-text> : null}
         {runtimeError ? <s-text appearance="critical">{runtimeError}</s-text> : null}
         {settings.description ? <s-text>{settings.description}</s-text> : null}
@@ -196,22 +195,21 @@ function ThankYouSurvey() {
           }
 
           return (
-            question.type === "textarea" ? (
-              <s-text-area
-                key={question.key}
-                label={question.label}
-                value={value}
-                rows={4}
-                onInput={(event) => updateAnswer(question.key, event.currentTarget.value)}
-              />
-            ) : (
-              <s-text-field
-                key={question.key}
-                label={question.label}
-                value={value}
-                onInput={(event) => updateAnswer(question.key, event.currentTarget.value)}
-              />
-            )
+            <s-stack key={question.key} gap="tight">
+              <s-text>{question.label}</s-text>
+              {question.type === "textarea" ? (
+                <s-text-area
+                  value={value}
+                  rows={4}
+                  onInput={(event) => updateAnswer(question.key, event.currentTarget.value)}
+                />
+              ) : (
+                <s-text-field
+                  value={value}
+                  onInput={(event) => updateAnswer(question.key, event.currentTarget.value)}
+                />
+              )}
+            </s-stack>
           );
         })}
 
