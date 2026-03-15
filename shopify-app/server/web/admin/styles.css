@@ -237,6 +237,7 @@ body {
 }
 .card__section { padding: var(--sp-5); }
 .card__section--bordered { border-top: 1px solid var(--color-border); }
+.card__section--pb16 { padding-bottom: 16px; }
 .card__section-label {
   font-size: var(--text-xs);
   font-weight: var(--fw-semibold);
