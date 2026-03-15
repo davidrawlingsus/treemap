@@ -85,7 +85,7 @@ function updateTitleBarForEditor(survey) {
   tb.setAttribute("title", survey?.title || "Survey editor");
   tb.innerHTML = isLive
     ? `<button id="ab-save-btn-tb">Save draft</button>
-       <button id="ab-unpublish-btn">Unpublish</button>`
+       <button id="ab-unpublish-btn">End survey</button>`
     : `<button id="ab-save-btn-tb">Save draft</button>
        <button variant="primary" id="ab-publish-btn">Publish</button>`;
   el("ab-save-btn-tb")?.addEventListener("click", handleSave);
@@ -148,10 +148,24 @@ function buildSurveyCard(survey) {
     <h3 class="survey-card__title">${escHtml(survey.title || "Untitled survey")}</h3>
     <p class="survey-card__meta">${survey.description ? escHtml(survey.description) : '<span style="color:var(--color-text-disabled)">No description</span>'}</p>
     <div class="survey-card__actions">
-      <button class="btn btn--secondary btn--sm">Edit survey</button>
+      ${isLive ? `<button class="btn btn--sm btn--end-survey" data-action="end">End survey</button>` : ""}
+      <button class="btn btn--secondary btn--sm" data-action="edit">Edit survey</button>
     </div>
   `;
-  card.querySelector(".btn").addEventListener("click", () => navigate("editor", survey.id));
+  card.querySelector("[data-action='edit']").addEventListener("click", () => navigate("editor", survey.id));
+  if (isLive) {
+    card.querySelector("[data-action='end']").addEventListener("click", async (e) => {
+      e.stopPropagation();
+      try {
+        await api(`/api/admin/surveys/${survey.id}/unpublish`, "POST", {});
+        await loadSurveys();
+        renderSurveyGrid();
+        showToast(`"${survey.title}" ended`, "success");
+      } catch (err) {
+        showToast(err.message || "Could not end survey.", "error");
+      }
+    });
+  }
   return card;
 }
 

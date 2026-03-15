@@ -346,6 +346,13 @@ body {
 .btn--icon:hover { background: var(--color-secondary-bg); color: var(--color-text); }
 .btn--icon.btn--danger:hover { background: #fff0f0; color: var(--color-danger); }
 
+.btn--end-survey {
+  background: transparent;
+  border-color: #e0b4b4;
+  color: var(--color-danger);
+}
+.btn--end-survey:hover { background: #fff0f0; border-color: #faa; }
+
 /* Add question button */
 .btn--add-question {
   width: 100%;
