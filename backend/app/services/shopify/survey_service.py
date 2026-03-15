@@ -498,3 +498,33 @@ def list_survey_responses(
             )
         )
     return ShopifySurveyResponseList(items=items, total=total)
+
+
+def delete_survey(db: Session, shop_domain: str, survey_id: int) -> None:
+    normalized_shop = _normalize_shop_domain(shop_domain)
+    survey = (
+        db.query(ShopifySurvey)
+        .filter(ShopifySurvey.id == survey_id, ShopifySurvey.shop_domain == normalized_shop)
+        .first()
+    )
+    if survey is None:
+        raise ValueError("Survey not found")
+
+    # Delete response answers then responses (survey FK is SET NULL, not CASCADE)
+    response_ids = [
+        row.id
+        for row in db.query(ShopifySurveyResponse.id)
+        .filter(ShopifySurveyResponse.survey_id == survey_id)
+        .all()
+    ]
+    if response_ids:
+        db.query(ShopifySurveyResponseAnswer).filter(
+            ShopifySurveyResponseAnswer.response_id.in_(response_ids)
+        ).delete(synchronize_session=False)
+        db.query(ShopifySurveyResponse).filter(
+            ShopifySurveyResponse.id.in_(response_ids)
+        ).delete(synchronize_session=False)
+
+    # Delete the survey — DB cascades to versions, questions, display_rules, etc.
+    db.delete(survey)
+    db.commit()

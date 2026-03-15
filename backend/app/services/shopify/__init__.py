@@ -1,5 +1,6 @@
 from app.services.shopify.security import normalize_shop_domain, require_shopify_ingest_secret
 from app.services.shopify.survey_service import (
+    delete_survey,
     get_active_runtime_survey,
     get_survey_detail,
     ingest_survey_response,
@@ -19,6 +20,7 @@ __all__ = [
     "get_survey_detail",
     "publish_survey",
     "unpublish_survey",
+    "delete_survey",
     "get_active_runtime_survey",
     "ingest_survey_response",
     "list_survey_responses",

@@ -157,7 +157,7 @@ function buildSurveyCard(survey) {
       <span class="badge ${isLive ? "badge--live" : "badge--draft"}">${isLive ? "Live" : "Draft"}</span>
       <label class="card-live-toggle" title="${isLive ? "End survey" : "Go live"}">
         <input type="checkbox" class="toggle-input" ${isLive ? "checked" : ""} />
-        <span class="card-live-toggle__label">${isLive ? "Live" : "Off"}</span>
+        <span class="card-live-toggle__label">${isLive ? "On" : "Off"}</span>
       </label>
     </div>
     <h3 class="survey-card__title">${escHtml(survey.title || "Untitled survey")}</h3>
@@ -705,6 +705,24 @@ async function handleUnpublish() {
   }
 }
 
+async function handleDelete() {
+  const surveyId = state.activeSurvey?.id;
+  if (!surveyId) return;
+  const title = state.activeSurvey?.title || "this survey";
+  const confirmed = window.confirm(
+    `Delete "${title}"?\n\nThis will permanently delete the survey and all of its responses. This cannot be undone.`
+  );
+  if (!confirmed) return;
+  try {
+    await api(`/api/admin/surveys/${surveyId}`, "DELETE");
+    await loadSurveys();
+    navigate("list");
+    showToast("Survey deleted", "success");
+  } catch (err) {
+    showToast(err.message || "Delete failed.", "error");
+  }
+}
+
 async function handleCreateSurvey() {
   try {
     const created = await api("/api/admin/surveys", "POST", {
@@ -755,6 +773,9 @@ async function init() {
 
   // Back to list
   el("backBtn")?.addEventListener("click", () => navigate("list"));
+
+  // Delete survey
+  el("deleteSurveyBtn")?.addEventListener("click", handleDelete);
 
   // Tabs
   document.querySelectorAll(".tab").forEach(tab => {

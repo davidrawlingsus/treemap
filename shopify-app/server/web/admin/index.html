@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="shopify-api-key" content="%SHOPIFY_API_KEY%" />
     <title>MapTheGap Surveys</title>
-    <link rel="stylesheet" href="/app/styles.css?v=20260315e" />
+    <link rel="stylesheet" href="/app/styles.css?v=20260315h" />
     <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
   </head>
   <body>
@@ -61,11 +61,14 @@
 
               <!-- Back + status -->
               <div class="editor-topbar">
-                <button class="btn btn--plain btn--back" id="backBtn">
-                  <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M11.78 5.47a.75.75 0 0 1 0 1.06L8.31 10l3.47 3.47a.75.75 0 1 1-1.06 1.06l-4-4a.75.75 0 0 1 0-1.06l4-4a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd"/></svg>
-                  Surveys
-                </button>
-                <span id="editorStatusBadge" class="badge" hidden></span>
+                <div class="editor-topbar__left">
+                  <button class="btn btn--plain btn--back" id="backBtn">
+                    <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M11.78 5.47a.75.75 0 0 1 0 1.06L8.31 10l3.47 3.47a.75.75 0 1 1-1.06 1.06l-4-4a.75.75 0 0 1 0-1.06l4-4a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd"/></svg>
+                    Surveys
+                  </button>
+                  <span id="editorStatusBadge" class="badge" hidden></span>
+                </div>
+                <button class="btn btn--danger-plain" id="deleteSurveyBtn">Delete survey</button>
               </div>
 
               <!-- Survey meta card -->
@@ -158,6 +161,7 @@
                 </div>
               </div>
 
+
             </div><!-- /editor-scroll -->
           </div><!-- /editor-panel -->
 
@@ -221,6 +225,6 @@
 
     </div><!-- /#app -->
 
-    <script type="module" src="/app/main.js?v=20260315e"></script>
+    <script type="module" src="/app/main.js?v=20260315h"></script>
   </body>
 </html>

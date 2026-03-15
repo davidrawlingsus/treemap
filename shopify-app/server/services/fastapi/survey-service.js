@@ -143,6 +143,16 @@ export function listSurveyResponses({
   });
 }
 
+export function deleteSurvey({ backendBaseUrl, ingestSecret, shopDomain, surveyId, timeoutMs = 10000 }) {
+  return callBackend({
+    backendBaseUrl,
+    ingestSecret,
+    path: `/api/shopify/surveys/${encodeURIComponent(shopDomain)}/${Number(surveyId)}`,
+    method: "DELETE",
+    timeoutMs,
+  });
+}
+
 export function getActiveRuntimeSurvey({ backendBaseUrl, ingestSecret, shopDomain, timeoutMs = 10000 }) {
   return callBackend({
     backendBaseUrl,

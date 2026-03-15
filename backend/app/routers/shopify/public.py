@@ -22,6 +22,7 @@ from app.schemas.shopify import (
     ShopifySurveyUpsertRequest,
 )
 from app.services.shopify import (
+    delete_survey,
     get_active_runtime_survey,
     get_survey_detail,
     get_survey_templates,
@@ -323,6 +324,23 @@ def unpublish_shopify_survey_route(
     )
     try:
         return unpublish_survey(db, shop_domain, survey_id)
+    except ValueError as error:
+        raise HTTPException(status_code=404, detail=str(error))
+
+
+@router.delete("/surveys/{shop_domain}/{survey_id}", status_code=204)
+def delete_shopify_survey_route(
+    shop_domain: str,
+    survey_id: int,
+    db: Session = Depends(get_db),
+    x_vizualizd_shopify_secret: str | None = Header(default=None),
+):
+    require_shopify_ingest_secret(
+        x_vizualizd_shopify_secret,
+        settings_getter=shopify_router_module.get_settings,
+    )
+    try:
+        delete_survey(db, shop_domain, survey_id)
     except ValueError as error:
         raise HTTPException(status_code=404, detail=str(error))
 

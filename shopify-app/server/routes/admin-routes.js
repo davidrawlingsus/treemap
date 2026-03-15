@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 import { requireShopifySession } from "../middleware/require-shopify-session.js";
 import {
   createSurvey,
+  deleteSurvey,
   getSurvey,
   listSurveyResponses,
   listSurveys,
@@ -146,6 +147,21 @@ export function registerAdminRoutes(app, config) {
         surveyId: req.params.surveyId,
       });
       res.json({ survey });
+    } catch (error) {
+      res.status(400).json({ ok: false, detail: getErrorMessage(error) });
+    }
+  });
+
+  app.delete("/api/admin/surveys/:surveyId", async (req, res) => {
+    try {
+      const session = await requireShopifySession(req, config.shopifyApiSecret);
+      await deleteSurvey({
+        backendBaseUrl: config.backendBaseUrl,
+        ingestSecret: config.ingestSecret,
+        shopDomain: session.shopDomain,
+        surveyId: req.params.surveyId,
+      });
+      res.status(204).send();
     } catch (error) {
       res.status(400).json({ ok: false, detail: getErrorMessage(error) });
     }
