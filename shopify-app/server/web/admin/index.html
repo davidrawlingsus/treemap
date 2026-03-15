@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MapTheGap Survey Builder</title>
+    <link rel="stylesheet" href="/app/styles.css" />
+    <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
+    <script type="module" src="https://unpkg.com/@shopify/polaris-web-components@0.8.2/dist/components/index.js"></script>
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <h1>Post-purchase Survey Builder</h1>
+        <p>Build, schedule, and publish checkout surveys.</p>
+      </header>
+
+      <section class="layout">
+        <aside class="panel surveys-panel">
+          <div class="panel-header">
+            <h2>Surveys</h2>
+            <button id="createSurveyBtn" class="btn">New survey</button>
+          </div>
+          <div id="surveyList" class="list"></div>
+        </aside>
+
+        <main class="panel builder-panel">
+          <div class="panel-header">
+            <h2 id="builderTitle">Survey editor</h2>
+            <div class="actions">
+              <button id="saveDraftBtn" class="btn">Save draft</button>
+              <button id="publishBtn" class="btn btn-primary">Publish</button>
+              <button id="unpublishBtn" class="btn btn-secondary">Unpublish</button>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <label>Title <input id="surveyTitle" type="text" /></label>
+            <label>Status
+              <select id="surveyStatus">
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </label>
+            <label class="full">Description <textarea id="surveyDescription" rows="2"></textarea></label>
+            <label>Template
+              <select id="templateSelect"></select>
+            </label>
+            <label>Start at <input id="startsAt" type="datetime-local" /></label>
+            <label>End at <input id="endsAt" type="datetime-local" /></label>
+          </div>
+
+          <section class="subpanel">
+            <div class="panel-header">
+              <h3>Questions (drag and drop)</h3>
+              <button id="addQuestionBtn" class="btn">Add question</button>
+            </div>
+            <div id="questionList" class="question-list"></div>
+          </section>
+
+          <section class="subpanel">
+            <div class="panel-header">
+              <h3>Conditional logic</h3>
+              <button id="addRuleBtn" class="btn">Add rule</button>
+            </div>
+            <div id="ruleList" class="rule-list"></div>
+          </section>
+
+          <section class="subpanel">
+            <div class="panel-header">
+              <h3>Responses</h3>
+              <button id="refreshResponsesBtn" class="btn">Refresh</button>
+            </div>
+            <div id="responseList" class="response-list"></div>
+          </section>
+        </main>
+      </section>
+    </div>
+
+    <script type="module" src="/app/main.js"></script>
+  </body>
+</html>

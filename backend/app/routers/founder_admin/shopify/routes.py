@@ -13,12 +13,9 @@ from app.schemas import (
     ShopifySurveyRawResponseItem,
     ShopifySurveyRawResponseList,
 )
+from app.services.shopify import normalize_shop_domain
 
 router = APIRouter()
-
-
-def _normalize_shop_domain(value: str) -> str:
-    return value.strip().lower()
 
 
 @router.get(
@@ -47,7 +44,7 @@ def founder_upsert_shopify_store_connection(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_founder),
 ):
-    normalized_shop_domain = _normalize_shop_domain(payload.shop_domain)
+    normalized_shop_domain = normalize_shop_domain(payload.shop_domain)
     if not normalized_shop_domain:
         raise HTTPException(status_code=400, detail="shop_domain is required")
 
@@ -94,7 +91,7 @@ def founder_delete_shopify_store_connection(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_founder),
 ):
-    normalized_shop_domain = _normalize_shop_domain(shop_domain)
+    normalized_shop_domain = normalize_shop_domain(shop_domain)
     existing = (
         db.query(ShopifyStoreConnection)
         .filter(ShopifyStoreConnection.shop_domain == normalized_shop_domain)
@@ -125,7 +122,7 @@ def founder_list_shopify_raw_survey_responses(
     if client_uuid is not None:
         query = query.filter(ShopifySurveyResponseRaw.client_uuid == client_uuid)
     if shop_domain:
-        query = query.filter(ShopifySurveyResponseRaw.shop_domain == _normalize_shop_domain(shop_domain))
+        query = query.filter(ShopifySurveyResponseRaw.shop_domain == normalize_shop_domain(shop_domain))
 
     total = query.count()
     rows = (

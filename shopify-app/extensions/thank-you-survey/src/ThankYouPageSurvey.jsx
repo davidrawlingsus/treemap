@@ -1,7 +1,7 @@
 /** @jsxImportSource preact */
 import { render } from "preact";
-import { useState } from "preact/hooks";
-import { getSettings, forwardSurveySubmission } from "./shared.jsx";
+import { useEffect, useMemo, useState } from "preact/hooks";
+import { fetchActiveSurvey, getSettings, forwardSurveySubmission } from "./shared.jsx";
 
 export default function () {
   render(<ThankYouSurvey />, document.body);
@@ -9,14 +9,59 @@ export default function () {
 
 function ThankYouSurvey() {
   const settings = getSettings();
+  const [runtimeSurvey, setRuntimeSurvey] = useState(null);
+  const [runtimeError, setRuntimeError] = useState("");
+  const [runtimeLoading, setRuntimeLoading] = useState(true);
   const [answers, setAnswers] = useState({});
   const [stepIndex, setStepIndex] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const questions = settings.questionConfigs
+  useEffect(() => {
+    let cancelled = false;
+    async function loadRuntimeSurvey() {
+      setRuntimeLoading(true);
+      try {
+        const survey = await fetchActiveSurvey(settings.apiBaseUrl, shopify?.shop?.myshopifyDomain || "");
+        if (!cancelled) {
+          setRuntimeSurvey(survey);
+          setRuntimeError("");
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setRuntimeSurvey(null);
+          setRuntimeError(error instanceof Error ? error.message : "Failed to load active survey.");
+        }
+      } finally {
+        if (!cancelled) setRuntimeLoading(false);
+      }
+    }
+    loadRuntimeSurvey();
+    return () => {
+      cancelled = true;
+    };
+  }, [settings.apiBaseUrl]);
+
+  const rulesByTarget = useMemo(() => {
+    const byTarget = {};
+    for (const rule of runtimeSurvey?.display_rules || []) {
+      if (!rule?.target_question_key) continue;
+      byTarget[rule.target_question_key] = byTarget[rule.target_question_key] || [];
+      byTarget[rule.target_question_key].push(rule);
+    }
+    return byTarget;
+  }, [runtimeSurvey]);
+
+  function isQuestionVisible(question) {
+    const rules = rulesByTarget[question.key] || [];
+    if (!rules.length) return true;
+    return rules.every((rule) => String(answers[rule.source_question_key] || "").trim() === String(rule.comparison_value || "").trim());
+  }
+
+  const fallbackQuestions = settings.questionConfigs
     .filter((item) => item.text)
     .map((item) => ({
+      id: null,
       key: item.key,
       label: item.text,
       type: item.type,
@@ -28,6 +73,16 @@ function ThankYouSurvey() {
             : ["Option 1", "Option 2"]
           : [],
     }));
+  const runtimeQuestions = (runtimeSurvey?.questions || []).map((item) => ({
+    id: item.id,
+    key: item.question_key,
+    label: item.title,
+    type: item.answer_type === "choice_list" ? "choice_list" : item.answer_type === "multi_line_text" ? "textarea" : "text",
+    required: Boolean(item.is_required),
+    options: Array.isArray(item.options) ? item.options : [],
+  }));
+  const baseQuestions = runtimeQuestions.length ? runtimeQuestions : fallbackQuestions;
+  const questions = baseQuestions.filter((question) => isQuestionVisible(question));
 
   if (!questions.length) {
     return (
@@ -37,6 +92,7 @@ function ThankYouSurvey() {
           <s-text appearance="subdued">
             No questions configured yet. Add at least one q*_text value in block settings.
           </s-text>
+          {runtimeError ? <s-text appearance="critical">{runtimeError}</s-text> : null}
         </s-stack>
       </s-box>
     );
@@ -85,12 +141,15 @@ function ThankYouSurvey() {
     const payload = {
       idempotency_key: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
       shop_domain: shopify?.shop?.myshopifyDomain || "",
+      survey_id: runtimeSurvey?.survey_id || null,
+      survey_version_id: runtimeSurvey?.survey_version_id || null,
       shopify_order_id: shopify?.orderConfirmation?.order?.id || null,
       order_gid: shopify?.orderConfirmation?.order?.id || null,
       customer_reference: null,
-      survey_version: "v1",
+      survey_version: String(runtimeSurvey?.survey_version_number || "v1"),
       answers: questions.reduce((accumulator, question) => {
         accumulator[question.key] = {
+          question_id: question.id,
           question: question.label,
           answer: answers[question.key] || "",
         };
@@ -98,6 +157,7 @@ function ThankYouSurvey() {
       }, {}),
       extension_context: {
         extension_target: "purchase.thank-you.block.render",
+        runtime_loaded: Boolean(runtimeSurvey),
       },
       submitted_at: new Date().toISOString(),
     };
@@ -125,6 +185,8 @@ function ThankYouSurvey() {
     <s-box border="base" padding="base" borderRadius="base">
       <s-stack gap="base">
         <s-heading>{settings.title}</s-heading>
+        {runtimeLoading ? <s-text appearance="subdued">Loading latest survey...</s-text> : null}
+        {runtimeError ? <s-text appearance="critical">{runtimeError}</s-text> : null}
         {settings.description ? <s-text>{settings.description}</s-text> : null}
 
         {visibleQuestions.map((question) => {

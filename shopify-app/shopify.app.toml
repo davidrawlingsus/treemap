@@ -1,6 +1,6 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "ff60b5a08d8e97739b5dfb454e130d6d"
+client_id = "d5d75c7a8f63773e9f8718b35d444146"
 name = "MapTheGap"
 application_url = "https://connect.mapthegap.ai"
 embedded = true
