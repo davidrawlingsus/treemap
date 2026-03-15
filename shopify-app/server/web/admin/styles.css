@@ -761,6 +761,13 @@ body {
 .cko-survey-empty { font-size: 13px; color: #9ca3af; text-align: center; margin: 4px 0; }
 
 /* Survey internals — matches actual s-text / s-text-area / s-button output */
+.cko-widget-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin: 0 0 12px;
+  line-height: 1.4;
+}
 .cko-q {
   font-size: 14px;
   font-weight: 600;

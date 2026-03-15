@@ -168,6 +168,7 @@ function ThankYouSurvey() {
   return (
     <s-box border="base" padding="base" borderRadius="base">
       <s-stack gap="base">
+        {runtimeSurvey?.settings?.widget_title ? <s-heading>{runtimeSurvey.settings.widget_title}</s-heading> : null}
         {runtimeLoading ? <s-text appearance="subdued">Loading latest survey...</s-text> : null}
         {runtimeError ? <s-text appearance="critical">{runtimeError}</s-text> : null}
         {settings.description ? <s-text>{settings.description}</s-text> : null}

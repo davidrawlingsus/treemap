@@ -42,6 +42,7 @@ function collectSnapshot() {
     templateKey: el("templateSelect")?.value ?? "",
     startsAt: el("startsAt")?.value ?? "",
     endsAt: el("endsAt")?.value ?? "",
+    widgetTitle: el("widgetTitle")?.value?.trim() ?? "",
     submitLabel: el("submitLabel")?.value?.trim() ?? "",
     questions: (state.draft?.questions ?? []).map(q => ({ ...q })),
     display_rules: (state.draft?.display_rules ?? []).map(r => ({ ...r })),
@@ -212,6 +213,7 @@ function applyToEditor(survey) {
   el("templateSelect").value = src?.template_key ?? "";
   el("startsAt").value = src?.starts_at ? new Date(src.starts_at).toISOString().slice(0, 16) : "";
   el("endsAt").value = src?.ends_at ? new Date(src.ends_at).toISOString().slice(0, 16) : "";
+  el("widgetTitle").value = src?.settings?.widget_title ?? "";
   el("submitLabel").value = src?.settings?.submit_label ?? "";
 
   // Status badge
@@ -248,7 +250,7 @@ function collectDraftFromForm() {
       template_key: el("templateSelect")?.value || null,
       starts_at: el("startsAt")?.value ? new Date(el("startsAt").value).toISOString() : null,
       ends_at: el("endsAt")?.value ? new Date(el("endsAt").value).toISOString() : null,
-      settings: { submit_label: el("submitLabel")?.value?.trim() || null },
+      settings: { widget_title: el("widgetTitle")?.value?.trim() || null, submit_label: el("submitLabel")?.value?.trim() || null },
       questions: (state.draft?.questions ?? []).map((q, i) => ({
         ...q,
         question_key: `q${i + 1}`,
@@ -606,7 +608,9 @@ function renderPreview() {
     inputHtml = `<input class="cko-input" type="text" />`;
   }
 
+  const widgetTitle = el("widgetTitle")?.value?.trim();
   container.innerHTML = `
+    ${widgetTitle ? `<h2 class="cko-widget-title">${escHtml(widgetTitle)}</h2>` : ""}
     <p class="cko-q">
       ${escHtml(q.title || "Your question will appear here")}${q.is_required ? '<span class="cko-req">*</span>' : ""}
     </p>
@@ -842,6 +846,7 @@ async function init() {
     markDirty();
   });
   el("surveyDescription")?.addEventListener("input", markDirty);
+  el("widgetTitle")?.addEventListener("input", () => { markDirty(); renderPreview(); });
   el("submitLabel")?.addEventListener("input", markDirty);
   el("startsAt")?.addEventListener("change", markDirty);
   el("endsAt")?.addEventListener("change", markDirty);

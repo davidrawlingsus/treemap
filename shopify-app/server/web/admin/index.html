@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="shopify-api-key" content="%SHOPIFY_API_KEY%" />
     <title>MapTheGap Surveys</title>
-    <link rel="stylesheet" href="/app/styles.css?v=20260315s" />
+    <link rel="stylesheet" href="/app/styles.css?v=20260315t" />
     <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
   </head>
   <body>
@@ -77,6 +77,12 @@
                   <div class="field-group">
                     <label class="field-label" for="surveyTitle">Survey name</label>
                     <input id="surveyTitle" class="field-input" type="text" placeholder="e.g. Post-purchase check-in" autocomplete="off" />
+                  </div>
+                  <div class="field-group" style="margin-top:14px">
+                    <label class="field-label" for="widgetTitle">
+                      Survey heading <span class="field-label__optional">(optional)</span>
+                    </label>
+                    <input id="widgetTitle" class="field-input" type="text" placeholder="e.g. Quick question before you go" autocomplete="off" />
                   </div>
                   <div class="field-group" style="margin-top:14px">
                     <label class="field-label" for="surveyDescription">
@@ -264,6 +270,6 @@
 
     </div><!-- /#app -->
 
-    <script type="module" src="/app/main.js?v=20260315s"></script>
+    <script type="module" src="/app/main.js?v=20260315t"></script>
   </body>
 </html>
