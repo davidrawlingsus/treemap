@@ -87,7 +87,8 @@ body {
 #app { min-height: 100vh; }
 
 /* ─── VIEWS ─────────────────────────────────────────────────────────────── */
-.view { display: block; }
+/* Ensure the hidden attribute is not overridden by any display rule */
+.view[hidden] { display: none; }
 
 /* ─── LIST VIEW ─────────────────────────────────────────────────────────── */
 .page-wrap {
