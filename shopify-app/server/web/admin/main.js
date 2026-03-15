@@ -583,8 +583,6 @@ function renderPreview() {
 
   const q = questions[state.previewStep];
   const isLast = state.previewStep === total - 1;
-  const surveyTitle = el("surveyTitle")?.value?.trim() || "Quick question";
-
   let inputHtml;
   if (q.answer_type === "choice_list") {
     const opts = (q.options ?? []).filter(Boolean);
@@ -607,7 +605,6 @@ function renderPreview() {
   }
 
   container.innerHTML = `
-    <p class="preview-survey-label">${escHtml(surveyTitle)}</p>
     <p class="preview-question-text">
       ${escHtml(q.title || "Your question will appear here")}${q.is_required ? '<span class="preview-required">*</span>' : ""}
     </p>
