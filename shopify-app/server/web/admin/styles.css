@@ -116,7 +116,37 @@ body {
 }
 .survey-card:hover { box-shadow: var(--shadow-card-hover); }
 
-.survey-card__top { display: flex; align-items: center; gap: var(--sp-2); }
+.survey-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+/* Live toggle on survey card */
+.card-live-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+.card-live-toggle__label {
+  font-size: var(--text-xs);
+  font-weight: var(--fw-medium);
+  color: var(--color-success);
+}
+.card-live-toggle .toggle-input {
+  /* slightly smaller than the question-card toggle */
+  width: 28px;
+  height: 16px;
+}
+.card-live-toggle .toggle-input::after {
+  width: 12px;
+  height: 12px;
+}
+.card-live-toggle .toggle-input:checked::after { transform: translateX(12px); }
+
 .survey-card__title {
   margin: 0;
   font-size: var(--text-lg);
@@ -345,13 +375,6 @@ body {
 .btn--icon { padding: 6px; border-color: transparent; background: transparent; color: var(--color-text-muted); border-radius: var(--radius-md); }
 .btn--icon:hover { background: var(--color-secondary-bg); color: var(--color-text); }
 .btn--icon.btn--danger:hover { background: #fff0f0; color: var(--color-danger); }
-
-.btn--end-survey {
-  background: transparent;
-  border-color: #e0b4b4;
-  color: var(--color-danger);
-}
-.btn--end-survey:hover { background: #fff0f0; border-color: #faa; }
 
 /* Add question button */
 .btn--add-question {

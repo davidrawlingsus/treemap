@@ -78,16 +78,27 @@ function updateTitleBarForList() {
   el("ab-create-btn")?.addEventListener("click", handleCreateSurvey);
 }
 
+function surveyIsLive(survey) {
+  return Boolean(survey?.active_version_id) || Boolean(survey?.active_version);
+}
+
 function updateTitleBarForEditor(survey) {
   const tb = document.querySelector("ui-title-bar");
   if (!tb) return;
-  const isLive = Boolean(survey?.active_version_id);
+  const isLive = surveyIsLive(survey);
   tb.setAttribute("title", survey?.title || "Survey editor");
-  tb.innerHTML = isLive
-    ? `<button id="ab-save-btn-tb">Save draft</button>
-       <button id="ab-unpublish-btn">End survey</button>`
-    : `<button id="ab-save-btn-tb">Save draft</button>
-       <button variant="primary" id="ab-publish-btn">Publish</button>`;
+  if (isLive) {
+    // Live survey: offer save draft + end survey only (no publish)
+    tb.innerHTML = `
+      <button id="ab-save-btn-tb">Save draft</button>
+      <button id="ab-unpublish-btn">End survey</button>`;
+  } else {
+    // Draft survey: publish is primary only when there are unsaved changes
+    const publishVariant = isDirty() ? `variant="primary"` : ``;
+    tb.innerHTML = `
+      <button id="ab-save-btn-tb">Save draft</button>
+      <button ${publishVariant} id="ab-publish-btn">Publish</button>`;
+  }
   el("ab-save-btn-tb")?.addEventListener("click", handleSave);
   el("ab-publish-btn")?.addEventListener("click", handlePublish);
   el("ab-unpublish-btn")?.addEventListener("click", handleUnpublish);
@@ -138,30 +149,35 @@ function renderSurveyGrid() {
 }
 
 function buildSurveyCard(survey) {
-  const isLive = Boolean(survey.active_version_id);
+  const isLive = surveyIsLive(survey);
   const card = document.createElement("div");
   card.className = "survey-card";
   card.innerHTML = `
-    <div class="survey-card__top">
+    <div class="survey-card__header">
       <span class="badge ${isLive ? "badge--live" : "badge--draft"}">${isLive ? "Live" : "Draft"}</span>
+      ${isLive ? `
+        <label class="card-live-toggle" title="End survey">
+          <input type="checkbox" class="toggle-input" checked />
+          <span class="card-live-toggle__label">Live</span>
+        </label>` : ""}
     </div>
     <h3 class="survey-card__title">${escHtml(survey.title || "Untitled survey")}</h3>
     <p class="survey-card__meta">${survey.description ? escHtml(survey.description) : '<span style="color:var(--color-text-disabled)">No description</span>'}</p>
     <div class="survey-card__actions">
-      ${isLive ? `<button class="btn btn--sm btn--end-survey" data-action="end">End survey</button>` : ""}
       <button class="btn btn--secondary btn--sm" data-action="edit">Edit survey</button>
     </div>
   `;
   card.querySelector("[data-action='edit']").addEventListener("click", () => navigate("editor", survey.id));
   if (isLive) {
-    card.querySelector("[data-action='end']").addEventListener("click", async (e) => {
-      e.stopPropagation();
+    card.querySelector(".toggle-input").addEventListener("change", async (e) => {
+      e.preventDefault(); // we control the state, not the checkbox
       try {
         await api(`/api/admin/surveys/${survey.id}/unpublish`, "POST", {});
         await loadSurveys();
         renderSurveyGrid();
         showToast(`"${survey.title}" ended`, "success");
       } catch (err) {
+        e.target.checked = true; // revert on failure
         showToast(err.message || "Could not end survey.", "error");
       }
     });
@@ -610,6 +626,7 @@ async function handleSave() {
     await loadSurvey(surveyId);
     takeSnapshot();
     syncSaveBar();
+    updateTitleBarForEditor(state.activeSurvey);
     showToast("Draft saved", "success");
   } catch (err) {
     showToast(err.message || "Save failed.", "error");
@@ -617,7 +634,10 @@ async function handleSave() {
 }
 
 function handleDiscard() {
-  if (state.activeSurvey) applyToEditor(state.activeSurvey);
+  if (state.activeSurvey) {
+    applyToEditor(state.activeSurvey);
+    updateTitleBarForEditor(state.activeSurvey);
+  }
 }
 
 async function handlePublish() {
