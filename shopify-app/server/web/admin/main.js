@@ -84,8 +84,11 @@ function updateTitleBarForEditor(survey) {
   const isLive = Boolean(survey?.active_version_id);
   tb.setAttribute("title", survey?.title || "Survey editor");
   tb.innerHTML = isLive
-    ? `<button id="ab-unpublish-btn">Unpublish</button>`
-    : `<button variant="primary" id="ab-publish-btn">Publish</button>`;
+    ? `<button id="ab-save-btn-tb">Save draft</button>
+       <button id="ab-unpublish-btn">Unpublish</button>`
+    : `<button id="ab-save-btn-tb">Save draft</button>
+       <button variant="primary" id="ab-publish-btn">Publish</button>`;
+  el("ab-save-btn-tb")?.addEventListener("click", handleSave);
   el("ab-publish-btn")?.addEventListener("click", handlePublish);
   el("ab-unpublish-btn")?.addEventListener("click", handleUnpublish);
 }
@@ -332,6 +335,14 @@ function renderOptionsInCard(cardEl, q, qIdx) {
 }
 
 function wireQuestionCard(card, idx) {
+  // Auto-advance preview when user focuses into this card
+  card.addEventListener("focusin", () => {
+    if (state.previewStep !== idx) {
+      state.previewStep = idx;
+      renderPreview();
+    }
+  });
+
   // Drag and drop
   card.addEventListener("dragstart", e => {
     card.classList.add("is-dragging");
