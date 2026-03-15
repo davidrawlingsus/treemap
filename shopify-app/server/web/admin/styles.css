@@ -430,7 +430,7 @@ body {
 .badge--draft { background: var(--badge-draft-bg); color: var(--badge-draft-text); }
 
 /* ─── QUESTION CARDS ─────────────────────────────────────────────────────── */
-.question-stack { display: flex; flex-direction: column; gap: var(--sp-3); }
+.question-stack { display: flex; flex-direction: column; gap: var(--sp-3); margin-top: var(--sp-4); }
 
 .question-card {
   display: grid;
@@ -571,6 +571,7 @@ body {
 
 /* Questions empty state */
 .empty-questions {
+  margin-top: var(--sp-4);
   padding: var(--sp-6);
   text-align: center;
   color: var(--color-text-muted);
