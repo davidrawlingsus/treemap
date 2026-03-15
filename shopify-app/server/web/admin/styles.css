@@ -23,14 +23,18 @@ body {
   padding: 20px;
 }
 
-.topbar h1 {
+.topbar h1,
+.topbar s-heading {
   margin: 0;
   font-size: 24px;
+  display: block;
 }
 
-.topbar p {
+.topbar p,
+.topbar s-text {
   margin: 6px 0 0;
   color: var(--muted);
+  display: block;
 }
 
 .layout {
@@ -57,6 +61,11 @@ body {
 .actions {
   display: flex;
   gap: 8px;
+  align-items: center;
+}
+
+.panel-header s-button {
+  flex-shrink: 0;
 }
 
 .action-status {

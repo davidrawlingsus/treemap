@@ -5,29 +5,6 @@ const state = {
   draft: null,
 };
 
-const DEBUG_ENDPOINT = "http://127.0.0.1:7242/ingest/f568bba7-6d3e-4471-a82b-2f8d7a233c54";
-const DEBUG_SESSION_ID = "d40dbe";
-const DEBUG_RUN_ID = "unpublish-status-hot-update-v1";
-
-function debugLog(hypothesisId, location, message, data = {}) {
-  fetch(DEBUG_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Debug-Session-Id": DEBUG_SESSION_ID,
-    },
-    body: JSON.stringify({
-      sessionId: DEBUG_SESSION_ID,
-      runId: DEBUG_RUN_ID,
-      hypothesisId,
-      location,
-      message,
-      data,
-      timestamp: Date.now(),
-    }),
-  }).catch(() => {});
-}
-
 const els = {
   surveyList: document.getElementById("surveyList"),
   questionList: document.getElementById("questionList"),
@@ -361,79 +338,25 @@ els.publishBtn.addEventListener("click", async () => {
 els.unpublishBtn.addEventListener("click", async () => {
   if (!state.activeSurvey?.id) return;
   const surveyId = state.activeSurvey.id;
-  // #region agent log
-  debugLog("H1", "main.js:unpublish:start", "unpublish clicked", {
-    surveyId,
-    activeSurveyHasLiveVersion: Boolean(state.activeSurvey?.active_version),
-    surveyListLiveFlagBefore: Boolean((state.surveys || []).find((s) => s.id === surveyId)?.active_version_id),
-    surveyStatusValueBefore: els.surveyStatus?.value || null,
-  });
-  // #endregion
   const preservedDraft = {
     questions: Array.isArray(state.draft?.questions) ? state.draft.questions.map((q) => ({ ...q })) : [],
     display_rules: Array.isArray(state.draft?.display_rules) ? state.draft.display_rules.map((r) => ({ ...r })) : [],
   };
   await api(`/api/admin/surveys/${surveyId}/unpublish`, "POST", {});
   await loadSurvey(surveyId);
-  // #region agent log
-  debugLog("H2", "main.js:unpublish:after-loadSurvey", "unpublish post-loadSurvey state", {
-    surveyId,
-    activeSurveyHasLiveVersion: Boolean(state.activeSurvey?.active_version),
-    surveyListLiveFlagAfterLoadSurvey: Boolean((state.surveys || []).find((s) => s.id === surveyId)?.active_version_id),
-    surveyStatusValueAfterLoadSurvey: els.surveyStatus?.value || null,
-    draftQuestionCountAfterLoadSurvey: state.draft?.questions?.length || 0,
-  });
-  // #endregion
 
   const needsDraftRestore =
     preservedDraft.questions.length > 0 &&
     (state.draft?.questions?.length || 0) === 0;
   if (needsDraftRestore) {
-    // #region agent log
-    debugLog("H3", "main.js:unpublish:restore-branch", "draft restore branch entered", {
-      surveyId,
-      preservedQuestionCount: preservedDraft.questions.length,
-      preservedRuleCount: preservedDraft.display_rules.length,
-    });
-    // #endregion
     state.draft = preservedDraft;
     await api(`/api/admin/surveys/${surveyId}`, "PUT", collectDraftFromForm());
     await loadSurvey(surveyId);
     await loadSurveys();
-    // #region agent log
-    debugLog("H3", "main.js:unpublish:restore-complete", "draft restore branch completed", {
-      surveyId,
-      activeSurveyHasLiveVersion: Boolean(state.activeSurvey?.active_version),
-      surveyListLiveFlagAfterRestore: Boolean((state.surveys || []).find((s) => s.id === surveyId)?.active_version_id),
-      surveyStatusValueAfterRestore: els.surveyStatus?.value || null,
-    });
-    // #endregion
-    // #region agent log
-    debugLog("H5", "main.js:unpublish:after-loadSurveys-restore", "survey list refreshed after restore branch", {
-      surveyId,
-      surveyListLiveFlagAfterRefresh: Boolean((state.surveys || []).find((s) => s.id === surveyId)?.active_version_id),
-      surveyStatusValueAfterRefresh: els.surveyStatus?.value || null,
-    });
-    // #endregion
     setActionStatus(`Survey #${surveyId} turned off. Draft preserved.`, "success");
     return;
   }
   await loadSurveys();
-  // #region agent log
-  debugLog("H5", "main.js:unpublish:after-loadSurveys", "survey list refreshed after unpublish", {
-    surveyId,
-    surveyListLiveFlagAfterRefresh: Boolean((state.surveys || []).find((s) => s.id === surveyId)?.active_version_id),
-    surveyStatusValueAfterRefresh: els.surveyStatus?.value || null,
-  });
-  // #endregion
-  // #region agent log
-  debugLog("H4", "main.js:unpublish:no-restore", "unpublish completed without restore branch", {
-    surveyId,
-    activeSurveyHasLiveVersion: Boolean(state.activeSurvey?.active_version),
-    surveyListLiveFlagAtEnd: Boolean((state.surveys || []).find((s) => s.id === surveyId)?.active_version_id),
-    surveyStatusValueAtEnd: els.surveyStatus?.value || null,
-  });
-  // #endregion
   setActionStatus(`Survey #${surveyId} turned off.`, "success");
 });
 
