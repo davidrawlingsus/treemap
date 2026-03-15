@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="shopify-api-key" content="%SHOPIFY_API_KEY%" />
     <title>MapTheGap Surveys</title>
-    <link rel="stylesheet" href="/app/styles.css?v=20260315m" />
+    <link rel="stylesheet" href="/app/styles.css?v=20260315n" />
     <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
   </head>
   <body>
@@ -97,6 +97,18 @@
 
               <!-- PANEL: Questions -->
               <div class="tab-panel" data-panel="questions">
+                <div class="card">
+                  <div class="card__section">
+                    <div class="field-group">
+                      <label class="field-label" for="templateSelect">
+                        Start from template <span class="field-label__optional">(optional)</span>
+                      </label>
+                      <select id="templateSelect" class="field-select">
+                        <option value="">No template</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
                 <div id="questionList" class="question-stack"></div>
                 <div id="questionsEmpty" class="empty-questions" hidden>
                   <p>No questions yet. Add your first question below.</p>
@@ -132,16 +144,6 @@
               <!-- PANEL: Schedule -->
               <div class="tab-panel" data-panel="schedule" hidden>
                 <div class="card">
-                  <div class="card__section">
-                    <div class="field-group">
-                      <label class="field-label" for="templateSelect">
-                        Start from template <span class="field-label__optional">(optional)</span>
-                      </label>
-                      <select id="templateSelect" class="field-select">
-                        <option value="">No template</option>
-                      </select>
-                    </div>
-                  </div>
                   <div class="card__section card__section--bordered">
                     <p class="card__section-label">Active window</p>
                     <div class="form-row">
@@ -262,6 +264,6 @@
 
     </div><!-- /#app -->
 
-    <script type="module" src="/app/main.js?v=20260315m"></script>
+    <script type="module" src="/app/main.js?v=20260315n"></script>
   </body>
 </html>
