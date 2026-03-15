@@ -15,10 +15,6 @@
       <button variant="primary" id="ab-create-btn">Create survey</button>
     </ui-title-bar>
 
-    <ui-save-bar id="saveBar">
-      <button variant="primary" id="ab-save-btn">Save draft</button>
-      <button id="ab-discard-btn">Discard</button>
-    </ui-save-bar>
 
     <div id="app">
 
@@ -53,7 +49,15 @@
 
           <!-- ─── LEFT: EDITOR PANEL ─────────────────────── -->
           <div class="editor-panel" id="editorPanel">
-            <div class="editor-scroll">
+            <div id="saveBar" class="save-bar" hidden>
+            <span class="save-bar__label">Unsaved changes</span>
+            <div class="save-bar__actions">
+              <button class="btn btn--sm btn--secondary" id="ab-discard-btn">Discard</button>
+              <button class="btn btn--sm btn--primary" id="ab-save-btn">Save draft</button>
+            </div>
+          </div>
+
+          <div class="editor-scroll">
 
               <!-- Back + status -->
               <div class="editor-topbar">

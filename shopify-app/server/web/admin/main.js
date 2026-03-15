@@ -97,11 +97,12 @@ function updateTitleBarForEditor(survey) {
 function syncSaveBar() {
   const bar = el("saveBar");
   if (!bar) return;
-  isDirty() ? bar.setAttribute("open", "") : bar.removeAttribute("open");
+  bar.hidden = !isDirty();
 }
 
 function closeSaveBar() {
-  el("saveBar")?.removeAttribute("open");
+  const bar = el("saveBar");
+  if (bar) bar.hidden = true;
 }
 
 // ─── TOAST ───────────────────────────────────────────────────────────────────
@@ -688,11 +689,7 @@ function escAttr(str) {
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
 async function init() {
-  // Save bar events (App Bridge fires these on the element itself)
-  const saveBar = el("saveBar");
-  saveBar?.addEventListener("save", handleSave);
-  saveBar?.addEventListener("discard", handleDiscard);
-  // Button fallbacks (App Bridge version variance)
+  // In-page save bar buttons
   el("ab-save-btn")?.addEventListener("click", handleSave);
   el("ab-discard-btn")?.addEventListener("click", handleDiscard);
 
