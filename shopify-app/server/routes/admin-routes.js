@@ -31,7 +31,7 @@ export function registerAdminRoutes(app, config) {
     try {
       const html = await readFile(resolveAdminFile("index.html"), "utf8");
       const shopifyApiKey = String(config.shopifyApiKey || "");
-      res.type("text/html").send(html.replaceAll("%SHOPIFY_API_KEY%", shopifyApiKey));
+      res.set("Cache-Control", "no-store").type("text/html").send(html.replaceAll("%SHOPIFY_API_KEY%", shopifyApiKey));
     } catch (error) {
       res.status(500).send("Failed to load admin app.");
     }
