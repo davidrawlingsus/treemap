@@ -5,6 +5,29 @@ const state = {
   draft: null,
 };
 
+const DEBUG_ENDPOINT = "http://127.0.0.1:7242/ingest/f568bba7-6d3e-4471-a82b-2f8d7a233c54";
+const DEBUG_SESSION_ID = "d40dbe";
+const DEBUG_RUN_ID = "unpublish-status-hot-update-v1";
+
+function debugLog(hypothesisId, location, message, data = {}) {
+  fetch(DEBUG_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Debug-Session-Id": DEBUG_SESSION_ID,
+    },
+    body: JSON.stringify({
+      sessionId: DEBUG_SESSION_ID,
+      runId: DEBUG_RUN_ID,
+      hypothesisId,
+      location,
+      message,
+      data,
+      timestamp: Date.now(),
+    }),
+  }).catch(() => {});
+}
+
 const els = {
   surveyList: document.getElementById("surveyList"),
   questionList: document.getElementById("questionList"),
@@ -23,11 +46,16 @@ const els = {
   templateSelect: document.getElementById("templateSelect"),
   startsAt: document.getElementById("startsAt"),
   endsAt: document.getElementById("endsAt"),
+  actionStatus: document.getElementById("actionStatus"),
 };
 
 async function getSessionToken() {
-  if (window.shopify?.idToken) return window.shopify.idToken();
-  if (window.__SHOPIFY_DEV_SESSION_TOKEN) return window.__SHOPIFY_DEV_SESSION_TOKEN;
+  if (window.shopify?.idToken) {
+    return window.shopify.idToken();
+  }
+  if (window.__SHOPIFY_DEV_SESSION_TOKEN) {
+    return window.__SHOPIFY_DEV_SESSION_TOKEN;
+  }
   throw new Error("Missing Shopify session token in embedded app context.");
 }
 
@@ -46,15 +74,21 @@ async function api(path, method = "GET", body = null) {
   return payload;
 }
 
+function ensureDraftState() {
+  if (state.draft) return;
+  state.draft = { questions: [], display_rules: [] };
+}
+
 function formatDateTimeInput(value) {
   if (!value) return "";
   return new Date(value).toISOString().slice(0, 16);
 }
 
 function collectDraftFromForm() {
+  const derivedStatus = state.activeSurvey?.active_version ? "active" : "inactive";
   return {
     title: els.surveyTitle.value.trim(),
-    status: els.surveyStatus.value,
+    status: derivedStatus,
     description: els.surveyDescription.value.trim(),
     draft_version: {
       template_key: els.templateSelect.value || null,
@@ -72,10 +106,17 @@ function renderSurveyList() {
   for (const survey of state.surveys) {
     const el = document.createElement("button");
     el.className = `survey-item ${state.activeSurvey?.id === survey.id ? "active" : ""}`;
-    el.innerHTML = `<strong>${survey.title}</strong><div class="muted">${survey.status}</div>`;
+    const liveLabel = survey.active_version_id ? "Live" : "Not live";
+    el.innerHTML = `<strong>${survey.title}</strong><div class="muted">${survey.status} · ${liveLabel}</div>`;
     el.addEventListener("click", () => loadSurvey(survey.id));
     els.surveyList.appendChild(el);
   }
+}
+
+function setActionStatus(message, type = "info") {
+  if (!els.actionStatus) return;
+  els.actionStatus.className = `action-status ${type === "success" ? "success" : type === "error" ? "error" : ""}`.trim();
+  els.actionStatus.textContent = message;
 }
 
 function renderTemplates() {
@@ -210,7 +251,7 @@ function applySurveyToForm(survey) {
     display_rules: draft?.display_rules ? draft.display_rules.map((r) => ({ ...r })) : [],
   };
   els.surveyTitle.value = survey.title || "";
-  els.surveyStatus.value = survey.status || "active";
+  els.surveyStatus.value = survey.active_version ? "active" : "inactive";
   els.surveyDescription.value = survey.description || "";
   els.templateSelect.value = draft?.template_key || "";
   els.startsAt.value = formatDateTimeInput(draft?.starts_at);
@@ -246,10 +287,22 @@ async function refreshResponses() {
   renderResponses(payload.items || []);
 }
 
+async function ensureActiveSurveyForMutations() {
+  if (state.activeSurvey?.id) return state.activeSurvey.id;
+  ensureDraftState();
+  const created = await api("/api/admin/surveys", "POST", collectDraftFromForm());
+  if (created?.survey) {
+    applySurveyToForm(created.survey);
+    await loadSurveys();
+    setActionStatus(`Created survey "${created.survey.title}" (#${created.survey.id})`, "success");
+  }
+  return created?.survey?.id || null;
+}
+
 els.createSurveyBtn.addEventListener("click", async () => {
   const payload = {
     title: "New survey",
-    status: "active",
+    status: "inactive",
     description: "",
     draft_version: {
       template_key: null,
@@ -263,27 +316,129 @@ els.createSurveyBtn.addEventListener("click", async () => {
   const created = await api("/api/admin/surveys", "POST", payload);
   await loadSurveys();
   applySurveyToForm(created.survey);
+  setActionStatus(`Created new survey "${created.survey.title}" (#${created.survey.id})`, "success");
 });
 
 els.saveDraftBtn.addEventListener("click", async () => {
-  if (!state.activeSurvey?.id) return;
-  await api(`/api/admin/surveys/${state.activeSurvey.id}`, "PUT", collectDraftFromForm());
-  await loadSurvey(state.activeSurvey.id);
+  try {
+    const surveyId = await ensureActiveSurveyForMutations();
+    if (!surveyId) return;
+    await api(`/api/admin/surveys/${surveyId}`, "PUT", collectDraftFromForm());
+    await loadSurvey(surveyId);
+    setActionStatus(`Saved draft for survey #${surveyId}`, "success");
+  } catch (error) {
+    setActionStatus(error instanceof Error ? error.message : "Save draft failed.", "error");
+    console.error("[SHOPIFY_ADMIN] save draft failed", error);
+  }
 });
 
 els.publishBtn.addEventListener("click", async () => {
-  if (!state.activeSurvey?.id) return;
-  await api(`/api/admin/surveys/${state.activeSurvey.id}/publish`, "POST", {});
-  await loadSurvey(state.activeSurvey.id);
+  try {
+    const surveyId = await ensureActiveSurveyForMutations();
+    if (!surveyId) return;
+    const currentlyLiveOther = (state.surveys || []).find(
+      (survey) => survey.id !== surveyId && Boolean(survey.active_version_id),
+    );
+    if (currentlyLiveOther) {
+      const confirmed = window.confirm(
+        `Publishing this survey will deactivate "${currentlyLiveOther.title}". Continue?`,
+      );
+      if (!confirmed) {
+        setActionStatus("Publish canceled.", "info");
+        return;
+      }
+    }
+    await api(`/api/admin/surveys/${surveyId}/publish`, "POST", {});
+    await loadSurvey(surveyId);
+    await loadSurveys();
+    setActionStatus(`Survey #${surveyId} is now live.`, "success");
+  } catch (error) {
+    setActionStatus(error instanceof Error ? error.message : "Publish failed.", "error");
+    console.error("[SHOPIFY_ADMIN] publish failed", error);
+  }
 });
 
 els.unpublishBtn.addEventListener("click", async () => {
   if (!state.activeSurvey?.id) return;
-  await api(`/api/admin/surveys/${state.activeSurvey.id}/unpublish`, "POST", {});
-  await loadSurvey(state.activeSurvey.id);
+  const surveyId = state.activeSurvey.id;
+  // #region agent log
+  debugLog("H1", "main.js:unpublish:start", "unpublish clicked", {
+    surveyId,
+    activeSurveyHasLiveVersion: Boolean(state.activeSurvey?.active_version),
+    surveyListLiveFlagBefore: Boolean((state.surveys || []).find((s) => s.id === surveyId)?.active_version_id),
+    surveyStatusValueBefore: els.surveyStatus?.value || null,
+  });
+  // #endregion
+  const preservedDraft = {
+    questions: Array.isArray(state.draft?.questions) ? state.draft.questions.map((q) => ({ ...q })) : [],
+    display_rules: Array.isArray(state.draft?.display_rules) ? state.draft.display_rules.map((r) => ({ ...r })) : [],
+  };
+  await api(`/api/admin/surveys/${surveyId}/unpublish`, "POST", {});
+  await loadSurvey(surveyId);
+  // #region agent log
+  debugLog("H2", "main.js:unpublish:after-loadSurvey", "unpublish post-loadSurvey state", {
+    surveyId,
+    activeSurveyHasLiveVersion: Boolean(state.activeSurvey?.active_version),
+    surveyListLiveFlagAfterLoadSurvey: Boolean((state.surveys || []).find((s) => s.id === surveyId)?.active_version_id),
+    surveyStatusValueAfterLoadSurvey: els.surveyStatus?.value || null,
+    draftQuestionCountAfterLoadSurvey: state.draft?.questions?.length || 0,
+  });
+  // #endregion
+
+  const needsDraftRestore =
+    preservedDraft.questions.length > 0 &&
+    (state.draft?.questions?.length || 0) === 0;
+  if (needsDraftRestore) {
+    // #region agent log
+    debugLog("H3", "main.js:unpublish:restore-branch", "draft restore branch entered", {
+      surveyId,
+      preservedQuestionCount: preservedDraft.questions.length,
+      preservedRuleCount: preservedDraft.display_rules.length,
+    });
+    // #endregion
+    state.draft = preservedDraft;
+    await api(`/api/admin/surveys/${surveyId}`, "PUT", collectDraftFromForm());
+    await loadSurvey(surveyId);
+    await loadSurveys();
+    // #region agent log
+    debugLog("H3", "main.js:unpublish:restore-complete", "draft restore branch completed", {
+      surveyId,
+      activeSurveyHasLiveVersion: Boolean(state.activeSurvey?.active_version),
+      surveyListLiveFlagAfterRestore: Boolean((state.surveys || []).find((s) => s.id === surveyId)?.active_version_id),
+      surveyStatusValueAfterRestore: els.surveyStatus?.value || null,
+    });
+    // #endregion
+    // #region agent log
+    debugLog("H5", "main.js:unpublish:after-loadSurveys-restore", "survey list refreshed after restore branch", {
+      surveyId,
+      surveyListLiveFlagAfterRefresh: Boolean((state.surveys || []).find((s) => s.id === surveyId)?.active_version_id),
+      surveyStatusValueAfterRefresh: els.surveyStatus?.value || null,
+    });
+    // #endregion
+    setActionStatus(`Survey #${surveyId} turned off. Draft preserved.`, "success");
+    return;
+  }
+  await loadSurveys();
+  // #region agent log
+  debugLog("H5", "main.js:unpublish:after-loadSurveys", "survey list refreshed after unpublish", {
+    surveyId,
+    surveyListLiveFlagAfterRefresh: Boolean((state.surveys || []).find((s) => s.id === surveyId)?.active_version_id),
+    surveyStatusValueAfterRefresh: els.surveyStatus?.value || null,
+  });
+  // #endregion
+  // #region agent log
+  debugLog("H4", "main.js:unpublish:no-restore", "unpublish completed without restore branch", {
+    surveyId,
+    activeSurveyHasLiveVersion: Boolean(state.activeSurvey?.active_version),
+    surveyListLiveFlagAtEnd: Boolean((state.surveys || []).find((s) => s.id === surveyId)?.active_version_id),
+    surveyStatusValueAtEnd: els.surveyStatus?.value || null,
+  });
+  // #endregion
+  setActionStatus(`Survey #${surveyId} turned off.`, "success");
 });
 
 els.addQuestionBtn.addEventListener("click", () => {
+  ensureDraftState();
   state.draft.questions.push({
     question_key: `q${state.draft.questions.length + 1}`,
     title: "New question",
@@ -297,6 +452,7 @@ els.addQuestionBtn.addEventListener("click", () => {
 });
 
 els.addRuleBtn.addEventListener("click", () => {
+  ensureDraftState();
   const first = state.draft.questions[0]?.question_key || "";
   state.draft.display_rules.push({
     target_question_key: first,
@@ -310,6 +466,7 @@ els.addRuleBtn.addEventListener("click", () => {
 els.refreshResponsesBtn.addEventListener("click", refreshResponses);
 
 els.templateSelect.addEventListener("change", () => {
+  ensureDraftState();
   const template = state.templates.find((item) => item.key === els.templateSelect.value);
   if (!template) return;
   state.draft.questions = template.questions.map((q, idx) => ({
@@ -328,6 +485,10 @@ els.templateSelect.addEventListener("change", () => {
 });
 
 async function init() {
+  if (els.surveyStatus) {
+    els.surveyStatus.disabled = true;
+    els.surveyStatus.title = "Status is controlled by Publish/Unpublish";
+  }
   await loadTemplates();
   await loadSurveys();
 }

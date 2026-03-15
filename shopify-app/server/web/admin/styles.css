@@ -59,6 +59,21 @@ body {
   gap: 8px;
 }
 
+.action-status {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--muted);
+  min-height: 18px;
+}
+
+.action-status.success {
+  color: var(--primary);
+}
+
+.action-status.error {
+  color: #b42318;
+}
+
 .list,
 .question-list,
 .rule-list,

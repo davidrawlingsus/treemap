@@ -36,10 +36,13 @@ function OrderStatusSurvey() {
   }, [settings.apiBaseUrl]);
 
   const firstQuestion = runtimeSurvey?.questions?.[0] || null;
-  const optionList = Array.isArray(firstQuestion?.options) ? firstQuestion.options : ["Great", "Good", "Neutral", "Not great"];
-  const questionLabel = firstQuestion?.title || "How are you feeling about your purchase so far?";
+  const optionList = Array.isArray(firstQuestion?.options) ? firstQuestion.options : [];
+  const questionLabel = firstQuestion?.title || "No active published survey is available for this store yet.";
 
   async function handleSubmit() {
+    if (!firstQuestion) {
+      throw new Error("No active survey question is available to submit.");
+    }
     const payload = {
       idempotency_key: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
       shop_domain: shopify?.shop?.myshopifyDomain || "",
@@ -73,17 +76,21 @@ function OrderStatusSurvey() {
       onSubmit={handleSubmit}
     >
       {errorMessage ? <s-text appearance="critical">{errorMessage}</s-text> : null}
-      <s-choice-list
-        name="order-status-survey"
-        value={answer}
-        onChange={(event) => setAnswer(event.currentTarget.values?.[0] || "")}
-      >
-        {optionList.map((option) => (
-          <s-choice key={option} value={option}>
-            {option}
-          </s-choice>
-        ))}
-      </s-choice-list>
+      {firstQuestion ? (
+        <s-choice-list
+          name="order-status-survey"
+          value={answer}
+          onChange={(event) => setAnswer(event.currentTarget.values?.[0] || "")}
+        >
+          {optionList.map((option) => (
+            <s-choice key={option} value={option}>
+              {option}
+            </s-choice>
+          ))}
+        </s-choice-list>
+      ) : (
+        <s-text appearance="subdued">Publish a survey from the embedded app to render it here.</s-text>
+      )}
     </SurveyCard>
   );
 }

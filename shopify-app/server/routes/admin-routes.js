@@ -1,5 +1,6 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readFile } from "node:fs/promises";
 
 import { requireShopifySession } from "../middleware/require-shopify-session.js";
 import {
@@ -25,11 +26,18 @@ function getErrorMessage(error) {
 }
 
 export function registerAdminRoutes(app, config) {
-  app.get("/app", (_req, res) => {
-    res.sendFile(resolveAdminFile("index.html"));
+  app.get("/app", async (_req, res) => {
+    try {
+      const html = await readFile(resolveAdminFile("index.html"), "utf8");
+      const shopifyApiKey = String(config.shopifyApiKey || "");
+      res.type("text/html").send(html.replaceAll("%SHOPIFY_API_KEY%", shopifyApiKey));
+    } catch (error) {
+      res.status(500).send("Failed to load admin app.");
+    }
   });
 
   app.get("/app/main.js", (_req, res) => {
+    res.set("Cache-Control", "no-store");
     res.type("application/javascript");
     res.sendFile(resolveAdminFile("main.js"));
   });

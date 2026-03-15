@@ -50,6 +50,7 @@ registerAuthRoutes(app, {
 });
 
 registerAdminRoutes(app, {
+  shopifyApiKey: SHOPIFY_API_KEY,
   shopifyApiSecret: SHOPIFY_API_SECRET,
   backendBaseUrl: VIZUALIZD_BACKEND_URL,
   ingestSecret: VIZUALIZD_SHOPIFY_INGEST_SECRET,

@@ -58,21 +58,6 @@ function ThankYouSurvey() {
     return rules.every((rule) => String(answers[rule.source_question_key] || "").trim() === String(rule.comparison_value || "").trim());
   }
 
-  const fallbackQuestions = settings.questionConfigs
-    .filter((item) => item.text)
-    .map((item) => ({
-      id: null,
-      key: item.key,
-      label: item.text,
-      type: item.type,
-      required: item.required,
-      options:
-        item.type === "choice_list"
-          ? item.options.length
-            ? item.options
-            : ["Option 1", "Option 2"]
-          : [],
-    }));
   const runtimeQuestions = (runtimeSurvey?.questions || []).map((item) => ({
     id: item.id,
     key: item.question_key,
@@ -81,8 +66,7 @@ function ThankYouSurvey() {
     required: Boolean(item.is_required),
     options: Array.isArray(item.options) ? item.options : [],
   }));
-  const baseQuestions = runtimeQuestions.length ? runtimeQuestions : fallbackQuestions;
-  const questions = baseQuestions.filter((question) => isQuestionVisible(question));
+  const questions = runtimeQuestions.filter((question) => isQuestionVisible(question));
 
   if (!questions.length) {
     return (
@@ -90,7 +74,7 @@ function ThankYouSurvey() {
         <s-stack gap="base">
           <s-heading>{settings.title}</s-heading>
           <s-text appearance="subdued">
-            No questions configured yet. Add at least one q*_text value in block settings.
+            No active published survey is available for this store yet.
           </s-text>
           {runtimeError ? <s-text appearance="critical">{runtimeError}</s-text> : null}
         </s-stack>
