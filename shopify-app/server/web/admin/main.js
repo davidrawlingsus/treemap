@@ -42,6 +42,7 @@ function collectSnapshot() {
     templateKey: el("templateSelect")?.value ?? "",
     startsAt: el("startsAt")?.value ?? "",
     endsAt: el("endsAt")?.value ?? "",
+    submitLabel: el("submitLabel")?.value?.trim() ?? "",
     questions: (state.draft?.questions ?? []).map(q => ({ ...q })),
     display_rules: (state.draft?.display_rules ?? []).map(r => ({ ...r })),
   };
@@ -211,6 +212,7 @@ function applyToEditor(survey) {
   el("templateSelect").value = src?.template_key ?? "";
   el("startsAt").value = src?.starts_at ? new Date(src.starts_at).toISOString().slice(0, 16) : "";
   el("endsAt").value = src?.ends_at ? new Date(src.ends_at).toISOString().slice(0, 16) : "";
+  el("submitLabel").value = src?.settings?.submit_label ?? "";
 
   // Status badge
   const badge = el("editorStatusBadge");
@@ -246,7 +248,7 @@ function collectDraftFromForm() {
       template_key: el("templateSelect")?.value || null,
       starts_at: el("startsAt")?.value ? new Date(el("startsAt").value).toISOString() : null,
       ends_at: el("endsAt")?.value ? new Date(el("endsAt").value).toISOString() : null,
-      settings: {},
+      settings: { submit_label: el("submitLabel")?.value?.trim() || null },
       questions: (state.draft?.questions ?? []).map((q, i) => ({
         ...q,
         question_key: `q${i + 1}`,
@@ -613,7 +615,7 @@ function renderPreview() {
       ${state.previewStep > 0
         ? `<button class="preview-btn preview-btn--ghost">&larr; Back</button>`
         : ""}
-      <button class="preview-btn preview-btn--primary">${isLast ? "Submit" : "Next &rarr;"}</button>
+      <button class="preview-btn preview-btn--primary">${isLast ? (el("submitLabel")?.value?.trim() || "Submit feedback") : "Next &rarr;"}</button>
     </div>
   `;
 }
@@ -842,6 +844,7 @@ async function init() {
     markDirty();
   });
   el("surveyDescription")?.addEventListener("input", markDirty);
+  el("submitLabel")?.addEventListener("input", markDirty);
   el("startsAt")?.addEventListener("change", markDirty);
   el("endsAt")?.addEventListener("change", markDirty);
 

@@ -228,7 +228,7 @@ function ThankYouSurvey() {
             </s-button>
           ) : (
             <s-button variant="secondary" onClick={handleSubmit} loading={isSubmitting}>
-              {settings.submitLabel}
+              {runtimeSurvey?.settings?.submit_label || settings.submitLabel}
             </s-button>
           )}
         </s-stack>

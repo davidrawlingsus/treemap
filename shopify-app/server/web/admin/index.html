@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="shopify-api-key" content="%SHOPIFY_API_KEY%" />
     <title>MapTheGap Surveys</title>
-    <link rel="stylesheet" href="/app/styles.css?v=20260315j" />
+    <link rel="stylesheet" href="/app/styles.css?v=20260315k" />
     <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
   </head>
   <body>
@@ -105,6 +105,14 @@
                   <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-11.25a.75.75 0 0 0-1.5 0v2.5h-2.5a.75.75 0 0 0 0 1.5h2.5v2.5a.75.75 0 0 0 1.5 0v-2.5h2.5a.75.75 0 0 0 0-1.5h-2.5v-2.5Z" clip-rule="evenodd"/></svg>
                   Add question
                 </button>
+                <div class="card" style="margin-top:var(--sp-4)">
+                  <div class="card__section">
+                    <div class="field-group">
+                      <label class="field-label" for="submitLabel">Submit button text</label>
+                      <input id="submitLabel" class="field-input" type="text" placeholder="Submit feedback" autocomplete="off" />
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <!-- PANEL: Conditional logic -->
@@ -225,6 +233,6 @@
 
     </div><!-- /#app -->
 
-    <script type="module" src="/app/main.js?v=20260315j"></script>
+    <script type="module" src="/app/main.js?v=20260315k"></script>
   </body>
 </html>
