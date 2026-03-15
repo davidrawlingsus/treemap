@@ -195,7 +195,7 @@ function ThankYouSurvey() {
           }
 
           return (
-            <s-stack key={question.key} gap="tight">
+            <s-stack key={question.key} gap="base">
               <s-text>{question.label}</s-text>
               {question.type === "textarea" ? (
                 <s-text-area
