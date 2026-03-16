@@ -604,15 +604,20 @@ body {
 .response-list { display: flex; flex-direction: column; }
 .response-row {
   display: flex;
-  align-items: center;
-  gap: var(--sp-4);
+  flex-direction: column;
+  gap: var(--sp-2);
   padding: var(--sp-3) var(--sp-5);
   border-bottom: 1px solid var(--color-border);
   font-size: var(--text-sm);
 }
 .response-row:last-child { border-bottom: none; }
+.response-row__meta { display: flex; align-items: center; gap: var(--sp-4); }
 .response-id { font-weight: var(--fw-semibold); color: var(--color-text-muted); font-size: var(--text-xs); }
 .response-date { color: var(--color-text-muted); font-size: var(--text-xs); }
+.response-answer { display: flex; flex-direction: column; gap: 2px; }
+.response-answer__label { font-size: var(--text-xs); color: var(--color-text-muted); }
+.response-answer__text { font-size: var(--text-sm); color: var(--color-text); }
+.response-answer--empty { font-size: var(--text-xs); color: var(--color-text-muted); font-style: italic; }
 
 /* Panel description & misc */
 .panel-description { color: var(--color-text-muted); margin: 0 0 var(--sp-4); font-size: var(--text-sm); line-height: 1.5; }

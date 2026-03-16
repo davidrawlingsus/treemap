@@ -552,12 +552,30 @@ function renderResponses(items) {
     list.innerHTML = `<div style="padding:20px 24px;color:var(--color-text-muted);font-size:13px">No responses collected yet.</div>`;
     return;
   }
+  // Build a lookup from question_key → question title using the loaded survey questions
+  const questionsByKey = {};
+  for (const q of (state.draft?.questions ?? [])) {
+    if (q.question_key) questionsByKey[q.question_key] = q.title || q.question_key;
+  }
+
   items.forEach(row => {
+    const answersHtml = (row.answers || []).map(a => {
+      const label = questionsByKey[a.question_key] || a.question_key || `Q${a.question_id || "?"}`;
+      const text = a.answer_text || (a.answer_json?.answer ?? "") || "";
+      return `<div class="response-answer">
+        <span class="response-answer__label">${escHtml(label)}</span>
+        <span class="response-answer__text">${escHtml(String(text))}</span>
+      </div>`;
+    }).join("");
+
     const div = document.createElement("div");
     div.className = "response-row";
     div.innerHTML = `
-      <span class="response-id">#${row.id}</span>
-      <span class="response-date">${new Date(row.submitted_at).toLocaleString()}</span>
+      <div class="response-row__meta">
+        <span class="response-id">#${row.id}</span>
+        <span class="response-date">${new Date(row.submitted_at).toLocaleString()}</span>
+      </div>
+      ${answersHtml || '<div class="response-answer response-answer--empty">No answers recorded</div>'}
     `;
     list.appendChild(div);
   });
