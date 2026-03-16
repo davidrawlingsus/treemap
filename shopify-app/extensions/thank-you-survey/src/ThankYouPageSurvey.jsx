@@ -68,18 +68,17 @@ function ThankYouSurvey() {
   }));
   const questions = runtimeQuestions.filter((question) => isQuestionVisible(question));
 
+  if (runtimeLoading) return null;
+
   if (!questions.length) {
-    return (
-      <s-box border="base" padding="base" borderRadius="base">
-        <s-stack gap="base">
-          <s-heading>{settings.title}</s-heading>
-          <s-text appearance="subdued">
-            No active published survey is available for this store yet.
-          </s-text>
-          {runtimeError ? <s-text appearance="critical">{runtimeError}</s-text> : null}
-        </s-stack>
-      </s-box>
-    );
+    if (runtimeError) {
+      return (
+        <s-box border="base" padding="base" borderRadius="base">
+          <s-text appearance="critical">{runtimeError}</s-text>
+        </s-box>
+      );
+    }
+    return null;
   }
   const hasMultipleQuestions = questions.length > 1;
   const visibleQuestions = [questions[stepIndex]];
