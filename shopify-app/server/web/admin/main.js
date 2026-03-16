@@ -91,9 +91,9 @@ function updateTitleBarForEditor(survey) {
   const isLive = surveyIsLive(survey);
   tb.setAttribute("title", survey?.title || "Survey editor");
   if (isLive) {
-    // Live survey: offer save draft + end survey only (no publish)
+    // Live survey: save changes applies immediately to live
     tb.innerHTML = `
-      <button id="ab-save-btn-tb">Save draft</button>
+      <button id="ab-save-btn-tb">Save changes</button>
       <button id="ab-unpublish-btn">End survey</button>`;
   } else {
     // Draft survey: publish is primary only when there are unsaved changes
@@ -112,6 +112,8 @@ function syncSaveBar() {
   const bar = el("saveBar");
   if (!bar) return;
   bar.hidden = !isDirty();
+  const saveBtn = el("ab-save-btn");
+  if (saveBtn) saveBtn.textContent = surveyIsLive(state.activeSurvey) ? "Save changes" : "Save draft";
 }
 
 function closeSaveBar() {
@@ -693,12 +695,16 @@ async function handleSave() {
   try {
     const surveyId = await ensureSurveyId();
     if (!surveyId) return;
+    const wasLive = surveyIsLive(state.activeSurvey);
     await api(`/api/admin/surveys/${surveyId}`, "PUT", collectDraftFromForm());
+    if (wasLive) {
+      await api(`/api/admin/surveys/${surveyId}/publish`, "POST", {});
+    }
     await loadSurvey(surveyId);
     takeSnapshot();
     syncSaveBar();
     updateTitleBarForEditor(state.activeSurvey);
-    showToast("Draft saved", "success");
+    showToast(wasLive ? "Changes are now live" : "Draft saved", "success");
   } catch (err) {
     showToast(err.message || "Save failed.", "error");
   }
