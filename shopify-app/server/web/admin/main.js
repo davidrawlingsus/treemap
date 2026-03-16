@@ -179,17 +179,36 @@ function renderOnboarding() {
         <p class="onboarding__sub">Launch a post-purchase survey onto your thank-you page in one click — no code required.</p>
       </div>
 
-      ${hero ? `
+      ${hero ? (() => {
+        const q = hero.questions?.[0];
+        const widgetTitle = hero.settings?.widget_title || "";
+        const previewInput = q?.answer_type === "multi_line_text"
+          ? `<textarea class="ob-preview__textarea" rows="3" placeholder="Customer types here..." disabled></textarea>`
+          : `<input class="ob-preview__input" type="text" placeholder="Customer types here..." disabled />`;
+        return `
       <div class="ob-hero">
-        <span class="ob-hero__tag">⚡ Recommended first survey</span>
-        <h3 class="ob-hero__name">The Magic Question</h3>
-        <p class="ob-hero__question">"What almost stopped you from buying today?"</p>
-        <p class="ob-hero__desc">The highest-signal question in post-purchase UX. Uncovers hidden objections so you can fix the real leaks in your funnel and lift conversions — often with a single insight.</p>
-        <div class="ob-hero__actions">
-          <button class="btn btn--primary" data-launch="${escAttr(hero.key)}">Launch now →</button>
-          <button class="btn btn--secondary" data-customise="${escAttr(hero.key)}">Customise first</button>
+        <div class="ob-hero__body">
+          <div class="ob-hero__left">
+            <span class="ob-hero__tag">⚡ Recommended first survey</span>
+            <h3 class="ob-hero__name">The Magic Question</h3>
+            <p class="ob-hero__question">"${escHtml(q?.title || "What almost stopped you from buying today?")}"</p>
+            <p class="ob-hero__desc">The highest-signal question in post-purchase UX. Uncovers hidden objections so you can fix the real leaks in your funnel — often with a single insight.</p>
+            <div class="ob-hero__actions">
+              <button class="btn btn--primary" data-launch="${escAttr(hero.key)}">Launch now →</button>
+              <button class="btn btn--secondary" data-customise="${escAttr(hero.key)}">Customise first</button>
+            </div>
+          </div>
+          <div class="ob-hero__right">
+            <div class="ob-preview">
+              ${widgetTitle ? `<p class="ob-preview__title">${escHtml(widgetTitle)}</p>` : ""}
+              ${q ? `<p class="ob-preview__q">${escHtml(q.title)}</p>` : ""}
+              ${previewInput}
+              <button class="ob-preview__btn" disabled>Submit feedback</button>
+            </div>
+          </div>
         </div>
-      </div>` : ""}
+      </div>`;
+      })() : ""}
 
       <div>
         <p class="onboarding__more-label">More quick starts</p>
@@ -261,7 +280,7 @@ async function createSurveyFromTemplate(template, templateKey) {
     draft_version: {
       template_key: templateKey,
       starts_at: null, ends_at: null,
-      settings: {},
+      settings: template.settings || {},
       questions,
       display_rules: [],
     },

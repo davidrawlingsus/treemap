@@ -46,18 +46,14 @@ SURVEY_TEMPLATES: list[ShopifySurveyTemplateItem] = [
         key="what_almost_stopped",
         name="What almost stopped you buying?",
         description="Identify friction before purchase for conversion optimization.",
+        settings={
+            "widget_title": "Quick question before you go...",
+        },
         questions=[
             ShopifySurveyTemplateQuestion(
                 question_key="q1",
-                title="What almost stopped you from buying today?",
-                answer_type="choice_list",
-                is_required=True,
-                options=["Price", "Shipping cost/time", "Unsure about fit or quality", "Not enough information", "Other"],
-            ),
-            ShopifySurveyTemplateQuestion(
-                question_key="q2",
-                title="What changed your mind?",
-                answer_type="single_line_text",
+                title="If anything nearly stopped you ordering today, what was it? Thanks!",
+                answer_type="multi_line_text",
                 is_required=False,
             ),
         ],

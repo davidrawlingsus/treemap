@@ -200,6 +200,7 @@ class ShopifySurveyTemplateItem(BaseModel):
     name: str
     description: str
     questions: list[ShopifySurveyTemplateQuestion]
+    settings: dict = Field(default_factory=dict)
 
 
 class ShopifyRuntimeSurveyResponse(BaseModel):
