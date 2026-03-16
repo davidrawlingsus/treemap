@@ -107,6 +107,7 @@ def list_prompts_for_founder(
                 'client_facing': client_facing,
                 'all_clients': all_clients,
                 'client_ids': client_ids,
+                'top_level_ai_dropdown': prompt.top_level_ai_dropdown if prompt.top_level_ai_dropdown is not None else False,
                 'context_menu_group_id': prompt.context_menu_group_id,
                 'llm_model': prompt.llm_model,
                 'created_at': prompt.created_at,
@@ -162,6 +163,7 @@ def list_helper_prompts(
                 'client_facing': client_facing,
                 'all_clients': all_clients,
                 'client_ids': client_ids,
+                'top_level_ai_dropdown': prompt.top_level_ai_dropdown if prompt.top_level_ai_dropdown is not None else False,
                 'context_menu_group_id': prompt.context_menu_group_id,
                 'llm_model': prompt.llm_model,
                 'created_at': prompt.created_at,
@@ -209,6 +211,7 @@ def get_prompt_for_founder(
         'client_facing': client_facing,
         'all_clients': all_clients,
         'client_ids': client_ids,
+        'top_level_ai_dropdown': prompt.top_level_ai_dropdown if prompt.top_level_ai_dropdown is not None else False,
         'context_menu_group_id': prompt.context_menu_group_id,
         'llm_model': prompt.llm_model,
         'created_at': prompt.created_at,
@@ -257,6 +260,7 @@ def create_prompt_for_founder(
         # Default client_facing to False if not provided
         client_facing = payload.client_facing if payload.client_facing is not None else False
         all_clients = payload.all_clients if payload.all_clients is not None else False
+        top_level_ai_dropdown = payload.top_level_ai_dropdown if payload.top_level_ai_dropdown is not None else False
         client_ids = payload.client_ids if payload.client_ids is not None else []
         context_menu_group_id = payload.context_menu_group_id
         # Default to AI Expert group for client-facing prompts if not specified
@@ -275,6 +279,7 @@ def create_prompt_for_founder(
             status=payload.status,
             client_facing=client_facing,
             all_clients=all_clients,
+            top_level_ai_dropdown=top_level_ai_dropdown,
             context_menu_group_id=context_menu_group_id,
             llm_model=payload.llm_model,
         )
@@ -313,12 +318,13 @@ def create_prompt_for_founder(
             'client_facing': client_facing,
             'all_clients': all_clients,
             'client_ids': client_ids,
+            'top_level_ai_dropdown': prompt.top_level_ai_dropdown if prompt.top_level_ai_dropdown is not None else False,
             'context_menu_group_id': prompt.context_menu_group_id,
             'llm_model': prompt.llm_model,
             'created_at': prompt.created_at,
             'updated_at': prompt.updated_at,
         }
-        
+
         logger.info(f"Successfully created prompt: id={prompt.id}, name={prompt.name}, type={prompt.prompt_type}, client_facing={client_facing}, all_clients={all_clients}")
         return PromptResponse(**prompt_dict)
     except IntegrityError:
@@ -369,6 +375,8 @@ def update_prompt_for_founder(
         prompt.all_clients = payload.all_clients
     if payload.llm_model is not None:
         prompt.llm_model = payload.llm_model
+    if payload.top_level_ai_dropdown is not None:
+        prompt.top_level_ai_dropdown = payload.top_level_ai_dropdown
     if payload.context_menu_group_id is not None:
         prompt.context_menu_group_id = payload.context_menu_group_id
     
@@ -431,12 +439,13 @@ def update_prompt_for_founder(
             'client_facing': client_facing,
             'all_clients': all_clients,
             'client_ids': client_ids,
+            'top_level_ai_dropdown': prompt.top_level_ai_dropdown if prompt.top_level_ai_dropdown is not None else False,
             'context_menu_group_id': prompt.context_menu_group_id,
             'llm_model': prompt.llm_model,
             'created_at': prompt.created_at,
             'updated_at': prompt.updated_at,
         }
-        
+
         return PromptResponse(**prompt_dict)
     except IntegrityError:
         db.rollback()

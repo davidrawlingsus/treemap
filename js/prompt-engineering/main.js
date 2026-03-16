@@ -106,6 +106,8 @@
                 allClientsInput: DOM.getElement('allClientsInput'),
                 clientSelectionGroup: DOM.getElement('clientSelectionGroup'),
                 clientIdsContainer: DOM.getElement('clientIdsContainer'),
+                topLevelAiDropdownGroup: DOM.getElement('topLevelAiDropdownGroup'),
+                topLevelAiDropdownInput: DOM.getElement('topLevelAiDropdownInput'),
                 contextMenuGroup: DOM.getElement('contextMenuGroup'),
                 contextMenuGroupInput: DOM.getElement('contextMenuGroupInput'),
                 addContextMenuGroupButton: DOM.getElement('addContextMenuGroupButton'),

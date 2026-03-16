@@ -832,6 +832,32 @@ def list_client_prompts(
     return [ClientPromptsGroupedItem(**g) for g in sorted_groups]
 
 
+@router.get("/{client_id}/prompts/top-level-ai", response_model=List[PromptMenuItem])
+def list_top_level_ai_prompts(
+    client_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List prompts flagged for the top-level AI button dropdown for a client."""
+    verify_client_access(client_id, current_user, db)
+
+    from sqlalchemy import or_
+
+    prompts = db.query(Prompt).outerjoin(
+        PromptClient, Prompt.id == PromptClient.prompt_id
+    ).filter(
+        Prompt.client_facing == True,
+        Prompt.top_level_ai_dropdown == True,
+        Prompt.status == 'live',
+        or_(
+            Prompt.all_clients == True,
+            PromptClient.client_id == client_id
+        )
+    ).order_by(Prompt.name).all()
+
+    return [PromptMenuItem(id=p.id, name=p.name) for p in prompts]
+
+
 @router.get("/{client_id}/prompts/by-purpose", response_model=PromptMenuItem)
 def get_client_prompt_by_purpose(
     client_id: UUID,

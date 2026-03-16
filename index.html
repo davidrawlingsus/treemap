@@ -953,6 +953,7 @@
                             <div class="ai-dropdown-menu" id="aiDropdownMenu">
                                 <button class="ai-dropdown-item" onclick="handleAIDropdownOption('overview')">Overview</button>
                                 <button class="ai-dropdown-item" onclick="handleAIDropdownOption('manual')">Manual Insight</button>
+                                <div id="aiDropdownDynamicItems"></div>
                             </div>
                         </div>
                         <button id="filterBtn" class="filter-button" type="button" aria-label="Open filters">
@@ -15381,6 +15382,37 @@
             if (!menu) return;
             const isOpen = menu.classList.contains('open');
             menu.classList.toggle('open', !isOpen);
+
+            // Load top-level AI prompts when opening
+            if (!isOpen && currentClientId && window.ClientPromptAPI) {
+                loadTopLevelAiPrompts();
+            }
+        }
+
+        async function loadTopLevelAiPrompts() {
+            const container = document.getElementById('aiDropdownDynamicItems');
+            if (!container || !currentClientId) return;
+
+            try {
+                const prompts = await window.ClientPromptAPI.listTopLevelAiPrompts(currentClientId);
+                container.innerHTML = '';
+                if (prompts && prompts.length > 0) {
+                    // Add divider
+                    const divider = document.createElement('div');
+                    divider.className = 'ai-dropdown-divider';
+                    container.appendChild(divider);
+
+                    prompts.forEach(prompt => {
+                        const btn = document.createElement('button');
+                        btn.className = 'ai-dropdown-item';
+                        btn.textContent = prompt.name.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                        btn.onclick = () => handleAIDropdownOption('expert', prompt.id);
+                        container.appendChild(btn);
+                    });
+                }
+            } catch (error) {
+                console.error('[loadTopLevelAiPrompts] Failed to load prompts:', error);
+            }
         }
 
         function closeAIDropdown() {

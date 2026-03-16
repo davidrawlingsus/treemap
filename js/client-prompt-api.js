@@ -98,6 +98,38 @@
             }
         },
 
+        /**
+         * Get prompts flagged for the top-level AI button dropdown
+         * @param {string} clientId - Client ID (UUID)
+         * @returns {Promise<Array>} Array of prompts with id and name
+         */
+        async listTopLevelAiPrompts(clientId) {
+            try {
+                const endpoint = `${API_BASE_URL}/api/clients/${clientId}/prompts/top-level-ai`;
+                const response = await fetch(endpoint, {
+                    method: 'GET',
+                    headers: getAuthHeaders()
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ detail: response.statusText }));
+                    if (response.status === 401 || response.status === 403) {
+                        throw new Error('Authentication required');
+                    }
+                    throw new Error(errorData.detail || `Request failed with status ${response.status}`);
+                }
+
+                return await response.json();
+            } catch (error) {
+                console.error('[CLIENT_PROMPT_API] listTopLevelAiPrompts() error', {
+                    clientId,
+                    error: error.message || String(error),
+                    timestamp: new Date().toISOString()
+                });
+                throw error;
+            }
+        },
+
         async listLeadContentPrompts() {
             try {
                 const promptsEndpoint = `${API_BASE_URL}/api/founder/prompts?status=live&prompt_purpose=lead-content`;

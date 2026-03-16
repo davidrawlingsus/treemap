@@ -19,6 +19,7 @@ class PromptCreate(BaseModel):
     client_facing: Optional[bool] = Field(default=False, description="Whether prompt appears in AI Expert menu")
     all_clients: Optional[bool] = Field(default=False, description="If True, prompt is available to all clients (ignores client_ids)")
     client_ids: Optional[List[UUID]] = Field(default=[], description="List of client IDs this prompt is available to (only used if all_clients=False)")
+    top_level_ai_dropdown: Optional[bool] = Field(default=False, description="Whether prompt appears in the top-level AI button dropdown")
     context_menu_group_id: Optional[UUID] = Field(None, description="Top-level context menu group this prompt appears under")
     llm_model: str = Field(default="gpt-4o-mini", description="LLM model identifier")
 
@@ -35,6 +36,7 @@ class PromptUpdate(BaseModel):
     client_facing: Optional[bool] = None
     all_clients: Optional[bool] = None
     client_ids: Optional[List[UUID]] = None
+    top_level_ai_dropdown: Optional[bool] = None
     context_menu_group_id: Optional[UUID] = None
     llm_model: Optional[str] = None
 
@@ -52,6 +54,7 @@ class PromptResponse(BaseModel):
     client_facing: bool
     all_clients: bool
     client_ids: List[UUID] = Field(default_factory=list)
+    top_level_ai_dropdown: bool = False
     context_menu_group_id: Optional[UUID] = None
     llm_model: str
     created_at: datetime

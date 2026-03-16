@@ -342,10 +342,13 @@
                 if (prompt.client_facing && !prompt.all_clients && prompt.client_ids) {
                     this.setSelectedClients(prompt.client_ids);
                 }
+                if (this.elements.topLevelAiDropdownInput) {
+                    this.elements.topLevelAiDropdownInput.checked = prompt.top_level_ai_dropdown || false;
+                }
                 if (this.elements.contextMenuGroupInput) {
                     this.elements.contextMenuGroupInput.value = prompt.context_menu_group_id || '';
                 }
-                
+
                 // Show/hide groups based on client_facing and all_clients state
                 this.handleClientFacingToggle();
 
@@ -385,10 +388,17 @@
                 if (this.elements.promptMessageInput) this.elements.promptMessageInput.value = '';
                 if (this.elements.userMessageInput) this.elements.userMessageInput.value = '';
                 if (this.elements.helperPromptSelect) this.elements.helperPromptSelect.value = '';
+                if (this.elements.clientFacingInput) this.elements.clientFacingInput.checked = false;
+                if (this.elements.allClientsInput) this.elements.allClientsInput.checked = true;
+                if (this.elements.topLevelAiDropdownInput) this.elements.topLevelAiDropdownInput.checked = false;
+                if (this.elements.contextMenuGroupInput) this.elements.contextMenuGroupInput.value = '';
 
                 // Update UI based on prompt type (this will also load helper prompts)
                 await this.handlePromptTypeChange();
-                
+
+                // Reset client-facing visibility
+                this.handleClientFacingToggle();
+
                 // Populate client selection for new prompt (hidden by default)
                 await this.populateClientSelection();
 
@@ -596,6 +606,7 @@
             const helperPromptId = this.elements.helperPromptSelect?.value || '';
             const clientFacingValue = this.elements.clientFacingInput?.checked || false;
             const allClientsValue = this.elements.allClientsInput?.checked || false;
+            const topLevelAiDropdownValue = this.elements.topLevelAiDropdownInput?.checked || false;
             
             // Get selected client IDs from checkboxes (only if not all_clients)
             const clientIds = [];
@@ -651,6 +662,7 @@
                 client_facing: clientFacingValue,
                 all_clients: clientFacingValue ? allClientsValue : false,
                 client_ids: clientFacingValue && !allClientsValue ? clientIds : [],
+                top_level_ai_dropdown: clientFacingValue ? topLevelAiDropdownValue : false,
                 context_menu_group_id: contextMenuGroupId || undefined,
                 llm_model: llmModelValue,
             };
@@ -1040,11 +1052,16 @@
                 this.elements.allClientsGroup.style.display = isChecked ? 'block' : 'none';
             }
             
+            // Show/hide top level AI dropdown checkbox
+            if (this.elements.topLevelAiDropdownGroup) {
+                this.elements.topLevelAiDropdownGroup.style.display = isChecked ? 'block' : 'none';
+            }
+
             // Show/hide context menu group selector
             if (this.elements.contextMenuGroup) {
                 this.elements.contextMenuGroup.style.display = isChecked ? 'block' : 'none';
             }
-            
+
             // Hide client selection if client facing is unchecked
             if (!isChecked && this.elements.clientSelectionGroup) {
                 this.elements.clientSelectionGroup.style.display = 'none';
