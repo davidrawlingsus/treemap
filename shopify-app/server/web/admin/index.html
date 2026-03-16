@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="shopify-api-key" content="%SHOPIFY_API_KEY%" />
     <title>MapTheGap Surveys</title>
-    <link rel="stylesheet" href="/app/styles.css?v=20260316d" />
+    <link rel="stylesheet" href="/app/styles.css?v=20260316e" />
     <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
   </head>
   <body>
@@ -24,17 +24,7 @@
       <div id="view-list" class="view">
         <div class="page-wrap">
 
-          <div id="emptyState" class="empty-state" hidden>
-            <svg class="empty-state__icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              <rect x="12" y="8" width="40" height="48" rx="5" stroke="#8c9196" stroke-width="2"/>
-              <line x1="20" y1="22" x2="44" y2="22" stroke="#8c9196" stroke-width="2" stroke-linecap="round"/>
-              <line x1="20" y1="30" x2="44" y2="30" stroke="#8c9196" stroke-width="2" stroke-linecap="round"/>
-              <line x1="20" y1="38" x2="36" y2="38" stroke="#8c9196" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            <h2 class="empty-state__title">No surveys yet</h2>
-            <p class="empty-state__body">Create a post-purchase survey to collect feedback from customers after checkout.</p>
-            <button class="btn btn--primary" id="emptyCreateBtn">Create survey</button>
-          </div>
+          <div id="emptyState" class="onboarding-wrap" hidden></div>
 
           <div id="surveyGrid" class="survey-grid"></div>
 
@@ -282,6 +272,6 @@
     </div><!-- /#app -->
 
     <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-    <script type="module" src="/app/main.js?v=20260316d"></script>
+    <script type="module" src="/app/main.js?v=20260316e"></script>
   </body>
 </html>

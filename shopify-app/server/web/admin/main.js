@@ -149,8 +149,124 @@ function renderSurveyGrid() {
   grid.innerHTML = "";
   const noSurveys = !state.surveys.length;
   if (empty) empty.hidden = !noSurveys;
-  if (noSurveys) return;
+  if (noSurveys) { renderOnboarding(); return; }
   state.surveys.forEach(survey => grid.appendChild(buildSurveyCard(survey)));
+}
+
+function renderOnboarding() {
+  const container = el("emptyState");
+  if (!container) return;
+
+  const hero = state.templates.find(t => t.key === "what_almost_stopped");
+  const secondaries = state.templates.filter(t => t.key !== "what_almost_stopped");
+
+  const secondaryCardsHtml = secondaries.map(t => `
+    <div class="ob-card">
+      <div>
+        <p class="ob-card__name">${escHtml(t.name)}</p>
+        <p class="ob-card__desc">${escHtml(t.description || "")}</p>
+      </div>
+      <div class="ob-card__footer">
+        <button class="btn btn--secondary btn--sm" data-launch="${escAttr(t.key)}">Launch now</button>
+      </div>
+    </div>
+  `).join("");
+
+  container.innerHTML = `
+    <div class="onboarding">
+      <div>
+        <h2 class="onboarding__greeting">Find your quick wins 👋</h2>
+        <p class="onboarding__sub">Launch a post-purchase survey onto your thank-you page in one click — no code required.</p>
+      </div>
+
+      ${hero ? `
+      <div class="ob-hero">
+        <span class="ob-hero__tag">⚡ Recommended first survey</span>
+        <h3 class="ob-hero__name">The Magic Question</h3>
+        <p class="ob-hero__question">"What almost stopped you from buying today?"</p>
+        <p class="ob-hero__desc">The highest-signal question in post-purchase UX. Uncovers hidden objections so you can fix the real leaks in your funnel and lift conversions — often with a single insight.</p>
+        <div class="ob-hero__actions">
+          <button class="btn btn--primary" data-launch="${escAttr(hero.key)}">Launch now →</button>
+          <button class="btn btn--secondary" data-customise="${escAttr(hero.key)}">Customise first</button>
+        </div>
+      </div>` : ""}
+
+      <div>
+        <p class="onboarding__more-label">More quick starts</p>
+        <div class="ob-grid">
+          ${secondaryCardsHtml}
+          <div class="ob-card ob-card--blank">
+            <div>
+              <p class="ob-card__name">Build your own</p>
+              <p class="ob-card__desc">Start from scratch with a fully custom question set.</p>
+            </div>
+            <div class="ob-card__footer">
+              <button class="btn btn--secondary btn--sm" id="obBlankBtn">Start blank</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  container.querySelectorAll("[data-launch]").forEach(btn => {
+    btn.addEventListener("click", () => handleLaunchTemplate(btn.dataset.launch));
+  });
+  container.querySelectorAll("[data-customise]").forEach(btn => {
+    btn.addEventListener("click", () => handleCustomiseTemplate(btn.dataset.customise));
+  });
+  el("obBlankBtn")?.addEventListener("click", handleCreateSurvey);
+}
+
+async function handleLaunchTemplate(templateKey) {
+  const template = state.templates.find(t => t.key === templateKey);
+  if (!template) return;
+  try {
+    const surveyId = await createSurveyFromTemplate(template, templateKey);
+    await api(`/api/admin/surveys/${surveyId}/publish`, "POST", {});
+    await loadSurveys();
+    navigate("editor", surveyId);
+    showToast("Your survey is live!", "success");
+  } catch (err) {
+    showToast(err.message || "Could not launch survey.", "error");
+  }
+}
+
+async function handleCustomiseTemplate(templateKey) {
+  const template = state.templates.find(t => t.key === templateKey);
+  if (!template) return;
+  try {
+    const surveyId = await createSurveyFromTemplate(template, templateKey);
+    await loadSurveys();
+    navigate("editor", surveyId);
+  } catch (err) {
+    showToast(err.message || "Could not create survey.", "error");
+  }
+}
+
+async function createSurveyFromTemplate(template, templateKey) {
+  const questions = (template.questions ?? []).map((q, i) => ({
+    id: null,
+    question_key: q.question_key || `q${i + 1}`,
+    title: q.title || "",
+    answer_type: q.answer_type || "single_line_text",
+    is_required: Boolean(q.is_required),
+    options: q.options ?? [],
+    order_position: i,
+  }));
+  const created = await api("/api/admin/surveys", "POST", {
+    title: template.name,
+    status: "inactive",
+    description: template.description || "",
+    draft_version: {
+      template_key: templateKey,
+      starts_at: null, ends_at: null,
+      settings: {},
+      questions,
+      display_rules: [],
+    },
+  });
+  return created.survey.id;
 }
 
 function buildSurveyCard(survey) {
@@ -842,7 +958,6 @@ async function init() {
   el("ab-discard-btn")?.addEventListener("click", handleDiscard);
 
   // Create survey
-  el("emptyCreateBtn")?.addEventListener("click", handleCreateSurvey);
 
   // Back to list
   el("backBtn")?.addEventListener("click", () => navigate("list"));
