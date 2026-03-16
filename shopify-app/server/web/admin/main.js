@@ -543,7 +543,7 @@ async function refreshResponses() {
   }
 }
 
-function downloadResponses() {
+function downloadResponses(format) {
   const items = state.responses;
   if (!items.length) return;
 
@@ -582,7 +582,6 @@ function downloadResponses() {
   });
 
   const surveyName = (state.activeSurvey?.title || "responses").replace(/[^a-z0-9]/gi, "_").toLowerCase();
-  const format = el("downloadFormat")?.value || "csv";
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
   XLSX.utils.book_append_sheet(wb, ws, "Responses");
@@ -885,7 +884,23 @@ async function init() {
 
   // Refresh responses
   el("refreshResponsesBtn")?.addEventListener("click", refreshResponses);
-  el("downloadResponsesBtn")?.addEventListener("click", downloadResponses);
+
+  // Download dropdown toggle
+  el("downloadResponsesBtn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const menu = el("downloadMenu");
+    if (menu) menu.toggleAttribute("hidden");
+  });
+  el("downloadMenu")?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-format]");
+    if (!btn) return;
+    el("downloadMenu").setAttribute("hidden", "");
+    downloadResponses(btn.dataset.format);
+  });
+  // Close dropdown on outside click
+  document.addEventListener("click", () => {
+    el("downloadMenu")?.setAttribute("hidden", "");
+  });
 
   // Template select
   el("templateSelect")?.addEventListener("change", () => {
