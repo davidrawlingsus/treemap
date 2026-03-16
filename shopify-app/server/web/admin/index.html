@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="shopify-api-key" content="%SHOPIFY_API_KEY%" />
     <title>MapTheGap Surveys</title>
-    <link rel="stylesheet" href="/app/styles.css?v=20260316a" />
+    <link rel="stylesheet" href="/app/styles.css?v=20260316b" />
     <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
   </head>
   <body>
@@ -171,7 +171,16 @@
                 <div class="card">
                   <div class="card__section responses-header">
                     <span id="responseCount" class="text-muted">No responses yet</span>
-                    <button class="btn btn--secondary btn--sm" id="refreshResponsesBtn">Refresh</button>
+                    <div class="responses-header__actions">
+                      <button class="btn btn--secondary btn--sm" id="refreshResponsesBtn">Refresh</button>
+                      <div class="download-group" id="downloadGroup" hidden>
+                        <select class="field-select field-select--sm" id="downloadFormat">
+                          <option value="csv">CSV</option>
+                          <option value="xlsx">XLSX</option>
+                        </select>
+                        <button class="btn btn--secondary btn--sm" id="downloadResponsesBtn">Download</button>
+                      </div>
+                    </div>
                   </div>
                   <div id="responseList" class="response-list"></div>
                 </div>
@@ -270,6 +279,7 @@
 
     </div><!-- /#app -->
 
-    <script type="module" src="/app/main.js?v=20260316a"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script type="module" src="/app/main.js?v=20260316b"></script>
   </body>
 </html>

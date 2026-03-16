@@ -28,6 +28,7 @@ const state = {
   activeTab: "questions",
   previewStep: 0,
   previewDevice: "mobile",
+  responses: [],         // loaded response items for the active survey
 };
 
 function isDirty() {
@@ -534,10 +535,58 @@ async function refreshResponses() {
   if (!state.activeSurvey?.id) return;
   try {
     const payload = await api(`/api/admin/surveys/${state.activeSurvey.id}/responses`);
-    renderResponses(payload.items || []);
+    state.responses = payload.items || [];
+    renderResponses(state.responses);
+    el("downloadGroup")?.toggleAttribute("hidden", state.responses.length === 0);
   } catch (err) {
     showToast("Could not load responses.", "error");
   }
+}
+
+function downloadResponses() {
+  const items = state.responses;
+  if (!items.length) return;
+
+  // Collect all unique question keys in order (from loaded questions first, then any extras)
+  const questionKeys = (state.draft?.questions ?? []).map(q => q.question_key).filter(Boolean);
+  const seenKeys = new Set(questionKeys);
+  for (const row of items) {
+    for (const a of (row.answers || [])) {
+      if (a.question_key && !seenKeys.has(a.question_key)) {
+        questionKeys.push(a.question_key);
+        seenKeys.add(a.question_key);
+      }
+    }
+  }
+
+  // Map question_key → human label
+  const keyToLabel = {};
+  for (const q of (state.draft?.questions ?? [])) {
+    if (q.question_key) keyToLabel[q.question_key] = q.title || q.question_key;
+  }
+
+  const headers = ["ID", "Submitted At", "Order ID", "Customer Reference", ...questionKeys.map(k => keyToLabel[k] || k)];
+
+  const rows = items.map(row => {
+    const answerByKey = {};
+    for (const a of (row.answers || [])) {
+      if (a.question_key) answerByKey[a.question_key] = a.answer_text || String(a.answer_json?.answer ?? "");
+    }
+    return [
+      row.id,
+      row.submitted_at ? new Date(row.submitted_at).toISOString() : "",
+      row.shopify_order_id || "",
+      row.customer_reference || "",
+      ...questionKeys.map(k => answerByKey[k] ?? ""),
+    ];
+  });
+
+  const surveyName = (state.activeSurvey?.title || "responses").replace(/[^a-z0-9]/gi, "_").toLowerCase();
+  const format = el("downloadFormat")?.value || "csv";
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+  XLSX.utils.book_append_sheet(wb, ws, "Responses");
+  XLSX.writeFile(wb, `${surveyName}_responses.${format}`);
 }
 
 function renderResponses(items) {
@@ -836,6 +885,7 @@ async function init() {
 
   // Refresh responses
   el("refreshResponsesBtn")?.addEventListener("click", refreshResponses);
+  el("downloadResponsesBtn")?.addEventListener("click", downloadResponses);
 
   // Template select
   el("templateSelect")?.addEventListener("change", () => {
