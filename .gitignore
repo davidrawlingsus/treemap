@@ -11,3 +11,4 @@ frontend.log
 
 treemap.db
 *.db
+.vscode/
