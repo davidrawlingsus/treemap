@@ -1,7 +1,7 @@
 """add_top_level_ai_dropdown_to_prompts
 
 Revision ID: d4e7f1a2b3c5
-Revises: c9a3b99814ff
+Revises: 065
 Create Date: 2026-03-16
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = 'd4e7f1a2b3c5'
-down_revision = '064'
+down_revision = '065'
 branch_labels = None
 depends_on = None
 
