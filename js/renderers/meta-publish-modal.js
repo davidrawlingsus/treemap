@@ -536,6 +536,19 @@ function renderPublishState(adData, bulkCount = 0) {
                 <p class="meta-publish-modal__hint" id="leadFormHint" style="display: none;">No lead forms found for this page. Create forms in Meta Business Suite or Ads Manager.</p>
             </div>
             
+            <div class="meta-publish-modal__status-toggle">
+                <label class="meta-publish-modal__label">Initial Ad Status</label>
+                <div class="meta-publish-modal__toggle-row">
+                    <span class="meta-publish-modal__toggle-label meta-publish-modal__toggle-label--paused">Paused</span>
+                    <label class="meta-publish-modal__switch">
+                        <input type="checkbox" id="metaAdStatusToggle">
+                        <span class="meta-publish-modal__switch-slider"></span>
+                    </label>
+                    <span class="meta-publish-modal__toggle-label meta-publish-modal__toggle-label--live">Live</span>
+                </div>
+                <p class="meta-publish-modal__hint">Paused ads can be reviewed before going live in Ads Manager.</p>
+            </div>
+
             <div class="meta-publish-modal__actions">
                 <button class="meta-publish-modal__btn meta-publish-modal__btn--secondary" id="cancelPublishBtn">Cancel</button>
                 <button class="meta-publish-modal__btn meta-publish-modal__btn--primary" id="publishBtn" ${!isPublishConfigComplete() ? 'disabled' : ''}>
@@ -684,9 +697,27 @@ function attachFormListeners() {
         }
     });
     
+    // Ad status toggle
+    const statusToggle = container.querySelector('#metaAdStatusToggle');
+    statusToggle?.addEventListener('change', (e) => {
+        const pausedLabel = container.querySelector('.meta-publish-modal__toggle-label--paused');
+        const liveLabel = container.querySelector('.meta-publish-modal__toggle-label--live');
+        if (e.target.checked) {
+            pausedLabel.style.color = 'var(--muted, #718096)';
+            liveLabel.style.color = '#48bb78';
+            liveLabel.style.fontWeight = '600';
+            pausedLabel.style.fontWeight = '500';
+        } else {
+            pausedLabel.style.color = 'var(--text, #1a202c)';
+            liveLabel.style.color = 'var(--muted, #718096)';
+            liveLabel.style.fontWeight = '500';
+            pausedLabel.style.fontWeight = '500';
+        }
+    });
+
     // Cancel button
     container.querySelector('#cancelPublishBtn')?.addEventListener('click', hideMetaPublishModal);
-    
+
     // Publish button
     container.querySelector('#publishBtn')?.addEventListener('click', handlePublish);
 }
@@ -1017,6 +1048,8 @@ async function handlePublish() {
             }
             
             const leadFormId = isLeadContext() ? getSelectedLeadFormId() : null;
+            const statusToggle = container.querySelector('#metaAdStatusToggle');
+            const adStatus = statusToggle?.checked ? 'ACTIVE' : 'PAUSED';
             const result = await publishAdToMeta(
                 currentClientId,
                 adIds[i],
@@ -1024,7 +1057,7 @@ async function handlePublish() {
                 adAccountId,
                 pageId,
                 null,
-                'PAUSED',
+                adStatus,
                 leadFormId
             );
             
