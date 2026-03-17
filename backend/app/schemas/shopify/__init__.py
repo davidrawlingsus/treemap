@@ -237,6 +237,7 @@ class ShopifySurveyResponseIngestRequest(BaseModel):
     customer_reference: str | None = Field(default=None, max_length=255)
     answers: list[ShopifyResponseAnswerIn] = Field(default_factory=list)
     extension_context: dict[str, Any] | None = None
+    order_context: dict[str, Any] | None = None
     submitted_at: datetime
 
 
@@ -265,6 +266,7 @@ class ShopifySurveyResponseItem(BaseModel):
     customer_reference: str | None = None
     submitted_at: datetime
     answers: list[ShopifySurveyResponseAnswerItem] = Field(default_factory=list)
+    order_context: dict[str, Any] | None = None
 
 
 class ShopifySurveyResponseList(BaseModel):

@@ -80,6 +80,7 @@ export async function processSurveySubmission({
   normalizedPayload.shopify_order_id = enrichment.shopifyOrderId;
   normalizedPayload.order_gid = enrichment.orderGid;
   normalizedPayload.customer_reference = enrichment.customerReference;
+  normalizedPayload.order_context = enrichment.orderContext || null;
   normalizedPayload.extension_context = {
     ...(normalizedPayload.extension_context || {}),
     order_lookup_enriched: Boolean(enrichment.enriched),
@@ -105,6 +106,7 @@ export async function processSurveySubmission({
       customer_reference: normalizedPayload.customer_reference,
       answers: normalizedAnswerRows,
       extension_context: normalizedPayload.extension_context,
+      order_context: normalizedPayload.order_context,
       submitted_at: normalizedPayload.submitted_at,
     },
     timeoutMs: surveyForwardTimeoutMs,

@@ -165,6 +165,7 @@ class ShopifySurveyResponse(Base):
     customer_reference = Column(String(255), nullable=True)
     submitted_at = Column(DateTime(timezone=True), nullable=False)
     extension_context_json = Column(JSONB, nullable=True)
+    order_context_json = Column(JSONB, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False)
 
 

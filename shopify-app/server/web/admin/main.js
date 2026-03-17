@@ -702,19 +702,32 @@ function downloadResponses(format) {
     if (q.question_key) keyToLabel[q.question_key] = q.title || q.question_key;
   }
 
-  const headers = ["ID", "Submitted At", "Order ID", "Customer Reference", ...questionKeys.map(k => keyToLabel[k] || k)];
+  const ocHeaders = ["Order Name", "Order Total", "Currency", "Item Count", "Line Items", "Discount Codes", "Customer Email", "Customer Orders", "Customer LTV"];
+
+  const headers = ["ID", "Submitted At", "Order ID", "Customer Reference", ...questionKeys.map(k => keyToLabel[k] || k), ...ocHeaders];
 
   const rows = items.map(row => {
     const answerByKey = {};
     for (const a of (row.answers || [])) {
       if (a.question_key) answerByKey[a.question_key] = a.answer_text || String(a.answer_json?.answer ?? "");
     }
+    const oc = row.order_context || {};
+    const lineItemsText = (oc.line_items || []).map(i => `${i.title}${i.variant_title ? ` (${i.variant_title})` : ""} x${i.quantity}`).join("; ");
     return [
       row.id,
       row.submitted_at ? new Date(row.submitted_at).toISOString() : "",
       row.shopify_order_id || "",
       row.customer_reference || "",
       ...questionKeys.map(k => answerByKey[k] ?? ""),
+      oc.order_name || "",
+      oc.order_total != null ? oc.order_total : "",
+      oc.currency || "",
+      oc.item_count != null ? oc.item_count : "",
+      lineItemsText,
+      (oc.discount_codes || []).join(", "),
+      oc.customer_email || "",
+      oc.customer_order_count != null ? oc.customer_order_count : "",
+      oc.customer_total_spent != null ? oc.customer_total_spent : "",
     ];
   });
 
@@ -753,6 +766,27 @@ function renderResponses(items) {
       </div>`;
     }).join("");
 
+    const oc = row.order_context;
+    const orderHtml = oc ? (() => {
+      const currency = oc.currency || "";
+      const fmt = v => (v != null ? `${currency}${v}` : "-");
+      const items = (oc.line_items || []).map(li =>
+        `<span class="oc-item">${escHtml(li.quantity > 1 ? `${li.quantity}x ` : "")}${escHtml(li.title)}${li.variant ? ` (${escHtml(li.variant)})` : ""}</span>`
+      ).join("");
+      const discounts = oc.discount_codes?.length ? `<span class="oc-chip">${oc.discount_codes.map(escHtml).join(", ")}</span>` : "";
+      return `<div class="response-order">
+        <div class="oc-row">
+          <span class="oc-label">Order</span><span class="oc-val">${escHtml(oc.order_name || "-")}</span>
+          <span class="oc-label">Total</span><span class="oc-val">${fmt(oc.order_total)}</span>
+          <span class="oc-label">Items</span><span class="oc-val">${oc.item_count ?? "-"}</span>
+          ${oc.customer_order_count != null ? `<span class="oc-label">Customer orders</span><span class="oc-val">${oc.customer_order_count}</span>` : ""}
+          ${oc.customer_total_spent != null ? `<span class="oc-label">Customer LTV</span><span class="oc-val">${fmt(oc.customer_total_spent)}</span>` : ""}
+        </div>
+        ${items ? `<div class="oc-items">${items}</div>` : ""}
+        ${discounts ? `<div class="oc-discounts">${discounts}</div>` : ""}
+      </div>`;
+    })() : "";
+
     const div = document.createElement("div");
     div.className = "response-row";
     div.innerHTML = `
@@ -761,6 +795,7 @@ function renderResponses(items) {
         <span class="response-date">${new Date(row.submitted_at).toLocaleString()}</span>
       </div>
       ${answersHtml || '<div class="response-answer response-answer--empty">No answers recorded</div>'}
+      ${orderHtml}
     `;
     list.appendChild(div);
   });

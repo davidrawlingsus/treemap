@@ -416,6 +416,7 @@ def ingest_survey_response(
         customer_reference=payload.customer_reference,
         submitted_at=payload.submitted_at,
         extension_context_json=payload.extension_context,
+        order_context_json=payload.order_context,
     )
     db.add(response)
     db.flush()
@@ -485,6 +486,7 @@ def list_survey_responses(
                 shopify_order_id=row.shopify_order_id,
                 customer_reference=row.customer_reference,
                 submitted_at=row.submitted_at,
+                order_context=row.order_context_json,
                 answers=[
                     ShopifySurveyResponseAnswerItem(
                         id=answer.id,

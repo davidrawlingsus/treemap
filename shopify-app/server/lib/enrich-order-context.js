@@ -79,10 +79,32 @@ export async function enrichOrderContext({
     query OrderForSurveyIngest($id: ID!) {
       order(id: $id) {
         id
+        name
         legacyResourceId
         email
+        tags
+        discountCodes
+        createdAt
+        totalPriceSet { shopMoney { amount currencyCode } }
+        subtotalPriceSet { shopMoney { amount currencyCode } }
+        totalDiscountsSet { shopMoney { amount currencyCode } }
+        totalShippingPriceSet { shopMoney { amount currencyCode } }
         customer {
           email
+          ordersCount
+          totalSpentV2 { amount currencyCode }
+        }
+        lineItems(first: 20) {
+          edges {
+            node {
+              title
+              variantTitle
+              quantity
+              sku
+              vendor
+              originalTotalSet { shopMoney { amount currencyCode } }
+            }
+          }
         }
       }
     }
@@ -126,10 +148,38 @@ export async function enrichOrderContext({
 
     const legacyResourceId = String(orderNode.legacyResourceId || "").trim();
     const enrichedEmail = getGraphQLEmail(orderNode);
+
+    const lineItems = (orderNode.lineItems?.edges || []).map(({ node }) => ({
+      title: node.title || "",
+      variant: node.variantTitle || null,
+      quantity: node.quantity || 1,
+      price: node.originalTotalSet?.shopMoney?.amount || null,
+      currency: node.originalTotalSet?.shopMoney?.currencyCode || null,
+      sku: node.sku || null,
+      vendor: node.vendor || null,
+    }));
+
+    const orderContext = {
+      order_name: orderNode.name || null,
+      order_total: orderNode.totalPriceSet?.shopMoney?.amount || null,
+      order_subtotal: orderNode.subtotalPriceSet?.shopMoney?.amount || null,
+      order_discounts: orderNode.totalDiscountsSet?.shopMoney?.amount || null,
+      order_shipping: orderNode.totalShippingPriceSet?.shopMoney?.amount || null,
+      currency: orderNode.totalPriceSet?.shopMoney?.currencyCode || null,
+      discount_codes: orderNode.discountCodes || [],
+      tags: orderNode.tags || [],
+      item_count: lineItems.reduce((sum, item) => sum + item.quantity, 0),
+      line_items: lineItems,
+      customer_email: enrichedEmail || null,
+      customer_order_count: orderNode.customer?.ordersCount ?? null,
+      customer_total_spent: orderNode.customer?.totalSpentV2?.amount || null,
+    };
+
     return {
       orderGid: String(orderNode.id || resolvedOrderGid),
       shopifyOrderId: legacyResourceId || fallbackOrderId || parseLegacyResourceIdFromGid(resolvedOrderGid) || null,
       customerReference: enrichedEmail || fallbackCustomerReference,
+      orderContext,
       enriched: true,
     };
   } catch (_error) {
