@@ -23,7 +23,7 @@ const state = {
   templates: [],
   activeSurvey: null,
   draft: null,           // { questions: [], display_rules: [] }
-  savedSnapshot: null,   // JSON string — dirty check baseline
+  savedSnapshot: null,   // JSON string - dirty check baseline
   view: "list",
   activeTab: "questions",
   previewStep: 0,
@@ -176,7 +176,7 @@ function renderOnboarding() {
     <div class="onboarding">
       <div>
         <h2 class="onboarding__greeting">Find your quick wins 👋</h2>
-        <p class="onboarding__sub">Launch a post-purchase survey onto your thank-you page in one click — no code required.</p>
+        <p class="onboarding__sub">Launch a post-purchase survey onto your thank-you page in one click - no code required.</p>
       </div>
 
       ${hero ? (() => {
@@ -192,7 +192,7 @@ function renderOnboarding() {
             <span class="ob-hero__tag">⚡ Recommended first survey</span>
             <h3 class="ob-hero__name">The Magic Question</h3>
             <p class="ob-hero__question">"${escHtml(q?.title || "What almost stopped you from buying today?")}"</p>
-            <p class="ob-hero__desc">The highest-signal question in post-purchase UX. Uncovers hidden objections so you can fix the real leaks in your funnel — often with a single insight.</p>
+            <p class="ob-hero__desc">The highest-signal question in post-purchase UX. Uncovers hidden objections so you can fix the real leaks in your funnel - often with a single insight.</p>
             <div class="ob-hero__actions">
               <button class="btn btn--primary" data-launch="${escAttr(hero.key)}">Launch now →</button>
               <button class="btn btn--secondary" data-customise="${escAttr(hero.key)}">Customise first</button>
@@ -871,7 +871,7 @@ async function handlePublish() {
   }
 }
 
-// Shared unpublish+preserve — works from both the card (no state.draft) and the editor.
+// Shared unpublish+preserve - works from both the card (no state.draft) and the editor.
 // Fetches questions from the API before unpublishing so they are never lost.
 async function endSurvey(surveyId) {
   // Capture questions from the live version before we unpublish

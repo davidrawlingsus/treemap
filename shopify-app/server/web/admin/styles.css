@@ -795,7 +795,7 @@ body {
 }
 
 /* ─── CHECKOUT PAGE MOCK ─────────────────────────────────────────────────── */
-/* Flat page view — accurate to Shopify's actual thank-you page rendering */
+/* Flat page view - accurate to Shopify's actual thank-you page rendering */
 .checkout-mock {
   width: 100%;
   max-width: 460px;
@@ -808,7 +808,7 @@ body {
 }
 .checkout-mock.is-desktop { max-width: 680px; }
 
-/* Confirmation header — matches Shopify's blue circle check */
+/* Confirmation header - matches Shopify's blue circle check */
 .cko-header {
   padding: 24px 20px 20px;
   display: flex;
@@ -841,7 +841,7 @@ body {
   background: white;
 }
 
-/* Survey block — matches Shopify s-box border="base" */
+/* Survey block - matches Shopify s-box border="base" */
 .cko-survey-block {
   border: 1px solid #d1d5db;
   border-radius: 8px;
@@ -850,7 +850,7 @@ body {
 }
 .cko-survey-empty { font-size: 13px; color: #9ca3af; text-align: center; margin: 4px 0; }
 
-/* Survey internals — matches actual s-text / s-text-area / s-button output */
+/* Survey internals - matches actual s-text / s-text-area / s-button output */
 .cko-widget-title {
   font-size: 16px;
   font-weight: 700;
