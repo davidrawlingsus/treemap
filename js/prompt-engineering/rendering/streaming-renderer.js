@@ -210,8 +210,8 @@
             tempDiv.innerHTML = markdownHTML;
             
             // Handle regular idea cards, FB ad cards, email cards, AND skeleton loaders
-            const newCards = Array.from(tempDiv.querySelectorAll('.pe-idea-card, .pe-fb-ad-wrapper, .pe-email-wrapper, .pe-skeleton'));
-            const existingCards = Array.from(contentElement.querySelectorAll('.pe-idea-card, .pe-fb-ad-wrapper, .pe-email-wrapper, .pe-skeleton'));
+            const newCards = Array.from(tempDiv.querySelectorAll('.pe-idea-card, .pe-fb-ad-wrapper, .pe-email-wrapper, .pe-faq-wrapper, .pe-skeleton'));
+            const existingCards = Array.from(contentElement.querySelectorAll('.pe-idea-card, .pe-fb-ad-wrapper, .pe-email-wrapper, .pe-faq-wrapper, .pe-skeleton'));
             
             // Create signatures to compare cards by their IDs (if available) or by title/headline/subject
             const getCardSignature = (card) => {
@@ -219,6 +219,7 @@
                 if (card.classList.contains('pe-skeleton')) {
                     if (card.classList.contains('pe-skeleton--email')) return 'skeleton:email';
                     if (card.classList.contains('pe-skeleton--fb-ad')) return 'skeleton:fb-ad';
+                    if (card.classList.contains('pe-skeleton--faq')) return 'skeleton:faq';
                     if (card.classList.contains('pe-skeleton--idea')) return 'skeleton:idea';
                     return 'skeleton:generic';
                 }
@@ -231,6 +232,8 @@
                 // Check for email unique ID
                 const emailId = card.getAttribute('data-email-id');
                 if (emailId) return `email:${emailId}`;
+                // FAQ wrapper - use class as signature since there's one wrapper
+                if (card.classList.contains('pe-faq-wrapper')) return 'faq-wrapper';
                 // Fallback to title for regular idea cards
                 const title = card.querySelector('.pe-idea-card__title')?.textContent?.trim();
                 if (title) return `title:${title}`;

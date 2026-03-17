@@ -76,7 +76,11 @@
                     }
                 }
 
-                if (jsonData.ideas && Array.isArray(jsonData.ideas)) {
+                if (isFaqFormat(jsonData)) {
+                    // FAQ format - store as a special faqData block
+                    jsonBlocks.push({ content: null, faqData: jsonData, ideas: [] });
+                    replacements.push({ start: replStart, end: prevLastIndex, placeholder: jsonBlocks.length - 1 });
+                } else if (jsonData.ideas && Array.isArray(jsonData.ideas)) {
                     const ideas = jsonData.ideas;
                     ideas.forEach(maybeNormalizeFbAd);
                     if (vocFromPreceding.length > 0 && ideas.length > 0) {
@@ -399,15 +403,22 @@
         // Restore JSON block placeholders with the actual idea card HTML
         jsonBlocks.forEach((htmlObject, index) => {
             let ideaCardsHTML = '';
-            
+
+            // Handle FAQ format
+            if (htmlObject.faqData) {
+                ideaCardsHTML = generateFaqCardsHTML(htmlObject.faqData);
+                html = html.replace(`___JSON_BLOCK_${index}___`, ideaCardsHTML);
+                return;
+            }
+
             // Add content section if present
             if (htmlObject.content) {
                 ideaCardsHTML += `<div style="margin-bottom: 20px; padding: 8px 10px; background: #f0f4f8; border-left: 4px solid #B9F040; border-radius: 4px;"><p style="margin: 0; font-size: 16px; line-height: 1.4; color: #2d3748; font-weight: 500;">${DOM.escapeHtml(htmlObject.content)}</p></div>`;
             }
-            
+
             // Generate idea cards from the ideas array
             ideaCardsHTML += htmlObject.ideas.map(idea => generateIdeaCardHTML(idea)).join('');
-            
+
             html = html.replace(`___JSON_BLOCK_${index}___`, ideaCardsHTML);
         });
         
@@ -478,8 +489,14 @@
     function detectAndGenerateSkeleton(content) {
         const lowerContent = content.toLowerCase();
         
+        // Check for FAQ indicators
+        if (lowerContent.includes('"faqs"') &&
+            (lowerContent.includes('"question"') || lowerContent.includes('"answer"'))) {
+            return generateFaqSkeleton();
+        }
+
         // Check for email indicators
-        if (lowerContent.includes('"subject_line"') || 
+        if (lowerContent.includes('"subject_line"') ||
             lowerContent.includes('"email_id"') ||
             lowerContent.includes('"body_text"') ||
             lowerContent.includes('"send_delay')) {
@@ -529,6 +546,15 @@
     }
 
     /**
+     * Generate skeleton loader HTML for FAQ cards
+     * @returns {string} Skeleton HTML
+     */
+    function generateFaqSkeleton() {
+        const card = `<div class="pe-skeleton pe-skeleton--faq-card"><div class="pe-skeleton__line pe-skeleton__line--medium" style="height:18px;margin-bottom:12px;"></div><div class="pe-skeleton__line"></div><div class="pe-skeleton__line"></div><div class="pe-skeleton__line pe-skeleton__line--short"></div></div>`;
+        return `<div class="pe-skeleton pe-skeleton--faq">${card}${card}${card}</div>`;
+    }
+
+    /**
      * Check if the idea object is a Facebook ad format
      * @param {Object} idea - Idea data object
      * @returns {boolean} True if Facebook ad format
@@ -544,6 +570,15 @@
      */
     function isEmailFormat(idea) {
         return !!(idea.subject_line && idea.body_text && (idea.cta_text || idea.cta_url));
+    }
+
+    /**
+     * Check if the data object is a FAQ format
+     * @param {Object} data - Parsed JSON data
+     * @returns {boolean} True if FAQ format
+     */
+    function isFaqFormat(data) {
+        return !!(data.faqs && Array.isArray(data.faqs) && data.faqs.length > 0 && data.faqs[0].question);
     }
 
     /**
@@ -740,6 +775,45 @@
     }
 
     /**
+     * Generate HTML for FAQ cards from JSON data containing a faqs array
+     * @param {Object} data - Object with faqs array
+     * @returns {string} HTML string for all FAQ cards
+     */
+    function generateFaqCardsHTML(data) {
+        const faqs = data.faqs || [];
+        if (faqs.length === 0) return '';
+
+        const cards = faqs.map((faq, idx) => {
+            const question = DOM.escapeHtml(faq.question || '');
+            const answer = DOM.escapeHtml(faq.answer || '').replace(/\\n|\n/g, '<br>');
+            const objectionType = DOM.escapeHtml(faq.objection_type || '');
+            const intentStage = DOM.escapeHtml(faq.customer_intent_stage || '');
+            const confidenceJob = DOM.escapeHtml(faq.confidence_job || '');
+            const vocReference = DOM.escapeHtml(faq.voc_reference || '');
+
+            // Build metadata pills
+            const pills = [];
+            if (objectionType) pills.push(`<span class="pe-faq-card__pill">${objectionType}</span>`);
+            if (intentStage) pills.push(`<span class="pe-faq-card__pill pe-faq-card__pill--intent">${intentStage}</span>`);
+
+            const pillsHTML = pills.length > 0 ? `<div class="pe-faq-card__pills">${pills.join('')}</div>` : '';
+
+            // Build metadata rows
+            let metaHTML = '';
+            if (confidenceJob) {
+                metaHTML += `<div class="pe-faq-card__meta-row"><span class="pe-faq-card__meta-label">Confidence Job:</span><span class="pe-faq-card__meta-value">${confidenceJob}</span></div>`;
+            }
+            if (vocReference) {
+                metaHTML += `<div class="pe-faq-card__meta-row"><span class="pe-faq-card__meta-label">VoC Reference:</span><span class="pe-faq-card__meta-value pe-faq-card__meta-value--voc">"${vocReference}"</span></div>`;
+            }
+
+            return `<div class="pe-faq-card" data-faq-index="${idx}">${pillsHTML}<div class="pe-faq-card__question">${question}</div><div class="pe-faq-card__answer">${answer}</div>${metaHTML ? `<div class="pe-faq-card__meta">${metaHTML}</div>` : ''}</div>`;
+        });
+
+        return `<div class="pe-faq-wrapper">${cards.join('')}</div>`;
+    }
+
+    /**
      * Generate HTML for an idea card from JSON data
      * @param {Object} idea - Idea data object
      * @returns {string} HTML string for idea card
@@ -822,8 +896,10 @@
         generateIdeaCardHTML,
         generateFBAdCardHTML,
         generateEmailCardHTML,
+        generateFaqCardsHTML,
         isFacebookAdFormat,
         isEmailFormat,
+        isFaqFormat,
         initFBAdInteractions
     };
 })();
