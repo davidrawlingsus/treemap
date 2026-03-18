@@ -4824,6 +4824,99 @@
             return allVerbatims;
         }
 
+        /**
+         * Stratified sampling of verbatims to stay within a token budget.
+         * Samples proportionally from each topic so the distribution across
+         * categories and topics is preserved. If the data is already under
+         * budget, returns everything unchanged.
+         *
+         * @param {number} maxTokenBudget - Target max tokens for the VOC JSON payload (default 700000)
+         * @returns {{ verbatims: Array, sampling_metadata: Object|null }}
+         */
+        function sampleVerbatimsForTokenBudget(maxTokenBudget = 700000) {
+            if (!hierarchyData || !hierarchyData.children) {
+                return { verbatims: [], sampling_metadata: null };
+            }
+
+            // Collect verbatims grouped by category → topic, preserving structure
+            const topicBuckets = []; // { category, topic, verbatims[] }
+            let totalVerbatimCount = 0;
+
+            hierarchyData.children.forEach(category => {
+                if (!category || !category.children) return;
+                category.children.forEach(topic => {
+                    if (!topic || !topic.verbatims || !Array.isArray(topic.verbatims)) return;
+                    const clean = topic.verbatims
+                        .filter(v => v && v.text)
+                        .map(v => ({
+                            text: v.text,
+                            id: v.row_id !== undefined ? v.row_id : (v.index !== undefined ? v.index : null)
+                        }));
+                    if (clean.length > 0) {
+                        topicBuckets.push({
+                            category: category.name,
+                            topic: topic.name,
+                            verbatims: clean
+                        });
+                        totalVerbatimCount += clean.length;
+                    }
+                });
+            });
+
+            // Build flat list of all verbatims
+            const allVerbatims = topicBuckets.flatMap(b => b.verbatims);
+
+            // Estimate token count: ~4 chars per token, plus JSON overhead per verbatim (~30 chars for keys/formatting)
+            const estimateTokens = (verbatimList) => {
+                let chars = 0;
+                verbatimList.forEach(v => {
+                    chars += (v.text ? v.text.length : 0) + 30;
+                });
+                return Math.ceil(chars / 4);
+            };
+
+            const estimatedTokens = estimateTokens(allVerbatims);
+            console.log(`[sampleVerbatims] Total verbatims: ${totalVerbatimCount}, estimated tokens: ${estimatedTokens}, budget: ${maxTokenBudget}`);
+
+            // If within budget, return everything — no sampling needed
+            if (estimatedTokens <= maxTokenBudget) {
+                return { verbatims: allVerbatims, sampling_metadata: null };
+            }
+
+            // Calculate sampling ratio
+            const samplingRatio = maxTokenBudget / estimatedTokens;
+            console.log(`[sampleVerbatims] Over budget — sampling at ratio ${samplingRatio.toFixed(3)}`);
+
+            // Stratified sample: from each topic bucket, take proportional share
+            // Ensure at least 1 verbatim per topic to maintain representation
+            const sampled = [];
+            topicBuckets.forEach(bucket => {
+                const targetCount = Math.max(1, Math.round(bucket.verbatims.length * samplingRatio));
+                if (targetCount >= bucket.verbatims.length) {
+                    sampled.push(...bucket.verbatims);
+                } else {
+                    // Deterministic spread sample: pick evenly spaced indices
+                    const step = bucket.verbatims.length / targetCount;
+                    for (let i = 0; i < targetCount; i++) {
+                        sampled.push(bucket.verbatims[Math.floor(i * step)]);
+                    }
+                }
+            });
+
+            const sampledTokens = estimateTokens(sampled);
+            console.log(`[sampleVerbatims] Sampled ${sampled.length}/${totalVerbatimCount} verbatims, estimated tokens: ${sampledTokens}`);
+
+            return {
+                verbatims: sampled,
+                sampling_metadata: {
+                    total_verbatim_count: totalVerbatimCount,
+                    sampled_verbatim_count: sampled.length,
+                    sampling_ratio: Math.round(samplingRatio * 1000) / 1000,
+                    note: 'This is a proportionally stratified sample of the full dataset. Each topic is represented proportionally to its share of the overall data.'
+                }
+            };
+        }
+
         function getCurrentQuestionTextForOverview() {
             let questionText = null;
             if (currentQuestionRefKey) {
@@ -12005,17 +12098,23 @@
                         alert('No visualization data available. Please load data first.');
                         return;
                     }
-                    
-                    // Build aggregated summary and extract all verbatims
-                    cleanVerbatims = extractVerbatimsFromAggregatedSummary();
+
+                    // Build aggregated summary with stratified sampling to stay within token limits
+                    const sampled = sampleVerbatimsForTokenBudget(700000);
+                    cleanVerbatims = sampled.verbatims;
                     if (cleanVerbatims.length === 0) {
                         alert('No verbatims available in the aggregated data.');
                         return;
                     }
-                    
+
                     // Wrap in object to satisfy backend schema (voc_data must be a dict, not array)
                     vocDataForAPI = { verbatims: cleanVerbatims };
-                    
+
+                    // Include sampling metadata so the LLM knows it's working with a representative sample
+                    if (sampled.sampling_metadata) {
+                        vocDataForAPI.sampling_metadata = sampled.sampling_metadata;
+                    }
+
                     // Store cleaned vocData for later use when saving insight
                     this.currentVocData = cleanVerbatims;
                 } else {
@@ -12034,10 +12133,35 @@
                     
                     // Extract clean verbatims (text and id only) for use in system prompts
                     cleanVerbatims = extractCleanVerbatims(fullData);
-                    
+
+                    // Safety cap: if context-specific data still exceeds token budget, sample it
+                    const contextEstTokens = cleanVerbatims.reduce((sum, v) => sum + ((v.text ? v.text.length : 0) + 30), 0) / 4;
+                    let contextSamplingMeta = null;
+                    if (contextEstTokens > 700000) {
+                        const ratio = 700000 / contextEstTokens;
+                        const targetCount = Math.max(1, Math.round(cleanVerbatims.length * ratio));
+                        const totalCount = cleanVerbatims.length;
+                        const step = cleanVerbatims.length / targetCount;
+                        const sampledArr = [];
+                        for (let i = 0; i < targetCount; i++) {
+                            sampledArr.push(cleanVerbatims[Math.floor(i * step)]);
+                        }
+                        cleanVerbatims = sampledArr;
+                        contextSamplingMeta = {
+                            total_verbatim_count: totalCount,
+                            sampled_verbatim_count: sampledArr.length,
+                            sampling_ratio: Math.round(ratio * 1000) / 1000,
+                            note: 'This is an evenly-spaced sample of the context data to stay within token limits.'
+                        };
+                        console.log(`[openAIExpertInsight] Context data over budget — sampled ${sampledArr.length}/${totalCount} verbatims`);
+                    }
+
                     // Wrap in object to satisfy backend schema (voc_data must be a dict, not array)
                     vocDataForAPI = { verbatims: cleanVerbatims };
-                    
+                    if (contextSamplingMeta) {
+                        vocDataForAPI.sampling_metadata = contextSamplingMeta;
+                    }
+
                     // Store cleaned vocData for later use when saving insight
                     this.currentVocData = cleanVerbatims;
                 }
