@@ -649,6 +649,47 @@
             window.MarkdownConverter.initFBAdInteractions(container);
         }
         
+        // FAQ card copy button — event delegation
+        container.addEventListener('click', async (e) => {
+            const copyBtn = e.target.closest('.pe-faq-card__copy');
+            if (!copyBtn) return;
+            e.stopPropagation();
+
+            const card = copyBtn.closest('.pe-faq-card');
+            if (!card) return;
+
+            // Build plain-text representation of the card
+            const parts = [];
+            const pills = card.querySelectorAll('.pe-faq-card__pill');
+            if (pills.length) {
+                parts.push(Array.from(pills).map(p => p.textContent.trim()).join(' | '));
+            }
+            const q = card.querySelector('.pe-faq-card__question');
+            if (q) parts.push('Q: ' + q.textContent.trim());
+            const a = card.querySelector('.pe-faq-card__answer');
+            if (a) parts.push('A: ' + a.textContent.trim());
+            card.querySelectorAll('.pe-faq-card__meta-row').forEach(row => {
+                const label = row.querySelector('.pe-faq-card__meta-label');
+                const value = row.querySelector('.pe-faq-card__meta-value');
+                if (label && value) parts.push(label.textContent.trim() + ' ' + value.textContent.trim());
+            });
+
+            try {
+                await navigator.clipboard.writeText(parts.join('\n'));
+                // Brief visual feedback
+                const img = copyBtn.querySelector('img');
+                const origTitle = copyBtn.title;
+                copyBtn.title = 'Copied!';
+                copyBtn.style.borderColor = 'var(--brand-color, #6366f1)';
+                setTimeout(() => {
+                    copyBtn.title = origTitle;
+                    copyBtn.style.borderColor = '';
+                }, 1200);
+            } catch (err) {
+                console.error('[FAQ_COPY] Failed to copy:', err);
+            }
+        });
+
         // Use event delegation to handle dynamically added idea cards
         // Handles .pe-idea-card__add (regular idea cards), .pe-fb-ad-wrapper__add (FB ad cards), and .pe-email-mockup__add (email cards)
         container.addEventListener('click', async (e) => {
