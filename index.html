@@ -4706,14 +4706,21 @@
             }
         }
 
-        // Helper function to collect all verbatims from all topics in a category
+        // Helper function to collect all verbatims from all topics in a category (deduplicated)
         function collectCategoryVerbatims(categoryData) {
             if (!categoryData) return [];
+            const seen = new Set();
             const allVerbatims = [];
             if (categoryData.children && Array.isArray(categoryData.children)) {
                 categoryData.children.forEach(topic => {
                     if (topic && topic.verbatims && Array.isArray(topic.verbatims)) {
-                        allVerbatims.push(...topic.verbatims);
+                        topic.verbatims.forEach(v => {
+                            const key = v.row_id ?? v.index ?? v.text;
+                            if (!seen.has(key)) {
+                                seen.add(key);
+                                allVerbatims.push(v);
+                            }
+                        });
                     }
                 });
             }
@@ -4723,12 +4730,21 @@
         // Helper function to collect all verbatims from the entire dimension
         function collectAllDimensionVerbatims() {
             if (!hierarchyData || !hierarchyData.children) return [];
+            // Deduplicate: the same verbatim appears under every topic it's tagged with
+            // in the hierarchy, so collecting across all topics produces duplicates.
+            const seen = new Set();
             const allVerbatims = [];
             hierarchyData.children.forEach(category => {
                 if (category && category.children && Array.isArray(category.children)) {
                     category.children.forEach(topic => {
                         if (topic && topic.verbatims && Array.isArray(topic.verbatims)) {
-                            allVerbatims.push(...topic.verbatims);
+                            topic.verbatims.forEach(v => {
+                                const key = v.row_id ?? v.index ?? v.text;
+                                if (!seen.has(key)) {
+                                    seen.add(key);
+                                    allVerbatims.push(v);
+                                }
+                            });
                         }
                     });
                 }
@@ -4776,31 +4792,47 @@
                 return verbatims;
             }
             
-            // Extract all verbatims
+            // Extract all verbatims and deduplicate (same verbatim appears under every topic it's tagged with)
             const allVerbatims = extractAllVerbatims(data);
-            
-            // Create clean array with only text and id
+            const seen = new Set();
+
+            // Create clean array with text, id, and date/score metadata when available
             const cleanVerbatims = allVerbatims.map(v => {
                 // Use row_id if available, otherwise use index, otherwise null
                 const uniqueId = v.row_id !== undefined ? v.row_id : (v.index !== undefined ? v.index : null);
-                
-                return {
+
+                const item = {
                     text: v.text || '',
                     id: uniqueId
                 };
-            }).filter(v => v.text); // Remove any verbatims without text
+                // Include feedback date if available
+                const feedbackDate = v.reviewDate || v.reviewDateOfExperience
+                    || v.date || v.submit_date || v.publishedAt || null;
+                if (feedbackDate) item.date = feedbackDate;
+                // Include score/rating if available
+                const score = v.reviewRatingScore ?? v.rating ?? v.score ?? null;
+                if (score != null) item.score = score;
+                return item;
+            }).filter(v => {
+                if (!v.text) return false;
+                const key = v.id ?? v.text;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
             
             return cleanVerbatims;
         }
 
-        // Helper function to extract all verbatims from aggregated summary (hierarchyData)
+        // Helper function to extract all verbatims from aggregated summary (hierarchyData), deduplicated
         function extractVerbatimsFromAggregatedSummary() {
             if (!hierarchyData || !hierarchyData.children) {
                 return [];
             }
-            
+
+            const seen = new Set();
             const allVerbatims = [];
-            
+
             // Iterate through all categories and topics to collect all verbatims
             hierarchyData.children.forEach(category => {
                 if (category && category.children && Array.isArray(category.children)) {
@@ -4809,7 +4841,9 @@
                             topic.verbatims.forEach(verbatim => {
                                 // Extract clean verbatim with text and id
                                 const uniqueId = verbatim.row_id !== undefined ? verbatim.row_id : (verbatim.index !== undefined ? verbatim.index : null);
-                                if (verbatim.text) {
+                                const dedupeKey = uniqueId ?? verbatim.text;
+                                if (verbatim.text && !seen.has(dedupeKey)) {
+                                    seen.add(dedupeKey);
                                     allVerbatims.push({
                                         text: verbatim.text,
                                         id: uniqueId
@@ -4848,10 +4882,20 @@
                     if (!topic || !topic.verbatims || !Array.isArray(topic.verbatims)) return;
                     const clean = topic.verbatims
                         .filter(v => v && v.text)
-                        .map(v => ({
-                            text: v.text,
-                            id: v.row_id !== undefined ? v.row_id : (v.index !== undefined ? v.index : null)
-                        }));
+                        .map(v => {
+                            const item = {
+                                text: v.text,
+                                id: v.row_id !== undefined ? v.row_id : (v.index !== undefined ? v.index : null)
+                            };
+                            // Include feedback date if available
+                            const feedbackDate = v.reviewDate || v.reviewDateOfExperience
+                                || v.date || v.submit_date || v.publishedAt || null;
+                            if (feedbackDate) item.date = feedbackDate;
+                            // Include score/rating if available
+                            const score = v.reviewRatingScore ?? v.rating ?? v.score ?? null;
+                            if (score != null) item.score = score;
+                            return item;
+                        });
                     if (clean.length > 0) {
                         topicBuckets.push({
                             category: category.name,
@@ -4863,20 +4907,52 @@
                 });
             });
 
-            // Build flat list of all verbatims
-            const allVerbatims = topicBuckets.flatMap(b => b.verbatims);
+            // Deduplicate across topic buckets: the same verbatim appears under every
+            // topic it's tagged with, so the flat union contains duplicates.
+            const seenIds = new Set();
+            const dedup = (list) => {
+                const unique = [];
+                list.forEach(v => {
+                    const key = v.id ?? v.text;
+                    if (!seenIds.has(key)) {
+                        seenIds.add(key);
+                        unique.push(v);
+                    }
+                });
+                return unique;
+            };
 
-            // Estimate token count: ~4 chars per token, plus JSON overhead per verbatim (~30 chars for keys/formatting)
+            // Deduplicate within each bucket first so counts are accurate
+            topicBuckets.forEach(bucket => {
+                const bucketSeen = new Set();
+                bucket.verbatims = bucket.verbatims.filter(v => {
+                    const key = v.id ?? v.text;
+                    if (bucketSeen.has(key)) return false;
+                    bucketSeen.add(key);
+                    return true;
+                });
+            });
+
+            // Rebuild total after per-bucket dedup
+            // (within a single topic bucket there shouldn't be dupes, but safety first)
+            totalVerbatimCount = topicBuckets.reduce((sum, b) => sum + b.verbatims.length, 0);
+
+            // Build deduplicated flat list of all verbatims across all buckets
+            seenIds.clear();
+            const allVerbatims = dedup(topicBuckets.flatMap(b => b.verbatims));
+
+            // Estimate token count: ~4 chars per token, plus JSON overhead per verbatim (~70 chars for keys/formatting incl. date & score)
             const estimateTokens = (verbatimList) => {
                 let chars = 0;
                 verbatimList.forEach(v => {
-                    chars += (v.text ? v.text.length : 0) + 30;
+                    chars += (v.text ? v.text.length : 0) + 70;
                 });
                 return Math.ceil(chars / 4);
             };
 
+            const uniqueCount = allVerbatims.length;
             const estimatedTokens = estimateTokens(allVerbatims);
-            console.log(`[sampleVerbatims] Total verbatims: ${totalVerbatimCount}, estimated tokens: ${estimatedTokens}, budget: ${maxTokenBudget}`);
+            console.log(`[sampleVerbatims] Unique verbatims: ${uniqueCount} (from ${totalVerbatimCount} topic instances), estimated tokens: ${estimatedTokens}, budget: ${maxTokenBudget}`);
 
             // If within budget, return everything — no sampling needed
             if (estimatedTokens <= maxTokenBudget) {
@@ -4889,27 +4965,43 @@
 
             // Stratified sample: from each topic bucket, take proportional share
             // Ensure at least 1 verbatim per topic to maintain representation
+            // Use global dedup to avoid including the same verbatim from multiple buckets
+            seenIds.clear();
             const sampled = [];
             topicBuckets.forEach(bucket => {
                 const targetCount = Math.max(1, Math.round(bucket.verbatims.length * samplingRatio));
+                let added = 0;
                 if (targetCount >= bucket.verbatims.length) {
-                    sampled.push(...bucket.verbatims);
+                    bucket.verbatims.forEach(v => {
+                        const key = v.id ?? v.text;
+                        if (!seenIds.has(key)) {
+                            seenIds.add(key);
+                            sampled.push(v);
+                            added++;
+                        }
+                    });
                 } else {
                     // Deterministic spread sample: pick evenly spaced indices
                     const step = bucket.verbatims.length / targetCount;
                     for (let i = 0; i < targetCount; i++) {
-                        sampled.push(bucket.verbatims[Math.floor(i * step)]);
+                        const v = bucket.verbatims[Math.floor(i * step)];
+                        const key = v.id ?? v.text;
+                        if (!seenIds.has(key)) {
+                            seenIds.add(key);
+                            sampled.push(v);
+                            added++;
+                        }
                     }
                 }
             });
 
             const sampledTokens = estimateTokens(sampled);
-            console.log(`[sampleVerbatims] Sampled ${sampled.length}/${totalVerbatimCount} verbatims, estimated tokens: ${sampledTokens}`);
+            console.log(`[sampleVerbatims] Sampled ${sampled.length}/${uniqueCount} unique verbatims, estimated tokens: ${sampledTokens}`);
 
             return {
                 verbatims: sampled,
                 sampling_metadata: {
-                    total_verbatim_count: totalVerbatimCount,
+                    total_verbatim_count: uniqueCount,
                     sampled_verbatim_count: sampled.length,
                     sampling_ratio: Math.round(samplingRatio * 1000) / 1000,
                     note: 'This is a proportionally stratified sample of the full dataset. Each topic is represented proportionally to its share of the overall data.'
@@ -4943,6 +5035,8 @@
 
             const categoryTotals = new Map();
             let totalTopicCount = 0;
+            // Count unique responses (each review counted once regardless of how many topics it has)
+            const uniqueRespondentIds = new Set();
 
             hierarchyData.children.forEach(category => {
                 let categoryCount = 0;
@@ -4950,6 +5044,11 @@
                     const topicCount = Number(topic.value ?? topic.verbatims?.length ?? 0);
                     categoryCount += topicCount;
                     totalTopicCount += topicCount;
+                    // Track unique respondents
+                    (topic.verbatims || []).forEach(v => {
+                        const key = v.row_id ?? v.index ?? v.text;
+                        uniqueRespondentIds.add(key);
+                    });
                 });
                 categoryTotals.set(category.name, categoryCount);
             });
@@ -4964,10 +5063,21 @@
                 const topics = (category.children || []).map(topic => {
                     const topicCount = Number(topic.value ?? topic.verbatims?.length ?? 0);
                     const verbatims = (topic.verbatims || [])
-                        .map(verbatim => ({
-                            id: verbatim.row_id ?? verbatim.index ?? null,
-                            text: verbatim.text || ''
-                        }))
+                        .map(verbatim => {
+                            const v = {
+                                id: verbatim.row_id ?? verbatim.index ?? null,
+                                text: verbatim.text || ''
+                            };
+                            // Include feedback date if available (review date, submit date, etc.)
+                            const feedbackDate = verbatim.reviewDate || verbatim.reviewDateOfExperience
+                                || verbatim.date || verbatim.submit_date || verbatim.publishedAt || null;
+                            if (feedbackDate) v.date = feedbackDate;
+                            // Include score/rating if available
+                            const score = verbatim.reviewRatingScore ?? verbatim.rating
+                                ?? verbatim.score ?? null;
+                            if (score != null) v.score = score;
+                            return v;
+                        })
                         .filter(verbatim => verbatim.text);
 
                     const topVerbatims = verbatims
@@ -4992,6 +5102,7 @@
 
             return {
                 question: getCurrentQuestionTextForOverview(),
+                total_responses: uniqueRespondentIds.size,
                 total_topic_count: totalTopicCount,
                 categories
             };
@@ -12131,11 +12242,11 @@
                         return;
                     }
                     
-                    // Extract clean verbatims (text and id only) for use in system prompts
+                    // Extract clean verbatims (text, id, date, score) for use in system prompts
                     cleanVerbatims = extractCleanVerbatims(fullData);
 
                     // Safety cap: if context-specific data still exceeds token budget, sample it
-                    const contextEstTokens = cleanVerbatims.reduce((sum, v) => sum + ((v.text ? v.text.length : 0) + 30), 0) / 4;
+                    const contextEstTokens = cleanVerbatims.reduce((sum, v) => sum + ((v.text ? v.text.length : 0) + 70), 0) / 4;
                     let contextSamplingMeta = null;
                     if (contextEstTokens > 700000) {
                         const ratio = 700000 / contextEstTokens;

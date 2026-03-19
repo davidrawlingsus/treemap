@@ -342,9 +342,15 @@ export function renderBarChart(options = {}) {
     
     const { categories, totalTopicInstances } = processBarChartData(rawData);
     const colorPalette = generateCategoryColorPalette();
-    
+
+    // Display unique respondent count, not inflated topic instance count
+    const uniqueIds = new Set();
+    rawData.forEach(row => {
+        const key = row.row_id ?? row.index ?? row.text;
+        uniqueIds.add(key);
+    });
     const totalCountEl = document.getElementById('totalCount');
-    if (totalCountEl) totalCountEl.textContent = totalTopicInstances;
+    if (totalCountEl) totalCountEl.textContent = uniqueIds.size;
 
     const maxPercent = Math.max(...categories.map(c => c.percent));
     
@@ -679,9 +685,15 @@ export function renderTopicsChart(options = {}) {
     
     const { topics, totalTopicInstances } = processTopicsData(rawData);
     const colorPalette = generateCategoryColorPalette();
-    
+
+    // Display unique respondent count, not inflated topic instance count
+    const uniqueIds = new Set();
+    rawData.forEach(row => {
+        const key = row.row_id ?? row.index ?? row.text;
+        uniqueIds.add(key);
+    });
     const topicsCountEl = document.getElementById('topicsCount');
-    if (topicsCountEl) topicsCountEl.textContent = totalTopicInstances;
+    if (topicsCountEl) topicsCountEl.textContent = uniqueIds.size;
 
     const maxPercent = Math.max(...topics.map(t => t.percent));
 
