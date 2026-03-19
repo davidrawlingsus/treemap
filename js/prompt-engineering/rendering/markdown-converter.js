@@ -807,7 +807,7 @@
                 metaHTML += `<div class="pe-faq-card__meta-row"><span class="pe-faq-card__meta-label">VoC Reference:</span><span class="pe-faq-card__meta-value pe-faq-card__meta-value--voc">"${vocReference}"</span></div>`;
             }
 
-            return `<div class="pe-faq-card" data-faq-index="${idx}">${pillsHTML}<button class="pe-faq-card__copy" title="Copy to clipboard" type="button"><img src="/images/copy_button.png" alt="Copy" width="14" height="14"></button><div class="pe-faq-card__question">${question}</div><div class="pe-faq-card__answer">${answer}</div>${metaHTML ? `<div class="pe-faq-card__meta">${metaHTML}</div>` : ''}</div>`;
+            return `<div class="pe-faq-card" data-faq-index="${idx}">${pillsHTML}<button class="pe-faq-card__copy" title="Copy to clipboard" type="button"><img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/copy_button.png" alt="Copy" width="14" height="14"></button><div class="pe-faq-card__question">${question}</div><div class="pe-faq-card__answer">${answer}</div>${metaHTML ? `<div class="pe-faq-card__meta">${metaHTML}</div>` : ''}</div>`;
         });
 
         return `<div class="pe-faq-wrapper">${cards.join('')}</div>`;

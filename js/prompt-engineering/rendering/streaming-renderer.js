@@ -444,7 +444,7 @@
                     <img src="/images/arrow_down.png" alt="Next" width="16" height="16">
                 </button>
                 <button class="btn-copy-output" data-action-id="streaming-${streamingId}" title="Copy to clipboard">
-                    <img src="/images/copy_button.png" alt="Copy" width="16" height="16">
+                    <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/icons/copy_button.png" alt="Copy" width="16" height="16">
                 </button>
                 <button class="btn-delete-output" data-action-id="streaming-${streamingId}" title="Delete">
                     <img src="/images/delete_button.png" alt="Delete" width="16" height="16">
