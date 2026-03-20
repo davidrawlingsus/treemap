@@ -27,36 +27,51 @@ from app.schemas import (
     VocSummaryCategory,
     VocSummaryTopic,
 )
-from app.auth import get_current_user
-from app.authorization import verify_client_access
+from app.auth import get_current_user, get_current_user_flexible
+from app.authorization import verify_client_access, get_user_clients
 
-router = APIRouter(prefix="/api/voc", tags=["voc"])
+router = APIRouter(prefix="/api/voc", tags=["VOC Data"])
 logger = logging.getLogger(__name__)
 
 
-@router.get("/data", response_model=List[ProcessVocResponse])
+def _enforce_api_key_scope(current_user: User, client_uuid: Optional[UUID]) -> Optional[UUID]:
+    """If authenticated via API key, enforce and default to the key's scoped client."""
+    scoped_client_id = getattr(current_user, '_api_key_client_id', None)
+    if scoped_client_id is None:
+        return client_uuid  # JWT auth, no override
+    if client_uuid and client_uuid != scoped_client_id:
+        raise HTTPException(status_code=403, detail="API key is scoped to a different client")
+    return scoped_client_id
+
+
+@router.get("/data", response_model=List[ProcessVocResponse], summary="Get raw verbatim rows")
 def get_voc_data(
     client_uuid: Optional[UUID] = None,
     data_source: Optional[str] = None,
     project_name: Optional[str] = None,
     dimension_ref: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_flexible),
 ):
     """
-    Get process_voc rows with optional filtering.
-    
-    Query parameters:
-    - client_uuid: Filter by client UUID (will match by UUID or by client name if UUID is null)
-    - data_source: Filter by data source name (e.g., "email_survey")
-    - project_name: Filter by project name
-    - dimension_ref: Filter by dimension reference (e.g., "ref_ljwfv")
+    Fetch raw VOC verbatim rows with optional filtering.
+
+    When using an API key, results are automatically scoped to the key's client.
+    All filter parameters are optional and combinable.
+
+    - **client_uuid**: Filter by client UUID (auto-set when using API key)
+    - **data_source**: Filter by data source name (e.g. `trustpilot`, `email_survey`)
+    - **project_name**: Filter by project name
+    - **dimension_ref**: Filter by dimension/question reference (e.g. `ref_ljwfv`)
     """
+    client_uuid = _enforce_api_key_scope(current_user, client_uuid)
     query = db.query(ProcessVoc)
-    
+
     if client_uuid:
+        verify_client_access(client_uuid, current_user, db)
         # First, try to get client name from clients table
         client = db.query(Client).filter(Client.id == client_uuid).first()
-        
+
         if client:
             # Filter by client_uuid OR by client_name (for rows where client_uuid is null)
             query = query.filter(
@@ -68,7 +83,18 @@ def get_voc_data(
         else:
             # Fallback to just UUID if client not found
             query = query.filter(ProcessVoc.client_uuid == client_uuid)
-    
+    else:
+        # No client_uuid provided: restrict to user's accessible clients
+        accessible = get_user_clients(current_user, db)
+        accessible_ids = [c.id for c in accessible]
+        accessible_names = [c.name for c in accessible]
+        query = query.filter(
+            or_(
+                ProcessVoc.client_uuid.in_(accessible_ids),
+                ProcessVoc.client_name.in_(accessible_names),
+            )
+        )
+
     if data_source:
         query = query.filter(ProcessVoc.data_source == data_source)
     if project_name:
@@ -82,18 +108,29 @@ def get_voc_data(
 from app.services.voc_summary_service import build_voc_summary_dict
 
 
-@router.get("/summary", response_model=VocSummaryResponse)
+@router.get("/summary", response_model=VocSummaryResponse, summary="Get structured VOC summary")
 def get_voc_summary(
     client_uuid: Optional[UUID] = None,
     data_source: Optional[str] = None,
     project_name: Optional[str] = None,
     dimension_ref: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_flexible),
 ):
     """
-    Get VOC summary for comparison: categories, topics, verbatim counts, sample verbatims.
-    Mirrors the treemap hierarchy (Category -> Topic -> Verbatims).
+    Get a hierarchical summary of VOC data: **Category → Topic → sample verbatims**.
+
+    Returns aggregated counts and representative verbatims for each topic,
+    organised by category. Ideal for understanding themes at a glance.
+
+    - **client_uuid**: Filter by client UUID (auto-set when using API key)
+    - **data_source**: Filter by data source name
+    - **project_name**: Filter by project name
+    - **dimension_ref**: Filter by dimension/question reference
     """
+    client_uuid = _enforce_api_key_scope(current_user, client_uuid)
+    if client_uuid:
+        verify_client_access(client_uuid, current_user, db)
     summary = build_voc_summary_dict(
         db, client_uuid=client_uuid, data_source=data_source,
         project_name=project_name, dimension_ref=dimension_ref
@@ -111,30 +148,37 @@ def get_voc_summary(
     )
 
 
-@router.get("/questions", response_model=List[DimensionQuestionInfo])
+@router.get("/questions", response_model=List[DimensionQuestionInfo], summary="List dimensions/questions")
 def get_voc_questions(
     client_uuid: Optional[UUID] = None,
     data_source: Optional[str] = None,
     project_name: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_flexible),
 ):
     """
-    List available dimensions/questions in process_voc.
-    
-    Query parameters:
-    - client_uuid: Filter by client UUID (will match by UUID or by client name if UUID is null)
-    - data_source: Filter by data source name
-    - project_name: Filter by project name
+    List available dimensions (survey questions) with response counts.
+
+    Use this to discover which questions/dimensions exist before fetching data.
+    Returns `dimension_ref` values you can pass to `/data` or `/summary`.
+
+    - **client_uuid**: Filter by client UUID (auto-set when using API key)
+    - **data_source**: Filter by data source name
+    - **project_name**: Filter by project name
     """
     from sqlalchemy import func
-    
+
+    client_uuid = _enforce_api_key_scope(current_user, client_uuid)
+    if client_uuid:
+        verify_client_access(client_uuid, current_user, db)
+
     query = db.query(
         ProcessVoc.dimension_ref,
         ProcessVoc.dimension_name,
         func.count(ProcessVoc.id).label('response_count'),
         func.max(ProcessVoc.question_type).label('question_type')
     )
-    
+
     if client_uuid:
         # Get client name for matching
         client = db.query(Client).filter(Client.id == client_uuid).first()
@@ -148,7 +192,7 @@ def get_voc_questions(
             )
         else:
             query = query.filter(ProcessVoc.client_uuid == client_uuid)
-    
+
     if data_source:
         query = query.filter(ProcessVoc.data_source == data_source)
     if project_name:
@@ -172,28 +216,35 @@ def get_voc_questions(
     ]
 
 
-@router.get("/sources", response_model=List[VocSourceInfo])
+@router.get("/sources", response_model=List[VocSourceInfo], summary="List data sources")
 def get_voc_sources(
     client_uuid: Optional[UUID] = None,
     project_name: Optional[str] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_flexible),
 ):
     """
-    List available data sources in process_voc.
-    
-    Query parameters:
-    - client_uuid: Filter by client UUID (will match by UUID or by client name if UUID is null)
-    - project_name: Filter by project name
+    List available data sources (e.g. `trustpilot`, `email_survey`, `google_reviews`)
+    with response counts.
+
+    Use this to discover which sources exist before filtering `/data` or `/summary`.
+
+    - **client_uuid**: Filter by client UUID (auto-set when using API key)
+    - **project_name**: Filter by project name
     """
     from sqlalchemy import func
-    
+
+    client_uuid = _enforce_api_key_scope(current_user, client_uuid)
+    if client_uuid:
+        verify_client_access(client_uuid, current_user, db)
+
     query = db.query(
         ProcessVoc.data_source,
         ProcessVoc.client_uuid,
         func.max(ProcessVoc.client_name).label('client_name'),
         func.count(ProcessVoc.id).label('response_count')
     )
-    
+
     if client_uuid:
         # Get client name for matching
         client = db.query(Client).filter(Client.id == client_uuid).first()
@@ -207,7 +258,7 @@ def get_voc_sources(
             )
         else:
             query = query.filter(ProcessVoc.client_uuid == client_uuid)
-    
+
     if project_name:
         query = query.filter(ProcessVoc.project_name == project_name)
     
@@ -230,25 +281,29 @@ def get_voc_sources(
     ]
 
 
-@router.get("/projects", response_model=List[VocProjectInfo])
+@router.get("/projects", response_model=List[VocProjectInfo], summary="List projects")
 def get_voc_projects(
     client_uuid: Optional[UUID] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_flexible),
 ):
     """
-    List available projects in process_voc for a client.
-    
-    Query parameters:
-    - client_uuid: Filter by client UUID (will match by UUID or by client name if UUID is null)
+    List projects that contain VOC data, with response counts.
+
+    - **client_uuid**: Filter by client UUID (auto-set when using API key)
     """
     from sqlalchemy import func
-    
+
+    client_uuid = _enforce_api_key_scope(current_user, client_uuid)
+    if client_uuid:
+        verify_client_access(client_uuid, current_user, db)
+
     query = db.query(
         ProcessVoc.project_name,
         func.max(ProcessVoc.project_id).label('project_id'),
         func.count(ProcessVoc.id).label('response_count')
     )
-    
+
     if client_uuid:
         # Get client name for matching
         client = db.query(Client).filter(Client.id == client_uuid).first()
@@ -262,7 +317,7 @@ def get_voc_projects(
             )
         else:
             query = query.filter(ProcessVoc.client_uuid == client_uuid)
-    
+
     # Filter out null project names
     query = query.filter(ProcessVoc.project_name.isnot(None))
     
@@ -283,14 +338,18 @@ def get_voc_projects(
     ]
 
 
-@router.get("/clients", response_model=List[VocClientInfo])
+@router.get("/clients", response_model=List[VocClientInfo], summary="List accessible clients")
 def get_voc_clients(
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_flexible),
 ):
     """
-    List clients that have data in process_voc.
-    Returns distinct clients with data source counts.
-    Handles both cases: client_uuid set, or client_name only (tries to match to clients table).
+    List clients that have VOC data and are accessible to the current user.
+
+    When using an API key, returns only the key's scoped client.
+    When using JWT, returns all clients the user has access to.
+
+    Each client includes a `data_source_count` showing how many distinct data sources are available.
     """
     from sqlalchemy import func, distinct, case
     
@@ -359,6 +418,14 @@ def get_voc_clients(
                 # For the frontend, we can use client_name as identifier
                 pass
     
+    # Filter to only clients the user can access
+    scoped_client_id = getattr(current_user, '_api_key_client_id', None)
+    if scoped_client_id:
+        accessible_ids = {scoped_client_id}
+    else:
+        accessible = get_user_clients(current_user, db)
+        accessible_ids = {c.id for c in accessible}
+
     # Convert to list and return
     return [
         VocClientInfo(
@@ -369,6 +436,7 @@ def get_voc_clients(
             header_color=info.get('header_color')
         )
         for info in client_map.values()
+        if info['client_uuid'] in accessible_ids
     ]
 
 

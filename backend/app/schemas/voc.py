@@ -51,35 +51,59 @@ class ProcessVocListResponse(BaseModel):
 
 
 class DimensionQuestionInfo(BaseModel):
-    """Information about a dimension/question in process_voc"""
+    """A survey dimension/question with its response count."""
     dimension_ref: str
     dimension_name: Optional[str] = None
     response_count: int = 0
     question_type: Optional[str] = None
 
+    model_config = {
+        "json_schema_extra": {
+            "examples": [{"dimension_ref": "ref_ljwfv", "dimension_name": "What did you like most?", "response_count": 1234, "question_type": "open_text"}]
+        }
+    }
+
 
 class VocSourceInfo(BaseModel):
-    """Information about a data source in process_voc"""
+    """A data source (e.g. trustpilot, email_survey) with its response count."""
     data_source: str
     client_uuid: Optional[UUID] = None
     client_name: Optional[str] = None
     response_count: int = 0
 
+    model_config = {
+        "json_schema_extra": {
+            "examples": [{"data_source": "trustpilot", "client_uuid": "451234c8-60a7-4e58-9b95-0e9d80f96622", "client_name": "Acme Co", "response_count": 515}]
+        }
+    }
+
 
 class VocClientInfo(BaseModel):
-    """Information about a client with data in process_voc"""
+    """A client accessible to the current user, with data source count."""
     client_uuid: UUID
     client_name: Optional[str] = None
     data_source_count: int = 0
     logo_url: Optional[str] = None
     header_color: Optional[str] = None
 
+    model_config = {
+        "json_schema_extra": {
+            "examples": [{"client_uuid": "451234c8-60a7-4e58-9b95-0e9d80f96622", "client_name": "Acme Co", "data_source_count": 3, "logo_url": None, "header_color": "#1a73e8"}]
+        }
+    }
+
 
 class VocProjectInfo(BaseModel):
-    """Information about a project in process_voc"""
+    """A project containing VOC data, with its response count."""
     project_name: str
     project_id: Optional[str] = None
     response_count: int = 0
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [{"project_name": "Q1 2026 Survey", "project_id": "a3b4c5d6", "response_count": 2500}]
+        }
+    }
 
 
 class ProcessVocBulkUpdateItem(BaseModel):
@@ -149,7 +173,24 @@ class VocSummaryCategory(BaseModel):
 
 
 class VocSummaryResponse(BaseModel):
-    """VOC summary for a client: categories, topics, counts, sample verbatims"""
+    """Hierarchical VOC summary: categories containing topics with sample verbatims."""
     categories: List[VocSummaryCategory] = []
     total_verbatims: int = 0
+
+    model_config = {
+        "json_schema_extra": {
+            "examples": [{
+                "total_verbatims": 515,
+                "categories": [{
+                    "name": "Product Quality",
+                    "topics": [{
+                        "label": "Effective results",
+                        "code": "T001",
+                        "verbatim_count": 42,
+                        "sample_verbatims": ["Really impressed with how well it works", "Noticed a difference within days"]
+                    }]
+                }]
+            }]
+        }
+    }
 

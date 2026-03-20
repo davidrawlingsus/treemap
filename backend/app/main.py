@@ -121,7 +121,46 @@ if cors_allow_origins:
     logger.info("Allowing additional CORS origins: %s", cors_allow_origins)
 
 
-app = FastAPI(title="Visualizd API", version="0.1.0")
+app = FastAPI(
+    title="Vizualizd API",
+    version="1.0.0",
+    description="""
+Voice of Customer (VOC) analytics API.
+
+## Authentication
+
+**API Key** (external/agent access): Pass your key via the `X-API-Key` header.
+Each key is scoped to a single client — all data is automatically filtered.
+
+**JWT Bearer** (web app): Pass a Bearer token via the `Authorization` header.
+
+## Quick start (API key)
+
+```
+# 1. Discover your client
+GET /api/voc/clients  →  returns your scoped client
+
+# 2. Explore available data
+GET /api/voc/sources     →  data sources (e.g. trustpilot, email_survey)
+GET /api/voc/questions   →  dimensions/questions with response counts
+GET /api/voc/projects    →  projects
+
+# 3. Fetch data
+GET /api/voc/data        →  raw verbatim rows (filterable)
+GET /api/voc/summary     →  category → topic → verbatim hierarchy
+```
+""",
+    openapi_tags=[
+        {
+            "name": "VOC Data",
+            "description": "Voice of Customer data endpoints. All endpoints accept API key auth via `X-API-Key` header.",
+        },
+        {
+            "name": "API Keys",
+            "description": "Manage API keys for programmatic access. Requires JWT auth (web session).",
+        },
+    ],
+)
 
 
 @app.exception_handler(Exception)
@@ -350,6 +389,10 @@ app.include_router(public_leadgen.router)
 # Include Shopify survey ingest router
 from app.routers import shopify
 app.include_router(shopify.router)
+
+# Include API keys router
+from app.routers import api_keys
+app.include_router(api_keys.router)
 
 
 if __name__ == "__main__":
