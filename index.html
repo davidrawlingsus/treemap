@@ -330,6 +330,11 @@
             generateToneOfVoice as settingsApiGenerateToneOfVoice
         } from '/js/services/api-settings.js';
         import {
+            fetchApiKeys as apiKeysApiFetchKeys,
+            createApiKey as apiKeysApiCreateKey,
+            revokeApiKey as apiKeysApiRevokeKey
+        } from '/js/services/api-keys-service.js';
+        import {
             fetchProductContexts as productContextApiFetch,
             extractProductContextFromUrl as productContextApiExtract,
             createProductContext as productContextApiCreate,
@@ -768,6 +773,9 @@
         window.settingsApiFetchClientSettings = settingsApiFetchClientSettings;
         window.settingsApiUpdateClientSettings = settingsApiUpdateClientSettings;
         window.settingsApiGenerateToneOfVoice = settingsApiGenerateToneOfVoice;
+        window.apiKeysApiFetchKeys = apiKeysApiFetchKeys;
+        window.apiKeysApiCreateKey = apiKeysApiCreateKey;
+        window.apiKeysApiRevokeKey = apiKeysApiRevokeKey;
         window.productContextApiFetch = productContextApiFetch;
         window.productContextApiExtract = productContextApiExtract;
         window.productContextApiCreate = productContextApiCreate;
@@ -7455,6 +7463,7 @@
             
             window.productContextInitEventDelegation();
             await loadClientSettings();
+            loadApiAccessSection(effectiveClientId);
             renderBillingSection(effectiveClientId);
             window.settingsStateSetSettingsInitialized(true);
         }
@@ -7567,7 +7576,106 @@
             }, 3000);
         }
         window.showSettingsStatus = showSettingsStatus;
-        
+
+        function loadApiAccessSection(clientId) {
+            const clientIdInput = document.getElementById('apiClientId');
+            if (clientIdInput) clientIdInput.value = clientId;
+            loadApiKeysList(clientId);
+        }
+
+        async function loadApiKeysList(clientId) {
+            const container = document.getElementById('apiKeysListContainer');
+            if (!container) return;
+
+            try {
+                const keys = await window.apiKeysApiFetchKeys(clientId);
+                if (keys.length === 0) {
+                    container.innerHTML = '<p class="api-keys-empty">No API keys yet. Generate one to get started.</p>';
+                    return;
+                }
+                container.innerHTML = keys.map(key => `
+                    <div class="api-key-item" data-key-id="${key.id}">
+                        <div class="api-key-info">
+                            <span class="api-key-prefix">${escapeHtml(key.key_prefix)}...</span>
+                            <span class="api-key-name">${escapeHtml(key.name)}</span>
+                            <span class="api-key-meta">${key.last_used_at ? 'Last used ' + new Date(key.last_used_at).toLocaleDateString() : 'Never used'}</span>
+                        </div>
+                        <button type="button" class="api-key-revoke-btn" onclick="revokeApiKeyFromSettings('${key.id}')" title="Revoke key">Revoke</button>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('[Settings] Failed to load API keys:', error);
+                container.innerHTML = '<p class="api-keys-empty">Failed to load API keys.</p>';
+            }
+        }
+
+        async function generateApiKey() {
+            const clientId = window.settingsStateGetSettingsCurrentClientId();
+            if (!clientId) {
+                showSettingsStatus('No client selected', true);
+                return;
+            }
+
+            const btn = document.getElementById('generateApiKeyBtn');
+            btn.disabled = true;
+            btn.textContent = 'Generating...';
+
+            try {
+                const result = await window.apiKeysApiCreateKey(clientId, 'API Key');
+                // Reload the list first, then prepend the reveal
+                await loadApiKeysList(clientId);
+                const container = document.getElementById('apiKeysListContainer');
+                const keyRevealHtml = `
+                    <div class="api-key-reveal">
+                        <p class="api-key-reveal-warning">Copy this key now — it won't be shown again.</p>
+                        <div class="api-credential-row">
+                            <input type="text" id="newApiKeyValue" value="${escapeHtml(result.key)}" readonly class="api-credential-input api-credential-input--key">
+                            <button type="button" class="api-copy-btn" onclick="copyApiCredential('newApiKeyValue')" title="Copy API Key">
+                                <img src="/images/copy_button.png" alt="Copy" width="14" height="14">
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.insertAdjacentHTML('afterbegin', keyRevealHtml);
+                showSettingsStatus('API key created');
+            } catch (error) {
+                console.error('[Settings] Failed to create API key:', error);
+                showSettingsStatus('Failed to create API key', true);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Generate New API Key';
+            }
+        }
+        window.generateApiKey = generateApiKey;
+
+        async function revokeApiKeyFromSettings(keyId) {
+            if (!confirm('Are you sure you want to revoke this API key? This cannot be undone.')) return;
+
+            try {
+                await window.apiKeysApiRevokeKey(keyId);
+                const clientId = window.settingsStateGetSettingsCurrentClientId();
+                await loadApiKeysList(clientId);
+                showSettingsStatus('API key revoked');
+            } catch (error) {
+                console.error('[Settings] Failed to revoke API key:', error);
+                showSettingsStatus('Failed to revoke API key', true);
+            }
+        }
+        window.revokeApiKeyFromSettings = revokeApiKeyFromSettings;
+
+        function copyApiCredential(inputId) {
+            const input = document.getElementById(inputId);
+            if (!input) return;
+            navigator.clipboard.writeText(input.value).then(() => {
+                showSettingsStatus('Copied to clipboard');
+            }).catch(() => {
+                input.select();
+                document.execCommand('copy');
+                showSettingsStatus('Copied to clipboard');
+            });
+        }
+        window.copyApiCredential = copyApiCredential;
+
         async function generateToneOfVoiceWithAI() {
             const clientId = window.settingsStateGetSettingsCurrentClientId();
             if (!clientId) {
@@ -17539,6 +17647,32 @@
                     <h2 class="settings-card-title">Product Context</h2>
                     <p class="settings-card-description">Product details used when generating ads and emails. Add product contexts from PDP URLs, then select which product is live for AI prompts.</p>
                     <div id="productContextContainer"></div>
+                </div>
+
+                <!-- API Access -->
+                <div class="settings-card" id="apiAccessCard">
+                    <h2 class="settings-card-title">API Access</h2>
+                    <p class="settings-card-description">Use these credentials to access VOC data programmatically via the API.</p>
+
+                    <div class="settings-field">
+                        <label>Client ID</label>
+                        <div class="api-credential-row">
+                            <input type="text" id="apiClientId" readonly class="api-credential-input">
+                            <button type="button" class="api-copy-btn" onclick="copyApiCredential('apiClientId')" title="Copy Client ID">
+                                <img src="/images/copy_button.png" alt="Copy" width="14" height="14">
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="settings-field">
+                        <label>API Keys</label>
+                        <div id="apiKeysListContainer" class="api-keys-list">
+                            <p class="api-keys-loading">Loading...</p>
+                        </div>
+                        <button type="button" class="api-generate-btn" onclick="generateApiKey()" id="generateApiKeyBtn">
+                            Generate New API Key
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Billing -->

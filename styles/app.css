@@ -6201,6 +6201,147 @@ mark.highlight-brand {
     min-height: 250px;
 }
 
+/* API Access */
+.api-credential-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.api-credential-input {
+    flex: 1;
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: 'SF Mono', 'Fira Code', 'Fira Mono', monospace;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    background: #f9fafb;
+    color: #1a202c;
+}
+
+.api-credential-input--key {
+    background: #fffbeb;
+    border-color: #f59e0b;
+}
+
+.api-copy-btn {
+    padding: 8px 10px;
+    background: #f3f4f6;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.api-copy-btn:hover {
+    background: #e5e7eb;
+}
+
+.api-keys-list {
+    margin-bottom: 12px;
+}
+
+.api-keys-empty,
+.api-keys-loading {
+    font-size: 14px;
+    color: #718096;
+    margin: 0;
+    padding: 8px 0;
+}
+
+.api-key-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: #f9fafb;
+}
+
+.api-key-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+}
+
+.api-key-prefix {
+    font-family: 'SF Mono', 'Fira Code', 'Fira Mono', monospace;
+    font-size: 13px;
+    color: #374151;
+    background: #e5e7eb;
+    padding: 2px 8px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.api-key-name {
+    font-size: 14px;
+    color: #374151;
+    font-weight: 500;
+}
+
+.api-key-meta {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.api-key-revoke-btn {
+    padding: 4px 12px;
+    font-size: 13px;
+    color: #dc2626;
+    background: none;
+    border: 1px solid #fecaca;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+
+.api-key-revoke-btn:hover {
+    background: #fef2f2;
+}
+
+.api-generate-btn {
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #1a202c;
+    background: #B9F040;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.api-generate-btn:hover {
+    background: #a8d938;
+}
+
+.api-generate-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.api-key-reveal {
+    margin-bottom: 12px;
+    padding: 12px;
+    background: #fffbeb;
+    border: 1px solid #f59e0b;
+    border-radius: 8px;
+}
+
+.api-key-reveal-warning {
+    font-size: 13px;
+    font-weight: 500;
+    color: #92400e;
+    margin: 0 0 8px 0;
+}
+
 /* Product Context */
 .product-context-empty {
     padding: 24px 0;

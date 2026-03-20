@@ -179,6 +179,42 @@ def is_magic_link_token_valid(user: User, raw_token: str) -> tuple[bool, str]:
     return True, "valid"
 
 
+def get_current_user_flexible(
+    x_api_key: Optional[str] = Header(default=None),
+    credentials: HTTPAuthorizationCredentials | None = Depends(optional_security),
+    db: Session = Depends(get_db),
+) -> User:
+    """Authenticate via X-API-Key header or Bearer JWT. Returns a User either way.
+
+    When authenticated via API key, the user object gets an `_api_key_client_id`
+    attribute set to the key's scoped client_id for downstream access enforcement.
+    """
+    if x_api_key:
+        from app.services.api_key_service import validate_api_key
+        api_key = validate_api_key(db, x_api_key)
+        if not api_key:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid or expired API key",
+            )
+        if not api_key.user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User account is inactive",
+            )
+        # Tag user with the API key's client scope for downstream enforcement
+        api_key.user._api_key_client_id = api_key.client_id
+        return api_key.user
+
+    if credentials:
+        return _get_user_from_token(credentials.credentials, db)
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Authentication required: provide X-API-Key header or Bearer token",
+    )
+
+
 def clear_magic_link_state(user: User) -> None:
     """Remove any stored magic-link data for a user."""
     user.magic_link_token = None

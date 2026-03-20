@@ -42,6 +42,7 @@ class User(Base):
         back_populates="provisioned_by_user",
         overlaps="memberships,user",
     )
+    api_keys = relationship("ApiKey", back_populates="user")
 
     def __repr__(self):
         return f"<User(id={self.id}, email={self.email}, is_founder={self.is_founder})>"
