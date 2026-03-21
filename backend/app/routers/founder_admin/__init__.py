@@ -21,6 +21,7 @@ from .creative_mri import router as creative_mri_router
 from .subscriptions import router as subscriptions_router
 from .leadgen_voc import router as leadgen_voc_router
 from .shopify import router as shopify_router
+from .prompt_studio import router as prompt_studio_router
 
 # Create main router that includes all sub-routers
 router = APIRouter(tags=["founder-admin"])
@@ -43,4 +44,5 @@ router.include_router(creative_mri_router)
 router.include_router(subscriptions_router)
 router.include_router(leadgen_voc_router)
 router.include_router(shopify_router)
+router.include_router(prompt_studio_router)
 

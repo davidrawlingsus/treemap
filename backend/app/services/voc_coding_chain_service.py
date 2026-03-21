@@ -211,7 +211,7 @@ def call_claude_json_schema(
 
     from anthropic import Anthropic
 
-    client = Anthropic(api_key=api_key, http_client=httpx.Client(timeout=180.0))
+    client = Anthropic(api_key=api_key, http_client=httpx.Client(timeout=600.0))
     request_params = {
         "model": model,
         "max_tokens": max_tokens,
@@ -275,6 +275,104 @@ def call_claude_json_schema(
             ) from exc
     except Exception as exc:
         raise VocCodingChainError("llm_call", f"Claude call failed: {exc}") from exc
+
+
+def stream_claude_json_schema(
+    *,
+    settings: Any,
+    model: str,
+    system_prompt: str,
+    user_prompt: str,
+    schema: Dict[str, Any],
+    temperature: float,
+    max_tokens: int,
+):
+    """Streaming variant of call_claude_json_schema.
+
+    Yields SSE-formatted lines:
+      data: {"type":"tokens","output_tokens":<n>}
+      data: {"type":"done","output":<parsed_json>,"elapsed_seconds":<f>,"usage":{"input_tokens":<n>,"output_tokens":<n>}}
+    """
+    import time as _time
+
+    api_key = (getattr(settings, "anthropic_api_key", None) or "").strip()
+    if not api_key:
+        raise VocCodingChainError("config", "ANTHROPIC_API_KEY is required")
+
+    from anthropic import Anthropic
+
+    client = Anthropic(api_key=api_key, http_client=httpx.Client(timeout=600.0))
+
+    # Use tool-forcing for streaming (output_config not supported with stream)
+    tool_params = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "system": system_prompt,
+        "messages": [{"role": "user", "content": user_prompt}],
+        "tools": [
+            {
+                "name": "emit_json",
+                "description": "Return the final JSON output matching the schema.",
+                "input_schema": schema,
+            }
+        ],
+        "tool_choice": {"type": "tool", "name": "emit_json"},
+        "stream": True,
+    }
+
+    start = _time.time()
+    output_tokens = 0
+    input_tokens = 0
+    json_chunks: list[str] = []
+    last_reported = 0
+
+    try:
+        # Use raw stream to get events immediately without buffering
+        raw_params = {k: v for k, v in tool_params.items() if k != "stream"}
+        with client.messages.stream(**raw_params) as stream:
+            for event in stream:
+                event_type = getattr(event, "type", "")
+
+                if event_type == "message_start":
+                    usage = getattr(getattr(event, "message", None), "usage", None)
+                    if usage:
+                        input_tokens = getattr(usage, "input_tokens", 0)
+
+                elif event_type == "content_block_delta":
+                    delta = getattr(event, "delta", None)
+                    delta_type = getattr(delta, "type", "")
+                    if delta_type == "input_json_delta":
+                        partial = getattr(delta, "partial_json", "")
+                        if partial:
+                            json_chunks.append(partial)
+                            # Estimate tokens from chars (~4 chars per token)
+                            char_count = sum(len(c) for c in json_chunks)
+                            output_tokens = char_count // 4
+                            # Throttle SSE updates to every ~100 tokens
+                            if output_tokens - last_reported >= 100:
+                                last_reported = output_tokens
+                                yield f"data: {json.dumps({'type': 'tokens', 'output_tokens': output_tokens})}\n\n"
+
+                elif event_type == "message_delta":
+                    usage = getattr(event, "usage", None)
+                    if usage:
+                        output_tokens = getattr(usage, "output_tokens", output_tokens)
+
+        # Parse the accumulated JSON
+        raw_json = "".join(json_chunks)
+        try:
+            parsed = json.loads(raw_json)
+        except (JSONDecodeError, ValueError):
+            repaired = repair_json(raw_json)
+            parsed = json.loads(repaired) if isinstance(repaired, str) and repaired.strip() else {}
+
+        elapsed = round(_time.time() - start, 2)
+        yield f"data: {json.dumps({'type': 'done', 'output': parsed, 'elapsed_seconds': elapsed, 'usage': {'input_tokens': input_tokens, 'output_tokens': output_tokens}})}\n\n"
+
+    except Exception as exc:
+        elapsed = round(_time.time() - start, 2)
+        yield f"data: {json.dumps({'type': 'error', 'message': str(exc), 'elapsed_seconds': elapsed})}\n\n"
 
 
 def _get_live_prompt_by_purpose(db: Session, purpose: str) -> Optional[Prompt]:

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prompt Studio</title>
+    <link rel="icon" href="/images/favicon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles/founder-admin.css">
+    <link rel="stylesheet" href="/styles/prompt-studio.css">
+    <script src="/config.js"></script>
+    <script src="/auth.js"></script>
+</head>
+<body>
+    <div id="loginOverlay" class="login-overlay hidden">
+        <div class="login-container">
+            <div id="loginFormSection">
+                <h2>Sign in</h2>
+                <p class="login-subtext">Enter your work email and we'll email you a secure magic link.</p>
+                <input type="email" id="loginEmail" placeholder="you@company.com" autocomplete="email">
+                <button id="loginButton" class="btn btn-primary" type="button">Send Magic Link</button>
+                <div id="loginError" class="login-error"></div>
+                <div id="loginSuccess" class="login-success"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="appShell">
+        <header>
+            <div>
+                <nav class="breadcrumbs">
+                    <a href="/founder_admin.html">Founder Admin</a>
+                    <span class="breadcrumbs-separator">&rsaquo;</span>
+                    <a href="/founder_leadgen_runs.html">Lead-Gen VOC Runs</a>
+                    <span class="breadcrumbs-separator">&rsaquo;</span>
+                    <span>Prompt Studio</span>
+                </nav>
+                <h1>Prompt Studio</h1>
+                <div class="subtitle">Edit prompts, replay steps, and preview outputs for the VOC coding chain.</div>
+            </div>
+            <div class="founder-meta">
+                <span id="founderEmail"></span>
+                <button class="btn btn-ghost" id="logoutButton">Logout</button>
+            </div>
+        </header>
+
+        <!-- Entry bar -->
+        <section class="prompt-studio-entry">
+            <div class="field-group grow">
+                <label for="prospectUrl">Prospect URL</label>
+                <input id="prospectUrl" type="url" placeholder="https://company.com">
+            </div>
+            <div class="field-group">
+                <label for="companyName">Company Name</label>
+                <input id="companyName" type="text" placeholder="Optional">
+            </div>
+            <div class="field-group">
+                <label for="minReviews">Min Reviews</label>
+                <input id="minReviews" type="number" min="1" max="5000" value="200" style="width:80px">
+            </div>
+            <button id="scrapeBtn" class="btn btn-primary">Scrape &amp; Start</button>
+            <button id="saveRunBtn" class="btn btn-primary" style="display:none;">Save Run</button>
+            <span class="divider-text">or</span>
+            <div class="field-group">
+                <label for="runSelector">Load Existing Run</label>
+                <select id="runSelector">
+                    <option value="">Select a run...</option>
+                </select>
+            </div>
+        </section>
+
+        <div id="studioStatus" class="studio-status"></div>
+
+        <main>
+            <!-- Split layout -->
+            <div class="prompt-studio-layout">
+                <div id="pipelineEditor" class="prompt-studio-editor">
+                    <!-- Step cards rendered dynamically -->
+                </div>
+                <div id="outputPanels" class="prompt-studio-outputs">
+                    <!-- Output panels rendered dynamically -->
+                </div>
+            </div>
+        </main>
+
+        <!-- Add step -->
+        <div style="padding:0 20px 10px">
+            <div style="display:flex;gap:8px;align-items:center">
+                <select id="addStepTypeSelect" class="add-step-type-select">
+                    <option value="context">Context</option>
+                    <option value="extract">Extract</option>
+                    <option value="taxonomy">Taxonomy</option>
+                    <option value="validate">Validate</option>
+                    <option value="discover">Discover (legacy)</option>
+                    <option value="code">Code (legacy)</option>
+                    <option value="refine">Refine (legacy)</option>
+                </select>
+                <button id="addStepBtn" class="btn-add-step" style="flex:1">+ Add Step</button>
+            </div>
+        </div>
+
+        <!-- Treemap preview -->
+        <section class="prompt-studio-treemap">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <h3 style="margin:0;">Treemap Preview</h3>
+                <button id="treemapCopyBtn" class="btn-copy-output" title="Copy treemap JSON to clipboard" style="display:none;">Copy JSON</button>
+            </div>
+            <div id="treemapContainer">
+                <div class="treemap-placeholder">Run the pipeline to see the treemap preview.</div>
+            </div>
+        </section>
+
+        <!-- Ad Generation Prompt Editor (split screen) -->
+        <section class="prompt-studio-generate" id="generateSection" style="display:none">
+            <h3>Ad Generation Prompt</h3>
+            <div class="prompt-studio-layout">
+                <div class="prompt-studio-editor" style="min-height:200px">
+                    <section class="prompt-step" id="generateStepCard">
+                        <div class="prompt-step-header">
+                            <h3>
+                                <span class="step-type-badge generate">GENERATE</span>
+                            </h3>
+                        </div>
+                        <div class="step-version-bar">
+                            <select class="version-select" id="generateVersionSelect" data-action="select-generate-version">
+                                <option value="">Hardcoded default</option>
+                            </select>
+                            <span class="dirty-indicator" id="generateDirty"></span>
+                            <div class="save-dropdown">
+                                <button class="save-dropdown-btn" type="button" id="generateSaveBtn">Save &#9662;</button>
+                                <div class="save-dropdown-menu" id="generateSaveMenu">
+                                    <button type="button" data-action="generate-save-new">Save New Version</button>
+                                    <button type="button" data-action="generate-overwrite">Overwrite Current</button>
+                                    <button type="button" data-action="generate-set-live">Set Selected Live</button>
+                                </div>
+                            </div>
+                        </div>
+                        <label class="prompt-textarea-label">System Prompt</label>
+                        <textarea class="prompt-textarea" id="generateSystemPrompt" rows="8"></textarea>
+                        <label class="prompt-textarea-label">User Prompt Template</label>
+                        <textarea class="prompt-textarea" id="generateUserPrompt" rows="4"></textarea>
+                        <div class="step-actions">
+                            <button class="btn-play" id="generateAdsBtn">
+                                <span class="play-icon">&#9654;</span>
+                                <span class="spinner"></span>
+                                Generate Ads
+                            </button>
+                            <span class="step-elapsed" id="generateElapsed"></span>
+                        </div>
+                        <div id="generateBriefsSummary" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>
+                    </section>
+                </div>
+                <div class="prompt-studio-outputs" style="min-height:200px">
+                    <section class="output-panel" id="generateOutputPanel">
+                        <div class="output-panel-header">
+                            <h3><span class="step-type-badge generate">GENERATE</span> Output</h3>
+                            <button class="btn-copy-output" id="copyAllAdsJsonBtn" style="display:none">Copy JSON</button>
+                        </div>
+                        <div class="output-body" id="generateOutputBody">
+                            <span class="output-placeholder">Run the generate step to see output.</span>
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </section>
+
+        <!-- Rendered Ad Previews -->
+        <section class="prompt-studio-ads" id="adsSection" style="display:none">
+            <div class="ads-header">
+                <h3>Ad Previews</h3>
+                <button id="copyAllAdsBtn" class="btn-copy-output" style="display:none">Copy All JSON</button>
+            </div>
+            <div id="adsContainer">
+                <div class="ads-placeholder">Ads will appear here after generation.</div>
+            </div>
+        </section>
+    </div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+
+    <script type="module">
+        import { renderTreemap } from '/js/renderers/treemap-renderer.js';
+        import { getColorSchemes } from '/js/config/color-schemes.js';
+
+        window._studioRenderTreemap = function(data) {
+            let container = document.getElementById('treemapContainer');
+            container.innerHTML = '<div class="treemap-svg-container"><svg id="treemap"></svg></div>';
+            // Also need a hidden verbatims div for the renderer
+            if (!document.getElementById('verbatims')) {
+                const v = document.createElement('div');
+                v.id = 'verbatims';
+                v.style.display = 'none';
+                document.body.appendChild(v);
+            }
+            const colorSchemes = getColorSchemes();
+            renderTreemap(data, {
+                colorSchemes: colorSchemes,
+                currentProjectName: 'Prompt Studio',
+                showVerbatims: function() {},
+                showContextMenu: function() {},
+                handleNodeClick: function() {},
+            });
+        };
+    </script>
+
+    <script type="module" src="/js/prompt-studio/main.js"></script>
+</body>
+</html>

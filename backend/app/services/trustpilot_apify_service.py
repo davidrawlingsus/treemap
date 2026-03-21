@@ -49,25 +49,20 @@ def normalize_apify_review(item: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _build_actor_input(domain: str, max_reviews: int) -> Dict[str, Any]:
+def _build_actor_input(domain: str, min_reviews: int) -> Dict[str, Any]:
     review_url = infer_trustpilot_review_url(domain)
-    # Trustpilot pages commonly expose around 20 reviews per page.
-    # Avoid hard-capping at page 1 so larger max_reviews can be fetched.
-    estimated_pages = max(1, math.ceil(max_reviews / 20))
     return {
         "companyWebsite": review_url,
-        "contentToExtract": "companyInformationAndReviews",
+        "contentToExtract": "reviews",
         "sortBy": "recency",
         "filterByStarRating": "",
-        "filterByLanguage": "all",
-        "filterByVerified": True,
+        "filterByLanguage": "en",
+        "filterByVerified": False,
         "filterByCountryOfReviewers": "",
         "startFromPageNumber": 1,
-        "endAtPageNumber": estimated_pages,
+        "endAtPageNumber": max(1, math.ceil(min_reviews / 20)),
         "filterByDatePeriod": "any date",
         "Proxy configuration": {"useApifyProxy": False},
-        # Keep desired count in payload for observability/debugging.
-        "maxReviews": max_reviews,
     }
 
 
@@ -88,21 +83,25 @@ def fetch_trustpilot_reviews_by_domain(settings: Any, domain: str, max_reviews: 
         raise HTTPException(status_code=500, detail="Apify Trustpilot actor ID is not configured")
 
     max_reviews_limit = settings.apify_max_reviews
-    bounded_max_reviews = max(1, min(max_reviews, max_reviews_limit))
-    actor_input = _build_actor_input(domain=domain, max_reviews=bounded_max_reviews)
+    bounded_min_reviews = max(1, min(max_reviews, max_reviews_limit))
+    actor_input = _build_actor_input(domain=domain, min_reviews=bounded_min_reviews)
     logger.info(
-        "Running Apify Trustpilot actor: actor_id=%s domain=%s requested_max=%s bounded_max=%s",
+        "Running Apify Trustpilot actor: actor_id=%s domain=%s requested_min=%s bounded_min=%s",
         actor_id,
         domain,
         max_reviews,
-        bounded_max_reviews,
+        bounded_min_reviews,
     )
     client = ApifyClient(api_token)
+
+    # Scale timeout generously — the actor stops early if pages run out.
+    timeout = max(settings.apify_timeout_seconds, bounded_min_reviews * 2 + 60)
+    logger.info("Apify timeout set to %ss for min_reviews=%s", timeout, bounded_min_reviews)
 
     try:
         run = client.actor(actor_id).call(
             run_input=actor_input,
-            wait_secs=settings.apify_timeout_seconds,
+            wait_secs=timeout,
         )
     except Exception as exc:
         logger.error("Apify actor run failed for %s: %s", domain, exc)
@@ -131,4 +130,4 @@ def fetch_trustpilot_reviews_by_domain(settings: Any, domain: str, max_reviews: 
         len(items),
         len(normalized),
     )
-    return normalized[:bounded_max_reviews]
+    return normalized

@@ -147,8 +147,17 @@ app.use('/api', createProxyMiddleware({
   target: API_BASE_URL,
   changeOrigin: true,
   logLevel: 'warn',
-  proxyTimeout: 60000,
-  timeout: 60000,
+  proxyTimeout: 600000,
+  timeout: 600000,
+  onProxyRes: (proxyRes, req, res) => {
+    // Disable buffering for SSE streams so events flush immediately
+    const contentType = proxyRes.headers['content-type'] || '';
+    if (contentType.includes('text/event-stream')) {
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('X-Accel-Buffering', 'no');
+      res.flushHeaders();
+    }
+  },
   onError: (err, req, res) => {
     console.error('Proxy error:', err.message);
     if (!res.headersSent) {

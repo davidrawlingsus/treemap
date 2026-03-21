@@ -670,7 +670,10 @@
             // Add type-specific fields - only include the relevant field for each type
             if (promptTypeValue === 'system') {
                 payload.system_message = systemMessageValue;
-                // Don't include prompt_message for system prompts
+                // Preserve prompt_message (user prompt template) if it has content
+                if (promptMessageValue) {
+                    payload.prompt_message = promptMessageValue;
+                }
             } else if (promptTypeValue === 'helper') {
                 payload.prompt_message = promptMessageValue;
                 // Don't include system_message for helper prompts (backend will set it to None)
@@ -773,9 +776,15 @@
             const userMessageGroup = document.getElementById('userMessageGroup');
 
             if (promptType === 'system') {
-                // Show system message field, hide prompt message field
+                // Show system message field and user prompt template
                 if (systemMessageGroup) systemMessageGroup.style.display = 'block';
-                if (promptMessageGroup) promptMessageGroup.style.display = 'none';
+                if (promptMessageGroup) {
+                    promptMessageGroup.style.display = 'block';
+                    const label = promptMessageGroup.querySelector('label');
+                    if (label) label.textContent = 'User Prompt Template';
+                    const hint = promptMessageGroup.querySelector('p');
+                    if (hint) hint.textContent = 'The user prompt template with placeholders like {BUSINESS_CONTEXT}, {RAW_REVIEWS} (used by Prompt Studio)';
+                }
                 if (helperPromptGroup) helperPromptGroup.style.display = 'block';
                 if (userMessageGroup) userMessageGroup.style.display = 'block';
                 
