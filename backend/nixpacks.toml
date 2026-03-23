@@ -1,4 +1,7 @@
-# Ensure google-genai is installed for Creative MRI video transcripts.
-# Extends the default Python build with an explicit install.
+# Nix packages needed at runtime (Playwright Chromium dependencies)
+[phases.setup]
+nixPkgs = ["...", "chromium", "nss", "atk", "cups", "libdrm", "pango", "cairo", "alsa-lib", "at-spi2-atk", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXrandr", "dbus", "mesa"]
+
+# Extends the default Python build with explicit installs.
 [phases.install]
-cmds = ["...", "pip install google-genai>=1.0.0"]
+cmds = ["...", "pip install google-genai>=1.0.0", "playwright install chromium"]
