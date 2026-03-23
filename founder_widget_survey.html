@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Founder Admin - Popup Surveys</title>
+    <link rel="icon" href="/images/favicon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles/founder-admin.css">
+    <link rel="stylesheet" href="/styles/founder-widget-survey.css">
+    <script src="/config.js"></script>
+    <script src="/auth.js"></script>
+</head>
+<body>
+    <div id="loginOverlay" class="login-overlay hidden">
+        <div class="login-container">
+            <div id="loginFormSection">
+                <h2>Sign in</h2>
+                <p class="login-subtext">Enter your work email and we'll email you a secure magic link.</p>
+                <input type="email" id="loginEmail" placeholder="you@company.com" autocomplete="email">
+                <button id="loginButton" type="button">Send Magic Link</button>
+                <div id="loginError" class="login-error"></div>
+                <div id="loginSuccess" class="login-success"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="appShell">
+        <header>
+            <div>
+                <nav class="breadcrumbs">
+                    <a href="/founder_admin.html">Founder Admin</a>
+                    <span class="breadcrumbs-separator">&rsaquo;</span>
+                    <span>Popup Surveys</span>
+                </nav>
+                <h1>Popup Surveys</h1>
+                <div class="subtitle">Build and manage embeddable popup surveys for client websites.</div>
+            </div>
+            <div class="founder-meta">
+                <span id="founderEmail"></span>
+                <div class="actions">
+                    <select id="clientSelect" class="form-input"></select>
+                    <button class="btn btn-ghost" id="logoutButton" type="button">Logout</button>
+                </div>
+            </div>
+        </header>
+
+        <div id="statusMessage" class="status-message" style="display:none;"></div>
+
+        <main id="mainContent">
+            <!-- Rendered dynamically by the controller -->
+        </main>
+    </div>
+
+    <script type="module">
+        import { initWidgetSurveyController } from '/js/controllers/widget-survey-controller.js';
+
+        window.Auth?.onReady?.(() => {
+            const email = window.Auth?.getUser?.()?.email;
+            if (email) {
+                document.getElementById('founderEmail').textContent = email;
+            }
+            initWidgetSurveyController();
+        });
+
+        document.getElementById('logoutButton')?.addEventListener('click', () => {
+            window.Auth?.logout?.();
+        });
+    </script>
+</body>
+</html>

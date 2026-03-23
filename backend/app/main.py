@@ -257,9 +257,19 @@ class EnsureCORSHeadersMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self._allowed = set(allowed_origins)
 
-    def _origin_allowed(self, origin: str) -> bool:
+    # Widget survey public endpoints accept requests from any origin
+    _WIDGET_SURVEY_PATHS = ("/api/widget-surveys/active", "/api/widget-surveys/responses",
+                            "/api/widget-surveys/heartbeat", "/api/widget-surveys/impression")
+
+    def _is_widget_survey_path(self, path: str) -> bool:
+        return any(path == p or path == p + "/" for p in self._WIDGET_SURVEY_PATHS)
+
+    def _origin_allowed(self, origin: str, path: str = "") -> bool:
         if not origin:
             return False
+        # Widget survey public endpoints allow any origin
+        if self._is_widget_survey_path(path):
+            return True
         origin_stripped = origin.rstrip("/")
         if origin_stripped in self._allowed:
             return True
@@ -269,24 +279,27 @@ class EnsureCORSHeadersMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: StarletteRequest, call_next):
         origin = request.headers.get("origin") or ""
+        path = request.url.path
+        is_widget = self._is_widget_survey_path(path)
         # Handle OPTIONS preflight ourselves so it always gets CORS headers (avoids proxy stripping).
-        if request.method == "OPTIONS" and self._origin_allowed(origin):
-            return Response(
-                status_code=200,
-                headers={
-                    "access-control-allow-origin": origin,
-                    "access-control-allow-credentials": "true",
-                    "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-                    "access-control-allow-headers": "*",
-                    "access-control-max-age": "86400",
-                },
-            )
+        if request.method == "OPTIONS" and self._origin_allowed(origin, path):
+            headers = {
+                "access-control-allow-origin": origin,
+                "access-control-allow-methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+                "access-control-allow-headers": "*",
+                "access-control-max-age": "86400",
+            }
+            # Widget endpoints don't use credentials (API key via header, not cookies)
+            if not is_widget:
+                headers["access-control-allow-credentials"] = "true"
+            return Response(status_code=200, headers=headers)
         response = await call_next(request)
-        if not self._origin_allowed(origin):
+        if not self._origin_allowed(origin, path):
             return response
         if not response.headers.get("access-control-allow-origin"):
             response.headers["access-control-allow-origin"] = origin
-            response.headers["access-control-allow-credentials"] = "true"
+            if not is_widget:
+                response.headers["access-control-allow-credentials"] = "true"
         return response
 
 
@@ -299,6 +312,10 @@ from app.routers import static
 # This allows accessing the frontend at http://localhost:8000/index.html
 frontend_path = find_frontend_path(Path(__file__))
 if (frontend_path / "index.html").exists():
+    # Mount widget JS directory for embeddable survey script
+    widget_path = frontend_path / "widget"
+    if widget_path.exists():
+        app.mount("/static/widget", StaticFiles(directory=str(widget_path)), name="widget-static")
     # Mount static files directory to serve CSS, JS, and other assets
     app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
     # Include static file routes
@@ -393,6 +410,10 @@ app.include_router(shopify.router)
 # Include API keys router
 from app.routers import api_keys
 app.include_router(api_keys.router)
+
+# Include widget survey router (popup surveys for non-Shopify sites)
+from app.routers import widget_survey
+app.include_router(widget_survey.router)
 
 
 if __name__ == "__main__":

@@ -38,7 +38,8 @@
     <link rel="stylesheet" href="/styles/emails-lanes.css">
     <link rel="stylesheet" href="/styles/images.css">
     <link rel="stylesheet" href="/styles/help-chat.css">
-    
+    <link rel="stylesheet" href="/styles/founder-widget-survey.css">
+
     <script src="/config.js?v=5"></script>
     <!-- PostHog init disabled for stability test
     <script>
@@ -882,6 +883,9 @@
                 </a>
                 <a href="/founder_prompt_engineering.html" class="nav-menu-item founder-admin hidden" id="navPrompts">
                     <span>Prompts</span>
+                </a>
+                <a href="#" class="nav-menu-item" id="navSurveys" onclick="navigateToView('surveys'); return false;">
+                    <span>Surveys</span>
                 </a>
                 <a href="#" class="nav-menu-item" id="navSettings" onclick="navigateToView('settings'); return false;">
                     <span>Settings</span>
@@ -6696,6 +6700,7 @@
             const adsSection = document.getElementById('ads-section');
             const emailsSection = document.getElementById('emails-section');
             const imagesSection = document.getElementById('images-section');
+            const surveysSection = document.getElementById('surveys-section');
             const settingsSection = document.getElementById('settings-section');
             const navVisualizations = document.getElementById('navVisualizations');
             const navInsights = document.getElementById('navInsights');
@@ -6703,14 +6708,15 @@
             const navAds = document.getElementById('navAds');
             const navEmails = document.getElementById('navEmails');
             const navImages = document.getElementById('navImages');
+            const navSurveys = document.getElementById('navSurveys');
             const navSettings = document.getElementById('navSettings');
             const mainContainer = document.getElementById('mainContainer');
-            
+
             // Store scroll position when leaving visualizations view
             if (vizSection && vizSection.classList.contains('active') && viewName !== 'visualizations') {
                 window.visualizationsScrollPosition = window.scrollY;
             }
-            
+
             // Hide all sections - CSS class will handle the hiding
             // Also ensure they're completely removed from layout flow
             if (vizSection) {
@@ -6761,6 +6767,16 @@
                     emailsSection.style.minHeight = '0';
                     emailsSection.style.maxHeight = '0';
                     emailsSection.style.overflow = 'hidden';
+                }
+            }
+            if (surveysSection) {
+                surveysSection.classList.remove('active');
+                if (!surveysSection.classList.contains('active')) {
+                    surveysSection.style.display = 'none';
+                    surveysSection.style.height = '0';
+                    surveysSection.style.minHeight = '0';
+                    surveysSection.style.maxHeight = '0';
+                    surveysSection.style.overflow = 'hidden';
                 }
             }
             if (imagesSection) {
@@ -7040,6 +7056,31 @@
                 if (mainContainer && mainContainer.scrollTop > 0) {
                     mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
                 }
+            } else if (viewName === 'surveys') {
+                if (surveysSection) {
+                    surveysSection.classList.add('active');
+                    surveysSection.style.display = '';
+                    surveysSection.style.height = '';
+                    surveysSection.style.minHeight = '';
+                    surveysSection.style.maxHeight = '';
+                    surveysSection.style.overflow = '';
+                }
+                if (navSurveys) navSurveys.classList.add('active');
+                if (mainContainer) {
+                    mainContainer.style.minHeight = 'auto';
+                    mainContainer.style.height = 'auto';
+                    mainContainer.setAttribute('data-view', 'surveys');
+                }
+
+                // Initialize surveys page
+                if (typeof initSurveysPage === 'function') {
+                    initSurveysPage();
+                }
+
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                if (mainContainer && mainContainer.scrollTop > 0) {
+                    mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
+                }
             } else if (viewName === 'settings') {
                 if (settingsSection) {
                     settingsSection.classList.add('active');
@@ -7057,7 +7098,7 @@
                     mainContainer.style.height = 'auto';
                     mainContainer.setAttribute('data-view', 'settings');
                 }
-                
+
                 // Initialize settings page
                 window.settingsInitialized = false;
                 if (typeof initSettingsPage === 'function') {
@@ -7100,6 +7141,7 @@
             const adsSection = document.getElementById('ads-section');
             const emailsSection = document.getElementById('emails-section');
             const imagesSection = document.getElementById('images-section');
+            const surveysSection = document.getElementById('surveys-section');
             const settingsSection = document.getElementById('settings-section');
             const navVisualizations = document.getElementById('navVisualizations');
             const navInsights = document.getElementById('navInsights');
@@ -7107,10 +7149,11 @@
             const navAds = document.getElementById('navAds');
             const navEmails = document.getElementById('navEmails');
             const navImages = document.getElementById('navImages');
+            const navSurveys = document.getElementById('navSurveys');
             const navSettings = document.getElementById('navSettings');
             const mainContainer = document.getElementById('mainContainer');
-            const sections = [vizSection, insightsSection, historySection, adsSection, emailsSection, imagesSection, settingsSection];
-            const navItems = [navVisualizations, navInsights, navHistory, navAds, navEmails, navImages, navSettings];
+            const sections = [vizSection, insightsSection, historySection, adsSection, emailsSection, imagesSection, surveysSection, settingsSection];
+            const navItems = [navVisualizations, navInsights, navHistory, navAds, navEmails, navImages, navSurveys, navSettings];
             sections.forEach(section => {
                 if (section) {
                     section.classList.remove('active');
@@ -7128,9 +7171,10 @@
             else if (hash === '#/ads') viewName = 'ads';
             else if (hash === '#/emails') viewName = 'emails';
             else if (hash === '#/images') viewName = 'images';
+            else if (hash === '#/surveys') viewName = 'surveys';
             else if (hash === '#/settings') viewName = 'settings';
-            const activeSection = viewName === 'visualizations' ? vizSection : viewName === 'insights' ? insightsSection : viewName === 'history' ? historySection : viewName === 'ads' ? adsSection : viewName === 'emails' ? emailsSection : viewName === 'images' ? imagesSection : settingsSection;
-            const activeNav = viewName === 'visualizations' ? navVisualizations : viewName === 'insights' ? navInsights : viewName === 'history' ? navHistory : viewName === 'ads' ? navAds : viewName === 'emails' ? navEmails : viewName === 'images' ? navImages : navSettings;
+            const activeSection = viewName === 'visualizations' ? vizSection : viewName === 'insights' ? insightsSection : viewName === 'history' ? historySection : viewName === 'ads' ? adsSection : viewName === 'emails' ? emailsSection : viewName === 'images' ? imagesSection : viewName === 'surveys' ? surveysSection : settingsSection;
+            const activeNav = viewName === 'visualizations' ? navVisualizations : viewName === 'insights' ? navInsights : viewName === 'history' ? navHistory : viewName === 'ads' ? navAds : viewName === 'emails' ? navEmails : viewName === 'images' ? navImages : viewName === 'surveys' ? navSurveys : navSettings;
             if (activeSection) {
                 activeSection.classList.add('active');
                 activeSection.style.display = '';
@@ -7165,6 +7209,8 @@
                 navigateToView('emails');
             } else if (hash === '#/images') {
                 navigateToView('images');
+            } else if (hash === '#/surveys') {
+                navigateToView('surveys');
             } else if (hash === '#/settings') {
                 navigateToView('settings');
             } else {
@@ -7187,6 +7233,8 @@
                 navigateToView('emails');
             } else if (hash === '#/images') {
                 navigateToView('images');
+            } else if (hash === '#/surveys') {
+                navigateToView('surveys');
             } else if (hash === '#/settings') {
                 navigateToView('settings');
             } else {
@@ -7207,6 +7255,8 @@
                 navigateToView('emails');
             } else if (hash === '#/images') {
                 navigateToView('images');
+            } else if (hash === '#/surveys') {
+                navigateToView('surveys');
             } else if (hash === '#/settings') {
                 navigateToView('settings');
             } else {
@@ -7429,6 +7479,35 @@
                         manageBtn.textContent = 'Manage Billing';
                     }
                 });
+            }
+        }
+
+        // ── Surveys page (client-facing) ──────────────────────────────
+        let surveysPageInitialized = false;
+        async function initSurveysPage() {
+            const container = document.getElementById('surveysMainContent');
+            if (!container) return;
+            if (!currentClientId) {
+                container.innerHTML = '<div style="padding:40px;text-align:center;color:#718096;">Select a client first.</div>';
+                return;
+            }
+            // Dynamically import the client-facing surveys module
+            if (!surveysPageInitialized) {
+                try {
+                    const mod = await import('/js/controllers/client-survey-controller.js');
+                    mod.initClientSurveyController(container, currentClientId);
+                    surveysPageInitialized = true;
+                } catch (err) {
+                    container.innerHTML = '<div style="padding:20px;color:#e53e3e;">Failed to load surveys: ' + err.message + '</div>';
+                }
+            } else {
+                // Re-init with potentially new client
+                try {
+                    const mod = await import('/js/controllers/client-survey-controller.js');
+                    mod.initClientSurveyController(container, currentClientId);
+                } catch (err) {
+                    console.error('[Surveys] reload error:', err);
+                }
             }
         }
 
@@ -17546,6 +17625,17 @@
             </button>
         </div>
     </div> <!-- End images-section -->
+
+    <!-- Surveys Section -->
+    <div id="surveys-section" class="spa-section">
+        <div class="control-bar" style="position: relative;">
+            <h1 style="margin: 0; font-size: 20px; font-weight: 600; color: #37352f;">Popup Surveys</h1>
+            <p style="margin: 4px 0 0; font-size: 14px; color: #718096;">Build and manage popup surveys for your website. Collect feedback from visitors on any page.</p>
+        </div>
+        <div id="surveysMainContent">
+            <!-- Rendered dynamically by the surveys controller -->
+        </div>
+    </div> <!-- End surveys-section -->
 
     <!-- Settings Section -->
     <div id="settings-section" class="spa-section">
