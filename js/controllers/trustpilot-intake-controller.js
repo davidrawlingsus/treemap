@@ -1,4 +1,4 @@
-import { generateTrustpilotPayload } from "/static/js/services/api-trustpilot-leadgen.js";
+import { generateTrustpilotPayload } from "/js/services/api-trustpilot-leadgen.js";
 
 const formEl = document.getElementById("trustpilotIntakeForm");
 const workEmailEl = document.getElementById("workEmail");
@@ -42,9 +42,9 @@ function setExpectedPipelineProgress() {
     resetProgress();
     setProgress("request", "complete");
     setProgress("fetch", "active");
-    setProgress("discover", "active");
-    setProgress("code", "active");
-    setProgress("refine", "active");
+    setProgress("extract", "active");
+    setProgress("taxonomy", "active");
+    setProgress("validate", "active");
     setProgress("persist", "active");
 }
 
@@ -55,13 +55,13 @@ function applyProgressFromResult(response) {
     setProgress("request", "complete");
     setProgress("fetch", "complete");
     if (hasCoding) {
-        setProgress("discover", "complete");
-        setProgress("code", "complete");
-        setProgress("refine", "complete");
+        setProgress("extract", "complete");
+        setProgress("taxonomy", "complete");
+        setProgress("validate", "complete");
     } else {
-        setProgress("discover", "error");
-        setProgress("code", "error");
-        setProgress("refine", "error");
+        setProgress("extract", "error");
+        setProgress("taxonomy", "error");
+        setProgress("validate", "error");
     }
     setProgress("persist", "complete");
 }
@@ -70,17 +70,19 @@ function applyProgressFromError(errorMessage) {
     const message = (errorMessage || "").toLowerCase();
     setProgress("request", "complete");
     setProgress("fetch", "complete");
-    if (message.includes("[code_v1]") || message.includes("[llm_call]")) {
-        setProgress("discover", "complete");
-        setProgress("code", "error");
-    } else if (message.includes("[recode_final]") || message.includes("[refine]")) {
-        setProgress("discover", "complete");
-        setProgress("code", "complete");
-        setProgress("refine", "error");
+    if (message.includes("[extract]")) {
+        setProgress("extract", "error");
+    } else if (message.includes("[taxonomy]")) {
+        setProgress("extract", "complete");
+        setProgress("taxonomy", "error");
+    } else if (message.includes("[validate]")) {
+        setProgress("extract", "complete");
+        setProgress("taxonomy", "complete");
+        setProgress("validate", "error");
     } else if (message.includes("apify") || message.includes("trustpilot")) {
         setProgress("fetch", "error");
     } else {
-        setProgress("discover", "error");
+        setProgress("extract", "error");
     }
 }
 
