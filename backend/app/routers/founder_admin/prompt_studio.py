@@ -1008,23 +1008,34 @@ class GenerateAdRequest(BaseModel):
 )
 def prompt_studio_generate_ad(
     body: GenerateAdRequest,
+    stream: bool = Query(False),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_founder),
 ):
     """Generate Facebook ad concepts. Accepts a pre-assembled user prompt with full VoC data."""
     settings = get_settings()
 
+    llm_kwargs = dict(
+        settings=settings,
+        model=getattr(settings, "voc_coding_discover_model", "claude-sonnet-4-5-20250929"),
+        system_prompt=body.system_prompt,
+        user_prompt=body.user_prompt,
+        schema=GENERATE_AD_SCHEMA,
+        temperature=0.7,
+        max_tokens=16384,
+    )
+
+    if stream:
+        from app.services.voc_coding_chain_service import stream_claude_json_schema
+        return StreamingResponse(
+            stream_claude_json_schema(**llm_kwargs),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
     start = time.time()
     try:
-        output = call_claude_json_schema(
-            settings=settings,
-            model=getattr(settings, "voc_coding_discover_model", "claude-sonnet-4-5-20250929"),
-            system_prompt=body.system_prompt,
-            user_prompt=body.user_prompt,
-            schema=GENERATE_AD_SCHEMA,
-            temperature=0.7,
-            max_tokens=16384,
-        )
+        output = call_claude_json_schema(**llm_kwargs)
     except VocCodingChainError as exc:
         raise HTTPException(status_code=502, detail=f"[generate-ad] {exc}")
 

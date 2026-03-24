@@ -186,39 +186,35 @@ async function runStreamingStep(url, body, onTokens) {
 }
 
 export async function runExtractStep(systemPrompt, userPromptTemplate, productContext, reviews, onTokens) {
-    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/extract`, {
-        method: 'POST',
-        headers: { ...headers(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ system_prompt: systemPrompt, user_prompt_template: userPromptTemplate, product_context: productContext, reviews }),
-    });
-    return handleResponse(res);
+    return runStreamingStep(
+        '/api/founder-admin/prompt-studio/extract',
+        { system_prompt: systemPrompt, user_prompt_template: userPromptTemplate, product_context: productContext, reviews },
+        onTokens,
+    );
 }
 
 export async function runTaxonomyStep(systemPrompt, userPromptTemplate, productContext, signals, onTokens) {
-    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/taxonomy`, {
-        method: 'POST',
-        headers: { ...headers(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ system_prompt: systemPrompt, user_prompt_template: userPromptTemplate, product_context: productContext, signals }),
-    });
-    return handleResponse(res);
+    return runStreamingStep(
+        '/api/founder-admin/prompt-studio/taxonomy',
+        { system_prompt: systemPrompt, user_prompt_template: userPromptTemplate, product_context: productContext, signals },
+        onTokens,
+    );
 }
 
 export async function runValidateStep(systemPrompt, userPromptTemplate, productContext, taxonomy, signals, onTokens) {
-    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/validate`, {
-        method: 'POST',
-        headers: { ...headers(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ system_prompt: systemPrompt, user_prompt_template: userPromptTemplate, product_context: productContext, taxonomy, signals }),
-    });
-    return handleResponse(res);
+    return runStreamingStep(
+        '/api/founder-admin/prompt-studio/validate',
+        { system_prompt: systemPrompt, user_prompt_template: userPromptTemplate, product_context: productContext, taxonomy, signals },
+        onTokens,
+    );
 }
 
-export async function runGenerateAd(systemPrompt, userPrompt) {
-    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/generate-ad`, {
-        method: 'POST',
-        headers: { ...headers(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ system_prompt: systemPrompt, user_prompt: userPrompt }),
-    });
-    return handleResponse(res);
+export async function runGenerateAd(systemPrompt, userPrompt, onTokens) {
+    return runStreamingStep(
+        '/api/founder-admin/prompt-studio/generate-ad',
+        { system_prompt: systemPrompt, user_prompt: userPrompt },
+        onTokens,
+    );
 }
 
 export async function savePipelineState(runId, pipelineState) {
