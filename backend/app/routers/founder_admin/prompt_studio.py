@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_active_founder
 from app.config import get_settings
 from app.database import get_db
-from app.models import Prompt, User
+from app.models import LeadgenPipelineOutput, Prompt, User
 from app.services.product_context_service import (
     DEFAULT_EXTRACT_SYSTEM_MSG,
     extract_product_name,
@@ -485,6 +485,108 @@ def prompt_studio_save_pipeline(
     flag_modified(run, "payload")
     db.commit()
     return {"status": "ok"}
+
+
+class SaveStepOutputRequest(BaseModel):
+    step_type: str
+    step_order: int
+    output: Dict[str, Any]
+    elapsed_seconds: Optional[float] = None
+    prompt_version_id: Optional[str] = None
+
+
+class StepOutputItem(BaseModel):
+    id: int
+    step_type: str
+    step_order: int
+    output: Dict[str, Any]
+    elapsed_seconds: Optional[float] = None
+    prompt_version_id: Optional[str] = None
+    created_at: str
+
+
+class StepOutputsResponse(BaseModel):
+    outputs: List[StepOutputItem]
+
+
+@router.put(
+    "/api/founder-admin/prompt-studio/{run_id}/step-output",
+)
+def prompt_studio_save_step_output(
+    run_id: str,
+    body: SaveStepOutputRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Save or update the output for a single pipeline step."""
+    from app.services.leadgen_voc_service import get_leadgen_run
+
+    run = get_leadgen_run(db, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Lead-gen run not found")
+
+    # Upsert: replace existing output for this step_type + run_id
+    existing = (
+        db.query(LeadgenPipelineOutput)
+        .filter(
+            LeadgenPipelineOutput.run_id == run_id,
+            LeadgenPipelineOutput.step_type == body.step_type,
+        )
+        .first()
+    )
+    if existing:
+        existing.output = body.output
+        existing.step_order = body.step_order
+        existing.elapsed_seconds = body.elapsed_seconds
+        if body.prompt_version_id:
+            import uuid as _uuid
+            existing.prompt_version_id = _uuid.UUID(body.prompt_version_id)
+    else:
+        import uuid as _uuid
+        row = LeadgenPipelineOutput(
+            run_id=run_id,
+            step_type=body.step_type,
+            step_order=body.step_order,
+            output=body.output,
+            elapsed_seconds=body.elapsed_seconds,
+            prompt_version_id=_uuid.UUID(body.prompt_version_id) if body.prompt_version_id else None,
+        )
+        db.add(row)
+
+    db.commit()
+    return {"status": "ok"}
+
+
+@router.get(
+    "/api/founder-admin/prompt-studio/{run_id}/step-outputs",
+    response_model=StepOutputsResponse,
+)
+def prompt_studio_get_step_outputs(
+    run_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Load all saved step outputs for a run."""
+    rows = (
+        db.query(LeadgenPipelineOutput)
+        .filter(LeadgenPipelineOutput.run_id == run_id)
+        .order_by(LeadgenPipelineOutput.step_order)
+        .all()
+    )
+    return StepOutputsResponse(
+        outputs=[
+            StepOutputItem(
+                id=r.id,
+                step_type=r.step_type,
+                step_order=r.step_order,
+                output=r.output,
+                elapsed_seconds=r.elapsed_seconds,
+                prompt_version_id=str(r.prompt_version_id) if r.prompt_version_id else None,
+                created_at=r.created_at.isoformat() if r.created_at else "",
+            )
+            for r in rows
+        ]
+    )
 
 
 @router.get(

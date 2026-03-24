@@ -228,6 +228,28 @@ export async function savePipelineState(runId, pipelineState) {
     return handleResponse(res);
 }
 
+export async function saveStepOutput(runId, stepType, stepOrder, output, elapsedSeconds, promptVersionId) {
+    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/${runId}/step-output`, {
+        method: 'PUT',
+        headers: { ...headers(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            step_type: stepType,
+            step_order: stepOrder,
+            output,
+            elapsed_seconds: elapsedSeconds || null,
+            prompt_version_id: promptVersionId || null,
+        }),
+    });
+    return handleResponse(res);
+}
+
+export async function fetchStepOutputs(runId) {
+    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/${runId}/step-outputs`, {
+        headers: headers(),
+    });
+    return handleResponse(res);
+}
+
 // Prompt CRUD — reuses existing prompts API
 export async function createPromptVersion(data) {
     const res = await fetch(`${API_BASE_URL}/api/founder/prompts`, {

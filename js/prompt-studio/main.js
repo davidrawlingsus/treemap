@@ -8,7 +8,7 @@ import {
     fetchPromptVersions, runContextStep, runDiscoverStep,
     runCodeStep, runRefineStep, runExtractStep, runTaxonomyStep,
     runValidateStep, runGenerateAd, createPromptVersion, updatePrompt,
-    savePipelineState,
+    savePipelineState, saveStepOutput, fetchStepOutputs,
 } from '/js/prompt-studio/api.js';
 
 import {
@@ -365,9 +365,15 @@ async function executeStep(stepId) {
     }
     updateStepUI(step);
     updateTreemap();
-    // Auto-save pipeline after each step
+    // Auto-save pipeline state and step output after each step
     if (currentRunId && step.status === 'done') {
+        const stepIndex = pipeline.indexOf(step);
         savePipelineState(currentRunId, serializePipeline()).catch(() => {});
+        if (step.output) {
+            saveStepOutput(currentRunId, step.type, stepIndex, step.output, step.elapsedSeconds).catch(
+                e => console.warn('[auto-save] Failed to save step output:', e.message)
+            );
+        }
     }
 }
 
@@ -798,6 +804,13 @@ async function handleGenerateAds() {
     showStatus(`Done! ${totalAds} ads from ${completed} topics.${failed > 0 ? ` ${failed} failed.` : ''}`, 'success');
     renderAdsSection();
     renderGenerateOutput();
+
+    // Auto-save ad outputs
+    if (currentRunId && generatedAdBatches.length) {
+        saveStepOutput(currentRunId, 'generate', pipeline.length, { batches: generatedAdBatches }, parseFloat(elapsed)).catch(
+            e => console.warn('[auto-save] Failed to save ad outputs:', e.message)
+        );
+    }
 }
 
 function renderGenerateOutput() {
@@ -1112,7 +1125,10 @@ async function handleScrape() {
 async function handleLoadRun(runId) {
     showStatus('Loading run data...', '');
     try {
-        const data = await fetchRunInputs(runId);
+        const [data, outputsData] = await Promise.all([
+            fetchRunInputs(runId),
+            fetchStepOutputs(runId).catch(() => ({ outputs: [] })),
+        ]);
         currentRunId = runId;
         studioInputs = {
             url: data.company_context?.source_url || '',
@@ -1127,9 +1143,32 @@ async function handleLoadRun(runId) {
 
         if (data.pipeline_state?.length) {
             restorePipeline(data.pipeline_state);
-            showStatus(`Loaded ${data.reviews.length} reviews with saved pipeline state.`, 'success');
         } else {
             initDefaultPipeline();
+        }
+
+        // Restore saved step outputs into pipeline
+        const savedOutputs = outputsData.outputs || [];
+        if (savedOutputs.length) {
+            for (const saved of savedOutputs) {
+                // Restore ad generation outputs
+                if (saved.step_type === 'generate' && saved.output?.batches) {
+                    generatedAdBatches = saved.output.batches;
+                    renderAdsSection();
+                    renderGenerateOutput();
+                    continue;
+                }
+                const step = pipeline.find(s => s.type === saved.step_type);
+                if (step && saved.output) {
+                    step.output = saved.output;
+                    step.elapsedSeconds = saved.elapsed_seconds;
+                    step.status = 'done';
+                    updateStepUI(step);
+                }
+            }
+            updateTreemap();
+            showStatus(`Loaded ${data.reviews.length} reviews with ${savedOutputs.length} saved outputs.`, 'success');
+        } else {
             showStatus(`Loaded ${data.reviews.length} reviews.`, 'success');
         }
         updateSaveButton();
