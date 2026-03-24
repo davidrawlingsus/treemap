@@ -737,6 +737,185 @@ def run_voc_coding_chain(
     }
 
 
+def run_new_voc_pipeline(
+    *,
+    settings: Any,
+    reviews: List[Dict[str, Any]],
+    product_context: Dict[str, Any],
+    db: Optional[Session] = None,
+) -> Dict[str, Any]:
+    """Run the new Extract → Taxonomy → Validate pipeline.
+
+    Uses the same prompts and schemas as the Prompt Studio endpoints.
+    Returns a result dict compatible with the old pipeline's shape so
+    it can be consumed by merge_coded_reviews_into_rows and the payload
+    builder.
+    """
+    from app.routers.founder_admin.prompt_studio import (
+        EXTRACT_SCHEMA,
+        EXTRACT_SYSTEM_PROMPT_DEFAULT,
+        EXTRACT_USER_PROMPT_DEFAULT,
+        TAXONOMY_SCHEMA,
+        TAXONOMY_SYSTEM_PROMPT_DEFAULT,
+        TAXONOMY_USER_PROMPT_DEFAULT,
+        VALIDATE_SCHEMA,
+        VALIDATE_SYSTEM_PROMPT_DEFAULT,
+        VALIDATE_USER_PROMPT_DEFAULT,
+    )
+
+    run_id = uuid.uuid4().hex
+    context_text = (product_context or {}).get("context_text", "")
+    model = getattr(settings, "voc_coding_discover_model", "claude-sonnet-4-5-20250929")
+
+    if not reviews:
+        return {
+            "run_id": run_id,
+            "pipeline": "extract-taxonomy-validate",
+            "extract_output": {"meta": {}, "signals": []},
+            "taxonomy_output": {"meta": {}, "categories": []},
+            "validate_output": {"meta": {}, "categories": [], "changes_made": [], "strategic_notes": []},
+            "coded_reviews": [],
+            "no_matches": [],
+            "stats": {},
+        }
+
+    # ── Step 1: EXTRACT signals ──
+    logger.info("[new-pipeline] Step 1/3: Extract signals from %d reviews", len(reviews))
+    reviews_text = _format_reviews_for_discovery(reviews)
+    extract_user = (EXTRACT_USER_PROMPT_DEFAULT
+        .replace("{BUSINESS_CONTEXT}", context_text)
+        .replace("{RAW_REVIEWS}", reviews_text)
+    )
+    extract_output = call_claude_json_schema(
+        settings=settings,
+        model=model,
+        system_prompt=EXTRACT_SYSTEM_PROMPT_DEFAULT,
+        user_prompt=extract_user,
+        schema=EXTRACT_SCHEMA,
+        temperature=0.0,
+        max_tokens=64000,
+    )
+    signals_count = len(extract_output.get("signals", []))
+    logger.info("[new-pipeline] Extract complete: %d signals", signals_count)
+
+    # ── Step 2: TAXONOMY construction ──
+    logger.info("[new-pipeline] Step 2/3: Build taxonomy from %d signals", signals_count)
+    taxonomy_user = (TAXONOMY_USER_PROMPT_DEFAULT
+        .replace("{BUSINESS_CONTEXT}", context_text)
+        .replace("{JSON_OUTPUT_FROM_PROMPT_1}", json.dumps(extract_output, ensure_ascii=False))
+        .replace("{REVIEW_COUNT}", str(signals_count))
+    )
+    taxonomy_output = call_claude_json_schema(
+        settings=settings,
+        model=model,
+        system_prompt=TAXONOMY_SYSTEM_PROMPT_DEFAULT,
+        user_prompt=taxonomy_user,
+        schema=TAXONOMY_SCHEMA,
+        temperature=0.0,
+        max_tokens=64000,
+    )
+    cat_count = len(taxonomy_output.get("categories", []))
+    logger.info("[new-pipeline] Taxonomy complete: %d categories", cat_count)
+
+    # ── Step 3: VALIDATE & refine ──
+    logger.info("[new-pipeline] Step 3/3: Validate taxonomy")
+    validate_user = (VALIDATE_USER_PROMPT_DEFAULT
+        .replace("{BUSINESS_CONTEXT}", context_text)
+        .replace("{JSON_OUTPUT_FROM_PROMPT_2}", json.dumps(taxonomy_output, ensure_ascii=False))
+        .replace("{JSON_OUTPUT_FROM_PROMPT_1}", json.dumps(extract_output, ensure_ascii=False))
+    )
+    validate_output = call_claude_json_schema(
+        settings=settings,
+        model=model,
+        system_prompt=VALIDATE_SYSTEM_PROMPT_DEFAULT,
+        user_prompt=validate_user,
+        schema=VALIDATE_SCHEMA,
+        temperature=0.0,
+        max_tokens=64000,
+    )
+    logger.info("[new-pipeline] Validate complete: %d categories",
+                len(validate_output.get("categories", [])))
+
+    # ── Convert taxonomy → per-review coded_reviews for downstream compat ──
+    coded_reviews = _taxonomy_to_coded_reviews(validate_output, reviews)
+
+    return {
+        "run_id": run_id,
+        "pipeline": "extract-taxonomy-validate",
+        "extract_output": extract_output,
+        "taxonomy_output": taxonomy_output,
+        "validate_output": validate_output,
+        "final_codebook": validate_output,
+        "coded_reviews": coded_reviews,
+        "no_matches": [r for r in coded_reviews if r.get("status") == "NO_MATCH"],
+        "changelog": validate_output.get("changes_made", []),
+        "stats": {
+            "categories": len(validate_output.get("categories", [])),
+            "topics": sum(
+                len(c.get("topics", []))
+                for c in validate_output.get("categories", [])
+            ),
+            "signals": len(extract_output.get("signals", [])),
+            "coverage_pct": validate_output.get("meta", {}).get("coverage_pct", 0),
+        },
+    }
+
+
+def _taxonomy_to_coded_reviews(
+    taxonomy: Dict[str, Any],
+    reviews: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Convert a validated taxonomy back into per-review coded rows.
+
+    Each review gets assigned the topics that reference its respondent_id
+    in their review_ids arrays. This makes the new pipeline output
+    compatible with merge_coded_reviews_into_rows.
+    """
+    # Build a map: review_id → list of topics
+    review_topics: Dict[str, List[Dict[str, Any]]] = {}
+    for cat in taxonomy.get("categories", []):
+        category_name = cat.get("category", "")
+        for topic in cat.get("topics", []):
+            for rid in topic.get("review_ids", []):
+                if rid not in review_topics:
+                    review_topics[rid] = []
+                review_topics[rid].append({
+                    "category": category_name,
+                    "label": topic.get("label", ""),
+                    "code": f"{category_name}::{topic.get('label', '')}",
+                    "sentiment": "mixed",
+                    "headline": topic.get("label", ""),
+                    "confidence": 1.0,
+                })
+
+    # Map R-001 → actual respondent_id from the reviews list
+    rid_map: Dict[str, str] = {}
+    for i, review in enumerate(reviews):
+        synthetic_id = f"R-{i + 1:03d}"
+        actual_id = review.get("respondent_id", synthetic_id)
+        rid_map[synthetic_id] = actual_id
+
+    coded: List[Dict[str, Any]] = []
+    for review in reviews:
+        actual_rid = review.get("respondent_id", "")
+        # Find matching topics by either actual or synthetic ID
+        topics = review_topics.get(actual_rid, [])
+        if not topics:
+            # Try synthetic ID
+            idx = reviews.index(review)
+            synthetic = f"R-{idx + 1:03d}"
+            topics = review_topics.get(synthetic, [])
+
+        coded.append({
+            "respondent_id": actual_rid,
+            "overall_sentiment": "mixed",
+            "status": "CODED" if topics else "NO_MATCH",
+            "topics": topics,
+        })
+
+    return coded
+
+
 def merge_coded_reviews_into_rows(
     process_voc_rows: List[Dict[str, Any]],
     coded_reviews: List[Dict[str, Any]],

@@ -26,6 +26,7 @@ from app.services.trustpilot_processor_service import (
 from app.services.voc_coding_chain_service import (
     VocCodingChainError,
     merge_coded_reviews_into_rows,
+    run_new_voc_pipeline,
     run_voc_coding_chain,
     validate_import_ready_rows,
 )
@@ -117,15 +118,11 @@ def build_trustpilot_llm_input(
     run_id = debug_run_id
     if settings.voc_coding_enabled:
         try:
-            coding_result = run_voc_coding_chain(
+            coding_result = run_new_voc_pipeline(
                 settings=settings,
                 reviews=pre_llm_rows,
                 product_context=company_context,
-                resume_run_id=body.resume_run_id,
                 db=db,
-                use_prompt_db=True,
-                strict_prompt_db=False,
-                strict_mode=True,
             )
             run_id = coding_result.get("run_id")
             import_ready_rows = merge_coded_reviews_into_rows(
