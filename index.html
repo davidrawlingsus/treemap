@@ -884,7 +884,8 @@
                 <a href="/founder_prompt_engineering.html" class="nav-menu-item founder-admin hidden" id="navPrompts">
                     <span>Prompts</span>
                 </a>
-                <a href="#" class="nav-menu-item founder-admin hidden" id="navSurveys" onclick="navigateToView('surveys'); return false;">
+                <!-- Surveys nav hidden until ready - access via Founder Admin instead -->
+                <a href="#" class="nav-menu-item" id="navSurveys" onclick="navigateToView('surveys'); return false;" style="display: none;">
                     <span>Surveys</span>
                 </a>
                 <a href="#" class="nav-menu-item" id="navSettings" onclick="navigateToView('settings'); return false;">
@@ -1525,11 +1526,9 @@
             // Show/hide founder admin nav items based on stored user info
             const adminNavItem = document.getElementById('navFounderAdmin');
             const promptsNavItem = document.getElementById('navPrompts');
-            const surveysNavItem = document.getElementById('navSurveys');
             if (storedHeaderUser.is_founder) {
                 if (adminNavItem) adminNavItem.classList.remove('hidden');
                 if (promptsNavItem) promptsNavItem.classList.remove('hidden');
-                if (surveysNavItem) surveysNavItem.classList.remove('hidden');
             }
         } else {
             applyHeaderUserState();
@@ -2282,14 +2281,6 @@
                     promptsNavItem.classList.remove('hidden');
                 } else {
                     promptsNavItem.classList.add('hidden');
-                }
-            }
-            const surveysNavItem2 = document.getElementById('navSurveys');
-            if (surveysNavItem2) {
-                if (userInfo.is_founder) {
-                    surveysNavItem2.classList.remove('hidden');
-                } else {
-                    surveysNavItem2.classList.add('hidden');
                 }
             }
             setupLeadModeToggle();
