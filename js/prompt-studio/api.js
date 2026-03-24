@@ -93,8 +93,10 @@ export async function runRefineStep(systemPrompt, userPromptTemplate, codebook, 
  * but calls onTokens(n) as tokens arrive so the UI can show progress.
  */
 async function runStreamingStep(url, body, onTokens) {
-    // Use Railway direct URL for streaming to bypass Cloudflare's 100s timeout
-    const streamBase = 'https://content-exploration-featurebranch.up.railway.app';
+    // On production, use Railway direct URL to bypass Cloudflare's 100s timeout
+    // On localhost, use the normal API base URL
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const streamBase = isLocal ? API_BASE_URL : 'https://content-exploration-featurebranch.up.railway.app';
     console.log('[stream] Starting:', url, 'via', streamBase);
     const res = await fetch(`${streamBase}${url}?stream=true`, {
         method: 'POST',
