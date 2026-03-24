@@ -55,19 +55,58 @@
         </main>
     </div>
 
+    <script src="/js/founder-admin-common.js"></script>
     <script type="module">
         import { initWidgetSurveyController } from '/js/controllers/widget-survey-controller.js';
 
-        window.Auth?.onReady?.(() => {
-            const email = window.Auth?.getUser?.()?.email;
-            if (email) {
-                document.getElementById('founderEmail').textContent = email;
-            }
-            initWidgetSurveyController();
+        function waitForAuth() {
+            return new Promise((resolve) => {
+                if (typeof Auth !== 'undefined' && typeof Auth.checkAuth === 'function') {
+                    resolve();
+                } else {
+                    const checkInterval = setInterval(() => {
+                        if (typeof Auth !== 'undefined' && typeof Auth.checkAuth === 'function') {
+                            clearInterval(checkInterval);
+                            resolve();
+                        }
+                    }, 50);
+                    setTimeout(() => { clearInterval(checkInterval); resolve(); }, 2000);
+                }
+            });
+        }
+
+        waitForAuth().then(() => {
+            Auth.checkAuth().then(async authenticated => {
+                if (!authenticated) return;
+
+                const storedUserInfo = Auth.getStoredUserInfo();
+                if (!storedUserInfo?.is_founder) {
+                    Auth.showLogin();
+                    const errorEl = document.getElementById('loginError');
+                    if (errorEl) {
+                        errorEl.textContent = 'Access denied: founder privileges required.';
+                        errorEl.style.display = 'block';
+                    }
+                    return;
+                }
+
+                // Show app shell
+                Auth.hideLogin();
+                const loginOverlay = document.getElementById('loginOverlay');
+                if (loginOverlay) loginOverlay.classList.add('hidden');
+                document.getElementById('appShell').style.display = 'flex';
+
+                const email = storedUserInfo.email;
+                if (email) {
+                    document.getElementById('founderEmail').textContent = email;
+                }
+
+                initWidgetSurveyController();
+            });
         });
 
         document.getElementById('logoutButton')?.addEventListener('click', () => {
-            window.Auth?.logout?.();
+            Auth.logout();
         });
     </script>
 </body>
