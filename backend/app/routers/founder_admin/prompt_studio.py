@@ -346,59 +346,72 @@ def prompt_studio_scrape(
     current_user: User = Depends(get_current_active_founder),
 ):
     """Scrape Trustpilot reviews and persist as a leadgen run for later reload."""
+    import traceback
     import uuid
     from datetime import datetime, timezone
     from app.services.leadgen_voc_service import upsert_leadgen_run_with_rows
 
-    settings = get_settings()
-    domain = _domain_from_url(body.url)
-    company_name = (body.company_name or "").strip() or infer_company_name_from_domain(domain)
-    company_url = normalize_url(body.url)
+    try:
+        settings = get_settings()
+        domain = _domain_from_url(body.url)
+        company_name = (body.company_name or "").strip() or infer_company_name_from_domain(domain)
+        company_url = normalize_url(body.url)
 
-    normalized_reviews = fetch_trustpilot_reviews_by_domain(
-        settings=settings,
-        domain=domain,
-        max_reviews=body.max_reviews,
-    )
-    rows = build_pre_llm_process_voc_rows(
-        normalized_reviews=normalized_reviews,
-        company_name=company_name,
-        company_domain=domain,
-    )
+        logger.info("[scrape] Starting for domain=%s max_reviews=%s", domain, body.max_reviews)
 
-    # Persist so the run appears in the "Load Existing Run" dropdown
-    run_id = uuid.uuid4().hex
-    upsert_leadgen_run_with_rows(
-        db,
-        run_id=run_id,
-        work_email=f"studio@{domain}",
-        company_domain=domain,
-        company_url=company_url,
-        company_name=company_name,
-        review_count=len(rows),
-        coding_enabled=False,
-        coding_status="pending",
-        generated_at=datetime.now(timezone.utc),
-        payload={
-            "source": "prompt_studio_scrape",
-            "company_context": {
-                "name": company_name,
-                "source_url": company_url,
-                "domain": domain,
+        normalized_reviews = fetch_trustpilot_reviews_by_domain(
+            settings=settings,
+            domain=domain,
+            max_reviews=body.max_reviews,
+        )
+        logger.info("[scrape] Got %d reviews from Apify", len(normalized_reviews))
+
+        rows = build_pre_llm_process_voc_rows(
+            normalized_reviews=normalized_reviews,
+            company_name=company_name,
+            company_domain=domain,
+        )
+        logger.info("[scrape] Built %d rows", len(rows))
+
+        # Persist so the run appears in the "Load Existing Run" dropdown
+        run_id = uuid.uuid4().hex
+        upsert_leadgen_run_with_rows(
+            db,
+            run_id=run_id,
+            work_email=f"studio@{domain}",
+            company_domain=domain,
+            company_url=company_url,
+            company_name=company_name,
+            review_count=len(rows),
+            coding_enabled=False,
+            coding_status="pending",
+            generated_at=datetime.now(timezone.utc),
+            payload={
+                "source": "prompt_studio_scrape",
+                "company_context": {
+                    "name": company_name,
+                    "source_url": company_url,
+                    "domain": domain,
+                },
             },
-        },
-        rows=rows,
-    )
-    db.commit()
+            rows=rows,
+        )
+        db.commit()
+        logger.info("[scrape] Persisted run_id=%s with %d rows", run_id, len(rows))
 
-    return ScrapeResponse(
-        run_id=run_id,
-        domain=domain,
-        company_name=company_name,
-        company_url=company_url,
-        reviews=rows,
-        review_count=len(rows),
-    )
+        return ScrapeResponse(
+            run_id=run_id,
+            domain=domain,
+            company_name=company_name,
+            company_url=company_url,
+            reviews=rows,
+            review_count=len(rows),
+        )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("[scrape] Unexpected error: %s\n%s", exc, traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Scrape failed: {exc}")
 
 
 @router.get(
