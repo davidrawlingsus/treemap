@@ -1,8 +1,8 @@
 """
-Creative MRI: Claude API per-ad for creative-llm-analysis.bundle schema.
-Full schema output for D3 charts: hook scores, cta_type, destination_type.
-Prompts are loaded from Prompt Engineering (prompt_purpose=ad_creative_mri) when available;
-otherwise falls back to built-in CREATIVE_MRI_SYSTEM_PROMPT.
+Creative MRI v2: Per-ad structured classification (LLM Pass 1).
+The LLM classifies ad copy into structured elements — sentence-level tagging,
+belief clusters, close patterns, social context, emotional scenes, etc.
+No subjective 0-100 scores. Scoring happens in LLM Pass 2 (batch synthesis).
 """
 import json
 import logging
@@ -11,67 +11,144 @@ try:
     import json_repair
 except ImportError:
     json_repair = None
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from sqlalchemy.orm import Session
 
 from app.services.creative_mri.analysis_schema import (
-    CTA_TYPES,
-    DESTINATION_TYPES,
-    FIRST2S_HOOK_QUALITY,
-    MOFU_JOB_TYPES,
-    REPLACE_REFINE_DECISION,
+    CLOSE_PATTERNS,
+    DIMENSION_NAMES,
+    DIMENSION_WEIGHTS,
+    EMOTIONAL_SCENE_TYPES,
+    HOOK_TYPES,
+    PROOF_DETAIL_TYPES,
+    SENTENCE_TYPES,
+    SOCIAL_CONTEXT_TYPES,
 )
 
 logger = logging.getLogger(__name__)
 
-_CTA_LIST = ", ".join(CTA_TYPES)
-_DEST_LIST = ", ".join(DESTINATION_TYPES)
+# ─── Per-ad system prompt (LLM Pass 1) ───────────────────────────────────────
 
-CREATIVE_MRI_SYSTEM_PROMPT = f"""You are a marketing copy analyst. You analyze ad creative (headline + body + CTA + destination_url, and when provided, video_analysis or image_analyses) for copy-based effectiveness only. You do NOT predict performance (ROAS, CTR, CPA). All outputs are "copy-based effectiveness diagnostics."
+_SENTENCE_TYPES_STR = ", ".join(SENTENCE_TYPES)
+_PROOF_DETAIL_TYPES_STR = ", ".join(PROOF_DETAIL_TYPES)
+_CLOSE_PATTERNS_STR = ", ".join(CLOSE_PATTERNS)
+_SOCIAL_CONTEXT_TYPES_STR = ", ".join(SOCIAL_CONTEXT_TYPES)
+_EMOTIONAL_SCENE_TYPES_STR = ", ".join(EMOTIONAL_SCENE_TYPES)
+_HOOK_TYPES_STR = ", ".join(HOOK_TYPES + ["unknown"])
 
-The input may include:
-- "video_analysis" object with: transcript, visual_scenes, on_screen_text, proof_shown_visually, emotional_cues. Use this to inform proof detection and what's shown vs claimed in the video.
-- "image_analyses" array of objects with: visual_description, on_screen_text, proof_shown_visually, emotional_cues, focal_point, layout_style. Use this for image/carousel ads to inform proof detection and what's shown vs claimed in the visuals.
+CREATIVE_MRI_SYSTEM_PROMPT = f"""You are a direct-response copywriting analyst. You classify the structural elements of Facebook ad copy. You do NOT score or rate ads — you classify and extract.
 
-Given one Meta ad (headline, primary_text, cta, destination_url, and optionally video_analysis or image_analyses), output a single JSON object with no markdown or explanation outside the JSON. Use only the keys listed; use null for missing or inapplicable values. Be concise.
+Given one Meta ad (headline, primary_text, cta, destination_url, and optionally video_analysis or image_analyses), output a single JSON object. No markdown, no explanation outside the JSON. Be precise — quote exact text from the ad.
 
-Hook types: direct_benefit, pain_agitation, authority, social_proof, ranking, newness, contrarian, identity, instructional, urgency_scarcity, story, offer_led, question, curiosity_gap, comparison, mechanism_tease, unknown.
-CTA types (use for cta_type): {_CTA_LIST}
-Destination types (use for destination_type, infer from URL path): {_DEST_LIST}
+The input includes a pre-computed "flesch_kincaid" object with reading level metrics. Include it as-is in your output.
 
 Output JSON schema (use exactly these keys):
+
 {{
-  "hook_type": "string from hook types",
-  "hook_phrase": "exact quote from the ad that best represents the hook, or null",
-  "secondary_hook": "optional second hook type if present, else null",
-  "angle": "short human-readable messaging angle in 3–8 words, or null",
-  "funnel_stage": "tofu | mofu | bofu",
-  "stage_rationale": ["1-3 short bullet reasons for funnel stage"],
-  "proof_claimed": [{{"type": "proof type e.g. clinical_study", "strength_0_1": 0.8, "text_evidence": "brief quote"}}],
-  "proof_shown": [{{"type": "proof type", "strength_0_1": 0.5, "text_evidence": "what is shown"}}],
-  "proof_gap": [{{"proof_type": "string", "severity": "low|medium|high", "reason": "brief"}}],
-  "objections_addressed": [{{"type": "e.g. price", "coverage_strength_0_1": 0.7, "how_addressed": "explicit_claim or proof or guarantee etc", "text_evidence": "quote"}}],
-  "objections_unaddressed": [{{"type": "string", "importance": "low|medium|high"}}],
-  "offer_present": true|false,
-  "offer_types": [{{"type": "e.g. percent_off", "weight": 0.8}}],
-  "hook_scores": {{
-    "clarity": 0-100,
-    "specificity": 0-100,
-    "novelty": 0-100,
-    "emotional_pull": 0-100,
-    "pattern_interrupt": 0-100,
-    "audience_specificity": 0-100,
-    "credibility": 0-100,
-    "overall": 0-100
+  "sentences": [
+    {{
+      "text": "exact sentence quoted from the ad",
+      "type": "{_SENTENCE_TYPES_STR}",
+      "proof_detail": {{
+        "has_number": true|false,
+        "has_named_source": true|false,
+        "has_timeline": true|false,
+        "proof_type": "{_PROOF_DETAIL_TYPES_STR}"
+      }}
+    }}
+  ],
+
+  "belief_clusters": [
+    {{
+      "core_argument": "1 sentence summary of the selling argument",
+      "supporting_sentences": [0, 3, 5]
+    }}
+  ],
+
+  "close_pattern": "{_CLOSE_PATTERNS_STR}",
+  "close_text": "exact closing CTA / final sentences from the ad",
+
+  "close_anti_patterns": [
+    {{
+      "pattern": "description of the anti-pattern (e.g. question answerable with no, generic urgency, motivational poster line)",
+      "text": "exact quote from ad"
+    }}
+  ],
+
+  "product_timing": {{
+    "first_mention_word_position": 45,
+    "first_mention_pct": 0.62,
+    "total_words": 73
   }},
-  "cta_type": "string from CTA types list or null",
-  "destination_type": "string from destination types list or null",
-  "unsupported_claims": ["claim phrases with no proof nearby"],
-  "what_to_change": ["1–3 concrete copy edits"]
-}}"""
+
+  "specificity": {{
+    "vague_terms": ["affordable", "quality", "effective"],
+    "concrete_terms": ["£89", "2-day delivery", "847 customers"],
+    "vague_count": 3,
+    "concrete_count": 3
+  }},
+
+  "qualifier_density": {{
+    "qualifiers_found": ["may", "could help", "possibly"],
+    "count": 3,
+    "per_100_words": 4.1
+  }},
+
+  "social_context_refs": [
+    {{
+      "text": "exact quote",
+      "type": "{_SOCIAL_CONTEXT_TYPES_STR}"
+    }}
+  ],
+
+  "emotional_scenes": [
+    {{
+      "text": "exact quote",
+      "type": "{_EMOTIONAL_SCENE_TYPES_STR}"
+    }}
+  ],
+
+  "conversational_markers": {{
+    "markers_found": ["here's the thing", "okay"],
+    "count": 2,
+    "per_100_words": 2.7
+  }},
+
+  "pain_benefit_balance": {{
+    "pain_pct": 0.40,
+    "benefit_pct": 0.45,
+    "neutral_pct": 0.15
+  }},
+
+  "hook_type": "{_HOOK_TYPES_STR}",
+  "funnel_stage": "tofu | mofu | bofu",
+
+  "flesch_kincaid": {{
+    "flesch_kincaid_grade": 8.2,
+    "sentence_count": 12,
+    "word_count": 95,
+    "syllable_count": 140
+  }}
+}}
+
+Classification rules:
+- "sentences": Break the ad into individual sentences/statements. Classify each as claim (assertion about product/benefit with no evidence), proof (evidence, number, testimonial, source), pain (acknowledges reader's problem/frustration), benefit (describes positive outcome), neutral (context, brand name, transition), or transition (connects ideas). Include proof_detail ONLY for sentences typed as "proof" — set to null for all other types.
+- "belief_clusters": Group sentences that support the same core selling argument. Most ads should have 1-2 clusters. An ad arguing 3+ distinct points is unfocused. supporting_sentences are indices into the sentences array.
+- "close_pattern": Classify the ad's closing approach. echo = restates the hook. micro_commitment = small next step. reframe = shifts perspective. future_state = paints life after purchase. social_proof = others are doing it. permission = gives reader permission to act. before_you_decide = frames as pre-decision info. see_how_it_works = curiosity-driven. direct_ask = straightforward buy/shop. scarcity = limited time/quantity. none = no clear close.
+- "close_anti_patterns": Flag banned close phrases: questions answerable with "no" ("Are you ready to...?", "Do you want to...?", "Isn't it time...?"), generic urgency ("Don't miss out", "Act now", "Hurry"), motivational poster lines ("What are you waiting for?", "You won't regret it"), feature dumps in the close. Return empty array if no anti-patterns found.
+- "product_timing": Find the first mention of the product or brand name. Report its word position and percentage through the total copy. If the brand is never mentioned, set first_mention_word_position and first_mention_pct to null.
+- "specificity": List vague marketing words (affordable, fast, easy, quality, effective, amazing, premium, innovative, cutting-edge, world-class, revolutionary, best, leading, powerful, incredible, simple, great, unique) and concrete specifics (numbers with units, prices, timeframes, named features, named sources).
+- "qualifier_density": Count hedging words (could, may, might, perhaps, possibly, sometimes, often, generally, usually, typically, arguably, seemingly, potentially, presumably, can help, designed to, up to, as much as, tends to).
+- "social_context_refs": Quote any reference to other people, social situations, peer behaviour, status, embarrassment, compliments, or how the reader appears to others.
+- "emotional_scenes": Quote any sensory language, scene-setting, present-tense situational descriptions, or "mind movie" moments where the reader can picture themselves in a specific situation.
+- "conversational_markers": Count natural speech inflections: "okay", "here's the thing", "but check this out", "look", "listen", "honestly", "real talk", "spoiler", "plot twist", "wait", "get this", "trust me", "no really", sentence-initial "And"/"But"/"So", em-dashes, ellipsis continuations.
+- "pain_benefit_balance": Calculate what percentage of the ad's sentences are pain-oriented, benefit-oriented, and neutral/transition. Percentages should sum to 1.0.
+- "flesch_kincaid": Copy the pre-computed flesch_kincaid object from the input into your output unchanged."""
 
 DEFAULT_MODEL = "claude-3-5-sonnet-20241022"
+
+# ─── Prompt Engineering lookup ────────────────────────────────────────────────
 
 
 def get_creative_mri_prompts(db: Session) -> Tuple[Optional[str], Optional[str]]:
@@ -107,19 +184,17 @@ def get_creative_mri_prompts(db: Session) -> Tuple[Optional[str], Optional[str]]
     model = prompt.llm_model or DEFAULT_MODEL
     return combined, model
 
-VALID_HOOK_TYPES = {
-    "direct_benefit", "pain_agitation", "authority", "social_proof", "ranking",
-    "newness", "contrarian", "identity", "instructional", "urgency_scarcity",
-    "story", "offer_led", "question", "curiosity_gap", "comparison",
-    "mechanism_tease", "unknown",
-}
-VALID_CTA_TYPES = set(CTA_TYPES)
-VALID_DESTINATION_TYPES = set(DESTINATION_TYPES)
-VALID_MOFU_JOB_TYPES = set(t.lower() for t in MOFU_JOB_TYPES)
-VALID_REPLACE_REFINE = set(d.lower() for d in REPLACE_REFINE_DECISION)
-VALID_FIRST2S_QUALITY = set(q.lower() for q in FIRST2S_HOOK_QUALITY)
 
-MAX_STRING_LEN = 150
+# ─── Validation sets ──────────────────────────────────────────────────────────
+
+VALID_HOOK_TYPES = set(HOOK_TYPES) | {"unknown"}
+VALID_SENTENCE_TYPES = set(SENTENCE_TYPES)
+VALID_PROOF_DETAIL_TYPES = set(PROOF_DETAIL_TYPES)
+VALID_CLOSE_PATTERNS = set(CLOSE_PATTERNS)
+VALID_SOCIAL_CONTEXT_TYPES = set(SOCIAL_CONTEXT_TYPES)
+VALID_EMOTIONAL_SCENE_TYPES = set(EMOTIONAL_SCENE_TYPES)
+
+MAX_STRING_LEN = 300  # longer for exact quotes
 
 
 def _truncate(s: Any, max_len: int = MAX_STRING_LEN) -> Optional[str]:
@@ -129,76 +204,191 @@ def _truncate(s: Any, max_len: int = MAX_STRING_LEN) -> Optional[str]:
     return t[:max_len] if len(t) > max_len else t if t else None
 
 
-def _truncate_list_items(arr: list, max_len: int = MAX_STRING_LEN) -> list:
-    if not isinstance(arr, list):
-        return []
-    out = []
-    for x in arr:
-        if isinstance(x, str):
-            out.append(x[:max_len] if len(x) > max_len else x)
-        elif isinstance(x, dict):
-            out.append({k: (_truncate(v, max_len) if isinstance(v, str) else v) for k, v in x.items()})
-        else:
-            out.append(x)
-    return out[:20]
+def _clamp_float(v: Any, lo: float = 0.0, hi: float = 1.0) -> float:
+    try:
+        return max(lo, min(hi, float(v)))
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def _validate_and_normalize(out: Dict[str, Any]) -> Dict[str, Any]:
-    """Validate and normalize parsed LLM output dict."""
-    if out.get("hook_type") not in VALID_HOOK_TYPES:
-        ht = (out.get("hook_type") or "").lower().replace(" ", "_")
-        out["hook_type"] = ht if ht in VALID_HOOK_TYPES else "unknown"
-    if out.get("secondary_hook") not in VALID_HOOK_TYPES:
-        out["secondary_hook"] = None
-    if out.get("cta_type") not in VALID_CTA_TYPES:
-        out["cta_type"] = None
-    if out.get("destination_type") not in VALID_DESTINATION_TYPES:
-        out["destination_type"] = None
-    hs = dict(out.get("hook_scores") or {})
-    for k in ("clarity", "specificity", "novelty", "emotional_pull", "pattern_interrupt", "audience_specificity", "credibility", "overall"):
-        v = hs.get(k)
-        if not isinstance(v, (int, float)):
-            hs[k] = 50
+    """Validate and normalize parsed LLM Pass 1 output."""
+
+    # --- sentences ---
+    sentences = out.get("sentences")
+    if not isinstance(sentences, list):
+        sentences = []
+    clean_sentences = []
+    for s in sentences[:50]:  # cap at 50 sentences
+        if not isinstance(s, dict):
+            continue
+        stype = (s.get("type") or "").lower().strip()
+        if stype not in VALID_SENTENCE_TYPES:
+            stype = "neutral"
+        entry = {
+            "text": _truncate(s.get("text")),
+            "type": stype,
+            "proof_detail": None,
+        }
+        if stype == "proof" and isinstance(s.get("proof_detail"), dict):
+            pd = s["proof_detail"]
+            pt = (pd.get("proof_type") or "").lower().strip()
+            entry["proof_detail"] = {
+                "has_number": bool(pd.get("has_number")),
+                "has_named_source": bool(pd.get("has_named_source")),
+                "has_timeline": bool(pd.get("has_timeline")),
+                "proof_type": pt if pt in VALID_PROOF_DETAIL_TYPES else "vague_reference",
+            }
+        clean_sentences.append(entry)
+    out["sentences"] = clean_sentences
+
+    # --- belief_clusters ---
+    clusters = out.get("belief_clusters")
+    if not isinstance(clusters, list):
+        clusters = []
+    clean_clusters = []
+    for c in clusters[:10]:
+        if not isinstance(c, dict):
+            continue
+        clean_clusters.append({
+            "core_argument": _truncate(c.get("core_argument")),
+            "supporting_sentences": [
+                int(i) for i in (c.get("supporting_sentences") or [])
+                if isinstance(i, (int, float)) and 0 <= int(i) < len(clean_sentences)
+            ][:20],
+        })
+    out["belief_clusters"] = clean_clusters
+
+    # --- close_pattern ---
+    cp = (out.get("close_pattern") or "").lower().strip()
+    out["close_pattern"] = cp if cp in VALID_CLOSE_PATTERNS else "none"
+    out["close_text"] = _truncate(out.get("close_text"))
+
+    # --- close_anti_patterns ---
+    caps = out.get("close_anti_patterns")
+    if not isinstance(caps, list):
+        caps = []
+    out["close_anti_patterns"] = [
+        {"pattern": _truncate(c.get("pattern")), "text": _truncate(c.get("text"))}
+        for c in caps[:10] if isinstance(c, dict)
+    ]
+
+    # --- product_timing ---
+    pt = out.get("product_timing")
+    if isinstance(pt, dict):
+        out["product_timing"] = {
+            "first_mention_word_position": pt.get("first_mention_word_position"),
+            "first_mention_pct": _clamp_float(pt.get("first_mention_pct"), 0.0, 1.0) if pt.get("first_mention_pct") is not None else None,
+            "total_words": int(pt.get("total_words") or 0),
+        }
+    else:
+        out["product_timing"] = {"first_mention_word_position": None, "first_mention_pct": None, "total_words": 0}
+
+    # --- specificity ---
+    sp = out.get("specificity")
+    if isinstance(sp, dict):
+        out["specificity"] = {
+            "vague_terms": [_truncate(t) for t in (sp.get("vague_terms") or [])[:30]],
+            "concrete_terms": [_truncate(t) for t in (sp.get("concrete_terms") or [])[:30]],
+            "vague_count": int(sp.get("vague_count") or 0),
+            "concrete_count": int(sp.get("concrete_count") or 0),
+        }
+    else:
+        out["specificity"] = {"vague_terms": [], "concrete_terms": [], "vague_count": 0, "concrete_count": 0}
+
+    # --- qualifier_density ---
+    qd = out.get("qualifier_density")
+    if isinstance(qd, dict):
+        out["qualifier_density"] = {
+            "qualifiers_found": [_truncate(q) for q in (qd.get("qualifiers_found") or [])[:30]],
+            "count": int(qd.get("count") or 0),
+            "per_100_words": round(_clamp_float(qd.get("per_100_words"), 0.0, 100.0), 1),
+        }
+    else:
+        out["qualifier_density"] = {"qualifiers_found": [], "count": 0, "per_100_words": 0.0}
+
+    # --- social_context_refs ---
+    scr = out.get("social_context_refs")
+    if not isinstance(scr, list):
+        scr = []
+    out["social_context_refs"] = [
+        {
+            "text": _truncate(r.get("text")),
+            "type": (r.get("type") or "").lower().strip() if (r.get("type") or "").lower().strip() in VALID_SOCIAL_CONTEXT_TYPES else "other_people",
+        }
+        for r in scr[:20] if isinstance(r, dict)
+    ]
+
+    # --- emotional_scenes ---
+    es = out.get("emotional_scenes")
+    if not isinstance(es, list):
+        es = []
+    out["emotional_scenes"] = [
+        {
+            "text": _truncate(r.get("text")),
+            "type": (r.get("type") or "").lower().strip() if (r.get("type") or "").lower().strip() in VALID_EMOTIONAL_SCENE_TYPES else "sensory",
+        }
+        for r in es[:20] if isinstance(r, dict)
+    ]
+
+    # --- conversational_markers ---
+    cm = out.get("conversational_markers")
+    if isinstance(cm, dict):
+        out["conversational_markers"] = {
+            "markers_found": [_truncate(m) for m in (cm.get("markers_found") or [])[:30]],
+            "count": int(cm.get("count") or 0),
+            "per_100_words": round(_clamp_float(cm.get("per_100_words"), 0.0, 100.0), 1),
+        }
+    else:
+        out["conversational_markers"] = {"markers_found": [], "count": 0, "per_100_words": 0.0}
+
+    # --- pain_benefit_balance ---
+    pbb = out.get("pain_benefit_balance")
+    if isinstance(pbb, dict):
+        pain = _clamp_float(pbb.get("pain_pct"))
+        benefit = _clamp_float(pbb.get("benefit_pct"))
+        neutral = _clamp_float(pbb.get("neutral_pct"))
+        total = pain + benefit + neutral
+        if total > 0:
+            pain, benefit, neutral = pain / total, benefit / total, neutral / total
         else:
-            hs[k] = max(0, min(100, float(v)))
-    out["hook_scores"] = hs
-
-    mjt = (out.get("mofu_job_type") or "").lower().replace(" ", "_")
-    out["mofu_job_type"] = mjt if mjt in VALID_MOFU_JOB_TYPES else ("unknown" if mjt else "not_applicable")
-
-    rvr = out.get("replace_vs_refine")
-    if isinstance(rvr, dict):
-        dec = (rvr.get("decision") or "").lower()
-        out["replace_vs_refine"] = {"decision": dec if dec in VALID_REPLACE_REFINE else "unknown", "rationale": _truncate(rvr.get("rationale"))}
-    else:
-        out["replace_vs_refine"] = {"decision": "unknown", "rationale": None}
-
-    ca = out.get("claim_audit")
-    if isinstance(ca, dict):
-        cpm = (ca.get("claim_proof_mismatch") or "").lower()
-        out["claim_audit"] = {
-            "claim_proof_mismatch": cpm if cpm in ("low", "medium", "high", "none") else "none",
-            "top_risks": _truncate_list_items(ca.get("top_risks") or []),
+            pain, benefit, neutral = 0.33, 0.33, 0.34
+        out["pain_benefit_balance"] = {
+            "pain_pct": round(pain, 2),
+            "benefit_pct": round(benefit, 2),
+            "neutral_pct": round(neutral, 2),
         }
     else:
-        out["claim_audit"] = {"claim_proof_mismatch": "none", "top_risks": []}
+        out["pain_benefit_balance"] = {"pain_pct": 0.33, "benefit_pct": 0.33, "neutral_pct": 0.34}
 
-    vf = out.get("video_first_2s")
-    if isinstance(vf, dict):
-        q = (vf.get("quality") or "unknown").lower()
-        out["video_first_2s"] = {
-            "applicable": vf.get("applicable", True),
-            "hook_present": bool(vf.get("hook_present")),
-            "quality": q if q in VALID_FIRST2S_QUALITY else "unknown",
+    # --- hook_type ---
+    ht = (out.get("hook_type") or "").lower().replace(" ", "_")
+    out["hook_type"] = ht if ht in VALID_HOOK_TYPES else "unknown"
+
+    # --- funnel_stage ---
+    fs = (out.get("funnel_stage") or "").lower().strip()
+    out["funnel_stage"] = fs if fs in ("tofu", "mofu", "bofu") else "tofu"
+
+    # --- flesch_kincaid (pass-through from input) ---
+    fk = out.get("flesch_kincaid")
+    if isinstance(fk, dict):
+        out["flesch_kincaid"] = {
+            "flesch_kincaid_grade": round(float(fk.get("flesch_kincaid_grade") or 0), 1),
+            "sentence_count": int(fk.get("sentence_count") or 0),
+            "word_count": int(fk.get("word_count") or 0),
+            "syllable_count": int(fk.get("syllable_count") or 0),
         }
     else:
-        out["video_first_2s"] = {"applicable": False, "hook_present": False, "quality": "unknown"}
+        out["flesch_kincaid"] = {"flesch_kincaid_grade": 0.0, "sentence_count": 0, "word_count": 0, "syllable_count": 0}
 
     return out
 
 
+# ─── Response parsing ─────────────────────────────────────────────────────────
+
+
 def parse_llm_response(content: str) -> Optional[Dict[str, Any]]:
-    """Parse LLM response into Creative MRI JSON; return None on failure."""
+    """Parse LLM response into Creative MRI v2 JSON; return None on failure."""
     if not (content or "").strip():
         return None
     text = content.strip()
@@ -227,40 +417,41 @@ def parse_llm_response(content: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+# ─── User message builder ────────────────────────────────────────────────────
+
+
 def build_user_message(ad: Dict[str, Any]) -> str:
-    """Build user message for Claude: ad copy + optional video analysis + meta_context."""
+    """Build user message for Claude: ad copy + flesch_kincaid + optional media analysis."""
     headline = (ad.get("headline") or "").strip()
     primary_text = (ad.get("primary_text") or "").strip()
     cta = (ad.get("cta") or "").strip() or None
     destination_url = (ad.get("destination_url") or "").strip() or None
-    payload = {
+    payload: Dict[str, Any] = {
         "headline": headline or "",
         "primary_text": primary_text[:3000] or "",
         "cta": cta,
         "destination_url": destination_url,
     }
-    # Include meta_context for exposure weighting
-    payload["meta_context"] = {
-        "status": ad.get("status"),
-        "run_days": ad.get("run_days", 1),
-        "exposure_proxy": ad.get("exposure_proxy", 1.0),
-    }
+    # Pre-computed Flesch-Kincaid from Python
+    payload["flesch_kincaid"] = ad.get("flesch_kincaid") or {}
     # Include first video analysis if present (from Gemini)
     video_analysis = None
-    image_analyses = []
+    image_analyses: List[Any] = []
     for m in (ad.get("media_items") or []):
         if m.get("media_type") == "video" and m.get("video_analysis_json"):
             video_analysis = m["video_analysis_json"]
             break
     if video_analysis:
         payload["video_analysis"] = video_analysis
-    # Include image analyses (from Gemini) for image/carousel ads
     for m in (ad.get("media_items") or []):
         if m.get("media_type") == "image" and m.get("image_analysis_json"):
             image_analyses.append(m["image_analysis_json"])
     if image_analyses:
         payload["image_analyses"] = image_analyses
     return json.dumps(payload, ensure_ascii=False)
+
+
+# ─── LLM call ────────────────────────────────────────────────────────────────
 
 
 def call_creative_mri_llm(
@@ -270,9 +461,8 @@ def call_creative_mri_llm(
     model: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
     """
-    Call Claude for one ad; return parsed JSON (hook_type, hook_phrase, angle, unsupported_claims, what_to_change).
+    Call Claude for one ad (LLM Pass 1); return parsed structured classification.
     Returns None on API or parse failure.
-    Uses system_message from Prompt Engineering when provided; else CREATIVE_MRI_SYSTEM_PROMPT.
     """
     sys_msg = system_message or CREATIVE_MRI_SYSTEM_PROMPT
     model_to_use = model or DEFAULT_MODEL

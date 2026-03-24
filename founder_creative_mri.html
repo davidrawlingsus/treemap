@@ -169,9 +169,13 @@
                     </div>
                     <h3 class="mri-section-heading">Charts</h3>
                     <div class="mri-charts">
-                        <div class="mri-chart" id="mriChartSubscores">
-                            <h4 class="mri-chart-title mri-subsection-heading">Subscores (average)</h4>
-                            <div class="mri-chart-bars" id="mriChartSubscoresBars"></div>
+                        <div class="mri-chart mri-chart--d3" id="mriChartSubscores">
+                            <h4 class="mri-chart-title mri-subsection-heading">13 Direct-Response Dimensions</h4>
+                            <div id="mriChartDimensions"></div>
+                        </div>
+                        <div class="mri-chart" id="mriChartFindingsSection">
+                            <h4 class="mri-chart-title mri-subsection-heading">Top Strengths & Biggest Leaks</h4>
+                            <div id="mriChartFindings"></div>
                         </div>
                         <div class="mri-chart" id="mriChartHooks">
                             <h4 class="mri-chart-title mri-subsection-heading">Hook type distribution</h4>
@@ -205,14 +209,7 @@
                             <h4 class="mri-chart-title mri-subsection-heading">6. Hook × Funnel</h4>
                             <div id="mriChartHookFunnel"></div>
                         </div>
-                        <div class="mri-chart mri-chart--d3">
-                            <h4 class="mri-chart-title mri-subsection-heading">7. Hook quality (overall by type)</h4>
-                            <div id="mriChartHookQuality"></div>
-                        </div>
-                        <div class="mri-chart mri-chart--d3">
-                            <h4 class="mri-chart-title mri-subsection-heading">8. Copy tradeoff (specificity vs emotional pull)</h4>
-                            <div id="mriChartCopyTradeoff"></div>
-                        </div>
+                        <!-- Charts 7-8 replaced by dimension bars + findings above -->
                     </div>
                     <h3 class="mri-section-heading">Ad Critique</h3>
                     <div id="mriAdsList" class="mri-ads-grid"></div>
@@ -697,9 +694,14 @@
                     </div>`;
             }
 
+            // v2: dimension bars and findings are rendered by mri-charts.js renderAllMriCharts()
+            // Legacy v1 subscores fallback
             const subscoresSummary = exec.subscores_summary || [];
-            document.getElementById('mriChartSubscoresBars').innerHTML = subscoresSummary
-                .map(s => renderBarRow(toPascalCase(s.name), s.average.toFixed(1), 100)).join('');
+            if (!report.batch_synthesis && subscoresSummary.length > 0) {
+                const barsEl = document.getElementById('mriChartDimensions');
+                if (barsEl) barsEl.innerHTML = subscoresSummary
+                    .map(s => renderBarRow(s.label || toPascalCase(s.name), (s.average || 0).toFixed(0), 100)).join('');
+            }
 
             const ALL_HOOK_TYPES = ['direct_benefit','pain_agitation','authority','social_proof','ranking','newness','contrarian','identity','instructional','urgency_scarcity','story','offer_led','question','curiosity_gap','comparison','mechanism_tease','unknown'];
             const ALL_FUNNEL_STAGES = ['tofu','mofu','bofu'];
@@ -782,19 +784,38 @@
 
             function renderLegacySummary(exec, funnelShare, edited = {}) {
                 if (!edited.summary) {
-                mriSummary.innerHTML = `
-                    <p class="muted" style="margin-bottom: 12px;">Legacy summary — synthesized strategic summary not in this report. Run a new report with the "Ad Creative MRI - Synthesized Summary" prompt configured in Prompt Engineering to see the strategic diagnosis.</p>
-                    <h3 class="mri-section-heading">Executive summary</h3>
-                    <p><span class="score">${exec.overall_effectiveness_score ?? 0}</span> / 100 (copy-based effectiveness)</p>
-                    <p><strong>Subscores:</strong></p>
-                    <ul>${(exec.subscores_summary || []).map(s => `<li>${s.name}: ${s.average}</li>`).join('')}</ul>
-                    <p><strong>Top strengths:</strong></p>
-                    <ul>${(exec.top_strengths || []).map(s => `<li>${s.subscore} (avg ${s.average}) – ${(s.headline || '').slice(0, 60)}…</li>`).join('')}</ul>
-                    <p><strong>Top leaks:</strong></p>
-                    <ul>${(exec.top_leaks || []).map(s => `<li>${s.subscore} (avg ${s.average}) – ${(s.headline || '').slice(0, 60)}…</li>`).join('')}</ul>
-                    <p><strong>Fast wins:</strong></p>
-                    <ul>${(exec.fast_wins || []).map(w => `<li>${w}</li>`).join('')}</ul>
-                `;
+                // v2: batch_synthesis available — show dimension-based summary
+                const synth = report?.batch_synthesis;
+                if (synth && synth.dimensions) {
+                    const narrative = synth.executive_narrative || '';
+                    const overallScore = synth.overall_score ?? exec.overall_effectiveness_score ?? 0;
+                    const leaks = (synth.bottom_3 || []).map(b => `<li><strong>${escapeHtml(b.dimension?.replace(/_/g, ' ') || '')}</strong> (${b.score}/100): ${escapeHtml(b.finding || '')}</li>`).join('');
+                    const strengths = (synth.top_3 || []).map(t => `<li><strong>${escapeHtml(t.dimension?.replace(/_/g, ' ') || '')}</strong> (${t.score}/100): ${escapeHtml(t.finding || '')}</li>`).join('');
+                    mriSummary.innerHTML = `
+                        <h3 class="mri-section-heading">Executive Summary</h3>
+                        <p><span class="score">${overallScore}</span> / 100 (13-dimension direct-response score)</p>
+                        ${narrative ? `<p style="font-size:14px;color:#2d3748;margin:12px 0;line-height:1.6;">${escapeHtml(narrative)}</p>` : ''}
+                        <p><strong>Biggest leaks:</strong></p>
+                        <ul>${leaks || '<li>None identified</li>'}</ul>
+                        <p><strong>Top strengths:</strong></p>
+                        <ul>${strengths || '<li>None identified</li>'}</ul>
+                    `;
+                } else {
+                    // v1 legacy fallback
+                    mriSummary.innerHTML = `
+                        <p class="muted" style="margin-bottom: 12px;">Legacy summary — run a new report for the v2 13-dimension analysis.</p>
+                        <h3 class="mri-section-heading">Executive summary</h3>
+                        <p><span class="score">${exec.overall_effectiveness_score ?? 0}</span> / 100 (copy-based effectiveness)</p>
+                        <p><strong>Subscores:</strong></p>
+                        <ul>${(exec.subscores_summary || []).map(s => `<li>${s.name}: ${s.average}</li>`).join('')}</ul>
+                        <p><strong>Top strengths:</strong></p>
+                        <ul>${(exec.top_strengths || []).map(s => `<li>${s.subscore || s.dimension || ''} (avg ${s.average || s.score || ''}) – ${(s.headline || s.finding || '').slice(0, 80)}</li>`).join('')}</ul>
+                        <p><strong>Top leaks:</strong></p>
+                        <ul>${(exec.top_leaks || []).map(s => `<li>${s.subscore || s.dimension || ''} (avg ${s.average || s.score || ''}) – ${(s.headline || s.finding || '').slice(0, 80)}</li>`).join('')}</ul>
+                        <p><strong>Fast wins:</strong></p>
+                        <ul>${(exec.fast_wins || []).map(w => `<li>${w}</li>`).join('')}</ul>
+                    `;
+                }
                 }
                 if (!edited.impact_scoreboard) {
                 document.getElementById('mriImpactScoreboard').innerHTML = `
@@ -904,13 +925,20 @@
                     posterUrl: posterUrl || undefined,
                     readOnly: true
                 });
+                // v2 classification labels
+                const beliefCount = (llm.belief_clusters || []).length;
+                const closePattern = llm.close_pattern || '—';
+                const proofCount = (llm.sentences || []).filter(s => s.type === 'proof').length;
+                const claimCount = (llm.sentences || []).filter(s => s.type === 'claim').length;
+                const fkGrade = (llm.flesch_kincaid || {}).flesch_kincaid_grade;
+
                 const labelsParts = [
-                    `Score: ${ad.overall_score ?? '—'}`,
-                    `Stage: ${escapeHtml(ad.funnel_stage ?? '—')}${mofuJob ? ` · ${escapeHtml(mofuJob)}` : ''}`,
+                    `Stage: ${escapeHtml(ad.funnel_stage ?? '—')}`,
                     `Hook: ${escapeHtml(ad.hook_type ?? '—')}`,
-                    first2sBadge ? `1st2s: ${escapeHtml(first2sBadge)}` : '',
-                    topRisk ? `⚠ ${escapeHtml(topRisk)}` : '',
-                    angle !== '—' ? `Angle: ${escapeHtml(angle)}` : ''
+                    beliefCount ? `Beliefs: ${beliefCount}` : '',
+                    (claimCount || proofCount) ? `Claims: ${claimCount} / Proof: ${proofCount}` : '',
+                    closePattern !== '—' ? `Close: ${escapeHtml(closePattern)}` : '',
+                    fkGrade != null ? `FK Grade: ${fkGrade}` : '',
                 ].filter(Boolean);
                 const whatToChangeHtml = whatToChange.length ? `<ul class="ads-card__voc-list">${whatToChange.map(w => `<li class="ads-card__voc-item">${escapeHtml(w)}</li>`).join('')}</ul>` : '<p class="ads-card__detail-value">No suggestions</p>';
                 const transcriptHtml = videoTranscript ? `<div class="mri-ad-card__transcript-body">${escapeHtml(videoTranscript)}</div>` : '';

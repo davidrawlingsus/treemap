@@ -1,7 +1,9 @@
 /**
- * MRI Charts Renderer
- * D3 visualizations for Creative MRI report: launch cadence, rotation depth,
- * creative half-life, format/funnel mix over time, hook×funnel, hook quality, copy tradeoff.
+ * MRI Charts Renderer (v2)
+ * D3 visualizations for Creative MRI report.
+ * Charts 1-6: launch cadence, rotation depth, creative half-life, format/funnel mix, hook×funnel (unchanged).
+ * Chart 7: 13-dimension horizontal bar chart (from batch_synthesis.dimensions).
+ * Chart 8: Top-3 / Bottom-3 findings display (from batch_synthesis).
  */
 
 const MRI_CHART_COLORS = [
@@ -9,10 +11,15 @@ const MRI_CHART_COLORS = [
     '#EF4444', '#14B8A6', '#6366F1', '#74c7e8', '#6fd4a1',
 ];
 
+// Dimension score color thresholds
+function dimensionColor(score) {
+    if (score >= 70) return '#10B981'; // green
+    if (score >= 40) return '#F59E0B'; // amber
+    return '#EF4444'; // red
+}
+
 /**
  * Parse date strings from Meta format ("Jan 15, 2024") or ISO
- * @param {string} s
- * @returns {Date|null}
  */
 function parseDate(s) {
     if (!s) return null;
@@ -23,8 +30,6 @@ function parseDate(s) {
 
 /**
  * Get start of week (Monday) for a date
- * @param {Date} d
- * @returns {string} ISO week key "YYYY-MM-DD"
  */
 function weekKey(d) {
     const day = d.getDay();
@@ -36,8 +41,6 @@ function weekKey(d) {
 
 /**
  * Get normalized ads array: prefer analysis.analysis.ads, fallback to report.ads with mapping
- * @param {Object} report
- * @returns {Array}
  */
 function getAdsForCharts(report) {
     const structured = report?.analysis?.analysis?.ads || [];
@@ -52,7 +55,6 @@ function getAdsForCharts(report) {
         funnel: { stage: (a.funnel_stage || 'tofu').toLowerCase() },
         hook: {
             hook_types: [{ type: a.hook_type || 'unknown' }],
-            scores: a.llm?.hook_scores || { specificity: 50, emotional_pull: 50, overall: a.overall_score || 50 },
         },
     }));
 }
@@ -71,13 +73,10 @@ function prepLaunchCadence(ads) {
         .sort((a, b) => a.date - b.date);
 }
 
-/** Default run length (days) for ads without end date. Avoids cumulative effect where
- * all ads-without-end contribute to every week until dataset end, making the chart only go up. */
+/** Default run length (days) for ads without end date. */
 const ROTATION_DEPTH_DEFAULT_RUN_DAYS = 90;
 
-/** Prep chart 2: active creatives per week (between start and end).
- * For ads without end date, assume a default run length (90 days) so counts can decrease as ads "drop off".
- * This differs from launch cadence, which counts only the week of launch. */
+/** Prep chart 2: active creatives per week */
 function prepRotationDepth(ads) {
     const byWeek = {};
     ads.forEach(a => {
@@ -104,8 +103,7 @@ function prepRotationDepth(ads) {
         .sort((a, b) => a.date - b.date);
 }
 
-/** Prep chart 3: run length in days (histogram).
- * For ads without end date, use dataset cutoff (latest date) so we have approximate run lengths. */
+/** Prep chart 3: run length in days (histogram) */
 function prepCreativeHalfLife(ads) {
     let datasetCutoff = null;
     ads.forEach(a => {
@@ -180,7 +178,7 @@ function prepFunnelMixOverTime(ads) {
         .sort((a, b) => a.date - b.date);
 }
 
-/** Prep chart 6: hook × funnel counts */
+/** Prep chart 6: hook x funnel counts */
 function prepHookFunnel(ads) {
     const counts = {};
     ads.forEach(a => {
@@ -195,20 +193,6 @@ function prepHookFunnel(ads) {
     return { hooks, stages, counts };
 }
 
-/** Prep chart 7 & 8: points for beeswarm / scatter */
-function prepHookScores(ads) {
-    return ads
-        .map(a => {
-            const h = (a.hook?.hook_types?.[0]?.type || a.hook_type || 'unknown').toLowerCase();
-            const scores = a.hook?.scores || a.llm?.hook_scores || {};
-            const overall = +scores.overall || +a.overall_score || 50;
-            const specificity = +scores.specificity || 50;
-            const emotional_pull = +scores.emotional_pull || 50;
-            return { hook_type: h, overall, specificity, emotional_pull, ad_id: a.ad_id || a.id };
-        })
-        .filter(p => p.hook_type && p.hook_type !== 'unknown');
-}
-
 function renderEmpty(container, msg = 'No data available') {
     if (!container) return;
     const el = typeof container === 'string' ? document.getElementById(container) : container;
@@ -218,9 +202,6 @@ function renderEmpty(container, msg = 'No data available') {
 
 /**
  * Render D3 line chart (charts 1 & 2)
- * @param {HTMLElement|string} container
- * @param {Array} data [{date, count}, ...]
- * @param {string} yLabel
  */
 export function renderLaunchCadence(container, data, yLabel = 'Launches') {
     const el = typeof container === 'string' ? document.getElementById(container) : container;
@@ -300,7 +281,6 @@ export function renderCreativeHalfLife(container, daysArray) {
 
 /**
  * Render stacked area (chart 4) or normalized stacked area (chart 5)
- * @param {Function} [keyFormatter] - Optional: (key) => displayLabel for legend (e.g. k => k.toUpperCase() for funnel)
  */
 function renderStackedArea(container, data, keys, normalized = false, keyFormatter = k => k) {
     const el = typeof container === 'string' ? document.getElementById(container) : container;
@@ -359,9 +339,6 @@ function renderStackedArea(container, data, keys, normalized = false, keyFormatt
     });
 }
 
-/**
- * Render format mix over time (chart 4) - 100% stacked
- */
 export function renderFormatMixOverTime(container, stackData) {
     if (!stackData?.keys?.length) {
         renderEmpty(container);
@@ -371,9 +348,6 @@ export function renderFormatMixOverTime(container, stackData) {
     renderStackedArea(container, stackData, stackData.keys, true, fmt);
 }
 
-/**
- * Render funnel mix over time (chart 5) - normalized
- */
 export function renderFunnelMixOverTime(container, data) {
     if (!data || data.length === 0) {
         renderEmpty(container);
@@ -383,7 +357,7 @@ export function renderFunnelMixOverTime(container, data) {
 }
 
 /**
- * Render hook × funnel grouped bar (chart 6)
+ * Render hook x funnel grouped bar (chart 6)
  */
 export function renderHookFunnel(container, prep) {
     const el = typeof container === 'string' ? document.getElementById(container) : container;
@@ -424,90 +398,194 @@ export function renderHookFunnel(container, prep) {
     });
 }
 
+// ─── v2 Charts: Dimensions ──────────────────────────────────────────────────
+
+/** Dimension labels for display */
+const DIMENSION_LABELS = {
+    reading_level: 'Reading Level',
+    claim_to_proof_ratio: 'Claim:Proof Ratio',
+    proof_specificity: 'Proof Specificity',
+    belief_count: 'Belief Count',
+    product_timing: 'Product Timing',
+    specificity_score: 'Specificity',
+    close_pattern_variety: 'Close Variety',
+    close_anti_patterns: 'Close Anti-Patterns',
+    qualifier_density: 'Qualifier Density',
+    social_context_density: 'Social Context',
+    emotional_dimensionality: 'Emotional Depth',
+    conversational_markers: 'Conversational Tone',
+    pain_benefit_balance: 'Pain/Benefit Balance',
+};
+
+/** Dimension display order (highest-weighted first) */
+const DIMENSION_ORDER = [
+    'specificity_score',
+    'claim_to_proof_ratio',
+    'proof_specificity',
+    'belief_count',
+    'close_anti_patterns',
+    'pain_benefit_balance',
+    'reading_level',
+    'emotional_dimensionality',
+    'qualifier_density',
+    'social_context_density',
+    'product_timing',
+    'conversational_markers',
+    'close_pattern_variety',
+];
+
 /**
- * Render hook quality strip/beeswarm (chart 7)
+ * Render 13-dimension horizontal bar chart (chart 7)
+ * @param {HTMLElement|string} container
+ * @param {Object} dimensions - from batch_synthesis.dimensions: { name: { score, finding } }
  */
-export function renderHookQuality(container, points) {
+export function renderDimensionBars(container, dimensions) {
     const el = typeof container === 'string' ? document.getElementById(container) : container;
     if (!el || !window.d3) {
         renderEmpty(el, 'Chart unavailable');
         return;
     }
     el.innerHTML = '';
-    if (!points || points.length === 0) {
+    if (!dimensions || Object.keys(dimensions).length === 0) {
         renderEmpty(el);
         return;
     }
+
     const d3 = window.d3;
-    const width = Math.max(200, el.clientWidth || 280);
-    const height = 180;
-    const margin = { top: 12, right: 12, bottom: 70, left: 36 };
+    const data = DIMENSION_ORDER
+        .filter(name => dimensions[name])
+        .map(name => ({
+            name,
+            label: DIMENSION_LABELS[name] || name,
+            score: dimensions[name].score || 0,
+        }));
+
+    if (data.length === 0) {
+        renderEmpty(el);
+        return;
+    }
+
+    const width = Math.max(300, el.clientWidth || 400);
+    const barHeight = 22;
+    const gap = 4;
+    const height = data.length * (barHeight + gap) + 20;
+    const margin = { top: 8, right: 50, bottom: 8, left: 150 };
     const innerW = width - margin.left - margin.right;
-    const innerH = height - margin.top - margin.bottom;
 
-    const hooks = [...new Set(points.map(p => p.hook_type))].sort();
-    const x = d3.scalePoint().domain(hooks).range([0, innerW]).padding(0.3);
-    const y = d3.scaleLinear().domain([0, 100]).range([innerH, 0]);
-
-    const svg = d3.select(el).append('svg').attr('width', width).attr('height', height).attr('viewBox', `0 0 ${width} ${height}`);
+    const svg = d3.select(el).append('svg')
+        .attr('width', width)
+        .attr('height', height)
+        .attr('viewBox', `0 0 ${width} ${height}`);
     const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
 
-    const axisG = g.append('g').attr('transform', `translate(0,${innerH})`).call(d3.axisBottom(x).tickValues(hooks));
-    axisG.selectAll('text').attr('transform', 'rotate(-45)').style('text-anchor', 'end').attr('dx', '-0.5em').attr('dy', '0.5em');
-    g.append('g').call(d3.axisLeft(y).ticks(5));
+    const x = d3.scaleLinear().domain([0, 100]).range([0, innerW]);
 
-    const jitter = () => (Math.random() - 0.5) * (x.step() * 0.6);
-    g.selectAll('circle').data(points).join('circle').attr('cx', d => x(d.hook_type) + jitter()).attr('cy', d => y(d.overall)).attr('r', 4).attr('fill', MRI_CHART_COLORS[5]).attr('opacity', 0.7);
+    data.forEach((d, i) => {
+        const y = i * (barHeight + gap);
+
+        // Label
+        g.append('text')
+            .attr('x', -8)
+            .attr('y', y + barHeight / 2 + 1)
+            .attr('text-anchor', 'end')
+            .attr('font-size', 11)
+            .attr('fill', '#4a5568')
+            .attr('dominant-baseline', 'middle')
+            .text(d.label);
+
+        // Background bar
+        g.append('rect')
+            .attr('x', 0)
+            .attr('y', y)
+            .attr('width', innerW)
+            .attr('height', barHeight)
+            .attr('fill', '#edf2f7')
+            .attr('rx', 3);
+
+        // Score bar
+        g.append('rect')
+            .attr('x', 0)
+            .attr('y', y)
+            .attr('width', x(d.score))
+            .attr('height', barHeight)
+            .attr('fill', dimensionColor(d.score))
+            .attr('rx', 3)
+            .attr('opacity', 0.85);
+
+        // Score text
+        g.append('text')
+            .attr('x', x(d.score) + 6)
+            .attr('y', y + barHeight / 2 + 1)
+            .attr('font-size', 11)
+            .attr('font-weight', 600)
+            .attr('fill', '#2d3748')
+            .attr('dominant-baseline', 'middle')
+            .text(d.score);
+    });
 }
 
 /**
- * Render copy tradeoff scatter: specificity vs emotional_pull (chart 8)
+ * Render top-3 and bottom-3 findings (chart 8)
+ * @param {HTMLElement|string} container
+ * @param {Object} batchSynthesis - full batch_synthesis object
  */
-export function renderCopyTradeoff(container, points) {
+export function renderTopBottomFindings(container, batchSynthesis) {
     const el = typeof container === 'string' ? document.getElementById(container) : container;
-    if (!el || !window.d3) {
-        renderEmpty(el, 'Chart unavailable');
-        return;
-    }
-    el.innerHTML = '';
-    if (!points || points.length === 0) {
+    if (!el) return;
+
+    const top3 = batchSynthesis?.top_3 || [];
+    const bottom3 = batchSynthesis?.bottom_3 || [];
+
+    if (top3.length === 0 && bottom3.length === 0) {
         renderEmpty(el);
         return;
     }
-    const d3 = window.d3;
-    const width = Math.max(200, el.clientWidth || 280);
-    const height = 180;
-    const margin = { top: 12, right: 12, bottom: 28, left: 36 };
-    const innerW = width - margin.left - margin.right;
-    const innerH = height - margin.top - margin.bottom;
 
-    const x = d3.scaleLinear().domain([0, 100]).nice().range([0, innerW]);
-    const y = d3.scaleLinear().domain([0, 100]).nice().range([innerH, 0]);
+    const renderCard = (item, type) => {
+        const label = DIMENSION_LABELS[item.dimension] || item.dimension;
+        const color = type === 'strength' ? '#10B981' : '#EF4444';
+        const bgColor = type === 'strength' ? '#f0fdf4' : '#fef2f2';
+        const icon = type === 'strength' ? '\u2191' : '\u2193';
+        return `
+            <div style="padding:12px 16px;border-left:3px solid ${color};background:${bgColor};border-radius:0 8px 8px 0;margin-bottom:8px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                    <span style="font-size:14px;color:${color};font-weight:700;">${icon} ${item.score}/100</span>
+                    <span style="font-size:12px;color:#718096;font-weight:600;">${label}</span>
+                </div>
+                <div style="font-size:13px;color:#2d3748;line-height:1.5;">${item.finding || ''}</div>
+            </div>`;
+    };
 
-    const svg = d3.select(el).append('svg').attr('width', width).attr('height', height).attr('viewBox', `0 0 ${width} ${height}`);
-    const g = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+    let html = '';
+    if (bottom3.length > 0) {
+        html += '<div style="margin-bottom:16px;"><div style="font-size:11px;font-weight:700;color:#EF4444;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Biggest Leaks</div>';
+        bottom3.forEach(item => { html += renderCard(item, 'leak'); });
+        html += '</div>';
+    }
+    if (top3.length > 0) {
+        html += '<div><div style="font-size:11px;font-weight:700;color:#10B981;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">Top Strengths</div>';
+        top3.forEach(item => { html += renderCard(item, 'strength'); });
+        html += '</div>';
+    }
 
-    g.append('g').attr('transform', `translate(0,${innerH})`).call(d3.axisBottom(x)).append('text').attr('x', innerW / 2).attr('y', 22).attr('fill', '#718096').attr('text-anchor', 'middle').style('font-size', '10px').text('Specificity');
-    g.append('g').call(d3.axisLeft(y)).append('text').attr('transform', 'rotate(-90)').attr('y', -24).attr('x', -innerH / 2).attr('fill', '#718096').attr('text-anchor', 'middle').style('font-size', '10px').text('Emotional pull');
-
-    g.selectAll('circle').data(points).join('circle').attr('cx', d => x(d.specificity)).attr('cy', d => y(d.emotional_pull)).attr('r', 5).attr('fill', MRI_CHART_COLORS[6]).attr('opacity', 0.7);
+    el.innerHTML = html;
 }
 
 /**
- * Render all 8 MRI charts into their containers
+ * Render all MRI charts into their containers
  * @param {Object} report - Full report from pipeline
  */
 export function renderAllMriCharts(report) {
     const ads = getAdsForCharts(report);
     if (ads.length === 0) return;
 
+    // Charts 1-6: temporal/structural (unchanged)
     const launchData = prepLaunchCadence(ads);
     const rotationData = prepRotationDepth(ads);
     const halfLifeDays = prepCreativeHalfLife(ads);
     const formatData = prepFormatMixOverTime(ads);
     const funnelData = prepFunnelMixOverTime(ads);
     const hookFunnelPrep = prepHookFunnel(ads);
-    const hookScoresData = prepHookScores(ads);
 
     renderLaunchCadence('mriChartLaunchCadence', launchData, 'launches');
     renderLaunchCadence('mriChartRotationDepth', rotationData, 'active creatives');
@@ -515,6 +593,15 @@ export function renderAllMriCharts(report) {
     renderFormatMixOverTime('mriChartFormatMix', formatData);
     renderFunnelMixOverTime('mriChartFunnelMix', funnelData);
     renderHookFunnel('mriChartHookFunnel', hookFunnelPrep);
-    renderHookQuality('mriChartHookQuality', hookScoresData);
-    renderCopyTradeoff('mriChartCopyTradeoff', hookScoresData);
+
+    // Charts 7-8: v2 dimension charts (from batch_synthesis)
+    const synth = report?.batch_synthesis;
+    if (synth) {
+        renderDimensionBars('mriChartDimensions', synth.dimensions);
+        renderTopBottomFindings('mriChartFindings', synth);
+    } else {
+        // Legacy v1 fallback — render empty for new chart containers
+        renderEmpty('mriChartDimensions', 'Dimension scores not available (v1 report)');
+        renderEmpty('mriChartFindings', 'Findings not available (v1 report)');
+    }
 }

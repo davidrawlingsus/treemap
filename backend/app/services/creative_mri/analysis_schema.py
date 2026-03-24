@@ -1,10 +1,12 @@
 """
 Creative LLM analysis schema (creative-llm-analysis.bundle).
 Taxonomy and structure for stable outputs used by D3 charts.
-Schema version 1.0.0.
+Schema version 2.0.0 — 13 direct-response dimensions.
 """
 
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "2.0.0"
+
+# --- Hook & funnel (kept from v1, still used by charts 5-6) ---
 
 HOOK_TYPES = [
     "direct_benefit",
@@ -27,10 +29,126 @@ HOOK_TYPES = [
 
 FUNNEL_STAGES = ["tofu", "mofu", "bofu"]
 
+# --- v2: sentence-level classification ---
+
+SENTENCE_TYPES = [
+    "claim",
+    "proof",
+    "pain",
+    "benefit",
+    "neutral",
+    "transition",
+]
+
+# --- v2: proof detail types (used in sentence proof_detail) ---
+
+PROOF_DETAIL_TYPES = [
+    "testimonial",
+    "statistic",
+    "case_study",
+    "expert",
+    "demo",
+    "guarantee",
+    "social_metrics",
+    "before_after",
+    "certification",
+    "vague_reference",
+]
+
+# --- v2: close patterns (per-ad, from LLM Pass 1) ---
+
+CLOSE_PATTERNS = [
+    "echo",
+    "micro_commitment",
+    "reframe",
+    "future_state",
+    "social_proof",
+    "permission",
+    "before_you_decide",
+    "see_how_it_works",
+    "direct_ask",
+    "scarcity",
+    "none",
+]
+
+# --- v2: social context reference types ---
+
+SOCIAL_CONTEXT_TYPES = [
+    "other_people",
+    "social_situation",
+    "status",
+    "embarrassment",
+    "compliment",
+    "comparison_to_peers",
+]
+
+# --- v2: emotional scene types ---
+
+EMOTIONAL_SCENE_TYPES = [
+    "sensory",
+    "scene_setting",
+    "present_tense_situation",
+    "mind_movie",
+    "visceral",
+]
+
+# --- v2: 13 direct-response dimensions ---
+
+DIMENSION_NAMES = [
+    "reading_level",
+    "claim_to_proof_ratio",
+    "proof_specificity",
+    "belief_count",
+    "product_timing",
+    "specificity_score",
+    "close_pattern_variety",
+    "close_anti_patterns",
+    "qualifier_density",
+    "social_context_density",
+    "emotional_dimensionality",
+    "conversational_markers",
+    "pain_benefit_balance",
+]
+
+# Weights for LLM Pass 2 prompt — how heavily each dimension
+# should influence the overall score and narrative.
+DIMENSION_WEIGHTS = {
+    "specificity_score": 0.15,
+    "claim_to_proof_ratio": 0.12,
+    "proof_specificity": 0.12,
+    "belief_count": 0.10,
+    "close_anti_patterns": 0.10,
+    "pain_benefit_balance": 0.08,
+    "reading_level": 0.07,
+    "emotional_dimensionality": 0.07,
+    "qualifier_density": 0.05,
+    "social_context_density": 0.04,
+    "product_timing": 0.04,
+    "conversational_markers": 0.03,
+    "close_pattern_variety": 0.03,
+}
+
+# Human-readable labels for frontend display
+DIMENSION_LABELS = {
+    "reading_level": "Reading Level",
+    "claim_to_proof_ratio": "Claim-to-Proof Ratio",
+    "proof_specificity": "Proof Specificity",
+    "belief_count": "Belief Count",
+    "product_timing": "Product Timing",
+    "specificity_score": "Specificity",
+    "close_pattern_variety": "Close Variety",
+    "close_anti_patterns": "Close Anti-Patterns",
+    "qualifier_density": "Qualifier Density",
+    "social_context_density": "Social Context",
+    "emotional_dimensionality": "Emotional Dimensionality",
+    "conversational_markers": "Conversational Markers",
+    "pain_benefit_balance": "Pain/Benefit Balance",
+}
+
+# --- Legacy v1 types (kept for backward compat with old reports) ---
+
 MOFU_JOB_TYPES = ["awareness", "consideration", "intent", "unknown", "not_applicable"]
-
 REPLACE_REFINE_DECISION = ["replace", "refine", "unknown"]
-
 FIRST2S_HOOK_QUALITY = ["strong", "weak", "missing", "unknown"]
 
 PROOF_TYPES = [
@@ -117,6 +235,15 @@ def build_taxonomy() -> dict:
     return {
         "hook_types": HOOK_TYPES,
         "funnel_stages": FUNNEL_STAGES,
+        "sentence_types": SENTENCE_TYPES,
+        "proof_detail_types": PROOF_DETAIL_TYPES,
+        "close_patterns": CLOSE_PATTERNS,
+        "social_context_types": SOCIAL_CONTEXT_TYPES,
+        "emotional_scene_types": EMOTIONAL_SCENE_TYPES,
+        "dimension_names": DIMENSION_NAMES,
+        "dimension_weights": DIMENSION_WEIGHTS,
+        "dimension_labels": DIMENSION_LABELS,
+        # Legacy
         "proof_types": PROOF_TYPES,
         "objection_types": OBJECTION_TYPES,
         "offer_types": OFFER_TYPES,

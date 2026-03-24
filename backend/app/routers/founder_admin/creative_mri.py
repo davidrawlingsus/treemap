@@ -24,7 +24,6 @@ from app.models import User, Client, AdLibraryImport, AdLibraryAd, CreativeMRIRe
 from app.auth import get_current_active_founder
 from app.services.creative_mri.llm import get_creative_mri_prompts
 from app.services.creative_mri.pipeline import run_creative_mri_pipeline
-from app.services.creative_mri.synthesize import run_synthesize
 from app.services.gemini_video_service import GeminiVideoService
 from app.schemas.creative_mri import (
     CreativeMRIReportResponse,
@@ -334,6 +333,7 @@ async def _run_report_stream(
                 progress_callback=progress_cb,
                 system_message=system_message,
                 model=model,
+                db=db,
             )
             progress_queue.put({"report": result})
         except Exception as e:
@@ -369,27 +369,7 @@ async def _run_report_stream(
         yield _format_sse({"error": report_row.error_message})
     elif report_ref:
         report = report_ref[0]
-        yield _format_sse({"stage": "synthesize", "current": 0, "total": 1, "message": "Synthesizing executive summary..."})
-        _persist_progress(0, 1, "Synthesizing executive summary...")
-
-        from app.services.creative_mri.synthesize import (
-            get_synthesized_summary_prompt,
-            build_synthesize_payload,
-            _call_synthesize_llm,
-        )
-        prompt_tuple = get_synthesized_summary_prompt(db)
-        if prompt_tuple:
-            system_message, model = prompt_tuple
-
-            def run_synth():
-                return _call_synthesize_llm(report, llm_service, system_message, model)
-
-            synth_result = await asyncio.get_event_loop().run_in_executor(None, run_synth)
-        else:
-            synth_result = None
-        if synth_result:
-            report["synthesized_summary"] = synth_result
-
+        # Batch synthesis (LLM Pass 2) already ran inside the pipeline
         report_row.report_json = report
         report_row.status = "complete"
         report_row.completed_at = datetime.now(timezone.utc)
@@ -467,10 +447,9 @@ def _run_and_save_report_sync(report_id: UUID, ads_or_import: dict, app) -> None
                 progress_callback=progress_cb,
                 system_message=system_message,
                 model=model,
+                db=db,
             )
-            synth_result = run_synthesize(result, llm_service, db)
-            if synth_result:
-                result["synthesized_summary"] = synth_result
+            # Batch synthesis (LLM Pass 2) already ran inside the pipeline
             report_row.report_json = result
             report_row.status = "complete"
             report_row.completed_at = datetime.now(timezone.utc)

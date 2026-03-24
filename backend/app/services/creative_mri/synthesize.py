@@ -1,125 +1,147 @@
 """
-Creative MRI synthesized summary: second LLM pass over full report.
-Uses prompt from Prompt Engineering (prompt_purpose=ad_creative_mri_synthesized_summary).
+Creative MRI v2: Batch synthesis (LLM Pass 2).
+Takes all per-ad classifications from Pass 1 and produces:
+- 13 dimension scores (0-100) with human-readable findings
+- Overall score (weighted composite)
+- Bottom-3 and top-3 dimensions with outreach-ready findings
+- Close pattern variety analysis
+- Executive narrative
+
+This is NOT optional — it's core to the pipeline.
 """
 import json
 import logging
-from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
 try:
     import json_repair
 except ImportError:
-    json_repair = None  # Install with: pip install json-repair
+    json_repair = None
+
+from app.services.creative_mri.analysis_schema import (
+    DIMENSION_LABELS,
+    DIMENSION_NAMES,
+    DIMENSION_WEIGHTS,
+)
 
 logger = logging.getLogger(__name__)
 
 PROMPT_PURPOSE = "ad_creative_mri_synthesized_summary"
 
+# ─── Batch synthesis system prompt ────────────────────────────────────────────
 
-def _parse_date(s: Any) -> Optional[datetime]:
-    """Parse date string from Meta format or ISO."""
-    if not s:
-        return None
-    if isinstance(s, datetime):
-        return s
-    try:
-        d = datetime.fromisoformat(str(s).replace("Z", "+00:00"))
-        return d
-    except (ValueError, TypeError):
-        pass
-    try:
-        d = datetime.strptime(str(s), "%b %d, %Y")
-        return d
-    except (ValueError, TypeError):
-        pass
-    return None
+_DIMENSION_WEIGHT_LINES = "\n".join(
+    f"  - {DIMENSION_LABELS.get(name, name)}: {int(weight * 100)}% — "
+    + {
+        "specificity_score": "Vague copy is the #1 underperformance driver",
+        "claim_to_proof_ratio": "Unsupported claims erode trust",
+        "proof_specificity": "Vague proof is almost worse than no proof",
+        "belief_count": "Multiple arguments dilute the message",
+        "close_anti_patterns": "Bad closes actively repel prospects",
+        "pain_benefit_balance": "Pain-first copy outperforms benefit-first",
+        "reading_level": "Complex copy loses the scroll",
+        "emotional_dimensionality": "Mind movies drive action",
+        "qualifier_density": "Hedging undermines authority",
+        "social_context_density": "Social context boosts relatability",
+        "product_timing": "Early brand mentions signal pitch, not value",
+        "conversational_markers": "Natural tone builds trust",
+        "close_pattern_variety": "Same close across all ads = diminishing returns",
+    }.get(name, "")
+    for name, weight in sorted(DIMENSION_WEIGHTS.items(), key=lambda x: -x[1])
+)
+
+BATCH_SYNTHESIS_SYSTEM_PROMPT = f"""You are a direct-response copywriting strategist. You receive structured classifications of a brand's Facebook ad library (one JSON object per ad) and produce a batch-level synthesis.
+
+Your job is to score the ad library across 13 direct-response dimensions, identify the worst and best dimensions, and generate specific, quantified findings that make the reader feel money is being left on the table. These findings will be used in automated sales outreach — they must be specific to THIS brand's ads, not generic copywriting advice.
+
+## The 13 Dimensions (with weights)
+
+{_DIMENSION_WEIGHT_LINES}
+
+## Scoring Guidance
+
+Score each dimension 0-100. What each score means:
+
+- **Reading Level**: 100 = 3rd-5th grade (ideal for Facebook). 50 = 8th grade. 0 = college-level. Use the flesch_kincaid_grade from the per-ad data.
+- **Claim-to-Proof Ratio**: 100 = every claim backed by proof. 50 = half backed. 0 = all claims, no proof.
+- **Proof Specificity**: 100 = every proof element has named sources, numbers, and timelines. 0 = all proof is vague ("studies show", "experts agree").
+- **Belief Count**: 100 = every ad makes exactly 1 focused argument. 50 = 2 arguments on average. 0 = 4+ competing arguments.
+- **Product Timing**: 100 = brand appears in the final third (earns attention first). 50 = appears in the middle. 0 = leads with the brand name.
+- **Specificity Score**: 100 = all concrete specifics, no vague words. 50 = even mix. 0 = dominated by "affordable", "quality", "effective".
+- **Close Pattern Variety**: 100 = uses many different close patterns across ads. 50 = 2-3 patterns. 0 = every ad uses the same close.
+- **Close Anti-Patterns**: 100 = zero banned close patterns. 50 = occasional. 0 = majority of ads use anti-patterns.
+- **Qualifier Density**: 100 = zero hedging words. 50 = moderate hedging. 0 = heavy hedging (8+ per 100 words).
+- **Social Context Density**: 100 = rich social references throughout. 50 = occasional. 0 = zero social context.
+- **Emotional Dimensionality**: 100 = vivid sensory scenes throughout. 50 = some scene-setting. 0 = entirely abstract/generic.
+- **Conversational Markers**: 100 = natural friend-voice throughout. 50 = some conversational elements. 0 = reads like a corporate brochure.
+- **Pain/Benefit Balance**: 100 = ideal ~60% pain / 30% benefit / 10% neutral. 50 = moderate imbalance. 0 = extreme imbalance (all pain or all benefit).
+
+## Overall Score
+
+Compute the overall score as the weighted average of all 13 dimensions using the weights above. Round to nearest integer.
+
+## Finding Quality Requirements
+
+Each finding MUST:
+1. Reference specific numbers from the actual ad data ("11 claims", "2 proofs", "grade 9.2")
+2. Be 1-2 sentences maximum
+3. Sound like it came from a copywriting expert who read every ad, not a generic rubric
+4. Make the reader feel a specific cost — what they're losing, missing, or wasting
+5. Never use generic phrases like "consider improving" or "there's room for growth"
+
+## Output JSON Schema
+
+Return a single JSON object, no markdown:
+
+{{
+  "dimensions": {{
+    "reading_level": {{
+      "score": 35,
+      "finding": "Your ads average a 9.2 grade reading level on the Flesch-Kincaid scale. The sweet spot for Facebook is 3rd-5th grade. You're losing every reader who isn't willing to concentrate."
+    }},
+    "claim_to_proof_ratio": {{
+      "score": 22,
+      "finding": "..."
+    }},
+    "proof_specificity": {{ "score": 0, "finding": "..." }},
+    "belief_count": {{ "score": 0, "finding": "..." }},
+    "product_timing": {{ "score": 0, "finding": "..." }},
+    "specificity_score": {{ "score": 0, "finding": "..." }},
+    "close_pattern_variety": {{ "score": 0, "finding": "..." }},
+    "close_anti_patterns": {{ "score": 0, "finding": "..." }},
+    "qualifier_density": {{ "score": 0, "finding": "..." }},
+    "social_context_density": {{ "score": 0, "finding": "..." }},
+    "emotional_dimensionality": {{ "score": 0, "finding": "..." }},
+    "conversational_markers": {{ "score": 0, "finding": "..." }},
+    "pain_benefit_balance": {{ "score": 0, "finding": "..." }}
+  }},
+  "overall_score": 38,
+  "bottom_3": [
+    {{
+      "dimension": "proof_specificity",
+      "score": 18,
+      "finding": "Every piece of evidence in your ads is generic. Not one named source, not one specific number, not one timeline. Generic proof is invisible proof."
+    }}
+  ],
+  "top_3": [
+    {{
+      "dimension": "conversational_markers",
+      "score": 78,
+      "finding": "Your tone is genuinely conversational. This is a real strength — most brands sound like brochures."
+    }}
+  ],
+  "close_pattern_variety": {{
+    "patterns_used": ["direct_ask", "direct_ask", "direct_ask"],
+    "distinct_count": 1,
+    "finding": "Every one of your last 8 ads ends the same way. You're training your audience to ignore your close."
+  }},
+  "executive_narrative": "Short 2-3 sentence overall diagnosis that captures the single biggest opportunity."
+}}"""
 
 
-def _week_key(d: datetime) -> str:
-    """ISO week Monday date string."""
-    iso = d.isocalendar()
-    return f"{iso[0]}-W{iso[1]:02d}"  # year-Wweek
-
-
-def _build_aggregate_metadata(report: Dict[str, Any]) -> Dict[str, Any]:
-    """Build aggregate metadata for synthesize prompt from report."""
-    analysis_ads = report.get("analysis", {}).get("analysis", {}).get("ads") or []
-    ds = report.get("analysis", {}).get("analysis", {}).get("dataset_summary") or {}
-    redundancy = report.get("analysis", {}).get("analysis", {}).get("redundancy") or {}
-    raw_ads = report.get("ads") or []
-
-    # Launch cadence (starts per week)
-    by_week = {}
-    for a in analysis_ads:
-        d = _parse_date(a.get("started_running_on") or a.get("ad_delivery_start_time"))
-        if d:
-            wk = _week_key(d)
-            by_week[wk] = by_week.get(wk, 0) + 1
-    launch_cadence = [{"week": k, "count": v} for k, v in sorted(by_week.items())]
-
-    # Active creatives over time (ad-weeks)
-    active_by_week = {}
-    for a in analysis_ads:
-        start = _parse_date(a.get("ad_delivery_start_time") or a.get("started_running_on"))
-        end = _parse_date(a.get("ad_delivery_end_time")) or start
-        if not start:
-            continue
-        d = start
-        while d <= end:
-            wk = _week_key(d)
-            active_by_week[wk] = active_by_week.get(wk, 0) + 1
-            d = d + timedelta(days=7)
-    active_creatives_over_time = [{"week": k, "count": v} for k, v in sorted(active_by_week.items())]
-
-    # Format mix over time
-    format_by_week = {}
-    for a in analysis_ads:
-        d = _parse_date(a.get("started_running_on") or a.get("ad_delivery_start_time"))
-        if d:
-            wk = _week_key(d)
-            fmt = (a.get("labels") or {}).get("format") or "unknown"
-            if wk not in format_by_week:
-                format_by_week[wk] = {}
-            format_by_week[wk][fmt] = format_by_week[wk].get(fmt, 0) + 1
-    format_mix_over_time = [
-        {"week": k, "formats": v} for k, v in sorted(format_by_week.items())
-    ]
-
-    funnel_dist = (ds.get("funnel") or {}).get("stage_share") or {}
-    hook_dist = (ds.get("hook") or {}).get("type_share") or {}
-    hook_avgs = (ds.get("hook") or {}).get("avg_scores") or {}
-
-    proof = ds.get("proof") or {}
-    proof_avg = proof.get("avg_density_score_0_100")
-
-    objection_coverage = (ds.get("objections") or {}).get("coverage_share") or {}
-
-    clusters = redundancy.get("clusters") or []
-    redundancy_summary = redundancy.get("summary") or {}
-
-    ads_using_counts = [a.get("ads_using_creative_count") for a in raw_ads if a.get("ads_using_creative_count") is not None]
-
-    exposure_aggregates = (
-        (report.get("analysis") or {}).get("analysis") or {}
-    ).get("exposure_weighted_aggregates") or {}
-
-    return {
-        "launch_cadence": launch_cadence,
-        "active_creatives_over_time": active_creatives_over_time,
-        "format_mix_over_time": format_mix_over_time,
-        "funnel_distribution": funnel_dist,
-        "hook_type_distribution": hook_dist,
-        "average_hook_scores": hook_avgs,
-        "proof_density_averages": proof_avg,
-        "objection_coverage_distribution": objection_coverage,
-        "redundancy_clusters": clusters,
-        "redundancy_summary": redundancy_summary,
-        "ads_using_creative_count": sum(ads_using_counts) / len(ads_using_counts) if ads_using_counts else None,
-        "exposure_weighted_aggregates": exposure_aggregates,
-    }
+# ─── Prompt Engineering lookup ────────────────────────────────────────────────
 
 
 def get_synthesized_summary_prompt(db: Session) -> Optional[tuple]:
@@ -144,44 +166,202 @@ def get_synthesized_summary_prompt(db: Session) -> Optional[tuple]:
     return content, model
 
 
-def build_synthesize_payload(report: Dict[str, Any]) -> str:
-    """Build JSON payload for synthesize LLM (user message)."""
-    analysis_ads = report.get("analysis", {}).get("analysis", {}).get("ads") or []
-    metadata = _build_aggregate_metadata(report)
-    payload = {
-        "per_ad_mri": analysis_ads,
-        "aggregate_metadata": metadata,
-    }
-    msg = json.dumps(payload, ensure_ascii=False, default=str)
-    return msg
+# ─── Payload builder ──────────────────────────────────────────────────────────
 
 
-def run_synthesize(
-    report: Dict[str, Any],
-    llm_service: Any,
-    db: Session,
-) -> Optional[Dict[str, Any]]:
+def build_synthesize_payload(ads: List[Dict[str, Any]]) -> str:
+    """Build JSON payload for batch synthesis LLM (user message).
+    Takes the list of ads with their LLM Pass 1 classifications.
+    Trims sentence text to keep payload within token limits.
     """
-    Run synthesized summary LLM pass. Returns parsed JSON or None on failure.
-    Caller should merge result into report.synthesized_summary.
-    """
-    prompt_tuple = get_synthesized_summary_prompt(db)
-    if not prompt_tuple:
-        logger.warning("Synthesized summary prompt not configured (prompt_purpose=%s)", PROMPT_PURPOSE)
+    per_ad_data = []
+    for ad in ads:
+        llm = ad.get("llm")
+        if not llm:
+            continue
+        # Include classification summary (not full sentence text) to stay within token limits
+        sentences = llm.get("sentences") or []
+        sentence_summary = {
+            "total": len(sentences),
+            "by_type": {},
+        }
+        for s in sentences:
+            t = s.get("type", "neutral")
+            sentence_summary["by_type"][t] = sentence_summary["by_type"].get(t, 0) + 1
+
+        # Count proof specificity signals
+        proof_sentences = [s for s in sentences if s.get("type") == "proof" and s.get("proof_detail")]
+        proof_specificity = {
+            "total_proofs": len(proof_sentences),
+            "with_number": sum(1 for s in proof_sentences if s["proof_detail"].get("has_number")),
+            "with_named_source": sum(1 for s in proof_sentences if s["proof_detail"].get("has_named_source")),
+            "with_timeline": sum(1 for s in proof_sentences if s["proof_detail"].get("has_timeline")),
+            "types": [s["proof_detail"].get("proof_type") for s in proof_sentences],
+        }
+
+        per_ad_data.append({
+            "ad_id": ad.get("id"),
+            "headline": (ad.get("headline") or "")[:100],
+            "primary_text_preview": (ad.get("primary_text") or "")[:200],
+            "word_count": ad.get("word_count", 0),
+            "sentence_summary": sentence_summary,
+            "proof_specificity": proof_specificity,
+            "belief_clusters": len(llm.get("belief_clusters") or []),
+            "close_pattern": llm.get("close_pattern"),
+            "close_anti_patterns": llm.get("close_anti_patterns") or [],
+            "product_timing": llm.get("product_timing"),
+            "specificity": llm.get("specificity"),
+            "qualifier_density": llm.get("qualifier_density"),
+            "social_context_refs_count": len(llm.get("social_context_refs") or []),
+            "emotional_scenes_count": len(llm.get("emotional_scenes") or []),
+            "conversational_markers": llm.get("conversational_markers"),
+            "pain_benefit_balance": llm.get("pain_benefit_balance"),
+            "hook_type": llm.get("hook_type"),
+            "funnel_stage": llm.get("funnel_stage"),
+            "flesch_kincaid": llm.get("flesch_kincaid"),
+        })
+
+    payload = {"ads": per_ad_data, "total_ads": len(per_ad_data)}
+    return json.dumps(payload, ensure_ascii=False, default=str)
+
+
+# ─── Response parsing ─────────────────────────────────────────────────────────
+
+
+def _validate_synthesis(out: Dict[str, Any]) -> Dict[str, Any]:
+    """Validate and normalize batch synthesis output."""
+    # Ensure dimensions dict exists with all 13
+    dims = out.get("dimensions")
+    if not isinstance(dims, dict):
+        dims = {}
+
+    clean_dims = {}
+    for name in DIMENSION_NAMES:
+        d = dims.get(name)
+        if isinstance(d, dict):
+            score = d.get("score")
+            try:
+                score = max(0, min(100, int(float(score))))
+            except (TypeError, ValueError):
+                score = 50
+            clean_dims[name] = {
+                "score": score,
+                "finding": str(d.get("finding") or "")[:500] or None,
+            }
+        else:
+            clean_dims[name] = {"score": 50, "finding": None}
+    out["dimensions"] = clean_dims
+
+    # Overall score
+    overall = out.get("overall_score")
+    try:
+        out["overall_score"] = max(0, min(100, int(float(overall))))
+    except (TypeError, ValueError):
+        # Compute from dimensions using weights
+        weighted = sum(
+            clean_dims[name]["score"] * DIMENSION_WEIGHTS.get(name, 0)
+            for name in DIMENSION_NAMES
+        )
+        out["overall_score"] = max(0, min(100, round(weighted)))
+
+    # Bottom 3 and top 3
+    for key in ("bottom_3", "top_3"):
+        items = out.get(key)
+        if not isinstance(items, list):
+            items = []
+        clean = []
+        for item in items[:3]:
+            if not isinstance(item, dict):
+                continue
+            dim = (item.get("dimension") or "").lower().strip()
+            score = item.get("score")
+            try:
+                score = max(0, min(100, int(float(score))))
+            except (TypeError, ValueError):
+                score = 50
+            clean.append({
+                "dimension": dim,
+                "score": score,
+                "finding": str(item.get("finding") or "")[:500] or None,
+            })
+        out[key] = clean
+
+    # Close pattern variety
+    cpv = out.get("close_pattern_variety")
+    if isinstance(cpv, dict):
+        out["close_pattern_variety"] = {
+            "patterns_used": list(cpv.get("patterns_used") or [])[:50],
+            "distinct_count": int(cpv.get("distinct_count") or 0),
+            "finding": str(cpv.get("finding") or "")[:500] or None,
+        }
+    else:
+        out["close_pattern_variety"] = {"patterns_used": [], "distinct_count": 0, "finding": None}
+
+    # Executive narrative
+    out["executive_narrative"] = str(out.get("executive_narrative") or "")[:1000] or None
+
+    return out
+
+
+def parse_synthesis_response(content: str) -> Optional[Dict[str, Any]]:
+    """Parse batch synthesis LLM response."""
+    if not (content or "").strip():
         return None
+    text = content.strip()
+    if text.startswith("```"):
+        lines = text.split("\n")
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines)
+    try:
+        out = json.loads(text)
+    except json.JSONDecodeError:
+        if json_repair:
+            try:
+                out = json_repair.loads(text)
+            except Exception as e:
+                logger.warning("Batch synthesis JSON parse + repair failed: %s", e)
+                return None
+        else:
+            return None
+    if isinstance(out, dict):
+        return _validate_synthesis(out)
+    return None
 
-    system_message, model = prompt_tuple
-    return _call_synthesize_llm(report, llm_service, system_message, model)
+
+# ─── Main entry point ─────────────────────────────────────────────────────────
 
 
-def _call_synthesize_llm(
-    report: Dict[str, Any],
+def run_batch_synthesis(
+    ads: List[Dict[str, Any]],
     llm_service: Any,
-    system_message: str,
-    model: str,
+    db: Optional[Session] = None,
 ) -> Optional[Dict[str, Any]]:
-    """Execute LLM call for synthesize (no db - safe for thread)."""
-    user_message = build_synthesize_payload(report)
+    """
+    Run LLM Pass 2: batch synthesis over all per-ad classifications.
+    Returns validated synthesis dict or None on failure.
+    """
+    # Try Prompt Engineering first, fall back to built-in prompt
+    system_message = None
+    model = "claude-3-5-sonnet-20241022"
+    if db:
+        try:
+            prompt_tuple = get_synthesized_summary_prompt(db)
+            if prompt_tuple:
+                system_message, model = prompt_tuple
+                logger.info("Batch synthesis using Prompt Engineering prompt, model=%s", model)
+        except Exception as e:
+            logger.warning("Prompt Engineering lookup failed (using built-in): %s", e)
+
+    if not system_message:
+        system_message = BATCH_SYNTHESIS_SYSTEM_PROMPT
+        logger.info("Batch synthesis using built-in prompt")
+
+    user_message = build_synthesize_payload(ads)
+    logger.info("Batch synthesis: %d ads, payload %d chars, model=%s", len(ads), len(user_message), model)
+
     try:
         result = llm_service.execute_prompt(
             system_message=system_message,
@@ -191,31 +371,15 @@ def _call_synthesize_llm(
         )
         content = (result or {}).get("content") or ""
         if not content.strip():
+            logger.warning("Batch synthesis LLM returned empty content. Result keys: %s", list((result or {}).keys()))
             return None
-
-        text = content.strip()
-        if text.startswith("```"):
-            lines = text.split("\n")
-            if lines[0].startswith("```"):
-                lines = lines[1:]
-            if lines and lines[-1].strip() == "```":
-                lines = lines[:-1]
-            text = "\n".join(lines)
-
-        try:
-            out = json.loads(text)
-        except json.JSONDecodeError as e:
-            if json_repair is None:
-                logger.warning("Synthesized summary JSON parse failed. Install json-repair for auto-repair: pip install json-repair")
-                return None
-            try:
-                out = json_repair.loads(text)
-            except Exception as repair_err:
-                logger.warning("Synthesized summary LLM failed (parse + repair): %s", repair_err)
-                return None
-        if isinstance(out, dict):
-            return out
-        return None
+        parsed = parse_synthesis_response(content)
+        if parsed is None:
+            logger.warning("Batch synthesis response failed to parse. First 500 chars: %s", content[:500])
+        else:
+            logger.info("Batch synthesis complete: overall_score=%s, bottom_3=%d, top_3=%d",
+                        parsed.get("overall_score"), len(parsed.get("bottom_3", [])), len(parsed.get("top_3", [])))
+        return parsed
     except Exception as e:
-        logger.warning("Synthesized summary LLM failed: %s", e)
+        logger.exception("Batch synthesis LLM failed: %s", e)
         return None
