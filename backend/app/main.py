@@ -308,14 +308,17 @@ app.add_middleware(EnsureCORSHeadersMiddleware, allowed_origins=all_cors_origins
 # Include static file serving router
 from app.routers import static
 
+# Mount widget JS directory for embeddable survey script (always, independent of frontend)
+# Check multiple locations: backend/widget (Railway), or project_root/widget (local dev)
+for _widget_candidate in [Path.cwd() / "widget", Path(__file__).parent.parent.parent / "widget"]:
+    if _widget_candidate.exists():
+        app.mount("/static/widget", StaticFiles(directory=str(_widget_candidate)), name="widget-static")
+        break
+
 # Serve static files from the parent directory (where index.html is)
 # This allows accessing the frontend at http://localhost:8000/index.html
 frontend_path = find_frontend_path(Path(__file__))
 if (frontend_path / "index.html").exists():
-    # Mount widget JS directory for embeddable survey script
-    widget_path = frontend_path / "widget"
-    if widget_path.exists():
-        app.mount("/static/widget", StaticFiles(directory=str(widget_path)), name="widget-static")
     # Mount static files directory to serve CSS, JS, and other assets
     app.mount("/static", StaticFiles(directory=str(frontend_path)), name="static")
     # Include static file routes
