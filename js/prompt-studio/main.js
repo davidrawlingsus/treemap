@@ -1078,24 +1078,24 @@ async function handleScrape() {
     els.scrapeBtn.disabled = true;
     try {
         const data = await scrapeProspect(url, els.companyName.value.trim(), parseInt(els.minReviews.value) || 200);
-        showStatus(`Scraped ${data.review_count} reviews from ${data.domain}. Loading prompts...`, '');
+        showStatus(`Scraped ${data.review_count} reviews from ${data.domain}. Loading reviews & prompts...`, '');
 
-        // Fetch default prompts (live DB versions or hardcoded fallbacks)
-        let defaultPrompts = null;
-        try {
-            const promptsData = await fetchDefaultPrompts();
-            defaultPrompts = promptsData.default_prompts;
-        } catch (e) {
-            console.warn('[prompt-studio] Could not load default prompts, using empty:', e);
-        }
+        // Load full reviews from persisted run + default prompts in parallel
+        const [runInputs, promptsData] = await Promise.all([
+            fetchRunInputs(data.run_id),
+            fetchDefaultPrompts().catch(e => {
+                console.warn('[prompt-studio] Could not load default prompts, using empty:', e);
+                return { default_prompts: null };
+            }),
+        ]);
 
         studioInputs = {
             url,
             domain: data.domain,
             company_name: data.company_name,
-            reviews: data.reviews,
+            reviews: runInputs.reviews || [],
             company_context: null,
-            default_prompts: defaultPrompts,
+            default_prompts: promptsData.default_prompts,
         };
         currentRunId = data.run_id;
         showStatus(`Scraped ${data.review_count} reviews from ${data.domain}. Pipeline ready.`, 'success');

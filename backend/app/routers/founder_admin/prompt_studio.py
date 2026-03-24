@@ -68,7 +68,6 @@ class ScrapeResponse(BaseModel):
     domain: str
     company_name: str
     company_url: str
-    reviews: List[Dict[str, Any]]
     review_count: int
 
 
@@ -404,7 +403,6 @@ def prompt_studio_scrape(
             domain=domain,
             company_name=company_name,
             company_url=company_url,
-            reviews=rows,
             review_count=len(rows),
         )
     except HTTPException:
