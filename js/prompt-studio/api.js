@@ -93,8 +93,10 @@ export async function runRefineStep(systemPrompt, userPromptTemplate, codebook, 
  * but calls onTokens(n) as tokens arrive so the UI can show progress.
  */
 async function runStreamingStep(url, body, onTokens) {
-    console.log('[stream] Starting:', url);
-    const res = await fetch(`${API_BASE_URL}${url}?stream=true`, {
+    // Use same-origin proxy for streaming to avoid Cloudflare QUIC/timeout issues
+    const streamBase = window.location.origin;
+    console.log('[stream] Starting:', url, 'via', streamBase);
+    const res = await fetch(`${streamBase}${url}?stream=true`, {
         method: 'POST',
         headers: { ...headers(), 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
