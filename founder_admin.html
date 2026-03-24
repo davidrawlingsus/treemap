@@ -164,8 +164,11 @@
                     <div>
                         <h2>Add Data Source</h2>
                         <p>Upload or connect a new VOC data source for a client workspace.</p>
+                        <select id="addDataSourceClientSelect" style="margin-top: 8px; padding: 6px 10px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 13px; width: 100%; max-width: 300px;">
+                            <option value="">Select a client...</option>
+                        </select>
                     </div>
-                    <a class="btn btn-primary" href="/choose-data-source.html">Open Tool</a>
+                    <a class="btn btn-primary" id="addDataSourceBtn" href="#" onclick="return false;" style="opacity: 0.5; pointer-events: none;">Open Tool</a>
                 </article>
                 </section>
             </div>
@@ -309,11 +312,48 @@
             }, 100);
         }
 
+        async function loadClientsForDataSource() {
+            const select = document.getElementById('addDataSourceClientSelect');
+            const btn = document.getElementById('addDataSourceBtn');
+            if (!select || !btn) return;
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+                    headers: Auth.getAuthHeaders(),
+                });
+                if (!response.ok) return;
+                const userInfo = await response.json();
+                const clients = userInfo.accessible_clients || [];
+                clients.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                clients.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.uuid;
+                    opt.textContent = c.name || c.uuid;
+                    select.appendChild(opt);
+                });
+                select.addEventListener('change', () => {
+                    if (select.value) {
+                        btn.href = `/choose-data-source.html?client_uuid=${select.value}`;
+                        btn.style.opacity = '1';
+                        btn.style.pointerEvents = 'auto';
+                        btn.onclick = null;
+                    } else {
+                        btn.href = '#';
+                        btn.style.opacity = '0.5';
+                        btn.style.pointerEvents = 'none';
+                        btn.onclick = () => false;
+                    }
+                });
+            } catch (e) {
+                console.error('[FOUNDER_ADMIN] Failed to load clients for data source:', e);
+            }
+        }
+
         function initializePage() {
             console.log('[FOUNDER_ADMIN] initializePage called');
             console.log('[FOUNDER_ADMIN] founderInfo:', founderInfo);
             showAppShell();
             initializeToolSearch();
+            loadClientsForDataSource();
         }
 
         // Initialize authentication check after Auth is ready
