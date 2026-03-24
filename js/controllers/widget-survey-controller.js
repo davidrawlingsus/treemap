@@ -52,7 +52,7 @@ function showStatus(message, type = 'success') {
 async function loadClients() {
     try {
         const apiBaseUrl = getBaseUrl();
-        const response = await fetch(`${apiBaseUrl}/api/voc/clients`, {
+        const response = await fetch(`${apiBaseUrl}/api/clients`, {
             headers: window.Auth?.getAuthHeaders?.() || {},
         });
         if (response.ok) {
