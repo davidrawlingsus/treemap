@@ -1124,7 +1124,7 @@ def prompt_studio_generate_ad(
         user_prompt=body.user_prompt,
         schema=GENERATE_AD_SCHEMA,
         temperature=0.7,
-        max_tokens=16384,
+        max_tokens=64000,
     )
 
     if stream:
