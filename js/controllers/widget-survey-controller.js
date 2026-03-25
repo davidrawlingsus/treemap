@@ -116,7 +116,8 @@ function renderView() {
     } else if (state.view === 'editor') {
         renderSurveyEditor(elements.mainContent, {
             survey: state.currentSurvey,
-            onSave: (payload) => doSave(payload),
+            onSave: (payload) => doSave(payload, false),
+            onSaveAndPublish: (payload) => doSave(payload, true),
             onBack: () => { state.view = 'list'; loadSurveys(); },
         });
     } else if (state.view === 'responses') {
@@ -173,14 +174,19 @@ async function loadMoreResponses(offset) {
     }
 }
 
-async function doSave(payload) {
+async function doSave(payload, andPublish = false) {
     try {
         if (state.currentSurvey) {
             state.currentSurvey = await updateWidgetSurvey(state.currentSurvey.id, state.clientId, payload);
         } else {
             state.currentSurvey = await createWidgetSurvey(state.clientId, payload);
         }
-        showStatus('Survey saved successfully');
+        if (andPublish && state.currentSurvey?.id) {
+            await publishWidgetSurvey(state.currentSurvey.id, state.clientId);
+            showStatus('Survey saved & published');
+        } else {
+            showStatus('Survey saved as draft');
+        }
         state.view = 'list';
         loadSurveys();
     } catch (err) {

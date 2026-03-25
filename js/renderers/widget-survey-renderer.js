@@ -96,7 +96,7 @@ export function renderSurveyList(container, { surveys, installStatus, onNew, onE
 
 // ── Survey Editor (two-panel with preview) ────────────────────────
 
-export function renderSurveyEditor(container, { survey, onSave, onBack }) {
+export function renderSurveyEditor(container, { survey, onSave, onSaveAndPublish, onBack }) {
     if (!container) return;
     container.className = 'ws';
 
@@ -277,9 +277,19 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
                     </div>
                 </div>
 
-                <!-- Save button -->
+                <!-- Save actions -->
                 <div style="margin-top:16px;padding-top:16px;border-top:1px solid #c9ccd0;display:flex;justify-content:flex-end;gap:8px;">
-                    <button class="btn btn-primary" id="saveBtn">Save draft</button>
+                    ${survey?.status === 'active' ? `
+                        <button class="btn btn-primary" id="publishBtn">Publish changes</button>
+                    ` : `
+                        <div style="position:relative;display:inline-flex;" id="splitBtnWrap">
+                            <button class="btn btn-primary" id="saveBtn" style="border-radius:6px 0 0 6px;">Save draft</button>
+                            <button class="btn btn-primary" id="splitToggle" style="border-radius:0 6px 6px 0;border-left:1px solid rgba(255,255,255,0.3);padding:7px 8px;" title="More options">&#9660;</button>
+                            <div id="splitMenu" style="display:none;position:absolute;bottom:100%;right:0;margin-bottom:4px;background:#fff;border:1px solid #c9ccd0;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.12);overflow:hidden;min-width:160px;z-index:10;">
+                                <button class="btn" id="saveAndPublishBtn" style="width:100%;border:none;border-radius:0;justify-content:flex-start;padding:10px 14px;font-size:13px;">Save &amp; Publish</button>
+                            </div>
+                        </div>
+                    `}
                 </div>
             </div>
 
@@ -565,7 +575,7 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
         }
 
         const isSlideup = displayType === 'slideup';
-        const cardRadius = isSlideup ? '12px' : '12px 12px 0 0';
+        const cardRadius = isSlideup ? '12px 12px 0 0' : '12px';
         const cardShadow = isSlideup ? '0 2px 16px rgba(0,0,0,0.2)' : '0 -4px 20px rgba(0,0,0,0.15)';
         const cardWidth = isSlideup ? '340px' : '380px';
         const titleSize = isSlideup ? '14px' : '15px';
@@ -642,10 +652,10 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
         if (previewStep < editorQuestions.length - 1) { previewStep++; renderPreview(); }
     });
 
-    // Save
-    container.querySelector('#saveBtn')?.addEventListener('click', () => {
+    // Save helpers
+    function collectPayload() {
         const title = container.querySelector('#surveyTitle')?.value?.trim();
-        if (!title) return;
+        if (!title) return null;
 
         const urlPatternsRaw = container.querySelector('#urlPatterns')?.value || '';
         const patterns = urlPatternsRaw.split('\n').map(p => p.trim()).filter(Boolean);
@@ -663,7 +673,7 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
         const widgetTitle = container.querySelector('#widgetTitle')?.value?.trim() || null;
         const submitLabel = container.querySelector('#submitLabel')?.value?.trim() || null;
 
-        const payload = {
+        return {
             title,
             description: container.querySelector('#surveyDesc')?.value?.trim() || null,
             status: 'active',
@@ -676,8 +686,58 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
                 display_rules: editorRules,
             },
         };
-        onSave(payload);
+    }
+
+    function canPublish() {
+        const title = container.querySelector('#surveyTitle')?.value?.trim();
+        if (!title) return false;
+        if (editorQuestions.length === 0) return false;
+        if (!editorQuestions.some(q => q.title?.trim())) return false;
+        return true;
+    }
+
+    // Live survey: single "Publish changes" button
+    container.querySelector('#publishBtn')?.addEventListener('click', () => {
+        const payload = collectPayload();
+        if (!payload) return;
+        onSaveAndPublish(payload);
     });
+
+    // New/draft survey: split button
+    container.querySelector('#saveBtn')?.addEventListener('click', () => {
+        const payload = collectPayload();
+        if (payload) onSave(payload);
+    });
+
+    // Split button toggle
+    const splitToggle = container.querySelector('#splitToggle');
+    const splitMenu = container.querySelector('#splitMenu');
+    if (splitToggle && splitMenu) {
+        splitToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            splitMenu.style.display = splitMenu.style.display === 'none' ? 'block' : 'none';
+        });
+        document.addEventListener('click', () => { splitMenu.style.display = 'none'; }, { once: false });
+
+        const sapBtn = container.querySelector('#saveAndPublishBtn');
+        if (sapBtn) {
+            function updateSapState() {
+                sapBtn.disabled = !canPublish();
+                sapBtn.style.opacity = canPublish() ? '1' : '0.4';
+                sapBtn.style.cursor = canPublish() ? 'pointer' : 'not-allowed';
+            }
+            updateSapState();
+            // Re-check on question/title changes
+            container.addEventListener('input', updateSapState);
+
+            sapBtn.addEventListener('click', () => {
+                if (!canPublish()) return;
+                splitMenu.style.display = 'none';
+                const payload = collectPayload();
+                if (payload) onSaveAndPublish(payload);
+            });
+        }
+    }
 }
 
 // ── Response Viewer ───────────────────────────────────────────────
