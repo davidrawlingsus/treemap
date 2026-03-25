@@ -737,6 +737,16 @@ async function handleGenerateAds() {
     const taxonomy = source.output;
     const businessContext = buildBusinessContext();
 
+    // Flush previous ads
+    generatedAdBatches = [];
+    generatedBriefs = [];
+    renderAdsSection();
+    renderGenerateOutput();
+    // Delete saved ad outputs from DB
+    if (currentRunId) {
+        saveStepOutput(currentRunId, 'generate', pipeline.length, { batches: [] }, null).catch(() => {});
+    }
+
     // Build rich payloads with full reviews (capped at ~36 ads)
     const payloads = buildCreativePayloads(taxonomy, studioInputs?.reviews || [], businessContext);
     const summary = summarizePayloads(payloads);
