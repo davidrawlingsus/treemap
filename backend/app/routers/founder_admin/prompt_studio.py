@@ -1126,7 +1126,7 @@ def prompt_studio_generate_ad(
 
     llm_kwargs = dict(
         settings=settings,
-        model=getattr(settings, "voc_coding_discover_model", "claude-sonnet-4-5-20250929"),
+        model="claude-opus-4-6-20250904",
         system_prompt=body.system_prompt,
         user_prompt=body.user_prompt,
         schema=GENERATE_AD_SCHEMA,
