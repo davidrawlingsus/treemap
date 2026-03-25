@@ -582,9 +582,10 @@ export function renderSurveyEditor(container, { survey, onSave, onSaveAndPublish
         const bodyPadding = isSlideup ? '16px 16px 0' : '20px 20px 0';
         const footerPadding = isSlideup ? '12px 16px' : '16px 20px';
 
+        const iconFilter = isDark ? 'filter:invert(0.7);' : '';
         const collapseBtn = isSlideup
-            ? `<span style="color:${mutedColor};cursor:pointer;font-size:14px;">&#9660;</span>`
-            : `<span style="color:${mutedColor};cursor:pointer;font-size:18px;">&times;</span>`;
+            ? `<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/survey-icons/collapse_icon-RYPksPuuo9v7xJYQPMkpaxgaByqYas.svg" alt="Collapse" style="width:18px;height:18px;cursor:pointer;${iconFilter}" />`
+            : `<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/survey-icons/close_icon-bX0w8aJ2pJgf5aUuXZoEpQHw6dwtFB.svg" alt="Close" style="width:18px;height:18px;cursor:pointer;${iconFilter}" />`;
 
         viewport.innerHTML = `
             <div style="background:${bg};border-radius:${cardRadius};box-shadow:${cardShadow};padding:0;width:100%;max-width:${cardWidth};overflow:hidden;">

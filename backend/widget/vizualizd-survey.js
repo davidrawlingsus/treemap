@@ -28,6 +28,8 @@
   }
   var API_KEY = cfg.apiKey;
   var PREFIX = "vzd-survey";
+  var ICON_CLOSE = "https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/survey-icons/close_icon-bX0w8aJ2pJgf5aUuXZoEpQHw6dwtFB.svg";
+  var ICON_COLLAPSE = "https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/survey-icons/collapse_icon-RYPksPuuo9v7xJYQPMkpaxgaByqYas.svg";
 
   // ── API client ──────────────────────────────────────────────────
 
@@ -348,10 +350,16 @@
     function render() {
       modal.innerHTML = "";
 
-      // Close button
+      // Close/collapse button
       var closeBtn = document.createElement("button");
       closeBtn.className = PREFIX + "-close";
-      closeBtn.textContent = "\u00D7";
+      var closeIcon = document.createElement("img");
+      closeIcon.src = dType === "slideup" ? ICON_COLLAPSE : ICON_CLOSE;
+      closeIcon.alt = dType === "slideup" ? "Collapse" : "Close";
+      closeIcon.style.cssText = "width:20px;height:20px;display:block;";
+      if (isDark) closeIcon.style.filter = "invert(0.7)";
+      closeBtn.textContent = "";
+      closeBtn.appendChild(closeIcon);
       closeBtn.addEventListener("click", dismiss);
       modal.appendChild(closeBtn);
 
@@ -518,7 +526,12 @@
 
       var closeBtn = document.createElement("button");
       closeBtn.className = PREFIX + "-close";
-      closeBtn.textContent = "\u00D7";
+      var successCloseIcon = document.createElement("img");
+      successCloseIcon.src = ICON_CLOSE;
+      successCloseIcon.alt = "Close";
+      successCloseIcon.style.cssText = "width:20px;height:20px;display:block;";
+      if (isDark) successCloseIcon.style.filter = "invert(0.7)";
+      closeBtn.appendChild(successCloseIcon);
       closeBtn.addEventListener("click", dismiss);
       modal.appendChild(closeBtn);
 
