@@ -220,7 +220,7 @@
       "." + PREFIX + "-overlay.slideup.visible .vzd-survey-modal{transform:translateY(0)}",
       "." + PREFIX + "-modal{background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.3);max-width:480px;width:90%;max-height:90vh;overflow-y:auto;padding:32px;position:relative;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;line-height:1.5}",
       "." + PREFIX + "-overlay.slideup ." + PREFIX + "-modal{max-width:380px;width:380px;padding:24px;box-shadow:0 4px 24px rgba(0,0,0,0.15);border-radius:12px}",
-      "." + PREFIX + "-close{position:absolute;top:12px;right:12px;background:none;border:none;font-size:20px;cursor:pointer;color:#999;padding:4px 8px;border-radius:4px}",
+      "." + PREFIX + "-close{position:absolute;top:16px;right:16px;background:none;border:none;cursor:pointer;padding:4px;border-radius:4px;line-height:0}",
       "." + PREFIX + "-close:hover{color:#333;background:#f0f0f0}",
       "." + PREFIX + "-title{margin:0 0 8px;font-size:20px;font-weight:600}",
       "." + PREFIX + "-overlay.slideup ." + PREFIX + "-title{font-size:16px;margin:0 0 4px}",
