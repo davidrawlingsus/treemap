@@ -1,6 +1,6 @@
 """
 Creative MRI v2 pipeline: ingest → FK pre-pass → LLM Pass 1 per-ad → LLM Pass 2 batch synthesis → aggregate.
-Outputs analysis bundle (schema 2.0.0) for dashboard charts.
+Outputs analysis bundle (schema 2.0.0) for dashboard charts.  # deploy-trigger-001
 
 Pass 1: Per-ad structured classification (sentences, belief clusters, close patterns, etc.)
 Pass 2: Batch synthesis (13 dimension scores, findings, bottom-3, executive narrative)
