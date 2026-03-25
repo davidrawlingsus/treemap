@@ -137,7 +137,7 @@ def llm_pass(
     return ads
 
 
-def _default_batch_synthesis(ads: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _default_batch_synthesis(ads: List[Dict[str, Any]], reason: str = "unknown") -> Dict[str, Any]:
     """Fallback batch synthesis when LLM Pass 2 fails."""
     return {
         "dimensions": {name: {"score": 50, "finding": None} for name in DIMENSION_NAMES},
@@ -145,7 +145,7 @@ def _default_batch_synthesis(ads: List[Dict[str, Any]]) -> Dict[str, Any]:
         "bottom_3": [],
         "top_3": [],
         "close_pattern_variety": {"patterns_used": [], "distinct_count": 0, "finding": None},
-        "executive_narrative": None,
+        "executive_narrative": f"[DEBUG] Batch synthesis fell back to defaults. Reason: {reason}",
     }
 
 
@@ -190,7 +190,7 @@ def aggregate(
                 "top_leaks": [],
                 "fast_wins": [],
             },
-            "batch_synthesis": _default_batch_synthesis([]),
+            "batch_synthesis": _default_batch_synthesis([], reason="no ads to analyze"),
             "ads": [],
             "tear_down": {"selected_ads": []},
             "analysis": {
@@ -303,7 +303,7 @@ def aggregate(
     }
 
     return {
-        "meta": {"total_ads": n, "schema_version": SCHEMA_VERSION, "label": "copy-based effectiveness diagnostics"},
+        "meta": {"total_ads": n, "schema_version": SCHEMA_VERSION, "pipeline_version": "v2-13dim", "label": "copy-based effectiveness diagnostics"},
         "executive_summary": {
             "overall_effectiveness_score": overall_score,
             "subscores_summary": subscores_summary,
@@ -358,7 +358,12 @@ def run_creative_mri_pipeline(
     if progress_callback:
         progress_callback("synthesis", 0, 1, "Synthesizing batch analysis across all ads")
 
-    batch_synthesis = run_batch_synthesis(normalized, llm_service, db=db)
+    try:
+        batch_synthesis = run_batch_synthesis(normalized, llm_service, db=db)
+    except Exception as synth_exc:
+        logger.warning("[MRI-DEBUG] Batch synthesis EXCEPTION: %s", synth_exc)
+        batch_synthesis = None
+
     logger.warning("[MRI-DEBUG] Batch synthesis result: %s", "SUCCESS" if batch_synthesis else "NONE (fallback to defaults)")
     if batch_synthesis:
         logger.warning("[MRI-DEBUG] Synthesis overall_score=%s, bottom_3=%d, top_3=%d, dims=%s",
@@ -366,6 +371,9 @@ def run_creative_mri_pipeline(
                     len(batch_synthesis.get("bottom_3", [])),
                     len(batch_synthesis.get("top_3", [])),
                     list(batch_synthesis.get("dimensions", {}).keys())[:5])
+    else:
+        # Use default with visible debug reason
+        batch_synthesis = _default_batch_synthesis(normalized, reason="run_batch_synthesis returned None")
 
     if progress_callback:
         progress_callback("synthesis", 1, 1, "Synthesis complete")
