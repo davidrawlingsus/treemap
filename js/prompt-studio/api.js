@@ -213,12 +213,13 @@ export async function runValidateStep(systemPrompt, userPromptTemplate, productC
     );
 }
 
-export async function runGenerateAd(systemPrompt, userPrompt, onTokens) {
-    return runStreamingStep(
-        '/api/founder-admin/prompt-studio/generate-ad',
-        { system_prompt: systemPrompt, user_prompt: userPrompt },
-        onTokens,
-    );
+export async function runGenerateAd(systemPrompt, userPrompt) {
+    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/generate-ad`, {
+        method: 'POST',
+        headers: { ...headers(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ system_prompt: systemPrompt, user_prompt: userPrompt }),
+    });
+    return handleResponse(res);
 }
 
 export async function savePipelineState(runId, pipelineState) {
