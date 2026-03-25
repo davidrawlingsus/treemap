@@ -737,13 +737,14 @@ async function handleGenerateAds() {
     const taxonomy = source.output;
     const businessContext = buildBusinessContext();
 
-    // Build rich payloads with full reviews
+    // Build rich payloads with full reviews (capped at ~36 ads)
     const payloads = buildCreativePayloads(taxonomy, studioInputs?.reviews || [], businessContext);
     const summary = summarizePayloads(payloads);
+    console.log(`[generate] ${payloads.length} payloads, ~${summary.total_ads} ads planned (capped at 36)`);
 
     if (payloads.length === 0) { showStatus('No qualifying topics found.', 'error'); return; }
 
-    showStatus(`Generating ${summary.total_ads} ads from ${summary.total_payloads} topics (${summary.total_reviews} reviews)...`, '');
+    showStatus(`Generating ~${summary.total_ads} ads from ${summary.total_payloads} topics...`, '');
     const btn = document.getElementById('generateAdsBtn');
     if (btn) { btn.disabled = true; btn.classList.add('running'); }
 
@@ -773,6 +774,12 @@ async function handleGenerateAds() {
             showStatus(`Generated ${completed}/${payloads.length} topics (${failed} failed)...`, '');
             renderAdsSection();
             renderGenerateOutput();
+            // Incrementally save after each topic
+            if (currentRunId) {
+                saveStepOutput(currentRunId, 'generate', pipeline.length, { batches: generatedAdBatches }, null).catch(
+                    e => console.warn('[auto-save] Failed to save ad batch:', e.message)
+                );
+            }
         } catch (e) {
             console.error(`[generate] Failed for ${payload.topic_label}:`, e.message);
             failed++;

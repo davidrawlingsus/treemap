@@ -235,7 +235,10 @@ export async function savePipelineState(runId, pipelineState) {
 }
 
 export async function saveStepOutput(runId, stepType, stepOrder, output, elapsedSeconds, promptVersionId) {
-    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/${runId}/step-output`, {
+    // Use Railway direct to bypass Cloudflare size/timeout limits on large JSON
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const base = isLocal ? API_BASE_URL : 'https://content-exploration-featurebranch.up.railway.app';
+    const res = await fetch(`${base}/api/founder-admin/prompt-studio/${runId}/step-output`, {
         method: 'PUT',
         headers: { ...headers(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
