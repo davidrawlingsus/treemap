@@ -354,10 +354,18 @@ def run_creative_mri_pipeline(
     )
 
     # LLM Pass 2: batch synthesis
+    logger.info("[MRI-DEBUG] Pass 1 complete for %d ads. Starting batch synthesis. db=%s", len(normalized), type(db).__name__ if db else "None")
     if progress_callback:
         progress_callback("synthesis", 0, 1, "Synthesizing batch analysis across all ads")
 
     batch_synthesis = run_batch_synthesis(normalized, llm_service, db=db)
+    logger.info("[MRI-DEBUG] Batch synthesis result: %s", "SUCCESS" if batch_synthesis else "NONE (fallback to defaults)")
+    if batch_synthesis:
+        logger.info("[MRI-DEBUG] Synthesis overall_score=%s, bottom_3=%d, top_3=%d, dims=%s",
+                    batch_synthesis.get("overall_score"),
+                    len(batch_synthesis.get("bottom_3", [])),
+                    len(batch_synthesis.get("top_3", [])),
+                    list(batch_synthesis.get("dimensions", {}).keys())[:5])
 
     if progress_callback:
         progress_callback("synthesis", 1, 1, "Synthesis complete")

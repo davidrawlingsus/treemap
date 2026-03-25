@@ -360,26 +360,35 @@ def run_batch_synthesis(
         logger.info("Batch synthesis using built-in prompt")
 
     user_message = build_synthesize_payload(ads)
-    logger.info("Batch synthesis: %d ads, payload %d chars, model=%s", len(ads), len(user_message), model)
+    logger.warning("[MRI-SYNTH] === BATCH SYNTHESIS START === ads=%d, payload=%d chars, sys_prompt=%d chars, model=%s, llm_service=%s",
+                   len(ads), len(user_message), len(system_message), model, type(llm_service).__name__)
 
+    import time as _time
+    t0 = _time.time()
     try:
+        logger.warning("[MRI-SYNTH] Calling llm_service.execute_prompt...")
         result = llm_service.execute_prompt(
             system_message=system_message,
             user_message=user_message,
             model=model,
             max_tokens=16384,
         )
+        elapsed = _time.time() - t0
+        logger.warning("[MRI-SYNTH] LLM returned in %.1fs. Result type=%s, keys=%s",
+                       elapsed, type(result).__name__, list((result or {}).keys()))
         content = (result or {}).get("content") or ""
+        logger.warning("[MRI-SYNTH] Content length=%d, first 300 chars: %s", len(content), content[:300])
         if not content.strip():
-            logger.warning("Batch synthesis LLM returned empty content. Result keys: %s", list((result or {}).keys()))
+            logger.warning("[MRI-SYNTH] EMPTY CONTENT from LLM. Full result: %s", str(result)[:500])
             return None
         parsed = parse_synthesis_response(content)
         if parsed is None:
-            logger.warning("Batch synthesis response failed to parse. First 500 chars: %s", content[:500])
+            logger.warning("[MRI-SYNTH] PARSE FAILED. First 1000 chars: %s", content[:1000])
         else:
-            logger.info("Batch synthesis complete: overall_score=%s, bottom_3=%d, top_3=%d",
-                        parsed.get("overall_score"), len(parsed.get("bottom_3", [])), len(parsed.get("top_3", [])))
+            logger.warning("[MRI-SYNTH] === SUCCESS === overall_score=%s, bottom_3=%d, top_3=%d",
+                           parsed.get("overall_score"), len(parsed.get("bottom_3", [])), len(parsed.get("top_3", [])))
         return parsed
     except Exception as e:
-        logger.exception("Batch synthesis LLM failed: %s", e)
+        elapsed = _time.time() - t0
+        logger.exception("[MRI-SYNTH] === EXCEPTION after %.1fs === %s: %s", elapsed, type(e).__name__, e)
         return None

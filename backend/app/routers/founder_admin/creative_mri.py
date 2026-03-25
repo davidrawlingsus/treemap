@@ -327,6 +327,7 @@ async def _run_report_stream(
 
     def run_pipeline():
         try:
+            logger.warning("[MRI-DEBUG-STREAM] Starting run_creative_mri_pipeline v2 with %d ads", len(ads))
             result = run_creative_mri_pipeline(
                 ads,
                 llm_service,
@@ -335,8 +336,12 @@ async def _run_report_stream(
                 model=model,
                 db=db,
             )
+            has_synth = "batch_synthesis" in result
+            synth_score = (result.get("batch_synthesis") or {}).get("overall_score")
+            logger.warning("[MRI-DEBUG-STREAM] Pipeline complete. has_batch_synthesis=%s, overall_score=%s", has_synth, synth_score)
             progress_queue.put({"report": result})
         except Exception as e:
+            logger.exception("[MRI-DEBUG-STREAM] Pipeline exception: %s", e)
             pipeline_error.append(e)
         progress_queue.put(None)
 
@@ -441,6 +446,7 @@ def _run_and_save_report_sync(report_id: UUID, ads_or_import: dict, app) -> None
             report_row.progress_message = "Starting ad copy analysis..."
             db.commit()
 
+            logger.warning("[MRI-DEBUG] Starting run_creative_mri_pipeline v2 with %d ads, db=%s", len(ads), type(db).__name__)
             result = run_creative_mri_pipeline(
                 ads,
                 llm_service,
@@ -450,6 +456,10 @@ def _run_and_save_report_sync(report_id: UUID, ads_or_import: dict, app) -> None
                 db=db,
             )
             # Batch synthesis (LLM Pass 2) already ran inside the pipeline
+            has_synth = "batch_synthesis" in result
+            synth_score = (result.get("batch_synthesis") or {}).get("overall_score")
+            logger.warning("[MRI-DEBUG] Pipeline complete. has_batch_synthesis=%s, overall_score=%s, schema=%s",
+                          has_synth, synth_score, result.get("meta", {}).get("schema_version"))
             report_row.report_json = result
             report_row.status = "complete"
             report_row.completed_at = datetime.now(timezone.utc)
