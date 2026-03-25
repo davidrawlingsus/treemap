@@ -763,7 +763,9 @@ export function renderSurveyEditor(container, { survey, onSave, onSaveAndPublish
 
     // Live survey: single "Publish changes" button
     container.querySelector('#publishBtn')?.addEventListener('click', () => {
+        console.log('[VZD] Publish clicked, title:', container.querySelector('#surveyTitle')?.value);
         const payload = collectPayload();
+        console.log('[VZD] Payload:', payload ? 'OK' : 'NULL');
         if (!payload) return;
         onSaveAndPublish(payload);
     });
