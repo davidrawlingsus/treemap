@@ -214,7 +214,10 @@ export async function runValidateStep(systemPrompt, userPromptTemplate, productC
 }
 
 export async function runGenerateAd(systemPrompt, userPrompt) {
-    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/generate-ad`, {
+    // Use Railway direct URL to bypass Cloudflare's 100s timeout, but non-streaming
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const base = isLocal ? API_BASE_URL : 'https://content-exploration-featurebranch.up.railway.app';
+    const res = await fetch(`${base}/api/founder-admin/prompt-studio/generate-ad`, {
         method: 'POST',
         headers: { ...headers(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ system_prompt: systemPrompt, user_prompt: userPrompt }),
