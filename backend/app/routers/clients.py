@@ -786,6 +786,7 @@ def list_client_prompts(
         PromptClient, Prompt.id == PromptClient.prompt_id
     ).filter(
         Prompt.client_facing == True,
+        Prompt.status == 'live',
         or_(
             Prompt.all_clients == True,
             PromptClient.client_id == client_id

@@ -323,7 +323,8 @@
                             err.planName = detail.plan_name;
                             throw err;
                         }
-                        throw new Error('Authentication required');
+                        const errorMsg = (typeof detail === 'string' && detail) ? detail : 'Authentication required';
+                        throw new Error(errorMsg);
                     }
 
                     if (response.status === 401) {

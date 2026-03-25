@@ -424,21 +424,15 @@
 
             state.set('actionMode', 'save-and-run');
             
-            // If editing, open slideout with results and apply filters
+            // Pre-set slideout context for this prompt so Save and Run can open it
             if (mode === 'edit' && promptId && window.PromptSlideoutManager) {
-                setTimeout(async () => {
-                    const slideoutManager = window.PromptSlideoutManager;
-                    slideoutManager.setPromptId(promptId);
-                    
-                    // Auto-apply filters for this prompt before opening slideout
-                    if (window.PromptFilterManager && prompt) {
-                        window.PromptFilterManager.applyPromptFilter(prompt.name, prompt.version);
-                    }
-                    
-                    slideoutManager.open('LLM Outputs');
-                    console.log('[MODAL] Displaying all results when opening slideout from modal');
-                    await slideoutManager.displayAllResults(true, 'modals-openPromptModal');
-                }, 50);
+                const slideoutManager = window.PromptSlideoutManager;
+                slideoutManager.setPromptId(promptId);
+
+                // Pre-apply filters for this prompt so slideout is ready when triggered by Save and Run
+                if (window.PromptFilterManager && prompt) {
+                    window.PromptFilterManager.applyPromptFilter(prompt.name, prompt.version);
+                }
             }
             
             // Focus on name input

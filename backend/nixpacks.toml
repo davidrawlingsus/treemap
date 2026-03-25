@@ -1,7 +1,7 @@
 # Nix packages needed at runtime (Playwright Chromium dependencies)
 [phases.setup]
-nixPkgs = ["...", "chromium", "nss", "atk", "cups", "libdrm", "pango", "cairo", "alsa-lib", "at-spi2-atk", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXrandr", "dbus", "mesa"]
+nixPkgs = ["...", "chromium", "nss", "nspr", "atk", "cups", "libdrm", "pango", "cairo", "alsa-lib", "at-spi2-atk", "at-spi2-core", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXrandr", "xorg.libXext", "xorg.libXfixes", "xorg.libX11", "xorg.libxcb", "xorg.libxkbcommon", "dbus", "mesa", "glib", "gbm", "gdk-pixbuf", "gtk3", "libxkbcommon"]
 
 # Extends the default Python build with explicit installs.
 [phases.install]
-cmds = ["...", "pip install google-genai>=1.0.0", "playwright install chromium"]
+cmds = ["...", "pip install google-genai>=1.0.0", "playwright install --with-deps chromium"]
