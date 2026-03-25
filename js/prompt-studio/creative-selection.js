@@ -131,7 +131,26 @@ export function buildCreativePayloads(taxonomy, reviews, businessContext) {
             });
         }
     }
-    return payloads;
+    // Sort: PRIMARY first, then SECONDARY, then by signal_count descending
+    payloads.sort((a, b) => {
+        const prio = { PRIMARY: 0, SECONDARY: 1, SUPPORTING: 2 };
+        const pa = prio[a.creative_priority] ?? 2;
+        const pb = prio[b.creative_priority] ?? 2;
+        if (pa !== pb) return pa - pb;
+        return (b.signal_count || 0) - (a.signal_count || 0);
+    });
+
+    // Cap total ads at MAX_ADS (default 36)
+    const MAX_ADS = 36;
+    const capped = [];
+    let adCount = 0;
+    for (const p of payloads) {
+        const adsFromThis = p.lanes.length;
+        if (adCount + adsFromThis > MAX_ADS && capped.length > 0) break;
+        capped.push(p);
+        adCount += adsFromThis;
+    }
+    return capped;
 }
 
 /**
