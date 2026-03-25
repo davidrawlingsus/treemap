@@ -333,9 +333,9 @@
       closeBtn.addEventListener("click", dismiss);
       modal.appendChild(closeBtn);
 
-      // Title — use widget_title (display heading), fall back to nothing
+      // Title — use widget_title (display heading), only on first step
       var displayTitle = survey.widget_title;
-      if (displayTitle) {
+      if (displayTitle && stepIndex === 0) {
         var title = document.createElement("h2");
         title.className = PREFIX + "-title";
         title.textContent = displayTitle;
@@ -343,15 +343,6 @@
       }
 
       var visible = getVisibleQuestions();
-      if (visible.length === 0) {
-        showSuccess();
-        return;
-      }
-
-      // Step indicator
-      if (visible.length > 1) {
-        var indicator = document.createElement("div");
-        indicator.className = PREFIX + "-step-indicator";
         indicator.textContent = "Question " + (stepIndex + 1) + " of " + visible.length;
         modal.appendChild(indicator);
       }

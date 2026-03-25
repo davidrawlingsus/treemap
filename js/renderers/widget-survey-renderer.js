@@ -506,11 +506,10 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
         viewport.innerHTML = `
             <div style="background:#fff;border-radius:${cardRadius};box-shadow:${cardShadow};padding:0;width:100%;max-width:${cardWidth};overflow:hidden;">
                 <div style="padding:${bodyPadding};">
-                    ${previewTitle ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${isSlideup ? '8px' : '12px'};">
+                    ${(previewTitle && step === 0) ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${isSlideup ? '8px' : '12px'};">
                         <span style="font-size:${titleSize};font-weight:600;color:#303030;">${escapeHtml(previewTitle)}</span>` : `<div style="display:flex;justify-content:flex-end;margin-bottom:${isSlideup ? '8px' : '12px'};">`}
                         ${collapseBtn}
                     </div>
-                    ${total > 1 ? `<div style="font-size:11px;color:#8c9196;margin-bottom:${isSlideup ? '6px' : '12px'};">Question ${step + 1} of ${total}</div>` : ''}
                     <div style="font-size:${isSlideup ? '13px' : '14px'};font-weight:500;color:#303030;margin-bottom:${isSlideup ? '8px' : '12px'};">${escapeHtml(q.title || 'Question text...')}${q.is_required ? '<span style="color:#b42318;margin-left:2px;">*</span>' : ''}</div>
                     ${inputHtml}
                 </div>
@@ -526,6 +525,10 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
     renderQuestions();
     renderRules();
     renderPreview();
+
+    // Live-reload preview when heading or submit label change
+    container.querySelector('#widgetTitle')?.addEventListener('input', () => renderPreview());
+    container.querySelector('#submitLabel')?.addEventListener('input', () => renderPreview());
 
     container.querySelector('#backBtn')?.addEventListener('click', onBack);
 
