@@ -754,7 +754,14 @@ async function handleGenerateAds() {
     let failed = 0;
     const startTime = Date.now();
 
+    const MAX_TOTAL_ADS = 36;
+    let totalAdsGenerated = 0;
+
     for (const payload of payloads) {
+        if (totalAdsGenerated >= MAX_TOTAL_ADS) {
+            console.log(`[generate] Hit ${MAX_TOTAL_ADS} ad cap. Stopping.`);
+            break;
+        }
         const assembledPrompt = assembleUserPrompt(userPromptTemplate, payload);
         try {
             const result = await runGenerateAd(sysPrompt, assembledPrompt);
@@ -766,12 +773,21 @@ async function handleGenerateAds() {
             } else if (!output.ads && Array.isArray(output.ad_concepts)) {
                 output = { ads: output.ad_concepts };
             }
+            // Trim ads if this batch would exceed the cap
+            const adsInBatch = Array.isArray(output.ads) ? output.ads.length : 0;
+            const remaining = MAX_TOTAL_ADS - totalAdsGenerated;
+            if (adsInBatch > remaining) {
+                output.ads = output.ads.slice(0, remaining);
+            }
+            totalAdsGenerated += (output.ads?.length || 0);
+            console.log(`[generate] ${payload.topic_label}: ${output.ads?.length || 0} ads (total: ${totalAdsGenerated}/${MAX_TOTAL_ADS})`);
+
             output._topic_label = payload.topic_label;
             output._category = payload.category;
             output._creative_priority = payload.creative_priority;
             generatedAdBatches.push(output);
             completed++;
-            showStatus(`Generated ${completed}/${payloads.length} topics (${failed} failed)...`, '');
+            showStatus(`Generated ${totalAdsGenerated} ads from ${completed}/${payloads.length} topics...`, '');
             renderAdsSection();
             renderGenerateOutput();
             // Incrementally save after each topic
