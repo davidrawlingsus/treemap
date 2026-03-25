@@ -535,32 +535,71 @@ export function renderSurveyEditor(container, { survey, onSave, onSaveAndPublish
     }
 
     // ── Preview ──
+    // previewStep: 0..N-1 = questions, N = success screen
     function renderPreview() {
         const viewport = container.querySelector('#previewViewport');
         const indicator = container.querySelector('#stepIndicator');
         if (!viewport) return;
 
         const visible = editorQuestions.filter(q => q.title || q.options?.length);
-        const total = visible.length || 1;
-        const step = Math.min(previewStep, total - 1);
-        const q = visible[step];
+        const totalSteps = (visible.length || 1) + 1; // +1 for success
+        const step = Math.min(previewStep, totalSteps - 1);
+        const isSuccessStep = step >= visible.length;
 
-        if (indicator) indicator.textContent = `${step + 1} / ${total}`;
+        if (indicator) {
+            indicator.textContent = isSuccessStep ? `✓ / ${totalSteps}` : `${step + 1} / ${totalSteps}`;
+        }
+
+        // Theme colors (needed for all steps including success)
+        const isDark = theme === 'dark';
+        const bg = isDark ? '#1a1a1a' : '#fff';
+        const textColor = isDark ? '#f0f0f0' : '#303030';
+        const mutedColor = isDark ? '#a0a0a0' : '#8c9196';
+        const isSlideup = displayType === 'slideup';
+        const cardRadius = isSlideup ? '12px 12px 0 0' : '12px';
+        const cardShadow = isSlideup ? '0 2px 16px rgba(0,0,0,0.2)' : '0 -4px 20px rgba(0,0,0,0.15)';
+        const cardWidth = isSlideup ? '340px' : '380px';
+        const iconFilter = isDark ? 'filter:invert(0.7);' : '';
+
+        // Viewport alignment
+        if (displayType === 'slideup') {
+            viewport.style.alignItems = 'flex-end';
+            viewport.style.justifyContent = slideupPosition === 'bottom-left' ? 'flex-start' : 'flex-end';
+        } else {
+            viewport.style.alignItems = 'center';
+            viewport.style.justifyContent = 'center';
+        }
+
+        // Success screen preview
+        if (isSuccessStep) {
+            const successHeading = container.querySelector('#successHeading')?.value || 'Thank you!';
+            const successMsg = container.querySelector('#successMessage')?.value || 'Your feedback has been submitted.';
+            const successColor = isDark ? '#4ade80' : '#38a169';
+            const closeIcon = `<img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/survey-icons/close_icon-bX0w8aJ2pJgf5aUuXZoEpQHw6dwtFB.svg" alt="Close" style="width:18px;height:18px;cursor:pointer;${iconFilter}" />`;
+
+            viewport.innerHTML = `
+                <div style="background:${bg};border-radius:${cardRadius};box-shadow:${cardShadow};padding:0;width:100%;max-width:${cardWidth};overflow:hidden;">
+                    <div style="position:relative;padding:32px 20px;text-align:center;">
+                        <div style="position:absolute;top:16px;right:16px;cursor:pointer;">${closeIcon}</div>
+                        <div style="font-size:18px;font-weight:600;color:${successColor};margin-bottom:8px;">${escapeHtml(successHeading)}</div>
+                        <div style="font-size:14px;color:${mutedColor};">${escapeHtml(successMsg)}</div>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        const q = visible[step];
 
         if (!q) {
             viewport.innerHTML = `
-                <div style="background:#fff;border-radius:12px;box-shadow:0 -4px 20px rgba(0,0,0,0.15);padding:24px;width:100%;max-width:380px;text-align:center;color:#616161;font-size:14px;">
+                <div style="background:${bg};border-radius:${cardRadius};box-shadow:${cardShadow};padding:24px;width:100%;max-width:${cardWidth};text-align:center;color:${mutedColor};font-size:14px;">
                     Add a question to see preview
                 </div>
             `;
             return;
         }
 
-        // Theme colors
-        const isDark = theme === 'dark';
-        const bg = isDark ? '#1a1a1a' : '#fff';
-        const textColor = isDark ? '#f0f0f0' : '#303030';
-        const mutedColor = isDark ? '#a0a0a0' : '#8c9196';
         const borderColor = isDark ? '#333' : '#e2e8f0';
         const inputBg = isDark ? '#2a2a2a' : '#fff';
         const footerBorder = isDark ? '#333' : '#f0f2f4';
@@ -582,21 +621,8 @@ export function renderSurveyEditor(container, { survey, onSave, onSaveAndPublish
 
         const previewTitle = container.querySelector('#widgetTitle')?.value || '';
         const previewSubmitLabel = container.querySelector('#submitLabel')?.value || 'Submit';
-        const isLast = step >= total - 1;
+        const isLast = step >= visible.length - 1;
 
-        // Update viewport alignment based on display type
-        if (displayType === 'slideup') {
-            viewport.style.alignItems = 'flex-end';
-            viewport.style.justifyContent = slideupPosition === 'bottom-left' ? 'flex-start' : 'flex-end';
-        } else {
-            viewport.style.alignItems = 'center';
-            viewport.style.justifyContent = 'center';
-        }
-
-        const isSlideup = displayType === 'slideup';
-        const cardRadius = isSlideup ? '12px 12px 0 0' : '12px';
-        const cardShadow = isSlideup ? '0 2px 16px rgba(0,0,0,0.2)' : '0 -4px 20px rgba(0,0,0,0.15)';
-        const cardWidth = isSlideup ? '340px' : '380px';
         const titleSize = isSlideup ? '14px' : '15px';
         const bodyPadding = isSlideup ? '16px 16px 0' : '20px 20px 0';
         const footerPadding = isSlideup ? '12px 16px' : '16px 20px';
@@ -632,8 +658,18 @@ export function renderSurveyEditor(container, { survey, onSave, onSaveAndPublish
     // Live-reload preview when heading, submit label, or success fields change
     container.querySelector('#widgetTitle')?.addEventListener('input', () => renderPreview());
     container.querySelector('#submitLabel')?.addEventListener('input', () => renderPreview());
-    container.querySelector('#successHeading')?.addEventListener('input', () => renderPreview());
-    container.querySelector('#successMessage')?.addEventListener('input', () => renderPreview());
+    // Success fields: switch preview to success screen on focus, live-reload on input
+    ['#successHeading', '#successMessage', '#successDismiss'].forEach(sel => {
+        const el = container.querySelector(sel);
+        if (el) {
+            el.addEventListener('focus', () => {
+                const visible = editorQuestions.filter(q => q.title || q.options?.length);
+                previewStep = visible.length; // success step
+                renderPreview();
+            });
+            el.addEventListener('input', () => renderPreview());
+        }
+    });
 
     container.querySelector('#backBtn')?.addEventListener('click', onBack);
 
@@ -671,7 +707,8 @@ export function renderSurveyEditor(container, { survey, onSave, onSaveAndPublish
         if (previewStep > 0) { previewStep--; renderPreview(); }
     });
     container.querySelector('#nextStepBtn')?.addEventListener('click', () => {
-        if (previewStep < editorQuestions.length - 1) { previewStep++; renderPreview(); }
+        const visible = editorQuestions.filter(q => q.title || q.options?.length);
+        if (previewStep < visible.length) { previewStep++; renderPreview(); } // allows going to success step
     });
 
     // Save helpers
