@@ -590,8 +590,8 @@ export function renderSurveyEditor(container, { survey, onSave, onSaveAndPublish
         viewport.innerHTML = `
             <div style="background:${bg};border-radius:${cardRadius};box-shadow:${cardShadow};padding:0;width:100%;max-width:${cardWidth};overflow:hidden;">
                 <div style="padding:${bodyPadding};">
-                    ${(previewTitle && step === 0) ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${isSlideup ? '8px' : '12px'};">
-                        <span style="font-size:${titleSize};font-weight:600;color:${textColor};">${escapeHtml(previewTitle)}</span>` : `<div style="display:flex;justify-content:flex-end;margin-bottom:${isSlideup ? '8px' : '12px'};">`}
+                    ${(previewTitle && step === 0) ? `<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:${isSlideup ? '8px' : '12px'};">
+                        <span style="font-size:${titleSize};font-weight:600;color:${textColor};flex:1;margin-right:8px;">${escapeHtml(previewTitle)}</span>` : `<div style="display:flex;justify-content:flex-end;margin-bottom:${isSlideup ? '8px' : '12px'};">`}
                         ${collapseBtn}
                     </div>
                     <div style="font-size:${isSlideup ? '13px' : '14px'};font-weight:500;color:${textColor};margin-bottom:${isSlideup ? '8px' : '12px'};">${escapeHtml(q.title || 'Question text...')}${q.is_required ? '<span style="color:#b42318;margin-left:2px;">*</span>' : ''}</div>
