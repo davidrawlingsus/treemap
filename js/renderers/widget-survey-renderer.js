@@ -218,9 +218,14 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
                     </div>
                     <div class="settings-group" style="margin-top:16px;">
                         <div class="settings-group-label">Button color</div>
-                        <div style="display:flex;align-items:center;gap:12px;">
-                            <input type="color" id="buttonColor" value="${draftSettings.button_color || '#4F46E5'}" style="width:40px;height:34px;padding:2px;border:1px solid #c9ccd0;border-radius:6px;cursor:pointer;background:#fff;" />
-                            <input type="text" id="buttonColorHex" class="field-input" value="${draftSettings.button_color || '#4F46E5'}" style="max-width:120px;font-family:monospace;" />
+                        <div id="colorSwatches" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+                            ${['#4F46E5','#2563EB','#0891B2','#059669','#D97706','#DC2626','#7C3AED','#DB2777','#1a1a1a','#475569'].map(c => `
+                                <button type="button" data-swatch="${c}" style="width:32px;height:32px;border-radius:8px;border:2px solid ${(draftSettings.button_color || '#4F46E5') === c ? '#303030' : 'transparent'};background:${c};cursor:pointer;transition:border-color 120ms;outline:none;" title="${c}"></button>
+                            `).join('')}
+                        </div>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <input type="color" id="buttonColor" value="${draftSettings.button_color || '#4F46E5'}" style="width:34px;height:34px;padding:2px;border:1px solid #c9ccd0;border-radius:6px;cursor:pointer;background:#fff;" title="Custom color" />
+                            <input type="text" id="buttonColorHex" class="field-input" value="${draftSettings.button_color || '#4F46E5'}" style="max-width:100px;font-family:'SF Mono',monospace;font-size:13px;" placeholder="#4F46E5" />
                         </div>
                     </div>
                 </div>
@@ -341,19 +346,26 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
     });
     const colorPicker = container.querySelector('#buttonColor');
     const colorHex = container.querySelector('#buttonColorHex');
-    if (colorPicker && colorHex) {
-        colorPicker.addEventListener('input', () => {
-            buttonColor = colorPicker.value;
-            colorHex.value = buttonColor;
-            renderPreview();
+    function updateSwatchBorders() {
+        container.querySelectorAll('[data-swatch]').forEach(s => {
+            s.style.borderColor = s.dataset.swatch === buttonColor ? '#303030' : 'transparent';
         });
+    }
+    function setButtonColor(c) {
+        buttonColor = c;
+        if (colorPicker) colorPicker.value = c;
+        if (colorHex) colorHex.value = c;
+        updateSwatchBorders();
+        renderPreview();
+    }
+    container.querySelectorAll('[data-swatch]').forEach(s => {
+        s.addEventListener('click', () => setButtonColor(s.dataset.swatch));
+    });
+    if (colorPicker && colorHex) {
+        colorPicker.addEventListener('input', () => setButtonColor(colorPicker.value));
         colorHex.addEventListener('input', () => {
             const v = colorHex.value.trim();
-            if (/^#[0-9a-fA-F]{6}$/.test(v)) {
-                buttonColor = v;
-                colorPicker.value = v;
-                renderPreview();
-            }
+            if (/^#[0-9a-fA-F]{6}$/.test(v)) setButtonColor(v);
         });
     }
 
