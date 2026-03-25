@@ -492,6 +492,7 @@ async def run_creative_mri_report(
     If ads omitted, load ads from ad_library_import_id or latest Ad Library import for client.
     Use ?stream=1 for SSE progress events. Reports are stored; use GET to retrieve.
     """
+    logger.warning("[MRI-ROUTER] POST /creative-mri/report called. client_id=%s, stream=%s, body_keys=%s", client_id, stream, list(body.keys()))
     client = db.query(Client).filter(Client.id == client_id).first()
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
@@ -585,6 +586,9 @@ def get_creative_mri_report(
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
     if report.status == "complete" and report.report_json:
+        has_synth = "batch_synthesis" in (report.report_json or {})
+        schema_ver = (report.report_json or {}).get("meta", {}).get("schema_version")
+        logger.warning("[MRI-ROUTER] GET report %s: status=%s, has_batch_synthesis=%s, schema=%s", report_id, report.status, has_synth, schema_ver)
         ads = report.report_json.get("ads") or []
         ads_with_media = sum(1 for a in ads if (a.get("media_items") or (a.get("media_thumbnail_url") or "").strip()))
         sample = []
