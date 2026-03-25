@@ -277,6 +277,25 @@ export function renderSurveyEditor(container, { survey, onSave, onSaveAndPublish
                     </div>
                 </div>
 
+                <!-- Success screen -->
+                <div class="card" style="margin-top:16px;">
+                    <div class="card-section">
+                        <div class="settings-group-label" style="margin-bottom:12px;">Success screen</div>
+                        <div class="field-group">
+                            <label class="field-label">Heading</label>
+                            <input id="successHeading" class="field-input" type="text" placeholder="Thank you!" value="${escapeHtml(draftSettings.success_heading || '')}" />
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Message</label>
+                            <textarea id="successMessage" class="field-input field-input-textarea" rows="2" placeholder="Your feedback has been submitted.">${escapeHtml(draftSettings.success_message || '')}</textarea>
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Auto-dismiss after <span class="field-label-optional">(seconds, 0 = manual close only)</span></label>
+                            <input id="successDismiss" class="field-input" type="number" min="0" max="30" value="${draftSettings.success_dismiss_seconds ?? 3}" style="max-width:80px;" />
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Save actions -->
                 <div style="margin-top:16px;padding-top:16px;border-top:1px solid #c9ccd0;display:flex;justify-content:flex-end;gap:8px;">
                     ${survey?.status === 'active' ? `
@@ -610,9 +629,11 @@ export function renderSurveyEditor(container, { survey, onSave, onSaveAndPublish
     renderRules();
     renderPreview();
 
-    // Live-reload preview when heading or submit label change
+    // Live-reload preview when heading, submit label, or success fields change
     container.querySelector('#widgetTitle')?.addEventListener('input', () => renderPreview());
     container.querySelector('#submitLabel')?.addEventListener('input', () => renderPreview());
+    container.querySelector('#successHeading')?.addEventListener('input', () => renderPreview());
+    container.querySelector('#successMessage')?.addEventListener('input', () => renderPreview());
 
     container.querySelector('#backBtn')?.addEventListener('click', onBack);
 
@@ -679,7 +700,14 @@ export function renderSurveyEditor(container, { survey, onSave, onSaveAndPublish
             description: container.querySelector('#surveyDesc')?.value?.trim() || null,
             status: 'active',
             draft_version: {
-                settings: { widget_title: widgetTitle, submit_label: submitLabel, display_type: displayType, slideup_position: slideupPosition, theme, button_color: buttonColor },
+                settings: {
+                    widget_title: widgetTitle, submit_label: submitLabel,
+                    display_type: displayType, slideup_position: slideupPosition,
+                    theme, button_color: buttonColor,
+                    success_heading: container.querySelector('#successHeading')?.value?.trim() || null,
+                    success_message: container.querySelector('#successMessage')?.value?.trim() || null,
+                    success_dismiss_seconds: parseInt(container.querySelector('#successDismiss')?.value || '3', 10),
+                },
                 url_targeting: { mode: urlMode, patterns },
                 trigger_rules: { type: triggerType, delay_ms: triggerType === 'delay' ? delayMs : null },
                 frequency: { mode: freqMode, days: freqMode === 'every_n_days' ? freqDays : null },

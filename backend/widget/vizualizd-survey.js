@@ -538,17 +538,24 @@
       var successDiv = document.createElement("div");
       successDiv.className = PREFIX + "-success";
 
+      var heading = surveySettings.success_heading || "Thank you!";
+      var message = surveySettings.success_message || "Your feedback has been submitted.";
+      var dismissSeconds = surveySettings.success_dismiss_seconds;
+      if (dismissSeconds === undefined || dismissSeconds === null) dismissSeconds = 3;
+
       var h3 = document.createElement("h3");
-      h3.textContent = "Thank you!";
+      h3.textContent = heading;
       successDiv.appendChild(h3);
 
       var p = document.createElement("p");
-      p.textContent = "Your feedback has been submitted.";
+      p.textContent = message;
       successDiv.appendChild(p);
 
       modal.appendChild(successDiv);
 
-      setTimeout(dismiss, 3000);
+      if (dismissSeconds > 0) {
+        setTimeout(dismiss, dismissSeconds * 1000);
+      }
     }
 
     // Initial render
