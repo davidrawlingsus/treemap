@@ -315,6 +315,15 @@ for _widget_candidate in [Path.cwd() / "widget", Path(__file__).parent.parent.pa
         app.mount("/static/widget", StaticFiles(directory=str(_widget_candidate)), name="widget-static")
         break
 
+# Prevent Cloudflare from caching widget JS so deploys take effect immediately
+@app.middleware("http")
+async def widget_cache_control(request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/static/widget/"):
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["CDN-Cache-Control"] = "no-store"
+    return response
+
 # Serve static files from the parent directory (where index.html is)
 # This allows accessing the frontend at http://localhost:8000/index.html
 frontend_path = find_frontend_path(Path(__file__))
