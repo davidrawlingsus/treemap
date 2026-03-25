@@ -1082,7 +1082,14 @@ GENERATE_AD_SCHEMA = {
                             "image_hash": {"type": ["string", "null"]},
                         },
                     },
-                    "testType": {"type": "string"},
+                    "testType": {
+                        "type": "string",
+                        "enum": [
+                            "Surprise", "Story", "Curiosity", "Guidance",
+                            "Instructional", "Hyperbole", "Newness", "Ranking",
+                            "Pattern Break", "Proof", "Mistake Avoidance", "Transformation",
+                        ],
+                    },
                     "origin": {"type": "string"},
                     "voc_evidence": {
                         "type": "array",
