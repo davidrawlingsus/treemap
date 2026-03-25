@@ -181,6 +181,7 @@ class WidgetSurveyResponseIngestRequest(BaseModel):
     clarity_session_id: str | None = Field(default=None, max_length=128)
     clarity_project_id: str | None = Field(default=None, max_length=64)
     clarity_project_id_source: str | None = Field(default=None, pattern=r"^(configured|detected)$")
+    clarity_replay_url: str | None = Field(default=None, max_length=512)
     answers: list[WidgetResponseAnswerIn] = Field(default_factory=list)
     submitted_at: datetime
 
@@ -213,6 +214,7 @@ class WidgetSurveyResponseItem(BaseModel):
     customer_reference: str | None = None
     clarity_session_id: str | None = None
     clarity_project_id: str | None = None
+    clarity_replay_url: str | None = None
     submitted_at: datetime
     answers: list[WidgetSurveyResponseAnswerItem] = Field(default_factory=list)
 

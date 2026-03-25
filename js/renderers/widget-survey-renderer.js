@@ -833,8 +833,8 @@ export function renderResponseViewer(container, { survey, responses, stats, onBa
             `<div class="answer-row"><strong>${escapeHtml(a.question_key || '?')}:</strong> ${escapeHtml(a.answer_text || JSON.stringify(a.answer_json || ''))}</div>`
         ).join('');
 
-        const clarityBtn = (item.clarity_session_id && item.clarity_project_id)
-            ? `<a href="https://clarity.microsoft.com/projects/view/${encodeURIComponent(item.clarity_project_id)}/session/${encodeURIComponent(item.clarity_session_id)}" target="_blank" rel="noopener" class="btn btn-sm btn-clarity">Watch Session</a>`
+        const clarityBtn = item.clarity_replay_url
+            ? `<a href="${escapeHtml(item.clarity_replay_url)}" target="_blank" rel="noopener" class="btn btn-sm btn-clarity">Watch Session</a>`
             : '';
 
         const ts = item.submitted_at ? new Date(item.submitted_at).toLocaleString() : '';

@@ -523,6 +523,7 @@ def ingest_survey_response(
         customer_reference=payload.customer_reference,
         clarity_session_id=payload.clarity_session_id,
         clarity_project_id=clarity_project_id,
+        clarity_replay_url=payload.clarity_replay_url,
         submitted_at=payload.submitted_at,
     )
     db.add(response)

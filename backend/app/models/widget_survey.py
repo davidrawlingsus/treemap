@@ -166,6 +166,7 @@ class WidgetSurveyResponse(Base):
     customer_reference = Column(String(255), nullable=True)
     clarity_session_id = Column(String(128), nullable=True)
     clarity_project_id = Column(String(64), nullable=True)
+    clarity_replay_url = Column(String(512), nullable=True)
     submitted_at = Column(DateTime(timezone=True), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.current_timestamp(), nullable=False)
 

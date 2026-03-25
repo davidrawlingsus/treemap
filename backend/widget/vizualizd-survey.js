@@ -90,27 +90,45 @@
 
   // ── Clarity integration ─────────────────────────────────────────
 
-  function getClaritySessionId() {
+  function getClarityIds() {
+    // Returns { userId, sessionId } from Clarity cookies, or nulls
     try {
-      var match = document.cookie.match(/(?:^|;\s*)_clsk=([^;]*)/);
-      if (!match) return null;
-      var parts = decodeURIComponent(match[1]).split("|");
-      return parts[0] || null;
+      var clckMatch = document.cookie.match(/(?:^|;\s*)_clck=([^;]*)/);
+      var clskMatch = document.cookie.match(/(?:^|;\s*)_clsk=([^;]*)/);
+      var userId = clckMatch ? decodeURIComponent(clckMatch[1]).split("^")[0] : null;
+      var sessionId = clskMatch ? decodeURIComponent(clskMatch[1]).split("^")[0] : null;
+      return { userId: userId || null, sessionId: sessionId || null };
     } catch (e) {
-      return null;
+      return { userId: null, sessionId: null };
     }
   }
 
+  function getClarityReplayUrl(projectId) {
+    // Construct the full Clarity replay URL
+    var ids = getClarityIds();
+    if (!ids.userId || !ids.sessionId || !projectId) return null;
+    return "https://clarity.microsoft.com/player/" + projectId + "/" + ids.userId + "/" + ids.sessionId + "/";
+  }
+
   function detectClarityProjectId() {
+    // Find clarity.ms/tag/ scripts, prefer direct over GTM-injected
+    var all = [];
     var scripts = document.querySelectorAll("script[src]");
     for (var i = 0; i < scripts.length; i++) {
       var src = scripts[i].src || "";
-      if (src.indexOf("clarity.ms") !== -1) {
-        var m = src.match(/clarity\.ms\/tag\/([a-z0-9]+)/i);
-        if (m) return m[1];
+      if (src.indexOf("clarity.ms/tag") !== -1) {
+        all.push(src);
       }
     }
-    return null;
+    if (all.length === 0) return null;
+    // Prefer non-GTM tag if multiple exist
+    var preferred = null;
+    for (var j = 0; j < all.length; j++) {
+      if (all[j].indexOf("gtm") === -1) { preferred = all[j]; break; }
+    }
+    var target = preferred || all[0];
+    var m = target.match(/\/tag\/([a-z0-9]+)/i);
+    return m ? m[1] : null;
   }
 
   function waitForClarity(serverProjectId, cb, timeout) {
@@ -504,9 +522,10 @@
         survey_version_id: survey.survey_version_id,
         site_domain: location.hostname,
         page_url: location.href,
-        clarity_session_id: getClaritySessionId(),
+        clarity_session_id: getClarityIds().sessionId,
         clarity_project_id: clarityProjectId,
         clarity_project_id_source: clarityProjectIdSource,
+        clarity_replay_url: getClarityReplayUrl(clarityProjectId),
         answers: answersList,
         submitted_at: new Date().toISOString(),
       };
