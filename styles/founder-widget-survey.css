@@ -516,6 +516,31 @@
 .ws .settings-group[hidden] {
   display: none;
 }
+
+/* ─── CLIENT SELECT DROPDOWN ─────────────────────────────────────────── */
+.ws-client-select {
+  padding: 7px 32px 7px 12px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #303030;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23616161'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06z' clip-rule='evenodd'/%3E%3C/svg%3E") no-repeat right 8px center / 14px 14px;
+  border: 1px solid #c9ccd0;
+  border-radius: 6px;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 120ms, box-shadow 120ms;
+  min-width: 180px;
+}
+.ws-client-select:hover {
+  border-color: #8c9196;
+}
+.ws-client-select:focus {
+  border-color: #303030;
+  box-shadow: 0 0 0 2px rgba(48,48,48,0.12);
+}
 .ws .settings-group-label {
   font-size: 11px;
   font-weight: 600;

@@ -374,6 +374,13 @@ def get_survey_detail(db: Session, client_id: UUID, survey_id: int) -> WidgetSur
         .first()
     )
 
+    # If no draft and no active version, fall back to the latest version
+    # (e.g. after unpublish, the published version is deactivated but still
+    # holds the questions/settings that should be editable)
+    fallback = None
+    if not draft and not active:
+        fallback = _latest_version(db, survey.id)
+
     return WidgetSurveyDetailResponse(
         id=survey.id,
         client_id=survey.client_id,
@@ -381,7 +388,7 @@ def get_survey_detail(db: Session, client_id: UUID, survey_id: int) -> WidgetSur
         title=survey.title,
         status=survey.status,
         description=survey.description,
-        draft_version=_build_version_response(db, draft) if draft else None,
+        draft_version=_build_version_response(db, draft or fallback) if (draft or fallback) else None,
         active_version=_build_version_response(db, active) if active else None,
         created_at=survey.created_at,
         updated_at=survey.updated_at,
