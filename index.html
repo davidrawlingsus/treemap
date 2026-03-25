@@ -897,10 +897,9 @@
             </div>
         </nav>
         
-        <!-- Visualizations Section -->
-        <div id="visualizations-section" class="spa-section active">
-        <!-- Data Source Selector -->
-        <div class="data-source-selector">
+        <!-- Data Source Selector (outside spa-section so sticky works reliably) -->
+        <div class="data-source-selector" id="dataSourceSelector">
+
             <div class="filter-tabs" role="tablist" aria-label="Data filters">
                 <button type="button" class="filter-tab active" id="clientTab" role="tab" aria-selected="true" aria-controls="clientPanel" data-target="clientPanel">
                     <span class="filter-tab__label">Client</span>
@@ -1069,7 +1068,10 @@
                 </div>
             </div>
         </div>
-        
+
+        <!-- Visualizations Section -->
+        <div id="visualizations-section" class="spa-section active">
+
         <div class="treemap-section">
             <div class="treemap-container">
                 <div class="treemap-header">
@@ -6703,6 +6705,7 @@
             const imagesSection = document.getElementById('images-section');
             const surveysSection = document.getElementById('surveys-section');
             const settingsSection = document.getElementById('settings-section');
+            const dataSourceSelector = document.getElementById('dataSourceSelector');
             const navVisualizations = document.getElementById('navVisualizations');
             const navInsights = document.getElementById('navInsights');
             const navHistory = document.getElementById('navHistory');
@@ -6717,6 +6720,9 @@
             if (vizSection && vizSection.classList.contains('active') && viewName !== 'visualizations') {
                 window.visualizationsScrollPosition = window.scrollY;
             }
+
+            // Hide data source selector when not on visualizations
+            if (dataSourceSelector) dataSourceSelector.style.display = 'none';
 
             // Hide all sections - CSS class will handle the hiding
             // Also ensure they're completely removed from layout flow
@@ -6812,6 +6818,7 @@
             
             // Show selected section and update nav - CSS class will handle the showing
             if (viewName === 'visualizations') {
+                if (dataSourceSelector) dataSourceSelector.style.display = '';
                 if (vizSection) {
                     vizSection.classList.add('active');
                     // Reset styles for active section
@@ -7144,6 +7151,7 @@
             const imagesSection = document.getElementById('images-section');
             const surveysSection = document.getElementById('surveys-section');
             const settingsSection = document.getElementById('settings-section');
+            const dataSourceSelector = document.getElementById('dataSourceSelector');
             const navVisualizations = document.getElementById('navVisualizations');
             const navInsights = document.getElementById('navInsights');
             const navHistory = document.getElementById('navHistory');
@@ -7185,6 +7193,7 @@
                 activeSection.style.overflow = '';
             }
             if (activeNav) activeNav.classList.add('active');
+            if (dataSourceSelector) dataSourceSelector.style.display = viewName === 'visualizations' ? '' : 'none';
             if (mainContainer) {
                 if (viewName === 'visualizations') {
                     mainContainer.style.minHeight = '100vh';
