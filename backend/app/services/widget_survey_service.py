@@ -451,10 +451,13 @@ def get_active_runtime_survey(db: Session, client_id: UUID) -> WidgetRuntimeSurv
     if client and client.settings:
         clarity_project_id = client.settings.get("clarity_project_id")
 
+    settings = version_payload.settings or {}
     return WidgetRuntimeSurveyResponse(
         survey_id=survey.id,
         survey_title=survey.title,
         survey_description=survey.description,
+        widget_title=settings.get("widget_title"),
+        submit_label=settings.get("submit_label"),
         survey_version_id=version.id,
         survey_version_number=version.version_number,
         starts_at=version.starts_at,

@@ -142,6 +142,8 @@ class WidgetRuntimeSurveyResponse(BaseModel):
     survey_id: int
     survey_title: str
     survey_description: str | None = None
+    widget_title: str | None = None
+    submit_label: str | None = None
     survey_version_id: int
     survey_version_number: int
     starts_at: datetime | None = None

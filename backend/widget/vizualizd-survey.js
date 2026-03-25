@@ -322,20 +322,13 @@
       closeBtn.addEventListener("click", dismiss);
       modal.appendChild(closeBtn);
 
-      // Title
-      if (survey.survey_title) {
+      // Title — use widget_title (display heading), fall back to nothing
+      var displayTitle = survey.widget_title;
+      if (displayTitle) {
         var title = document.createElement("h2");
         title.className = PREFIX + "-title";
-        title.textContent = survey.survey_title;
+        title.textContent = displayTitle;
         modal.appendChild(title);
-      }
-
-      // Description (only on first step)
-      if (stepIndex === 0 && survey.survey_description) {
-        var desc = document.createElement("p");
-        desc.className = PREFIX + "-desc";
-        desc.textContent = survey.survey_description;
-        modal.appendChild(desc);
       }
 
       var visible = getVisibleQuestions();
@@ -435,7 +428,7 @@
       var isLast = stepIndex === visible.length - 1;
       var nextBtn = document.createElement("button");
       nextBtn.className = PREFIX + "-btn " + PREFIX + "-btn-primary";
-      nextBtn.textContent = isLast ? "Submit" : "Next";
+      nextBtn.textContent = isLast ? (survey.submit_label || "Submit") : "Next";
 
       if (isSubmitting) {
         nextBtn.disabled = true;

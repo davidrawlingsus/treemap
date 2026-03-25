@@ -101,6 +101,7 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
     container.className = 'ws';
 
     const draft = survey?.draft_version || survey?.active_version || null;
+    const draftSettings = draft?.settings || {};
     const urlTargeting = draft?.url_targeting || { mode: 'contains', patterns: [] };
     const triggerRules = draft?.trigger_rules || { type: 'immediate', delay_ms: 3000 };
     const frequency = draft?.frequency || { mode: 'until_answered', days: 7 };
@@ -118,9 +119,9 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
     let previewStep = 0;
 
     container.innerHTML = `
-        <div style="display:flex;align-items:flex-start;gap:0;margin:0 -20px;">
+        <div style="display:flex;align-items:flex-start;gap:0;">
             <!-- LEFT: Editor panel -->
-            <div style="flex:0 0 52%;min-width:0;border-right:1px solid #c9ccd0;padding:0 20px;">
+            <div style="flex:1 1 0;min-width:0;border-right:1px solid #c9ccd0;padding:0 24px 0 0;">
                 <div class="editor-header">
                     <button class="btn" id="backBtn">
                         <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M11.78 5.47a.75.75 0 0 1 0 1.06L8.31 10l3.47 3.47a.75.75 0 1 1-1.06 1.06l-4-4a.75.75 0 0 1 0-1.06l4-4a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd"/></svg>
@@ -137,8 +138,16 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
                             <input id="surveyTitle" class="field-input" type="text" placeholder="e.g. Post-purchase feedback" value="${escapeHtml(survey?.title || '')}" />
                         </div>
                         <div class="field-group">
-                            <label class="field-label">Description <span class="field-label-optional">(optional)</span></label>
+                            <label class="field-label">Description <span class="field-label-optional">(internal, optional)</span></label>
                             <textarea id="surveyDesc" class="field-input field-input-textarea" rows="2" placeholder="Internal note about this survey">${escapeHtml(survey?.description || '')}</textarea>
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Popup heading <span class="field-label-optional">(shown to visitors)</span></label>
+                            <input id="widgetTitle" class="field-input" type="text" placeholder="e.g. Quick question before you go" value="${escapeHtml(draftSettings.widget_title || '')}" />
+                        </div>
+                        <div class="field-group">
+                            <label class="field-label">Submit button text</label>
+                            <input id="submitLabel" class="field-input" type="text" placeholder="Submit" value="${escapeHtml(draftSettings.submit_label || '')}" />
                         </div>
                     </div>
                 </div>
@@ -213,7 +222,7 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
             </div>
 
             <!-- RIGHT: Preview panel -->
-            <div style="flex:0 0 48%;position:sticky;top:80px;padding:20px;">
+            <div style="flex:0 0 420px;position:sticky;top:80px;padding:0 0 0 24px;">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
                     <span style="font-size:13px;font-weight:600;color:#616161;text-transform:uppercase;letter-spacing:0.05em;">Preview</span>
                     <div style="display:flex;gap:8px;">
@@ -412,23 +421,24 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
             inputHtml = `<input type="text" style="width:100%;padding:8px 12px;border:1px solid #c9ccd0;border-radius:6px;font-size:13px;color:#8c9196;box-sizing:border-box;" disabled placeholder="Your answer..." />`;
         }
 
-        const title = container.querySelector('#surveyTitle')?.value || 'Survey';
+        const previewTitle = container.querySelector('#widgetTitle')?.value || '';
+        const previewSubmitLabel = container.querySelector('#submitLabel')?.value || 'Submit';
         const isLast = step >= total - 1;
 
         viewport.innerHTML = `
             <div style="background:#fff;border-radius:12px 12px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,0.15);padding:0;width:100%;max-width:380px;overflow:hidden;">
                 <div style="padding:20px 20px 0;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                        <span style="font-size:15px;font-weight:600;color:#303030;">${escapeHtml(title)}</span>
+                    ${previewTitle ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                        <span style="font-size:15px;font-weight:600;color:#303030;">${escapeHtml(previewTitle)}</span>` : `<div style="display:flex;justify-content:flex-end;margin-bottom:12px;">`}
                         <span style="color:#8c9196;cursor:pointer;font-size:18px;">&times;</span>
                     </div>
-                    <div style="font-size:11px;color:#8c9196;margin-bottom:12px;">Question ${step + 1} of ${total}</div>
+                    ${total > 1 ? `<div style="font-size:11px;color:#8c9196;margin-bottom:12px;">Question ${step + 1} of ${total}</div>` : ''}
                     <div style="font-size:14px;font-weight:500;color:#303030;margin-bottom:12px;">${escapeHtml(q.title || 'Question text...')}${q.is_required ? '<span style="color:#b42318;margin-left:2px;">*</span>' : ''}</div>
                     ${inputHtml}
                 </div>
                 <div style="display:flex;justify-content:space-between;padding:16px 20px;border-top:1px solid #f0f2f4;margin-top:12px;">
                     ${step > 0 ? '<button style="padding:6px 14px;border:1px solid #c9ccd0;border-radius:6px;background:#fff;font-size:13px;color:#303030;cursor:default;">Back</button>' : '<div></div>'}
-                    <button style="padding:6px 14px;border:none;border-radius:6px;background:#303030;font-size:13px;color:#fff;cursor:default;">${isLast ? 'Submit' : 'Next'}</button>
+                    <button style="padding:6px 14px;border:none;border-radius:6px;background:#303030;font-size:13px;color:#fff;cursor:default;">${isLast ? escapeHtml(previewSubmitLabel) : 'Next'}</button>
                 </div>
             </div>
         `;
@@ -496,12 +506,15 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
             q.position = i;
         });
 
+        const widgetTitle = container.querySelector('#widgetTitle')?.value?.trim() || null;
+        const submitLabel = container.querySelector('#submitLabel')?.value?.trim() || null;
+
         const payload = {
             title,
             description: container.querySelector('#surveyDesc')?.value?.trim() || null,
             status: 'active',
             draft_version: {
-                settings: {},
+                settings: { widget_title: widgetTitle, submit_label: submitLabel },
                 url_targeting: { mode: urlMode, patterns },
                 trigger_rules: { type: triggerType, delay_ms: triggerType === 'delay' ? delayMs : null },
                 frequency: { mode: freqMode, days: freqMode === 'every_n_days' ? freqDays : null },
