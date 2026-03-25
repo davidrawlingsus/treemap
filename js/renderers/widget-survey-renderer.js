@@ -117,6 +117,8 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
     }));
     let activeTab = 'questions';
     let previewStep = 0;
+    let displayType = draftSettings.display_type || 'popover';
+    let slideupPosition = draftSettings.slideup_position || 'bottom-right';
 
     container.innerHTML = `
         <div style="display:flex;align-items:flex-start;gap:0;">
@@ -155,6 +157,7 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
                 <!-- Tabs -->
                 <div class="tabs" role="tablist">
                     <button class="tab active" data-tab="questions">Questions</button>
+                    <button class="tab" data-tab="display">Display</button>
                     <button class="tab" data-tab="logic">Conditional logic</button>
                     <button class="tab" data-tab="settings">Targeting & Trigger</button>
                 </div>
@@ -166,6 +169,36 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
                         <p>No questions yet. Add your first question below.</p>
                     </div>
                     <button type="button" class="btn btn-add-question" id="addQuestionBtn">+ Add question</button>
+                </div>
+
+                <!-- Display panel -->
+                <div class="tab-panel" data-panel="display" hidden>
+                    <div class="settings-group">
+                        <div class="settings-group-label">Display type</div>
+                        <div style="display:flex;gap:12px;margin-bottom:16px;">
+                            <label class="display-type-card ${(draftSettings.display_type || 'popover') === 'popover' ? 'active' : ''}" style="flex:1;cursor:pointer;border:2px solid ${(draftSettings.display_type || 'popover') === 'popover' ? '#2c5cc5' : '#c9ccd0'};border-radius:8px;padding:16px;text-align:center;transition:border-color 120ms;">
+                                <input type="radio" name="displayType" value="popover" ${(draftSettings.display_type || 'popover') === 'popover' ? 'checked' : ''} style="display:none;" />
+                                <div style="font-size:32px;margin-bottom:8px;">
+                                    <svg width="48" height="36" viewBox="0 0 48 36" fill="none"><rect x="1" y="1" width="46" height="34" rx="4" stroke="#8c9196" stroke-width="1.5" fill="#f1f2f4"/><rect x="10" y="6" width="28" height="24" rx="3" fill="#fff" stroke="#303030" stroke-width="1.5"/><rect x="14" y="11" width="20" height="2" rx="1" fill="#c9ccd0"/><rect x="14" y="16" width="16" height="2" rx="1" fill="#c9ccd0"/><rect x="28" y="22" width="8" height="4" rx="2" fill="#4F46E5"/></svg>
+                                </div>
+                                <div style="font-size:13px;font-weight:600;color:#303030;">Popover</div>
+                                <div style="font-size:11px;color:#616161;">Centered modal with overlay</div>
+                            </label>
+                            <label class="display-type-card ${draftSettings.display_type === 'slideup' ? 'active' : ''}" style="flex:1;cursor:pointer;border:2px solid ${draftSettings.display_type === 'slideup' ? '#2c5cc5' : '#c9ccd0'};border-radius:8px;padding:16px;text-align:center;transition:border-color 120ms;">
+                                <input type="radio" name="displayType" value="slideup" ${draftSettings.display_type === 'slideup' ? 'checked' : ''} style="display:none;" />
+                                <div style="font-size:32px;margin-bottom:8px;">
+                                    <svg width="48" height="36" viewBox="0 0 48 36" fill="none"><rect x="1" y="1" width="46" height="34" rx="4" stroke="#8c9196" stroke-width="1.5" fill="#f1f2f4"/><rect x="24" y="14" width="22" height="21" rx="3" fill="#fff" stroke="#303030" stroke-width="1.5"/><rect x="28" y="19" width="14" height="2" rx="1" fill="#c9ccd0"/><rect x="28" y="24" width="10" height="2" rx="1" fill="#c9ccd0"/><rect x="36" y="29" width="6" height="3" rx="1.5" fill="#4F46E5"/></svg>
+                                </div>
+                                <div style="font-size:13px;font-weight:600;color:#303030;">Slide-up</div>
+                                <div style="font-size:11px;color:#616161;">Corner widget, Hotjar-style</div>
+                            </label>
+                        </div>
+                    </div>
+                    <div id="slideupPositionGroup" class="settings-group" ${(draftSettings.display_type || 'popover') !== 'slideup' ? 'hidden' : ''}>
+                        <div class="settings-group-label">Position</div>
+                        <label class="radio-option"><input type="radio" name="slideupPosition" value="bottom-right" ${(draftSettings.slideup_position || 'bottom-right') === 'bottom-right' ? 'checked' : ''}> Bottom right</label>
+                        <label class="radio-option"><input type="radio" name="slideupPosition" value="bottom-left" ${draftSettings.slideup_position === 'bottom-left' ? 'checked' : ''}> Bottom left</label>
+                    </div>
                 </div>
 
                 <!-- Logic panel -->
@@ -247,6 +280,29 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
             container.querySelectorAll('.tab-panel').forEach(p => {
                 p.hidden = p.dataset.panel !== activeTab;
             });
+        });
+    });
+
+    // ── Display type switching ──
+    container.querySelectorAll('input[name="displayType"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            displayType = radio.value;
+            // Update card borders
+            container.querySelectorAll('.display-type-card').forEach(card => {
+                const isActive = card.querySelector('input').value === displayType;
+                card.style.borderColor = isActive ? '#2c5cc5' : '#c9ccd0';
+                card.classList.toggle('active', isActive);
+            });
+            // Show/hide position options
+            const posGroup = container.querySelector('#slideupPositionGroup');
+            if (posGroup) posGroup.hidden = displayType !== 'slideup';
+            renderPreview();
+        });
+    });
+    container.querySelectorAll('input[name="slideupPosition"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            slideupPosition = radio.value;
+            renderPreview();
         });
     });
 
@@ -425,20 +481,42 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
         const previewSubmitLabel = container.querySelector('#submitLabel')?.value || 'Submit';
         const isLast = step >= total - 1;
 
+        // Update viewport alignment based on display type
+        if (displayType === 'slideup') {
+            viewport.style.alignItems = 'flex-end';
+            viewport.style.justifyContent = slideupPosition === 'bottom-left' ? 'flex-start' : 'flex-end';
+        } else {
+            viewport.style.alignItems = 'center';
+            viewport.style.justifyContent = 'center';
+        }
+
+        const isSlideup = displayType === 'slideup';
+        const cardRadius = isSlideup ? '12px' : '12px 12px 0 0';
+        const cardShadow = isSlideup ? '0 2px 16px rgba(0,0,0,0.2)' : '0 -4px 20px rgba(0,0,0,0.15)';
+        const cardWidth = isSlideup ? '340px' : '380px';
+        const titleSize = isSlideup ? '14px' : '15px';
+        const bodyPadding = isSlideup ? '16px 16px 0' : '20px 20px 0';
+        const footerPadding = isSlideup ? '12px 16px' : '16px 20px';
+
+        // Collapse chevron for slideup
+        const collapseBtn = isSlideup
+            ? `<span style="color:#8c9196;cursor:pointer;font-size:14px;">&#9660;</span>`
+            : `<span style="color:#8c9196;cursor:pointer;font-size:18px;">&times;</span>`;
+
         viewport.innerHTML = `
-            <div style="background:#fff;border-radius:12px 12px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,0.15);padding:0;width:100%;max-width:380px;overflow:hidden;">
-                <div style="padding:20px 20px 0;">
-                    ${previewTitle ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                        <span style="font-size:15px;font-weight:600;color:#303030;">${escapeHtml(previewTitle)}</span>` : `<div style="display:flex;justify-content:flex-end;margin-bottom:12px;">`}
-                        <span style="color:#8c9196;cursor:pointer;font-size:18px;">&times;</span>
+            <div style="background:#fff;border-radius:${cardRadius};box-shadow:${cardShadow};padding:0;width:100%;max-width:${cardWidth};overflow:hidden;">
+                <div style="padding:${bodyPadding};">
+                    ${previewTitle ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${isSlideup ? '8px' : '12px'};">
+                        <span style="font-size:${titleSize};font-weight:600;color:#303030;">${escapeHtml(previewTitle)}</span>` : `<div style="display:flex;justify-content:flex-end;margin-bottom:${isSlideup ? '8px' : '12px'};">`}
+                        ${collapseBtn}
                     </div>
-                    ${total > 1 ? `<div style="font-size:11px;color:#8c9196;margin-bottom:12px;">Question ${step + 1} of ${total}</div>` : ''}
-                    <div style="font-size:14px;font-weight:500;color:#303030;margin-bottom:12px;">${escapeHtml(q.title || 'Question text...')}${q.is_required ? '<span style="color:#b42318;margin-left:2px;">*</span>' : ''}</div>
+                    ${total > 1 ? `<div style="font-size:11px;color:#8c9196;margin-bottom:${isSlideup ? '6px' : '12px'};">Question ${step + 1} of ${total}</div>` : ''}
+                    <div style="font-size:${isSlideup ? '13px' : '14px'};font-weight:500;color:#303030;margin-bottom:${isSlideup ? '8px' : '12px'};">${escapeHtml(q.title || 'Question text...')}${q.is_required ? '<span style="color:#b42318;margin-left:2px;">*</span>' : ''}</div>
                     ${inputHtml}
                 </div>
-                <div style="display:flex;justify-content:space-between;padding:16px 20px;border-top:1px solid #f0f2f4;margin-top:12px;">
-                    ${step > 0 ? '<button style="padding:6px 14px;border:1px solid #c9ccd0;border-radius:6px;background:#fff;font-size:13px;color:#303030;cursor:default;">Back</button>' : '<div></div>'}
-                    <button style="padding:6px 14px;border:none;border-radius:6px;background:#303030;font-size:13px;color:#fff;cursor:default;">${isLast ? escapeHtml(previewSubmitLabel) : 'Next'}</button>
+                <div style="display:flex;justify-content:space-between;padding:${footerPadding};border-top:1px solid #f0f2f4;margin-top:${isSlideup ? '8px' : '12px'};">
+                    ${step > 0 ? `<button style="padding:${isSlideup ? '5px 12px' : '6px 14px'};border:1px solid #c9ccd0;border-radius:6px;background:#fff;font-size:13px;color:#303030;cursor:default;">Back</button>` : '<div></div>'}
+                    <button style="padding:${isSlideup ? '5px 12px' : '6px 14px'};border:none;border-radius:6px;background:#303030;font-size:13px;color:#fff;cursor:default;">${isLast ? escapeHtml(previewSubmitLabel) : 'Next'}</button>
                 </div>
             </div>
         `;
@@ -514,7 +592,7 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
             description: container.querySelector('#surveyDesc')?.value?.trim() || null,
             status: 'active',
             draft_version: {
-                settings: { widget_title: widgetTitle, submit_label: submitLabel },
+                settings: { widget_title: widgetTitle, submit_label: submitLabel, display_type: displayType, slideup_position: slideupPosition },
                 url_targeting: { mode: urlMode, patterns },
                 trigger_rules: { type: triggerType, delay_ms: triggerType === 'delay' ? delayMs : null },
                 frequency: { mode: freqMode, days: freqMode === 'every_n_days' ? freqDays : null },

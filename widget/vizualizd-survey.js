@@ -212,12 +212,19 @@
     style.textContent = [
       "." + PREFIX + "-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:999999;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .2s ease}",
       "." + PREFIX + "-overlay.visible{opacity:1}",
+      "." + PREFIX + "-overlay.slideup{background:none;pointer-events:none;align-items:flex-end;justify-content:flex-end;padding:0 24px 24px}",
+      "." + PREFIX + "-overlay.slideup.pos-bottom-left{justify-content:flex-start}",
+      "." + PREFIX + "-overlay.slideup .vzd-survey-modal{pointer-events:all;transform:translateY(20px);transition:transform .25s ease,opacity .25s ease}",
+      "." + PREFIX + "-overlay.slideup.visible .vzd-survey-modal{transform:translateY(0)}",
       "." + PREFIX + "-modal{background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.3);max-width:480px;width:90%;max-height:90vh;overflow-y:auto;padding:32px;position:relative;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;line-height:1.5}",
+      "." + PREFIX + "-overlay.slideup ." + PREFIX + "-modal{max-width:380px;width:380px;padding:24px;box-shadow:0 4px 24px rgba(0,0,0,0.15);border-radius:12px}",
       "." + PREFIX + "-close{position:absolute;top:12px;right:12px;background:none;border:none;font-size:20px;cursor:pointer;color:#999;padding:4px 8px;border-radius:4px}",
       "." + PREFIX + "-close:hover{color:#333;background:#f0f0f0}",
       "." + PREFIX + "-title{margin:0 0 8px;font-size:20px;font-weight:600}",
+      "." + PREFIX + "-overlay.slideup ." + PREFIX + "-title{font-size:16px;margin:0 0 4px}",
       "." + PREFIX + "-desc{margin:0 0 24px;color:#666;font-size:14px}",
       "." + PREFIX + "-q-title{font-size:16px;font-weight:500;margin:0 0 12px}",
+      "." + PREFIX + "-overlay.slideup ." + PREFIX + "-q-title{font-size:14px;margin:0 0 8px}",
       "." + PREFIX + "-q-title .required{color:#e53e3e;margin-left:2px}",
       "." + PREFIX + "-option{display:flex;align-items:center;padding:10px 14px;margin:0 0 8px;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;transition:border-color .15s,background .15s;font-size:14px}",
       "." + PREFIX + "-option:hover{border-color:#a0aec0;background:#f7fafc}",
@@ -292,9 +299,13 @@
       return visible;
     }
 
+    // Resolve display settings
+    var dType = (survey.settings && survey.settings.display_type) || "popover";
+    var slidePos = (survey.settings && survey.settings.slideup_position) || "bottom-right";
+
     // Create overlay
     var overlay = document.createElement("div");
-    overlay.className = PREFIX + "-overlay";
+    overlay.className = PREFIX + "-overlay" + (dType === "slideup" ? " slideup pos-" + slidePos : "");
 
     var modal = document.createElement("div");
     modal.className = PREFIX + "-modal";
