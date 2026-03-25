@@ -373,9 +373,6 @@
       }
 
       var visible = getVisibleQuestions();
-        indicator.textContent = "Question " + (stepIndex + 1) + " of " + visible.length;
-        modal.appendChild(indicator);
-      }
 
       // Clamp step index
       if (stepIndex >= visible.length) stepIndex = visible.length - 1;
