@@ -634,11 +634,10 @@
 
 /* ─── SCOPING ────────────────────────────────────────────────────────────── */
 /* Override founder-admin main flex layout so list view flows vertically */
-main:has(> .ws) {
-  display: block;
-  padding: 32px;
-}
-.ws {
+main.ws {
+  display: block !important;
+  justify-content: initial !important;
   max-width: 1100px;
   margin: 0 auto;
+  padding: 32px;
 }
