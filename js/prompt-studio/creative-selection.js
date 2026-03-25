@@ -140,17 +140,21 @@ export function buildCreativePayloads(taxonomy, reviews, businessContext) {
         return (b.signal_count || 0) - (a.signal_count || 0);
     });
 
-    // Cap total ads at MAX_ADS (default 36)
-    const MAX_ADS = 36;
-    const capped = [];
-    let adCount = 0;
+    // Assign all 12 lanes to each payload so we get full lane coverage
+    const ALL_LANES = [
+        'LANE:SURPRISE', 'LANE:STORY', 'LANE:CURIOSITY', 'LANE:GUIDANCE',
+        'LANE:INSTRUCTIONAL', 'LANE:HYPERBOLE', 'LANE:NEWNESS', 'LANE:RANKING',
+        'LANE:PATTERN_BREAK', 'LANE:PROOF', 'LANE:MISTAKE_AVOIDANCE', 'LANE:TRANSFORMATION',
+    ];
+    const ALL_LANE_NAMES = ALL_LANES.map(l => l.replace('LANE:', '').replace('_', ' ')).join(', ');
     for (const p of payloads) {
-        const adsFromThis = p.lanes.length;
-        if (adCount + adsFromThis > MAX_ADS && capped.length > 0) break;
-        capped.push(p);
-        adCount += adsFromThis;
+        p.lanes = ALL_LANES;
+        p.lane_names = ALL_LANE_NAMES;
     }
-    return capped;
+
+    // Cap at 3 payloads (3 topics × 12 lanes = 36 ads)
+    const MAX_PAYLOADS = 3;
+    return payloads.slice(0, MAX_PAYLOADS);
 }
 
 /**
