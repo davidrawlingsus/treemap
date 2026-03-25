@@ -119,6 +119,8 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
     let previewStep = 0;
     let displayType = draftSettings.display_type || 'popover';
     let slideupPosition = draftSettings.slideup_position || 'bottom-right';
+    let theme = draftSettings.theme || 'light';
+    let buttonColor = draftSettings.button_color || '#4F46E5';
 
     container.innerHTML = `
         <div style="display:flex;align-items:flex-start;gap:0;">
@@ -198,6 +200,28 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
                         <div class="settings-group-label">Position</div>
                         <label class="radio-option"><input type="radio" name="slideupPosition" value="bottom-right" ${(draftSettings.slideup_position || 'bottom-right') === 'bottom-right' ? 'checked' : ''}> Bottom right</label>
                         <label class="radio-option"><input type="radio" name="slideupPosition" value="bottom-left" ${draftSettings.slideup_position === 'bottom-left' ? 'checked' : ''}> Bottom left</label>
+                    </div>
+                    <div class="settings-group" style="margin-top:16px;">
+                        <div class="settings-group-label">Theme</div>
+                        <div style="display:flex;gap:12px;margin-bottom:16px;">
+                            <label style="flex:1;cursor:pointer;border:2px solid ${(draftSettings.theme || 'light') === 'light' ? '#2c5cc5' : '#c9ccd0'};border-radius:8px;padding:14px;text-align:center;transition:border-color 120ms;background:#fff;" class="theme-card">
+                                <input type="radio" name="theme" value="light" ${(draftSettings.theme || 'light') === 'light' ? 'checked' : ''} style="display:none;" />
+                                <div style="width:32px;height:22px;margin:0 auto 8px;background:#fff;border:2px solid #e2e8f0;border-radius:4px;"></div>
+                                <div style="font-size:13px;font-weight:600;color:#303030;">Light</div>
+                            </label>
+                            <label style="flex:1;cursor:pointer;border:2px solid ${draftSettings.theme === 'dark' ? '#2c5cc5' : '#c9ccd0'};border-radius:8px;padding:14px;text-align:center;transition:border-color 120ms;background:#fff;" class="theme-card">
+                                <input type="radio" name="theme" value="dark" ${draftSettings.theme === 'dark' ? 'checked' : ''} style="display:none;" />
+                                <div style="width:32px;height:22px;margin:0 auto 8px;background:#1a1a1a;border:2px solid #1a1a1a;border-radius:4px;"></div>
+                                <div style="font-size:13px;font-weight:600;color:#303030;">Dark</div>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="settings-group" style="margin-top:16px;">
+                        <div class="settings-group-label">Button color</div>
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <input type="color" id="buttonColor" value="${draftSettings.button_color || '#4F46E5'}" style="width:40px;height:34px;padding:2px;border:1px solid #c9ccd0;border-radius:6px;cursor:pointer;background:#fff;" />
+                            <input type="text" id="buttonColorHex" class="field-input" value="${draftSettings.button_color || '#4F46E5'}" style="max-width:120px;font-family:monospace;" />
+                        </div>
                     </div>
                 </div>
 
@@ -305,6 +329,33 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
             renderPreview();
         });
     });
+    container.querySelectorAll('input[name="theme"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+            theme = radio.value;
+            container.querySelectorAll('.theme-card').forEach(card => {
+                const isActive = card.querySelector('input').value === theme;
+                card.style.borderColor = isActive ? '#2c5cc5' : '#c9ccd0';
+            });
+            renderPreview();
+        });
+    });
+    const colorPicker = container.querySelector('#buttonColor');
+    const colorHex = container.querySelector('#buttonColorHex');
+    if (colorPicker && colorHex) {
+        colorPicker.addEventListener('input', () => {
+            buttonColor = colorPicker.value;
+            colorHex.value = buttonColor;
+            renderPreview();
+        });
+        colorHex.addEventListener('input', () => {
+            const v = colorHex.value.trim();
+            if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+                buttonColor = v;
+                colorPicker.value = v;
+                renderPreview();
+            }
+        });
+    }
 
     // ── Questions ──
     function renderQuestions() {
@@ -464,17 +515,28 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
             return;
         }
 
+        // Theme colors
+        const isDark = theme === 'dark';
+        const bg = isDark ? '#1a1a1a' : '#fff';
+        const textColor = isDark ? '#f0f0f0' : '#303030';
+        const mutedColor = isDark ? '#a0a0a0' : '#8c9196';
+        const borderColor = isDark ? '#333' : '#e2e8f0';
+        const inputBg = isDark ? '#2a2a2a' : '#fff';
+        const footerBorder = isDark ? '#333' : '#f0f2f4';
+        const backBtnBg = isDark ? '#2a2a2a' : '#fff';
+        const backBtnBorder = isDark ? '#555' : '#c9ccd0';
+
         let inputHtml = '';
         if (q.answer_type === 'choice_list' && q.options?.length) {
             inputHtml = q.options.map(opt => `
-                <div style="padding:8px 12px;margin-bottom:6px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;color:#303030;cursor:default;">
-                    <span style="margin-right:8px;color:#c9ccd0;">&#9675;</span>${escapeHtml(opt)}
+                <div style="padding:8px 12px;margin-bottom:6px;border:1px solid ${borderColor};border-radius:8px;font-size:13px;color:${textColor};cursor:default;">
+                    <span style="margin-right:8px;color:${mutedColor};">&#9675;</span>${escapeHtml(opt)}
                 </div>
             `).join('');
         } else if (q.answer_type === 'multi_line_text') {
-            inputHtml = `<textarea style="width:100%;padding:8px 12px;border:1px solid #c9ccd0;border-radius:6px;font-size:13px;min-height:60px;resize:none;color:#8c9196;box-sizing:border-box;" disabled placeholder="Your answer..."></textarea>`;
+            inputHtml = `<textarea style="width:100%;padding:8px 12px;border:1px solid ${borderColor};border-radius:6px;font-size:13px;min-height:60px;resize:none;color:${mutedColor};background:${inputBg};box-sizing:border-box;" disabled placeholder="Your answer..."></textarea>`;
         } else {
-            inputHtml = `<input type="text" style="width:100%;padding:8px 12px;border:1px solid #c9ccd0;border-radius:6px;font-size:13px;color:#8c9196;box-sizing:border-box;" disabled placeholder="Your answer..." />`;
+            inputHtml = `<input type="text" style="width:100%;padding:8px 12px;border:1px solid ${borderColor};border-radius:6px;font-size:13px;color:${mutedColor};background:${inputBg};box-sizing:border-box;" disabled placeholder="Your answer..." />`;
         }
 
         const previewTitle = container.querySelector('#widgetTitle')?.value || '';
@@ -498,24 +560,23 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
         const bodyPadding = isSlideup ? '16px 16px 0' : '20px 20px 0';
         const footerPadding = isSlideup ? '12px 16px' : '16px 20px';
 
-        // Collapse chevron for slideup
         const collapseBtn = isSlideup
-            ? `<span style="color:#8c9196;cursor:pointer;font-size:14px;">&#9660;</span>`
-            : `<span style="color:#8c9196;cursor:pointer;font-size:18px;">&times;</span>`;
+            ? `<span style="color:${mutedColor};cursor:pointer;font-size:14px;">&#9660;</span>`
+            : `<span style="color:${mutedColor};cursor:pointer;font-size:18px;">&times;</span>`;
 
         viewport.innerHTML = `
-            <div style="background:#fff;border-radius:${cardRadius};box-shadow:${cardShadow};padding:0;width:100%;max-width:${cardWidth};overflow:hidden;">
+            <div style="background:${bg};border-radius:${cardRadius};box-shadow:${cardShadow};padding:0;width:100%;max-width:${cardWidth};overflow:hidden;">
                 <div style="padding:${bodyPadding};">
                     ${(previewTitle && step === 0) ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:${isSlideup ? '8px' : '12px'};">
-                        <span style="font-size:${titleSize};font-weight:600;color:#303030;">${escapeHtml(previewTitle)}</span>` : `<div style="display:flex;justify-content:flex-end;margin-bottom:${isSlideup ? '8px' : '12px'};">`}
+                        <span style="font-size:${titleSize};font-weight:600;color:${textColor};">${escapeHtml(previewTitle)}</span>` : `<div style="display:flex;justify-content:flex-end;margin-bottom:${isSlideup ? '8px' : '12px'};">`}
                         ${collapseBtn}
                     </div>
-                    <div style="font-size:${isSlideup ? '13px' : '14px'};font-weight:500;color:#303030;margin-bottom:${isSlideup ? '8px' : '12px'};">${escapeHtml(q.title || 'Question text...')}${q.is_required ? '<span style="color:#b42318;margin-left:2px;">*</span>' : ''}</div>
+                    <div style="font-size:${isSlideup ? '13px' : '14px'};font-weight:500;color:${textColor};margin-bottom:${isSlideup ? '8px' : '12px'};">${escapeHtml(q.title || 'Question text...')}${q.is_required ? '<span style="color:#b42318;margin-left:2px;">*</span>' : ''}</div>
                     ${inputHtml}
                 </div>
-                <div style="display:flex;justify-content:space-between;padding:${footerPadding};border-top:1px solid #f0f2f4;margin-top:${isSlideup ? '8px' : '12px'};">
-                    ${step > 0 ? `<button style="padding:${isSlideup ? '5px 12px' : '6px 14px'};border:1px solid #c9ccd0;border-radius:6px;background:#fff;font-size:13px;color:#303030;cursor:default;">Back</button>` : '<div></div>'}
-                    <button style="padding:${isSlideup ? '5px 12px' : '6px 14px'};border:none;border-radius:6px;background:#303030;font-size:13px;color:#fff;cursor:default;">${isLast ? escapeHtml(previewSubmitLabel) : 'Next'}</button>
+                <div style="display:flex;justify-content:space-between;padding:${footerPadding};border-top:1px solid ${footerBorder};margin-top:${isSlideup ? '8px' : '12px'};">
+                    ${step > 0 ? `<button style="padding:${isSlideup ? '5px 12px' : '6px 14px'};border:1px solid ${backBtnBorder};border-radius:6px;background:${backBtnBg};font-size:13px;color:${textColor};cursor:default;">Back</button>` : '<div></div>'}
+                    <button style="padding:${isSlideup ? '5px 12px' : '6px 14px'};border:none;border-radius:6px;background:${buttonColor};font-size:13px;color:#fff;cursor:default;">${isLast ? escapeHtml(previewSubmitLabel) : 'Next'}</button>
                 </div>
             </div>
         `;
@@ -595,7 +656,7 @@ export function renderSurveyEditor(container, { survey, onSave, onBack }) {
             description: container.querySelector('#surveyDesc')?.value?.trim() || null,
             status: 'active',
             draft_version: {
-                settings: { widget_title: widgetTitle, submit_label: submitLabel, display_type: displayType, slideup_position: slideupPosition },
+                settings: { widget_title: widgetTitle, submit_label: submitLabel, display_type: displayType, slideup_position: slideupPosition, theme, button_color: buttonColor },
                 url_targeting: { mode: urlMode, patterns },
                 trigger_rules: { type: triggerType, delay_ms: triggerType === 'delay' ? delayMs : null },
                 frequency: { mode: freqMode, days: freqMode === 'every_n_days' ? freqDays : null },

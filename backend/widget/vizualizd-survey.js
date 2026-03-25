@@ -235,8 +235,8 @@
       "." + PREFIX + "-textarea{min-height:80px;resize:vertical}",
       "." + PREFIX + "-actions{display:flex;justify-content:space-between;margin-top:24px;gap:12px}",
       "." + PREFIX + "-btn{padding:10px 20px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;border:none;transition:background .15s}",
-      "." + PREFIX + "-btn-primary{background:#4F46E5;color:#fff}",
-      "." + PREFIX + "-btn-primary:hover{background:#4338CA}",
+      "." + PREFIX + "-btn-primary{background:var(--vzd-btn-color,#4F46E5);color:#fff}",
+      "." + PREFIX + "-btn-primary:hover{filter:brightness(0.9)}",
       "." + PREFIX + "-btn-primary:disabled{opacity:0.5;cursor:not-allowed}",
       "." + PREFIX + "-btn-secondary{background:#f7fafc;color:#4a5568;border:1px solid #e2e8f0}",
       "." + PREFIX + "-btn-secondary:hover{background:#edf2f7}",
@@ -244,6 +244,22 @@
       "." + PREFIX + "-success h3{margin:0 0 8px;font-size:18px;color:#38a169}",
       "." + PREFIX + "-success p{margin:0;color:#666;font-size:14px}",
       "." + PREFIX + "-step-indicator{font-size:12px;color:#a0aec0;margin-bottom:16px}",
+      /* Dark theme overrides */
+      "." + PREFIX + "-overlay.dark ." + PREFIX + "-modal{background:#1a1a1a;color:#f0f0f0}",
+      "." + PREFIX + "-overlay.dark ." + PREFIX + "-close{color:#777}",
+      "." + PREFIX + "-overlay.dark ." + PREFIX + "-close:hover{color:#ddd;background:#333}",
+      "." + PREFIX + "-overlay.dark ." + PREFIX + "-title{color:#f0f0f0}",
+      "." + PREFIX + "-overlay.dark ." + PREFIX + "-q-title{color:#f0f0f0}",
+      "." + PREFIX + "-overlay.dark ." + PREFIX + "-option{border-color:#333;color:#e0e0e0}",
+      "." + PREFIX + "-overlay.dark ." + PREFIX + "-option:hover{border-color:#555;background:#2a2a2a}",
+      "." + PREFIX + "-overlay.dark ." + PREFIX + "-option.selected{border-color:#6366f1;background:#2d2b55}",
+      "." + PREFIX + "-overlay.dark ." + PREFIX + "-input," + "." + PREFIX + "-overlay.dark ." + PREFIX + "-textarea{background:#2a2a2a;border-color:#333;color:#e0e0e0}",
+      "." + PREFIX + "-overlay.dark ." + PREFIX + "-input:focus," + "." + PREFIX + "-overlay.dark ." + PREFIX + "-textarea:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,0.15)}",
+      "." + PREFIX + "-overlay.dark ." + PREFIX + "-btn-secondary{background:#2a2a2a;color:#ccc;border-color:#444}",
+      "." + PREFIX + "-overlay.dark ." + PREFIX + "-btn-secondary:hover{background:#333}",
+      "." + PREFIX + "-overlay.dark ." + PREFIX + "-actions{border-top-color:#333}",
+      "." + PREFIX + "-overlay.dark ." + PREFIX + "-success h3{color:#4ade80}",
+      "." + PREFIX + "-overlay.dark ." + PREFIX + "-success p{color:#aaa}",
     ].join("\n");
     document.head.appendChild(style);
   }
@@ -260,6 +276,11 @@
     var isSubmitting = false;
     var clarityProjectId = null;
     var clarityProjectIdSource = null;
+
+    // Theme & colors
+    var surveySettings = survey.settings || {};
+    var isDark = surveySettings.theme === "dark";
+    var btnColor = surveySettings.button_color || "#4F46E5";
 
     // Resolve Clarity project ID
     waitForClarity(survey.clarity_project_id, function (id, source) {
@@ -305,7 +326,8 @@
 
     // Create overlay
     var overlay = document.createElement("div");
-    overlay.className = PREFIX + "-overlay" + (dType === "slideup" ? " slideup pos-" + slidePos : "");
+    overlay.className = PREFIX + "-overlay" + (dType === "slideup" ? " slideup pos-" + slidePos : "") + (isDark ? " dark" : "");
+    overlay.style.setProperty("--vzd-btn-color", btnColor);
 
     var modal = document.createElement("div");
     modal.className = PREFIX + "-modal";
