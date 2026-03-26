@@ -326,6 +326,7 @@ def stream_claude_json_schema(
     input_tokens = 0
     json_chunks: list[str] = []
     last_reported = 0
+    last_heartbeat = _time.time()
 
     try:
         # Use raw stream to get events immediately without buffering
@@ -333,6 +334,12 @@ def stream_claude_json_schema(
         with client.messages.stream(**raw_params) as stream:
             for event in stream:
                 event_type = getattr(event, "type", "")
+
+                # Send heartbeat every 15s to keep Railway proxy alive
+                now = _time.time()
+                if now - last_heartbeat >= 15:
+                    last_heartbeat = now
+                    yield f": heartbeat\n\n"
 
                 if event_type == "message_start":
                     usage = getattr(getattr(event, "message", None), "usage", None)
