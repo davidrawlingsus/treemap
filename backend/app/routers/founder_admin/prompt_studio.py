@@ -951,7 +951,7 @@ def prompt_studio_run_extract(
         return StreamingResponse(
             stream_claude_json_schema(**llm_kwargs),
             media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
         )
 
     start = time.time()
@@ -998,7 +998,7 @@ def prompt_studio_run_taxonomy(
         return StreamingResponse(
             stream_claude_json_schema(**llm_kwargs),
             media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
         )
 
     start = time.time()
@@ -1045,7 +1045,7 @@ def prompt_studio_run_validate(
         return StreamingResponse(
             stream_claude_json_schema(**llm_kwargs),
             media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
         )
 
     start = time.time()
@@ -1148,7 +1148,7 @@ def prompt_studio_generate_ad(
         return StreamingResponse(
             stream_claude_json_schema(**llm_kwargs),
             media_type="text/event-stream",
-            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
         )
 
     start = time.time()

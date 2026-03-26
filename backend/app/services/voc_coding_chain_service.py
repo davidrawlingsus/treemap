@@ -329,6 +329,9 @@ def stream_claude_json_schema(
     last_heartbeat = _time.time()
 
     try:
+        # Send immediate heartbeat so the proxy sees data before the LLM call
+        yield f": stream-start\n\n"
+
         # Use raw stream to get events immediately without buffering
         raw_params = {k: v for k, v in tool_params.items() if k != "stream"}
         with client.messages.stream(**raw_params) as stream:
