@@ -336,61 +336,99 @@ def stream_claude_json_schema(
     bytes_yielded = 0
 
     try:
+        import queue
+        import threading
+
         # Send immediate heartbeat so the proxy sees data before the LLM call
         msg = f": stream-start\n\n"
         bytes_yielded += len(msg)
         _log.info("[stream] Yielding stream-start heartbeat (%d bytes)", len(msg))
         yield msg
 
-        # Use raw stream to get events immediately without buffering
-        raw_params = {k: v for k, v in tool_params.items() if k != "stream"}
-        _log.info("[stream] Opening Anthropic stream...")
-        with client.messages.stream(**raw_params) as stream:
-            _log.info("[stream] Anthropic stream opened, iterating events...")
-            for event in stream:
-                event_count += 1
-                event_type = getattr(event, "type", "")
+        # Run Anthropic stream in a background thread, push events to a queue.
+        # This lets us yield heartbeats from the main generator thread while
+        # waiting for Anthropic to produce tokens (which can take 60-180s for
+        # large prompts with 90k+ input tokens).
+        event_queue: queue.Queue = queue.Queue()
+        _SENTINEL = object()
 
-                # Send heartbeat every 15s to keep Railway proxy alive
+        def _anthropic_reader():
+            """Read Anthropic stream events and push them to the queue."""
+            try:
+                raw_params = {k: v for k, v in tool_params.items() if k != "stream"}
+                _log.info("[stream-thread] Opening Anthropic stream...")
+                with client.messages.stream(**raw_params) as anthropic_stream:
+                    _log.info("[stream-thread] Anthropic stream opened, iterating...")
+                    for ev in anthropic_stream:
+                        event_queue.put(ev)
+                    event_queue.put(_SENTINEL)  # signal end
+                    _log.info("[stream-thread] Anthropic stream ended normally")
+            except Exception as exc:
+                _log.error("[stream-thread] Exception: %s", exc, exc_info=True)
+                event_queue.put(exc)
+
+        thread = threading.Thread(target=_anthropic_reader, daemon=True)
+        thread.start()
+        _log.info("[stream] Background thread started, polling queue with heartbeats...")
+
+        # Poll the queue, yielding heartbeats every 10s while waiting
+        stream_done = False
+        while not stream_done:
+            try:
+                item = event_queue.get(timeout=10)
+            except queue.Empty:
+                # No event yet — send heartbeat
                 now = _time.time()
-                if now - last_heartbeat >= 15:
-                    last_heartbeat = now
-                    hb = f": heartbeat t={round(now - start, 1)}s events={event_count}\n\n"
-                    bytes_yielded += len(hb)
-                    _log.info("[stream] Sending heartbeat at %.1fs, %d events so far, %d bytes yielded",
-                              now - start, event_count, bytes_yielded)
-                    yield hb
+                hb = f": heartbeat t={round(now - start, 1)}s events={event_count}\n\n"
+                bytes_yielded += len(hb)
+                _log.info("[stream] Heartbeat at %.1fs, %d events, %d bytes yielded",
+                          now - start, event_count, bytes_yielded)
+                yield hb
+                continue
 
-                if event_type == "message_start":
-                    usage = getattr(getattr(event, "message", None), "usage", None)
-                    if usage:
-                        input_tokens = getattr(usage, "input_tokens", 0)
-                    _log.info("[stream] message_start: input_tokens=%d", input_tokens)
+            # Check for sentinel (stream complete)
+            if item is _SENTINEL:
+                _log.info("[stream] Stream complete. %d events, %d json_chunks, %d output_tokens",
+                          event_count, len(json_chunks), output_tokens)
+                stream_done = True
+                break
 
-                elif event_type == "content_block_delta":
-                    delta = getattr(event, "delta", None)
-                    delta_type = getattr(delta, "type", "")
-                    if delta_type == "input_json_delta":
-                        partial = getattr(delta, "partial_json", "")
-                        if partial:
-                            json_chunks.append(partial)
-                            # Estimate tokens from chars (~4 chars per token)
-                            char_count = sum(len(c) for c in json_chunks)
-                            output_tokens = char_count // 4
-                            # Throttle SSE updates to every ~100 tokens
-                            if output_tokens - last_reported >= 100:
-                                last_reported = output_tokens
-                                msg = f"data: {json.dumps({'type': 'tokens', 'output_tokens': output_tokens})}\n\n"
-                                bytes_yielded += len(msg)
-                                yield msg
+            # Check for exception from thread
+            if isinstance(item, Exception):
+                raise item
 
-                elif event_type == "message_delta":
-                    usage = getattr(event, "usage", None)
-                    if usage:
-                        output_tokens = getattr(usage, "output_tokens", output_tokens)
+            # Process the Anthropic event
+            event = item
+            event_count += 1
+            event_type = getattr(event, "type", "")
 
-            _log.info("[stream] Anthropic stream ended. %d events, %d json_chunks, %d output_tokens",
-                      event_count, len(json_chunks), output_tokens)
+            if event_type == "message_start":
+                usage = getattr(getattr(event, "message", None), "usage", None)
+                if usage:
+                    input_tokens = getattr(usage, "input_tokens", 0)
+                _log.info("[stream] message_start: input_tokens=%d", input_tokens)
+
+            elif event_type == "content_block_delta":
+                delta = getattr(event, "delta", None)
+                delta_type = getattr(delta, "type", "")
+                if delta_type == "input_json_delta":
+                    partial = getattr(delta, "partial_json", "")
+                    if partial:
+                        json_chunks.append(partial)
+                        char_count = sum(len(c) for c in json_chunks)
+                        output_tokens = char_count // 4
+                        if output_tokens - last_reported >= 100:
+                            last_reported = output_tokens
+                            msg = f"data: {json.dumps({'type': 'tokens', 'output_tokens': output_tokens})}\n\n"
+                            bytes_yielded += len(msg)
+                            yield msg
+
+            elif event_type == "message_delta":
+                usage = getattr(event, "usage", None)
+                if usage:
+                    output_tokens = getattr(usage, "output_tokens", output_tokens)
+
+        thread.join(timeout=5)
 
         # Parse the accumulated JSON
         raw_json = "".join(json_chunks)
