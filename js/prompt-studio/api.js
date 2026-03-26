@@ -128,14 +128,29 @@ async function runStreamingStep(url, body, onTokens) {
     let result = null;
     let eventCount = 0;
     let chunkCount = 0;
+    let totalBytes = 0;
+    const streamStartTime = Date.now();
 
     while (true) {
-        const { done, value } = await reader.read();
+        let readResult;
+        try {
+            readResult = await reader.read();
+        } catch (readErr) {
+            const elapsed = ((Date.now() - streamStartTime) / 1000).toFixed(1);
+            console.error(`[stream] reader.read() threw after ${elapsed}s, ${chunkCount} chunks, ${totalBytes} bytes, ${eventCount} events:`, readErr);
+            throw readErr;
+        }
+        const { done, value } = readResult;
         if (done) {
-            console.log('[stream] Stream ended. Chunks:', chunkCount, 'Events:', eventCount, 'Got result:', !!result);
+            const elapsed = ((Date.now() - streamStartTime) / 1000).toFixed(1);
+            console.log(`[stream] Stream ended after ${elapsed}s. Chunks: ${chunkCount}, Bytes: ${totalBytes}, Events: ${eventCount}, Got result: ${!!result}`);
             break;
         }
         chunkCount++;
+        totalBytes += value?.byteLength || 0;
+        if (chunkCount <= 3 || chunkCount % 50 === 0) {
+            console.log(`[stream] Chunk #${chunkCount}: ${value?.byteLength || 0} bytes, total ${totalBytes} bytes`);
+        }
         const chunk = decoder.decode(value, { stream: true });
         buffer += chunk;
 

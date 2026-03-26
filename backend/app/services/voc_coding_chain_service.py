@@ -295,6 +295,8 @@ def stream_claude_json_schema(
     """
     import time as _time
 
+    _log = logging.getLogger(__name__)
+
     api_key = (getattr(settings, "anthropic_api_key", None) or "").strip()
     if not api_key:
         raise VocCodingChainError("config", "ANTHROPIC_API_KEY is required")
@@ -321,33 +323,49 @@ def stream_claude_json_schema(
         "stream": True,
     }
 
+    _log.info("[stream] Starting stream_claude_json_schema model=%s max_tokens=%d prompt_len=%d",
+              model, max_tokens, len(user_prompt))
+
     start = _time.time()
     output_tokens = 0
     input_tokens = 0
     json_chunks: list[str] = []
     last_reported = 0
     last_heartbeat = _time.time()
+    event_count = 0
+    bytes_yielded = 0
 
     try:
         # Send immediate heartbeat so the proxy sees data before the LLM call
-        yield f": stream-start\n\n"
+        msg = f": stream-start\n\n"
+        bytes_yielded += len(msg)
+        _log.info("[stream] Yielding stream-start heartbeat (%d bytes)", len(msg))
+        yield msg
 
         # Use raw stream to get events immediately without buffering
         raw_params = {k: v for k, v in tool_params.items() if k != "stream"}
+        _log.info("[stream] Opening Anthropic stream...")
         with client.messages.stream(**raw_params) as stream:
+            _log.info("[stream] Anthropic stream opened, iterating events...")
             for event in stream:
+                event_count += 1
                 event_type = getattr(event, "type", "")
 
                 # Send heartbeat every 15s to keep Railway proxy alive
                 now = _time.time()
                 if now - last_heartbeat >= 15:
                     last_heartbeat = now
-                    yield f": heartbeat\n\n"
+                    hb = f": heartbeat t={round(now - start, 1)}s events={event_count}\n\n"
+                    bytes_yielded += len(hb)
+                    _log.info("[stream] Sending heartbeat at %.1fs, %d events so far, %d bytes yielded",
+                              now - start, event_count, bytes_yielded)
+                    yield hb
 
                 if event_type == "message_start":
                     usage = getattr(getattr(event, "message", None), "usage", None)
                     if usage:
                         input_tokens = getattr(usage, "input_tokens", 0)
+                    _log.info("[stream] message_start: input_tokens=%d", input_tokens)
 
                 elif event_type == "content_block_delta":
                     delta = getattr(event, "delta", None)
@@ -362,26 +380,44 @@ def stream_claude_json_schema(
                             # Throttle SSE updates to every ~100 tokens
                             if output_tokens - last_reported >= 100:
                                 last_reported = output_tokens
-                                yield f"data: {json.dumps({'type': 'tokens', 'output_tokens': output_tokens})}\n\n"
+                                msg = f"data: {json.dumps({'type': 'tokens', 'output_tokens': output_tokens})}\n\n"
+                                bytes_yielded += len(msg)
+                                yield msg
 
                 elif event_type == "message_delta":
                     usage = getattr(event, "usage", None)
                     if usage:
                         output_tokens = getattr(usage, "output_tokens", output_tokens)
 
+            _log.info("[stream] Anthropic stream ended. %d events, %d json_chunks, %d output_tokens",
+                      event_count, len(json_chunks), output_tokens)
+
         # Parse the accumulated JSON
         raw_json = "".join(json_chunks)
+        _log.info("[stream] Parsing JSON response (%d chars)...", len(raw_json))
         try:
             parsed = json.loads(raw_json)
         except (JSONDecodeError, ValueError):
+            _log.warning("[stream] JSON parse failed, attempting repair")
             repaired = repair_json(raw_json)
             parsed = json.loads(repaired) if isinstance(repaired, str) and repaired.strip() else {}
 
         elapsed = round(_time.time() - start, 2)
-        yield f"data: {json.dumps({'type': 'done', 'output': parsed, 'elapsed_seconds': elapsed, 'usage': {'input_tokens': input_tokens, 'output_tokens': output_tokens}})}\n\n"
+        done_msg = f"data: {json.dumps({'type': 'done', 'output': parsed, 'elapsed_seconds': elapsed, 'usage': {'input_tokens': input_tokens, 'output_tokens': output_tokens}})}\n\n"
+        bytes_yielded += len(done_msg)
+        _log.info("[stream] Yielding done event. elapsed=%.2fs input=%d output=%d total_bytes=%d",
+                  elapsed, input_tokens, output_tokens, bytes_yielded)
+        yield done_msg
+        _log.info("[stream] Generator finished successfully")
+
+    except GeneratorExit:
+        elapsed = round(_time.time() - start, 2)
+        _log.error("[stream] GeneratorExit — client disconnected after %.2fs, %d events, %d bytes yielded",
+                   elapsed, event_count, bytes_yielded)
 
     except Exception as exc:
         elapsed = round(_time.time() - start, 2)
+        _log.error("[stream] Exception after %.2fs: %s", elapsed, exc, exc_info=True)
         yield f"data: {json.dumps({'type': 'error', 'message': str(exc), 'elapsed_seconds': elapsed})}\n\n"
 
 
