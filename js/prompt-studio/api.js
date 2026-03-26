@@ -96,7 +96,7 @@ async function runStreamingStep(url, body, onTokens) {
     // On production, use Railway direct URL to bypass Cloudflare's 100s timeout
     // On localhost, use the normal API base URL
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const streamBase = isLocal ? API_BASE_URL : 'https://content-exploration-featurebranch.up.railway.app';
+    const streamBase = isLocal ? API_BASE_URL : 'https://api.mapthegap.ai';
     console.log('[stream] Starting:', url, 'via', streamBase);
     const res = await fetch(`${streamBase}${url}?stream=true`, {
         method: 'POST',
@@ -216,7 +216,7 @@ export async function runValidateStep(systemPrompt, userPromptTemplate, productC
 export async function runGenerateAd(systemPrompt, userPrompt) {
     // Use Railway direct URL to bypass Cloudflare's 100s timeout, but non-streaming
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const base = isLocal ? API_BASE_URL : 'https://content-exploration-featurebranch.up.railway.app';
+    const base = isLocal ? API_BASE_URL : 'https://api.mapthegap.ai';
     const res = await fetch(`${base}/api/founder-admin/prompt-studio/generate-ad`, {
         method: 'POST',
         headers: { ...headers(), 'Content-Type': 'application/json' },
@@ -237,7 +237,7 @@ export async function savePipelineState(runId, pipelineState) {
 export async function saveStepOutput(runId, stepType, stepOrder, output, elapsedSeconds, promptVersionId) {
     // Use Railway direct to bypass Cloudflare size/timeout limits on large JSON
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const base = isLocal ? API_BASE_URL : 'https://content-exploration-featurebranch.up.railway.app';
+    const base = isLocal ? API_BASE_URL : 'https://api.mapthegap.ai';
     const res = await fetch(`${base}/api/founder-admin/prompt-studio/${runId}/step-output`, {
         method: 'PUT',
         headers: { ...headers(), 'Content-Type': 'application/json' },
