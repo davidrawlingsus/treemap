@@ -376,7 +376,8 @@ def get_voc_clients(
             'client_name': row.client_name,
             'data_source_count': row.data_source_count,
             'logo_url': client.logo_url if client else None,
-            'header_color': client.header_color if client else None
+            'header_color': client.header_color if client else None,
+            'is_lead': client.is_lead if client else False
         }
     
     # Now get clients grouped by client_name (when client_uuid is null)
@@ -407,7 +408,8 @@ def get_voc_clients(
                         'client_name': matching_client.name,
                         'data_source_count': row.data_source_count,
                         'logo_url': matching_client.logo_url,
-                        'header_color': matching_client.header_color
+                        'header_color': matching_client.header_color,
+                        'is_lead': matching_client.is_lead
                     }
                 else:
                     # Merge data source counts if client already exists
@@ -433,7 +435,8 @@ def get_voc_clients(
             client_name=info['client_name'],
             data_source_count=info['data_source_count'],
             logo_url=info.get('logo_url'),
-            header_color=info.get('header_color')
+            header_color=info.get('header_color'),
+            is_lead=info.get('is_lead', False)
         )
         for info in client_map.values()
         if info['client_uuid'] in accessible_ids

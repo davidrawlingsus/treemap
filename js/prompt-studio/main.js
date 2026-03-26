@@ -9,6 +9,7 @@ import {
     runCodeStep, runRefineStep, runExtractStep, runTaxonomyStep,
     runValidateStep, runGenerateAd, createPromptVersion, updatePrompt,
     savePipelineState, saveStepOutput, fetchStepOutputs,
+    createFacebookAd,
 } from '/js/prompt-studio/api.js';
 
 import {
@@ -26,6 +27,7 @@ let studioInputs = null; // { url, domain, company_name, reviews, company_contex
 let pipeline = [];
 let stepIdCounter = 0;
 let currentRunId = null;
+let currentClientId = null; // Lead client UUID from scrape response
 
 const PROMPT_PURPOSE_MAP = {
     context: 'product_context_extract',
@@ -844,6 +846,13 @@ async function handleGenerateAds() {
             e => console.warn('[auto-save] Failed to save ad outputs:', e.message)
         );
     }
+
+    // Save generated ads as FacebookAd records for the lead client
+    if (currentClientId && generatedAdBatches.length) {
+        saveAdsToClient(currentClientId, generatedAdBatches).catch(
+            e => console.warn('[save-ads] Failed to save ads to client:', e.message)
+        );
+    }
 }
 
 function renderGenerateOutput() {
@@ -886,6 +895,44 @@ function renderAdsSection() {
             });
         };
     }
+}
+
+// ---------------------------------------------------------------------------
+// Save generated ads to FacebookAd table
+// ---------------------------------------------------------------------------
+async function saveAdsToClient(clientId, adBatches) {
+    let saved = 0;
+    let failed = 0;
+    for (const batch of adBatches) {
+        const ads = Array.isArray(batch.ads) ? batch.ads : [];
+        for (const ad of ads) {
+            try {
+                // Map testType → angle for the newer schema
+                const fullJson = { ...ad };
+                if (fullJson.testType && !fullJson.angle) {
+                    fullJson.angle = fullJson.testType;
+                    delete fullJson.testType;
+                }
+
+                await createFacebookAd(clientId, {
+                    primary_text: ad.primary_text || '',
+                    headline: ad.headline || '',
+                    description: ad.description || '',
+                    call_to_action: ad.call_to_action || 'LEARN_MORE',
+                    destination_url: ad.destination_url || '',
+                    voc_evidence: ad.voc_evidence || [],
+                    image_hash: ad.media?.image_hash || null,
+                    full_json: fullJson,
+                    status: 'draft',
+                });
+                saved++;
+            } catch (e) {
+                console.warn(`[save-ads] Failed to save ad: ${e.message}`);
+                failed++;
+            }
+        }
+    }
+    console.log(`[save-ads] Saved ${saved} ads to client ${clientId}${failed ? `, ${failed} failed` : ''}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -1144,6 +1191,7 @@ async function handleScrape() {
             default_prompts: promptsData.default_prompts,
         };
         currentRunId = data.run_id;
+        currentClientId = data.client_id || null;
         showStatus(`Scraped ${data.review_count} reviews from ${data.domain}. Pipeline ready.`, 'success');
         initDefaultPipeline();
         updateSaveButton();
@@ -1163,6 +1211,7 @@ async function handleLoadRun(runId) {
             fetchStepOutputs(runId).catch(() => ({ outputs: [] })),
         ]);
         currentRunId = runId;
+        currentClientId = data.client_id || null;
         studioInputs = {
             url: data.company_context?.source_url || '',
             domain: '',

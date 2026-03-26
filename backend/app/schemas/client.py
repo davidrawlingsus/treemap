@@ -34,6 +34,8 @@ class ClientResponse(BaseModel):
     slug: str
     is_active: bool
     ad_library_only: Optional[bool] = False
+    is_lead: bool = False
+    leadgen_run_id: Optional[str] = None
     business_summary: Optional[str] = None
     client_url: Optional[str] = None
     logo_url: Optional[str] = None
@@ -98,6 +100,8 @@ class ClientCreate(BaseModel):
     is_active: bool = True
     settings: dict = {}
     ad_library_only: bool = False
+    is_lead: bool = False
+    leadgen_run_id: Optional[str] = None
 
 
 class ClientLogoUpdate(BaseModel):

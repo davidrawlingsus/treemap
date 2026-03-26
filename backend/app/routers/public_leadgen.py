@@ -30,7 +30,7 @@ from app.services.voc_coding_chain_service import (
     run_voc_coding_chain,
     validate_import_ready_rows,
 )
-from app.services.leadgen_voc_service import upsert_leadgen_run_with_rows
+from app.services.leadgen_voc_service import upsert_leadgen_run_with_rows, create_or_update_lead_client
 
 router = APIRouter(prefix="/api/public", tags=["public-leadgen"])
 logger = logging.getLogger(__name__)
@@ -163,6 +163,10 @@ def build_trustpilot_llm_input(
         payload=payload,
         rows=import_ready_rows,
     )
+
+    # Create/update a lead Client and copy rows to process_voc
+    lead_client = create_or_update_lead_client(db, run_record)
+
     db.commit()
     run_id = run_record.run_id
 
@@ -178,6 +182,7 @@ def build_trustpilot_llm_input(
         company_url=company_url,
         company_name=company_name,
         run_id=run_id,
+        client_id=str(lead_client.id),
         review_count=len(normalized_reviews),
         payload=payload,
     )

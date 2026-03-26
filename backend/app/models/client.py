@@ -23,6 +23,8 @@ class Client(Base):
     header_color = Column(String(7), nullable=True)
     tone_of_voice = Column(Text, nullable=True)
     ad_library_only = Column(Boolean, default=False)  # Diagnosis-only brand (not in viz app)
+    is_lead = Column(Boolean, default=False, nullable=False)
+    leadgen_run_id = Column(String(64), nullable=True, unique=True)
 
     # Relationships
     founder = relationship("User", foreign_keys=[founder_user_id], back_populates="founded_clients")

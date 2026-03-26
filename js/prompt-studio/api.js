@@ -277,3 +277,15 @@ export async function updatePrompt(promptId, data) {
     });
     return handleResponse(res);
 }
+
+/**
+ * Save a single ad to the FacebookAd table for the given client.
+ */
+export async function createFacebookAd(clientId, adPayload) {
+    const res = await fetch(`${API_BASE_URL}/api/clients/${clientId}/facebook-ads`, {
+        method: 'POST',
+        headers: { ...headers(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(adPayload),
+    });
+    return handleResponse(res);
+}

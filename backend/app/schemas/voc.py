@@ -85,6 +85,7 @@ class VocClientInfo(BaseModel):
     data_source_count: int = 0
     logo_url: Optional[str] = None
     header_color: Optional[str] = None
+    is_lead: bool = False
 
     model_config = {
         "json_schema_extra": {

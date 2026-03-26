@@ -4,12 +4,21 @@ Persistence/query helpers for lead-gen VoC staging tables.
 
 from __future__ import annotations
 
+import logging
+import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+from uuid import UUID
 
 from sqlalchemy.orm import Session
 
 from app.models.leadgen_voc import LeadgenVocRun, LeadgenVocRow
+from app.models.client import Client
+from app.models.process_voc import ProcessVoc
+from app.models.authorized_domain import AuthorizedDomain, AuthorizedDomainClient
+from app.models.user import User
+
+logger = logging.getLogger(__name__)
 
 
 def _to_dt(value: Any) -> Optional[datetime]:
@@ -192,3 +201,178 @@ def build_leadgen_summary_dict(db: Session, run_id: str) -> Dict[str, Any]:
             )
         categories.append({"name": category_name, "topics": topics})
     return {"categories": categories, "total_verbatims": total_verbatims}
+
+
+def _sanitize_slug(domain: str) -> str:
+    """Convert a domain like 'butternutbox.com' into a URL-safe slug like 'butternutbox-com'."""
+    slug = re.sub(r"[^a-z0-9]+", "-", domain.lower()).strip("-")
+    return slug or "lead"
+
+
+def _unique_name(db: Session, base_name: str) -> str:
+    """Return base_name if unique, otherwise append a numeric suffix."""
+    if not db.query(Client).filter(Client.name == base_name).first():
+        return base_name
+    for i in range(2, 100):
+        candidate = f"{base_name} ({i})"
+        if not db.query(Client).filter(Client.name == candidate).first():
+            return candidate
+    return f"{base_name} ({datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')})"
+
+
+def _unique_slug(db: Session, base_slug: str) -> str:
+    """Return base_slug if unique, otherwise append a numeric suffix."""
+    if not db.query(Client).filter(Client.slug == base_slug).first():
+        return base_slug
+    for i in range(2, 100):
+        candidate = f"{base_slug}-{i}"
+        if not db.query(Client).filter(Client.slug == candidate).first():
+            return candidate
+    return f"{base_slug}-{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}"
+
+
+def _get_default_founder_id(db: Session) -> Optional[UUID]:
+    """Get the first founder user's ID as fallback for unauthenticated lead runs."""
+    founder = db.query(User).filter(User.is_founder == True, User.is_active == True).first()
+    return founder.id if founder else None
+
+
+def _ensure_authorized_domain(db: Session, domain: str, client: Client) -> None:
+    """Find or create an AuthorizedDomain and link it to the client."""
+    normalized = domain.lower().strip()
+    if not normalized:
+        return
+
+    auth_domain = (
+        db.query(AuthorizedDomain)
+        .filter(AuthorizedDomain.domain == normalized)
+        .first()
+    )
+    if not auth_domain:
+        auth_domain = AuthorizedDomain(domain=normalized)
+        db.add(auth_domain)
+        db.flush()
+
+    # Check if link already exists
+    existing_link = (
+        db.query(AuthorizedDomainClient)
+        .filter(
+            AuthorizedDomainClient.domain_id == auth_domain.id,
+            AuthorizedDomainClient.client_id == client.id,
+        )
+        .first()
+    )
+    if not existing_link:
+        db.add(
+            AuthorizedDomainClient(
+                domain_id=auth_domain.id,
+                client_id=client.id,
+            )
+        )
+        db.flush()
+
+
+def _copy_rows_to_process_voc(db: Session, run_id: str, client_uuid: UUID) -> int:
+    """Delete existing ProcessVoc rows for this client and copy from LeadgenVocRow."""
+    from sqlalchemy import text
+
+    # Temporarily disable the permission-check trigger for lead backfill
+    db.execute(text("ALTER TABLE process_voc DISABLE TRIGGER ALL"))
+
+    db.query(ProcessVoc).filter(ProcessVoc.client_uuid == client_uuid).delete()
+
+    rows = (
+        db.query(LeadgenVocRow)
+        .filter(LeadgenVocRow.run_id == run_id)
+        .order_by(LeadgenVocRow.id.asc())
+        .all()
+    )
+    for row in rows:
+        db.add(
+            ProcessVoc(
+                respondent_id=row.respondent_id,
+                created=row.created,
+                last_modified=row.last_modified,
+                client_id=row.client_id,
+                client_name=row.client_name,
+                project_id=row.project_id,
+                project_name=row.project_name,
+                total_rows=row.total_rows,
+                data_source=row.data_source,
+                dimension_ref=row.dimension_ref,
+                dimension_name=row.dimension_name,
+                value=row.value,
+                overall_sentiment=row.overall_sentiment,
+                topics=row.topics,
+                survey_metadata=row.survey_metadata,
+                question_text=row.question_text,
+                question_type=row.question_type,
+                processed=row.processed,
+                client_uuid=client_uuid,
+            )
+        )
+    db.flush()
+
+    # Re-enable triggers
+    db.execute(text("ALTER TABLE process_voc ENABLE TRIGGER ALL"))
+    return len(rows)
+
+
+def create_or_update_lead_client(
+    db: Session,
+    run: LeadgenVocRun,
+    founder_user_id: Optional[UUID] = None,
+) -> Client:
+    """
+    Create (or reuse) a Client record flagged as a lead from a LeadgenVocRun,
+    copy VoC rows into process_voc, and set up domain authorization.
+    """
+    # 1. Check if a Client already exists for this run
+    client = None
+
+    if run.converted_client_uuid:
+        client = db.query(Client).filter(Client.id == run.converted_client_uuid).first()
+
+    if not client:
+        client = (
+            db.query(Client)
+            .filter(Client.leadgen_run_id == run.run_id)
+            .first()
+        )
+
+    # 2. Create or update the Client
+    if client:
+        # Update existing client fields in case company info changed
+        client.client_url = run.company_url
+        client.is_lead = True
+        client.is_active = True
+    else:
+        f_id = founder_user_id or _get_default_founder_id(db)
+        client = Client(
+            name=_unique_name(db, run.company_name),
+            slug=_unique_slug(db, _sanitize_slug(run.company_domain)),
+            client_url=run.company_url,
+            is_lead=True,
+            is_active=True,
+            founder_user_id=f_id,
+            leadgen_run_id=run.run_id,
+        )
+        db.add(client)
+        db.flush()
+
+    # 3. Set up domain authorization for magic-link access
+    _ensure_authorized_domain(db, run.company_domain, client)
+
+    # 4. Copy VoC rows into process_voc
+    count = _copy_rows_to_process_voc(db, run.run_id, client.id)
+    logger.info(
+        "Lead client %s (%s): copied %d rows to process_voc",
+        client.name, client.id, count,
+    )
+
+    # 5. Update the run's conversion fields
+    run.converted_client_uuid = client.id
+    run.converted_at = run.converted_at or datetime.now(timezone.utc)
+    db.flush()
+
+    return client

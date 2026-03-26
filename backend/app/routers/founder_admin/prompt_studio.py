@@ -19,6 +19,7 @@ from app.auth import get_current_active_founder
 from app.config import get_settings
 from app.database import get_db
 from app.models import LeadgenPipelineOutput, Prompt, User
+from app.models.leadgen_voc import LeadgenVocRun
 from app.services.product_context_service import (
     DEFAULT_EXTRACT_SYSTEM_MSG,
     extract_product_name,
@@ -65,6 +66,7 @@ class ScrapeRequest(BaseModel):
 
 class ScrapeResponse(BaseModel):
     run_id: str
+    client_id: Optional[str] = None
     domain: str
     company_name: str
     company_url: str
@@ -159,6 +161,7 @@ class InputsResponse(BaseModel):
     reviews: List[Dict[str, Any]]
     default_prompts: Dict[str, Optional[str]]
     pipeline_state: Optional[List[Dict[str, Any]]] = None
+    client_id: Optional[str] = None
 
 
 class SavePipelineRequest(BaseModel):
@@ -348,7 +351,7 @@ def prompt_studio_scrape(
     import traceback
     import uuid
     from datetime import datetime, timezone
-    from app.services.leadgen_voc_service import upsert_leadgen_run_with_rows
+    from app.services.leadgen_voc_service import upsert_leadgen_run_with_rows, create_or_update_lead_client
 
     try:
         settings = get_settings()
@@ -395,11 +398,16 @@ def prompt_studio_scrape(
             },
             rows=rows,
         )
+        # Create/update a lead Client and copy rows to process_voc
+        run_record = db.query(LeadgenVocRun).filter(LeadgenVocRun.run_id == run_id).first()
+        lead_client = create_or_update_lead_client(db, run_record, founder_user_id=current_user.id)
+
         db.commit()
-        logger.info("[scrape] Persisted run_id=%s with %d rows", run_id, len(rows))
+        logger.info("[scrape] Persisted run_id=%s with %d rows, client_id=%s", run_id, len(rows), lead_client.id)
 
         return ScrapeResponse(
             run_id=run_id,
+            client_id=str(lead_client.id),
             domain=domain,
             company_name=company_name,
             company_url=company_url,
@@ -458,6 +466,7 @@ def prompt_studio_get_inputs(
         reviews=reviews,
         default_prompts=default_prompts,
         pipeline_state=pipeline_state if isinstance(pipeline_state, list) else None,
+        client_id=str(run.converted_client_uuid) if run.converted_client_uuid else None,
     )
 
 

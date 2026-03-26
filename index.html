@@ -124,10 +124,7 @@
             loadDimensionNames as vocDataApiLoadDimensionNames,
             loadQuestions as vocDataApiLoadQuestions
         } from '/js/services/api-voc-data.js';
-        import {
-            loadLeadRuns as leadgenVocApiLoadLeadRuns,
-            loadLeadRunData as leadgenVocApiLoadLeadRunData
-        } from '/js/services/api-leadgen-voc.js';
+        // api-leadgen-voc.js imports removed — leads now use unified client path
         import {
             loadInsights as insightsApiLoadInsights,
             createInsight as insightsApiCreateInsight,
@@ -525,8 +522,7 @@
         window.vocDataApiLoadVocData = vocDataApiLoadVocData;
         window.vocDataApiLoadDimensionNames = vocDataApiLoadDimensionNames;
         window.vocDataApiLoadQuestions = vocDataApiLoadQuestions;
-        window.leadgenVocApiLoadLeadRuns = leadgenVocApiLoadLeadRuns;
-        window.leadgenVocApiLoadLeadRunData = leadgenVocApiLoadLeadRunData;
+        // leadgen VoC API removed — leads now use unified client path
         
         // Make insights API available globally for wrapper functions
         window.insightsApiLoadInsights = insightsApiLoadInsights;
@@ -918,10 +914,7 @@
             <div class="data-source-selector__content">
                 <div class="filter-panels">
                     <div class="filter-panel active" id="clientPanel" role="tabpanel" aria-labelledby="clientTab">
-                        <div class="lead-mode-toggle founder-admin hidden" id="leadModeToggle">
-                            <button type="button" class="lead-mode-toggle__btn active" id="modeClientsBtn" data-mode="clients">Clients</button>
-                            <button type="button" class="lead-mode-toggle__btn" id="modeLeadsBtn" data-mode="leads">Leads</button>
-                        </div>
+                        <!-- Lead mode toggle removed — leads are now unified with clients -->
                         <label for="clientSelect">Business:</label>
                         <select id="clientSelect">
                             <option value="">Loading...</option>
@@ -1430,8 +1423,7 @@
         let currentProjectName = null;
         let currentDataSourceId = null;
         let currentQuestionRefKey = null;
-        let currentDataMode = 'clients';
-        let currentLeadRunId = null;
+        // currentDataMode and currentLeadRunId removed — leads are now unified with clients
         let allClients = [];
         let clientProjects = [];
         let clientSources = [];
@@ -1546,20 +1538,13 @@
         
         // Save current state to localStorage - uses storage module
         function saveState() {
-            const persistedClientId = currentDataMode === 'clients'
-                ? (currentClientId || lastClientsModeClientId || null)
-                : (lastClientsModeClientId || null);
-            // Sync local variables to module state
             const localState = {
-                clientId: persistedClientId,
+                clientId: currentClientId || lastClientsModeClientId || null,
                 projectName: currentProjectName,
                 dataSourceId: currentDataSourceId,
                 questionRefKey: currentQuestionRefKey,
-                dataMode: currentDataMode,
-                leadRunId: currentLeadRunId
             };
             window.appStateSetState(localState);
-            // Save full local state (including mode fields) directly to storage
             window.storageSaveState(localState);
         }
         
@@ -1774,102 +1759,7 @@
             });
         }
 
-        function applyDataModeUI() {
-            const businessLabel = document.querySelector('label[for="clientSelect"]');
-            if (businessLabel) {
-                businessLabel.textContent = currentDataMode === 'leads' ? 'Lead Run:' : 'Business:';
-            }
-
-            const modeClientsBtn = document.getElementById('modeClientsBtn');
-            const modeLeadsBtn = document.getElementById('modeLeadsBtn');
-            if (modeClientsBtn && modeLeadsBtn) {
-                modeClientsBtn.classList.toggle('active', currentDataMode === 'clients');
-                modeLeadsBtn.classList.toggle('active', currentDataMode === 'leads');
-            }
-
-            const showHierarchy = currentDataMode === 'clients';
-            setTabVisibility('project', showHierarchy);
-            setTabVisibility('source', showHierarchy);
-            const clientSelect = document.getElementById('clientSelect');
-
-            if (!showHierarchy) {
-                const projectSelect = document.getElementById('projectSelect');
-                const sourceSelect = document.getElementById('sourceSelect');
-                if (projectSelect) {
-                    projectSelect.innerHTML = '<option value="">Not used in lead mode</option>';
-                }
-                if (sourceSelect) {
-                    sourceSelect.innerHTML = '<option value="">Not used in lead mode</option>';
-                }
-                currentProjectName = null;
-                currentDataSourceId = null;
-            }
-            syncFilterTabState();
-        }
-
-        function setupLeadModeToggle() {
-            const toggle = document.getElementById('leadModeToggle');
-            if (!toggle) {
-                return;
-            }
-            const isFounder = !!authenticatedUser?.is_founder;
-            if (!isFounder) {
-                toggle.classList.add('hidden');
-                currentDataMode = 'clients';
-                return;
-            }
-
-            toggle.classList.remove('hidden');
-            const savedState = loadState();
-            if (savedState?.dataMode === 'leads') {
-                currentDataMode = 'leads';
-                currentLeadRunId = savedState.leadRunId || currentLeadRunId;
-            }
-
-            const modeClientsBtn = document.getElementById('modeClientsBtn');
-            const modeLeadsBtn = document.getElementById('modeLeadsBtn');
-            if (modeClientsBtn && !modeClientsBtn.dataset.bound) {
-                modeClientsBtn.dataset.bound = 'true';
-                modeClientsBtn.addEventListener('click', async () => {
-                    if (currentDataMode === 'clients') return;
-                    currentDataMode = 'clients';
-                    currentLeadRunId = null;
-                    currentClientId = null;
-                    currentProjectName = null;
-                    currentDataSourceId = null;
-                    currentQuestionRefKey = null;
-                    saveState();
-                    applyDataModeUI();
-                    const params = new URLSearchParams(window.location.search);
-                    params.set('mode', 'clients');
-                    params.delete('run_id');
-                    const nextQuery = params.toString();
-                    const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash || ''}`;
-                    window.history.replaceState({}, '', nextUrl);
-                    await loadClients(false, true);
-                });
-            }
-            if (modeLeadsBtn && !modeLeadsBtn.dataset.bound) {
-                modeLeadsBtn.dataset.bound = 'true';
-                modeLeadsBtn.addEventListener('click', async () => {
-                    if (currentDataMode === 'leads') return;
-                    currentDataMode = 'leads';
-                    currentClientId = null;
-                    currentProjectName = null;
-                    currentDataSourceId = null;
-                    currentQuestionRefKey = null;
-                    saveState();
-                    applyDataModeUI();
-                    const params = new URLSearchParams(window.location.search);
-                    params.set('mode', 'leads');
-                    const nextQuery = params.toString();
-                    const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}${window.location.hash || ''}`;
-                    window.history.replaceState({}, '', nextUrl);
-                    await loadClients(false);
-                });
-            }
-            applyDataModeUI();
-        }
+        // applyDataModeUI() and setupLeadModeToggle() removed — leads are now unified with clients
 
         // Auto-size filter selects to fit their content, with truncation if needed
         function autoSizeFilterSelects() {
@@ -2143,9 +2033,7 @@
                 return;
             }
             currentClientId = clientId;
-            if (currentDataMode === 'clients') {
-                lastClientsModeClientId = clientId;
-            }
+            lastClientsModeClientId = clientId;
             window.appStateSetCurrentClientId(clientId);
             subStateSetActivePlan(clientId);
             updateNavPlanBadge();
@@ -2229,12 +2117,8 @@
                         hasAutoLaunched = wasAutoLaunched;
                         // After selector load, route by mode:
                         // - leads: use resolved run id, not stale client uuid
-                        // - clients: use selected client id
-                        const targetId = currentDataMode === 'leads'
-                            ? (currentLeadRunId || currentClientId)
-                            : clientId;
-                        if (!targetId) return null;
-                        return loadClientProjects(targetId, restoreState);
+                        if (!clientId) return null;
+                        return loadClientProjects(clientId, restoreState);
                     }).then(() => {
                         // renderFavourites(); // Removed - favourites section no longer exists
                         updateNavLinks(); // Update nav links after client loads
@@ -2245,11 +2129,8 @@
                     });
                 } else {
                     // Dropdown already populated, just load the client's data
-                    const targetId = currentDataMode === 'leads'
-                        ? (currentLeadRunId || currentClientId)
-                        : clientId;
-                    if (!targetId) return;
-                    loadClientProjects(targetId, restoreState).then(() => {
+                    if (!clientId) return;
+                    loadClientProjects(clientId, restoreState).then(() => {
                         // renderFavourites(); // Removed - favourites section no longer exists
                         updateNavLinks(); // Update nav links after client loads
                         applyInitialHashRouting(); // Restore tab from URL hash (e.g. after refresh)
@@ -2285,7 +2166,6 @@
                     promptsNavItem.classList.add('hidden');
                 }
             }
-            setupLeadModeToggle();
 
             if (accessibleClients.length === 0) {
                 const errorEl = document.getElementById('accountSelectionError');
@@ -2318,28 +2198,7 @@
                 }
             }
 
-            // Founder leads deep-link flow: allow opening lead visualizations directly
-            // without forcing account selection overlay.
-            if (userInfo.is_founder && urlMode === 'leads' && urlRunId) {
-                currentDataMode = 'leads';
-                currentLeadRunId = urlRunId;
-                currentClientId = urlRunId;
-                saveState();
-                const loginContainer = document.querySelector('.login-container');
-                if (loginContainer) {
-                    loginContainer.classList.remove('account-selection-mode');
-                }
-                if (typeof Auth !== 'undefined') {
-                    Auth.hideLogin();
-                }
-                const mainContainer = document.getElementById('mainContainer');
-                applySectionFromHashOnly();
-                if (mainContainer) {
-                    mainContainer.style.display = 'flex';
-                }
-                init();
-                return;
-            }
+            // Lead deep-link flow removed — leads are now unified clients and handled by normal client loading
 
             // Check saved state - if there's a saved client that's accessible, auto-launch it
             const savedState = loadState();
@@ -2422,21 +2281,6 @@
         // Load available clients - uses API module for fetching, handles DOM/state
         async function loadClients(respectUrlMode = true, forceDataReload = false) {
             console.log('loadClients() called');
-            const urlParamsForMode = new URLSearchParams(window.location.search);
-            const urlMode = urlParamsForMode.get('mode');
-            const urlRunId = urlParamsForMode.get('run_id');
-            const isFounder = !!authenticatedUser?.is_founder;
-            if (respectUrlMode && isFounder && (urlMode === 'clients' || urlMode === 'leads')) {
-                currentDataMode = urlMode;
-            }
-            if (respectUrlMode && isFounder && urlRunId) {
-                currentLeadRunId = urlRunId;
-            }
-            applyDataModeUI();
-            if (currentDataMode === 'leads') {
-                await loadLeadRunsForSelector();
-                return;
-            }
             try {
                 // Fetch clients using API module
                 allClients = await window.clientsApiLoadClients({
@@ -2526,13 +2370,38 @@
                 }
 
                 console.log('Populating client dropdown...');
+                // Split clients into regular clients and leads for optgroup display
+                const regularClients = allClients.filter(c => !c.is_lead);
+                const leadClients = allClients.filter(c => c.is_lead);
+
+                function appendClientOptions(clients, container) {
+                    clients.forEach((client) => {
+                        const option = document.createElement('option');
+                        option.value = client.client_uuid;
+                        option.textContent = client.client_name || `Client ${client.client_uuid}`;
+                        container.appendChild(option);
+                    });
+                }
+
+                if (leadClients.length > 0) {
+                    // Use optgroups when there are leads
+                    if (regularClients.length > 0) {
+                        const clientsGroup = document.createElement('optgroup');
+                        clientsGroup.label = 'Clients';
+                        appendClientOptions(regularClients, clientsGroup);
+                        select.appendChild(clientsGroup);
+                    }
+                    const leadsGroup = document.createElement('optgroup');
+                    leadsGroup.label = 'Leads';
+                    appendClientOptions(leadClients, leadsGroup);
+                    select.appendChild(leadsGroup);
+                } else {
+                    // No leads — flat list as before
+                    appendClientOptions(regularClients, select);
+                }
+
+                // Restore saved client or select first one by default
                 allClients.forEach((client, index) => {
-                    const option = document.createElement('option');
-                    option.value = client.client_uuid;
-                    option.textContent = client.client_name || `Client ${client.client_uuid}`;
-                    select.appendChild(option);
-                    
-                    // Restore saved client or select first one by default (only if not already set from URL)
                     if (!currentClientId) {
                         if (savedState && savedState.clientId === client.client_uuid) {
                             currentClientId = client.client_uuid;
@@ -2585,8 +2454,7 @@
                     }
                 }
                 
-                // Add change listener (remove mode-specific listeners first)
-                select.removeEventListener('change', handleLeadRunSelectionChange);
+                // Add change listener
                 select.removeEventListener('change', handleClientSelectionChange);
                 select.addEventListener('change', handleClientSelectionChange);
                 
@@ -2629,86 +2497,7 @@
             }
         }
 
-        async function loadLeadRunsForSelector() {
-            try {
-                const runs = await window.leadgenVocApiLoadLeadRuns(getAuthHeaders);
-                const select = document.getElementById('clientSelect');
-                if (!select) return;
-
-                allClients = [];
-                clientProjects = [];
-                clientSources = [];
-                select.innerHTML = '';
-
-                if (!runs.length) {
-                    select.innerHTML = '<option value="">No lead runs available</option>';
-                    select.disabled = true;
-                    currentLeadRunId = null;
-                    syncFilterTabState();
-                    return;
-                }
-
-                select.disabled = false;
-                runs.forEach((run, idx) => {
-                    const option = document.createElement('option');
-                    option.value = run.run_id;
-                    option.textContent = `${run.company_name} (${run.company_domain})`;
-                    option.dataset.companyName = run.company_name || '';
-                    select.appendChild(option);
-                    if (!currentLeadRunId && idx === 0) {
-                        currentLeadRunId = run.run_id;
-                    }
-                });
-
-                const savedState = loadState();
-                const urlRunId = new URLSearchParams(window.location.search).get('run_id');
-                if (savedState?.leadRunId && runs.some((run) => run.run_id === savedState.leadRunId)) {
-                    currentLeadRunId = savedState.leadRunId;
-                }
-                if (urlRunId && runs.some((run) => run.run_id === urlRunId)) {
-                    currentLeadRunId = urlRunId;
-                }
-
-                const hasCurrentLeadOption = runs.some((run) => run.run_id === currentLeadRunId);
-                if (!hasCurrentLeadOption) {
-                    currentLeadRunId = runs[0]?.run_id || null;
-                }
-                if (currentLeadRunId) {
-                    select.value = currentLeadRunId;
-                }
-                currentClientId = currentLeadRunId;
-                saveState();
-
-                select.removeEventListener('change', handleClientSelectionChange);
-                select.removeEventListener('change', handleLeadRunSelectionChange);
-                select.addEventListener('change', handleLeadRunSelectionChange);
-
-                syncFilterTabState();
-                if (currentLeadRunId) {
-                    await loadDataSource(currentLeadRunId, null);
-                }
-            } catch (error) {
-                console.error('Error loading lead runs:', error);
-                const select = document.getElementById('clientSelect');
-                if (select) {
-                    select.innerHTML = '<option value="">Error loading lead runs</option>';
-                }
-                syncFilterTabState();
-            }
-        }
-
-        async function handleLeadRunSelectionChange(e) {
-            const runId = e.target.value || null;
-            if (!runId || runId === currentLeadRunId) return;
-            currentLeadRunId = runId;
-            currentClientId = runId;
-            currentProjectName = null;
-            currentDataSourceId = null;
-            currentQuestionRefKey = null;
-            dimensionFilters = {};
-            saveState();
-            await loadDataSource(runId, null);
-        }
+        // loadLeadRunsForSelector() and handleLeadRunSelectionChange() removed — leads use unified client path
 
         async function handleClientSelectionChange(e) {
             const newClientId = e.target.value;
@@ -2716,9 +2505,7 @@
                 return; // No change or same client
             }
             currentClientId = newClientId;
-            if (currentDataMode === 'clients') {
-                lastClientsModeClientId = newClientId;
-            }
+            lastClientsModeClientId = newClientId;
 
             // Sync Insights tab client ID to keep both tabs in sync
             if (typeof insightsCurrentClientId !== 'undefined') {
@@ -2749,13 +2536,6 @@
         // Load projects for a specific client - wrapper that uses API module for fetching, handles DOM/state
         async function loadClientProjects(clientId, savedState = null) {
             console.log(`loadClientProjects() called for client: ${clientId}`);
-            if (currentDataMode === 'leads') {
-                currentProjectName = null;
-                currentDataSourceId = null;
-                await loadDataSource(clientId, null, savedState);
-                syncFilterTabState();
-                return;
-            }
             try {
                 // Restore saved project name if available
                 if (savedState && savedState.projectName) {
@@ -2850,12 +2630,6 @@
         // Load sources for a specific client - wrapper that uses API module for fetching, handles DOM/state
         async function loadClientSources(clientId, savedState = null) {
             console.log(`loadClientSources() called for client: ${clientId}, project: ${currentProjectName || 'None'}`);
-            if (currentDataMode === 'leads') {
-                currentDataSourceId = null;
-                await loadDataSource(clientId, null, savedState);
-                syncFilterTabState();
-                return;
-            }
             try {
                 // Fetch sources using API module
                 clientSources = await window.dataSourcesApiLoadSources(clientId, currentProjectName, getAuthHeaders);
@@ -2970,20 +2744,6 @@
         
         // Update breadcrumb display
         function updateBreadcrumb(questionRefKey) {
-            if (currentDataMode === 'leads') {
-                const runSelect = document.getElementById('clientSelect');
-                const selectedOption = runSelect?.options?.[runSelect.selectedIndex];
-                const base = selectedOption?.textContent || 'Lead Run';
-                let breadcrumb = `Lead > ${base}`;
-                if (questionRefKey) {
-                    breadcrumb += ` > ${questionRefKey.replace('ref_', 'Q')}`;
-                }
-                const headerP = document.querySelector('.header p');
-                if (headerP && !headerP.classList.contains('breadcrumb-display')) {
-                    headerP.innerHTML = `Topic visualization and analysis<br><span class="breadcrumb-display">${breadcrumb}</span>`;
-                }
-                return;
-            }
             const client = allClients.find(c => c.client_uuid === currentClientId);
             const source = currentDataSourceId ? clientSources.find(s => s.data_source === currentDataSourceId) : null;
             
@@ -3172,9 +2932,7 @@
                 setLoading(true);
                 
                 // Fetch VOC data using API module
-                const processVocRows = currentDataMode === 'leads'
-                    ? await window.leadgenVocApiLoadLeadRunData(clientUuid, getAuthHeaders)
-                    : await window.vocDataApiLoadVocData(clientUuid, currentProjectName, dataSource, getAuthHeaders);
+                const processVocRows = await window.vocDataApiLoadVocData(clientUuid, currentProjectName, dataSource, getAuthHeaders);
                 console.log(`Loaded ${processVocRows.length} process_voc rows`);
                 
                 // Store raw process_voc rows
@@ -3547,7 +3305,6 @@
                     height = 600;
                 }
                 
-                setupLeadModeToggle();
                 console.log('Loading clients...');
                 // Load clients from API (which will cascade to sources and data)
                 await loadClients();
@@ -7330,22 +7087,16 @@
             if (navVisualizations) {
                 let vizUrl = '/';
                 const vizParams = new URLSearchParams();
-                if (currentDataMode === 'leads') {
-                    vizParams.set('mode', 'leads');
-                    if (currentLeadRunId) {
-                        vizParams.set('run_id', currentLeadRunId);
-                    }
-                } else if (clientUuid) {
+                if (clientUuid) {
                     vizParams.set('client_uuid', clientUuid);
                 }
                 if (authToken) {
                     vizParams.set('auth_token', authToken);
                 }
-                // Preserve visualization state when navigating back
-                if (currentProject && currentDataMode === 'clients') {
+                if (currentProject) {
                     vizParams.set('project', currentProject);
                 }
-                if (currentSource && currentDataMode === 'clients') {
+                if (currentSource) {
                     vizParams.set('source', currentSource);
                 }
                 if (currentDimension) {
@@ -12477,9 +12228,7 @@
                 // Get prompt name for display
                 let promptName = 'AI Expert';
                 try {
-                    const grouped = currentDataMode === 'leads'
-                        ? await window.ClientPromptAPI.listLeadContentPrompts()
-                        : await window.ClientPromptAPI.listPrompts(currentClientId);
+                    const grouped = await window.ClientPromptAPI.listPrompts(currentClientId);
                     const allPrompts = (grouped || []).flatMap(g => (g.prompts || []));
                     const prompt = allPrompts.find(p => p.id === promptId);
                     if (prompt && prompt.name) {
@@ -12659,11 +12408,7 @@
                             }
                         }
                     };
-                    if (currentDataMode === 'leads') {
-                        await window.ClientPromptAPI.executeLeadStream(promptId, vocDataForAPI, onChunk, onDone, onError, origin);
-                    } else {
-                        await window.ClientPromptAPI.executeStream(currentClientId, promptId, vocDataForAPI, onChunk, onDone, onError, origin);
-                    }
+                    await window.ClientPromptAPI.executeStream(currentClientId, promptId, vocDataForAPI, onChunk, onDone, onError, origin);
                 } catch (error) {
                     console.error('[openAIExpertInsight] Failed to start streaming:', error);
                     alert('Error: ' + (error.message || 'Failed to start AI expert'));
@@ -15904,15 +15649,7 @@
 
         function updateInsightsAutoFilter() {
             if (!currentClientId) return;
-            if (currentDataMode === 'leads') {
-                allInsights = [];
-                const tbody = document.getElementById('insightsTableBody');
-                if (tbody) {
-                    tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><h3>Insights unavailable in Leads mode</h3><p>Switch to Clients mode to load client insights.</p></td></tr>';
-                }
-                return;
-            }
-            
+
             // Always show all insights (no filtering)
             const badge = document.getElementById('insightsFilterBadge');
             if (badge) {
@@ -15925,10 +15662,7 @@
 
         async function loadInsights(filters = {}) {
             if (!currentClientId) return;
-            if (currentDataMode === 'leads') {
-                return;
-            }
-            
+
             const tbody = document.getElementById('insightsTableBody');
             if (!tbody) return;
             
@@ -16140,9 +15874,7 @@
             if (promptGroupsContainer && currentClientId && window.ClientPromptAPI) {
                 promptGroupsContainer.innerHTML = '<div class="context-menu-item" style="padding: 8px 12px; color: var(--muted);">Loading...</div>';
                 try {
-                    const groupedPrompts = currentDataMode === 'leads'
-                        ? await window.ClientPromptAPI.listLeadContentPrompts()
-                        : await window.ClientPromptAPI.listPrompts(currentClientId);
+                    const groupedPrompts = await window.ClientPromptAPI.listPrompts(currentClientId);
                     promptGroupsContainer.innerHTML = '';
                     if (groupedPrompts && groupedPrompts.length > 0) {
                         const abbreviations = ['SEO', 'CRO', 'UX', 'UI', 'API', 'CRM', 'CMS', 'CTA', 'ROI', 'KPI', 'A/B', 'AB', 'A', 'B', 'PPC', 'SEM', 'SERP', 'SMS', 'SaaS', 'B2B', 'B2C', 'BOFU', 'MOFU', 'TOFU', 'GDPR', 'CTA', 'LTV', 'CAC', 'MVP', 'FAQ', 'URL', 'HTML', 'CSS', 'JS', 'JSON', 'XML', 'REST', 'HTTP', 'HTTPS', 'SSL', 'TLS', 'CDN', 'DNS', 'IP', 'PDF', 'CSV', 'XLS', 'XLSX'];

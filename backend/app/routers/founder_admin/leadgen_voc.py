@@ -19,6 +19,7 @@ from app.schemas import (
     LeadgenVocRowsResponse,
 )
 from app.services.leadgen_voc_service import (
+    create_or_update_lead_client,
     delete_leadgen_run,
     get_leadgen_rows_as_process_voc_dicts,
     get_leadgen_run,
@@ -193,9 +194,14 @@ def founder_rerun_leadgen_run(
             payload=payload,
             rows=import_ready_rows,
         )
+
+        # Create/update lead Client and copy rows to process_voc
+        lead_client = create_or_update_lead_client(db, run_record, founder_user_id=current_user.id)
+
         db.commit()
         return {
             "run_id": run_record.run_id,
+            "client_id": str(lead_client.id),
             "review_count": run_record.review_count,
             "coding_status": run_record.coding_status,
             "updated_at": generated_at.isoformat(),

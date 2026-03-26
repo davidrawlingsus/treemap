@@ -30,6 +30,7 @@ class TrustpilotLeadgenResponse(BaseModel):
     company_url: str
     company_name: str
     run_id: Optional[str] = None
+    client_id: Optional[str] = None
     review_count: int
     payload: Dict[str, Any]
 
