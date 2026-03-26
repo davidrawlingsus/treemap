@@ -1,6 +1,6 @@
 # Nix packages needed at runtime (Playwright/Chromium browser dependencies)
 [phases.setup]
-nixPkgs = ["...", "chromium", "nss", "nspr", "atk", "cups", "libdrm", "pango", "cairo", "alsa-lib", "at-spi2-atk", "at-spi2-core", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXrandr", "xorg.libXext", "xorg.libXfixes", "xorg.libX11", "xorg.libxcb", "xorg.libxkbcommon", "dbus", "mesa", "glib", "gdk-pixbuf", "gtk3", "libxkbcommon"]
+nixPkgs = ["...", "chromium", "nss", "nspr", "atk", "cups", "libdrm", "pango", "cairo", "alsa-lib", "at-spi2-atk", "at-spi2-core", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXrandr", "xorg.libXext", "xorg.libXfixes", "xorg.libX11", "xorg.libxcb", "xorg.libxkbcommon", "dbus", "mesa", "glib", "gdk-pixbuf", "gtk3"]
 
 # Extends the default Python build with explicit installs.
 [phases.install]
