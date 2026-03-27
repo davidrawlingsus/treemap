@@ -9,7 +9,7 @@ import {
     runCodeStep, runRefineStep, runExtractStep, runTaxonomyStep,
     runValidateStep, runGenerateAd, createPromptVersion, updatePrompt,
     savePipelineState, saveStepOutput, fetchStepOutputs,
-    createFacebookAd, syncToClient,
+    createFacebookAd, syncToClient, runClassifyStep,
 } from '/js/prompt-studio/api.js';
 
 import {
@@ -37,6 +37,7 @@ const PROMPT_PURPOSE_MAP = {
     extract: 'voc_extract',
     taxonomy: 'voc_taxonomy',
     validate: 'voc_validate',
+    classify: 'voc_classify',
 };
 
 const DEFAULT_PROMPT_KEYS = {
@@ -47,6 +48,7 @@ const DEFAULT_PROMPT_KEYS = {
     extract: { system: 'extract_system', user: 'extract_user' },
     taxonomy: { system: 'taxonomy_system', user: 'taxonomy_user' },
     validate: { system: 'validate_system', user: 'validate_user' },
+    classify: { system: 'classify_system', user: 'classify_user' },
 };
 
 // ---------------------------------------------------------------------------
@@ -105,7 +107,7 @@ function initDefaultPipeline() {
     pipeline = [];
     els.editor.innerHTML = '';
     els.outputs.innerHTML = '';
-    ['context', 'extract', 'taxonomy', 'validate'].forEach(type => addStep(type));
+    ['context', 'extract', 'taxonomy', 'validate', 'classify'].forEach(type => addStep(type));
 }
 
 function addStep(type) {
@@ -262,6 +264,13 @@ function getUpstreamTaxonomyOutput(stepIndex) {
     return null;
 }
 
+function getUpstreamValidateOutput(stepIndex) {
+    for (let i = stepIndex - 1; i >= 0; i--) {
+        if (pipeline[i].type === 'validate' && pipeline[i].output) return pipeline[i].output;
+    }
+    return null;
+}
+
 function canRunStep(stepIndex) {
     const step = pipeline[stepIndex];
     if (step.type === 'context') return !!studioInputs?.url;
@@ -357,6 +366,12 @@ async function executeStep(stepId) {
             result = await runValidateStep(step.systemPrompt, step.userPrompt, ctx, taxonomy, signals, onTokens);
             step.output = result.output;
             step.elapsedSeconds = result.elapsed_seconds;
+        } else if (step.type === 'classify') {
+            const taxonomy = getUpstreamValidateOutput(idx);
+            if (!taxonomy) throw new Error('No upstream validate output found. Run the Validate step first.');
+            result = await runClassifyStep(step.systemPrompt, step.userPrompt, taxonomy, studioInputs.reviews);
+            step.output = result.output;
+            step.elapsedSeconds = result.elapsed_seconds;
         }
         step.status = 'done';
         console.log(`[executeStep] ${step.type} completed. Output:`, step.output ? Object.keys(step.output) : 'null', 'Elapsed:', step.elapsedSeconds);
@@ -377,16 +392,19 @@ async function executeStep(stepId) {
             );
         }
 
-        // After validate step: sync coded rows to the lead client for visualizations
-        if (step.type === 'validate' && step.output) {
-            console.log('[sync] Validate step done — syncing taxonomy to client...');
-            syncToClient(currentRunId, step.output).then(result => {
-                console.log(`[sync] Done: ${result.rows_coded}/${result.rows_total} rows coded, client=${result.client_id}`);
-                if (result.client_id) currentClientId = result.client_id;
-                showStatus(`Synced ${result.rows_coded} coded rows to visualizations.`, 'success');
-            }).catch(e => {
-                console.warn('[sync] Failed to sync to client:', e.message);
-            });
+        // After classify step: sync coded rows to the lead client for visualizations
+        if (step.type === 'classify' && step.output) {
+            const taxonomy = getUpstreamValidateOutput(pipeline.indexOf(step));
+            if (taxonomy && currentRunId) {
+                console.log('[sync] Classify step done — syncing to client...');
+                syncToClient(currentRunId, taxonomy).then(result => {
+                    console.log(`[sync] Done: ${result.rows_coded}/${result.rows_total} rows coded, client=${result.client_id}`);
+                    if (result.client_id) currentClientId = result.client_id;
+                    showStatus(`Synced ${result.rows_coded} coded rows to visualizations.`, 'success');
+                }).catch(e => {
+                    console.warn('[sync] Failed to sync to client:', e.message);
+                });
+            }
         }
     }
 }

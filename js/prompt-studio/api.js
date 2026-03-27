@@ -284,6 +284,15 @@ export async function createPromptVersion(data) {
     return handleResponse(res);
 }
 
+export async function runClassifyStep(systemPrompt, userPromptTemplate, taxonomy, reviews) {
+    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/classify`, {
+        method: 'POST',
+        headers: { ...headers(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ system_prompt: systemPrompt, user_prompt_template: userPromptTemplate, taxonomy, reviews }),
+    });
+    return handleResponse(res);
+}
+
 export async function syncToClient(runId, taxonomy) {
     const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/${runId}/sync-to-client`, {
         method: 'POST',

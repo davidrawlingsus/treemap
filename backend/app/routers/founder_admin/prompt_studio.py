@@ -98,6 +98,13 @@ class CodeStepRequest(BaseModel):
     reviews: List[Dict[str, Any]]
 
 
+class ClassifyStepRequest(BaseModel):
+    system_prompt: str
+    user_prompt_template: str
+    taxonomy: Dict[str, Any]
+    reviews: List[Dict[str, Any]]
+
+
 class RefineStepRequest(BaseModel):
     system_prompt: str
     user_prompt_template: str
@@ -300,6 +307,7 @@ def _get_default_prompts(db: Session) -> Dict[str, Optional[str]]:
         "voc_extract": ("extract_system", "extract_user"),
         "voc_taxonomy": ("taxonomy_system", "taxonomy_user"),
         "voc_validate": ("validate_system", "validate_user"),
+        "voc_classify": ("classify_system", "classify_user"),
     }
     hardcoded = {
         "context_system": DEFAULT_EXTRACT_SYSTEM_MSG,
@@ -315,6 +323,8 @@ def _get_default_prompts(db: Session) -> Dict[str, Optional[str]]:
         "taxonomy_user": TAXONOMY_USER_PROMPT_DEFAULT,
         "validate_system": VALIDATE_SYSTEM_PROMPT_DEFAULT,
         "validate_user": VALIDATE_USER_PROMPT_DEFAULT,
+        "classify_system": CLASSIFY_SYSTEM_PROMPT_DEFAULT,
+        "classify_user": CLASSIFY_USER_PROMPT_DEFAULT,
     }
     result: Dict[str, Optional[str]] = dict(hardcoded)
 
@@ -1196,6 +1206,129 @@ def prompt_studio_run_validate(
 
     elapsed = round(time.time() - start, 2)
     return StepResponse(output=output, elapsed_seconds=elapsed)
+
+
+# ---------------------------------------------------------------------------
+# Prompt 5b: Classify (code every review against taxonomy with Haiku)
+# ---------------------------------------------------------------------------
+
+CLASSIFY_SYSTEM_PROMPT_DEFAULT = (
+    "You are a review classifier. Given a taxonomy of categories and topics, "
+    "assign every review to the most relevant topics. Each review MUST get at "
+    "least one topic. Return ALL reviews — never skip any."
+)
+
+CLASSIFY_USER_PROMPT_DEFAULT = (
+    "TAXONOMY:\n{TAXONOMY}\n\n---\n\nREVIEWS TO CLASSIFY:\n{REVIEWS}"
+)
+
+CLASSIFY_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "coded_reviews": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "respondent_id": {"type": "string"},
+                    "overall_sentiment": {
+                        "type": "string",
+                        "enum": ["positive", "negative", "mixed", "neutral"],
+                    },
+                    "topics": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "category": {"type": "string"},
+                                "label": {"type": "string"},
+                                "sentiment": {
+                                    "type": "string",
+                                    "enum": ["positive", "negative", "mixed", "neutral"],
+                                },
+                            },
+                            "required": ["category", "label", "sentiment"],
+                        },
+                    },
+                },
+                "required": ["respondent_id", "overall_sentiment", "topics"],
+            },
+        }
+    },
+    "required": ["coded_reviews"],
+}
+
+
+def _taxonomy_to_codebook_text(taxonomy: Dict[str, Any]) -> str:
+    """Convert a validate taxonomy into a simple text summary for the classify prompt."""
+    lines = []
+    for cat in taxonomy.get("categories", []):
+        cat_name = cat.get("category", cat.get("name", ""))
+        topics = [t.get("label", "") for t in cat.get("topics", [])]
+        lines.append(f"Category: {cat_name}\n  Topics: {', '.join(topics)}")
+    return "\n".join(lines)
+
+
+@router.post(
+    "/api/founder-admin/prompt-studio/classify",
+    response_model=StepResponse,
+)
+def prompt_studio_run_classify(
+    body: ClassifyStepRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Run the CLASSIFY step — code every review against the taxonomy using Haiku.
+
+    Runs in batches of 20 reviews, using a fast/cheap model to assign
+    topics to every review for visualization coverage.
+    """
+    from app.services.voc_coding_chain_service import (
+        call_claude_json_schema,
+        _format_reviews_for_coding,
+    )
+
+    settings = get_settings()
+    codebook_text = _taxonomy_to_codebook_text(body.taxonomy)
+
+    system_prompt = body.system_prompt or CLASSIFY_SYSTEM_PROMPT_DEFAULT
+    user_template = body.user_prompt_template or CLASSIFY_USER_PROMPT_DEFAULT
+
+    batch_size = 20
+    all_coded = []
+    start_time = time.time()
+
+    for batch_start in range(0, len(body.reviews), batch_size):
+        batch = body.reviews[batch_start:batch_start + batch_size]
+        review_text = _format_reviews_for_coding(batch)
+
+        user_prompt = (user_template
+            .replace("{TAXONOMY}", codebook_text)
+            .replace("{REVIEWS}", review_text)
+        )
+
+        try:
+            result = call_claude_json_schema(
+                settings=settings,
+                model="claude-haiku-4-5-20251001",
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                schema=CLASSIFY_SCHEMA,
+                temperature=0.2,
+                max_tokens=8192,
+            )
+            all_coded.extend(result.get("coded_reviews", []))
+        except Exception as e:
+            logger.warning("[classify] Batch %d failed: %s", batch_start // batch_size, e)
+
+    elapsed = round(time.time() - start_time, 2)
+    coded_count = sum(1 for r in all_coded if r.get("topics"))
+    logger.info("[classify] %d/%d reviews coded in %.1fs", coded_count, len(body.reviews), elapsed)
+
+    return StepResponse(
+        output={"coded_reviews": all_coded, "total": len(all_coded), "coded": coded_count},
+        elapsed_seconds=elapsed,
+    )
 
 
 # ---------------------------------------------------------------------------
