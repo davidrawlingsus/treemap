@@ -25,7 +25,7 @@ async function handleResponse(response) {
 
 export async function fetchLeadgenRuns(search) {
     const params = search ? `?search=${encodeURIComponent(search)}` : '';
-    const res = await fetch(`${API_BASE_URL}/api/founder-admin/leadgen-runs${params}`, { headers: headers() });
+    const res = await fetch(`${LONG_RUNNING_BASE_URL}/api/founder-admin/leadgen-runs${params}`, { headers: headers() });
     return handleResponse(res);
 }
 
@@ -39,22 +39,22 @@ export async function scrapeProspect(url, companyName, maxReviews) {
 }
 
 export async function fetchDefaultPrompts() {
-    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/default-prompts`, { headers: headers() });
+    const res = await fetch(`${LONG_RUNNING_BASE_URL}/api/founder-admin/prompt-studio/default-prompts`, { headers: headers() });
     return handleResponse(res);
 }
 
 export async function fetchRunInputs(runId) {
-    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/${runId}/inputs`, { headers: headers() });
+    const res = await fetch(`${LONG_RUNNING_BASE_URL}/api/founder-admin/prompt-studio/${runId}/inputs`, { headers: headers() });
     return handleResponse(res);
 }
 
 export async function fetchPromptVersions(promptPurpose) {
-    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/prompt-versions/${encodeURIComponent(promptPurpose)}`, { headers: headers() });
+    const res = await fetch(`${LONG_RUNNING_BASE_URL}/api/founder-admin/prompt-studio/prompt-versions/${encodeURIComponent(promptPurpose)}`, { headers: headers() });
     return handleResponse(res);
 }
 
 export async function runContextStep(systemPrompt, url) {
-    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/context`, {
+    const res = await fetch(`${LONG_RUNNING_BASE_URL}/api/founder-admin/prompt-studio/context`, {
         method: 'POST',
         headers: { ...headers(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ system_prompt: systemPrompt, url }),
@@ -63,7 +63,7 @@ export async function runContextStep(systemPrompt, url) {
 }
 
 export async function runDiscoverStep(systemPrompt, userPromptTemplate, productContext, reviews) {
-    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/discover`, {
+    const res = await fetch(`${LONG_RUNNING_BASE_URL}/api/founder-admin/prompt-studio/discover`, {
         method: 'POST',
         headers: { ...headers(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ system_prompt: systemPrompt, user_prompt_template: userPromptTemplate, product_context: productContext, reviews }),
@@ -72,7 +72,7 @@ export async function runDiscoverStep(systemPrompt, userPromptTemplate, productC
 }
 
 export async function runCodeStep(systemPrompt, userPromptTemplate, codebook, reviews) {
-    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/code`, {
+    const res = await fetch(`${LONG_RUNNING_BASE_URL}/api/founder-admin/prompt-studio/code`, {
         method: 'POST',
         headers: { ...headers(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ system_prompt: systemPrompt, user_prompt_template: userPromptTemplate, codebook, reviews }),
@@ -81,7 +81,7 @@ export async function runCodeStep(systemPrompt, userPromptTemplate, codebook, re
 }
 
 export async function runRefineStep(systemPrompt, userPromptTemplate, codebook, stats, noMatches, productContext) {
-    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/refine`, {
+    const res = await fetch(`${LONG_RUNNING_BASE_URL}/api/founder-admin/prompt-studio/refine`, {
         method: 'POST',
         headers: { ...headers(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ system_prompt: systemPrompt, user_prompt_template: userPromptTemplate, codebook, stats, no_matches: noMatches, product_context: productContext }),
@@ -238,7 +238,7 @@ export async function runGenerateAd(systemPrompt, userPrompt) {
 }
 
 export async function savePipelineState(runId, pipelineState) {
-    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/${runId}/pipeline`, {
+    const res = await fetch(`${LONG_RUNNING_BASE_URL}/api/founder-admin/prompt-studio/${runId}/pipeline`, {
         method: 'PUT',
         headers: { ...headers(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ pipeline_state: pipelineState }),
@@ -262,7 +262,7 @@ export async function saveStepOutput(runId, stepType, stepOrder, output, elapsed
 }
 
 export async function fetchStepOutputs(runId) {
-    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/${runId}/step-outputs`, {
+    const res = await fetch(`${LONG_RUNNING_BASE_URL}/api/founder-admin/prompt-studio/${runId}/step-outputs`, {
         headers: headers(),
     });
     return handleResponse(res);
@@ -270,7 +270,7 @@ export async function fetchStepOutputs(runId) {
 
 // Prompt CRUD — reuses existing prompts API
 export async function createPromptVersion(data) {
-    const res = await fetch(`${API_BASE_URL}/api/founder/prompts`, {
+    const res = await fetch(`${LONG_RUNNING_BASE_URL}/api/founder/prompts`, {
         method: 'POST',
         headers: { ...headers(), 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -297,7 +297,7 @@ export async function syncToClient(runId, taxonomy) {
 }
 
 export async function updatePrompt(promptId, data) {
-    const res = await fetch(`${API_BASE_URL}/api/founder/prompts/${promptId}`, {
+    const res = await fetch(`${LONG_RUNNING_BASE_URL}/api/founder/prompts/${promptId}`, {
         method: 'PUT',
         headers: { ...headers(), 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
@@ -309,7 +309,7 @@ export async function updatePrompt(promptId, data) {
  * Save a single ad to the FacebookAd table for the given client.
  */
 export async function createFacebookAd(clientId, adPayload) {
-    const res = await fetch(`${API_BASE_URL}/api/clients/${clientId}/facebook-ads`, {
+    const res = await fetch(`${LONG_RUNNING_BASE_URL}/api/clients/${clientId}/facebook-ads`, {
         method: 'POST',
         headers: { ...headers(), 'Content-Type': 'application/json' },
         body: JSON.stringify(adPayload),
