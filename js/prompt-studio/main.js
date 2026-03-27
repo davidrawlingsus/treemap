@@ -1283,10 +1283,10 @@ async function handleRunEverything() {
         }
         for (let i = 0; i < pipeline.length; i++) {
             const step = pipeline[i];
-            console.log(`[runEverything] Step ${i}: ${step.type} status=${step.status}`);
+            console.log(`[runEverything] Step ${i}: ${step.type} status=${step.status} id=${step.id}`);
             if (step.status === 'done') continue;
             showStatus(`Run Everything: Running ${step.type} (${i + 1}/${pipeline.length})...`, '');
-            await executeStep(step, i);
+            await executeStep(step.id);
             if (step.status === 'error') {
                 showStatus(`Run Everything stopped: ${step.type} failed.`, 'error');
                 return;
