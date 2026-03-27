@@ -524,10 +524,43 @@ def prompt_studio_sync_to_client(
         call_claude_json_schema,
         merge_coded_reviews_into_rows,
         _format_reviews_for_coding,
-        CODE_SCHEMA,
-        CODE_SYSTEM_PROMPT,
-        CODE_USER_PROMPT,
     )
+
+    CLASSIFY_SYSTEM = (
+        "You are a review classifier. Given a taxonomy of categories and topics, "
+        "assign every review to the most relevant topics. Each review MUST get at "
+        "least one topic. Return ALL reviews — never skip any."
+    )
+
+    CLASSIFY_SCHEMA = {
+        "type": "object",
+        "properties": {
+            "coded_reviews": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "respondent_id": {"type": "string"},
+                        "overall_sentiment": {"type": "string", "enum": ["positive", "negative", "mixed", "neutral"]},
+                        "topics": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "category": {"type": "string"},
+                                    "label": {"type": "string"},
+                                    "sentiment": {"type": "string", "enum": ["positive", "negative", "mixed", "neutral"]},
+                                },
+                                "required": ["category", "label", "sentiment"],
+                            },
+                        },
+                    },
+                    "required": ["respondent_id", "overall_sentiment", "topics"],
+                },
+            }
+        },
+        "required": ["coded_reviews"],
+    }
 
     run = get_leadgen_run(db, run_id)
     if run is None:
@@ -537,8 +570,16 @@ def prompt_studio_sync_to_client(
     if not raw_rows:
         raise HTTPException(status_code=404, detail="No rows found for this run")
 
+    # Build a simplified codebook summary for the classify prompt
+    taxonomy = body.taxonomy
+    codebook_lines = []
+    for cat in taxonomy.get("categories", []):
+        cat_name = cat.get("category", cat.get("name", ""))
+        topics = [t.get("label", "") for t in cat.get("topics", [])]
+        codebook_lines.append(f"Category: {cat_name}\n  Topics: {', '.join(topics)}")
+    codebook_text = "\n".join(codebook_lines)
+
     settings = get_settings()
-    codebook = body.taxonomy
     batch_size = 20
     all_coded: list = []
 
@@ -551,14 +592,11 @@ def prompt_studio_sync_to_client(
             result = call_claude_json_schema(
                 settings=settings,
                 model="claude-haiku-4-5-20251001",
-                system_prompt=CODE_SYSTEM_PROMPT,
-                user_prompt=CODE_USER_PROMPT.format(
-                    codebook=json.dumps(codebook, ensure_ascii=True),
-                    reviews=review_text,
-                ),
-                schema=CODE_SCHEMA,
+                system_prompt=CLASSIFY_SYSTEM,
+                user_prompt=f"TAXONOMY:\n{codebook_text}\n\n---\n\nREVIEWS TO CLASSIFY:\n{review_text}",
+                schema=CLASSIFY_SCHEMA,
                 temperature=0.2,
-                max_tokens=4096,
+                max_tokens=8192,
             )
             all_coded.extend(result.get("coded_reviews", []))
         except Exception as e:

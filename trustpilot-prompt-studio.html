@@ -60,7 +60,13 @@
                 <label for="minReviews">Min Reviews</label>
                 <input id="minReviews" type="number" min="1" max="5000" value="200" style="width:80px">
             </div>
-            <button id="scrapeBtn" class="btn btn-primary">Scrape &amp; Start</button>
+            <div class="split-btn-group">
+                <button id="scrapeBtn" class="btn btn-primary">Scrape &amp; Start</button>
+                <button id="splitBtnToggle" class="btn btn-primary split-btn-caret" aria-label="More options">&#9662;</button>
+                <div id="splitBtnMenu" class="split-btn-menu" style="display:none">
+                    <button id="runEverythingBtn" class="split-btn-option">Run Everything</button>
+                </div>
+            </div>
             <button id="saveRunBtn" class="btn btn-primary" style="display:none;">Save Run</button>
             <span class="divider-text">or</span>
             <div class="field-group">

@@ -1144,8 +1144,24 @@ function setupEventDelegation() {
         }
     });
 
-    // Scrape button
+    // Scrape button + split menu
     els.scrapeBtn.addEventListener('click', handleScrape);
+    const splitToggle = document.getElementById('splitBtnToggle');
+    const splitMenu = document.getElementById('splitBtnMenu');
+    if (splitToggle && splitMenu) {
+        splitToggle.addEventListener('click', () => {
+            splitMenu.style.display = splitMenu.style.display === 'none' ? '' : 'none';
+        });
+        document.addEventListener('click', (e) => {
+            if (!splitToggle.contains(e.target) && !splitMenu.contains(e.target)) {
+                splitMenu.style.display = 'none';
+            }
+        });
+    }
+    document.getElementById('runEverythingBtn')?.addEventListener('click', () => {
+        if (splitMenu) splitMenu.style.display = 'none';
+        handleRunEverything();
+    });
 
     // Save run button
     document.getElementById('saveRunBtn').addEventListener('click', handleSaveRun);
@@ -1213,6 +1229,51 @@ async function handleScrape() {
         showStatus(e.message, 'error');
     }
     els.scrapeBtn.disabled = false;
+}
+
+async function handleRunEverything() {
+    const url = els.prospectUrl.value.trim();
+    if (!url) { showStatus('Enter a prospect URL.', 'error'); return; }
+
+    const scrapeBtn = els.scrapeBtn;
+    const splitToggle = document.getElementById('splitBtnToggle');
+    if (scrapeBtn) scrapeBtn.disabled = true;
+    if (splitToggle) splitToggle.disabled = true;
+
+    try {
+        // Step 1: Scrape
+        showStatus('Run Everything: Scraping reviews...', '');
+        await handleScrape();
+
+        if (!currentRunId || !studioInputs?.reviews?.length) {
+            showStatus('Scrape failed or no reviews found.', 'error');
+            return;
+        }
+
+        // Step 2: Run each pipeline step in sequence
+        for (let i = 0; i < pipeline.length; i++) {
+            const step = pipeline[i];
+            if (step.status === 'done') continue;
+            showStatus(`Run Everything: Running ${step.type} (${i + 1}/${pipeline.length})...`, '');
+            await executeStep(step, i);
+            if (step.status === 'error') {
+                showStatus(`Run Everything stopped: ${step.type} failed.`, 'error');
+                return;
+            }
+        }
+
+        // Step 3: Generate ads
+        showStatus('Run Everything: Generating ads...', '');
+        await handleGenerateAds();
+
+        showStatus('Run Everything complete! Scrape → Pipeline → Ads → Sync all done.', 'success');
+    } catch (e) {
+        showStatus(`Run Everything failed: ${e.message}`, 'error');
+        console.error('[runEverything]', e);
+    } finally {
+        if (scrapeBtn) scrapeBtn.disabled = false;
+        if (splitToggle) splitToggle.disabled = false;
+    }
 }
 
 async function handleLoadRun(runId) {
