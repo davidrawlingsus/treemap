@@ -3,6 +3,9 @@
  */
 
 const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+const _isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+// Direct Railway URL bypasses Cloudflare's 100s timeout for long-running calls
+const LONG_RUNNING_BASE_URL = _isLocal ? API_BASE_URL : 'https://content-exploration-featurebranch.up.railway.app';
 
 function headers() {
     return window.Auth?.getAuthHeaders() || {};
@@ -27,7 +30,7 @@ export async function fetchLeadgenRuns(search) {
 }
 
 export async function scrapeProspect(url, companyName, maxReviews) {
-    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/scrape`, {
+    const res = await fetch(`${LONG_RUNNING_BASE_URL}/api/founder-admin/prompt-studio/scrape`, {
         method: 'POST',
         headers: { ...headers(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ url, company_name: companyName || null, max_reviews: maxReviews }),
@@ -93,10 +96,7 @@ export async function runRefineStep(systemPrompt, userPromptTemplate, codebook, 
  * but calls onTokens(n) as tokens arrive so the UI can show progress.
  */
 async function runStreamingStep(url, body, onTokens) {
-    // On production, use Railway direct URL to bypass Cloudflare's 100s timeout
-    // On localhost, use the normal API base URL
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const streamBase = isLocal ? API_BASE_URL : 'https://content-exploration-featurebranch.up.railway.app';
+    const streamBase = LONG_RUNNING_BASE_URL;
     console.log('[stream] Starting:', url, 'via', streamBase);
     const res = await fetch(`${streamBase}${url}?stream=true`, {
         method: 'POST',
@@ -229,10 +229,7 @@ export async function runValidateStep(systemPrompt, userPromptTemplate, productC
 }
 
 export async function runGenerateAd(systemPrompt, userPrompt) {
-    // Use Railway direct URL to bypass Cloudflare's 100s timeout, but non-streaming
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const base = isLocal ? API_BASE_URL : 'https://content-exploration-featurebranch.up.railway.app';
-    const res = await fetch(`${base}/api/founder-admin/prompt-studio/generate-ad`, {
+    const res = await fetch(`${LONG_RUNNING_BASE_URL}/api/founder-admin/prompt-studio/generate-ad`, {
         method: 'POST',
         headers: { ...headers(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ system_prompt: systemPrompt, user_prompt: userPrompt }),
@@ -250,10 +247,7 @@ export async function savePipelineState(runId, pipelineState) {
 }
 
 export async function saveStepOutput(runId, stepType, stepOrder, output, elapsedSeconds, promptVersionId) {
-    // Use Railway direct to bypass Cloudflare size/timeout limits on large JSON
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    const base = isLocal ? API_BASE_URL : 'https://content-exploration-featurebranch.up.railway.app';
-    const res = await fetch(`${base}/api/founder-admin/prompt-studio/${runId}/step-output`, {
+    const res = await fetch(`${LONG_RUNNING_BASE_URL}/api/founder-admin/prompt-studio/${runId}/step-output`, {
         method: 'PUT',
         headers: { ...headers(), 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -285,7 +279,7 @@ export async function createPromptVersion(data) {
 }
 
 export async function runClassifyStep(systemPrompt, userPromptTemplate, taxonomy, reviews) {
-    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/classify`, {
+    const res = await fetch(`${LONG_RUNNING_BASE_URL}/api/founder-admin/prompt-studio/classify`, {
         method: 'POST',
         headers: { ...headers(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ system_prompt: systemPrompt, user_prompt_template: userPromptTemplate, taxonomy, reviews }),
@@ -294,7 +288,7 @@ export async function runClassifyStep(systemPrompt, userPromptTemplate, taxonomy
 }
 
 export async function syncToClient(runId, taxonomy) {
-    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/${runId}/sync-to-client`, {
+    const res = await fetch(`${LONG_RUNNING_BASE_URL}/api/founder-admin/prompt-studio/${runId}/sync-to-client`, {
         method: 'POST',
         headers: { ...headers(), 'Content-Type': 'application/json' },
         body: JSON.stringify({ taxonomy }),
