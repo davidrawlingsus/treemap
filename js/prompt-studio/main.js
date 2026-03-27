@@ -340,7 +340,7 @@ async function executeStep(stepId) {
             }
             // Show page text in the readonly textarea
             const ptTA = card?.querySelector('[data-field="pageText"]');
-            if (ptTA && result.page_text) ptTA.value = result.page_text;
+            if (ptTA && result?.page_text) ptTA.value = result.page_text;
         } else if (step.type === 'discover') {
             const ctx = getUpstreamContextText(idx);
             result = await runDiscoverStep(step.systemPrompt, step.userPrompt, ctx, studioInputs.reviews);
