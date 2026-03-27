@@ -71,10 +71,26 @@ def build_pre_llm_process_voc_rows(
     company_domain: str,
 ) -> List[Dict[str, Any]]:
     timestamp = datetime.now(timezone.utc).isoformat()
-    year_month = datetime.now(timezone.utc).strftime("%Y-%m")
-    year_month_compact = year_month.replace("-", "")
-    project_name = f"Trustpilot {company_name} {year_month}"
-    project_id = f"tp_{_company_slug(company_name)}_{year_month_compact}"
+    slug = _company_slug(company_name)
+
+    # Detect review source from the first review's metadata (default: Trustpilot)
+    first_review = normalized_reviews[0] if normalized_reviews else {}
+    source_hint = (first_review.get("source") or "").lower()
+    if "yotpo" in source_hint:
+        source_name = "Yotpo"
+        source_key = "yotpo"
+        respondent_prefix = "yp"
+    elif "reviews.io" in source_hint or "reviewsio" in source_hint:
+        source_name = "Reviews.io"
+        source_key = "reviewsio"
+        respondent_prefix = "rio"
+    else:
+        source_name = "Trustpilot"
+        source_key = "trustpilot"
+        respondent_prefix = "tp"
+
+    project_name = "Initial Research"
+    project_id = f"lead_{slug}"
 
     rows: List[Dict[str, Any]] = []
     for idx, review in enumerate(normalized_reviews):
@@ -85,15 +101,15 @@ def build_pre_llm_process_voc_rows(
 
         rows.append(
             {
-                "respondent_id": f"tp_{review_id}",
+                "respondent_id": f"{respondent_prefix}_{review_id}",
                 "client_uuid": None,
                 "client_name": company_name,
                 "project_name": project_name,
                 "project_id": project_id,
-                "data_source": "trustpilot_reviews",
-                "dimension_ref": "ref_trustpilot_reviews",
-                "dimension_name": "Trustpilot Reviews",
-                "question_text": "Public Trustpilot review text",
+                "data_source": source_name,
+                "dimension_ref": f"ref_{source_key}_reviews",
+                "dimension_name": "Reviews",
+                "question_text": f"Public {source_name} review text",
                 "question_type": "open_text",
                 "value": review_body,
                 "overall_sentiment": None,
