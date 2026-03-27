@@ -284,6 +284,15 @@ export async function createPromptVersion(data) {
     return handleResponse(res);
 }
 
+export async function syncToClient(runId, taxonomy) {
+    const res = await fetch(`${API_BASE_URL}/api/founder-admin/prompt-studio/${runId}/sync-to-client`, {
+        method: 'POST',
+        headers: { ...headers(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ taxonomy }),
+    });
+    return handleResponse(res);
+}
+
 export async function updatePrompt(promptId, data) {
     const res = await fetch(`${API_BASE_URL}/api/founder/prompts/${promptId}`, {
         method: 'PUT',

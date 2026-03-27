@@ -9,7 +9,7 @@ import {
     runCodeStep, runRefineStep, runExtractStep, runTaxonomyStep,
     runValidateStep, runGenerateAd, createPromptVersion, updatePrompt,
     savePipelineState, saveStepOutput, fetchStepOutputs,
-    createFacebookAd,
+    createFacebookAd, syncToClient,
 } from '/js/prompt-studio/api.js';
 
 import {
@@ -375,6 +375,18 @@ async function executeStep(stepId) {
             saveStepOutput(currentRunId, step.type, stepIndex, step.output, step.elapsedSeconds).catch(
                 e => console.warn('[auto-save] Failed to save step output:', e.message)
             );
+        }
+
+        // After validate step: sync coded rows to the lead client for visualizations
+        if (step.type === 'validate' && step.output) {
+            console.log('[sync] Validate step done — syncing taxonomy to client...');
+            syncToClient(currentRunId, step.output).then(result => {
+                console.log(`[sync] Done: ${result.rows_coded}/${result.rows_total} rows coded, client=${result.client_id}`);
+                if (result.client_id) currentClientId = result.client_id;
+                showStatus(`Synced ${result.rows_coded} coded rows to visualizations.`, 'success');
+            }).catch(e => {
+                console.warn('[sync] Failed to sync to client:', e.message);
+            });
         }
     }
 }

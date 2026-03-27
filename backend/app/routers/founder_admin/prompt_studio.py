@@ -496,6 +496,81 @@ def prompt_studio_save_pipeline(
     return {"status": "ok"}
 
 
+class SyncToClientRequest(BaseModel):
+    taxonomy: Dict[str, Any]
+
+
+@router.post(
+    "/api/founder-admin/prompt-studio/{run_id}/sync-to-client",
+)
+def prompt_studio_sync_to_client(
+    run_id: str,
+    body: SyncToClientRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Apply taxonomy topics to rows and sync the lead client to process_voc.
+
+    Called after the validate step completes in the prompt studio so that
+    visualizations work for the lead client.
+    """
+    from app.services.leadgen_voc_service import (
+        get_leadgen_run,
+        get_leadgen_rows_as_process_voc_dicts,
+        create_or_update_lead_client,
+    )
+    from app.services.voc_coding_chain_service import (
+        _taxonomy_to_coded_reviews,
+        merge_coded_reviews_into_rows,
+    )
+
+    run = get_leadgen_run(db, run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Lead-gen run not found")
+
+    # Get the raw rows as dicts
+    raw_rows = get_leadgen_rows_as_process_voc_dicts(db, run_id)
+    if not raw_rows:
+        raise HTTPException(status_code=404, detail="No rows found for this run")
+
+    # Apply taxonomy to produce per-row topics
+    coded_reviews = _taxonomy_to_coded_reviews(body.taxonomy, raw_rows)
+    merged_rows = merge_coded_reviews_into_rows(raw_rows, coded_reviews)
+
+    # Update the leadgen_voc_rows with topics so future syncs pick them up
+    from app.models.leadgen_voc import LeadgenVocRow
+    coded_map = {r["respondent_id"]: r for r in merged_rows if r.get("respondent_id")}
+    db_rows = db.query(LeadgenVocRow).filter(LeadgenVocRow.run_id == run_id).all()
+    for db_row in db_rows:
+        merged = coded_map.get(db_row.respondent_id)
+        if merged and merged.get("topics"):
+            db_row.topics = merged["topics"]
+            db_row.overall_sentiment = merged.get("overall_sentiment")
+            db_row.processed = True
+    db.flush()
+
+    # Update run coding status
+    run.coding_enabled = True
+    run.coding_status = "completed"
+    db.flush()
+
+    # Re-sync to client (creates client if needed, copies coded rows to process_voc)
+    lead_client = create_or_update_lead_client(db, run, founder_user_id=current_user.id)
+    db.commit()
+
+    coded_count = sum(1 for r in merged_rows if r.get("topics"))
+    logger.info(
+        "[sync-to-client] run=%s client=%s: %d/%d rows coded",
+        run_id, lead_client.id, coded_count, len(merged_rows),
+    )
+    return {
+        "status": "ok",
+        "client_id": str(lead_client.id),
+        "rows_total": len(merged_rows),
+        "rows_coded": coded_count,
+    }
+
+
 class SaveStepOutputRequest(BaseModel):
     step_type: str
     step_order: int
