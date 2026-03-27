@@ -318,9 +318,26 @@ async function executeStep(stepId) {
     try {
         let result;
         if (step.type === 'context') {
-            result = await runContextStep(step.systemPrompt, studioInputs.url);
-            step.output = result.output;
-            step.elapsedSeconds = result.elapsed_seconds;
+            // Use existing company context if available (e.g. from a loaded run)
+            if (studioInputs.company_context) {
+                console.log('[executeStep] context: using existing company_context from loaded run');
+                step.output = studioInputs.company_context;
+                step.elapsedSeconds = 0;
+            } else {
+                try {
+                    result = await runContextStep(step.systemPrompt, studioInputs.url);
+                    step.output = result.output;
+                    step.elapsedSeconds = result.elapsed_seconds;
+                } catch (ctxErr) {
+                    console.warn('[executeStep] context fetch failed, using basic context:', ctxErr.message);
+                    step.output = {
+                        name: studioInputs.company_name || '',
+                        source_url: studioInputs.url || '',
+                        context_text: studioInputs.company_name || 'Unknown company',
+                    };
+                    step.elapsedSeconds = 0;
+                }
+            }
             // Show page text in the readonly textarea
             const ptTA = card?.querySelector('[data-field="pageText"]');
             if (ptTA && result.page_text) ptTA.value = result.page_text;
