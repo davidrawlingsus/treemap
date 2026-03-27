@@ -1257,6 +1257,7 @@ async function handleRunEverything() {
 
     try {
         // Step 1: Scrape (skip if a run is already loaded with reviews)
+        const hadRunBefore = !!currentRunId;
         if (!currentRunId || !studioInputs?.reviews?.length) {
             const url = els.prospectUrl.value.trim();
             if (!url) { showStatus('Enter a prospect URL or load an existing run first.', 'error'); return; }
@@ -1268,11 +1269,21 @@ async function handleRunEverything() {
             }
         } else {
             showStatus('Run Everything: Using loaded run, skipping scrape...', '');
+            // Reset incomplete steps so they re-run
+            for (const step of pipeline) {
+                if (step.status !== 'done') step.status = 'idle';
+            }
         }
 
         // Step 2: Run each pipeline step in sequence
+        console.log('[runEverything] Pipeline has', pipeline.length, 'steps:', pipeline.map(s => `${s.type}:${s.status}`));
+        if (pipeline.length === 0) {
+            showStatus('Run Everything: No pipeline steps found.', 'error');
+            return;
+        }
         for (let i = 0; i < pipeline.length; i++) {
             const step = pipeline[i];
+            console.log(`[runEverything] Step ${i}: ${step.type} status=${step.status}`);
             if (step.status === 'done') continue;
             showStatus(`Run Everything: Running ${step.type} (${i + 1}/${pipeline.length})...`, '');
             await executeStep(step, i);
