@@ -826,11 +826,18 @@ async function handleGenerateAds() {
             const result = await runGenerateAd(sysPrompt, assembledPrompt);
             console.log(`[generate] Raw output for ${payload.topic_label}:`, JSON.stringify(result.output).slice(0, 300));
             // Normalize: the output might be { ads: [...] } or { brief_id, topic_label, ads: [...] } or just an array
+            // The LLM sometimes returns ads as a JSON string instead of a parsed array
             let output = result.output || {};
             if (Array.isArray(output)) {
                 output = { ads: output };
             } else if (!output.ads && Array.isArray(output.ad_concepts)) {
                 output = { ads: output.ad_concepts };
+            }
+            if (typeof output.ads === 'string') {
+                try { output.ads = JSON.parse(output.ads); } catch (e) {
+                    console.warn(`[generate] Failed to parse ads string for ${payload.topic_label}:`, e.message);
+                    output.ads = [];
+                }
             }
             // Trim ads if this batch would exceed the cap
             const adsInBatch = Array.isArray(output.ads) ? output.ads.length : 0;
@@ -864,6 +871,9 @@ async function handleGenerateAds() {
                 let output = retry.output || {};
                 if (Array.isArray(output)) output = { ads: output };
                 else if (!output.ads && Array.isArray(output.ad_concepts)) output = { ads: output.ad_concepts };
+                if (typeof output.ads === 'string') {
+                    try { output.ads = JSON.parse(output.ads); } catch (_e) { output.ads = []; }
+                }
                 output._topic_label = payload.topic_label;
                 output._category = payload.category;
                 output._creative_priority = payload.creative_priority;
