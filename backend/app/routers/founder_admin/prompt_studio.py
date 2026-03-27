@@ -612,6 +612,14 @@ def prompt_studio_sync_to_client(
         except Exception as e:
             logger.warning("[sync-to-client] Batch %d failed: %s", start // batch_size, e)
 
+    # Normalize category/label names: replace underscores with spaces
+    for review in all_coded:
+        for topic in review.get("topics", []):
+            if topic.get("category"):
+                topic["category"] = topic["category"].replace("_", " ")
+            if topic.get("label"):
+                topic["label"] = topic["label"].replace("_", " ")
+
     merged_rows = merge_coded_reviews_into_rows(raw_rows, all_coded)
 
     # Update leadgen_voc_rows with topics
@@ -1320,6 +1328,14 @@ def prompt_studio_run_classify(
             all_coded.extend(result.get("coded_reviews", []))
         except Exception as e:
             logger.warning("[classify] Batch %d failed: %s", batch_start // batch_size, e)
+
+    # Normalize category/label names: replace underscores with spaces to prevent duplicates
+    for review in all_coded:
+        for topic in review.get("topics", []):
+            if topic.get("category"):
+                topic["category"] = topic["category"].replace("_", " ")
+            if topic.get("label"):
+                topic["label"] = topic["label"].replace("_", " ")
 
     elapsed = round(time.time() - start_time, 2)
     coded_count = sum(1 for r in all_coded if r.get("topics"))
