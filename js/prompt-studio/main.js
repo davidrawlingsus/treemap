@@ -1286,9 +1286,11 @@ async function handleRunEverything() {
             }
         } else {
             showStatus('Run Everything: Using loaded run, skipping scrape...', '');
-            // Reset incomplete steps so they re-run
+            // Reset all steps to idle so the full pipeline re-runs from scratch
             for (const step of pipeline) {
-                if (step.status !== 'done') step.status = 'idle';
+                step.status = 'idle';
+                step.output = null;
+                step.elapsedSeconds = null;
             }
         }
 
