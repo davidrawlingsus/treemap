@@ -1250,22 +1250,24 @@ async function handleScrape() {
 }
 
 async function handleRunEverything() {
-    const url = els.prospectUrl.value.trim();
-    if (!url) { showStatus('Enter a prospect URL.', 'error'); return; }
-
     const scrapeBtn = els.scrapeBtn;
     const splitToggle = document.getElementById('splitBtnToggle');
     if (scrapeBtn) scrapeBtn.disabled = true;
     if (splitToggle) splitToggle.disabled = true;
 
     try {
-        // Step 1: Scrape
-        showStatus('Run Everything: Scraping reviews...', '');
-        await handleScrape();
-
+        // Step 1: Scrape (skip if a run is already loaded with reviews)
         if (!currentRunId || !studioInputs?.reviews?.length) {
-            showStatus('Scrape failed or no reviews found.', 'error');
-            return;
+            const url = els.prospectUrl.value.trim();
+            if (!url) { showStatus('Enter a prospect URL or load an existing run first.', 'error'); return; }
+            showStatus('Run Everything: Scraping reviews...', '');
+            await handleScrape();
+            if (!currentRunId || !studioInputs?.reviews?.length) {
+                showStatus('Scrape failed or no reviews found.', 'error');
+                return;
+            }
+        } else {
+            showStatus('Run Everything: Using loaded run, skipping scrape...', '');
         }
 
         // Step 2: Run each pipeline step in sequence
