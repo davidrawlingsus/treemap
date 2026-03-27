@@ -318,8 +318,8 @@ async function executeStep(stepId) {
     try {
         let result;
         if (step.type === 'context') {
-            // Use existing company context if available (e.g. from a loaded run)
-            if (studioInputs.company_context) {
+            // Use existing company context if it has real extracted content
+            if (studioInputs.company_context?.context_text) {
                 console.log('[executeStep] context: using existing company_context from loaded run');
                 step.output = studioInputs.company_context;
                 step.elapsedSeconds = 0;
