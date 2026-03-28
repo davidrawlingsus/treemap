@@ -110,6 +110,7 @@ def get_deal_page(
         success_message=deal.success_message or _get_default_text(db, "success_message"),
         pause_cancel_text=deal.pause_cancel_text or _get_default_text(db, "pause_cancel_text"),
         no_charge_text=deal.no_charge_text or _get_default_text(db, "no_charge_text"),
+        founder_brand=deal.founder_brand or "mapthegap",
         phases=phase_responses,
     )
 

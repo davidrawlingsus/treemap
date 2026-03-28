@@ -55,6 +55,8 @@ class CustomDeal(Base):
     success_message = Column(Text, nullable=True)
     pause_cancel_text = Column(Text, nullable=True)
     no_charge_text = Column(Text, nullable=True)
+    # Which founder brand logo to show: "mapthegap" (default) or "davidrawlings"
+    founder_brand = Column(String(50), nullable=True, default="mapthegap")
     # Project start date (anchor for billing phases)
     start_date = Column(DateTime(timezone=True), nullable=True)
     # Track who created it

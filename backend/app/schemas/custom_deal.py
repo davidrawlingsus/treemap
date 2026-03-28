@@ -78,6 +78,7 @@ class CustomDealCreate(BaseModel):
     success_message: Optional[str] = None
     pause_cancel_text: Optional[str] = None
     no_charge_text: Optional[str] = None
+    founder_brand: Optional[str] = "mapthegap"
     start_date: Optional[datetime] = None
     phases: list[DealPhaseCreate] = Field(min_length=1)
 
@@ -113,6 +114,7 @@ class CustomDealUpdate(BaseModel):
     success_message: Optional[str] = None
     pause_cancel_text: Optional[str] = None
     no_charge_text: Optional[str] = None
+    founder_brand: Optional[str] = None
     start_date: Optional[datetime] = None
     phases: Optional[list[DealPhaseCreate]] = None
 
@@ -154,6 +156,7 @@ class CustomDealResponse(BaseModel):
     success_message: Optional[str]
     pause_cancel_text: Optional[str] = None
     no_charge_text: Optional[str] = None
+    founder_brand: Optional[str] = None
     start_date: Optional[datetime]
     created_by: Optional[UUID]
     created_at: datetime
@@ -209,6 +212,7 @@ class PublicDealPageResponse(BaseModel):
     success_message: Optional[str] = None
     pause_cancel_text: Optional[str] = None
     no_charge_text: Optional[str] = None
+    founder_brand: Optional[str] = None
     phases: list[PublicDealPhaseResponse]
 
 

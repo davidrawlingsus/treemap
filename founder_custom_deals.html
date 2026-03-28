@@ -136,9 +136,18 @@
                         </select>
                     </div>
                 </div>
-                <div class="deal-form-group">
-                    <label for="dealTitle">Deal Title *</label>
-                    <input type="text" id="dealTitle" required placeholder="e.g. Acme Corp - Website Redesign">
+                <div class="deal-form-row">
+                    <div class="deal-form-group">
+                        <label for="dealTitle">Deal Title *</label>
+                        <input type="text" id="dealTitle" required placeholder="e.g. Acme Corp - Website Redesign">
+                    </div>
+                    <div class="deal-form-group">
+                        <label for="dealFounderBrand">Founder Brand</label>
+                        <select id="dealFounderBrand">
+                            <option value="mapthegap">MapTheGap</option>
+                            <option value="davidrawlings">David Rawlings</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="deal-form-group">
                     <label for="dealStartDate">Project Start Date</label>
@@ -495,6 +504,7 @@
                 document.getElementById('dealCompanyName').value = deal.company_name || '';
                 document.getElementById('dealTitle').value = deal.deal_title;
                 document.getElementById('dealCurrency').value = deal.currency;
+                document.getElementById('dealFounderBrand').value = deal.founder_brand || 'mapthegap';
                 document.getElementById('dealNotes').value = deal.internal_notes || '';
                 document.getElementById('dealHeadline').value = deal.page_headline || '';
                 document.getElementById('dealIntro').value = deal.page_intro || '';
@@ -581,6 +591,7 @@
                 client_id: selectedClientId,
                 deal_title: dealTitle,
                 currency: document.getElementById('dealCurrency').value,
+                founder_brand: document.getElementById('dealFounderBrand').value,
                 internal_notes: document.getElementById('dealNotes').value.trim() || null,
                 page_headline: document.getElementById('dealHeadline').value.trim() || null,
                 page_intro: document.getElementById('dealIntro').value.trim() || null,

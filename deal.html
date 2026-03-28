@@ -14,9 +14,10 @@
 <body class="deal-page">
     <!-- Dark hero header -->
     <div class="deal-hero" id="dealHero" style="display:none;">
-        <div class="deal-hero-topbar">
-            <a class="deal-mapthegap-logo" href="https://mapthegap.ai">
-                <span class="logo-white">MapThe</span><span class="logo-accent">Gap</span>
+        <div class="deal-hero-topbar" id="founderBrandArea">
+            <a class="deal-mapthegap-logo" id="founderLogoLink" href="https://mapthegap.ai">
+                <span class="logo-white" id="founderLogoText1">MapThe</span><span class="logo-accent" id="founderLogoText2">Gap</span>
+                <img id="founderLogoImg" style="display:none; height:36px;" alt="Logo">
             </a>
         </div>
         <h1 id="dealHeadline">Secure your project start date</h1>
@@ -117,6 +118,42 @@
             document.getElementById('dealErrorMessage').textContent = msg;
         }
 
+        const FOUNDER_BRANDS = {
+            mapthegap: {
+                type: 'text',
+                href: 'https://mapthegap.ai',
+                text1: 'MapThe',
+                text2: 'Gap',
+            },
+            davidrawlings: {
+                type: 'image',
+                href: 'https://davidrawlings.us',
+                src: 'https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/deal-icons/davidrawlingslogo.jpg',
+            },
+        };
+
+        function applyFounderBrand(brand) {
+            const config = FOUNDER_BRANDS[brand] || FOUNDER_BRANDS.mapthegap;
+            const link = document.getElementById('founderLogoLink');
+            const text1 = document.getElementById('founderLogoText1');
+            const text2 = document.getElementById('founderLogoText2');
+            const img = document.getElementById('founderLogoImg');
+
+            link.href = config.href;
+            if (config.type === 'image') {
+                text1.style.display = 'none';
+                text2.style.display = 'none';
+                img.src = config.src;
+                img.style.display = 'block';
+            } else {
+                text1.style.display = '';
+                text2.style.display = '';
+                text1.textContent = config.text1;
+                text2.textContent = config.text2;
+                img.style.display = 'none';
+            }
+        }
+
         function showSuccess(deal) {
             document.getElementById('dealLoading').style.display = 'none';
             document.getElementById('dealHero').style.display = 'block';
@@ -135,6 +172,10 @@
             // Apply thank you message (deal-specific or global default)
             if (deal.success_message) {
                 document.getElementById('successMessage').textContent = deal.success_message;
+            }
+            // Apply founder brand on success page too
+            if (deal.founder_brand) {
+                applyFounderBrand(deal.founder_brand);
             }
         }
 
@@ -217,6 +258,8 @@
                     logoImg.onerror = function() { logoArea.style.display = 'none'; };
                     logoArea.style.display = 'block';
                 }
+
+                applyFounderBrand(deal.founder_brand);
 
                 renderSchedule(deal.phases, deal.currency);
 
