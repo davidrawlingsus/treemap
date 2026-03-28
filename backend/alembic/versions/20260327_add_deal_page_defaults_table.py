@@ -20,6 +20,7 @@ def upgrade() -> None:
         sa.Column('id', UUID(as_uuid=True), primary_key=True, server_default=sa.text('gen_random_uuid()')),
         sa.Column('pause_cancel_text', sa.Text, nullable=True),
         sa.Column('no_charge_text', sa.Text, nullable=True),
+        sa.Column('success_message', sa.Text, nullable=True),
         sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
     )
 
