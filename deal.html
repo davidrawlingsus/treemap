@@ -299,15 +299,7 @@
                 checkoutArea.innerHTML = '<div id="checkout-container"></div>';
                 console.log('[DEAL] Initializing Stripe embedded checkout...');
                 const stripe = Stripe(publishable_key);
-                const checkout = await stripe.initEmbeddedCheckout({
-                    clientSecret: client_secret,
-                    appearance: {
-                        variables: {
-                            colorBackground: '#ffffff',
-                            colorPrimary: '#B9F040',
-                        },
-                    },
-                });
+                const checkout = await stripe.initEmbeddedCheckout({ clientSecret: client_secret });
                 console.log('[DEAL] Mounting checkout into #checkout-container');
                 checkout.mount('#checkout-container');
                 console.log('[DEAL] Checkout mounted successfully');
