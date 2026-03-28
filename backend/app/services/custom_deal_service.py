@@ -332,8 +332,16 @@ def _create_subscription_schedule(db: Session, deal: CustomDeal) -> None:
         db.commit()
         return
 
-    # Build Stripe schedule phases
+    # Determine start date: use deal start_date or now
+    now = datetime.now(timezone.utc)
+    if deal.start_date and deal.start_date > now:
+        schedule_start = deal.start_date
+    else:
+        schedule_start = now
+
+    # Build Stripe schedule phases with explicit end_date boundaries
     stripe_phases = []
+    phase_cursor = schedule_start
     for phase in phases:
         # Create a product for this phase
         product = stripe.Product.create(
@@ -359,24 +367,29 @@ def _create_subscription_schedule(db: Session, deal: CustomDeal) -> None:
         }
 
         if phase.is_recurring_indefinitely:
-            # No iterations = continues indefinitely
+            # Final open-ended phase: no end_date, Stripe continues billing
             pass
         else:
-            # Fixed-duration phase: iterations = duration_months
-            phase_config["iterations"] = phase.duration_months or 1
+            # Fixed-duration phase: calculate end_date from cursor
+            duration = phase.duration_months or 1
+            import calendar
+            end = phase_cursor
+            for _ in range(duration):
+                month = end.month % 12 + 1
+                year = end.year + (1 if end.month == 12 else 0)
+                day = min(end.day, calendar.monthrange(year, month)[1])
+                end = end.replace(year=year, month=month, day=day)
+            phase_config["end_date"] = int(end.timestamp())
+            phase_cursor = end
 
         stripe_phases.append(phase_config)
 
     try:
-        # Determine start date: use deal start_date or start now
-        if deal.start_date and deal.start_date > datetime.now(timezone.utc):
-            start_date = int(deal.start_date.timestamp())
-        else:
-            start_date = "now"
+        start_date_val = int(schedule_start.timestamp()) if schedule_start > now else "now"
 
         schedule = stripe.SubscriptionSchedule.create(
             customer=customer_id,
-            start_date=start_date,
+            start_date=start_date_val,
             end_behavior="cancel" if not any(p.is_recurring_indefinitely for p in phases) else "release",
             phases=stripe_phases,
             metadata={
