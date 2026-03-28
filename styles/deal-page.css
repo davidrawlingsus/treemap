@@ -118,7 +118,6 @@ body.deal-page {
     margin-bottom: 20px;
     width: 100%;
     max-width: 540px;
-    overflow: hidden;
 }
 
 /* Hide h1/intro inside card — they're in the hero now */
