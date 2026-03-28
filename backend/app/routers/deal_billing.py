@@ -8,7 +8,10 @@ import calendar
 import logging
 from datetime import datetime, timezone
 
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
 from app.database import get_db
@@ -214,5 +217,66 @@ async def deal_billing_webhook(request: Request, db: Session = Depends(get_db)):
         handle_invoice_payment_failed(data, db)
     else:
         logger.debug(f"Unhandled deal webhook event: {event_type}")
+
+    return {"status": "ok"}
+
+
+# --- Pause / Skip / Cancel ---
+
+class PauseSkipCancelRequest(BaseModel):
+    name: str
+    email: str
+    company: Optional[str] = None
+    action: str  # "pause", "skip", "cancel"
+    pause_duration: Optional[str] = None
+    notes: Optional[str] = None
+
+
+@router.post("/pause-skip-cancel")
+def submit_pause_skip_cancel(body: PauseSkipCancelRequest):
+    """
+    Public endpoint: receive a pause/skip/cancel request from a client.
+    Sends a notification email to the founder.
+    """
+    from app.services import EmailService
+    from app.config import get_settings
+
+    settings = get_settings()
+    logger.info(f"Pause/skip/cancel request: action={body.action}, email={body.email}, company={body.company}")
+
+    action_labels = {"pause": "Pause billing", "skip": "Skip next payment", "cancel": "Cancel"}
+    action_label = action_labels.get(body.action, body.action)
+
+    subject = f"Deal request: {action_label} - {body.company or body.name}"
+    html_body = f"""
+    <h2>Pause / Skip / Cancel Request</h2>
+    <table style="font-family:sans-serif; font-size:14px; border-collapse:collapse;">
+        <tr><td style="padding:6px 12px 6px 0; font-weight:600;">Action</td><td>{action_label}</td></tr>
+        <tr><td style="padding:6px 12px 6px 0; font-weight:600;">Name</td><td>{body.name}</td></tr>
+        <tr><td style="padding:6px 12px 6px 0; font-weight:600;">Email</td><td>{body.email}</td></tr>
+        <tr><td style="padding:6px 12px 6px 0; font-weight:600;">Company</td><td>{body.company or '-'}</td></tr>
+        {f'<tr><td style="padding:6px 12px 6px 0; font-weight:600;">Pause duration</td><td>{body.pause_duration}</td></tr>' if body.pause_duration else ''}
+        {f'<tr><td style="padding:6px 12px 6px 0; font-weight:600;">Notes</td><td>{body.notes}</td></tr>' if body.notes else ''}
+    </table>
+    """
+
+    try:
+        import httpx
+        httpx.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {settings.resend_api_key}"},
+            json={
+                "from": settings.resend_from_email or "noreply@mapthegap.ai",
+                "to": ["david@rawlings.us"],
+                "reply_to": body.email,
+                "subject": subject,
+                "html": html_body,
+            },
+            timeout=10,
+        )
+        logger.info(f"Pause/skip/cancel notification sent for {body.email}")
+    except Exception as e:
+        logger.error(f"Failed to send pause/skip/cancel notification: {e}", exc_info=True)
+        # Still return success to the client — we logged it
 
     return {"status": "ok"}

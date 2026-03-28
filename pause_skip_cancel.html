@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pause, Skip, or Cancel - MapTheGap</title>
+    <link rel="icon" href="/images/favicon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles/pause-skip-cancel.css">
+    <script src="/config.js"></script>
+</head>
+<body class="psc-page">
+    <!-- Dark hero -->
+    <div class="psc-hero">
+        <div class="psc-hero-topbar">
+            <a class="psc-logo" href="https://mapthegap.ai">
+                <span class="logo-white">MapThe</span><span class="logo-accent">Gap</span>
+            </a>
+        </div>
+        <h1>Pause, Skip, or Cancel</h1>
+        <p class="psc-hero-sub">No hassle, no hoops. Just let us know what you need.</p>
+    </div>
+
+    <!-- Form -->
+    <div class="psc-body">
+        <div class="psc-card">
+            <div id="formSection">
+                <p class="psc-intro">
+                    Fill in the form below and we'll take care of it. Changes typically take effect within 1 business day.
+                </p>
+
+                <form id="pscForm" autocomplete="off">
+                    <div class="psc-form-group">
+                        <label for="pscName">Your name</label>
+                        <input type="text" id="pscName" required placeholder="Jane Smith">
+                    </div>
+                    <div class="psc-form-group">
+                        <label for="pscEmail">Email address</label>
+                        <input type="email" id="pscEmail" required placeholder="jane@company.com">
+                    </div>
+                    <div class="psc-form-group">
+                        <label for="pscCompany">Company name</label>
+                        <input type="text" id="pscCompany" placeholder="Acme Ltd">
+                    </div>
+                    <div class="psc-form-group">
+                        <label for="pscAction">What would you like to do?</label>
+                        <select id="pscAction" required>
+                            <option value="" disabled selected>Choose one</option>
+                            <option value="pause">Pause billing</option>
+                            <option value="skip">Skip next payment</option>
+                            <option value="cancel">Cancel</option>
+                        </select>
+                    </div>
+                    <div class="psc-form-group" id="pauseDurationGroup" style="display:none;">
+                        <label for="pscPauseDuration">How long would you like to pause?</label>
+                        <select id="pscPauseDuration">
+                            <option value="1_month">1 month</option>
+                            <option value="2_months">2 months</option>
+                            <option value="3_months">3 months</option>
+                            <option value="not_sure">Not sure yet</option>
+                        </select>
+                    </div>
+                    <div class="psc-form-group">
+                        <label for="pscNotes">Anything else you'd like us to know? <span class="optional">(optional)</span></label>
+                        <textarea id="pscNotes" rows="3" placeholder="e.g. timing, reason, or any questions"></textarea>
+                    </div>
+
+                    <button type="submit" class="psc-submit-btn" id="pscSubmitBtn">Submit Request</button>
+                </form>
+            </div>
+
+            <div id="successSection" style="display:none;">
+                <div class="psc-success">
+                    <div class="psc-success-icon">&#10003;</div>
+                    <h2>Request received</h2>
+                    <p>Thanks for letting us know. We'll action this within 1 business day and confirm by email.</p>
+                    <p class="psc-success-note">If you need anything else, email <a href="mailto:david@rawlings.us">david@rawlings.us</a></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="psc-footer">
+            <p>Questions? Email <a href="mailto:david@rawlings.us">david@rawlings.us</a></p>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+
+        // Show/hide pause duration based on action
+        document.getElementById('pscAction').addEventListener('change', (e) => {
+            document.getElementById('pauseDurationGroup').style.display =
+                e.target.value === 'pause' ? 'block' : 'none';
+        });
+
+        document.getElementById('pscForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const btn = document.getElementById('pscSubmitBtn');
+            btn.disabled = true;
+            btn.textContent = 'Submitting...';
+
+            const data = {
+                name: document.getElementById('pscName').value.trim(),
+                email: document.getElementById('pscEmail').value.trim(),
+                company: document.getElementById('pscCompany').value.trim() || null,
+                action: document.getElementById('pscAction').value,
+                pause_duration: document.getElementById('pscAction').value === 'pause'
+                    ? document.getElementById('pscPauseDuration').value
+                    : null,
+                notes: document.getElementById('pscNotes').value.trim() || null,
+            };
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/deal-billing/pause-skip-cancel`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                });
+
+                if (!res.ok) throw new Error('Submission failed');
+
+                document.getElementById('formSection').style.display = 'none';
+                document.getElementById('successSection').style.display = 'block';
+            } catch (err) {
+                alert('Something went wrong. Please email david@rawlings.us instead.');
+                btn.disabled = false;
+                btn.textContent = 'Submit Request';
+            }
+        });
+    })();
+    </script>
+</body>
+</html>

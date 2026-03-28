@@ -1,0 +1,241 @@
+/* Pause / Skip / Cancel Page */
+
+:root {
+    --psc-font: 'Lato', sans-serif;
+    --psc-bg: #f1f5f9;
+    --psc-surface: #ffffff;
+    --psc-border: #e2e8f0;
+    --psc-text: #1a202c;
+    --psc-muted: #64748b;
+    --psc-accent: #B9F040;
+    --psc-accent-dark: #a0d636;
+    --psc-radius: 12px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body.psc-page {
+    font-family: var(--psc-font);
+    background: var(--psc-bg);
+    color: var(--psc-text);
+    min-height: 100vh;
+}
+
+/* Hero */
+.psc-hero {
+    background: linear-gradient(165deg, #0a0a0a 0%, #1a1a1a 50%, #0f0f0f 100%);
+    padding: 64px 24px 40px;
+    text-align: center;
+    color: #fff;
+    position: relative;
+}
+
+.psc-hero::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+}
+
+.psc-hero-topbar {
+    position: absolute;
+    top: 20px;
+    left: 24px;
+}
+
+.psc-logo {
+    font-family: var(--psc-font);
+    font-weight: 700;
+    font-size: 20px;
+    text-decoration: none;
+    line-height: 1;
+}
+
+.psc-logo .logo-white { color: #fff; }
+.psc-logo .logo-accent { color: var(--psc-accent); }
+.psc-logo:hover { opacity: 0.8; }
+
+.psc-hero h1 {
+    font-size: clamp(22px, 3vw + 0.5rem, 32px);
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    margin-bottom: 10px;
+}
+
+.psc-hero-sub {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.75);
+    max-width: 420px;
+    margin: 0 auto;
+}
+
+/* Body */
+.psc-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px 48px;
+}
+
+.psc-card {
+    background: var(--psc-surface);
+    border-radius: var(--psc-radius);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+    padding: 32px 28px;
+    width: 100%;
+    max-width: 480px;
+    margin-bottom: 20px;
+}
+
+.psc-intro {
+    font-size: 15px;
+    color: var(--psc-muted);
+    line-height: 1.6;
+    margin-bottom: 24px;
+}
+
+/* Form */
+.psc-form-group {
+    margin-bottom: 18px;
+}
+
+.psc-form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: var(--psc-text);
+}
+
+.psc-form-group .optional {
+    font-weight: 400;
+    color: var(--psc-muted);
+}
+
+.psc-form-group input,
+.psc-form-group select,
+.psc-form-group textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--psc-border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--psc-text);
+    background: #fff;
+}
+
+.psc-form-group textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+.psc-form-group input:focus,
+.psc-form-group select:focus,
+.psc-form-group textarea:focus {
+    outline: none;
+    border-color: var(--psc-accent);
+    box-shadow: 0 0 0 3px rgba(185, 240, 64, 0.25);
+}
+
+.psc-submit-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--psc-accent);
+    color: var(--psc-text);
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: background 0.15s;
+}
+
+.psc-submit-btn:hover {
+    background: var(--psc-accent-dark);
+}
+
+.psc-submit-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Success */
+.psc-success {
+    text-align: center;
+    padding: 24px 0;
+}
+
+.psc-success-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: rgba(185, 240, 64, 0.15);
+    color: #16a34a;
+    font-size: 28px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+}
+
+.psc-success h2 {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.psc-success p {
+    font-size: 15px;
+    color: var(--psc-muted);
+    line-height: 1.6;
+    margin-bottom: 8px;
+}
+
+.psc-success-note {
+    margin-top: 16px;
+}
+
+.psc-success-note a {
+    color: var(--psc-text);
+    font-weight: 600;
+}
+
+/* Footer */
+.psc-footer {
+    text-align: center;
+    font-size: 13px;
+    color: var(--psc-muted);
+    max-width: 480px;
+    width: 100%;
+}
+
+.psc-footer a {
+    color: var(--psc-accent-dark);
+    text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .psc-hero {
+        padding: 52px 16px 28px;
+    }
+
+    .psc-card {
+        padding: 24px 20px;
+    }
+
+    .psc-body {
+        padding: 20px 12px 32px;
+    }
+}
