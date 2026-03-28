@@ -343,23 +343,36 @@ def _create_subscription_schedule(db: Session, deal: CustomDeal) -> None:
     stripe_phases = []
     phase_cursor = schedule_start
     for phase in phases:
-        # Create a product for this phase
-        product = stripe.Product.create(
-            name=f"Custom Deal: {deal.company_name or deal.client_name} - {phase.label or f'Phase {phase.phase_order + 1}'}",
-            metadata={
-                "custom_deal_id": str(deal.id),
-                "phase_order": str(phase.phase_order),
-                "source": "custom_deal_billing",
-            },
-        )
-
-        # Create a price (recurring monthly) for this phase
-        price = stripe.Price.create(
-            product=product.id,
-            unit_amount=phase.amount_cents,
-            currency=deal.currency,
-            recurring={"interval": "month"},
-        )
+        # Reuse existing product/price for this deal+phase if already created (prevents duplicates on retry)
+        existing = stripe.Product.search(query=f"metadata['custom_deal_id']:'{deal.id}' AND metadata['phase_order']:'{phase.phase_order}'")
+        if existing.data:
+            product = existing.data[0]
+            # Find the matching price
+            prices = stripe.Price.list(product=product.id, active=True, limit=1)
+            if prices.data:
+                price = prices.data[0]
+            else:
+                price = stripe.Price.create(
+                    product=product.id,
+                    unit_amount=phase.amount_cents,
+                    currency=deal.currency,
+                    recurring={"interval": "month"},
+                )
+        else:
+            product = stripe.Product.create(
+                name=f"Custom Deal: {deal.company_name or deal.client_name} - {phase.label or f'Phase {phase.phase_order + 1}'}",
+                metadata={
+                    "custom_deal_id": str(deal.id),
+                    "phase_order": str(phase.phase_order),
+                    "source": "custom_deal_billing",
+                },
+            )
+            price = stripe.Price.create(
+                product=product.id,
+                unit_amount=phase.amount_cents,
+                currency=deal.currency,
+                recurring={"interval": "month"},
+            )
 
         phase_config = {
             "items": [{"price": price.id, "quantity": 1}],
