@@ -184,7 +184,7 @@ body.deal-page {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
-    color: var(--deal-muted);
+    color: #16a34a;
     margin-bottom: 2px;
 }
 
