@@ -359,8 +359,9 @@ def _create_subscription_schedule(db: Session, deal: CustomDeal) -> None:
                     recurring={"interval": "month"},
                 )
         else:
+            billing_type = "Monthly" if phase.is_recurring_indefinitely else "One-off"
             product = stripe.Product.create(
-                name=f"Custom Deal: {deal.company_name or deal.client_name} - {phase.label or f'Phase {phase.phase_order + 1}'}",
+                name=f"{deal.company_name or deal.client_name} - {phase.label or f'Phase {phase.phase_order + 1}'} ({billing_type})",
                 metadata={
                     "custom_deal_id": str(deal.id),
                     "phase_order": str(phase.phase_order),
