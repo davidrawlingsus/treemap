@@ -201,7 +201,7 @@ def create_checkout_session_for_deal(db: Session, deal: CustomDeal) -> str:
     session = stripe.checkout.Session.create(
         mode="setup",
         customer=customer_id,
-        ui_mode="embedded",
+        ui_mode="embedded_page",
         return_url=f"{base_url}/deal.html?token={deal.public_token}&setup=complete",
         metadata={
             "custom_deal_id": str(deal.id),
