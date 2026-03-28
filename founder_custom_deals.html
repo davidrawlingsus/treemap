@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Founder Admin - Custom Deals</title>
+    <link rel="icon" href="/images/favicon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles/founder-admin.css">
+    <link rel="stylesheet" href="/styles/founder-custom-deals.css">
+    <script src="/config.js"></script>
+    <script src="/auth.js"></script>
+    <script src="/js/founder-admin-common.js"></script>
+</head>
+<body>
+    <div id="loginOverlay" class="login-overlay hidden">
+        <div class="login-container">
+            <div id="loginFormSection">
+                <h2>Sign in</h2>
+                <p class="login-subtext">Enter your work email and we'll email you a secure magic link.</p>
+                <input type="email" id="loginEmail" placeholder="you@company.com" autocomplete="email">
+                <button id="loginButton" type="button">Send Magic Link</button>
+                <div id="loginError" class="login-error"></div>
+                <div id="loginSuccess" class="login-success"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="appShell">
+        <header>
+            <div>
+                <nav class="breadcrumbs">
+                    <a href="/founder_admin.html">Founder Admin</a>
+                    <span class="breadcrumbs-separator">&rsaquo;</span>
+                    <span>Custom Deals</span>
+                </nav>
+                <h1>Custom Deal Billing</h1>
+                <div class="subtitle">Create and manage bespoke client deals with phased billing schedules.</div>
+            </div>
+            <div class="founder-meta">
+                <span id="founderEmail"></span>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-secondary" id="refreshButton">Refresh</button>
+                    <button class="btn btn-ghost" id="logoutButton">Logout</button>
+                </div>
+            </div>
+        </header>
+        <main>
+            <div class="content">
+            <!-- Universal deal page defaults -->
+            <details class="deal-defaults-panel" id="dealDefaultsPanel">
+                <summary class="deal-defaults-toggle">Deal Page Defaults</summary>
+                <div class="deal-defaults-body">
+                    <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">
+                        These defaults are used on every new deal page. Edit here to change the copy for all future deals.
+                    </p>
+                    <div class="deal-form-row">
+                        <div class="deal-form-group">
+                            <label for="defaultPauseCancelText">Pause / Cancel notice</label>
+                            <textarea id="defaultPauseCancelText" rows="2" placeholder="No commitment. You can pause or cancel anytime — just let David know and it's done."></textarea>
+                        </div>
+                        <div class="deal-form-group">
+                            <label for="defaultNoChargeText">No charge notice</label>
+                            <textarea id="defaultNoChargeText" rows="2" placeholder="No payment will be taken now. Your card will be securely saved for future scheduled charges."></textarea>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-secondary" id="saveDefaultsBtn" style="margin-top:4px;">Save Defaults</button>
+                    <span id="defaultsSavedMsg" style="font-size:13px; color:var(--success); margin-left:12px; display:none;">Saved</span>
+                </div>
+            </details>
+
+            <div class="deals-controls">
+                <button class="btn btn-primary" id="createDealBtn">+ New Deal</button>
+                <select id="statusFilter">
+                    <option value="">All statuses</option>
+                    <option value="draft">Draft</option>
+                    <option value="page_generated">Page Generated</option>
+                    <option value="awaiting_card_setup">Awaiting Card Setup</option>
+                    <option value="card_captured">Card Captured</option>
+                    <option value="billing_schedule_active">Billing Active</option>
+                    <option value="cancelled">Cancelled</option>
+                    <option value="payment_failed">Payment Failed</option>
+                    <option value="completed">Completed</option>
+                </select>
+            </div>
+
+            <div id="dealsContent">
+                <div class="deal-loading" style="text-align:center; padding:40px; color:#718096;">Loading deals...</div>
+            </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Slideout panel for create/edit -->
+    <div class="deal-slideout-overlay" id="slideoutOverlay"></div>
+    <div class="deal-slideout" id="dealSlideout">
+        <div class="deal-slideout-header">
+            <h2 id="slideoutTitle">New Deal</h2>
+            <button class="deal-slideout-close" id="slideoutClose">&times;</button>
+        </div>
+        <div class="deal-slideout-body">
+            <form id="dealForm" autocomplete="off">
+                <div class="deal-form-row">
+                    <div class="deal-form-group">
+                        <label for="dealClientName">Client Name *</label>
+                        <input type="text" id="dealClientName" required>
+                    </div>
+                    <div class="deal-form-group">
+                        <label for="dealClientEmail">Client Email *</label>
+                        <input type="email" id="dealClientEmail" required>
+                    </div>
+                </div>
+                <div class="deal-form-row">
+                    <div class="deal-form-group">
+                        <label for="dealClientSelect">Company / Client</label>
+                        <select id="dealClientSelect">
+                            <option value="">New Client</option>
+                        </select>
+                        <input type="text" id="dealCompanyName" placeholder="Enter new company name" style="margin-top:6px;">
+                    </div>
+                    <div class="deal-form-group">
+                        <label for="dealCurrency">Currency</label>
+                        <select id="dealCurrency">
+                            <option value="gbp">GBP (&pound;)</option>
+                            <option value="usd">USD ($)</option>
+                            <option value="eur">EUR (&euro;)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="deal-form-group">
+                    <label for="dealTitle">Deal Title *</label>
+                    <input type="text" id="dealTitle" required placeholder="e.g. Acme Corp - Website Redesign">
+                </div>
+                <div class="deal-form-group">
+                    <label for="dealStartDate">Project Start Date</label>
+                    <input type="date" id="dealStartDate">
+                </div>
+                <div class="deal-form-group">
+                    <label for="dealNotes">Internal Notes</label>
+                    <textarea id="dealNotes" rows="2"></textarea>
+                </div>
+
+                <!-- Page copy section -->
+                <div class="deal-form-group">
+                    <label for="dealHeadline">Page Headline</label>
+                    <input type="text" id="dealHeadline" placeholder="Secure your project start date">
+                </div>
+                <div class="deal-form-group">
+                    <label for="dealIntro">Page Intro Copy</label>
+                    <textarea id="dealIntro" rows="2" placeholder="No payment will be taken today. By entering your card details, you authorize future automatic charges according to the schedule below."></textarea>
+                </div>
+                <div class="deal-form-group">
+                    <label for="dealSuccessMessage">Success Message</label>
+                    <textarea id="dealSuccessMessage" rows="2" placeholder="Thank you! Your card has been saved. Billing will begin as scheduled."></textarea>
+                </div>
+                <div class="deal-form-group">
+                    <label for="dealCancellationUrl">Cancellation URL</label>
+                    <input type="url" id="dealCancellationUrl" placeholder="https://...">
+                </div>
+                <div class="deal-form-group">
+                    <label for="dealCancellationInstructions">Cancellation Instructions</label>
+                    <textarea id="dealCancellationInstructions" rows="2" placeholder="Email us at billing@company.com to cancel"></textarea>
+                </div>
+                <!-- pause_cancel_text and no_charge_text are set from Deal Page Defaults -->
+                <input type="hidden" id="dealPauseCancelText">
+                <input type="hidden" id="dealNoChargeText">
+
+                <!-- Billing phases -->
+                <div class="phases-section">
+                    <h3>Billing Phases</h3>
+                    <div id="phasesContainer"></div>
+                    <button type="button" class="phase-add-btn" id="addPhaseBtn">+ Add Phase</button>
+                </div>
+
+                <!-- Deal link (shown when editing) -->
+                <div id="dealLinkSection" style="display:none; margin-top: 20px;">
+                    <h3 style="font-size:14px; font-weight:700; margin-bottom:8px;">Deal Page Link</h3>
+                    <div class="deal-link-area">
+                        <input type="text" id="dealPublicUrl" readonly>
+                        <button type="button" class="btn btn-secondary" id="copyLinkBtn">Copy</button>
+                        <button type="button" class="btn btn-ghost" id="regenerateTokenBtn" title="Regenerate link (invalidates old one)">&#8635;</button>
+                    </div>
+                </div>
+
+                <!-- Stripe state (shown when editing) -->
+                <div id="stripeInfoSection" style="display:none;">
+                    <div class="stripe-info">
+                        <h3>Stripe Status</h3>
+                        <div id="stripeInfoContent"></div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        <div class="deal-slideout-footer">
+            <button type="button" class="btn btn-ghost" id="slideoutCancelBtn">Cancel</button>
+            <button type="button" class="btn btn-primary" id="slideoutSaveBtn">Save Deal</button>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        const { DOM, API, AuthUtils } = window.FounderAdmin;
+        const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+        let currentDealId = null;
+        let clientsList = []; // cached client records
+
+        function getHeaders() {
+            return { ...Auth.getAuthHeaders(), 'Content-Type': 'application/json' };
+        }
+
+        async function loadClients() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/clients`, { headers: getHeaders() });
+                if (res.ok) clientsList = await res.json();
+            } catch (e) {
+                console.error('[DEALS] Failed to load clients', e);
+            }
+        }
+
+        function populateClientDropdown(selectedClientId) {
+            const select = document.getElementById('dealClientSelect');
+            const nameInput = document.getElementById('dealCompanyName');
+            select.innerHTML = '<option value="">New Client</option>';
+            clientsList.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.name + (c.logo_url ? ' (has logo)' : '');
+                if (selectedClientId && String(c.id) === String(selectedClientId)) opt.selected = true;
+                select.appendChild(opt);
+            });
+            // Show/hide text input based on selection
+            toggleCompanyNameInput();
+        }
+
+        function toggleCompanyNameInput() {
+            const select = document.getElementById('dealClientSelect');
+            const nameInput = document.getElementById('dealCompanyName');
+            if (select.value === '') {
+                nameInput.style.display = 'block';
+            } else {
+                nameInput.style.display = 'none';
+            }
+        }
+
+        // --- API calls ---
+        async function fetchDeals(status) {
+            const params = status ? `?status=${status}` : '';
+            const res = await fetch(`${API_BASE_URL}/api/founder/custom-deals${params}`, { headers: getHeaders() });
+            if (!res.ok) throw new Error(`Failed to load deals: ${res.status}`);
+            return res.json();
+        }
+
+        async function fetchDeal(id) {
+            const res = await fetch(`${API_BASE_URL}/api/founder/custom-deals/${id}`, { headers: getHeaders() });
+            if (!res.ok) throw new Error(`Failed to load deal: ${res.status}`);
+            return res.json();
+        }
+
+        async function saveDeal(data, id) {
+            const url = id
+                ? `${API_BASE_URL}/api/founder/custom-deals/${id}`
+                : `${API_BASE_URL}/api/founder/custom-deals`;
+            const res = await fetch(url, {
+                method: id ? 'PUT' : 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify(data),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || `Save failed: ${res.status}`);
+            }
+            return res.json();
+        }
+
+        async function deleteDeal(id) {
+            const res = await fetch(`${API_BASE_URL}/api/founder/custom-deals/${id}`, {
+                method: 'DELETE',
+                headers: getHeaders(),
+            });
+            if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
+        }
+
+        async function getDealUrl(id) {
+            const res = await fetch(`${API_BASE_URL}/api/founder/custom-deals/${id}/public-url`, { headers: getHeaders() });
+            if (!res.ok) throw new Error('Failed to get URL');
+            return res.json();
+        }
+
+        async function regenerateToken(id) {
+            const res = await fetch(`${API_BASE_URL}/api/founder/custom-deals/${id}/regenerate-token`, {
+                method: 'POST',
+                headers: getHeaders(),
+            });
+            if (!res.ok) throw new Error('Failed to regenerate token');
+            return res.json();
+        }
+
+        // --- Rendering ---
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+
+        function formatCurrency(cents, currency) {
+            const symbols = { gbp: '\u00A3', usd: '$', eur: '\u20AC' };
+            const symbol = symbols[currency] || currency.toUpperCase() + ' ';
+            return symbol + (cents / 100).toLocaleString('en-GB', { minimumFractionDigits: 2 });
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        async function renderDeals() {
+            const content = document.getElementById('dealsContent');
+            const status = document.getElementById('statusFilter').value;
+
+            try {
+                const deals = await fetchDeals(status);
+                if (deals.length === 0) {
+                    content.innerHTML = `
+                        <div class="empty-state">
+                            <h3>No deals yet</h3>
+                            <p>Create your first custom deal to get started.</p>
+                        </div>`;
+                    return;
+                }
+
+                const rows = deals.map(d => `
+                    <tr data-deal-id="${d.id}" style="cursor:pointer">
+                        <td><strong>${escapeHtml(d.deal_title)}</strong></td>
+                        <td>${escapeHtml(d.client_name)}</td>
+                        <td>${escapeHtml(d.company_name || '-')}</td>
+                        <td>${d.currency.toUpperCase()}</td>
+                        <td><span class="deal-status-badge ${d.status}">${d.status.replace(/_/g, ' ')}</span></td>
+                        <td>${formatDate(d.start_date)}</td>
+                        <td>${formatDate(d.created_at)}</td>
+                    </tr>`).join('');
+
+                content.innerHTML = `
+                    <div class="deals-table-wrapper">
+                        <table class="deals-table">
+                            <thead>
+                                <tr>
+                                    <th>Deal</th>
+                                    <th>Client</th>
+                                    <th>Company</th>
+                                    <th>Currency</th>
+                                    <th>Status</th>
+                                    <th>Start</th>
+                                    <th>Created</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>`;
+            } catch (err) {
+                content.innerHTML = `<div style="color:#e53e3e; padding:20px;">${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        // --- Event delegation for table rows ---
+        document.getElementById('dealsContent').addEventListener('click', async (e) => {
+            const row = e.target.closest('tr[data-deal-id]');
+            if (!row) return;
+            const id = row.dataset.dealId;
+            await openEditSlideout(id);
+        });
+
+        // --- Phase editor ---
+        let phaseCounter = 0;
+
+        function addPhaseRow(data = {}) {
+            const idx = phaseCounter++;
+            const container = document.getElementById('phasesContainer');
+            const div = document.createElement('div');
+            div.className = 'phase-row';
+            div.dataset.phaseIdx = idx;
+            div.innerHTML = `
+                <div>
+                    <label>#</label>
+                    <input type="number" class="phase-order" value="${data.phase_order ?? container.children.length}" min="0" style="width:100%">
+                </div>
+                <div>
+                    <label>Label</label>
+                    <input type="text" class="phase-label" value="${escapeHtml(data.label || '')}" placeholder="e.g. Project begins">
+                </div>
+                <div>
+                    <label>Amount (pence/cents)</label>
+                    <input type="number" class="phase-amount" value="${data.amount_cents || ''}" min="1" required placeholder="800000">
+                </div>
+                <div>
+                    <label>Duration (months)</label>
+                    <input type="number" class="phase-duration" value="${data.duration_months || ''}" min="1" placeholder="1">
+                </div>
+                <div>
+                    <label>Recurring?</label>
+                    <select class="phase-recurring">
+                        <option value="false" ${!data.is_recurring_indefinitely ? 'selected' : ''}>No</option>
+                        <option value="true" ${data.is_recurring_indefinitely ? 'selected' : ''}>Yes</option>
+                    </select>
+                </div>
+                <button type="button" class="phase-remove-btn" title="Remove phase">&times;</button>
+            `;
+            container.appendChild(div);
+        }
+
+        function collectPhases() {
+            const container = document.getElementById('phasesContainer');
+            const rows = container.querySelectorAll('.phase-row');
+            const phases = [];
+            rows.forEach(row => {
+                const isRecurring = row.querySelector('.phase-recurring').value === 'true';
+                const durationVal = row.querySelector('.phase-duration').value;
+                phases.push({
+                    phase_order: parseInt(row.querySelector('.phase-order').value) || 0,
+                    label: row.querySelector('.phase-label').value || null,
+                    amount_cents: parseInt(row.querySelector('.phase-amount').value) || 0,
+                    duration_months: isRecurring ? null : (parseInt(durationVal) || 1),
+                    is_recurring_indefinitely: isRecurring,
+                });
+            });
+            return phases;
+        }
+
+        document.getElementById('phasesContainer').addEventListener('click', (e) => {
+            if (e.target.closest('.phase-remove-btn')) {
+                e.target.closest('.phase-row').remove();
+            }
+        });
+
+        document.getElementById('addPhaseBtn').addEventListener('click', () => addPhaseRow());
+
+        // --- Slideout ---
+        function openSlideout() {
+            document.getElementById('slideoutOverlay').classList.add('active');
+            document.getElementById('dealSlideout').classList.add('active');
+            document.body.classList.add('slideout-open');
+        }
+
+        function closeSlideout() {
+            document.getElementById('slideoutOverlay').classList.remove('active');
+            document.getElementById('dealSlideout').classList.remove('active');
+            document.body.classList.remove('slideout-open');
+            currentDealId = null;
+        }
+
+        function resetForm() {
+            document.getElementById('dealForm').reset();
+            document.getElementById('phasesContainer').innerHTML = '';
+            document.getElementById('dealLinkSection').style.display = 'none';
+            document.getElementById('stripeInfoSection').style.display = 'none';
+            phaseCounter = 0;
+        }
+
+        async function openCreateSlideout() {
+            resetForm();
+            currentDealId = null;
+            document.getElementById('slideoutTitle').textContent = 'New Deal';
+            populateClientDropdown(null);
+            // Pre-fill notice text from universal defaults
+            const defaults = await loadDefaultsFromServer();
+            document.getElementById('dealPauseCancelText').value = defaults.pause_cancel_text || '';
+            document.getElementById('dealNoChargeText').value = defaults.no_charge_text || '';
+            // Add default 3-phase structure
+            addPhaseRow({ phase_order: 0, label: 'Project begins', amount_cents: '', duration_months: 1 });
+            addPhaseRow({ phase_order: 1, label: 'Month 2', amount_cents: '', duration_months: 1 });
+            addPhaseRow({ phase_order: 2, label: 'Month 3 onward', amount_cents: '', is_recurring_indefinitely: true });
+            openSlideout();
+        }
+
+        async function openEditSlideout(id) {
+            resetForm();
+            currentDealId = id;
+            document.getElementById('slideoutTitle').textContent = 'Edit Deal';
+
+            try {
+                const deal = await fetchDeal(id);
+                document.getElementById('dealClientName').value = deal.client_name;
+                document.getElementById('dealClientEmail').value = deal.client_email;
+                populateClientDropdown(deal.client_id);
+                document.getElementById('dealCompanyName').value = deal.company_name || '';
+                document.getElementById('dealTitle').value = deal.deal_title;
+                document.getElementById('dealCurrency').value = deal.currency;
+                document.getElementById('dealNotes').value = deal.internal_notes || '';
+                document.getElementById('dealHeadline').value = deal.page_headline || '';
+                document.getElementById('dealIntro').value = deal.page_intro || '';
+                document.getElementById('dealSuccessMessage').value = deal.success_message || '';
+                document.getElementById('dealCancellationUrl').value = deal.cancellation_url || '';
+                document.getElementById('dealCancellationInstructions').value = deal.cancellation_instructions || '';
+                const defaults = await loadDefaultsFromServer();
+                document.getElementById('dealPauseCancelText').value = deal.pause_cancel_text || defaults.pause_cancel_text || '';
+                document.getElementById('dealNoChargeText').value = deal.no_charge_text || defaults.no_charge_text || '';
+
+                if (deal.start_date) {
+                    document.getElementById('dealStartDate').value = deal.start_date.split('T')[0];
+                }
+
+                // Phases
+                (deal.phases || []).sort((a, b) => a.phase_order - b.phase_order).forEach(p => addPhaseRow(p));
+
+                // Show deal link
+                const linkSection = document.getElementById('dealLinkSection');
+                linkSection.style.display = 'block';
+                const urlData = await getDealUrl(id);
+                document.getElementById('dealPublicUrl').value = urlData.url;
+
+                // Show Stripe state
+                if (deal.stripe_state) {
+                    const ss = deal.stripe_state;
+                    document.getElementById('stripeInfoSection').style.display = 'block';
+                    const infoRows = [
+                        ['Customer', ss.stripe_customer_id],
+                        ['Checkout Session', ss.stripe_checkout_session_id],
+                        ['Setup Intent', ss.stripe_setup_intent_id],
+                        ['Payment Method', ss.stripe_payment_method_id],
+                        ['Schedule', ss.stripe_subscription_schedule_id],
+                        ['Setup Completed', ss.setup_completed_at ? formatDate(ss.setup_completed_at) : null],
+                        ['Schedule Created', ss.schedule_created_at ? formatDate(ss.schedule_created_at) : null],
+                        ['Last Webhook', ss.last_webhook_event_id],
+                        ['Error', ss.latest_error],
+                    ].filter(([, v]) => v).map(([label, value]) =>
+                        `<div class="stripe-info-row"><span class="label">${label}</span><span class="value">${escapeHtml(String(value))}</span></div>`
+                    ).join('');
+                    document.getElementById('stripeInfoContent').innerHTML = infoRows || '<p style="color:#718096;">No Stripe data yet</p>';
+                }
+            } catch (err) {
+                alert('Failed to load deal: ' + err.message);
+                closeSlideout();
+                return;
+            }
+
+            openSlideout();
+        }
+
+        // --- Save ---
+        console.log('[DEALS] Save button listener attached');
+        document.getElementById('slideoutSaveBtn').addEventListener('click', async () => {
+            console.log('[DEALS] Save button clicked');
+            const phases = collectPhases();
+            if (phases.length === 0) {
+                alert('Add at least one billing phase');
+                return;
+            }
+
+            const clientName = document.getElementById('dealClientName').value.trim();
+            const clientEmail = document.getElementById('dealClientEmail').value.trim();
+            const dealTitle = document.getElementById('dealTitle').value.trim();
+
+            if (!clientName || !clientEmail || !dealTitle) {
+                alert('Client name, email, and deal title are required');
+                return;
+            }
+
+            const startDateVal = document.getElementById('dealStartDate').value;
+            const clientSelect = document.getElementById('dealClientSelect');
+            const selectedClientId = clientSelect.value || null;
+            let companyName = document.getElementById('dealCompanyName').value.trim() || null;
+            // If an existing client is selected, use their name as company_name
+            if (selectedClientId) {
+                const selectedClient = clientsList.find(c => String(c.id) === selectedClientId);
+                if (selectedClient) companyName = selectedClient.name;
+            }
+            const data = {
+                client_name: clientName,
+                client_email: clientEmail,
+                company_name: companyName,
+                client_id: selectedClientId,
+                deal_title: dealTitle,
+                currency: document.getElementById('dealCurrency').value,
+                internal_notes: document.getElementById('dealNotes').value.trim() || null,
+                page_headline: document.getElementById('dealHeadline').value.trim() || null,
+                page_intro: document.getElementById('dealIntro').value.trim() || null,
+                success_message: document.getElementById('dealSuccessMessage').value.trim() || null,
+                cancellation_url: document.getElementById('dealCancellationUrl').value.trim() || null,
+                cancellation_instructions: document.getElementById('dealCancellationInstructions').value.trim() || null,
+                pause_cancel_text: null,
+                no_charge_text: null,
+                start_date: startDateVal ? new Date(startDateVal).toISOString() : null,
+                phases: phases,
+            };
+
+            console.log('[DEALS] Saving deal payload:', JSON.stringify({
+                pause_cancel_text: data.pause_cancel_text,
+                no_charge_text: data.no_charge_text,
+                textarea_raw: document.getElementById('dealPauseCancelText').value,
+                defaults: await loadDefaultsFromServer(),
+            }));
+
+            const btn = document.getElementById('slideoutSaveBtn');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+
+            try {
+                await saveDeal(data, currentDealId);
+                closeSlideout();
+                await renderDeals();
+            } catch (err) {
+                alert('Save failed: ' + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Save Deal';
+            }
+        });
+
+        // --- Copy link ---
+        document.getElementById('copyLinkBtn').addEventListener('click', () => {
+            const input = document.getElementById('dealPublicUrl');
+            navigator.clipboard.writeText(input.value).then(() => {
+                const btn = document.getElementById('copyLinkBtn');
+                btn.textContent = 'Copied!';
+                setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+            });
+        });
+
+        // --- Regenerate token ---
+        document.getElementById('regenerateTokenBtn').addEventListener('click', async () => {
+            if (!currentDealId) return;
+            if (!confirm('This will invalidate the current deal link. Continue?')) return;
+            try {
+                await regenerateToken(currentDealId);
+                const urlData = await getDealUrl(currentDealId);
+                document.getElementById('dealPublicUrl').value = urlData.url;
+            } catch (err) {
+                alert('Failed: ' + err.message);
+            }
+        });
+
+        // --- Deal page defaults (server-side) ---
+
+        async function loadDefaultsFromServer() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/founder/deal-page-defaults`, { headers: getHeaders() });
+                if (res.ok) return res.json();
+            } catch (e) {
+                console.error('[DEALS] Failed to load defaults', e);
+            }
+            return { pause_cancel_text: '', no_charge_text: '' };
+        }
+
+        async function saveDefaults() {
+            const btn = document.getElementById('saveDefaultsBtn');
+            btn.disabled = true;
+            btn.textContent = 'Saving...';
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/founder/deal-page-defaults`, {
+                    method: 'PUT',
+                    headers: getHeaders(),
+                    body: JSON.stringify({
+                        pause_cancel_text: document.getElementById('defaultPauseCancelText').value.trim(),
+                        no_charge_text: document.getElementById('defaultNoChargeText').value.trim(),
+                    }),
+                });
+                if (!res.ok) throw new Error('Save failed');
+                const msg = document.getElementById('defaultsSavedMsg');
+                msg.style.display = 'inline';
+                setTimeout(() => { msg.style.display = 'none'; }, 2000);
+            } catch (e) {
+                alert('Failed to save defaults: ' + e.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Save Defaults';
+            }
+        }
+
+        async function populateDefaultsPanel() {
+            const defaults = await loadDefaultsFromServer();
+            document.getElementById('defaultPauseCancelText').value = defaults.pause_cancel_text || '';
+            document.getElementById('defaultNoChargeText').value = defaults.no_charge_text || '';
+        }
+
+        document.getElementById('saveDefaultsBtn').addEventListener('click', saveDefaults);
+
+        // --- Wire up events ---
+        document.getElementById('createDealBtn').addEventListener('click', openCreateSlideout);
+        document.getElementById('slideoutOverlay').addEventListener('click', closeSlideout);
+        document.getElementById('slideoutClose').addEventListener('click', closeSlideout);
+        document.getElementById('slideoutCancelBtn').addEventListener('click', closeSlideout);
+        document.getElementById('statusFilter').addEventListener('change', renderDeals);
+        document.getElementById('refreshButton').addEventListener('click', renderDeals);
+        document.getElementById('dealClientSelect').addEventListener('change', toggleCompanyNameInput);
+
+        document.getElementById('logoutButton').addEventListener('click', () => {
+            Auth.handleLogout();
+        });
+
+        // --- Init (follows established founder admin auth pattern) ---
+        async function initializePage(userInfo) {
+            Auth.hideLogin();
+            const loginOverlay = document.getElementById('loginOverlay');
+            if (loginOverlay) loginOverlay.classList.add('hidden');
+
+            document.getElementById('appShell').style.display = 'flex';
+            document.getElementById('founderEmail').textContent = userInfo.email || '';
+
+            populateDefaultsPanel();
+            await loadClients();
+            await renderDeals();
+        }
+
+        AuthUtils.initializeAuth(initializePage);
+        AuthUtils.setupAuthListeners(initializePage);
+    })();
+    </script>
+</body>
+</html>
