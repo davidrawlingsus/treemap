@@ -1,0 +1,361 @@
+/* Public Deal Page Styles — project style guide: dark hero, #B9F040 accent, Lato */
+
+:root {
+    --deal-font: 'Lato', sans-serif;
+    --deal-bg: #f1f5f9;
+    --deal-hero-bg: #0f0f0f;
+    --deal-surface: #ffffff;
+    --deal-border: #e2e8f0;
+    --deal-text: #1a202c;
+    --deal-muted: #64748b;
+    --deal-accent: #B9F040;
+    --deal-accent-dark: #a0d636;
+    --deal-success: #38a169;
+    --deal-radius: 12px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body.deal-page {
+    font-family: var(--deal-font);
+    background: var(--deal-bg);
+    color: var(--deal-text);
+    min-height: 100vh;
+}
+
+/* ── Dark hero header ─────────────────────────────────── */
+
+.deal-hero {
+    background: linear-gradient(165deg, #0a0a0a 0%, #1a1a1a 50%, #0f0f0f 100%);
+    padding: 64px 24px 40px;
+    text-align: center;
+    color: #fff;
+    position: relative;
+}
+
+/* MapTheGap logo top-left */
+.deal-hero-topbar {
+    position: absolute;
+    top: 20px;
+    left: 24px;
+}
+
+.deal-mapthegap-logo {
+    font-family: var(--deal-font);
+    font-weight: 700;
+    font-size: 20px;
+    text-decoration: none;
+    line-height: 1;
+}
+
+.deal-mapthegap-logo .logo-white {
+    color: #fff;
+}
+
+.deal-mapthegap-logo .logo-accent {
+    color: var(--deal-accent);
+}
+
+.deal-mapthegap-logo:hover {
+    opacity: 0.8;
+}
+
+.deal-hero::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+}
+
+.deal-brand {
+    margin-bottom: 20px;
+}
+
+.deal-brand img {
+    height: 40px;
+    margin-bottom: 0;
+}
+
+.deal-hero h1 {
+    font-size: clamp(22px, 3vw + 0.5rem, 32px);
+    font-weight: 900;
+    line-height: 1.25;
+    margin-bottom: 12px;
+    letter-spacing: -0.02em;
+    text-shadow: 0 2px 16px rgba(0,0,0,0.3);
+}
+
+.deal-hero .deal-intro {
+    font-size: 16px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.78);
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+/* ── Main content card ────────────────────────────────── */
+
+.deal-body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px 40px;
+}
+
+.deal-card {
+    background: var(--deal-surface);
+    border-radius: var(--deal-radius);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+    padding: 0;
+    margin-bottom: 20px;
+    width: 100%;
+    max-width: 540px;
+    overflow: hidden;
+}
+
+/* Hide h1/intro inside card — they're in the hero now */
+.deal-card h1,
+.deal-card .deal-intro {
+    display: none;
+}
+
+/* Card header — logo + title with bottom divider */
+.deal-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 24px 28px;
+    border-bottom: 1px solid var(--deal-border);
+}
+
+.deal-card-header h2 {
+    font-size: 20px;
+    font-weight: 900;
+    letter-spacing: -0.01em;
+    color: var(--deal-text);
+    margin: 0;
+    text-transform: none;
+}
+
+.deal-card-client-logo img {
+    height: 32px;
+    max-width: 120px;
+    object-fit: contain;
+}
+
+/* ── Card body padding ────────────────────────────────── */
+
+.deal-schedule,
+.deal-no-commitment-notice,
+.deal-no-charge-notice,
+.deal-checkout-area {
+    margin-left: 28px;
+    margin-right: 28px;
+}
+
+/* ── Payment schedule ─────────────────────────────────── */
+
+.deal-schedule {
+    margin-bottom: 24px;
+    padding-top: 24px;
+}
+
+.schedule-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--deal-border);
+}
+
+.schedule-item:last-child {
+    border-bottom: none;
+}
+
+.schedule-item .phase-date {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--deal-muted);
+    margin-bottom: 2px;
+}
+
+.schedule-item .phase-label {
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--deal-text);
+}
+
+.schedule-item .phase-amount {
+    font-size: 15px;
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--deal-text);
+}
+
+.schedule-item .phase-recurring {
+    font-size: 12px;
+    color: var(--deal-muted);
+    text-align: right;
+    margin-top: 2px;
+}
+
+/* ── Notice banners ───────────────────────────────────── */
+
+.deal-no-commitment-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px 16px;
+    background: rgba(185, 240, 64, 0.08);
+    border-left: 3px solid var(--deal-accent);
+    border-radius: 0 8px 8px 0;
+    margin-bottom: 10px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--deal-text);
+}
+
+.deal-no-commitment-notice .notice-icon {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+}
+
+.deal-no-charge-notice {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px 16px;
+    background: rgba(185, 240, 64, 0.08);
+    border-left: 3px solid var(--deal-accent);
+    border-radius: 0 8px 8px 0;
+    margin-bottom: 24px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--deal-text);
+}
+
+.deal-no-charge-notice .notice-icon {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+}
+
+/* ── Checkout embed ───────────────────────────────────── */
+
+.deal-checkout-area {
+    margin-top: 8px;
+    padding-bottom: 28px;
+}
+
+#checkout-container {
+    min-height: 300px;
+}
+
+/* ── Success state ────────────────────────────────────── */
+
+.deal-success {
+    text-align: center;
+    padding: 48px 24px;
+}
+
+.deal-success .success-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.deal-success h2 {
+    font-size: 22px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.deal-success p {
+    font-size: 15px;
+    color: var(--deal-muted);
+    line-height: 1.6;
+}
+
+/* ── Footer ───────────────────────────────────────────── */
+
+.deal-footer {
+    text-align: center;
+    font-size: 13px;
+    color: var(--deal-muted);
+    padding: 12px 0;
+    max-width: 540px;
+    width: 100%;
+}
+
+.deal-footer a {
+    color: var(--deal-accent-dark);
+    text-decoration: underline;
+}
+
+.deal-footer a:hover {
+    color: var(--deal-text);
+}
+
+.deal-footer .stripe-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 8px;
+    font-size: 12px;
+    opacity: 0.7;
+}
+
+/* ── Loading / Error ──────────────────────────────────── */
+
+.deal-loading {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--deal-muted);
+    font-size: 15px;
+}
+
+.deal-error {
+    text-align: center;
+    padding: 80px 20px;
+    color: #c53030;
+}
+
+.deal-error h2 {
+    margin-bottom: 8px;
+}
+
+/* ── Responsive ───────────────────────────────────────── */
+
+@media (max-width: 600px) {
+    .deal-hero {
+        padding: 36px 16px 28px;
+    }
+
+    .deal-hero h1 {
+        font-size: 22px;
+    }
+
+    .deal-body {
+        padding: 20px 12px 32px;
+    }
+
+    .deal-card {
+        padding: 24px 20px;
+    }
+
+    .schedule-item .phase-amount {
+        font-size: 17px;
+    }
+}

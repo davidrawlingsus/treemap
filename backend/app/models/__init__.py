@@ -51,6 +51,8 @@ from app.models.shopify import (
     ShopifySurveyResponseRaw,
     ShopifySurveyVersion,
 )
+from app.models.custom_deal import CustomDeal, CustomDealPhase, CustomDealStripeState, DealStatus
+from app.models.deal_page_defaults import DealPageDefaults
 
 __all__ = [
     "Client",
@@ -110,6 +112,11 @@ __all__ = [
     "WidgetSurveyResponseAnswer",
     "WidgetSurveyHeartbeat",
     "WidgetSurveyImpression",
+    "CustomDeal",
+    "CustomDealPhase",
+    "CustomDealStripeState",
+    "DealStatus",
+    "DealPageDefaults",
 ]
 
 

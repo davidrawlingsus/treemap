@@ -407,6 +407,10 @@ app.include_router(founder_admin.router)
 from app.routers import billing
 app.include_router(billing.router)
 
+# Include custom deal billing router (separate from SaaS billing)
+from app.routers import deal_billing
+app.include_router(deal_billing.router)
+
 # Include help chat router (site widget + Slack bridge)
 from app.routers import help_chat
 app.include_router(help_chat.router)
