@@ -179,7 +179,6 @@ def create_checkout_session_for_deal(db: Session, deal: CustomDeal) -> str:
         customer_id = stripe_state.stripe_customer_id
     else:
         customer = stripe.Customer.create(
-            email=deal.client_email,
             name=deal.client_name,
             metadata={
                 "custom_deal_id": str(deal.id),
