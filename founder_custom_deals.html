@@ -210,8 +210,14 @@
             </form>
         </div>
         <div class="deal-slideout-footer">
-            <button type="button" class="btn btn-ghost" id="slideoutCancelBtn">Cancel</button>
-            <button type="button" class="btn btn-primary" id="slideoutSaveBtn">Save Deal</button>
+            <div class="deal-slideout-footer-left" id="slideoutFooterLeft" style="display:none;">
+                <button type="button" class="btn btn-danger-ghost" id="deleteDealBtn">Delete</button>
+                <button type="button" class="btn btn-ghost" id="duplicateDealBtn">Duplicate</button>
+            </div>
+            <div class="deal-slideout-footer-right">
+                <button type="button" class="btn btn-ghost" id="slideoutCancelBtn">Cancel</button>
+                <button type="button" class="btn btn-primary" id="slideoutSaveBtn">Save Deal</button>
+            </div>
         </div>
     </div>
 
@@ -479,6 +485,7 @@
             resetForm();
             currentDealId = null;
             document.getElementById('slideoutTitle').textContent = 'New Deal';
+            document.getElementById('slideoutFooterLeft').style.display = 'none';
             populateClientDropdown(null);
             // Pre-fill notice text from universal defaults
             const defaults = await loadDefaultsFromServer();
@@ -495,6 +502,7 @@
             resetForm();
             currentDealId = id;
             document.getElementById('slideoutTitle').textContent = 'Edit Deal';
+            document.getElementById('slideoutFooterLeft').style.display = 'flex';
 
             try {
                 const deal = await fetchDeal(id);
@@ -705,6 +713,38 @@
         document.getElementById('statusFilter').addEventListener('change', renderDeals);
         document.getElementById('refreshButton').addEventListener('click', renderDeals);
         document.getElementById('dealClientSelect').addEventListener('change', toggleCompanyNameInput);
+
+        document.getElementById('deleteDealBtn').addEventListener('click', async () => {
+            if (!currentDealId) return;
+            if (!confirm('Delete this deal? This cannot be undone.')) return;
+            try {
+                await deleteDeal(currentDealId);
+                closeSlideout();
+                await renderDeals();
+            } catch (err) {
+                alert('Delete failed: ' + err.message);
+            }
+        });
+
+        document.getElementById('duplicateDealBtn').addEventListener('click', async () => {
+            if (!currentDealId) return;
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/founder/custom-deals/${currentDealId}/duplicate`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.detail || 'Duplicate failed');
+                }
+                const newDeal = await res.json();
+                closeSlideout();
+                await renderDeals();
+                await openEditSlideout(newDeal.id);
+            } catch (err) {
+                alert('Duplicate failed: ' + err.message);
+            }
+        });
 
         document.getElementById('logoutButton').addEventListener('click', () => {
             Auth.handleLogout();

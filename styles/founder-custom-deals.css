@@ -176,9 +176,37 @@
     padding: 16px 24px;
     border-top: 1px solid var(--border);
     display: flex;
-    gap: 12px;
-    justify-content: flex-end;
+    justify-content: space-between;
+    align-items: center;
     flex-shrink: 0;
+}
+
+.deal-slideout-footer-left {
+    display: flex;
+    gap: 8px;
+}
+
+.deal-slideout-footer-right {
+    display: flex;
+    gap: 12px;
+    margin-left: auto;
+}
+
+.btn-danger-ghost {
+    background: none;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.btn-danger-ghost:hover {
+    background: var(--danger);
+    color: #fff;
 }
 
 /* Form fields */

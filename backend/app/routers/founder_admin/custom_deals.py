@@ -152,21 +152,78 @@ def delete_custom_deal(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_founder),
 ):
-    """Delete a custom deal. Only allowed for draft/page_generated status."""
+    """Delete a custom deal."""
     deal = db.query(CustomDeal).filter(CustomDeal.id == deal_id).first()
     if not deal:
         raise HTTPException(status_code=404, detail="Deal not found")
-
-    if deal.status not in (DealStatus.draft, DealStatus.page_generated):
-        raise HTTPException(
-            status_code=400,
-            detail="Can only delete deals in draft or page_generated status"
-        )
 
     db.delete(deal)
     db.commit()
     logger.info(f"Custom deal deleted: {deal_id}")
     return {"detail": "Deal deleted"}
+
+
+@router.post("/api/founder/custom-deals/{deal_id}/duplicate", response_model=CustomDealResponse)
+def duplicate_custom_deal(
+    deal_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Duplicate a deal — copies all fields and phases into a new draft deal."""
+    original = (
+        db.query(CustomDeal)
+        .options(joinedload(CustomDeal.phases))
+        .filter(CustomDeal.id == deal_id)
+        .first()
+    )
+    if not original:
+        raise HTTPException(status_code=404, detail="Deal not found")
+
+    phases_data = [
+        {
+            "phase_order": p.phase_order,
+            "label": p.label,
+            "amount_cents": p.amount_cents,
+            "duration_months": p.duration_months,
+            "is_recurring_indefinitely": p.is_recurring_indefinitely,
+            "billing_date": p.billing_date,
+        }
+        for p in sorted(original.phases, key=lambda x: x.phase_order)
+    ]
+
+    deal = create_deal(
+        db=db,
+        client_name=original.client_name,
+        client_email=original.client_email,
+        deal_title=f"{original.deal_title} (copy)",
+        currency=original.currency,
+        phases_data=phases_data,
+        created_by=current_user.id,
+        company_name=original.company_name,
+        client_id=original.client_id,
+        internal_notes=original.internal_notes,
+        cancellation_url=original.cancellation_url,
+        cancellation_instructions=original.cancellation_instructions,
+        page_headline=original.page_headline,
+        page_intro=original.page_intro,
+        success_message=original.success_message,
+        pause_cancel_text=original.pause_cancel_text,
+        no_charge_text=original.no_charge_text,
+        start_date=original.start_date,
+    )
+
+    # Copy founder_brand
+    deal.founder_brand = original.founder_brand
+    db.commit()
+
+    deal = (
+        db.query(CustomDeal)
+        .options(joinedload(CustomDeal.phases), joinedload(CustomDeal.stripe_state))
+        .filter(CustomDeal.id == deal.id)
+        .first()
+    )
+    logger.info(f"Deal duplicated: {deal_id} -> {deal.id}")
+    return deal
 
 
 @router.post("/api/founder/custom-deals/{deal_id}/regenerate-token", response_model=CustomDealResponse)
