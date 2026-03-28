@@ -148,7 +148,8 @@ def create_deal_checkout(
         client_secret = create_checkout_session_for_deal(db, deal)
     except Exception as e:
         logger.error(f"Failed to create checkout session for deal {deal.id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to create checkout session")
+        error_detail = f"Failed to create checkout session: {str(e)[:200]}"
+        raise HTTPException(status_code=500, detail=error_detail)
 
     return DealCheckoutSessionResponse(client_secret=client_secret)
 

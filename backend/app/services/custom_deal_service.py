@@ -197,10 +197,10 @@ def create_checkout_session_for_deal(db: Session, deal: CustomDeal) -> str:
     base_url = (settings.deal_page_base_url or settings.frontend_base_url).rstrip("/")
 
     # Embedded checkout in setup mode — card is saved, nothing charged
+    # Note: setup mode does not accept currency param
     session = stripe.checkout.Session.create(
         mode="setup",
         customer=customer_id,
-        currency=deal.currency,
         ui_mode="embedded",
         return_url=f"{base_url}/deal.html?token={deal.public_token}&setup=complete",
         metadata={
