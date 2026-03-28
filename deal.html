@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Payment Setup</title>
+    <link rel="icon" href="/images/favicon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles/deal-page.css">
+    <script src="/config.js"></script>
+</head>
+<body class="deal-page">
+    <!-- Dark hero header -->
+    <div class="deal-hero" id="dealHero" style="display:none;">
+        <div class="deal-hero-topbar">
+            <a class="deal-mapthegap-logo" href="https://mapthegap.ai">
+                <span class="logo-white">MapThe</span><span class="logo-accent">Gap</span>
+            </a>
+        </div>
+        <h1 id="dealHeadline">Secure your project start date</h1>
+        <p class="deal-intro" id="dealIntro">
+            No payment will be taken today. By entering your card details, you authorize
+            future automatic charges according to the schedule below.
+        </p>
+    </div>
+
+    <!-- Loading state -->
+    <div id="dealLoading" class="deal-loading">
+        <p>Loading your deal details...</p>
+    </div>
+
+    <!-- Error state -->
+    <div id="dealError" class="deal-error" style="display:none;">
+        <h2>Something went wrong</h2>
+        <p id="dealErrorMessage"></p>
+    </div>
+
+    <!-- Main content -->
+    <div class="deal-body" id="dealBody" style="display:none;">
+        <div id="dealCard" class="deal-card">
+            <div class="deal-card-header">
+                <h2>Payment Schedule</h2>
+                <div class="deal-card-client-logo" id="clientLogoArea" style="display:none;">
+                    <img id="clientLogo" alt="Client logo">
+                </div>
+            </div>
+            <div class="deal-schedule">
+                <div id="scheduleList"></div>
+            </div>
+
+            <div class="deal-no-commitment-notice" id="pauseCancelNotice">
+                <img class="notice-icon" src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/deal-icons/pause_cancel_black.svg" alt="" width="24" height="24">
+                <span id="pauseCancelText">No commitment. You can pause or cancel anytime — just let David know and it's done.</span>
+            </div>
+
+            <div class="deal-no-charge-notice" id="noChargeNotice">
+                <img class="notice-icon" src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/deal-icons/timed_payments_black.svg" alt="" width="24" height="24">
+                <span id="noChargeText">No payment will be taken now. Your card will be securely saved for future scheduled charges.</span>
+            </div>
+
+            <!-- Stripe embedded checkout container -->
+            <div class="deal-checkout-area" id="checkoutArea">
+                <div id="checkout-container"></div>
+            </div>
+        </div>
+
+        <!-- Success state -->
+        <div id="dealSuccess" class="deal-card" style="display:none;">
+            <div class="deal-success">
+                <div class="success-icon">&#10004;&#65039;</div>
+                <h2>You're all set!</h2>
+                <p id="successMessage">Thank you! Your card has been saved successfully. Billing will begin as scheduled according to the payment schedule above.</p>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="deal-footer" id="dealFooter" style="display:none;">
+            <div id="cancellationInfo"></div>
+            <div class="stripe-badge">
+                <span>&#128274;</span>
+                <span>Payments securely processed by Stripe</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        'use strict';
+
+        const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('token');
+        const isSetupComplete = params.get('setup') === 'complete';
+
+        if (!token) {
+            showError('Invalid link. No deal token provided.');
+            return;
+        }
+
+        const currencySymbols = { gbp: '\u00A3', usd: '$', eur: '\u20AC' };
+
+        function formatAmount(cents, currency) {
+            const symbol = currencySymbols[currency] || currency.toUpperCase() + ' ';
+            return symbol + (cents / 100).toLocaleString('en-GB', { minimumFractionDigits: 2 });
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+        }
+
+        function showError(msg) {
+            document.getElementById('dealLoading').style.display = 'none';
+            document.getElementById('dealError').style.display = 'block';
+            document.getElementById('dealErrorMessage').textContent = msg;
+        }
+
+        function showSuccess(deal) {
+            document.getElementById('dealLoading').style.display = 'none';
+            document.getElementById('dealHero').style.display = 'block';
+            document.getElementById('dealBody').style.display = 'flex';
+            document.getElementById('dealCard').style.display = 'none';
+            document.getElementById('dealSuccess').style.display = 'block';
+            document.getElementById('dealFooter').style.display = 'block';
+
+            // Apply headline and intro from deal data
+            if (deal.page_headline) {
+                document.getElementById('dealHeadline').textContent = deal.page_headline;
+            }
+            if (deal.page_intro) {
+                document.getElementById('dealIntro').textContent = deal.page_intro;
+            }
+            // Apply thank you message (deal-specific or global default)
+            if (deal.success_message) {
+                document.getElementById('successMessage').textContent = deal.success_message;
+            }
+        }
+
+        function renderSchedule(phases, currency) {
+            const container = document.getElementById('scheduleList');
+            container.innerHTML = phases.map(p => {
+                const label = p.label || 'Payment';
+                const amount = formatAmount(p.amount_cents, currency);
+                const billingDate = p.computed_billing_date || p.billing_date;
+                const dateStr = billingDate ? formatDate(billingDate) : '';
+
+                let dateLine = '';
+                if (p.is_recurring_indefinitely && dateStr) {
+                    dateLine = `${dateStr} then monthly`;
+                } else if (dateStr) {
+                    dateLine = dateStr;
+                }
+
+                return `
+                    <div class="schedule-item">
+                        <div>
+                            ${dateLine ? `<div class="phase-date">${escapeHtml(dateLine)}</div>` : ''}
+                            <div class="phase-label">${escapeHtml(label)}</div>
+                        </div>
+                        <div>
+                            <div class="phase-amount">${amount}</div>
+                            ${p.is_recurring_indefinitely ? '<div class="phase-recurring">/month</div>' : ''}
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+
+        async function loadDeal() {
+            try {
+                console.log('[DEAL] Loading deal data for token:', token);
+                const res = await fetch(`${API_BASE_URL}/api/deal-billing/page/${token}`);
+                console.log('[DEAL] Deal page response:', res.status);
+                if (res.status === 404) { showError('This deal was not found.'); return; }
+                if (res.status === 410) { showError('This deal is no longer available.'); return; }
+                if (!res.ok) { showError('Failed to load deal details.'); return; }
+                const deal = await res.json();
+
+                // Check if already set up
+                if (isSetupComplete || ['card_captured', 'billing_schedule_active', 'completed'].includes(deal.status)) {
+                    showSuccess(deal);
+                    if (deal.cancellation_url || deal.cancellation_instructions) {
+                        renderCancellationInfo(deal);
+                    }
+                    return;
+                }
+
+                // Render the deal
+                document.getElementById('dealLoading').style.display = 'none';
+                document.getElementById('dealHero').style.display = 'block';
+                document.getElementById('dealBody').style.display = 'flex';
+                document.getElementById('dealFooter').style.display = 'block';
+
+                if (deal.page_headline) {
+                    document.getElementById('dealHeadline').textContent = deal.page_headline;
+                }
+                if (deal.page_intro) {
+                    document.getElementById('dealIntro').textContent = deal.page_intro;
+                }
+
+                document.title = deal.deal_title + ' - Payment Setup';
+
+                // Co-brand with client logo if available
+                // Show client logo in top-right of card
+                if (deal.logo_url) {
+                    const logoArea = document.getElementById('clientLogoArea');
+                    const logoImg = document.getElementById('clientLogo');
+                    logoImg.src = deal.logo_url;
+                    logoImg.alt = deal.company_name || 'Client logo';
+                    logoImg.onerror = function() { logoArea.style.display = 'none'; };
+                    logoArea.style.display = 'block';
+                }
+
+                renderSchedule(deal.phases, deal.currency);
+
+                // Apply custom notice text if set on this deal
+                if (deal.pause_cancel_text) {
+                    document.getElementById('pauseCancelText').textContent = deal.pause_cancel_text;
+                }
+                if (deal.no_charge_text) {
+                    document.getElementById('noChargeText').textContent = deal.no_charge_text;
+                }
+
+                if (deal.cancellation_url || deal.cancellation_instructions) {
+                    renderCancellationInfo(deal);
+                }
+
+                // Initialize Stripe embedded checkout
+                await initCheckout(deal);
+
+            } catch (err) {
+                console.error('Error loading deal:', err);
+                showError('Something went wrong loading this page. Please try again.');
+            }
+        }
+
+        function renderCancellationInfo(deal) {
+            const el = document.getElementById('cancellationInfo');
+            if (deal.cancellation_url) {
+                el.innerHTML = `<p>Need to cancel? <a href="${escapeHtml(deal.cancellation_url)}">Cancel here</a></p>`;
+            } else if (deal.cancellation_instructions) {
+                el.innerHTML = `<p>${escapeHtml(deal.cancellation_instructions)}</p>`;
+            }
+        }
+
+        let stripeLoadPromise = null;
+
+        function loadStripeJs() {
+            if (window.Stripe) return Promise.resolve();
+            if (stripeLoadPromise) return stripeLoadPromise;
+            stripeLoadPromise = new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://js.stripe.com/v3/';
+                script.async = true;
+                script.onload = resolve;
+                script.onerror = () => reject(new Error('Failed to load Stripe.js'));
+                document.head.appendChild(script);
+            });
+            return stripeLoadPromise;
+        }
+
+        async function initCheckout(deal) {
+            const checkoutArea = document.getElementById('checkoutArea');
+            checkoutArea.innerHTML = '<div id="checkout-container"></div><p style="text-align:center;color:#718096;padding:12px 0;">Loading payment form...</p>';
+
+            try {
+                // Load Stripe.js and get publishable key in parallel
+                const [, keyRes] = await Promise.all([
+                    loadStripeJs(),
+                    fetch(`${API_BASE_URL}/api/deal-billing/publishable-key`),
+                ]);
+                if (!keyRes.ok) throw new Error('Stripe not configured');
+                const { publishable_key } = await keyRes.json();
+
+                // Create checkout session
+                console.log('[DEAL] Creating checkout session...');
+                const sessionRes = await fetch(`${API_BASE_URL}/api/deal-billing/checkout/${token}`, {
+                    method: 'POST',
+                });
+                console.log('[DEAL] Checkout session response:', sessionRes.status);
+                if (!sessionRes.ok) {
+                    const err = await sessionRes.json().catch(() => ({}));
+                    if (err.detail === 'Card has already been set up for this deal') {
+                        showSuccess(deal);
+                        return;
+                    }
+                    throw new Error(err.detail || 'Failed to create checkout session');
+                }
+                const { client_secret } = await sessionRes.json();
+
+                // Clear loading text, mount embedded checkout
+                checkoutArea.innerHTML = '<div id="checkout-container"></div>';
+                console.log('[DEAL] Initializing Stripe embedded checkout...');
+                const stripe = Stripe(publishable_key);
+                const checkout = await stripe.initEmbeddedCheckout({ clientSecret: client_secret });
+                console.log('[DEAL] Mounting checkout into #checkout-container');
+                checkout.mount('#checkout-container');
+                console.log('[DEAL] Checkout mounted successfully');
+
+            } catch (err) {
+                console.error('Checkout init error:', err);
+                checkoutArea.innerHTML =
+                    '<p style="color:#c53030; text-align:center; padding:20px;">Unable to load payment form. Please refresh and try again.</p>';
+            }
+        }
+
+        // Fetch deal data for displaying on success page
+        async function fetchDealData() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/deal-billing/page/${token}`);
+                if (res.ok) return res.json();
+            } catch (e) { /* ignore */ }
+            return {};
+        }
+
+        // Poll for status after setup redirect — wait for webhook to confirm
+        if (isSetupComplete) {
+            let pollAttempts = 0;
+            let dealData = null;
+            async function pollStatus() {
+                pollAttempts++;
+                // Fetch deal data on first poll
+                if (!dealData) {
+                    dealData = await fetchDealData();
+                }
+                try {
+                    const res = await fetch(`${API_BASE_URL}/api/deal-billing/status/${token}`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.is_setup_complete) {
+                            showSuccess(dealData);
+                            return;
+                        }
+                    }
+                } catch (e) { /* ignore */ }
+                // Retry up to 20 times (40 seconds) waiting for webhook
+                if (pollAttempts < 20) {
+                    setTimeout(pollStatus, 2000);
+                } else {
+                    // Webhook may be slow — show success but note it's processing
+                    showSuccess(dealData);
+                }
+            }
+            document.getElementById('dealLoading').innerHTML = '<p>Confirming your card setup...</p>';
+            pollStatus();
+        } else {
+            loadDeal();
+        }
+    })();
+    </script>
+</body>
+</html>

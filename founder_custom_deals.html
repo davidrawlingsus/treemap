@@ -59,6 +59,12 @@
                     </p>
                     <div class="deal-form-row">
                         <div class="deal-form-group">
+                            <label for="defaultSuccessMessage">Thank you message</label>
+                            <textarea id="defaultSuccessMessage" rows="2" placeholder="Thank you! Your card has been saved successfully. Billing will begin as scheduled according to the payment schedule above."></textarea>
+                        </div>
+                    </div>
+                    <div class="deal-form-row">
+                        <div class="deal-form-group">
                             <label for="defaultPauseCancelText">Pause / Cancel notice</label>
                             <textarea id="defaultPauseCancelText" rows="2" placeholder="No commitment. You can pause or cancel anytime — just let David know and it's done."></textarea>
                         </div>
@@ -654,6 +660,7 @@
                     method: 'PUT',
                     headers: getHeaders(),
                     body: JSON.stringify({
+                        success_message: document.getElementById('defaultSuccessMessage').value.trim(),
                         pause_cancel_text: document.getElementById('defaultPauseCancelText').value.trim(),
                         no_charge_text: document.getElementById('defaultNoChargeText').value.trim(),
                     }),
@@ -672,6 +679,7 @@
 
         async function populateDefaultsPanel() {
             const defaults = await loadDefaultsFromServer();
+            document.getElementById('defaultSuccessMessage').value = defaults.success_message || '';
             document.getElementById('defaultPauseCancelText').value = defaults.pause_cancel_text || '';
             document.getElementById('defaultNoChargeText').value = defaults.no_charge_text || '';
         }
