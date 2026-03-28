@@ -259,7 +259,8 @@ body.deal-page {
 
 #checkout-container {
     min-height: 0;
-    background: transparent;
+    background-color: #ffffff;
+    --ec-color-primary: #ffffff;
 }
 
 /* ── Success state ────────────────────────────────────── */
