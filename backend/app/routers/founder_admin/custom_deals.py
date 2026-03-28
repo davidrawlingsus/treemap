@@ -202,6 +202,33 @@ def get_deal_url(
     return {"url": get_deal_public_url(deal)}
 
 
+@router.post("/api/founder/custom-deals/{deal_id}/retry-schedule")
+def retry_schedule_creation(
+    deal_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Manually retry subscription schedule creation for a deal with card captured."""
+    from app.services.custom_deal_service import _create_subscription_schedule
+    deal = (
+        db.query(CustomDeal)
+        .options(joinedload(CustomDeal.phases), joinedload(CustomDeal.stripe_state))
+        .filter(CustomDeal.id == deal_id)
+        .first()
+    )
+    if not deal:
+        raise HTTPException(status_code=404, detail="Deal not found")
+    if not deal.stripe_state or not deal.stripe_state.stripe_payment_method_id:
+        raise HTTPException(status_code=400, detail="Card has not been captured yet")
+    if deal.stripe_state.stripe_subscription_schedule_id:
+        raise HTTPException(status_code=400, detail="Schedule already exists")
+    try:
+        _create_subscription_schedule(db, deal)
+        return {"detail": "Schedule created", "schedule_id": deal.stripe_state.stripe_subscription_schedule_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)[:300])
+
+
 @router.get("/api/founder/custom-deals/statuses/list")
 def list_deal_statuses(
     current_user: User = Depends(get_current_active_founder),
