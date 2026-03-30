@@ -166,6 +166,11 @@ app.use('/api', createProxyMiddleware({
   }
 }));
 
+// Clean URL for public landing page
+app.get('/free-analysis', (req, res) => {
+  res.sendFile(path.join(__dirname, 'free-analysis.html'));
+});
+
 // Serve static files from current directory (AFTER API routes)
 // Note: express.static will return 405 (Method Not Allowed) for POST requests to files, not 501
 app.use(express.static(__dirname));

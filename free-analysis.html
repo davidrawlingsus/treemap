@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Free VoC Analysis | MapTheGap.ai</title>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles/free-analysis.css">
+    <script src="/config.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Screen 1: Email Input -->
+        <section id="screen-email" class="screen active">
+            <div class="card">
+                <h1>See what your customers are <em>really</em> saying</h1>
+                <p class="subtitle">We'll analyze your public reviews and show you the topics, sentiment patterns, and ad opportunities hiding in your customer feedback.</p>
+                <form id="emailForm" class="form-group">
+                    <label for="emailInput">Your work email</label>
+                    <input id="emailInput" type="email" placeholder="you@yourcompany.com" required autocomplete="email">
+                    <button type="submit" class="btn-primary" id="emailSubmitBtn">Get Your Free Analysis</button>
+                </form>
+                <p class="disclaimer">We'll use your email domain to find your reviews. No spam, ever.</p>
+            </div>
+        </section>
+
+        <!-- Screen 2: Confirm Website -->
+        <section id="screen-confirm" class="screen">
+            <div class="card">
+                <h2>Is this the right website?</h2>
+                <div class="confirm-domain">
+                    <span id="domainDisplay" class="domain-badge"></span>
+                </div>
+                <div class="form-group">
+                    <label for="urlOverride">Company website (edit if needed)</label>
+                    <input id="urlOverride" type="url" placeholder="https://yourcompany.com">
+                </div>
+                <div class="btn-row">
+                    <button id="backBtn" class="btn-secondary">Back</button>
+                    <button id="confirmBtn" class="btn-primary">Start Analysis</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Screen 3: Processing / Confirmation -->
+        <section id="screen-processing" class="screen">
+            <div class="card">
+                <div class="processing-icon">
+                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                        <circle cx="24" cy="24" r="20" stroke="#1a73e8" stroke-width="3" stroke-dasharray="80 40" class="spinner"/>
+                    </svg>
+                </div>
+                <h2>We're analyzing your reviews</h2>
+                <p class="subtitle">This usually takes 8-10 minutes. We'll email you at <strong id="emailConfirm"></strong> when your analysis is ready.</p>
+                <div id="statusTracker" class="status-tracker">
+                    <div class="status-step" data-step="queued">Queued</div>
+                    <div class="status-step" data-step="scraping">Scraping reviews</div>
+                    <div class="status-step" data-step="extracting">Extracting signals</div>
+                    <div class="status-step" data-step="building_taxonomy">Building taxonomy</div>
+                    <div class="status-step" data-step="validating">Validating</div>
+                    <div class="status-step" data-step="classifying">Classifying reviews</div>
+                    <div class="status-step" data-step="generating_ads">Generating ads</div>
+                    <div class="status-step" data-step="completed">Complete</div>
+                </div>
+                <p class="muted" id="statusNote">You can close this page — we'll send you an email when it's done.</p>
+            </div>
+        </section>
+
+        <!-- Screen 4: Error -->
+        <section id="screen-error" class="screen">
+            <div class="card">
+                <h2>Something went wrong</h2>
+                <p id="errorMessage" class="error-text"></p>
+                <button id="retryBtn" class="btn-primary">Try Again</button>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const API_BASE = (() => {
+            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const base = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+            return isLocal ? base : 'https://content-exploration-featurebranch.up.railway.app';
+        })();
+
+        let currentEmail = '';
+        let currentRunId = null;
+        let pollTimer = null;
+
+        // Screen navigation
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        // Email form submit
+        document.getElementById('emailForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('emailInput').value.trim();
+            if (!email) return;
+            currentEmail = email;
+
+            const domain = email.split('@')[1];
+            document.getElementById('domainDisplay').textContent = domain;
+            document.getElementById('urlOverride').value = `https://${domain}`;
+            showScreen('screen-confirm');
+        });
+
+        // Back button
+        document.getElementById('backBtn').addEventListener('click', () => showScreen('screen-email'));
+
+        // Confirm and start
+        document.getElementById('confirmBtn').addEventListener('click', async () => {
+            const btn = document.getElementById('confirmBtn');
+            btn.disabled = true;
+            btn.textContent = 'Starting...';
+
+            try {
+                const res = await fetch(`${API_BASE}/api/public/leadgen/start`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        work_email: currentEmail,
+                        company_url: document.getElementById('urlOverride').value.trim() || null,
+                    }),
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.detail || `Request failed: ${res.status}`);
+                }
+                const data = await res.json();
+                currentRunId = data.run_id;
+                localStorage.setItem('leadgen_run_id', currentRunId);
+                localStorage.setItem('leadgen_email', currentEmail);
+
+                document.getElementById('emailConfirm').textContent = currentEmail;
+                showScreen('screen-processing');
+                startPolling();
+            } catch (err) {
+                document.getElementById('errorMessage').textContent = err.message;
+                showScreen('screen-error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Start Analysis';
+            }
+        });
+
+        // Retry
+        document.getElementById('retryBtn').addEventListener('click', () => showScreen('screen-email'));
+
+        // Status polling
+        function startPolling() {
+            if (pollTimer) clearInterval(pollTimer);
+            pollTimer = setInterval(pollStatus, 10000);
+            pollStatus(); // immediate first check
+        }
+
+        async function pollStatus() {
+            if (!currentRunId) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/public/leadgen/${currentRunId}/status`);
+                if (!res.ok) return;
+                const data = await res.json();
+                updateStatusUI(data.coding_status);
+
+                if (data.coding_status === 'completed' || data.coding_status === 'failed') {
+                    clearInterval(pollTimer);
+                    if (data.coding_status === 'completed') {
+                        document.getElementById('statusNote').innerHTML =
+                            'Check your email for the link to view your analysis.';
+                        document.querySelector('.processing-icon').innerHTML =
+                            '<svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#22c55e"/><path d="M15 24l6 6 12-12" stroke="#fff" stroke-width="3" fill="none"/></svg>';
+                    } else {
+                        document.getElementById('statusNote').textContent =
+                            'The analysis encountered an error. Please try again.';
+                    }
+                }
+            } catch (e) {
+                // Polling failure is non-critical
+            }
+        }
+
+        const STATUS_ORDER = ['queued', 'scraping', 'extracting_context', 'extracting', 'building_taxonomy', 'validating', 'classifying', 'generating_ads', 'sending_email', 'completed'];
+
+        function updateStatusUI(status) {
+            const currentIdx = STATUS_ORDER.indexOf(status);
+            document.querySelectorAll('.status-step').forEach(el => {
+                const stepStatus = el.dataset.step;
+                const stepIdx = STATUS_ORDER.indexOf(stepStatus);
+                el.classList.remove('active', 'done');
+                if (stepIdx < currentIdx) el.classList.add('done');
+                else if (stepIdx === currentIdx) el.classList.add('active');
+            });
+        }
+
+        // Restore from localStorage on page load
+        (function restore() {
+            const savedRunId = localStorage.getItem('leadgen_run_id');
+            const savedEmail = localStorage.getItem('leadgen_email');
+            if (savedRunId && savedEmail) {
+                currentRunId = savedRunId;
+                currentEmail = savedEmail;
+                document.getElementById('emailConfirm').textContent = savedEmail;
+                showScreen('screen-processing');
+                startPolling();
+            }
+        })();
+    </script>
+</body>
+</html>

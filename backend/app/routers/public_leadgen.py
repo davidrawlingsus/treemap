@@ -200,3 +200,103 @@ def _safe_parse_dt(value):
         return datetime.fromisoformat(text)
     except ValueError:
         return None
+
+
+# ---------------------------------------------------------------------------
+# Public lead-gen landing page endpoints
+# ---------------------------------------------------------------------------
+
+from pydantic import BaseModel, Field
+from typing import Optional, List
+
+
+class LeadgenStartRequest(BaseModel):
+    work_email: str = Field(..., description="Work email to infer company domain")
+    company_url: Optional[str] = Field(default=None, description="Optional company URL override")
+
+
+class LeadgenStartResponse(BaseModel):
+    run_id: str
+    company_domain: str
+    company_url: str
+    company_name: str
+
+
+@router.post("/leadgen/start", response_model=LeadgenStartResponse)
+def public_leadgen_start(
+    body: LeadgenStartRequest,
+    db: Session = Depends(get_db),
+):
+    """
+    Start a lead-gen pipeline run. Validates the email, creates a run record,
+    kicks off the full pipeline in a background thread, and returns immediately.
+    """
+    from app.models.leadgen_voc import LeadgenVocRun
+    from app.services.leadgen_pipeline_runner import run_full_pipeline_background
+
+    try:
+        company_domain = parse_domain_from_work_email(body.work_email)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    if not is_likely_work_email_domain(company_domain):
+        raise HTTPException(
+            status_code=400,
+            detail="Please provide a work email address (personal email domains are not supported).",
+        )
+
+    company_url = normalize_url(body.company_url or infer_company_url_from_domain(company_domain))
+    company_name = infer_company_name_from_domain(company_domain)
+
+    # Check for an existing recent run for this domain (rate limiting)
+    from sqlalchemy import func
+    recent = db.query(LeadgenVocRun).filter(
+        LeadgenVocRun.company_domain == company_domain,
+        LeadgenVocRun.created_at > func.now() - func.cast('1 hour', func.text('interval')),
+    ).first()
+
+    run_id = uuid.uuid4().hex
+    run = LeadgenVocRun(
+        run_id=run_id,
+        work_email=body.work_email.strip().lower(),
+        company_domain=company_domain,
+        company_url=company_url,
+        company_name=company_name,
+        review_count=0,
+        coding_enabled=True,
+        coding_status="queued",
+    )
+    db.add(run)
+    db.commit()
+
+    # Launch background pipeline
+    run_full_pipeline_background(run_id)
+
+    return LeadgenStartResponse(
+        run_id=run_id,
+        company_domain=company_domain,
+        company_url=company_url,
+        company_name=company_name,
+    )
+
+
+@router.get("/leadgen/{run_id}/status")
+def public_leadgen_status(
+    run_id: str,
+    db: Session = Depends(get_db),
+):
+    """Check the status of a lead-gen pipeline run."""
+    from app.models.leadgen_voc import LeadgenVocRun
+
+    run = db.query(LeadgenVocRun).filter(LeadgenVocRun.run_id == run_id).first()
+    if not run:
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    return {
+        "run_id": run.run_id,
+        "coding_status": run.coding_status,
+        "company_name": run.company_name,
+        "company_domain": run.company_domain,
+        "review_count": run.review_count,
+        "client_id": str(run.converted_client_uuid) if run.converted_client_uuid else None,
+    }
