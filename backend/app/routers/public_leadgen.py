@@ -248,13 +248,6 @@ def public_leadgen_start(
     company_url = normalize_url(body.company_url or infer_company_url_from_domain(company_domain))
     company_name = infer_company_name_from_domain(company_domain)
 
-    # Check for an existing recent run for this domain (rate limiting)
-    from sqlalchemy import func
-    recent = db.query(LeadgenVocRun).filter(
-        LeadgenVocRun.company_domain == company_domain,
-        LeadgenVocRun.created_at > func.now() - func.cast('1 hour', func.text('interval')),
-    ).first()
-
     run_id = uuid.uuid4().hex
     run = LeadgenVocRun(
         run_id=run_id,
