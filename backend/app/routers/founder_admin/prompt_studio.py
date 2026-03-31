@@ -71,6 +71,7 @@ class ScrapeResponse(BaseModel):
     company_name: str
     company_url: str
     review_count: int
+    detected_platform: Optional[str] = None
 
 
 class ContextStepRequest(BaseModel):
@@ -371,12 +372,16 @@ def prompt_studio_scrape(
 
         logger.info("[scrape] Starting for domain=%s max_reviews=%s", domain, body.max_reviews)
 
-        normalized_reviews = fetch_trustpilot_reviews_by_domain(
+        from app.services.multi_review_service import fetch_reviews_best_platform
+        result = fetch_reviews_best_platform(
             settings=settings,
-            domain=domain,
+            company_url=company_url,
+            company_domain=domain,
             max_reviews=body.max_reviews,
         )
-        logger.info("[scrape] Got %d reviews from Apify", len(normalized_reviews))
+        normalized_reviews = result.reviews
+        detected_platform = result.platform_display
+        logger.info("[scrape] Got %d reviews from %s", len(normalized_reviews), detected_platform)
 
         rows = build_pre_llm_process_voc_rows(
             normalized_reviews=normalized_reviews,
@@ -422,6 +427,7 @@ def prompt_studio_scrape(
             company_name=company_name,
             company_url=company_url,
             review_count=len(rows),
+            detected_platform=detected_platform,
         )
     except HTTPException:
         raise

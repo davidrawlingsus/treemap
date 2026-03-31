@@ -1244,7 +1244,8 @@ async function handleScrape() {
     els.scrapeBtn.disabled = true;
     try {
         const data = await scrapeProspect(url, els.companyName.value.trim(), parseInt(els.minReviews.value) || 200);
-        showStatus(`Scraped ${data.review_count} reviews from ${data.domain}. Loading reviews & prompts...`, '');
+        const platformLabel = data.detected_platform || data.domain;
+        showStatus(`Found ${data.review_count} reviews on ${platformLabel}. Loading reviews & prompts...`, '');
 
         // Load full reviews from persisted run + default prompts in parallel
         const [runInputs, promptsData] = await Promise.all([
@@ -1265,7 +1266,7 @@ async function handleScrape() {
         };
         currentRunId = data.run_id;
         currentClientId = data.client_id || null;
-        showStatus(`Scraped ${data.review_count} reviews from ${data.domain}. Pipeline ready.`, 'success');
+        showStatus(`Found ${data.review_count} reviews on ${platformLabel}. Pipeline ready.`, 'success');
         initDefaultPipeline();
         updateSaveButton();
         // Refresh the run selector so this scrape appears in the dropdown

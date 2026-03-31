@@ -54,6 +54,7 @@
                 <p class="subtitle">This usually takes 8-10 minutes. We'll email you at <strong id="emailConfirm"></strong> when your analysis is ready.</p>
                 <div id="statusTracker" class="status-tracker">
                     <div class="status-step" data-step="queued">Queued</div>
+                    <div class="status-step" data-step="detecting_platforms">Checking for review services</div>
                     <div class="status-step" data-step="scraping">Scraping reviews</div>
                     <div class="status-step" data-step="extracting_context">Analyzing website</div>
                     <div class="status-step" data-step="extracting">Extracting signals</div>
@@ -166,8 +167,8 @@
                 console.log('[poll] Response:', res.status);
                 if (!res.ok) return;
                 const data = await res.json();
-                console.log('[poll] Status:', data.coding_status);
-                updateStatusUI(data.coding_status);
+                console.log('[poll] Status:', data.coding_status, 'platform:', data.detected_platform);
+                updateStatusUI(data.coding_status, data.detected_platform);
 
                 if (data.coding_status === 'completed' || data.coding_status === 'failed') {
                     clearInterval(pollTimer);
@@ -188,16 +189,30 @@
             }
         }
 
-        const STATUS_ORDER = ['queued', 'scraping', 'extracting_context', 'extracting', 'building_taxonomy', 'validating', 'classifying', 'generating_ads', 'sending_email', 'completed'];
+        const STATUS_ORDER = ['queued', 'detecting_platforms', 'scraping', 'extracting_context', 'extracting', 'building_taxonomy', 'validating', 'classifying', 'generating_ads', 'sending_email', 'completed'];
 
-        function updateStatusUI(status) {
-            const currentIdx = STATUS_ORDER.indexOf(status);
+        function updateStatusUI(status, detectedPlatform) {
+            // Handle scraping_* sub-statuses (e.g., scraping_reviews_io, scraping_yotpo)
+            const normalizedStatus = status.startsWith('scraping') ? 'scraping' : status;
+            const currentIdx = STATUS_ORDER.indexOf(normalizedStatus);
+
             document.querySelectorAll('.status-step').forEach(el => {
                 const stepStatus = el.dataset.step;
                 const stepIdx = STATUS_ORDER.indexOf(stepStatus);
                 el.classList.remove('active', 'done');
-                if (stepIdx < currentIdx) el.classList.add('done');
-                else if (stepIdx === currentIdx) el.classList.add('active');
+                if (stepIdx < currentIdx) {
+                    el.classList.add('done');
+                    // Show detected platform name on the detection step when done
+                    if (stepStatus === 'detecting_platforms' && detectedPlatform) {
+                        el.textContent = `Found: ${detectedPlatform}`;
+                    }
+                } else if (stepIdx === currentIdx) {
+                    el.classList.add('active');
+                    // Show which platform is being scraped
+                    if (stepStatus === 'scraping' && detectedPlatform) {
+                        el.textContent = `Scraping ${detectedPlatform} reviews`;
+                    }
+                }
             });
         }
 

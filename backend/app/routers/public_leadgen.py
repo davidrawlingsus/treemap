@@ -283,6 +283,7 @@ def public_leadgen_status(
     if not run:
         raise HTTPException(status_code=404, detail="Run not found")
 
+    payload = run.payload or {}
     return {
         "run_id": run.run_id,
         "coding_status": run.coding_status,
@@ -290,4 +291,5 @@ def public_leadgen_status(
         "company_domain": run.company_domain,
         "review_count": run.review_count,
         "client_id": str(run.converted_client_uuid) if run.converted_client_uuid else None,
+        "detected_platform": payload.get("detected_platform"),
     }

@@ -73,22 +73,6 @@ def build_pre_llm_process_voc_rows(
     timestamp = datetime.now(timezone.utc).isoformat()
     slug = _company_slug(company_name)
 
-    # Detect review source from the first review's metadata (default: Trustpilot)
-    first_review = normalized_reviews[0] if normalized_reviews else {}
-    source_hint = (first_review.get("source") or "").lower()
-    if "yotpo" in source_hint:
-        source_name = "Yotpo"
-        source_key = "yotpo"
-        respondent_prefix = "yp"
-    elif "reviews.io" in source_hint or "reviewsio" in source_hint:
-        source_name = "Reviews.io"
-        source_key = "reviewsio"
-        respondent_prefix = "rio"
-    else:
-        source_name = "Trustpilot"
-        source_key = "trustpilot"
-        respondent_prefix = "tp"
-
     project_name = "Initial Research"
     project_id = f"lead_{slug}"
 
@@ -99,9 +83,18 @@ def build_pre_llm_process_voc_rows(
         title = (review.get("title") or "").strip()
         review_body = text or title
 
+        # Detect source per review (supports mixed-source lists)
+        source_hint = (review.get("source") or "").lower()
+        if "yotpo" in source_hint:
+            source_name, source_key, prefix = "Yotpo", "yotpo", "yp"
+        elif "reviews_io" in source_hint or "reviews.io" in source_hint or "reviewsio" in source_hint:
+            source_name, source_key, prefix = "Reviews.io", "reviewsio", "rio"
+        else:
+            source_name, source_key, prefix = "Trustpilot", "trustpilot", "tp"
+
         rows.append(
             {
-                "respondent_id": f"{respondent_prefix}_{review_id}",
+                "respondent_id": f"{prefix}_{review_id}",
                 "client_uuid": None,
                 "client_name": company_name,
                 "project_name": project_name,
@@ -115,14 +108,15 @@ def build_pre_llm_process_voc_rows(
                 "overall_sentiment": None,
                 "topics": [],
                 "survey_metadata": {
-                    "trustpilot_review_id": review.get("review_id"),
-                    "trustpilot_url": review.get("review_url"),
+                    "review_id": review.get("review_id"),
+                    "review_url": review.get("review_url"),
                     "rating": review.get("rating"),
                     "review_title": review.get("title"),
                     "review_date": review.get("published_at"),
                     "country": review.get("country"),
                     "language": review.get("language"),
                     "reviewer_name": review.get("reviewer_name"),
+                    "source": source_name,
                 },
                 "created": review.get("published_at") or timestamp,
                 "last_modified": timestamp,

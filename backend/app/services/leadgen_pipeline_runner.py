@@ -357,7 +357,6 @@ def _run_full_pipeline(run_id: str) -> None:
         build_pre_llm_process_voc_rows,
         infer_company_url_from_domain,
     )
-    from app.services.trustpilot_apify_service import fetch_trustpilot_reviews_by_domain
     from app.services.voc_coding_chain_service import call_claude_json_schema, call_claude_json_schema_streaming
     from app.routers.founder_admin.prompt_studio import (
         EXTRACT_SCHEMA, TAXONOMY_SCHEMA, VALIDATE_SCHEMA,
@@ -388,24 +387,41 @@ def _run_full_pipeline(run_id: str) -> None:
         company_url = run.company_url
         company_name = run.company_name
 
-        # ── Step 1: Scrape (skip if reviews already exist) ──
+        # ── Step 1: Detect platforms + Scrape (skip if reviews already exist) ──
         existing_row_count = db.query(LeadgenVocRow).filter(LeadgenVocRow.run_id == run_id).count()
         if existing_row_count > 0:
             logger.info("[pipeline %s] Skipping scrape — %d rows already exist", run_id, existing_row_count)
         else:
-            _update_status(db, run, "scraping")
-            normalized_reviews = fetch_trustpilot_reviews_by_domain(
+            from app.services.multi_review_service import fetch_reviews_best_platform
+
+            def _on_scrape_status(status):
+                _update_status(db, run, status)
+
+            result = fetch_reviews_best_platform(
                 settings=settings,
-                domain=company_domain,
+                company_url=company_url,
+                company_domain=company_domain,
                 max_reviews=200,
+                on_status=_on_scrape_status,
             )
-            logger.info("[pipeline %s] Scraped %d reviews", run_id, len(normalized_reviews))
+            normalized_reviews = result.reviews
+            detected_platform = result.platform_display
+            logger.info("[pipeline %s] Best platform: %s with %d reviews", run_id, detected_platform, len(normalized_reviews))
+
+            # Store detected platform in run payload for status endpoint
+            payload = run.payload or {}
+            payload["detected_platform"] = detected_platform
+            run.payload = payload
+            from sqlalchemy.orm.attributes import flag_modified
+            flag_modified(run, "payload")
+            db.flush()
 
             if not normalized_reviews:
                 _update_status(db, run, "failed")
                 logger.warning("[pipeline %s] No reviews found for %s", run_id, company_domain)
                 return
 
+            _update_status(db, run, "scraping")
             rows = build_pre_llm_process_voc_rows(
                 normalized_reviews=normalized_reviews,
                 company_name=company_name,
@@ -422,7 +438,7 @@ def _run_full_pipeline(run_id: str) -> None:
                 coding_enabled=True,
                 coding_status="scraping",
                 generated_at=datetime.now(timezone.utc),
-                payload={"source": "leadgen_pipeline_runner"},
+                payload=payload,
                 rows=rows,
             )
 
