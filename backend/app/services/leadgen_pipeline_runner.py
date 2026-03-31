@@ -282,6 +282,58 @@ def _update_status(db, run, status: str):
     logger.info("[pipeline %s] status -> %s", run.run_id, status)
 
 
+def _load_live_prompts(db) -> Dict[str, str]:
+    """Load live prompts from the DB, falling back to hardcoded defaults.
+
+    Mirrors prompt_studio._get_default_prompts() so that prompts edited
+    via the prompt studio or prompt versioning UI are used by the pipeline.
+    """
+    from sqlalchemy import func as sa_func
+    from app.models.prompt import Prompt
+    from app.routers.founder_admin.prompt_studio import (
+        EXTRACT_SYSTEM_PROMPT_DEFAULT, EXTRACT_USER_PROMPT_DEFAULT,
+        TAXONOMY_SYSTEM_PROMPT_DEFAULT, TAXONOMY_USER_PROMPT_DEFAULT,
+        VALIDATE_SYSTEM_PROMPT_DEFAULT, VALIDATE_USER_PROMPT_DEFAULT,
+        CLASSIFY_SYSTEM_PROMPT_DEFAULT, CLASSIFY_USER_PROMPT_DEFAULT,
+    )
+
+    purposes = {
+        "voc_extract": ("extract_system", "extract_user"),
+        "voc_taxonomy": ("taxonomy_system", "taxonomy_user"),
+        "voc_validate": ("validate_system", "validate_user"),
+        "voc_classify": ("classify_system", "classify_user"),
+        "voc_generate": ("generate_system", "generate_user"),
+    }
+    defaults = {
+        "extract_system": EXTRACT_SYSTEM_PROMPT_DEFAULT,
+        "extract_user": EXTRACT_USER_PROMPT_DEFAULT,
+        "taxonomy_system": TAXONOMY_SYSTEM_PROMPT_DEFAULT,
+        "taxonomy_user": TAXONOMY_USER_PROMPT_DEFAULT,
+        "validate_system": VALIDATE_SYSTEM_PROMPT_DEFAULT,
+        "validate_user": VALIDATE_USER_PROMPT_DEFAULT,
+        "classify_system": CLASSIFY_SYSTEM_PROMPT_DEFAULT,
+        "classify_user": CLASSIFY_USER_PROMPT_DEFAULT,
+        "generate_system": GENERATE_SYSTEM_PROMPT,
+        "generate_user": GENERATE_USER_PROMPT,
+    }
+    result = dict(defaults)
+
+    for purpose, (sys_key, user_key) in purposes.items():
+        prompt = (
+            db.query(Prompt)
+            .filter(sa_func.lower(Prompt.prompt_purpose) == purpose.lower(), Prompt.status == "live")
+            .order_by(Prompt.version.desc(), Prompt.updated_at.desc())
+            .first()
+        )
+        if prompt:
+            if sys_key and prompt.system_message:
+                result[sys_key] = prompt.system_message
+            if user_key and prompt.prompt_message:
+                result[user_key] = prompt.prompt_message
+
+    return result
+
+
 # ---------------------------------------------------------------------------
 # Full pipeline runner (runs in background thread)
 # ---------------------------------------------------------------------------
@@ -308,11 +360,8 @@ def _run_full_pipeline(run_id: str) -> None:
     from app.services.trustpilot_apify_service import fetch_trustpilot_reviews_by_domain
     from app.services.voc_coding_chain_service import call_claude_json_schema, call_claude_json_schema_streaming
     from app.routers.founder_admin.prompt_studio import (
-        EXTRACT_SCHEMA, EXTRACT_SYSTEM_PROMPT_DEFAULT, EXTRACT_USER_PROMPT_DEFAULT,
-        TAXONOMY_SCHEMA, TAXONOMY_SYSTEM_PROMPT_DEFAULT, TAXONOMY_USER_PROMPT_DEFAULT,
-        VALIDATE_SCHEMA, VALIDATE_SYSTEM_PROMPT_DEFAULT, VALIDATE_USER_PROMPT_DEFAULT,
-        CLASSIFY_SCHEMA, CLASSIFY_SYSTEM_PROMPT_DEFAULT, CLASSIFY_USER_PROMPT_DEFAULT,
-        GENERATE_AD_SCHEMA, _taxonomy_to_codebook_text,
+        EXTRACT_SCHEMA, TAXONOMY_SCHEMA, VALIDATE_SCHEMA,
+        CLASSIFY_SCHEMA, GENERATE_AD_SCHEMA, _taxonomy_to_codebook_text,
     )
     from app.services.voc_coding_chain_service import (
         merge_coded_reviews_into_rows,
@@ -328,6 +377,12 @@ def _run_full_pipeline(run_id: str) -> None:
         if not run:
             logger.error("[pipeline %s] Run not found", run_id)
             return
+
+        # Load live prompts from DB (falls back to hardcoded defaults)
+        prompts = _load_live_prompts(db)
+        logger.info("[pipeline %s] Loaded prompts (live overrides for: %s)",
+                     run_id, [k for k, v in prompts.items()
+                              if k.endswith("_system") and v != globals().get(k.upper(), v)])
 
         company_domain = run.company_domain
         company_url = run.company_url
@@ -420,14 +475,14 @@ def _run_full_pipeline(run_id: str) -> None:
             for r in raw_rows if r.get("value")
         )
         extract_user = (
-            EXTRACT_USER_PROMPT_DEFAULT
+            prompts["extract_user"]
             .replace("{BUSINESS_CONTEXT}", context_text)
             .replace("{RAW_REVIEWS}", reviews_text)
         )
         extract_output = call_claude_json_schema_streaming(
             settings=settings,
             model=getattr(settings, "voc_coding_discover_model", "claude-sonnet-4-5-20250929"),
-            system_prompt=EXTRACT_SYSTEM_PROMPT_DEFAULT,
+            system_prompt=prompts["extract_system"],
             user_prompt=extract_user,
             schema=EXTRACT_SCHEMA,
             temperature=0.0,
@@ -438,7 +493,7 @@ def _run_full_pipeline(run_id: str) -> None:
         # ── Step 4: Taxonomy ──
         _update_status(db, run, "building_taxonomy")
         taxonomy_user = (
-            TAXONOMY_USER_PROMPT_DEFAULT
+            prompts["taxonomy_user"]
             .replace("{BUSINESS_CONTEXT}", context_text)
             .replace("{JSON_OUTPUT_FROM_PROMPT_1}", json.dumps(extract_output, ensure_ascii=False))
             .replace("{REVIEW_COUNT}", str(len(extract_output.get("signals", []))))
@@ -446,7 +501,7 @@ def _run_full_pipeline(run_id: str) -> None:
         taxonomy_output = call_claude_json_schema_streaming(
             settings=settings,
             model=getattr(settings, "voc_coding_discover_model", "claude-sonnet-4-5-20250929"),
-            system_prompt=TAXONOMY_SYSTEM_PROMPT_DEFAULT,
+            system_prompt=prompts["taxonomy_system"],
             user_prompt=taxonomy_user,
             schema=TAXONOMY_SCHEMA,
             temperature=0.0,
@@ -457,7 +512,7 @@ def _run_full_pipeline(run_id: str) -> None:
         # ── Step 5: Validate ──
         _update_status(db, run, "validating")
         validate_user = (
-            VALIDATE_USER_PROMPT_DEFAULT
+            prompts["validate_user"]
             .replace("{BUSINESS_CONTEXT}", context_text)
             .replace("{JSON_OUTPUT_FROM_PROMPT_2}", json.dumps(taxonomy_output, ensure_ascii=False))
             .replace("{JSON_OUTPUT_FROM_PROMPT_1}", json.dumps(extract_output, ensure_ascii=False))
@@ -465,7 +520,7 @@ def _run_full_pipeline(run_id: str) -> None:
         validate_output = call_claude_json_schema_streaming(
             settings=settings,
             model=getattr(settings, "voc_coding_discover_model", "claude-sonnet-4-5-20250929"),
-            system_prompt=VALIDATE_SYSTEM_PROMPT_DEFAULT,
+            system_prompt=prompts["validate_system"],
             user_prompt=validate_user,
             schema=VALIDATE_SCHEMA,
             temperature=0.0,
@@ -484,7 +539,7 @@ def _run_full_pipeline(run_id: str) -> None:
             batch = raw_rows[start:start + batch_size]
             review_text = _format_reviews_for_coding(batch)
             classify_user = (
-                CLASSIFY_USER_PROMPT_DEFAULT
+                prompts["classify_user"]
                 .replace("{TAXONOMY}", codebook_text)
                 .replace("{REVIEWS}", review_text)
             )
@@ -492,7 +547,7 @@ def _run_full_pipeline(run_id: str) -> None:
                 result = call_claude_json_schema(
                     settings=settings,
                     model="claude-haiku-4-5-20251001",
-                    system_prompt=CLASSIFY_SYSTEM_PROMPT_DEFAULT,
+                    system_prompt=prompts["classify_system"],
                     user_prompt=classify_user,
                     schema=CLASSIFY_SCHEMA,
                     temperature=0.2,
@@ -551,12 +606,12 @@ def _run_full_pipeline(run_id: str) -> None:
         for payload in payloads:
             if total_ads >= MAX_TOTAL_ADS:
                 break
-            user_prompt = assemble_user_prompt(GENERATE_USER_PROMPT, payload)
+            user_prompt = assemble_user_prompt(prompts["generate_user"], payload)
             try:
                 ad_result = call_claude_json_schema_streaming(
                     settings=settings,
                     model="claude-opus-4-6",
-                    system_prompt=GENERATE_SYSTEM_PROMPT,
+                    system_prompt=prompts["generate_system"],
                     user_prompt=user_prompt,
                     schema=GENERATE_AD_SCHEMA,
                     temperature=0.7,
