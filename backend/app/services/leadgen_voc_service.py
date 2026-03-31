@@ -287,6 +287,17 @@ def _copy_rows_to_process_voc(db: Session, run_id: str, client_uuid: UUID) -> in
         .order_by(LeadgenVocRow.id.asc())
         .all()
     )
+
+    # Also delete any existing rows with the same respondent_ids to avoid unique constraint violations
+    # (e.g. from a previous lead run that created a different client for the same company)
+    respondent_ids = [r.respondent_id for r in rows if r.respondent_id]
+    if respondent_ids:
+        from sqlalchemy import text
+        # Batch delete in chunks to avoid overly large IN clauses
+        for i in range(0, len(respondent_ids), 500):
+            chunk = respondent_ids[i:i + 500]
+            db.query(ProcessVoc).filter(ProcessVoc.respondent_id.in_(chunk)).delete(synchronize_session=False)
+        db.flush()
     for row in rows:
         db.add(
             ProcessVoc(
