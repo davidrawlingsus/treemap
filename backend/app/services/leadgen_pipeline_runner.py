@@ -375,7 +375,12 @@ def _run_full_pipeline(run_id: str) -> None:
         context_text = ""
         try:
             from app.services.product_context_service import extract_product_context_from_url_service
-            ctx = extract_product_context_from_url_service(company_url, settings)
+            from app.services.llm_service import LLMService
+            llm = LLMService(
+                openai_api_key=getattr(settings, "openai_api_key", None),
+                anthropic_api_key=getattr(settings, "anthropic_api_key", None),
+            )
+            ctx = extract_product_context_from_url_service(db, llm, company_url)
             context_text = ctx.get("context_text", "") if isinstance(ctx, dict) else ""
             logger.info("[pipeline %s] Context extracted (%d chars)", run_id, len(context_text))
         except Exception as e:
