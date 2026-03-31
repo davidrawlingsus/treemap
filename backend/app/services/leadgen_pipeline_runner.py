@@ -306,7 +306,7 @@ def _run_full_pipeline(run_id: str) -> None:
         infer_company_url_from_domain,
     )
     from app.services.trustpilot_apify_service import fetch_trustpilot_reviews_by_domain
-    from app.services.voc_coding_chain_service import call_claude_json_schema
+    from app.services.voc_coding_chain_service import call_claude_json_schema, call_claude_json_schema_streaming
     from app.routers.founder_admin.prompt_studio import (
         EXTRACT_SCHEMA, EXTRACT_SYSTEM_PROMPT_DEFAULT, EXTRACT_USER_PROMPT_DEFAULT,
         TAXONOMY_SCHEMA, TAXONOMY_SYSTEM_PROMPT_DEFAULT, TAXONOMY_USER_PROMPT_DEFAULT,
@@ -333,42 +333,47 @@ def _run_full_pipeline(run_id: str) -> None:
         company_url = run.company_url
         company_name = run.company_name
 
-        # ── Step 1: Scrape ──
-        _update_status(db, run, "scraping")
-        normalized_reviews = fetch_trustpilot_reviews_by_domain(
-            settings=settings,
-            domain=company_domain,
-            max_reviews=200,
-        )
-        logger.info("[pipeline %s] Scraped %d reviews", run_id, len(normalized_reviews))
+        # ── Step 1: Scrape (skip if reviews already exist) ──
+        existing_row_count = db.query(LeadgenVocRow).filter(LeadgenVocRow.run_id == run_id).count()
+        if existing_row_count > 0:
+            logger.info("[pipeline %s] Skipping scrape — %d rows already exist", run_id, existing_row_count)
+        else:
+            _update_status(db, run, "scraping")
+            normalized_reviews = fetch_trustpilot_reviews_by_domain(
+                settings=settings,
+                domain=company_domain,
+                max_reviews=200,
+            )
+            logger.info("[pipeline %s] Scraped %d reviews", run_id, len(normalized_reviews))
 
-        if not normalized_reviews:
-            _update_status(db, run, "failed")
-            logger.warning("[pipeline %s] No reviews found for %s", run_id, company_domain)
-            return
+            if not normalized_reviews:
+                _update_status(db, run, "failed")
+                logger.warning("[pipeline %s] No reviews found for %s", run_id, company_domain)
+                return
 
-        rows = build_pre_llm_process_voc_rows(
-            normalized_reviews=normalized_reviews,
-            company_name=company_name,
-            company_domain=company_domain,
-        )
-        upsert_leadgen_run_with_rows(
-            db,
-            run_id=run_id,
-            work_email=run.work_email,
-            company_domain=company_domain,
-            company_url=company_url,
-            company_name=company_name,
-            review_count=len(rows),
-            coding_enabled=True,
-            coding_status="scraping",
-            generated_at=datetime.now(timezone.utc),
-            payload={"source": "leadgen_pipeline_runner"},
-            rows=rows,
-        )
+            rows = build_pre_llm_process_voc_rows(
+                normalized_reviews=normalized_reviews,
+                company_name=company_name,
+                company_domain=company_domain,
+            )
+            upsert_leadgen_run_with_rows(
+                db,
+                run_id=run_id,
+                work_email=run.work_email,
+                company_domain=company_domain,
+                company_url=company_url,
+                company_name=company_name,
+                review_count=len(rows),
+                coding_enabled=True,
+                coding_status="scraping",
+                generated_at=datetime.now(timezone.utc),
+                payload={"source": "leadgen_pipeline_runner"},
+                rows=rows,
+            )
+
         lead_client = create_or_update_lead_client(db, run)
         db.commit()
-        logger.info("[pipeline %s] Persisted %d rows, client=%s", run_id, len(rows), lead_client.id)
+        logger.info("[pipeline %s] Client=%s", run_id, lead_client.id)
 
         # ── Step 2: Context extraction (optional) ──
         _update_status(db, run, "extracting_context")
@@ -389,16 +394,18 @@ def _run_full_pipeline(run_id: str) -> None:
 
         # ── Step 3: Extract signals ──
         _update_status(db, run, "extracting")
+        raw_rows = get_leadgen_rows_as_process_voc_dicts(db, run_id)
+        logger.info("[pipeline %s] Extracting from %d reviews", run_id, len(raw_rows))
         reviews_text = "\n\n".join(
             f"Review {r.get('respondent_id', '')}:\n{r.get('value', '')}"
-            for r in rows if r.get("value")
+            for r in raw_rows if r.get("value")
         )
         extract_user = (
             EXTRACT_USER_PROMPT_DEFAULT
             .replace("{BUSINESS_CONTEXT}", context_text)
             .replace("{RAW_REVIEWS}", reviews_text)
         )
-        extract_output = call_claude_json_schema(
+        extract_output = call_claude_json_schema_streaming(
             settings=settings,
             model=getattr(settings, "voc_coding_discover_model", "claude-sonnet-4-5-20250929"),
             system_prompt=EXTRACT_SYSTEM_PROMPT_DEFAULT,
@@ -417,7 +424,7 @@ def _run_full_pipeline(run_id: str) -> None:
             .replace("{JSON_OUTPUT_FROM_PROMPT_1}", json.dumps(extract_output, ensure_ascii=False))
             .replace("{REVIEW_COUNT}", str(len(extract_output.get("signals", []))))
         )
-        taxonomy_output = call_claude_json_schema(
+        taxonomy_output = call_claude_json_schema_streaming(
             settings=settings,
             model=getattr(settings, "voc_coding_discover_model", "claude-sonnet-4-5-20250929"),
             system_prompt=TAXONOMY_SYSTEM_PROMPT_DEFAULT,
@@ -436,7 +443,7 @@ def _run_full_pipeline(run_id: str) -> None:
             .replace("{JSON_OUTPUT_FROM_PROMPT_2}", json.dumps(taxonomy_output, ensure_ascii=False))
             .replace("{JSON_OUTPUT_FROM_PROMPT_1}", json.dumps(extract_output, ensure_ascii=False))
         )
-        validate_output = call_claude_json_schema(
+        validate_output = call_claude_json_schema_streaming(
             settings=settings,
             model=getattr(settings, "voc_coding_discover_model", "claude-sonnet-4-5-20250929"),
             system_prompt=VALIDATE_SYSTEM_PROMPT_DEFAULT,
@@ -527,7 +534,7 @@ def _run_full_pipeline(run_id: str) -> None:
                 break
             user_prompt = assemble_user_prompt(GENERATE_USER_PROMPT, payload)
             try:
-                ad_result = call_claude_json_schema(
+                ad_result = call_claude_json_schema_streaming(
                     settings=settings,
                     model="claude-opus-4-6",
                     system_prompt=GENERATE_SYSTEM_PROMPT,

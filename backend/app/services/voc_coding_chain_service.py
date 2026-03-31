@@ -459,6 +459,50 @@ def stream_claude_json_schema(
         yield f"data: {json.dumps({'type': 'error', 'message': str(exc), 'elapsed_seconds': elapsed})}\n\n"
 
 
+def call_claude_json_schema_streaming(
+    *,
+    settings: Any,
+    model: str,
+    system_prompt: str,
+    user_prompt: str,
+    schema: Dict[str, Any],
+    temperature: float,
+    max_tokens: int,
+) -> Dict[str, Any]:
+    """Call Claude using the streaming path (same as prompt studio) but block until done.
+
+    This reuses stream_claude_json_schema's background-thread + heartbeat approach
+    which handles long-running calls reliably. The generator is consumed internally
+    and the parsed JSON result is returned.
+    """
+    _log = logging.getLogger(__name__)
+    result = None
+    error_msg = None
+
+    for line in stream_claude_json_schema(
+        settings=settings, model=model, system_prompt=system_prompt,
+        user_prompt=user_prompt, schema=schema, temperature=temperature,
+        max_tokens=max_tokens,
+    ):
+        # Parse SSE data lines
+        if not line.startswith("data: "):
+            continue
+        try:
+            evt = json.loads(line[6:])
+            if evt.get("type") == "done":
+                result = evt.get("output", {})
+            elif evt.get("type") == "error":
+                error_msg = evt.get("message", "Unknown streaming error")
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+    if error_msg:
+        raise VocCodingChainError("llm_call", error_msg)
+    if result is None:
+        raise VocCodingChainError("llm_call", "Stream ended without a done event")
+    return result
+
+
 def _get_live_prompt_by_purpose(db: Session, purpose: str) -> Optional[Prompt]:
     purpose_lower = (purpose or "").strip().lower()
     if not purpose_lower:
