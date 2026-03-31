@@ -136,6 +136,10 @@ def _qualifies_for_ads(topic: Dict) -> bool:
     if priority == "SECONDARY":
         cv = topic.get("creative_value_summary", {})
         return (cv.get("HIGH", 0) >= 1) or (cv.get("MEDIUM", 0) >= 3)
+    # If creative_priority is not set (schema doesn't enforce it),
+    # qualify any topic with a reasonable signal count
+    if not priority and topic.get("signal_count", 0) >= 3:
+        return True
     return False
 
 
@@ -177,9 +181,13 @@ def build_creative_payloads(
                 continue
             usable_as = topic.get("usable_as", [])
             available_lanes = [t for t in usable_as if t.startswith("LANE:")]
-            selected = [l for l in LANE_PRIORITY if l in available_lanes]
-            cap = 3 if topic.get("creative_priority") == "PRIMARY" else 2
-            selected = selected[:cap]
+            if available_lanes:
+                selected = [l for l in LANE_PRIORITY if l in available_lanes]
+                cap = 3 if topic.get("creative_priority") == "PRIMARY" else 2
+                selected = selected[:cap]
+            else:
+                # No usable_as data — default to top 3 lanes
+                selected = LANE_PRIORITY[:3]
             if not selected:
                 continue
 
@@ -502,7 +510,10 @@ def _run_full_pipeline(run_id: str) -> None:
             "website": company_url,
         }
         payloads = build_creative_payloads(validate_output, raw_rows, business_context)
-        logger.info("[pipeline %s] Generating ads for %d topics", run_id, len(payloads))
+        logger.info("[pipeline %s] Generating ads for %d topics (validate has %d categories, %d total topics)",
+                     run_id, len(payloads),
+                     len(validate_output.get("categories", [])),
+                     sum(len(c.get("topics", [])) for c in validate_output.get("categories", [])))
 
         total_ads = 0
         MAX_TOTAL_ADS = 36
