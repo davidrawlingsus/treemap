@@ -608,11 +608,12 @@ def _run_full_pipeline(run_id: str) -> None:
             logger.error("[pipeline %s] Email send failed: %s", run_id, e)
 
         _update_status(db, run, "completed")
-        logger.info("[pipeline %s] Pipeline completed! %d reviews, %d ads", run_id, len(rows), total_ads)
+        logger.info("[pipeline %s] Pipeline completed! %d ads", run_id, total_ads)
 
     except Exception as exc:
         logger.error("[pipeline %s] Pipeline failed: %s", run_id, exc, exc_info=True)
         try:
+            db.rollback()
             run = db.query(LeadgenVocRun).filter(LeadgenVocRun.run_id == run_id).first()
             if run:
                 run.coding_status = "failed"

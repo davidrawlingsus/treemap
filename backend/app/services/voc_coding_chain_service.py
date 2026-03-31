@@ -330,6 +330,7 @@ def stream_claude_json_schema(
     output_tokens = 0
     input_tokens = 0
     json_chunks: list[str] = []
+    total_chars = 0
     last_reported = 0
     last_heartbeat = _time.time()
     event_count = 0
@@ -415,8 +416,8 @@ def stream_claude_json_schema(
                     partial = getattr(delta, "partial_json", "")
                     if partial:
                         json_chunks.append(partial)
-                        char_count = sum(len(c) for c in json_chunks)
-                        output_tokens = char_count // 4
+                        total_chars += len(partial)
+                        output_tokens = total_chars // 4
                         if output_tokens - last_reported >= 100:
                             last_reported = output_tokens
                             msg = f"data: {json.dumps({'type': 'tokens', 'output_tokens': output_tokens})}\n\n"

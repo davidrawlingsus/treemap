@@ -6,8 +6,10 @@ from datetime import datetime, timezone
 import logging
 import re
 import uuid
+from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -205,10 +207,6 @@ def _safe_parse_dt(value):
 # ---------------------------------------------------------------------------
 # Public lead-gen landing page endpoints
 # ---------------------------------------------------------------------------
-
-from pydantic import BaseModel, Field
-from typing import Optional, List
-
 
 class LeadgenStartRequest(BaseModel):
     work_email: str = Field(..., description="Work email to infer company domain")

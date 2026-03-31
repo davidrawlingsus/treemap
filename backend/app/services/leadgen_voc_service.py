@@ -276,57 +276,54 @@ def _copy_rows_to_process_voc(db: Session, run_id: str, client_uuid: UUID) -> in
     """Delete existing ProcessVoc rows for this client and copy from LeadgenVocRow."""
     from sqlalchemy import text
 
-    # Temporarily disable the permission-check trigger for lead backfill
-    db.execute(text("ALTER TABLE process_voc DISABLE TRIGGER ALL"))
+    # Use session-scoped replica role to bypass triggers (safe with concurrent users)
+    db.execute(text("SET LOCAL session_replication_role = 'replica'"))
+    try:
+        db.query(ProcessVoc).filter(ProcessVoc.client_uuid == client_uuid).delete()
 
-    db.query(ProcessVoc).filter(ProcessVoc.client_uuid == client_uuid).delete()
-
-    rows = (
-        db.query(LeadgenVocRow)
-        .filter(LeadgenVocRow.run_id == run_id)
-        .order_by(LeadgenVocRow.id.asc())
-        .all()
-    )
-
-    # Also delete any existing rows with the same respondent_ids to avoid unique constraint violations
-    # (e.g. from a previous lead run that created a different client for the same company)
-    respondent_ids = [r.respondent_id for r in rows if r.respondent_id]
-    if respondent_ids:
-        from sqlalchemy import text
-        # Batch delete in chunks to avoid overly large IN clauses
-        for i in range(0, len(respondent_ids), 500):
-            chunk = respondent_ids[i:i + 500]
-            db.query(ProcessVoc).filter(ProcessVoc.respondent_id.in_(chunk)).delete(synchronize_session=False)
-        db.flush()
-    for row in rows:
-        db.add(
-            ProcessVoc(
-                respondent_id=row.respondent_id,
-                created=row.created,
-                last_modified=row.last_modified,
-                client_id=row.client_id,
-                client_name=row.client_name,
-                project_id=row.project_id,
-                project_name=row.project_name,
-                total_rows=row.total_rows,
-                data_source=row.data_source,
-                dimension_ref=row.dimension_ref,
-                dimension_name=row.dimension_name,
-                value=row.value,
-                overall_sentiment=row.overall_sentiment,
-                topics=row.topics,
-                survey_metadata=row.survey_metadata,
-                question_text=row.question_text,
-                question_type=row.question_type,
-                processed=row.processed,
-                client_uuid=client_uuid,
-            )
+        rows = (
+            db.query(LeadgenVocRow)
+            .filter(LeadgenVocRow.run_id == run_id)
+            .order_by(LeadgenVocRow.id.asc())
+            .all()
         )
-    db.flush()
 
-    # Re-enable triggers
-    db.execute(text("ALTER TABLE process_voc ENABLE TRIGGER ALL"))
-    return len(rows)
+        # Delete any existing rows with same respondent_ids to avoid unique constraint violations
+        respondent_ids = [r.respondent_id for r in rows if r.respondent_id]
+        if respondent_ids:
+            for i in range(0, len(respondent_ids), 500):
+                chunk = respondent_ids[i:i + 500]
+                db.query(ProcessVoc).filter(ProcessVoc.respondent_id.in_(chunk)).delete(synchronize_session=False)
+            db.flush()
+
+        for row in rows:
+            db.add(
+                ProcessVoc(
+                    respondent_id=row.respondent_id,
+                    created=row.created,
+                    last_modified=row.last_modified,
+                    client_id=row.client_id,
+                    client_name=row.client_name,
+                    project_id=row.project_id,
+                    project_name=row.project_name,
+                    total_rows=row.total_rows,
+                    data_source=row.data_source,
+                    dimension_ref=row.dimension_ref,
+                    dimension_name=row.dimension_name,
+                    value=row.value,
+                    overall_sentiment=row.overall_sentiment,
+                    topics=row.topics,
+                    survey_metadata=row.survey_metadata,
+                    question_text=row.question_text,
+                    question_type=row.question_type,
+                    processed=row.processed,
+                    client_uuid=client_uuid,
+                )
+            )
+        db.flush()
+        return len(rows)
+    finally:
+        db.execute(text("SET LOCAL session_replication_role = 'origin'"))
 
 
 def create_or_update_lead_client(

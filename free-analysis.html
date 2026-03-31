@@ -55,11 +55,13 @@
                 <div id="statusTracker" class="status-tracker">
                     <div class="status-step" data-step="queued">Queued</div>
                     <div class="status-step" data-step="scraping">Scraping reviews</div>
+                    <div class="status-step" data-step="extracting_context">Analyzing website</div>
                     <div class="status-step" data-step="extracting">Extracting signals</div>
                     <div class="status-step" data-step="building_taxonomy">Building taxonomy</div>
                     <div class="status-step" data-step="validating">Validating</div>
                     <div class="status-step" data-step="classifying">Classifying reviews</div>
                     <div class="status-step" data-step="generating_ads">Generating ads</div>
+                    <div class="status-step" data-step="sending_email">Sending results</div>
                     <div class="status-step" data-step="completed">Complete</div>
                 </div>
                 <p class="muted" id="statusNote">You can close this page — we'll send you an email when it's done.</p>
@@ -165,6 +167,8 @@
 
                 if (data.coding_status === 'completed' || data.coding_status === 'failed') {
                     clearInterval(pollTimer);
+                    localStorage.removeItem('leadgen_run_id');
+                    localStorage.removeItem('leadgen_email');
                     if (data.coding_status === 'completed') {
                         document.getElementById('statusNote').innerHTML =
                             'Check your email for the link to view your analysis.';
