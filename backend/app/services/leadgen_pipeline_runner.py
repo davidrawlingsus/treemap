@@ -392,6 +392,25 @@ def _run_full_pipeline(run_id: str) -> None:
             logger.warning("[pipeline %s] Context extraction failed (continuing): %s", run_id, e)
             context_text = company_name
 
+        # Save business context and logo to the lead client
+        lead_client.business_summary = context_text
+        lead_client.client_url = company_url
+
+        # Try to fetch company logo via Clearbit
+        try:
+            import requests as req
+            logo_url = f"https://logo.clearbit.com/{company_domain}"
+            logo_resp = req.head(logo_url, timeout=5, allow_redirects=True)
+            if logo_resp.status_code == 200:
+                lead_client.logo_url = logo_url
+                logger.info("[pipeline %s] Logo found: %s", run_id, logo_url)
+            else:
+                logger.info("[pipeline %s] No logo found for %s (status %d)", run_id, company_domain, logo_resp.status_code)
+        except Exception as e:
+            logger.warning("[pipeline %s] Logo fetch failed: %s", run_id, e)
+
+        db.commit()
+
         # ── Step 3: Extract signals ──
         _update_status(db, run, "extracting")
         raw_rows = get_leadgen_rows_as_process_voc_dicts(db, run_id)
