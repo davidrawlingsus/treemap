@@ -152,6 +152,7 @@
 
         // Status polling
         function startPolling() {
+            console.log('[poll] Starting polling for run', currentRunId);
             if (pollTimer) clearInterval(pollTimer);
             pollTimer = setInterval(pollStatus, 10000);
             pollStatus(); // immediate first check
@@ -160,9 +161,12 @@
         async function pollStatus() {
             if (!currentRunId) return;
             try {
+                console.log('[poll] Checking status for', currentRunId, 'via', API_BASE);
                 const res = await fetch(`${API_BASE}/api/public/leadgen/${currentRunId}/status`);
+                console.log('[poll] Response:', res.status);
                 if (!res.ok) return;
                 const data = await res.json();
+                console.log('[poll] Status:', data.coding_status);
                 updateStatusUI(data.coding_status);
 
                 if (data.coding_status === 'completed' || data.coding_status === 'failed') {
@@ -180,7 +184,7 @@
                     }
                 }
             } catch (e) {
-                // Polling failure is non-critical
+                console.warn('[poll] Error:', e.message);
             }
         }
 
