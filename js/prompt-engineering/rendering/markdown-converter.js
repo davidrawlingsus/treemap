@@ -103,6 +103,10 @@
                     }
                     jsonBlocks.push({ content: null, ideas });
                     replacements.push({ start: replStart, end: prevLastIndex, placeholder: jsonBlocks.length - 1 });
+                } else if (jsonData.data_snapshot && jsonData.headline_insight && jsonData.creative_strategy_insights) {
+                    // VoC Creative Strategy Analysis (deck-and-email output)
+                    jsonBlocks.push({ vocAnalysis: jsonData, ideas: [] });
+                    replacements.push({ start: replStart, end: prevLastIndex, placeholder: jsonBlocks.length - 1 });
                 } else {
                     const idea = jsonData;
                     maybeNormalizeFbAd(idea);
@@ -407,6 +411,13 @@
             // Handle FAQ format
             if (htmlObject.faqData) {
                 ideaCardsHTML = generateFaqCardsHTML(htmlObject.faqData);
+                html = html.replace(`___JSON_BLOCK_${index}___`, ideaCardsHTML);
+                return;
+            }
+
+            // Handle VoC Creative Strategy Analysis
+            if (htmlObject.vocAnalysis) {
+                ideaCardsHTML = generateVocAnalysisHTML(htmlObject.vocAnalysis);
                 html = html.replace(`___JSON_BLOCK_${index}___`, ideaCardsHTML);
                 return;
             }
@@ -776,6 +787,186 @@
 
     /**
      * Generate HTML for FAQ cards from JSON data containing a faqs array
+     * Generate HTML for a VoC Creative Strategy Analysis
+     */
+    function generateVocAnalysisHTML(data) {
+        const esc = DOM.escapeHtml;
+        let html = '<div class="voc-analysis-report">';
+
+        // Data Snapshot
+        const snap = data.data_snapshot || {};
+        html += '<div class="voc-section voc-snapshot">';
+        html += '<h2>Data Snapshot</h2>';
+        html += `<p><strong>Temporal window:</strong> ${esc(snap.temporal_window || '')}</p>`;
+        html += `<p><strong>Reviews:</strong> ${snap.review_count || 0}</p>`;
+        if (snap.primary_creative_lenses?.length) {
+            html += '<p><strong>Primary creative lenses:</strong></p><ol>';
+            snap.primary_creative_lenses.forEach(l => { html += `<li>${esc(l)}</li>`; });
+            html += '</ol>';
+        }
+        if (snap.single_biggest_gap) {
+            html += `<div class="voc-callout">${esc(snap.single_biggest_gap)}</div>`;
+        }
+        html += '</div>';
+
+        // Headline Insight
+        const hi = data.headline_insight || {};
+        html += '<div class="voc-section voc-headline">';
+        html += '<h2>The Headline Insight</h2>';
+        html += `<div class="voc-compare"><div class="voc-compare-col"><strong>What their ads probably say:</strong><p>${esc(hi.what_ads_probably_say || '')}</p></div>`;
+        html += `<div class="voc-compare-col"><strong>What their customers actually say:</strong><p>${esc(hi.what_customers_actually_say || '')}</p></div></div>`;
+        html += `<div class="voc-callout"><strong>The creative opportunity:</strong> ${esc(hi.creative_opportunity || '')}</div>`;
+        if (hi.supporting_verbatims?.length) {
+            html += '<div class="voc-verbatims">';
+            hi.supporting_verbatims.forEach(v => {
+                html += `<blockquote>"${esc(v.text)}"${v.date ? ` <span class="voc-date">(${esc(v.date)})</span>` : ''}</blockquote>`;
+            });
+            html += '</div>';
+        }
+        html += '</div>';
+
+        // Creative Strategy Insights
+        const insights = data.creative_strategy_insights || [];
+        if (insights.length) {
+            html += '<div class="voc-section">';
+            html += '<h2>Creative Strategy Insights</h2>';
+            insights.forEach((ins, i) => {
+                const ci = ins.creative_implications || {};
+                const sn = ins.serialisation_notes || {};
+                html += `<div class="voc-insight">`;
+                html += `<h3>Insight ${i + 1}: ${esc(ins.title || '')}</h3>`;
+                html += `<div class="voc-insight-meta">`;
+                html += `<span class="voc-badge">${esc(ins.signal_type || '').replace(/_/g, ' ')}</span>`;
+                html += `<span class="voc-badge">${esc(ins.trajectory || '')}</span>`;
+                if (ci.funnel_stage) html += `<span class="voc-badge">${esc(ci.funnel_stage).replace(/_/g, ' ')}</span>`;
+                html += '</div>';
+                html += `<p><strong>Finding:</strong> ${esc(ins.finding || '')}</p>`;
+                html += `<p><strong>Messaging gap:</strong> ${esc(ins.messaging_gap || '')}</p>`;
+                if (ins.evidence?.length) {
+                    html += '<div class="voc-verbatims">';
+                    ins.evidence.forEach(e => {
+                        html += `<blockquote>"${esc(e.text)}"${e.date ? ` <span class="voc-date">(${esc(e.date)})</span>` : ''}</blockquote>`;
+                    });
+                    html += '</div>';
+                }
+                if (ci.creative_lane) html += `<p><strong>Creative lane:</strong> ${esc(ci.creative_lane)}</p>`;
+                if (ci.emotional_register) html += `<p><strong>Emotional register:</strong> ${esc(ci.emotional_register)}</p>`;
+                if (sn.target_response) html += `<p class="voc-muted"><strong>Target response:</strong> <em>"${esc(sn.target_response)}"</em></p>`;
+                html += '</div>';
+            });
+            html += '</div>';
+        }
+
+        // Language Gold
+        const lg = data.language_gold || {};
+        const lgSections = [
+            ['The Problem', lg.the_problem],
+            ['The Transformation', lg.the_transformation],
+            ['The Decision', lg.the_decision],
+            ['The Competition', lg.the_competition],
+        ];
+        const hasLg = lgSections.some(([, arr]) => arr?.length);
+        if (hasLg || lg.phrases_worth_stealing?.length) {
+            html += '<div class="voc-section">';
+            html += '<h2>Language Gold</h2>';
+            lgSections.forEach(([title, items]) => {
+                if (!items?.length) return;
+                html += `<h3>${esc(title)}</h3>`;
+                items.forEach(item => {
+                    html += `<div class="voc-language-item">`;
+                    html += `<blockquote>"${esc(item.verbatim)}"${item.date ? ` <span class="voc-date">(${esc(item.date)})</span>` : ''}</blockquote>`;
+                    html += `<p class="voc-ad-translation"><strong>Ad translation:</strong> ${esc(item.ad_translation)}</p>`;
+                    html += '</div>';
+                });
+            });
+            if (lg.phrases_worth_stealing?.length) {
+                html += '<h3>Phrases Worth Stealing</h3>';
+                html += '<table class="voc-table"><thead><tr><th>Phrase</th><th>Context</th><th>Creative Potential</th></tr></thead><tbody>';
+                lg.phrases_worth_stealing.forEach(p => {
+                    html += `<tr><td><strong>"${esc(p.phrase)}"</strong></td><td>${esc(p.context)}${p.date ? ` (${esc(p.date)})` : ''}</td><td>${esc(p.creative_potential)}</td></tr>`;
+                });
+                html += '</tbody></table>';
+            }
+            html += '</div>';
+        }
+
+        // Objection Map
+        const objections = data.objection_map || [];
+        if (objections.length) {
+            html += '<div class="voc-section">';
+            html += '<h2>Objection Map</h2>';
+            objections.forEach(obj => {
+                html += '<div class="voc-objection">';
+                html += `<h3>${esc(obj.objection || '')}</h3>`;
+                html += `<p><strong>In their words:</strong> <em>"${esc(obj.customer_words || '')}"</em></p>`;
+                html += `<p><strong>Frequency:</strong> <span class="voc-badge">${esc(obj.frequency_intensity || '').replace(/_/g, ' ')}</span></p>`;
+                html += `<p><strong>Brand likely addresses:</strong> ${esc(obj.brand_likely_addresses || '')}</p>`;
+                html += `<p><strong>What the ad should say:</strong> ${esc(obj.what_ad_should_say || '')}</p>`;
+                html += '</div>';
+            });
+            html += '</div>';
+        }
+
+        // Contradictions
+        const cc = data.contradictions_and_complexity || {};
+        if (cc.conflicting_signals?.length || cc.missing_voices?.length || cc.creative_risk_flags?.length) {
+            html += '<div class="voc-section">';
+            html += '<h2>Contradictions &amp; Complexity</h2>';
+            if (cc.conflicting_signals?.length) {
+                html += '<h3>Conflicting Signals</h3><ul>';
+                cc.conflicting_signals.forEach(s => { html += `<li>${esc(s)}</li>`; });
+                html += '</ul>';
+            }
+            if (cc.missing_voices?.length) {
+                html += '<h3>Missing Voices</h3><ul>';
+                cc.missing_voices.forEach(s => { html += `<li>${esc(s)}</li>`; });
+                html += '</ul>';
+            }
+            if (cc.data_bias) html += `<p><strong>Data bias:</strong> ${esc(cc.data_bias)}</p>`;
+            if (cc.creative_risk_flags?.length) {
+                html += '<h3>Creative Risk Flags</h3><ul>';
+                cc.creative_risk_flags.forEach(s => { html += `<li>${esc(s)}</li>`; });
+                html += '</ul>';
+            }
+            html += '</div>';
+        }
+
+        // Sequence Architecture
+        const sa = data.sequence_architecture || {};
+        if (sa.through_line) {
+            html += '<div class="voc-section">';
+            html += '<h2>Email Sequence Architecture</h2>';
+            html += `<p><strong>Through-line:</strong> ${esc(sa.through_line)}</p>`;
+            if (sa.narrative_arc?.length) {
+                html += '<table class="voc-table"><thead><tr><th>Email</th><th>Role</th></tr></thead><tbody>';
+                sa.narrative_arc.forEach(a => {
+                    html += `<tr><td>${a.email_number}</td><td>${esc(a.role)}</td></tr>`;
+                });
+                html += '</tbody></table>';
+            }
+            html += '</div>';
+        }
+
+        // Emails preview
+        const emails = data.emails || [];
+        if (emails.length) {
+            html += '<div class="voc-section">';
+            html += `<h2>Email Series (${emails.length} emails)</h2>`;
+            emails.forEach(em => {
+                html += '<div class="voc-email-preview">';
+                html += `<div class="voc-email-header"><span class="voc-badge">D+${em.send_day}</span> <strong>${esc(em.subject_line || '')}</strong></div>`;
+                html += `<p class="voc-muted">${esc(em.preview_text || '')}</p>`;
+                html += `<p class="voc-muted"><em>Intent: ${esc(em.strategic_intent || '')}</em></p>`;
+                html += '</div>';
+            });
+            html += '</div>';
+        }
+
+        html += '</div>';
+        return html;
+    }
+
+    /**
      * @param {Object} data - Object with faqs array
      * @returns {string} HTML string for all FAQ cards
      */

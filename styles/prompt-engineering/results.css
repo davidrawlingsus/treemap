@@ -337,3 +337,126 @@
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
+
+/* VoC Creative Strategy Analysis Renderer */
+.voc-analysis-report {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text, #1a202c);
+}
+.voc-analysis-report h2 {
+    font-size: 18px;
+    font-weight: 700;
+    margin: 24px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--brand-color, #B9F040);
+}
+.voc-analysis-report h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin: 16px 0 8px;
+}
+.voc-section {
+    margin-bottom: 20px;
+}
+.voc-callout {
+    background: #f0f4ff;
+    border-left: 3px solid #1a73e8;
+    padding: 12px 16px;
+    margin: 12px 0;
+    border-radius: 0 6px 6px 0;
+    font-size: 14px;
+}
+.voc-compare {
+    display: flex;
+    gap: 16px;
+    margin: 12px 0;
+}
+.voc-compare-col {
+    flex: 1;
+    padding: 12px;
+    background: var(--surface, #fff);
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 6px;
+}
+.voc-verbatims blockquote {
+    border-left: 3px solid #cbd5e0;
+    padding: 8px 12px;
+    margin: 8px 0;
+    color: #555;
+    font-style: italic;
+    font-size: 13px;
+}
+.voc-date {
+    font-size: 11px;
+    color: #999;
+    font-style: normal;
+}
+.voc-badge {
+    display: inline-block;
+    background: #e8f0fe;
+    color: #1a73e8;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: capitalize;
+    margin-right: 6px;
+}
+.voc-insight {
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 12px 0;
+    background: var(--surface, #fff);
+}
+.voc-insight-meta {
+    margin-bottom: 10px;
+}
+.voc-muted {
+    color: var(--muted, #718096);
+    font-size: 13px;
+}
+.voc-ad-translation {
+    margin-top: 4px;
+    padding-left: 16px;
+    font-size: 13px;
+    color: #4a5568;
+}
+.voc-language-item {
+    margin-bottom: 16px;
+}
+.voc-objection {
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 8px;
+    padding: 16px;
+    margin: 12px 0;
+}
+.voc-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin: 12px 0;
+}
+.voc-table th {
+    text-align: left;
+    padding: 8px;
+    border-bottom: 2px solid var(--border, #e2e8f0);
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--muted, #718096);
+}
+.voc-table td {
+    padding: 8px;
+    border-bottom: 1px solid var(--border, #e2e8f0);
+    vertical-align: top;
+}
+.voc-email-preview {
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 6px;
+    padding: 12px;
+    margin: 8px 0;
+}
+.voc-email-header {
+    margin-bottom: 4px;
+}
