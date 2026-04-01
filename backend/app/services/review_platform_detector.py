@@ -92,15 +92,19 @@ def _fetch_page_html(url: str) -> Optional[str]:
 
 _YOTPO_SIGNATURES = [
     "staticw2.yotpo.com",
+    "cdn-widgetsrepository.yotpo.com",
     "yotpo.com/widget",
     "yotpo-widget",
     "yotpoWidgetsContainer",
+    "class=\"yotpo",
 ]
 
 # Patterns to extract app_key
 _YOTPO_KEY_PATTERNS = [
     # data-appkey="..." or data-app-key="..."
     re.compile(r'data-app-?key\s*=\s*["\']([a-zA-Z0-9]+)["\']', re.IGNORECASE),
+    # CDN loader URL: cdn-widgetsrepository.yotpo.com/v1/loader/APP_KEY
+    re.compile(r'yotpo\.com/v1/loader/([a-zA-Z0-9]+)', re.IGNORECASE),
     # yotpo.com/widget/APP_KEY or yotpo.com/...?appkey=APP_KEY
     re.compile(r'yotpo\.com/[^"\']*?(?:widget/|appkey=)([a-zA-Z0-9]+)', re.IGNORECASE),
     # JS variable: appKey: "...", appkey: "...", yotpoAppKey = "..."
