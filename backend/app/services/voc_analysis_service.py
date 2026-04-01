@@ -16,73 +16,132 @@ logger = logging.getLogger(__name__)
 VOC_ANALYSIS_SCHEMA: Dict[str, Any] = {
     "type": "object",
     "properties": {
-        "executive_overview": {
+        "data_snapshot": {
             "type": "object",
             "properties": {
-                "headline_insight": {"type": "string"},
-                "summary": {"type": "string"},
+                "temporal_window": {"type": "string"},
                 "review_count": {"type": "integer"},
-                "top_themes": {
+                "primary_creative_lenses": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+                "single_biggest_gap": {"type": "string"},
+            },
+            "required": ["temporal_window", "review_count", "primary_creative_lenses", "single_biggest_gap"],
+        },
+        "headline_insight": {
+            "type": "object",
+            "properties": {
+                "what_ads_probably_say": {"type": "string"},
+                "what_customers_actually_say": {"type": "string"},
+                "creative_opportunity": {"type": "string"},
+                "supporting_verbatims": {
                     "type": "array",
                     "items": {
                         "type": "object",
                         "properties": {
-                            "theme": {"type": "string"},
-                            "mention_count": {"type": "integer"},
-                            "sentiment": {"type": "string"},
-                            "top_verbatim": {"type": "string"},
+                            "text": {"type": "string"},
+                            "date": {"type": "string"},
                         },
-                        "required": ["theme", "mention_count", "sentiment", "top_verbatim"],
-                    },
-                },
-                "sentiment_breakdown": {
-                    "type": "object",
-                    "properties": {
-                        "positive_pct": {"type": "number"},
-                        "neutral_pct": {"type": "number"},
-                        "negative_pct": {"type": "number"},
+                        "required": ["text"],
                     },
                 },
             },
-            "required": ["headline_insight", "summary", "top_themes", "sentiment_breakdown"],
+            "required": ["what_ads_probably_say", "what_customers_actually_say", "creative_opportunity", "supporting_verbatims"],
         },
         "creative_strategy_insights": {
             "type": "array",
             "items": {
                 "type": "object",
                 "properties": {
-                    "insight_id": {"type": "string"},
                     "title": {"type": "string"},
                     "signal_type": {"type": "string"},
-                    "insight": {"type": "string"},
+                    "finding": {"type": "string"},
                     "messaging_gap": {"type": "string"},
-                    "supporting_verbatims": {
+                    "trajectory": {"type": "string"},
+                    "evidence": {
                         "type": "array",
-                        "items": {"type": "string"},
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "text": {"type": "string"},
+                                "date": {"type": "string"},
+                            },
+                            "required": ["text"],
+                        },
                     },
-                    "creative_application": {"type": "string"},
-                    "themes_referenced": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                    },
+                    "creative_implications": {"type": "string"},
+                    "serialisation_notes": {"type": "string"},
                 },
-                "required": [
-                    "insight_id", "title", "signal_type", "insight",
-                    "messaging_gap", "supporting_verbatims", "creative_application",
-                ],
+                "required": ["title", "signal_type", "finding", "messaging_gap", "trajectory", "evidence", "creative_implications", "serialisation_notes"],
             },
         },
         "language_gold": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "phrase": {"type": "string"},
-                    "context": {"type": "string"},
-                    "why_it_works": {"type": "string"},
+            "type": "object",
+            "properties": {
+                "the_problem": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "verbatim": {"type": "string"},
+                            "date": {"type": "string"},
+                            "ad_translation": {"type": "string"},
+                        },
+                        "required": ["verbatim", "ad_translation"],
+                    },
                 },
-                "required": ["phrase", "context", "why_it_works"],
+                "the_transformation": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "verbatim": {"type": "string"},
+                            "date": {"type": "string"},
+                            "ad_translation": {"type": "string"},
+                        },
+                        "required": ["verbatim", "ad_translation"],
+                    },
+                },
+                "the_decision": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "verbatim": {"type": "string"},
+                            "date": {"type": "string"},
+                            "ad_translation": {"type": "string"},
+                        },
+                        "required": ["verbatim", "ad_translation"],
+                    },
+                },
+                "the_competition": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "verbatim": {"type": "string"},
+                            "date": {"type": "string"},
+                            "ad_translation": {"type": "string"},
+                        },
+                        "required": ["verbatim", "ad_translation"],
+                    },
+                },
+                "phrases_worth_stealing": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "phrase": {"type": "string"},
+                            "context": {"type": "string"},
+                            "date": {"type": "string"},
+                            "creative_potential": {"type": "string"},
+                        },
+                        "required": ["phrase", "context", "creative_potential"],
+                    },
+                },
             },
+            "required": ["the_problem", "the_transformation", "the_decision", "the_competition", "phrases_worth_stealing"],
         },
         "objection_map": {
             "type": "array",
@@ -90,16 +149,32 @@ VOC_ANALYSIS_SCHEMA: Dict[str, Any] = {
                 "type": "object",
                 "properties": {
                     "objection": {"type": "string"},
-                    "frequency": {"type": "string"},
                     "customer_words": {"type": "string"},
-                    "reframe": {"type": "string"},
-                    "verbatim_evidence": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                    },
+                    "frequency_intensity": {"type": "string"},
+                    "brand_likely_addresses": {"type": "string"},
+                    "what_ad_should_say": {"type": "string"},
                 },
-                "required": ["objection", "frequency", "customer_words", "reframe", "verbatim_evidence"],
+                "required": ["objection", "customer_words", "frequency_intensity", "brand_likely_addresses", "what_ad_should_say"],
             },
+        },
+        "contradictions_and_complexity": {
+            "type": "object",
+            "properties": {
+                "conflicting_signals": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+                "missing_voices": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+                "data_bias": {"type": "string"},
+                "creative_risk_flags": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                },
+            },
+            "required": ["conflicting_signals", "missing_voices", "creative_risk_flags"],
         },
         "emails": {
             "type": "array",
@@ -129,22 +204,16 @@ VOC_ANALYSIS_SCHEMA: Dict[str, Any] = {
                     "cta_text": {"type": "string"},
                     "cta_url": {"type": "string"},
                     "strategic_intent": {"type": "string"},
-                    "insight_references": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                    },
                 },
-                "required": [
-                    "sequence_number", "send_day", "subject_line", "preview_text",
-                    "headline", "body_sections", "cta_text", "cta_url", "strategic_intent",
-                ],
+                "required": ["sequence_number", "send_day", "subject_line", "preview_text", "headline", "body_sections", "cta_text", "cta_url", "strategic_intent"],
             },
         },
         "deck_markdown": {"type": "string"},
     },
     "required": [
-        "executive_overview", "creative_strategy_insights", "language_gold",
-        "objection_map", "emails", "deck_markdown",
+        "data_snapshot", "headline_insight", "creative_strategy_insights",
+        "language_gold", "objection_map", "contradictions_and_complexity",
+        "emails", "deck_markdown",
     ],
 }
 
