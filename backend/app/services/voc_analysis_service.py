@@ -15,22 +15,25 @@ logger = logging.getLogger(__name__)
 
 VOC_ANALYSIS_SCHEMA: Dict[str, Any] = {
     "type": "object",
+    "required": [
+        "data_snapshot", "headline_insight", "creative_strategy_insights",
+        "language_gold", "objection_map", "contradictions_and_complexity",
+        "sequence_architecture", "emails", "deck_markdown",
+    ],
     "properties": {
         "data_snapshot": {
             "type": "object",
+            "required": ["temporal_window", "review_count", "primary_creative_lenses", "single_biggest_gap"],
             "properties": {
                 "temporal_window": {"type": "string"},
                 "review_count": {"type": "integer"},
-                "primary_creative_lenses": {
-                    "type": "array",
-                    "items": {"type": "string"},
-                },
+                "primary_creative_lenses": {"type": "array", "items": {"type": "string"}},
                 "single_biggest_gap": {"type": "string"},
             },
-            "required": ["temporal_window", "review_count", "primary_creative_lenses", "single_biggest_gap"],
         },
         "headline_insight": {
             "type": "object",
+            "required": ["what_ads_probably_say", "what_customers_actually_say", "creative_opportunity", "supporting_verbatims"],
             "properties": {
                 "what_ads_probably_say": {"type": "string"},
                 "what_customers_actually_say": {"type": "string"},
@@ -39,182 +42,263 @@ VOC_ANALYSIS_SCHEMA: Dict[str, Any] = {
                     "type": "array",
                     "items": {
                         "type": "object",
+                        "required": ["text"],
                         "properties": {
                             "text": {"type": "string"},
-                            "date": {"type": "string"},
+                            "date": {"type": ["string", "null"]},
                         },
-                        "required": ["text"],
                     },
                 },
             },
-            "required": ["what_ads_probably_say", "what_customers_actually_say", "creative_opportunity", "supporting_verbatims"],
         },
         "creative_strategy_insights": {
             "type": "array",
+            "minItems": 6,
+            "maxItems": 12,
             "items": {
                 "type": "object",
+                "required": ["title", "signal_type", "finding", "messaging_gap", "trajectory", "evidence", "creative_implications", "serialisation_notes"],
                 "properties": {
                     "title": {"type": "string"},
-                    "signal_type": {"type": "string"},
+                    "signal_type": {
+                        "type": "string",
+                        "enum": [
+                            "message_reality_gap", "hidden_purchase_trigger",
+                            "language_brand_not_using", "emotional_buying_architecture",
+                            "objection_narrative", "audience_brand_doesnt_know",
+                        ],
+                    },
                     "finding": {"type": "string"},
                     "messaging_gap": {"type": "string"},
-                    "trajectory": {"type": "string"},
+                    "trajectory": {
+                        "type": "string",
+                        "enum": ["emerging", "persisting", "fading", "insufficient_data"],
+                    },
                     "evidence": {
                         "type": "array",
+                        "minItems": 3,
+                        "maxItems": 5,
                         "items": {
                             "type": "object",
+                            "required": ["text"],
                             "properties": {
                                 "text": {"type": "string"},
-                                "date": {"type": "string"},
+                                "date": {"type": ["string", "null"]},
                             },
-                            "required": ["text"],
                         },
                     },
-                    "creative_implications": {"type": "string"},
-                    "serialisation_notes": {"type": "string"},
+                    "creative_implications": {
+                        "type": "object",
+                        "required": ["funnel_stage", "creative_lane", "emotional_register"],
+                        "properties": {
+                            "funnel_stage": {
+                                "type": "string",
+                                "enum": ["top_funnel", "mid_funnel", "bottom_funnel", "cross_funnel"],
+                            },
+                            "creative_lane": {"type": "string"},
+                            "emotional_register": {"type": "string"},
+                        },
+                    },
+                    "serialisation_notes": {
+                        "type": "object",
+                        "required": ["sequence_position", "pairs_with", "target_response"],
+                        "properties": {
+                            "sequence_position": {
+                                "type": "string",
+                                "enum": ["early", "mid", "late"],
+                            },
+                            "pairs_with": {"type": "array", "items": {"type": "integer"}},
+                            "target_response": {"type": "string"},
+                        },
+                    },
                 },
-                "required": ["title", "signal_type", "finding", "messaging_gap", "trajectory", "evidence", "creative_implications", "serialisation_notes"],
             },
         },
         "language_gold": {
             "type": "object",
+            "required": ["the_problem", "the_transformation", "the_decision", "the_competition", "phrases_worth_stealing"],
             "properties": {
                 "the_problem": {
                     "type": "array",
                     "items": {
                         "type": "object",
+                        "required": ["verbatim", "ad_translation"],
                         "properties": {
                             "verbatim": {"type": "string"},
-                            "date": {"type": "string"},
+                            "date": {"type": ["string", "null"]},
                             "ad_translation": {"type": "string"},
                         },
-                        "required": ["verbatim", "ad_translation"],
                     },
                 },
                 "the_transformation": {
                     "type": "array",
                     "items": {
                         "type": "object",
+                        "required": ["verbatim", "ad_translation"],
                         "properties": {
                             "verbatim": {"type": "string"},
-                            "date": {"type": "string"},
+                            "date": {"type": ["string", "null"]},
                             "ad_translation": {"type": "string"},
                         },
-                        "required": ["verbatim", "ad_translation"],
                     },
                 },
                 "the_decision": {
                     "type": "array",
                     "items": {
                         "type": "object",
+                        "required": ["verbatim", "ad_translation"],
                         "properties": {
                             "verbatim": {"type": "string"},
-                            "date": {"type": "string"},
+                            "date": {"type": ["string", "null"]},
                             "ad_translation": {"type": "string"},
                         },
-                        "required": ["verbatim", "ad_translation"],
                     },
                 },
                 "the_competition": {
                     "type": "array",
                     "items": {
                         "type": "object",
+                        "required": ["verbatim", "ad_translation"],
                         "properties": {
                             "verbatim": {"type": "string"},
-                            "date": {"type": "string"},
+                            "date": {"type": ["string", "null"]},
                             "ad_translation": {"type": "string"},
                         },
-                        "required": ["verbatim", "ad_translation"],
                     },
                 },
                 "phrases_worth_stealing": {
                     "type": "array",
                     "items": {
                         "type": "object",
+                        "required": ["phrase", "context", "creative_potential"],
                         "properties": {
                             "phrase": {"type": "string"},
                             "context": {"type": "string"},
-                            "date": {"type": "string"},
+                            "date": {"type": ["string", "null"]},
                             "creative_potential": {"type": "string"},
                         },
-                        "required": ["phrase", "context", "creative_potential"],
                     },
                 },
             },
-            "required": ["the_problem", "the_transformation", "the_decision", "the_competition", "phrases_worth_stealing"],
         },
         "objection_map": {
             "type": "array",
             "items": {
                 "type": "object",
+                "required": ["objection", "customer_words", "frequency_intensity", "brand_likely_addresses", "what_ad_should_say"],
                 "properties": {
                     "objection": {"type": "string"},
                     "customer_words": {"type": "string"},
-                    "frequency_intensity": {"type": "string"},
+                    "date": {"type": ["string", "null"]},
+                    "frequency_intensity": {
+                        "type": "string",
+                        "enum": ["frequent_high", "frequent_moderate", "occasional_high", "occasional_moderate", "isolated"],
+                    },
                     "brand_likely_addresses": {"type": "string"},
                     "what_ad_should_say": {"type": "string"},
                 },
-                "required": ["objection", "customer_words", "frequency_intensity", "brand_likely_addresses", "what_ad_should_say"],
             },
         },
         "contradictions_and_complexity": {
             "type": "object",
+            "required": ["conflicting_signals", "missing_voices", "creative_risk_flags"],
             "properties": {
-                "conflicting_signals": {
-                    "type": "array",
-                    "items": {"type": "string"},
+                "conflicting_signals": {"type": "array", "items": {"type": "string"}},
+                "missing_voices": {"type": "array", "items": {"type": "string"}},
+                "data_bias": {"type": ["string", "null"]},
+                "creative_risk_flags": {"type": "array", "items": {"type": "string"}},
+            },
+        },
+        "sequence_architecture": {
+            "type": "object",
+            "required": ["lead_email", "narrative_arc", "closer_email", "through_line", "open_loop_map"],
+            "properties": {
+                "lead_email": {
+                    "type": "object",
+                    "required": ["insight_number", "rationale"],
+                    "properties": {
+                        "insight_number": {"type": "integer"},
+                        "rationale": {"type": "string"},
+                    },
                 },
-                "missing_voices": {
+                "narrative_arc": {
                     "type": "array",
-                    "items": {"type": "string"},
+                    "items": {
+                        "type": "object",
+                        "required": ["email_number", "role"],
+                        "properties": {
+                            "email_number": {"type": "integer"},
+                            "role": {"type": "string"},
+                        },
+                    },
                 },
-                "data_bias": {"type": "string"},
-                "creative_risk_flags": {
+                "closer_email": {
+                    "type": "object",
+                    "required": ["insight_number", "rationale"],
+                    "properties": {
+                        "insight_number": {"type": "integer"},
+                        "rationale": {"type": "string"},
+                    },
+                },
+                "through_line": {"type": "string"},
+                "open_loop_map": {
                     "type": "array",
-                    "items": {"type": "string"},
+                    "items": {
+                        "type": "object",
+                        "required": ["email_number"],
+                        "properties": {
+                            "email_number": {"type": "integer"},
+                            "loops_opened": {"type": "array", "items": {"type": "string"}},
+                            "loops_closed": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "required": ["thread", "opened_in_email"],
+                                    "properties": {
+                                        "thread": {"type": "string"},
+                                        "opened_in_email": {"type": "integer"},
+                                    },
+                                },
+                            },
+                            "forward_hook": {"type": ["string", "null"]},
+                        },
+                    },
                 },
             },
-            "required": ["conflicting_signals", "missing_voices", "creative_risk_flags"],
         },
         "emails": {
             "type": "array",
+            "minItems": 9,
+            "maxItems": 9,
             "items": {
                 "type": "object",
+                "required": ["sequence_number", "send_day", "subject_line", "preview_text", "headline", "body_sections", "cta_text", "cta_url", "strategic_intent"],
                 "properties": {
-                    "sequence_number": {"type": "integer"},
-                    "send_day": {"type": "integer"},
+                    "sequence_number": {"type": "integer", "minimum": 1, "maximum": 9},
+                    "send_day": {"type": "integer", "minimum": 1},
                     "subject_line": {"type": "string"},
-                    "preview_text": {"type": "string"},
+                    "preview_text": {"type": "string", "minLength": 30, "maxLength": 100},
                     "headline": {"type": "string"},
                     "body_sections": {
                         "type": "array",
                         "items": {
                             "type": "object",
-                            "properties": {
-                                "type": {
-                                    "type": "string",
-                                    "enum": ["text", "verbatim", "stat", "cta"],
-                                },
-                                "content": {"type": "string"},
-                                "attribution": {"type": "string"},
-                            },
                             "required": ["type", "content"],
+                            "properties": {
+                                "type": {"type": "string", "enum": ["text", "verbatim", "stat", "cta"]},
+                                "content": {"type": "string"},
+                                "attribution": {"type": ["string", "null"]},
+                            },
                         },
                     },
                     "cta_text": {"type": "string"},
-                    "cta_url": {"type": "string"},
+                    "cta_url": {"type": ["string", "null"]},
                     "strategic_intent": {"type": "string"},
                 },
-                "required": ["sequence_number", "send_day", "subject_line", "preview_text", "headline", "body_sections", "cta_text", "cta_url", "strategic_intent"],
             },
         },
         "deck_markdown": {"type": "string"},
     },
-    "required": [
-        "data_snapshot", "headline_insight", "creative_strategy_insights",
-        "language_gold", "objection_map", "contradictions_and_complexity",
-        "emails", "deck_markdown",
-    ],
 }
 
 
@@ -236,13 +320,10 @@ For each insight:
 
 ## Email Series Rules
 
-- D+0 (send_day: 0): Acknowledgement email — "Your analysis is underway" / anticipation-building
-- D+1: The headline insight — the single most important finding
-- D+2 through D+N: One insight per email, building a strategic narrative
-- Final email: Includes link to full deck and CTA to view visualisation
+- Exactly 9 emails, send_day 1 through 9
 - Each email should stand alone as valuable but also build on previous emails
-- The number of emails depends on how many significant insights the data yields (typically 5-10)
-- cta_url should use {{MAGIC_LINK_URL}} for app links or {{GAMMA_DECK_URL}} for the deck
+- cta_url should use {{MAGIC_LINK_URL}} for app links or {{GAMMA_DECK_URL}} for the deck (email 9)
+- Emails 1-8 cta_url can be null
 
 ## Email Content Structure
 
@@ -251,6 +332,15 @@ Each email has body_sections — an array of content blocks:
 - "verbatim": A customer quote with attribution
 - "stat": A data point or metric (e.g., "67% of reviews mention...")
 - "cta": A call-to-action block
+
+## Sequence Architecture
+
+Before writing emails, plan the sequence:
+- Choose which insight leads (the most surprising/impactful)
+- Map the narrative arc (each email's role in the story)
+- Choose which insight closes (the one that drives action)
+- Define the through-line connecting all emails
+- Map open loops (questions/hooks planted in earlier emails, resolved in later ones)
 
 ## Deck Markdown
 
@@ -283,7 +373,7 @@ VOC_ANALYSIS_USER_PROMPT = """Analyze the following Voice of Customer data for {
 ## Ad Topics Generated
 The following themes were selected for ad generation: {ad_topics}
 
-Produce the full analysis following the schema. Include as many insights as the data warrants — don't pad, don't truncate. Let the data dictate the email count."""
+Produce the full analysis following the schema. Include 6-12 insights as the data warrants. Produce exactly 9 emails."""
 
 
 def generate_voc_analysis(
@@ -302,7 +392,6 @@ def generate_voc_analysis(
     """
     from app.services.voc_coding_chain_service import call_claude_json_schema_streaming
 
-    # Build classification summary (grouped by topic with counts + top verbatims)
     topic_summary = _build_classification_summary(classified_reviews)
 
     user_prompt = (
@@ -342,10 +431,7 @@ def generate_voc_analysis(
 
 
 def _build_classification_summary(classified_reviews: List[Dict[str, Any]]) -> str:
-    """Summarise classified reviews by topic with counts and top verbatims.
-
-    Avoids sending all 200+ raw reviews to the analysis prompt.
-    """
+    """Summarise classified reviews by topic with counts and top verbatims."""
     topic_data: Dict[str, Dict[str, Any]] = {}
     sentiment_counts = {"positive": 0, "negative": 0, "mixed": 0, "neutral": 0}
 
@@ -369,7 +455,6 @@ def _build_classification_summary(classified_reviews: List[Dict[str, Any]]) -> s
             td["count"] += 1
             s = topic.get("sentiment", "neutral")
             td["sentiments"][s] = td["sentiments"].get(s, 0) + 1
-            # Keep up to 5 sample verbatims per topic
             value = review.get("value") or review.get("text", "")
             if value and len(td["sample_verbatims"]) < 5:
                 td["sample_verbatims"].append(value[:300])
