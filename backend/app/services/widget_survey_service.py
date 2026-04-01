@@ -617,12 +617,32 @@ def list_survey_responses(
 # ── Heartbeat / Impression / Stats ──────────────────────────────────
 
 
+def _normalize_page_url(url: str) -> str:
+    """Normalize URL for heartbeat deduplication.
+
+    Strips query params, fragments, trailing slashes, and dynamic path segments
+    (numeric IDs, long tokens) so checkout/success pages with unique order IDs
+    all collapse into one entry.
+    """
+    import re
+    from urllib.parse import urlparse, urlunparse
+    parsed = urlparse(url)
+    # Strip query and fragment
+    path = parsed.path.rstrip("/") or "/"
+    # Replace purely numeric segments (order IDs like /669350/)
+    path = re.sub(r'/\d{4,}(?=/|$)', '/*', path)
+    # Replace long alphanumeric tokens (>20 chars, e.g. finance success tokens)
+    path = re.sub(r'/[A-Za-z0-9_\-]{20,}(?=/|$)', '/*', path)
+    return urlunparse((parsed.scheme, parsed.netloc, path, "", "", ""))
+
+
 def record_heartbeat(db: Session, client_id: UUID, page_url: str) -> None:
-    url_hash = hashlib.sha256(page_url.encode("utf-8")).hexdigest()
+    normalized = _normalize_page_url(page_url)
+    url_hash = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
     now = datetime.now(timezone.utc)
     stmt = pg_insert(WidgetSurveyHeartbeat).values(
         client_id=client_id,
-        page_url=page_url,
+        page_url=normalized,
         page_url_hash=url_hash,
         last_seen_at=now,
     )
