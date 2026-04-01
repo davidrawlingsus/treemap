@@ -1088,6 +1088,7 @@
         generateFBAdCardHTML,
         generateEmailCardHTML,
         generateFaqCardsHTML,
+        generateVocAnalysisHTML,
         isFacebookAdFormat,
         isEmailFormat,
         isFaqFormat,

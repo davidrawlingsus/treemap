@@ -13,7 +13,26 @@
 
     const { DOM } = window.FounderAdmin;
     const state = window.PromptEngineeringState;
-    const { convertMarkdown } = window.MarkdownConverter;
+    const { convertMarkdown, generateVocAnalysisHTML } = window.MarkdownConverter;
+
+    /**
+     * Detect VoC analysis JSON and render with custom renderer, otherwise use markdown
+     */
+    function renderContentWithVocDetection(content) {
+        if (!content) return '';
+        const trimmed = content.trim();
+        if (trimmed.startsWith('{')) {
+            try {
+                const parsed = JSON.parse(trimmed);
+                if (parsed.data_snapshot && parsed.headline_insight && parsed.creative_strategy_insights) {
+                    return generateVocAnalysisHTML(parsed);
+                }
+            } catch (_) {
+                // Not valid JSON — fall through to markdown
+            }
+        }
+        return convertMarkdown(content);
+    }
 
     // Constants
     const USER_MESSAGE_PREVIEW_LENGTH = 200; // characters
@@ -269,7 +288,7 @@
                         </button>
                     </div>
                 </div>
-                <div class="prompt-result-content" data-raw-text="${DOM.escapeHtmlForAttribute(content)}">${convertMarkdown(content)}</div>
+                <div class="prompt-result-content" data-raw-text="${DOM.escapeHtmlForAttribute(content)}">${renderContentWithVocDetection(content)}</div>
             </div>
         `;
     }
