@@ -504,6 +504,10 @@ def ingest_survey_response(
             submitted_at=existing.submitted_at,
         )
 
+    # Reject empty responses
+    if not payload.answers:
+        raise ValueError("Cannot submit a response with no answers")
+
     active = get_active_runtime_survey(db, client_id)
     survey_id = payload.survey_id or (active.survey_id if active else None)
     survey_version_id = payload.survey_version_id or (active.survey_version_id if active else None)

@@ -500,9 +500,6 @@
     }
 
     function doSubmit() {
-      isSubmitting = true;
-      render();
-
       var visible = getVisibleQuestions();
       var answersList = [];
       for (var i = 0; i < visible.length; i++) {
@@ -516,6 +513,14 @@
           });
         }
       }
+
+      // Don't submit empty responses
+      if (answersList.length === 0) {
+        return;
+      }
+
+      isSubmitting = true;
+      render();
 
       var payload = {
         idempotency_key: Date.now() + "-" + Math.random().toString(36).slice(2, 10),

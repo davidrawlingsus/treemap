@@ -69,7 +69,10 @@ def submit_response(
     db: Session = Depends(get_db),
 ):
     """Submit a survey response from the widget."""
-    return svc.ingest_survey_response(db, client_id, payload)
+    try:
+        return svc.ingest_survey_response(db, client_id, payload)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/heartbeat", status_code=204)
