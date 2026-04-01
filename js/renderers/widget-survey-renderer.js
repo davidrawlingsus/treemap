@@ -833,8 +833,27 @@ export function renderResponseViewer(container, { survey, responses, stats, onBa
             `<div class="answer-row"><strong>${escapeHtml(a.question_key || '?')}:</strong> ${escapeHtml(a.answer_text || JSON.stringify(a.answer_json || ''))}</div>`
         ).join('');
 
-        const clarityBtn = item.clarity_replay_url
-            ? `<a href="${escapeHtml(item.clarity_replay_url)}" target="_blank" rel="noopener" class="btn btn-sm btn-clarity">Watch Session</a>`
+        let clarityUrl = item.clarity_replay_url || '';
+        // Add date window if URL has the impressions format and we have a submission date
+        if (clarityUrl && item.submitted_at) {
+            const d = new Date(item.submitted_at);
+            const dayBefore = new Date(d); dayBefore.setDate(d.getDate() - 1);
+            const dayAfter = new Date(d); dayAfter.setDate(d.getDate() + 1);
+            const fmt = (dt) => dt.toISOString().split('T')[0];
+            if (clarityUrl.includes('/impressions?')) {
+                clarityUrl += '&date=Custom&start=' + fmt(dayBefore) + '&end=' + fmt(dayAfter);
+            } else if (clarityUrl.includes('/player/')) {
+                // Old format — reconstruct as impressions URL with date
+                const parts = clarityUrl.match(/\/player\/([^/]+)\/([^/]+)\/([^/]+)/);
+                if (parts) {
+                    clarityUrl = 'https://clarity.microsoft.com/projects/view/' + parts[1]
+                        + '/impressions?UserId=is%3B' + encodeURIComponent(parts[2])
+                        + '&date=Custom&start=' + fmt(dayBefore) + '&end=' + fmt(dayAfter);
+                }
+            }
+        }
+        const clarityBtn = clarityUrl
+            ? `<a href="${escapeHtml(clarityUrl)}" target="_blank" rel="noopener" class="btn btn-sm btn-clarity">Watch Session</a>`
             : '';
 
         const ts = item.submitted_at ? new Date(item.submitted_at).toLocaleString() : '';

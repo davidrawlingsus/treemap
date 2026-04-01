@@ -105,10 +105,10 @@
   }
 
   function getClarityReplayUrl(projectId) {
-    // Construct the full Clarity replay URL
+    // Construct Clarity impressions URL filtered by user ID
     var ids = getClarityIds();
-    if (!ids.userId || !ids.sessionId || !projectId) return null;
-    return "https://clarity.microsoft.com/player/" + projectId + "/" + ids.userId + "/" + ids.sessionId + "/";
+    if (!ids.userId || !projectId) return null;
+    return "https://clarity.microsoft.com/projects/view/" + projectId + "/impressions?UserId=is%3B" + encodeURIComponent(ids.userId);
   }
 
   function detectClarityProjectId() {
