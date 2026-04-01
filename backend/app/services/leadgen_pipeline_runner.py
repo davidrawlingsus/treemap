@@ -671,12 +671,83 @@ def _run_full_pipeline(run_id: str) -> None:
 
         db.commit()
 
-        # ── Step 8: Send completion email ──
-        _update_status(db, run, "sending_email")
+        # ── Step 8: Generate VoC analysis ──
+        _update_status(db, run, "generating_analysis")
         try:
-            _send_completion_email(db, run, lead_client, settings)
+            from app.services.voc_analysis_service import generate_voc_analysis
+            from app.models.leadgen_pipeline_output import LeadgenPipelineOutput
+
+            voc_analysis = generate_voc_analysis(
+                settings=settings,
+                company_name=company_name,
+                company_url=company_url,
+                context_text=context_text,
+                validate_output=validate_output,
+                classified_reviews=all_coded,
+                ad_topics=[p.get("topic_label", "") for p in payloads],
+            )
+
+            db.add(LeadgenPipelineOutput(
+                run_id=run_id,
+                step_type="voc_analysis",
+                step_order=8,
+                output=voc_analysis,
+            ))
+            db.commit()
+            logger.info("[pipeline %s] VoC analysis: %d insights, %d emails",
+                         run_id,
+                         len(voc_analysis.get("creative_strategy_insights", [])),
+                         len(voc_analysis.get("emails", [])))
         except Exception as e:
-            logger.error("[pipeline %s] Email send failed: %s", run_id, e)
+            logger.error("[pipeline %s] VoC analysis failed (continuing): %s", run_id, e)
+            voc_analysis = None
+
+        # ── Step 9: Generate Gamma deck (if configured) ──
+        gamma_url = None
+        try:
+            from app.services.gamma_service import generate_deck
+            gamma_api_key = getattr(settings, "gamma_api_key", None)
+            if voc_analysis and gamma_api_key:
+                gamma_url = generate_deck(
+                    api_key=gamma_api_key,
+                    title=f"VoC Creative Strategy: {company_name}",
+                    markdown_content=voc_analysis.get("deck_markdown", ""),
+                )
+        except Exception as e:
+            logger.warning("[pipeline %s] Gamma deck failed: %s", run_id, e)
+
+        # ── Step 10: Create email series + send D+0 ──
+        _update_status(db, run, "scheduling_emails")
+        try:
+            # Build magic link for the email CTAs
+            magic_link_url = _build_magic_link(db, run, lead_client, settings)
+
+            if voc_analysis and voc_analysis.get("emails"):
+                from app.services.lead_email_service import create_email_series, send_due_emails
+                emails = create_email_series(
+                    db,
+                    run_id=run_id,
+                    client_id=lead_client.id,
+                    email_address=run.work_email,
+                    voc_analysis=voc_analysis,
+                    magic_link_url=magic_link_url,
+                    gamma_deck_url=gamma_url,
+                )
+                db.commit()
+                logger.info("[pipeline %s] Scheduled %d emails", run_id, len(emails))
+
+                # Send D+0 immediately
+                sent = send_due_emails(settings, db)
+                logger.info("[pipeline %s] Sent %d immediate emails", run_id, sent)
+            else:
+                # Fallback: send simple completion email
+                _send_completion_email(db, run, lead_client, settings)
+        except Exception as e:
+            logger.error("[pipeline %s] Email scheduling failed: %s", run_id, e)
+            try:
+                _send_completion_email(db, run, lead_client, settings)
+            except Exception:
+                pass
 
         _update_status(db, run, "completed")
         logger.info("[pipeline %s] Pipeline completed! %d ads", run_id, total_ads)
@@ -693,6 +764,46 @@ def _run_full_pipeline(run_id: str) -> None:
             pass
     finally:
         db.close()
+
+
+def _build_magic_link(db, run, client, settings) -> str:
+    """Create a user + membership + magic link token for the lead. Returns the magic link URL."""
+    from app.auth import generate_magic_link_token
+    from app.models.user import User
+    from app.models.membership import Membership
+    from urllib.parse import quote
+
+    email = run.work_email
+    user = db.query(User).filter(User.email == email.lower()).first()
+    if not user:
+        user = User(email=email.lower(), name=email.split("@")[0], is_active=True)
+        db.add(user)
+        db.flush()
+
+    existing = db.query(Membership).filter(
+        Membership.user_id == user.id, Membership.client_id == client.id
+    ).first()
+    if not existing:
+        now = datetime.now(timezone.utc)
+        db.add(Membership(
+            user_id=user.id, client_id=client.id,
+            role="viewer", status="active",
+            provisioned_at=now, provisioned_by=user.id,
+            provisioning_method="leadgen_pipeline", joined_at=now,
+        ))
+        db.flush()
+
+    token, token_hash, expires_at = generate_magic_link_token()
+    user.magic_link_token = token_hash
+    user.magic_link_expires_at = expires_at
+    user.last_magic_link_sent_at = datetime.now(timezone.utc)
+    db.commit()
+
+    redirect_path = getattr(settings, "magic_link_redirect_path", "").lstrip("/")
+    base_url = getattr(settings, "frontend_base_url", "https://vizualizd.mapthegap.ai").rstrip("/")
+    if redirect_path:
+        return f"{base_url}/{redirect_path}?token={quote(token)}&email={quote(email)}"
+    return f"{base_url}?token={quote(token)}&email={quote(email)}"
 
 
 def _send_completion_email(db, run, client, settings) -> None:

@@ -211,6 +211,30 @@ async def startup_event():
     )
     logger.info(f"LLM service initialized (OpenAI: {bool(openai_api_key)}, Anthropic: {bool(anthropic_api_key)})")
 
+    # Start background email sender thread
+    import threading
+
+    def _email_sender_loop():
+        import time as _time
+        from app.database import SessionLocal
+        from app.config import get_settings as _get_settings
+        from app.services.lead_email_service import send_due_emails
+        _settings = _get_settings()
+        while True:
+            try:
+                _db = SessionLocal()
+                count = send_due_emails(_settings, _db)
+                if count:
+                    logger.info("[email-sender] Sent %d scheduled emails", count)
+                _db.close()
+            except Exception as _e:
+                logger.error("[email-sender] Error: %s", _e)
+            _time.sleep(300)
+
+    _sender = threading.Thread(target=_email_sender_loop, daemon=True)
+    _sender.start()
+    logger.info("Email sender background thread started")
+
 
 # CORS configuration - allow frontend to communicate with backend
 # Allow all Railway origins (they use *.up.railway.app pattern) for flexibility

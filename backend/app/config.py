@@ -83,6 +83,7 @@ class Settings(BaseSettings):
     resend_api_key: str | None = Field(default=None)
     resend_from_email: str | None = Field(default=None)
     resend_reply_to_email: str | None = Field(default=None)
+    gamma_api_key: str | None = Field(default=None)
     google_oauth_client_id: str | None = Field(default=None)
     google_oauth_client_secret: str | None = Field(default=None)
     meta_app_id: str | None = Field(default=None)

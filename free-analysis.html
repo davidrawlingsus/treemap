@@ -62,7 +62,8 @@
                     <div class="status-step" data-step="validating">Validating</div>
                     <div class="status-step" data-step="classifying">Classifying reviews</div>
                     <div class="status-step" data-step="generating_ads">Generating ads</div>
-                    <div class="status-step" data-step="sending_email">Sending results</div>
+                    <div class="status-step" data-step="generating_analysis">Building creative strategy</div>
+                    <div class="status-step" data-step="scheduling_emails">Preparing your insights</div>
                     <div class="status-step" data-step="completed">Complete</div>
                 </div>
                 <p class="muted" id="statusNote">You can close this page — we'll send you an email when it's done.</p>
@@ -189,7 +190,7 @@
             }
         }
 
-        const STATUS_ORDER = ['queued', 'detecting_platforms', 'scraping', 'extracting_context', 'extracting', 'building_taxonomy', 'validating', 'classifying', 'generating_ads', 'sending_email', 'completed'];
+        const STATUS_ORDER = ['queued', 'detecting_platforms', 'scraping', 'extracting_context', 'extracting', 'building_taxonomy', 'validating', 'classifying', 'generating_ads', 'generating_analysis', 'scheduling_emails', 'completed'];
 
         function updateStatusUI(status, detectedPlatform) {
             // Handle scraping_* sub-statuses (e.g., scraping_reviews_io, scraping_yotpo)

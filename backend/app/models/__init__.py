@@ -28,6 +28,7 @@ from app.models.subscription import Subscription
 from app.models.usage_record import UsageRecord
 from app.models.leadgen_voc import LeadgenVocRun, LeadgenVocRow
 from app.models.leadgen_pipeline_output import LeadgenPipelineOutput
+from app.models.lead_email import LeadEmail
 from app.models.api_key import ApiKey
 from app.models.widget_survey import (
     WidgetSurvey,
