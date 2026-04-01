@@ -225,10 +225,23 @@ async function doDelete(surveyId) {
     }
 }
 
-function showEmbed() {
+async function showEmbed() {
     const apiBaseUrl = getBaseUrl();
+    let siteKey = null;
+    try {
+        const response = await fetch(`${apiBaseUrl}/api/widget-surveys/site-key?client_id=${state.clientId}`, {
+            headers: window.Auth?.getAuthHeaders?.() || {},
+        });
+        if (response.ok) {
+            const data = await response.json();
+            siteKey = data.site_key;
+        }
+    } catch (err) {
+        console.warn('Failed to fetch site key:', err);
+    }
     renderEmbedCode(elements.mainContent, {
         apiBaseUrl,
+        siteKey,
         onBack: () => { state.view = 'list'; renderView(); },
     });
 }

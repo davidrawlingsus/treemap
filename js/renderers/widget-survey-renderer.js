@@ -879,17 +879,22 @@ export function renderResponseViewer(container, { survey, responses, stats, onBa
 
 // ── Embed Code ────────────────────────────────────────────────────
 
-export function renderEmbedCode(container, { apiBaseUrl, onBack }) {
+export function renderEmbedCode(container, { apiBaseUrl, siteKey, onBack }) {
     if (!container) return;
     container.className = 'ws';
 
+    const keyValue = siteKey || 'YOUR_SITE_KEY';
     const snippet = `<script>
   window.VizualizdSurvey = {
-    apiKey: "YOUR_API_KEY",
+    siteKey: "${keyValue}",
     apiBaseUrl: "${apiBaseUrl}"
   };
 </script>
 <script src="${apiBaseUrl}/static/widget/vizualizd-survey.js" defer></script>`;
+
+    const keyNote = siteKey
+        ? `<p style="font-size:12px;color:#1a7f5a;">Site key auto-generated for this client. Safe to embed in public HTML — only allows reading surveys and submitting responses.</p>`
+        : `<p style="font-size:12px;color:#8c9196;">Could not load site key. Check that the client exists.</p>`;
 
     container.innerHTML = `
         <div class="editor-header">
@@ -904,7 +909,7 @@ export function renderEmbedCode(container, { apiBaseUrl, onBack }) {
             <pre><code>${escapeHtml(snippet)}</code></pre>
             <button class="btn btn-sm" id="copyEmbedBtn">Copy</button>
         </div>
-        <p style="font-size:12px;color:#8c9196;">Replace YOUR_API_KEY with your client API key from the API Keys page.</p>
+        ${keyNote}
     `;
 
     container.querySelector('#backBtn')?.addEventListener('click', onBack);

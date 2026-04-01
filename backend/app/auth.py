@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import secrets
 from typing import Optional, Tuple
+from uuid import UUID
 
 from fastapi import Depends, HTTPException, Header, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -213,6 +214,33 @@ def get_current_user_flexible(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Authentication required: provide X-API-Key header or Bearer token",
     )
+
+
+def resolve_site_key(
+    x_site_key: Optional[str] = Header(default=None),
+    db: Session = Depends(get_db),
+) -> UUID:
+    """Resolve a public site key to a client_id. No user/admin access granted.
+
+    Site keys are non-secret public identifiers safe to embed in client-side JS.
+    They only grant access to read published surveys and submit responses.
+    """
+    if not x_site_key:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="X-Site-Key header required",
+        )
+    from app.models.client import Client
+    client = db.query(Client).filter(
+        Client.site_key == x_site_key,
+        Client.is_active.is_(True),
+    ).first()
+    if not client:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid site key",
+        )
+    return client.id
 
 
 def clear_magic_link_state(user: User) -> None:

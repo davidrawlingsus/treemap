@@ -25,6 +25,7 @@ class Client(Base):
     ad_library_only = Column(Boolean, default=False)  # Diagnosis-only brand (not in viz app)
     is_lead = Column(Boolean, default=False, nullable=False)
     leadgen_run_id = Column(String(64), nullable=True, unique=True)
+    site_key = Column(String(32), nullable=True, unique=True, index=True)
 
     # Relationships
     founder = relationship("User", foreign_keys=[founder_user_id], back_populates="founded_clients")

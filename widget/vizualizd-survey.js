@@ -5,11 +5,11 @@
  * Usage:
  *   <script>
  *     window.VizualizdSurvey = {
- *       apiKey: "vzd_...",
- *       apiBaseUrl: "https://app.vizualizd.com"
+ *       siteKey: "site_...",
+ *       apiBaseUrl: "https://api.mapthegap.ai"
  *     };
  *   </script>
- *   <script src="https://app.vizualizd.com/static/widget/vizualizd-survey.js" defer></script>
+ *   <script src="https://api.mapthegap.ai/static/widget/vizualizd-survey.js" defer></script>
  */
 (function () {
   "use strict";
@@ -17,8 +17,10 @@
   // ── Config ──────────────────────────────────────────────────────
 
   var cfg = window.VizualizdSurvey || {};
-  if (!cfg.apiKey) {
-    console.warn("[Vizualizd] Missing apiKey in window.VizualizdSurvey");
+  // Support both siteKey (new, public) and apiKey (legacy, deprecated)
+  var SITE_KEY = cfg.siteKey || cfg.apiKey;
+  if (!SITE_KEY) {
+    console.warn("[Vizualizd] Missing siteKey in window.VizualizdSurvey");
     return;
   }
   var API_BASE = (cfg.apiBaseUrl || "").replace(/\/+$/, "");
@@ -26,7 +28,6 @@
     console.warn("[Vizualizd] Missing apiBaseUrl in window.VizualizdSurvey");
     return;
   }
-  var API_KEY = cfg.apiKey;
   var PREFIX = "vzd-survey";
   var ICON_CLOSE = "https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/survey-icons/close_icon-bX0w8aJ2pJgf5aUuXZoEpQHw6dwtFB.svg";
   var ICON_COLLAPSE = "https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/survey-icons/collapse_icon-RYPksPuuo9v7xJYQPMkpaxgaByqYas.svg";
@@ -34,7 +35,7 @@
   // ── API client ──────────────────────────────────────────────────
 
   function apiHeaders() {
-    return { "X-API-Key": API_KEY, "Content-Type": "application/json" };
+    return { "X-Site-Key": SITE_KEY, "Content-Type": "application/json" };
   }
 
   function fetchActiveSurvey(cb) {

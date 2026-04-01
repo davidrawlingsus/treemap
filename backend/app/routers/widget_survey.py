@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.auth import get_current_user, get_current_user_flexible
+from app.auth import get_current_user, get_current_user_flexible, resolve_site_key
 from app.database import get_db
 from app.models import User
 from app.schemas.widget_survey import (
@@ -49,16 +49,15 @@ def _resolve_client_id(user: User, client_id: UUID | None) -> UUID:
     return client_id
 
 
-# ── Public endpoints (API key auth) ─────────────────────────────────
+# ── Public endpoints (site key auth — safe to embed in client-side JS) ──
 
 
 @router.get("/active", response_model=WidgetRuntimeSurveyEnvelope)
 def get_active_survey(
-    user: User = Depends(get_current_user_flexible),
+    client_id: UUID = Depends(resolve_site_key),
     db: Session = Depends(get_db),
 ):
     """Fetch the active survey config for the widget to render."""
-    client_id = _get_api_key_client_id(user)
     survey = svc.get_active_runtime_survey(db, client_id)
     return WidgetRuntimeSurveyEnvelope(survey=survey)
 
@@ -66,37 +65,55 @@ def get_active_survey(
 @router.post("/responses", response_model=WidgetSurveyResponseIngestResponse, status_code=201)
 def submit_response(
     payload: WidgetSurveyResponseIngestRequest,
-    user: User = Depends(get_current_user_flexible),
+    client_id: UUID = Depends(resolve_site_key),
     db: Session = Depends(get_db),
 ):
     """Submit a survey response from the widget."""
-    client_id = _get_api_key_client_id(user)
     return svc.ingest_survey_response(db, client_id, payload)
 
 
 @router.post("/heartbeat", status_code=204)
 def record_heartbeat(
     payload: WidgetSurveyHeartbeatRequest,
-    user: User = Depends(get_current_user_flexible),
+    client_id: UUID = Depends(resolve_site_key),
     db: Session = Depends(get_db),
 ):
     """Record that the widget script is installed on a page."""
-    client_id = _get_api_key_client_id(user)
     svc.record_heartbeat(db, client_id, payload.page_url)
 
 
 @router.post("/impression", status_code=204)
 def record_impression(
     payload: WidgetSurveyImpressionRequest,
-    user: User = Depends(get_current_user_flexible),
+    client_id: UUID = Depends(resolve_site_key),
     db: Session = Depends(get_db),
 ):
     """Record a survey impression (popup was shown)."""
-    _get_api_key_client_id(user)  # validate API key auth
     svc.record_impression(db, payload.survey_version_id)
 
 
 # ── Admin endpoints (JWT auth) ───────────────────────────────────────
+
+
+@router.get("/site-key")
+def get_site_key(
+    client_id: UUID = Query(...),
+    user: User = Depends(get_current_user_flexible),
+    db: Session = Depends(get_db),
+):
+    """Get the public site key for a client (for embedding in widget snippet)."""
+    resolved = _resolve_client_id(user, client_id)
+    from app.models.client import Client
+    client = db.query(Client).filter(Client.id == resolved).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    # Auto-generate site key if missing
+    if not client.site_key:
+        import secrets
+        client.site_key = "site_" + secrets.token_urlsafe(16)
+        db.commit()
+        db.refresh(client)
+    return {"site_key": client.site_key, "client_id": str(client.id), "client_name": client.name}
 
 
 @router.get("/", response_model=list[WidgetSurveyListItem])
