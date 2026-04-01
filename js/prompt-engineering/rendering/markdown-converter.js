@@ -787,184 +787,164 @@
 
     /**
      * Generate HTML for FAQ cards from JSON data containing a faqs array
-     * Generate HTML for a VoC Creative Strategy Analysis
+     * Generate readable HTML for a VoC Creative Strategy Analysis JSON output.
+     * Renders any fields present, skips missing ones. Minimal styling.
      */
     function generateVocAnalysisHTML(data) {
-        const esc = DOM.escapeHtml;
-        let html = '<div class="voc-analysis-report">';
+        const e = s => DOM.escapeHtml(String(s || ''));
+        const str = v => typeof v === 'string' ? v : (typeof v === 'object' ? JSON.stringify(v) : String(v || ''));
+        const quote = (text, date) => `<blockquote><em>"${e(text)}"</em>${date ? ` (${e(date)})` : ''}</blockquote>`;
+        let h = '';
 
-        // Data Snapshot
-        const snap = data.data_snapshot || {};
-        html += '<div class="voc-section voc-snapshot">';
-        html += '<h2>Data Snapshot</h2>';
-        html += `<p><strong>Temporal window:</strong> ${esc(snap.temporal_window || '')}</p>`;
-        if (snap.sample_context) html += `<p>${esc(snap.sample_context)}</p>`;
-        if (snap.review_count) html += `<p><strong>Reviews:</strong> ${snap.review_count}</p>`;
-        if (snap.primary_creative_lenses?.length) {
-            html += '<p><strong>Primary creative lenses:</strong></p><ol>';
-            snap.primary_creative_lenses.forEach(l => { html += `<li>${esc(l)}</li>`; });
-            html += '</ol>';
-        }
-        if (snap.single_biggest_gap) {
-            html += `<div class="voc-callout">${esc(snap.single_biggest_gap)}</div>`;
-        }
-        html += '</div>';
+        // Helper: render any array of verbatim objects [{text, date}]
+        const verbatims = arr => {
+            if (!arr?.length) return '';
+            return arr.map(v => typeof v === 'string' ? quote(v) : quote(v.text, v.date)).join('');
+        };
 
-        // Headline Insight
-        const hi = data.headline_insight || {};
-        html += '<div class="voc-section voc-headline">';
-        html += '<h2>The Headline Insight</h2>';
-        html += `<div class="voc-compare"><div class="voc-compare-col"><strong>What their ads probably say:</strong><p>${esc(hi.what_ads_probably_say || '')}</p></div>`;
-        html += `<div class="voc-compare-col"><strong>What their customers actually say:</strong><p>${esc(hi.what_customers_actually_say || '')}</p></div></div>`;
-        html += `<div class="voc-callout"><strong>The creative opportunity:</strong> ${esc(hi.creative_opportunity || '')}</div>`;
-        if (hi.supporting_verbatims?.length) {
-            html += '<div class="voc-verbatims">';
-            hi.supporting_verbatims.forEach(v => {
-                html += `<blockquote>"${esc(v.text)}"${v.date ? ` <span class="voc-date">(${esc(v.date)})</span>` : ''}</blockquote>`;
-            });
-            html += '</div>';
+        // 1. Data Snapshot
+        const snap = data.data_snapshot;
+        if (snap) {
+            h += '<h2>Data Snapshot</h2>';
+            if (snap.temporal_window) h += `<p><strong>Temporal window:</strong> ${e(snap.temporal_window)}</p>`;
+            if (snap.sample_context) h += `<p>${e(snap.sample_context)}</p>`;
+            if (snap.review_count) h += `<p><strong>Reviews:</strong> ${snap.review_count}</p>`;
+            if (snap.primary_creative_lenses?.length) {
+                h += '<p><strong>Primary creative lenses:</strong></p><ul>';
+                snap.primary_creative_lenses.forEach(l => { h += `<li>${e(str(l))}</li>`; });
+                h += '</ul>';
+            }
+            if (snap.single_biggest_gap) h += `<p><strong>The single biggest gap:</strong> ${e(snap.single_biggest_gap)}</p>`;
         }
-        html += '</div>';
 
-        // Creative Strategy Insights
-        const insights = data.creative_strategy_insights || [];
-        if (insights.length) {
-            html += '<div class="voc-section">';
-            html += '<h2>Creative Strategy Insights</h2>';
+        // 2. Headline Insight
+        const hi = data.headline_insight;
+        if (hi) {
+            h += '<h2>The Headline Insight</h2>';
+            if (hi.what_ads_probably_say) h += `<p><strong>What your ads probably say:</strong> ${e(hi.what_ads_probably_say)}</p>`;
+            if (hi.what_customers_actually_say) h += `<p><strong>What your customers actually say:</strong> ${e(hi.what_customers_actually_say)}</p>`;
+            if (hi.creative_opportunity) h += `<p><strong>The creative opportunity:</strong> ${e(hi.creative_opportunity)}</p>`;
+            h += verbatims(hi.supporting_verbatims);
+        }
+
+        // 3. Creative Strategy Insights
+        const insights = data.creative_strategy_insights;
+        if (insights?.length) {
+            h += '<h2>Creative Strategy Insights</h2>';
             insights.forEach((ins, i) => {
-                const ci = ins.creative_implications || {};
-                const sn = ins.serialisation_notes || {};
-                html += `<div class="voc-insight">`;
-                html += `<h3>Insight ${i + 1}: ${esc(ins.title || '')}</h3>`;
-                html += `<div class="voc-insight-meta">`;
-                html += `<span class="voc-badge">${esc(ins.signal_type || '').replace(/_/g, ' ')}</span>`;
-                html += `<span class="voc-badge">${esc(ins.trajectory || '')}</span>`;
-                if (ci.funnel_stage) html += `<span class="voc-badge">${esc(ci.funnel_stage).replace(/_/g, ' ')}</span>`;
-                html += '</div>';
-                html += `<p><strong>Finding:</strong> ${esc(ins.finding || '')}</p>`;
-                html += `<p><strong>Messaging gap:</strong> ${esc(ins.messaging_gap || '')}</p>`;
-                if (ins.evidence?.length) {
-                    html += '<div class="voc-verbatims">';
-                    ins.evidence.forEach(e => {
-                        html += `<blockquote>"${esc(e.text)}"${e.date ? ` <span class="voc-date">(${esc(e.date)})</span>` : ''}</blockquote>`;
-                    });
-                    html += '</div>';
+                h += `<h3>${i + 1}. ${e(ins.title)}</h3>`;
+                if (ins.signal_type) h += `<p><strong>Signal:</strong> ${e(str(ins.signal_type)).replace(/_/g, ' ')}</p>`;
+                if (ins.finding) h += `<p>${e(ins.finding)}</p>`;
+                if (ins.messaging_gap) h += `<p><strong>Messaging gap:</strong> ${e(ins.messaging_gap)}</p>`;
+                if (ins.trajectory) h += `<p><strong>Trajectory:</strong> ${e(str(ins.trajectory))}</p>`;
+                h += verbatims(ins.evidence);
+                const ci = ins.creative_implications;
+                if (ci) {
+                    const parts = [];
+                    if (typeof ci === 'string') { parts.push(ci); }
+                    else {
+                        if (ci.funnel_stage) parts.push(str(ci.funnel_stage).replace(/_/g, ' '));
+                        if (ci.creative_lane) parts.push(ci.creative_lane);
+                        if (ci.emotional_register) parts.push(ci.emotional_register);
+                    }
+                    if (parts.length) h += `<p><strong>Creative implications:</strong> ${e(parts.join(' · '))}</p>`;
                 }
-                if (ci.creative_lane) html += `<p><strong>Creative lane:</strong> ${esc(ci.creative_lane)}</p>`;
-                if (ci.emotional_register) html += `<p><strong>Emotional register:</strong> ${esc(ci.emotional_register)}</p>`;
-                if (sn.target_response) html += `<p class="voc-muted"><strong>Target response:</strong> <em>"${esc(sn.target_response)}"</em></p>`;
-                html += '</div>';
+                const sn = ins.serialisation_notes;
+                if (sn) {
+                    if (typeof sn === 'string') { h += `<p><em>${e(sn)}</em></p>`; }
+                    else if (sn.target_response) { h += `<p><em>Target response: "${e(sn.target_response)}"</em></p>`; }
+                }
+                h += '<hr>';
             });
-            html += '</div>';
         }
 
-        // Language Gold
-        const lg = data.language_gold || {};
-        const lgSections = [
-            ['The Problem', lg.the_problem],
-            ['The Transformation', lg.the_transformation],
-            ['The Decision', lg.the_decision],
-            ['The Competition', lg.the_competition],
-        ];
-        const hasLg = lgSections.some(([, arr]) => arr?.length);
-        if (hasLg || lg.phrases_worth_stealing?.length) {
-            html += '<div class="voc-section">';
-            html += '<h2>Language Gold</h2>';
-            lgSections.forEach(([title, items]) => {
-                if (!items?.length) return;
-                html += `<h3>${esc(title)}</h3>`;
-                items.forEach(item => {
-                    html += `<div class="voc-language-item">`;
-                    html += `<blockquote>"${esc(item.verbatim)}"${item.date ? ` <span class="voc-date">(${esc(item.date)})</span>` : ''}</blockquote>`;
-                    html += `<p class="voc-ad-translation"><strong>Ad translation:</strong> ${esc(item.ad_translation)}</p>`;
-                    html += '</div>';
+        // 4. Language Gold
+        const lg = data.language_gold;
+        if (lg) {
+            const sections = [['The Problem', lg.the_problem], ['The Transformation', lg.the_transformation], ['The Decision', lg.the_decision], ['The Competition', lg.the_competition]];
+            const hasAny = sections.some(([, arr]) => arr?.length) || lg.phrases_worth_stealing?.length;
+            if (hasAny) {
+                h += '<h2>Language Gold</h2>';
+                sections.forEach(([title, items]) => {
+                    if (!items?.length) return;
+                    h += `<h3>${e(title)}</h3>`;
+                    items.forEach(item => {
+                        h += quote(item.verbatim, item.date);
+                        if (item.ad_translation) h += `<p><strong>Ad translation:</strong> ${e(item.ad_translation)}</p>`;
+                    });
                 });
+                if (lg.phrases_worth_stealing?.length) {
+                    h += '<h3>Phrases Worth Stealing</h3><table><thead><tr><th>Phrase</th><th>Context</th><th>Creative Potential</th></tr></thead><tbody>';
+                    lg.phrases_worth_stealing.forEach(p => {
+                        h += `<tr><td>"${e(p.phrase)}"</td><td>${e(p.context)}${p.date ? ` (${e(p.date)})` : ''}</td><td>${e(p.creative_potential)}</td></tr>`;
+                    });
+                    h += '</tbody></table>';
+                }
+            }
+        }
+
+        // 5. Objection Map
+        const objs = data.objection_map;
+        if (objs?.length) {
+            h += '<h2>Objection Map</h2>';
+            objs.forEach(obj => {
+                h += `<h3>${e(obj.objection)}</h3>`;
+                if (obj.customer_words) h += `<p><em>"${e(obj.customer_words)}"</em></p>`;
+                if (obj.frequency_intensity) h += `<p><strong>Frequency:</strong> ${e(str(obj.frequency_intensity)).replace(/_/g, ' ')}</p>`;
+                if (obj.brand_likely_addresses) h += `<p><strong>Brand likely addresses:</strong> ${e(obj.brand_likely_addresses)}</p>`;
+                if (obj.what_ad_should_say) h += `<p><strong>What the ad should say:</strong> ${e(obj.what_ad_should_say)}</p>`;
+                h += '<hr>';
             });
-            if (lg.phrases_worth_stealing?.length) {
-                html += '<h3>Phrases Worth Stealing</h3>';
-                html += '<table class="voc-table"><thead><tr><th>Phrase</th><th>Context</th><th>Creative Potential</th></tr></thead><tbody>';
-                lg.phrases_worth_stealing.forEach(p => {
-                    html += `<tr><td><strong>"${esc(p.phrase)}"</strong></td><td>${esc(p.context)}${p.date ? ` (${esc(p.date)})` : ''}</td><td>${esc(p.creative_potential)}</td></tr>`;
-                });
-                html += '</tbody></table>';
-            }
-            html += '</div>';
         }
 
-        // Objection Map
-        const objections = data.objection_map || [];
-        if (objections.length) {
-            html += '<div class="voc-section">';
-            html += '<h2>Objection Map</h2>';
-            objections.forEach(obj => {
-                html += '<div class="voc-objection">';
-                html += `<h3>${esc(obj.objection || '')}</h3>`;
-                html += `<p><strong>In their words:</strong> <em>"${esc(obj.customer_words || '')}"</em></p>`;
-                html += `<p><strong>Frequency:</strong> <span class="voc-badge">${esc(obj.frequency_intensity || '').replace(/_/g, ' ')}</span></p>`;
-                html += `<p><strong>Brand likely addresses:</strong> ${esc(obj.brand_likely_addresses || '')}</p>`;
-                html += `<p><strong>What the ad should say:</strong> ${esc(obj.what_ad_should_say || '')}</p>`;
-                html += '</div>';
-            });
-            html += '</div>';
+        // 6. Contradictions & Complexity
+        const cc = data.contradictions_and_complexity;
+        if (cc) {
+            const has = cc.conflicting_signals?.length || cc.missing_voices?.length || cc.creative_risk_flags?.length || cc.data_bias;
+            if (has) {
+                h += '<h2>Contradictions &amp; Complexity</h2>';
+                if (cc.conflicting_signals?.length) { h += '<h3>Conflicting Signals</h3><ul>'; cc.conflicting_signals.forEach(s => { h += `<li>${e(s)}</li>`; }); h += '</ul>'; }
+                if (cc.missing_voices?.length) { h += '<h3>Missing Voices</h3><ul>'; cc.missing_voices.forEach(s => { h += `<li>${e(s)}</li>`; }); h += '</ul>'; }
+                if (cc.data_bias) h += `<p><strong>Data bias:</strong> ${e(cc.data_bias)}</p>`;
+                if (cc.creative_risk_flags?.length) { h += '<h3>Creative Risk Flags</h3><ul>'; cc.creative_risk_flags.forEach(s => { h += `<li>${e(s)}</li>`; }); h += '</ul>'; }
+            }
         }
 
-        // Contradictions
-        const cc = data.contradictions_and_complexity || {};
-        if (cc.conflicting_signals?.length || cc.missing_voices?.length || cc.creative_risk_flags?.length) {
-            html += '<div class="voc-section">';
-            html += '<h2>Contradictions &amp; Complexity</h2>';
-            if (cc.conflicting_signals?.length) {
-                html += '<h3>Conflicting Signals</h3><ul>';
-                cc.conflicting_signals.forEach(s => { html += `<li>${esc(s)}</li>`; });
-                html += '</ul>';
-            }
-            if (cc.missing_voices?.length) {
-                html += '<h3>Missing Voices</h3><ul>';
-                cc.missing_voices.forEach(s => { html += `<li>${esc(s)}</li>`; });
-                html += '</ul>';
-            }
-            if (cc.data_bias) html += `<p><strong>Data bias:</strong> ${esc(cc.data_bias)}</p>`;
-            if (cc.creative_risk_flags?.length) {
-                html += '<h3>Creative Risk Flags</h3><ul>';
-                cc.creative_risk_flags.forEach(s => { html += `<li>${esc(s)}</li>`; });
-                html += '</ul>';
-            }
-            html += '</div>';
-        }
-
-        // Sequence Architecture
-        const sa = data.sequence_architecture || {};
-        if (sa.through_line) {
-            html += '<div class="voc-section">';
-            html += '<h2>Email Sequence Architecture</h2>';
-            html += `<p><strong>Through-line:</strong> ${esc(sa.through_line)}</p>`;
+        // 7. Sequence Architecture
+        const sa = data.sequence_architecture;
+        if (sa) {
+            h += '<h2>Sequence Architecture</h2>';
+            if (sa.through_line) h += `<p><strong>Through-line:</strong> ${e(sa.through_line)}</p>`;
+            if (sa.lead_email) h += `<p><strong>Lead email:</strong> Insight ${sa.lead_email.insight_number} — ${e(sa.lead_email.rationale)}</p>`;
+            if (sa.closer_email) h += `<p><strong>Closer email:</strong> Insight ${sa.closer_email.insight_number} — ${e(sa.closer_email.rationale)}</p>`;
             if (sa.narrative_arc?.length) {
-                html += '<table class="voc-table"><thead><tr><th>Email</th><th>Role</th></tr></thead><tbody>';
-                sa.narrative_arc.forEach(a => {
-                    html += `<tr><td>${a.email_number}</td><td>${esc(a.role)}</td></tr>`;
-                });
-                html += '</tbody></table>';
+                h += '<ul>';
+                sa.narrative_arc.forEach(a => { h += `<li><strong>Email ${a.email_number}:</strong> ${e(a.role)}</li>`; });
+                h += '</ul>';
             }
-            html += '</div>';
         }
 
-        // Emails preview
-        const emails = data.emails || [];
-        if (emails.length) {
-            html += '<div class="voc-section">';
-            html += `<h2>Email Series (${emails.length} emails)</h2>`;
+        // 8. Emails
+        const emails = data.emails;
+        if (emails?.length) {
+            h += `<h2>Emails (${emails.length})</h2>`;
             emails.forEach(em => {
-                html += '<div class="voc-email-preview">';
-                html += `<div class="voc-email-header"><span class="voc-badge">D+${em.send_day}</span> <strong>${esc(em.subject_line || '')}</strong></div>`;
-                html += `<p class="voc-muted">${esc(em.preview_text || '')}</p>`;
-                html += `<p class="voc-muted"><em>Intent: ${esc(em.strategic_intent || '')}</em></p>`;
-                html += '</div>';
+                h += `<h3>Email ${em.sequence_number} (D+${em.send_day}): ${e(em.subject_line)}</h3>`;
+                if (em.preview_text) h += `<p><em>${e(em.preview_text)}</em></p>`;
+                if (em.body_sections?.length) {
+                    em.body_sections.forEach(sec => {
+                        if (sec.type === 'verbatim') h += quote(sec.content, sec.attribution);
+                        else if (sec.type === 'stat') h += `<p><strong>${e(sec.content)}</strong></p>`;
+                        else if (sec.type === 'cta') h += `<p><strong>${e(sec.content)}</strong></p>`;
+                        else h += `<p>${e(sec.content)}</p>`;
+                    });
+                }
+                if (em.strategic_intent) h += `<p><em>Intent: ${e(em.strategic_intent)}</em></p>`;
+                h += '<hr>';
             });
-            html += '</div>';
         }
 
-        html += '</div>';
-        return html;
+        return h || '<p>No analysis data found.</p>';
     }
 
     /**
