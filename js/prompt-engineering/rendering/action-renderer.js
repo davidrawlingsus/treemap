@@ -24,7 +24,7 @@
         if (trimmed.startsWith('{')) {
             try {
                 const parsed = JSON.parse(trimmed);
-                if (parsed.data_snapshot && parsed.headline_insight && parsed.creative_strategy_insights) {
+                if (parsed.data_snapshot && (parsed.headline_insight || parsed.creative_strategy_insights)) {
                     return generateVocAnalysisHTML(parsed);
                 }
             } catch (_) {

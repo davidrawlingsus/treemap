@@ -103,7 +103,7 @@
                     }
                     jsonBlocks.push({ content: null, ideas });
                     replacements.push({ start: replStart, end: prevLastIndex, placeholder: jsonBlocks.length - 1 });
-                } else if (jsonData.data_snapshot && jsonData.headline_insight && jsonData.creative_strategy_insights) {
+                } else if (jsonData.data_snapshot && (jsonData.headline_insight || jsonData.creative_strategy_insights)) {
                     // VoC Creative Strategy Analysis (deck-and-email output)
                     jsonBlocks.push({ vocAnalysis: jsonData, ideas: [] });
                     replacements.push({ start: replStart, end: prevLastIndex, placeholder: jsonBlocks.length - 1 });
@@ -798,7 +798,8 @@
         html += '<div class="voc-section voc-snapshot">';
         html += '<h2>Data Snapshot</h2>';
         html += `<p><strong>Temporal window:</strong> ${esc(snap.temporal_window || '')}</p>`;
-        html += `<p><strong>Reviews:</strong> ${snap.review_count || 0}</p>`;
+        if (snap.sample_context) html += `<p>${esc(snap.sample_context)}</p>`;
+        if (snap.review_count) html += `<p><strong>Reviews:</strong> ${snap.review_count}</p>`;
         if (snap.primary_creative_lenses?.length) {
             html += '<p><strong>Primary creative lenses:</strong></p><ol>';
             snap.primary_creative_lenses.forEach(l => { html += `<li>${esc(l)}</li>`; });
