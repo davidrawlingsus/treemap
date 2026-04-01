@@ -598,6 +598,7 @@ def list_survey_responses(
                 customer_reference=row.customer_reference,
                 clarity_session_id=row.clarity_session_id,
                 clarity_project_id=row.clarity_project_id,
+                clarity_replay_url=row.clarity_replay_url,
                 submitted_at=row.submitted_at,
                 answers=[
                     WidgetSurveyResponseAnswerItem(
