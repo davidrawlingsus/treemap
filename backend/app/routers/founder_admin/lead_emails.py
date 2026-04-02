@@ -107,8 +107,10 @@ def get_lead_email_series(
         elif out.step_type == "voc_analysis_json":
             deck_markdown = (out.output or {}).get("deck_markdown")
         # gamma_url would be stored in run payload
+    pdf_url = None
     if run and run.payload:
         gamma_url = run.payload.get("gamma_url")
+        pdf_url = run.payload.get("pdf_url")
 
     return {
         "run_id": run_id,
@@ -119,6 +121,7 @@ def get_lead_email_series(
         "voc_markdown": voc_markdown,
         "deck_markdown": deck_markdown,
         "gamma_url": gamma_url,
+        "pdf_url": pdf_url,
         "emails": [
             {
                 "id": str(e.id),

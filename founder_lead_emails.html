@@ -186,8 +186,10 @@
 
                 // Deck
                 document.getElementById('deckContent').textContent = data.deck_markdown || 'No deck content available.';
-                document.getElementById('gammaLink').innerHTML = data.gamma_url
-                    ? `<a href="${data.gamma_url}" target="_blank" class="btn btn-sm">View Gamma Deck &rarr;</a>` : '';
+                const deckLinks = [];
+                if (data.gamma_url) deckLinks.push(`<a href="${data.gamma_url}" target="_blank" class="btn btn-sm">View Gamma Deck &rarr;</a>`);
+                if (data.pdf_url) deckLinks.push(`<a href="${data.pdf_url}" target="_blank" class="btn btn-sm">Download PDF &darr;</a>`);
+                document.getElementById('gammaLink').innerHTML = deckLinks.join(' ');
 
                 // Analysis
                 document.getElementById('analysisContent').textContent = data.voc_markdown || 'No analysis available.';

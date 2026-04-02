@@ -732,6 +732,7 @@ def _run_full_pipeline(run_id: str) -> None:
 
         # ── Step 9: Generate Gamma deck (if configured) ──
         gamma_url = None
+        deck_result = None
         try:
             from app.services.gamma_service import generate_deck
             gamma_api_key = getattr(settings, "gamma_api_key", None)
@@ -742,15 +743,20 @@ def _run_full_pipeline(run_id: str) -> None:
             if not deck_content and voc_markdown:
                 deck_content = voc_markdown
             if gamma_api_key and deck_content:
-                gamma_url = generate_deck(
+                deck_result = generate_deck(
                     api_key=gamma_api_key,
                     title=f"VoC Creative Strategy: {company_name}",
                     markdown_content=deck_content,
                 )
-            # Store gamma URL in run payload
-            if gamma_url:
+                if deck_result:
+                    gamma_url = deck_result.gamma_url
+            # Store gamma URLs in run payload
+            if gamma_url or (deck_result and deck_result.pdf_url):
                 payload = run.payload or {}
-                payload["gamma_url"] = gamma_url
+                if gamma_url:
+                    payload["gamma_url"] = gamma_url
+                if deck_result and deck_result.pdf_url:
+                    payload["pdf_url"] = deck_result.pdf_url
                 run.payload = payload
                 from sqlalchemy.orm.attributes import flag_modified
                 flag_modified(run, "payload")
@@ -773,7 +779,7 @@ def _run_full_pipeline(run_id: str) -> None:
                     email_address=run.work_email,
                     voc_analysis=voc_analysis,
                     magic_link_url=magic_link_url,
-                    gamma_deck_url=gamma_url,
+                    gamma_deck_url=(deck_result.pdf_url if deck_result and deck_result.pdf_url else gamma_url),
                 )
                 db.commit()
                 logger.info("[pipeline %s] Scheduled %d emails", run_id, len(emails))
