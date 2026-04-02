@@ -56,7 +56,7 @@ def _build_actor_input(domain: str, min_reviews: int) -> Dict[str, Any]:
         "contentToExtract": "reviews",
         "sortBy": "recency",
         "filterByStarRating": "",
-        "filterByLanguage": "en",
+        "filterByLanguage": "",
         "filterByVerified": False,
         "filterByCountryOfReviewers": "",
         "startFromPageNumber": 1,
