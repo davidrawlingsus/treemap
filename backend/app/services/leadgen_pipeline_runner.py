@@ -747,6 +747,14 @@ def _run_full_pipeline(run_id: str) -> None:
                     title=f"VoC Creative Strategy: {company_name}",
                     markdown_content=deck_content,
                 )
+            # Store gamma URL in run payload
+            if gamma_url:
+                payload = run.payload or {}
+                payload["gamma_url"] = gamma_url
+                run.payload = payload
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(run, "payload")
+                db.commit()
         except Exception as e:
             logger.warning("[pipeline %s] Gamma deck failed: %s", run_id, e)
 
