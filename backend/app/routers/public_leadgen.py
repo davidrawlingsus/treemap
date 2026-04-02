@@ -246,9 +246,14 @@ def public_leadgen_start(
     # If user provided/confirmed a different URL, derive domain from that
     if body.company_url:
         from urllib.parse import urlparse
-        company_url = normalize_url(body.company_url)
+        raw_url = body.company_url.strip().rstrip("/")
+        company_url = normalize_url(raw_url)
         parsed = urlparse(company_url)
-        company_domain = (parsed.netloc or parsed.path).lower().replace("www.", "")
+        company_domain = (parsed.netloc or parsed.path).lower()
+        # Strip www., port, trailing path
+        company_domain = company_domain.split(":")[0].split("/")[0]
+        if company_domain.startswith("www."):
+            company_domain = company_domain[4:]
     else:
         company_url = normalize_url(infer_company_url_from_domain(email_domain))
         company_domain = email_domain
