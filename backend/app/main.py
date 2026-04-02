@@ -241,13 +241,31 @@ async def startup_event():
         from app.models.leadgen_voc import LeadgenVocRun
         from app.services.leadgen_pipeline_runner import run_full_pipeline_background
 
+        from datetime import datetime, timedelta, timezone as tz
+
         _db = SessionLocal()
         terminal_states = {"completed", "failed", "disabled"}
+        cutoff = datetime.now(tz.utc) - timedelta(hours=1)
         orphaned = (
             _db.query(LeadgenVocRun)
-            .filter(~LeadgenVocRun.coding_status.in_(terminal_states))
+            .filter(
+                ~LeadgenVocRun.coding_status.in_(terminal_states),
+                LeadgenVocRun.created_at >= cutoff,
+            )
             .all()
         )
+        # Mark anything older as failed (stale runs that will never complete)
+        stale = (
+            _db.query(LeadgenVocRun)
+            .filter(
+                ~LeadgenVocRun.coding_status.in_(terminal_states),
+                LeadgenVocRun.created_at < cutoff,
+            )
+            .update({"coding_status": "failed"})
+        )
+        if stale:
+            logger.info("[startup-recovery] Marked %d stale runs as failed", stale)
+
         for run in orphaned:
             logger.info("[startup-recovery] Restarting orphaned run %s (%s, status=%s)",
                         run.run_id, run.company_name, run.coding_status)
