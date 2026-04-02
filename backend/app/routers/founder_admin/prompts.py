@@ -1,7 +1,7 @@
 """
 Prompt management routes for founder admin.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi import Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -174,6 +174,57 @@ def list_helper_prompts(
         return response_list
     
     return []
+
+
+@router.get(
+    "/api/founder/prompts/versions",
+    response_model=List[PromptResponse],
+)
+def list_prompt_versions(
+    name: str = Query(..., description="Prompt name to get all versions for"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """List all versions of a prompt by name, regardless of status."""
+    prompts = db.query(Prompt).filter(Prompt.name == name).order_by(Prompt.version.desc()).all()
+
+    if not prompts:
+        raise HTTPException(status_code=404, detail="No prompts found with that name.")
+
+    prompt_ids = [p.id for p in prompts]
+    prompt_client_links = db.query(PromptClient).filter(PromptClient.prompt_id.in_(prompt_ids)).all()
+    client_ids_by_prompt = {}
+    for pc in prompt_client_links:
+        if pc.prompt_id not in client_ids_by_prompt:
+            client_ids_by_prompt[pc.prompt_id] = []
+        client_ids_by_prompt[pc.prompt_id].append(pc.client_id)
+
+    response_list = []
+    for prompt in prompts:
+        client_facing = prompt.client_facing if prompt.client_facing is not None else False
+        all_clients = prompt.all_clients if prompt.all_clients is not None else False
+        client_ids = client_ids_by_prompt.get(prompt.id, [])
+        prompt_dict = {
+            'id': prompt.id,
+            'name': prompt.name,
+            'version': prompt.version,
+            'prompt_type': prompt.prompt_type,
+            'system_message': prompt.system_message,
+            'prompt_message': prompt.prompt_message,
+            'prompt_purpose': prompt.prompt_purpose,
+            'status': prompt.status,
+            'client_facing': client_facing,
+            'all_clients': all_clients,
+            'client_ids': client_ids,
+            'top_level_ai_dropdown': prompt.top_level_ai_dropdown if prompt.top_level_ai_dropdown is not None else False,
+            'context_menu_group_id': prompt.context_menu_group_id,
+            'llm_model': prompt.llm_model,
+            'created_at': prompt.created_at,
+            'updated_at': prompt.updated_at,
+        }
+        response_list.append(PromptResponse(**prompt_dict))
+
+    return response_list
 
 
 @router.get(
@@ -357,8 +408,11 @@ def update_prompt_for_founder(
     # Update fields if provided
     if payload.name is not None:
         prompt.name = payload.name
-    if payload.version is not None:
-        prompt.version = payload.version
+    if payload.version is not None and payload.version != prompt.version:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot change version number via update. Create a new version instead.",
+        )
     if payload.prompt_type is not None:
         prompt.prompt_type = payload.prompt_type
     if payload.system_message is not None:

@@ -74,6 +74,15 @@
         },
 
         /**
+         * Get all versions of a prompt by name (ignores status filters)
+         * @param {string} promptName - Prompt name
+         * @returns {Promise<Array>} Array of all versions
+         */
+        async listVersions(promptName) {
+            return API.get('/api/founder/prompts/versions', { name: promptName });
+        },
+
+        /**
          * Create a new prompt
          * @param {Object} data - Prompt data
          * @returns {Promise<Object>} Created prompt

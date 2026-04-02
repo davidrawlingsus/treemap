@@ -307,8 +307,20 @@
             await this.populateContextMenuGroupSelect();
 
             if (mode === 'edit' && promptId) {
-                const prompt = prompts.find((item) => item.id === promptId);
-                
+                let prompt = prompts.find((item) => item.id === promptId);
+
+                // If not in state (e.g. filtered out by status), try version history cache then API
+                if (!prompt) {
+                    prompt = (this._versionHistoryCache || []).find(p => p.id === promptId);
+                }
+                if (!prompt) {
+                    try {
+                        prompt = await window.PromptAPI.get(promptId);
+                    } catch (e) {
+                        console.error('[MODALS] Failed to fetch prompt:', e);
+                    }
+                }
+
                 if (!prompt) {
                     this.showStatus('Selected prompt could not be found.', 'error');
                     return;
@@ -679,15 +691,28 @@
                 let savedPrompt;
 
                 if (currentMode === 'edit' && currentPromptId) {
-                    savedPrompt = await PromptAPI.update(currentPromptId, payload);
-                    this.showStatus('Prompt updated successfully.', 'success');
-                    
+                    // Check if version number changed — if so, create a new record to preserve history
+                    const existingPrompts = state.get('prompts') || [];
+                    const existingPrompt = existingPrompts.find(p => p.id === currentPromptId)
+                        || (this._versionHistoryCache || []).find(p => p.id === currentPromptId);
+                    const versionChanged = existingPrompt && existingPrompt.version !== versionValue;
+
+                    if (versionChanged) {
+                        // Archive the old version, then create a new record
+                        await PromptAPI.update(currentPromptId, { status: 'archived' });
+                        savedPrompt = await PromptAPI.create(payload);
+                        this.showStatus(`Version ${versionValue} created. Previous version archived.`, 'success');
+                    } else {
+                        savedPrompt = await PromptAPI.update(currentPromptId, payload);
+                        this.showStatus('Prompt updated successfully.', 'success');
+                    }
+
                     // Handle helper prompt linking for system prompts
                     if (promptTypeValue === 'system') {
                         try {
                             // Get currently linked helpers
                             const linkedHelpers = await PromptAPI.getLinkedHelperPrompts(savedPrompt.id);
-                            
+
                             // Unlink all existing helpers first
                             for (const link of linkedHelpers) {
                                 try {
@@ -696,7 +721,7 @@
                                     console.warn('[MODALS] Failed to unlink helper prompt:', error);
                                 }
                             }
-                            
+
                             // Link new helper if one is selected
                             if (helperPromptId) {
                                 await PromptAPI.linkHelperPrompt(savedPrompt.id, helperPromptId);
@@ -1367,7 +1392,8 @@
         /**
          * Open version history modal
          */
-        openVersionHistoryModal() {
+        async openVersionHistoryModal() {
+            const PromptAPI = window.PromptAPI;
             const currentPromptId = state.get('currentPromptId');
             if (!currentPromptId) {
                 this.showStatus('No prompt selected.', 'error');
@@ -1376,16 +1402,24 @@
 
             const prompts = state.get('prompts') || [];
             const currentPrompt = prompts.find(p => p.id === currentPromptId);
-            
+
             if (!currentPrompt) {
                 this.showStatus('Current prompt could not be found.', 'error');
                 return;
             }
 
-            // Get all versions of this prompt
-            const promptVersions = prompts
-                .filter(p => p.name === currentPrompt.name)
-                .sort((a, b) => b.version - a.version); // Sort by version descending
+            // Fetch all versions from the API (bypasses status filter)
+            let promptVersions;
+            try {
+                promptVersions = await PromptAPI.listVersions(currentPrompt.name);
+            } catch (error) {
+                console.error('[MODALS] Failed to fetch version history:', error);
+                this.showStatus('Failed to load version history.', 'error');
+                return;
+            }
+
+            // Store fetched versions so restore/view can access them
+            this._versionHistoryCache = promptVersions;
 
             // Update modal title
             if (this.elements.versionHistoryTitle) {
@@ -1509,17 +1543,16 @@
          * @param {string} versionId - Version ID to restore from
          */
         handleRestoreVersion(versionId) {
-            const prompts = state.get('prompts') || [];
-            const sourcePrompt = prompts.find(p => p.id === versionId);
-            
+            const allVersions = this._versionHistoryCache || [];
+            const sourcePrompt = allVersions.find(p => p.id === versionId);
+
             if (!sourcePrompt) {
                 this.showStatus('Selected version could not be found.', 'error');
                 return;
             }
 
-            // Find the highest version for this prompt name
-            const sameNamePrompts = prompts.filter(p => p.name === sourcePrompt.name);
-            const maxVersion = Math.max(...sameNamePrompts.map(p => p.version));
+            // Find the highest version from the full version list
+            const maxVersion = Math.max(...allVersions.map(p => p.version));
             const newVersion = maxVersion + 1;
 
             // Close version history modal
