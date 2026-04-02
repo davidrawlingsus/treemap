@@ -179,10 +179,10 @@
                         <div class="le-email-row-top">
                             <span class="le-email-seq">Email ${em.sequence_number}</span>
                             <span class="le-badge le-badge-${em.status}">${em.status}</span>
-                            <span class="le-muted le-email-date">${em.scheduled_for ? new Date(em.scheduled_for).toLocaleDateString('en-GB', {day:'numeric',month:'short'}) : ''}</span>
+                            <span class="le-muted le-email-date">${em.scheduled_for ? new Date(em.scheduled_for).toLocaleString('en-US', {day:'numeric',month:'short',hour:'numeric',minute:'2-digit',timeZone:'America/Los_Angeles'}) + ' PST' : ''}</span>
                         </div>
                         <div class="le-email-subject">${esc(em.subject)}</div>
-                        ${em.sent_at ? `<div class="le-muted">Sent ${new Date(em.sent_at).toLocaleString('en-GB', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>` : ''}
+                        ${em.sent_at ? `<div class="le-muted">Sent ${new Date(em.sent_at).toLocaleString('en-US', {day:'numeric',month:'short',hour:'numeric',minute:'2-digit',timeZone:'America/Los_Angeles'})} PST</div>` : ''}
                         ${em.error_message ? `<div class="le-error">${esc(em.error_message)}</div>` : ''}
                         <div class="le-email-row-actions">
                             ${em.status === 'queued' || em.status === 'paused' ? `<button class="btn btn-xs btn-ghost" onclick="cancelEmail('${em.id}')">Cancel</button>` : ''}
