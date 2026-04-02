@@ -165,54 +165,45 @@ def _send_via_resend(email_service: Any, email: LeadEmail) -> Optional[str]:
 
 
 def _render_html(subject: str, td: Dict[str, Any]) -> str:
-    """Render template_data into simple inline-CSS HTML."""
-    headline = td.get("headline", subject)
+    """Render template_data into plain-text-style HTML (no fancy formatting)."""
     sections_html = ""
+    pdf_url = td.get("cta_url", "")
     for section in td.get("body_sections", []):
-        stype = section.get("type", "text")
         content = section.get("content", "")
-        if stype == "verbatim":
-            attr = section.get("attribution", "")
-            sections_html += f'<blockquote style="border-left:3px solid #1a73e8;padding:12px 16px;margin:16px 0;color:#555;font-style:italic;">"{content}"<br><span style="font-size:12px;color:#999;">{attr}</span></blockquote>'
-        elif stype == "stat":
-            sections_html += f'<div style="background:#f0f4ff;border-radius:8px;padding:16px;margin:16px 0;font-size:18px;font-weight:600;color:#1a73e8;text-align:center;">{content}</div>'
-        elif stype == "cta":
-            cta_url = td.get("cta_url", "#")
-            cta_text = td.get("cta_text", content)
-            sections_html += f'<div style="text-align:center;margin:24px 0;"><a href="{cta_url}" style="display:inline-block;background:#1a73e8;color:#fff;text-decoration:none;padding:14px 28px;border-radius:6px;font-weight:600;font-size:16px;">{cta_text}</a></div>'
-        else:
-            sections_html += f'<p style="margin:12px 0;line-height:1.6;color:#333;">{content}</p>'
-
-    cta_url = td.get("cta_url", "")
-    cta_text = td.get("cta_text", "")
-    if cta_text and cta_url:
-        sections_html += f'<div style="text-align:center;margin:30px 0;"><a href="{cta_url}" style="display:inline-block;background:#1a73e8;color:#fff;text-decoration:none;padding:14px 28px;border-radius:6px;font-weight:600;font-size:16px;">{cta_text}</a></div>'
+        # Insert PDF link on the specific anchor phrase
+        if pdf_url and "this is what it looks like when someone organises it" in content.lower():
+            content = content.replace(
+                "This is what it looks like when someone organises it",
+                f'<a href="{pdf_url}" style="color:#1a73e8;">This is what it looks like when someone organises it</a>',
+            )
+            # Case-insensitive fallback
+            if pdf_url not in content:
+                import re
+                content = re.sub(
+                    r"(?i)(this is what it looks like when someone organises it)",
+                    f'<a href="{pdf_url}" style="color:#1a73e8;">\\1</a>',
+                    content,
+                )
+        sections_html += f'<p style="margin:12px 0;line-height:1.6;color:#333;">{content}</p>'
 
     return f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
-<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px;background:#f5f5f5;">
-<div style="background:#fff;border:1px solid #e0e0e0;border-radius:8px;padding:30px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
-<h1 style="color:#1a1a1a;font-size:22px;margin-top:0;margin-bottom:20px;">{headline}</h1>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px;">
 {sections_html}
-</div></body></html>"""
+</body></html>"""
 
 
 def _render_text(subject: str, td: Dict[str, Any]) -> str:
     """Render template_data into plain text."""
-    lines = [td.get("headline", subject), ""]
+    lines = []
+    pdf_url = td.get("cta_url", "")
     for section in td.get("body_sections", []):
-        stype = section.get("type", "text")
         content = section.get("content", "")
-        if stype == "verbatim":
-            attr = section.get("attribution", "")
-            lines.append(f'"{content}" — {attr}')
-        else:
-            lines.append(content)
+        lines.append(content)
+        # Add PDF link after the anchor phrase
+        if pdf_url and "this is what it looks like when someone organises it" in content.lower():
+            lines.append(pdf_url)
         lines.append("")
-    cta_url = td.get("cta_url", "")
-    cta_text = td.get("cta_text", "")
-    if cta_text and cta_url:
-        lines.append(f"{cta_text}: {cta_url}")
     return "\n".join(lines)
 
 

@@ -226,17 +226,18 @@
 
             const td = em.template_data || {};
             const sections = td.body_sections || [];
+            const pdfUrl = td.cta_url || '';
             let bodyHtml = '';
             sections.forEach(sec => {
-                if (sec.type === 'verbatim') {
-                    bodyHtml += `<blockquote><em>"${esc(sec.content)}"</em>${sec.attribution ? `<br><span class="le-muted">${esc(sec.attribution)}</span>` : ''}</blockquote>`;
-                } else if (sec.type === 'stat') {
-                    bodyHtml += `<div class="le-preview-stat">${esc(sec.content)}</div>`;
-                } else if (sec.type === 'cta') {
-                    bodyHtml += `<div class="le-preview-cta">${esc(sec.content)}</div>`;
-                } else {
-                    bodyHtml += `<p>${esc(sec.content)}</p>`;
+                let content = esc(sec.content);
+                // Insert PDF link on the anchor phrase
+                if (pdfUrl && content.toLowerCase().includes('this is what it looks like when someone organises it')) {
+                    content = content.replace(
+                        /this is what it looks like when someone organises it/i,
+                        `<a href="${esc(pdfUrl)}" target="_blank" style="color:#1a73e8;">$&</a>`
+                    );
                 }
+                bodyHtml += `<p>${content}</p>`;
             });
             if (!bodyHtml && em.extra_data?.strategic_intent) {
                 bodyHtml = `<p class="le-muted"><em>Intent: ${esc(em.extra_data.strategic_intent)}</em></p>`;
