@@ -371,11 +371,16 @@ def generate_voc_analysis_markdown(
     # JSON schema mode causes Opus to truncate or return garbage for very large outputs
     # because 70k+ chars of markdown must be escaped inside a JSON string.
     import anthropic
+    import httpx
 
     MAX_RETRIES = 2
     for attempt in range(MAX_RETRIES + 1):
         try:
-            client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+            # Must pass http_client to work around anthropic SDK / httpx version mismatch
+            client = anthropic.Anthropic(
+                api_key=settings.anthropic_api_key,
+                http_client=httpx.Client(timeout=600.0),
+            )
             response = client.messages.create(
                 model="claude-opus-4-6",
                 max_tokens=64000,
