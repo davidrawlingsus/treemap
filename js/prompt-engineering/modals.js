@@ -537,7 +537,7 @@
                 version: newVersion,
                 prompt_type: promptTypeValue,
                 prompt_purpose: promptPurposeValue,
-                status: 'test',
+                status: 'live',
                 client_facing: clientFacingValue,
                 all_clients: clientFacingValue ? allClientsValue : false,
                 client_ids: clientFacingValue && !allClientsValue ? clientIds : [],
@@ -553,7 +553,7 @@
             }
 
             try {
-                // Archive the old version and create the new one
+                // Archive the old version and create the new live one
                 await PromptAPI.update(currentPromptId, { status: 'archived' });
                 const savedPrompt = await PromptAPI.create(payload);
 
@@ -1583,7 +1583,8 @@
          * Handle restore version - creates a new version from the selected version
          * @param {string} versionId - Version ID to restore from
          */
-        handleRestoreVersion(versionId) {
+        async handleRestoreVersion(versionId) {
+            const PromptAPI = window.PromptAPI;
             const allVersions = this._versionHistoryCache || [];
             const sourcePrompt = allVersions.find(p => p.id === versionId);
 
@@ -1592,46 +1593,68 @@
                 return;
             }
 
-            // Find the highest version from the full version list
+            // Find current live version to archive it
+            const currentPromptId = state.get('currentPromptId');
             const maxVersion = Math.max(...allVersions.map(p => p.version));
             const newVersion = maxVersion + 1;
 
-            // Close version history modal
-            this.closeVersionHistoryModal();
-
-            // Update the prompt form with the source version's data
-            if (this.elements.modalTitle) {
-                this.elements.modalTitle.textContent = `Restore: ${sourcePrompt.name} (v${sourcePrompt.version} → v${newVersion})`;
-            }
-            if (this.elements.nameInput) this.elements.nameInput.value = sourcePrompt.name;
-            if (this.elements.versionInput) this.elements.versionInput.value = newVersion;
-            if (this.elements.promptTypeInput) this.elements.promptTypeInput.value = sourcePrompt.prompt_type || 'system';
-            if (this.elements.promptPurposeInput) this.elements.promptPurposeInput.value = sourcePrompt.prompt_purpose;
-            if (this.elements.statusInput) this.elements.statusInput.value = 'test'; // New versions start as test
-            if (this.elements.llmModelInput) this.elements.llmModelInput.value = sourcePrompt.llm_model;
-            if (this.elements.systemMessageInput) this.elements.systemMessageInput.value = sourcePrompt.system_message || '';
-            if (this.elements.promptMessageInput) this.elements.promptMessageInput.value = sourcePrompt.prompt_message || '';
-            if (this.elements.userMessageInput) this.elements.userMessageInput.value = '';
-
-            // Update UI based on prompt type
-            this.handlePromptTypeChange();
-
-            // Change mode to create (we're creating a new version)
-            state.set('currentMode', 'create');
-            state.set('currentPromptId', null);
-
-            // Hide version-specific buttons since we're now in create mode
-            if (this.elements.newVersionButton) {
-                this.elements.newVersionButton.style.display = 'none';
-            }
-            if (this.elements.deletePromptButton) {
-                this.elements.deletePromptButton.style.display = 'none';
-            }
-            if (this.elements.versionHistoryButton) {
-                this.elements.versionHistoryButton.style.display = 'none';
+            // Build payload from the source version's data
+            const payload = {
+                name: sourcePrompt.name,
+                version: newVersion,
+                prompt_type: sourcePrompt.prompt_type,
+                prompt_purpose: sourcePrompt.prompt_purpose,
+                status: 'live',
+                client_facing: sourcePrompt.client_facing || false,
+                all_clients: sourcePrompt.all_clients || false,
+                client_ids: sourcePrompt.client_ids || [],
+                top_level_ai_dropdown: sourcePrompt.top_level_ai_dropdown || false,
+                context_menu_group_id: sourcePrompt.context_menu_group_id || undefined,
+                llm_model: sourcePrompt.llm_model,
+            };
+            if (sourcePrompt.prompt_type === 'system') {
+                payload.system_message = sourcePrompt.system_message || '';
+                if (sourcePrompt.prompt_message) payload.prompt_message = sourcePrompt.prompt_message;
+            } else if (sourcePrompt.prompt_type === 'helper') {
+                payload.prompt_message = sourcePrompt.prompt_message || '';
             }
 
-            this.showStatus(`Restoring from version ${sourcePrompt.version}. Save to create version ${newVersion}.`, 'success');
+            try {
+                // Archive the current live version and create the restored one as live
+                if (currentPromptId) {
+                    await PromptAPI.update(currentPromptId, { status: 'archived' });
+                }
+                const savedPrompt = await PromptAPI.create(payload);
+
+                // Close version history modal
+                this.closeVersionHistoryModal();
+
+                // Update the editor to point at the new version
+                state.set('currentPromptId', savedPrompt.id);
+                state.set('currentMode', 'edit');
+                if (this.elements.versionInput) this.elements.versionInput.value = newVersion;
+                if (this.elements.statusInput) this.elements.statusInput.value = 'live';
+                if (this.elements.modalTitle) {
+                    this.elements.modalTitle.textContent = `Edit ${savedPrompt.name} (v${newVersion})`;
+                }
+
+                // Populate form with restored data
+                if (this.elements.nameInput) this.elements.nameInput.value = sourcePrompt.name;
+                if (this.elements.promptTypeInput) this.elements.promptTypeInput.value = sourcePrompt.prompt_type || 'system';
+                if (this.elements.promptPurposeInput) this.elements.promptPurposeInput.value = sourcePrompt.prompt_purpose;
+                if (this.elements.llmModelInput) this.elements.llmModelInput.value = sourcePrompt.llm_model;
+                if (this.elements.systemMessageInput) this.elements.systemMessageInput.value = sourcePrompt.system_message || '';
+                if (this.elements.promptMessageInput) this.elements.promptMessageInput.value = sourcePrompt.prompt_message || '';
+                this.handlePromptTypeChange();
+
+                this.showStatus(`Restored version ${sourcePrompt.version} as new live version ${newVersion}.`, 'success');
+
+                // Refresh prompt list
+                if (this.onPromptSaved) await this.onPromptSaved();
+            } catch (error) {
+                console.error('[MODALS] Failed to restore version:', error);
+                this.showStatus(error.message || 'Failed to restore version.', 'error');
+            }
         },
 
         /**

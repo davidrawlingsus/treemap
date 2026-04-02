@@ -200,8 +200,17 @@
             return;
         }
 
+        // Show only the latest version per prompt name
+        const latestByName = {};
+        prompts.forEach(prompt => {
+            const existing = latestByName[prompt.name];
+            if (!existing || prompt.version > existing.version) {
+                latestByName[prompt.name] = prompt;
+            }
+        });
+        let filtered = Object.values(latestByName);
+
         // Apply keyword search
-        let filtered = prompts;
         if (searchTerm) {
             filtered = filtered.filter(prompt => {
                 const clientText = resolveClientDisplay(prompt).toLowerCase();
