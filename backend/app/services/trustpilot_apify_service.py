@@ -62,7 +62,7 @@ def _build_actor_input(domain: str, min_reviews: int) -> Dict[str, Any]:
         "startFromPageNumber": 1,
         "endAtPageNumber": max(1, math.ceil(min_reviews / 20)),
         "filterByDatePeriod": "any date",
-        "Proxy configuration": {"useApifyProxy": False},
+        "Proxy configuration": {"useApifyProxy": True},
     }
 
 

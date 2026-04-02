@@ -99,12 +99,13 @@ def fetch_reviews_best_platform(
                 break
 
         except Exception as e:
-            logger.warning("[multi-review] %s failed: %s", display, e)
+            err_msg = getattr(e, "detail", None) or str(e)
+            logger.warning("[multi-review] %s failed: %s", display, err_msg)
             results.append(FetchResult(
                 platform=platform.platform,
                 platform_display=display,
                 reviews=[],
-                error=str(e),
+                error=str(err_msg),
             ))
 
     # Pick the platform with the most reviews
