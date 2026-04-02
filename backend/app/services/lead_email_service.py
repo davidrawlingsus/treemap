@@ -147,12 +147,12 @@ def _send_via_resend(email_service: Any, email: LeadEmail) -> Optional[str]:
         "https://api.resend.com/emails",
         headers={"Authorization": f"Bearer {email_service.api_key}"},
         json={
-            "from": email_service.from_email,
+            "from": "David Rawlings <david@mapthegap.ai>",
             "to": [email.email_address],
             "subject": email.subject,
             "html": html_body,
             "text": text_body,
-            "reply_to": email_service.reply_to_email or email_service.from_email,
+            "reply_to": "david@mapthegap.ai",
             "tags": [
                 {"name": "type", "value": "lead_email_series"},
                 {"name": "sequence", "value": str(email.sequence_number)},
