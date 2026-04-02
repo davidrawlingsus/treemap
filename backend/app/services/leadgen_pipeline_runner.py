@@ -844,7 +844,7 @@ def _build_magic_link(db, run, client, settings) -> str:
     token, token_hash, expires_at = generate_magic_link_token()
     user.magic_link_token = token_hash
     user.magic_link_expires_at = expires_at
-    user.last_magic_link_sent_at = datetime.now(timezone.utc)
+    # Don't update last_magic_link_sent_at — internal token, not user-requested login
     db.commit()
 
     redirect_path = getattr(settings, "magic_link_redirect_path", "").lstrip("/")
@@ -892,7 +892,7 @@ def _send_completion_email(db, run, client, settings) -> None:
     token, token_hash, expires_at = generate_magic_link_token()
     user.magic_link_token = token_hash
     user.magic_link_expires_at = expires_at
-    user.last_magic_link_sent_at = datetime.now(timezone.utc)
+    # Don't update last_magic_link_sent_at — internal token, not user-requested login
     db.commit()
 
     redirect_path = getattr(settings, "magic_link_redirect_path", "").lstrip("/")
