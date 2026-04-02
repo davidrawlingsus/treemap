@@ -214,26 +214,64 @@ async def startup_event():
     # Start background email sender thread
     import threading
 
-    def _email_sender_loop():
+    def _background_loop():
         import time as _time
+        from datetime import datetime, timedelta, timezone as tz
         from app.database import SessionLocal
         from app.config import get_settings as _get_settings
         from app.services.lead_email_service import send_due_emails
+        from app.models.leadgen_voc import LeadgenVocRun
+        from app.services.leadgen_pipeline_runner import run_full_pipeline_background
+
         _settings = _get_settings()
+        _active_runs = set()  # track runs we've already kicked off
+
         while True:
             try:
                 _db = SessionLocal()
+
+                # Send scheduled emails
                 count = send_due_emails(_settings, _db)
                 if count:
-                    logger.info("[email-sender] Sent %d scheduled emails", count)
+                    logger.info("[background] Sent %d scheduled emails", count)
+
+                # Restart any queued runs that aren't already running
+                cutoff = datetime.now(tz.utc) - timedelta(hours=1)
+                queued = (
+                    _db.query(LeadgenVocRun)
+                    .filter(
+                        LeadgenVocRun.coding_status == "queued",
+                        LeadgenVocRun.created_at >= cutoff,
+                    )
+                    .all()
+                )
+                for run in queued:
+                    if run.run_id not in _active_runs:
+                        logger.info("[background] Starting queued run %s (%s)", run.run_id[:16], run.company_name)
+                        _active_runs.add(run.run_id)
+                        run_full_pipeline_background(run.run_id)
+
+                # Clean up completed/failed from active tracking
+                if _active_runs:
+                    done = (
+                        _db.query(LeadgenVocRun.run_id)
+                        .filter(
+                            LeadgenVocRun.run_id.in_(_active_runs),
+                            LeadgenVocRun.coding_status.in_({"completed", "failed"}),
+                        )
+                        .all()
+                    )
+                    for (rid,) in done:
+                        _active_runs.discard(rid)
+
                 _db.close()
             except Exception as _e:
-                logger.error("[email-sender] Error: %s", _e)
-            _time.sleep(300)
+                logger.error("[background] Error: %s", _e)
+            _time.sleep(60)
 
-    _sender = threading.Thread(target=_email_sender_loop, daemon=True)
-    _sender.start()
-    logger.info("Email sender background thread started")
+    _bg = threading.Thread(target=_background_loop, daemon=True)
+    _bg.start()
+    logger.info("Background loop started (email sender + pipeline recovery)")
 
     # Recover orphaned pipeline runs (e.g. killed by deploy SIGTERM)
     try:
