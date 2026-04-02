@@ -210,3 +210,26 @@ def update_email(
     if not email:
         raise HTTPException(status_code=404, detail="Email not found or already sent")
     return {"updated": True, "id": str(email.id)}
+
+
+# ---------------------------------------------------------------------------
+# Test send — send all emails to founder immediately
+# ---------------------------------------------------------------------------
+
+class TestSendRequest(BaseModel):
+    test_email: str
+
+
+@router.post("/api/founder-admin/lead-emails/{run_id}/test-send")
+def test_send_series(
+    run_id: str,
+    body: TestSendRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Send all emails in a series to a test address immediately."""
+    from app.services.lead_email_service import test_send_all
+    from app.config import get_settings
+    settings = get_settings()
+    sent = test_send_all(settings, db, run_id, body.test_email)
+    return {"sent": sent, "test_email": body.test_email}

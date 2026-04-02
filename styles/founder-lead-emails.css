@@ -86,7 +86,23 @@
     margin-bottom: 16px;
 }
 .le-detail-header h2 { margin: 0 0 2px; font-size: 20px; }
-.le-detail-actions { display: flex; gap: 8px; }
+.le-detail-actions { display: flex; gap: 8px; align-items: center; }
+
+/* Test mode toggle */
+.le-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--muted, #718096);
+}
+.le-toggle input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+.le-toggle-label { user-select: none; }
 
 /* Tabs */
 .le-tabs {

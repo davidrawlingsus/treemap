@@ -135,6 +135,53 @@ def send_due_emails(settings: Any, db: Session) -> int:
     return sent_count
 
 
+def test_send_all(settings: Any, db: Session, run_id: str, test_email: str) -> int:
+    """Send all emails in a series to a test address immediately (does not change status)."""
+    from app.utils import build_email_service
+
+    emails = (
+        db.query(LeadEmail)
+        .filter(LeadEmail.run_id == run_id)
+        .order_by(LeadEmail.sequence_number.asc())
+        .all()
+    )
+    if not emails:
+        return 0
+
+    email_service = build_email_service(settings)
+    if not email_service or not email_service.is_configured():
+        raise ValueError("Email service not configured")
+
+    sent = 0
+    for email in emails:
+        td = email.template_data or {}
+        html_body = _render_html(email.subject, td)
+        text_body = _render_text(email.subject, td)
+
+        resp = requests.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {email_service.api_key}"},
+            json={
+                "from": "David Rawlings <david@mapthegap.ai>",
+                "to": [test_email],
+                "subject": f"[TEST {email.sequence_number}] {email.subject}",
+                "html": html_body,
+                "text": text_body,
+                "reply_to": "david@mapthegap.ai",
+                "tags": [
+                    {"name": "type", "value": "lead_email_test"},
+                    {"name": "sequence", "value": str(email.sequence_number)},
+                ],
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        sent += 1
+        logger.info("[test-send] Sent test email %d/%d to %s", sent, len(emails), test_email)
+
+    return sent
+
+
 def _send_via_resend(email_service: Any, email: LeadEmail) -> Optional[str]:
     """Send a single email via Resend API. Returns the Resend email ID."""
     td = email.template_data or {}

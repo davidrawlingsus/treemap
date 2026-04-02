@@ -69,6 +69,11 @@
                             <p class="le-muted" id="detailEmail"></p>
                         </div>
                         <div class="le-detail-actions">
+                            <label class="le-toggle">
+                                <input type="checkbox" id="testModeToggle">
+                                <span class="le-toggle-label">Test Mode</span>
+                            </label>
+                            <button id="testSendBtn" class="btn btn-sm" style="display:none;">Send All to Me</button>
                             <button id="pauseBtn" class="btn btn-sm">Pause Series</button>
                             <button id="resumeBtn" class="btn btn-sm">Resume Series</button>
                         </div>
@@ -253,6 +258,30 @@
                 btn.classList.add('active');
                 document.getElementById(`tab-${btn.dataset.tab}`).style.display = '';
             });
+        });
+
+        // Test mode toggle
+        document.getElementById('testModeToggle').addEventListener('change', (e) => {
+            document.getElementById('testSendBtn').style.display = e.target.checked ? '' : 'none';
+        });
+        document.getElementById('testSendBtn').addEventListener('click', async () => {
+            if (!currentRunId) return;
+            const btn = document.getElementById('testSendBtn');
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            try {
+                const res = await fetch(`${API}/api/founder-admin/lead-emails/${currentRunId}/test-send`, {
+                    method: 'POST',
+                    headers: { ...hdrs(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ test_email: 'david@rawlings.us' }),
+                });
+                const data = await res.json();
+                btn.textContent = `Sent ${data.sent} emails!`;
+                setTimeout(() => { btn.textContent = 'Send All to Me'; btn.disabled = false; }, 3000);
+            } catch (e) {
+                btn.textContent = 'Failed';
+                setTimeout(() => { btn.textContent = 'Send All to Me'; btn.disabled = false; }, 3000);
+            }
         });
 
         // Pause / Resume
