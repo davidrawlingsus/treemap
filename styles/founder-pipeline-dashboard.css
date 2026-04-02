@@ -1,0 +1,209 @@
+/* ─── PIPELINE DASHBOARD ────────────────────────────────────────────── */
+
+.pd-layout {
+    padding: 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* Summary cards */
+.pd-summary {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+}
+.pd-card {
+    background: #fff;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+}
+.pd-card-green { border-left: 3px solid #22c55e; }
+.pd-card-red { border-left: 3px solid #dc2626; }
+.pd-card-blue { border-left: 3px solid #1a73e8; }
+.pd-card-orange { border-left: 3px solid #d97706; }
+.pd-card-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted, #718096);
+    margin-bottom: 4px;
+}
+.pd-card-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1a1a1a;
+}
+
+/* Live indicator */
+.pd-live {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #22c55e;
+    letter-spacing: 1px;
+}
+.pd-live::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    animation: pd-pulse 2s infinite;
+}
+@keyframes pd-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+/* Section */
+.pd-section {
+    margin-bottom: 24px;
+}
+.pd-section h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 12px;
+}
+
+/* Funnel */
+.pd-funnel {
+    background: #fff;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 8px;
+    padding: 16px;
+}
+.pd-funnel-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 0;
+}
+.pd-funnel-label {
+    width: 160px;
+    font-size: 13px;
+    color: #4a5568;
+    text-transform: capitalize;
+}
+.pd-funnel-bar-bg {
+    flex: 1;
+    height: 20px;
+    background: #f0f4f8;
+    border-radius: 4px;
+    overflow: hidden;
+}
+.pd-funnel-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #1a73e8, #4a90d9);
+    border-radius: 4px;
+    min-width: 2px;
+    transition: width 0.5s ease;
+}
+.pd-funnel-count {
+    width: 80px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1a1a1a;
+    text-align: right;
+}
+
+/* Runs table */
+.pd-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 13px;
+}
+.pd-table th {
+    background: #f7f8fa;
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted, #718096);
+    border-bottom: 1px solid var(--border, #e2e8f0);
+}
+.pd-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: top;
+}
+.pd-table tr:last-child td { border-bottom: none; }
+.pd-table tr:hover { background: #fafbfc; }
+
+/* Hanging row highlight */
+.pd-row-hanging { background: #fff7ed !important; }
+.pd-row-hanging:hover { background: #fff3e0 !important; }
+
+/* Status badges */
+.pd-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    margin-right: 4px;
+}
+.pd-status-ok { background: #f0fdf4; color: #16a34a; }
+.pd-status-fail { background: #fee2e2; color: #dc2626; }
+.pd-status-active { background: #e8f0fe; color: #1a73e8; }
+.pd-status-hang { background: #fff3cd; color: #d97706; }
+
+/* Step chips */
+.pd-steps-cell {
+    max-width: 200px;
+}
+.pd-step-chip {
+    display: inline-block;
+    padding: 1px 6px;
+    margin: 1px;
+    border-radius: 3px;
+    font-size: 10px;
+    background: #f0f4f8;
+    color: #4a5568;
+    white-space: nowrap;
+}
+
+/* Select */
+.pd-select {
+    padding: 6px 12px;
+    font-size: 13px;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 4px;
+    background: #fff;
+    font-family: inherit;
+    cursor: pointer;
+}
+
+/* Muted */
+.pd-muted { color: var(--muted, #718096); font-size: 13px; }
+
+/* Button overrides */
+.btn-xs {
+    padding: 3px 10px;
+    font-size: 12px;
+    border-radius: 4px;
+    border: 1px solid var(--border, #e2e8f0);
+    background: #fff;
+    cursor: pointer;
+    font-family: inherit;
+}
+.btn-xs:hover { background: #f7f8fa; }
+
+/* Responsive */
+@media (max-width: 1000px) {
+    .pd-summary { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 600px) {
+    .pd-summary { grid-template-columns: repeat(2, 1fr); }
+}

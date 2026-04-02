@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Founder Admin - Pipeline Dashboard</title>
+    <link rel="icon" href="/images/favicon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/styles/founder-admin.css">
+    <link rel="stylesheet" href="/styles/founder-pipeline-dashboard.css">
+    <script src="/config.js"></script>
+    <script src="/auth.js"></script>
+</head>
+<body>
+    <div id="loginOverlay" class="login-overlay hidden">
+        <div class="login-container">
+            <div id="loginFormSection">
+                <h2>Sign in</h2>
+                <p class="login-subtext">Enter your work email and we'll email you a secure magic link.</p>
+                <input type="email" id="loginEmail" placeholder="you@company.com" autocomplete="email">
+                <button id="loginButton" type="button">Send Magic Link</button>
+                <div id="loginError" class="login-error"></div>
+                <div id="loginSuccess" class="login-success"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="appShell" style="display:none">
+        <header>
+            <div>
+                <nav class="breadcrumbs">
+                    <a href="/founder_admin.html">Founder Admin</a>
+                    <span class="breadcrumbs-separator">&rsaquo;</span>
+                    <span>Pipeline Dashboard</span>
+                </nav>
+                <h1>Pipeline Dashboard</h1>
+                <div class="subtitle">Live pipeline analytics, funnel tracking, and process monitoring.</div>
+            </div>
+            <div class="founder-meta">
+                <span id="founderEmail"></span>
+                <div class="actions">
+                    <select id="daysFilter" class="pd-select">
+                        <option value="1">Last 24h</option>
+                        <option value="7" selected>Last 7 days</option>
+                        <option value="30">Last 30 days</option>
+                    </select>
+                    <span id="liveIndicator" class="pd-live">LIVE</span>
+                    <button class="btn btn-ghost" id="logoutButton" type="button">Logout</button>
+                </div>
+            </div>
+        </header>
+
+        <main class="pd-layout">
+            <!-- Summary cards -->
+            <section class="pd-summary" id="summaryCards">
+                <div class="pd-card">
+                    <div class="pd-card-label">Total Runs</div>
+                    <div class="pd-card-value" id="statTotal">-</div>
+                </div>
+                <div class="pd-card pd-card-green">
+                    <div class="pd-card-label">Completed</div>
+                    <div class="pd-card-value" id="statCompleted">-</div>
+                </div>
+                <div class="pd-card pd-card-red">
+                    <div class="pd-card-label">Failed</div>
+                    <div class="pd-card-value" id="statFailed">-</div>
+                </div>
+                <div class="pd-card pd-card-blue">
+                    <div class="pd-card-label">In Progress</div>
+                    <div class="pd-card-value" id="statInProgress">-</div>
+                </div>
+                <div class="pd-card pd-card-orange">
+                    <div class="pd-card-label">Hanging</div>
+                    <div class="pd-card-value" id="statHanging">-</div>
+                </div>
+                <div class="pd-card">
+                    <div class="pd-card-label">Completion Rate</div>
+                    <div class="pd-card-value" id="statRate">-</div>
+                </div>
+            </section>
+
+            <!-- Funnel -->
+            <section class="pd-section">
+                <h2>Pipeline Funnel</h2>
+                <div id="funnelChart" class="pd-funnel"></div>
+            </section>
+
+            <!-- Runs table -->
+            <section class="pd-section">
+                <h2>All Runs</h2>
+                <div id="runsTable" class="pd-runs"></div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const API = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+        const hdrs = () => Auth.getAuthHeaders();
+        let refreshTimer = null;
+
+        function esc(s) {
+            const d = document.createElement('div');
+            d.textContent = s || '';
+            return d.innerHTML;
+        }
+
+        function fmtDuration(seconds) {
+            if (seconds == null) return '-';
+            if (seconds < 60) return `${Math.round(seconds)}s`;
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+            return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+        }
+
+        function fmtTime(iso) {
+            if (!iso) return '-';
+            return new Date(iso).toLocaleString('en-US', {
+                month: 'short', day: 'numeric',
+                hour: 'numeric', minute: '2-digit',
+                timeZone: 'America/Los_Angeles',
+            }) + ' PST';
+        }
+
+        function statusClass(status) {
+            if (status === 'completed') return 'pd-status-ok';
+            if (status === 'failed') return 'pd-status-fail';
+            return 'pd-status-active';
+        }
+
+        async function loadDashboard() {
+            const days = document.getElementById('daysFilter').value;
+            try {
+                const res = await fetch(`${API}/api/founder-admin/pipeline-dashboard?days=${days}`, { headers: hdrs() });
+                if (!res.ok) return;
+                const data = await res.json();
+                renderSummary(data.summary);
+                renderFunnel(data.funnel, data.summary.total_runs);
+                renderRuns(data.runs);
+            } catch (e) {
+                console.error('Dashboard load failed:', e);
+            }
+        }
+
+        function renderSummary(s) {
+            document.getElementById('statTotal').textContent = s.total_runs;
+            document.getElementById('statCompleted').textContent = s.completed;
+            document.getElementById('statFailed').textContent = s.failed;
+            document.getElementById('statInProgress').textContent = s.in_progress;
+            document.getElementById('statHanging').textContent = s.hanging;
+            document.getElementById('statRate').textContent = s.completion_rate + '%';
+        }
+
+        function renderFunnel(funnel, total) {
+            const container = document.getElementById('funnelChart');
+            if (!total) { container.innerHTML = '<p class="pd-muted">No data yet.</p>'; return; }
+            container.innerHTML = funnel.map(f => {
+                const pct = total ? Math.round(f.count / total * 100) : 0;
+                return `<div class="pd-funnel-row">
+                    <span class="pd-funnel-label">${esc(f.step)}</span>
+                    <div class="pd-funnel-bar-bg">
+                        <div class="pd-funnel-bar" style="width:${pct}%"></div>
+                    </div>
+                    <span class="pd-funnel-count">${f.count} (${pct}%)</span>
+                </div>`;
+            }).join('');
+        }
+
+        function renderRuns(runs) {
+            const container = document.getElementById('runsTable');
+            if (!runs.length) { container.innerHTML = '<p class="pd-muted">No runs in this period.</p>'; return; }
+
+            let html = `<table class="pd-table">
+                <thead><tr>
+                    <th>Company</th>
+                    <th>Status</th>
+                    <th>Platform</th>
+                    <th>Reviews</th>
+                    <th>Emails</th>
+                    <th>Deck</th>
+                    <th>Duration</th>
+                    <th>Started</th>
+                    <th>Steps</th>
+                    <th>Actions</th>
+                </tr></thead><tbody>`;
+
+            for (const r of runs) {
+                const hanging = r.is_hanging ? ' pd-row-hanging' : '';
+                const statusCls = statusClass(r.status);
+
+                // Step timeline
+                const stepHtml = r.steps.map(s =>
+                    `<span class="pd-step-chip" title="${esc(s.step)}: ${fmtDuration(s.duration_seconds)}">${esc(s.step.replace(/_/g, ' ').slice(0, 12))}</span>`
+                ).join('');
+
+                const actions = [];
+                if (r.status === 'failed') {
+                    actions.push(`<button class="btn btn-xs" onclick="retryRun('${r.run_id}')">Retry</button>`);
+                }
+                if (r.is_hanging) {
+                    actions.push(`<button class="btn btn-xs" onclick="cancelRun('${r.run_id}')">Cancel</button>`);
+                    actions.push(`<button class="btn btn-xs" onclick="retryRun('${r.run_id}')">Retry</button>`);
+                }
+
+                html += `<tr class="${hanging}">
+                    <td><strong>${esc(r.company_name)}</strong><br><span class="pd-muted">${esc(r.company_domain)}</span></td>
+                    <td><span class="pd-badge ${statusCls}">${esc(r.status)}</span>${r.is_hanging ? '<span class="pd-badge pd-status-hang">HANGING</span>' : ''}</td>
+                    <td>${esc(r.detected_platform || '-')}</td>
+                    <td>${r.review_count}</td>
+                    <td>${r.email_count}</td>
+                    <td>${r.has_pdf ? 'PDF' : r.has_gamma ? 'Gamma' : '-'}</td>
+                    <td>${fmtDuration(r.total_seconds)}</td>
+                    <td>${fmtTime(r.created_at)}</td>
+                    <td class="pd-steps-cell">${stepHtml || '-'}</td>
+                    <td>${actions.join(' ') || '-'}</td>
+                </tr>`;
+            }
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+
+        window.retryRun = async (runId) => {
+            await fetch(`${API}/api/founder-admin/pipeline-dashboard/${runId}/retry`, {
+                method: 'POST', headers: hdrs(),
+            });
+            loadDashboard();
+        };
+
+        window.cancelRun = async (runId) => {
+            await fetch(`${API}/api/founder-admin/pipeline-dashboard/${runId}/cancel`, {
+                method: 'POST', headers: hdrs(),
+            });
+            loadDashboard();
+        };
+
+        // Days filter
+        document.getElementById('daysFilter').addEventListener('change', () => loadDashboard());
+
+        // Init
+        if (typeof Auth === 'undefined') {
+            document.body.innerHTML = '<h2 style="padding:40px;color:red;">Auth failed to load.</h2>';
+        } else {
+            Auth.checkAuth().then((authenticated) => {
+                if (!authenticated) { Auth.showLogin(); return; }
+                const userInfo = Auth.getStoredUserInfo();
+                if (!userInfo?.is_founder) { Auth.showLogin(); return; }
+                Auth.hideLogin();
+                document.getElementById('appShell').style.display = 'flex';
+                document.getElementById('founderEmail').textContent = userInfo.email;
+                loadDashboard();
+                // Live refresh every 15 seconds
+                refreshTimer = setInterval(loadDashboard, 15000);
+            });
+        }
+        document.getElementById('logoutButton')?.addEventListener('click', () => Auth.handleLogout());
+    </script>
+</body>
+</html>

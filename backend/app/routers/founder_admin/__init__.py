@@ -24,6 +24,7 @@ from .shopify import router as shopify_router
 from .prompt_studio import router as prompt_studio_router
 from .custom_deals import router as custom_deals_router
 from .lead_emails import router as lead_emails_router
+from .pipeline_dashboard import router as pipeline_dashboard_router
 
 # Create main router that includes all sub-routers
 router = APIRouter(tags=["founder-admin"])
@@ -49,4 +50,5 @@ router.include_router(shopify_router)
 router.include_router(prompt_studio_router)
 router.include_router(custom_deals_router)
 router.include_router(lead_emails_router)
+router.include_router(pipeline_dashboard_router)
 

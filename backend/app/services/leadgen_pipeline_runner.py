@@ -276,8 +276,22 @@ def assemble_user_prompt(template: str, payload: Dict) -> str:
 # ---------------------------------------------------------------------------
 
 def _update_status(db, run, status: str):
-    """Update the coding_status on a LeadgenVocRun and commit."""
+    """Update the coding_status on a LeadgenVocRun and commit.
+
+    Also records a timestamp for each status transition in payload.step_times.
+    """
+    from sqlalchemy.orm.attributes import flag_modified
+
     run.coding_status = status
+
+    # Record step timing in payload
+    payload = run.payload or {}
+    step_times = payload.get("step_times", {})
+    step_times[status] = datetime.now(timezone.utc).isoformat()
+    payload["step_times"] = step_times
+    run.payload = payload
+    flag_modified(run, "payload")
+
     db.commit()
     logger.info("[pipeline %s] status -> %s", run.run_id, status)
 
