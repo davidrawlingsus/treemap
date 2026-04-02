@@ -168,6 +168,9 @@
             // New version button
             if (this.elements.newVersionButton) {
                 this.elements.newVersionButton.addEventListener('click', () => {
+                    if (this.elements.saveButtonMenu) {
+                        this.elements.saveButtonMenu.classList.remove('visible');
+                    }
                     this.createNewVersion();
                 });
             }
@@ -487,50 +490,88 @@
         /**
          * Create new version from current prompt
          */
-        createNewVersion() {
+        async createNewVersion() {
+            const PromptAPI = window.PromptAPI;
             const currentPromptId = state.get('currentPromptId');
             if (!currentPromptId) {
                 this.showStatus('No prompt selected to create version from.', 'error');
                 return;
             }
 
-            const prompts = state.get('prompts');
-            const currentPrompt = prompts.find((item) => item.id === currentPromptId);
-            
-            if (!currentPrompt) {
-                this.showStatus('Current prompt could not be found.', 'error');
-                return;
+            // Read current form values (user may have edited the prompt text)
+            const nameValue = this.elements.nameInput?.value.trim() || '';
+            const promptTypeValue = this.elements.promptTypeInput?.value || 'system';
+            const promptPurposeValue = this.elements.promptPurposeInput?.value || '';
+            const llmModelValue = this.elements.llmModelInput?.value.trim() || '';
+            const systemMessageValue = this.elements.systemMessageInput?.value.trim() || '';
+            const promptMessageValue = this.elements.promptMessageInput ? this.elements.promptMessageInput.value.trim() : '';
+            const clientFacingValue = this.elements.clientFacingInput?.checked || false;
+            const allClientsValue = this.elements.allClientsInput?.checked || false;
+            const topLevelAiDropdownValue = this.elements.topLevelAiDropdownInput?.checked || false;
+            const contextMenuGroupId = clientFacingValue && this.elements.contextMenuGroupInput?.value
+                ? this.elements.contextMenuGroupInput.value : null;
+
+            // Get selected client IDs
+            const clientIds = [];
+            if (!allClientsValue && this.elements.clientIdsContainer) {
+                this.elements.clientIdsContainer.querySelectorAll('input[type="checkbox"][data-client-id]').forEach(cb => {
+                    if (cb.checked) clientIds.push(cb.getAttribute('data-client-id'));
+                });
             }
 
-            // Find the highest version for this prompt name
-            const sameNamePrompts = prompts.filter(p => p.name === currentPrompt.name);
-            const maxVersion = Math.max(...sameNamePrompts.map(p => p.version));
+            // Fetch all versions to find the true max version number
+            let allVersions;
+            try {
+                allVersions = await PromptAPI.listVersions(nameValue);
+            } catch (e) {
+                // Fallback to state
+                const prompts = state.get('prompts') || [];
+                allVersions = prompts.filter(p => p.name === nameValue);
+            }
+            const maxVersion = Math.max(...allVersions.map(p => p.version));
             const newVersion = maxVersion + 1;
 
-            // Pre-fill form
-            if (this.elements.modalTitle) {
-                this.elements.modalTitle.textContent = `New Version: ${currentPrompt.name} (v${newVersion})`;
+            // Build payload from current form state with incremented version
+            const payload = {
+                name: nameValue,
+                version: newVersion,
+                prompt_type: promptTypeValue,
+                prompt_purpose: promptPurposeValue,
+                status: 'test',
+                client_facing: clientFacingValue,
+                all_clients: clientFacingValue ? allClientsValue : false,
+                client_ids: clientFacingValue && !allClientsValue ? clientIds : [],
+                top_level_ai_dropdown: clientFacingValue ? topLevelAiDropdownValue : false,
+                context_menu_group_id: contextMenuGroupId || undefined,
+                llm_model: llmModelValue,
+            };
+            if (promptTypeValue === 'system') {
+                payload.system_message = systemMessageValue;
+                if (promptMessageValue) payload.prompt_message = promptMessageValue;
+            } else if (promptTypeValue === 'helper') {
+                payload.prompt_message = promptMessageValue;
             }
-            if (this.elements.nameInput) this.elements.nameInput.value = currentPrompt.name;
-            if (this.elements.versionInput) this.elements.versionInput.value = newVersion;
-            if (this.elements.promptPurposeInput) this.elements.promptPurposeInput.value = currentPrompt.prompt_purpose;
-            if (this.elements.statusInput) this.elements.statusInput.value = 'test';
-            if (this.elements.llmModelInput) this.elements.llmModelInput.value = currentPrompt.llm_model;
-            if (this.elements.systemMessageInput) this.elements.systemMessageInput.value = currentPrompt.system_message;
-            if (this.elements.userMessageInput) this.elements.userMessageInput.value = '';
 
-            // Change mode to create
-            state.set('currentMode', 'create');
-            state.set('currentPromptId', null);
+            try {
+                // Archive the old version and create the new one
+                await PromptAPI.update(currentPromptId, { status: 'archived' });
+                const savedPrompt = await PromptAPI.create(payload);
 
-            // Hide "New Version" button
-            if (this.elements.newVersionButton) {
-                this.elements.newVersionButton.style.display = 'none';
-            }
+                // Update the editor to point at the new version
+                state.set('currentPromptId', savedPrompt.id);
+                state.set('currentMode', 'edit');
+                if (this.elements.versionInput) this.elements.versionInput.value = newVersion;
+                if (this.elements.modalTitle) {
+                    this.elements.modalTitle.textContent = `Edit ${savedPrompt.name} (v${newVersion})`;
+                }
 
-            // Hide delete button
-            if (this.elements.deletePromptButton) {
-                this.elements.deletePromptButton.style.display = 'none';
+                this.showStatus(`Version ${newVersion} saved. Previous version archived.`, 'success');
+
+                // Refresh prompt list
+                if (this.onPromptSaved) await this.onPromptSaved();
+            } catch (error) {
+                console.error('[MODALS] Failed to create new version:', error);
+                this.showStatus(error.message || 'Failed to create new version.', 'error');
             }
         },
 
