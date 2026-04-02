@@ -203,7 +203,7 @@
 
         // Init using FounderAdmin pattern
         if (window.FounderAdmin) {
-            FounderAdmin.initializeAuth(
+            FounderAdmin.AuthUtils.initializeAuth(
                 (userInfo) => {
                     document.getElementById('loginContainer').style.display = 'none';
                     document.getElementById('mainContent').style.display = '';
