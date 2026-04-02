@@ -201,14 +201,17 @@
             if (currentRunId) loadDetail(currentRunId);
         };
 
-        // Init
-        window.Auth?.checkAuth().then(user => {
-            if (user?.is_founder) {
-                document.getElementById('loginContainer').style.display = 'none';
-                document.getElementById('mainContent').style.display = '';
-                loadSeries();
-            }
-        });
+        // Init using FounderAdmin pattern
+        if (window.FounderAdmin) {
+            FounderAdmin.initializeAuth(
+                (userInfo) => {
+                    document.getElementById('loginContainer').style.display = 'none';
+                    document.getElementById('mainContent').style.display = '';
+                    loadSeries();
+                },
+                () => { /* unauthenticated — login form already visible */ }
+            );
+        }
         document.getElementById('logoutBtn')?.addEventListener('click', () => window.Auth?.handleLogout());
     </script>
 </body>
