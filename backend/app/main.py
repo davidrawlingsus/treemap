@@ -236,7 +236,7 @@ async def startup_event():
                     logger.info("[background] Sent %d scheduled emails", count)
 
                 # Restart any queued runs that aren't already running
-                cutoff = datetime.now(tz.utc) - timedelta(hours=1)
+                cutoff = datetime.now(tz.utc) - timedelta(hours=3)
                 queued = (
                     _db.query(LeadgenVocRun)
                     .filter(
@@ -283,7 +283,7 @@ async def startup_event():
 
         _db = SessionLocal()
         terminal_states = {"completed", "failed", "disabled"}
-        cutoff = datetime.now(tz.utc) - timedelta(hours=1)
+        cutoff = datetime.now(tz.utc) - timedelta(hours=3)
 
         # Mark anything older than 1 hour as failed
         stale = (
