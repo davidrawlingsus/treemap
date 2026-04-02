@@ -37,62 +37,77 @@
                     <span>Pipeline Dashboard</span>
                 </nav>
                 <h1>Pipeline Dashboard</h1>
-                <div class="subtitle">Live pipeline analytics, funnel tracking, and process monitoring.</div>
             </div>
             <div class="founder-meta">
                 <span id="founderEmail"></span>
                 <div class="actions">
+                    <span id="liveIndicator" class="pd-live">LIVE</span>
                     <select id="daysFilter" class="pd-select">
                         <option value="1">Last 24h</option>
                         <option value="7" selected>Last 7 days</option>
                         <option value="30">Last 30 days</option>
                     </select>
-                    <span id="liveIndicator" class="pd-live">LIVE</span>
                     <button class="btn btn-ghost" id="logoutButton" type="button">Logout</button>
                 </div>
             </div>
         </header>
 
         <main class="pd-layout">
-            <!-- Summary cards -->
-            <section class="pd-summary" id="summaryCards">
-                <div class="pd-card">
-                    <div class="pd-card-label">Total Runs</div>
-                    <div class="pd-card-value" id="statTotal">-</div>
+            <!-- KPI strip -->
+            <div class="pd-kpi-strip" id="kpiStrip">
+                <div class="pd-kpi">
+                    <div class="pd-kpi-label">Total Runs</div>
+                    <div class="pd-kpi-value" id="statTotal">-</div>
                 </div>
-                <div class="pd-card pd-card-green">
-                    <div class="pd-card-label">Completed</div>
-                    <div class="pd-card-value" id="statCompleted">-</div>
+                <div class="pd-kpi">
+                    <div class="pd-kpi-label">Completed</div>
+                    <div class="pd-kpi-value green" id="statCompleted">-</div>
                 </div>
-                <div class="pd-card pd-card-red">
-                    <div class="pd-card-label">Failed</div>
-                    <div class="pd-card-value" id="statFailed">-</div>
+                <div class="pd-kpi">
+                    <div class="pd-kpi-label">Failed</div>
+                    <div class="pd-kpi-value red" id="statFailed">-</div>
                 </div>
-                <div class="pd-card pd-card-blue">
-                    <div class="pd-card-label">In Progress</div>
-                    <div class="pd-card-value" id="statInProgress">-</div>
+                <div class="pd-kpi">
+                    <div class="pd-kpi-label">In Progress</div>
+                    <div class="pd-kpi-value blue" id="statInProgress">-</div>
                 </div>
-                <div class="pd-card pd-card-orange">
-                    <div class="pd-card-label">Hanging</div>
-                    <div class="pd-card-value" id="statHanging">-</div>
+                <div class="pd-kpi">
+                    <div class="pd-kpi-label">Hanging</div>
+                    <div class="pd-kpi-value orange" id="statHanging">-</div>
                 </div>
-                <div class="pd-card">
-                    <div class="pd-card-label">Completion Rate</div>
-                    <div class="pd-card-value" id="statRate">-</div>
+                <div class="pd-kpi">
+                    <div class="pd-kpi-label">Success Rate</div>
+                    <div class="pd-kpi-value muted" id="statRate">-</div>
                 </div>
-            </section>
+            </div>
 
-            <!-- Funnel -->
-            <section class="pd-section">
-                <h2>Pipeline Funnel</h2>
-                <div id="funnelChart" class="pd-funnel"></div>
-            </section>
+            <!-- Two-column: funnel + active runs -->
+            <div class="pd-columns">
+                <!-- Left: Funnel -->
+                <div class="pd-panel">
+                    <div class="pd-panel-header">
+                        <h2>Funnel</h2>
+                    </div>
+                    <div class="pd-panel-body" id="funnelChart"></div>
+                </div>
 
-            <!-- Runs table -->
-            <section class="pd-section">
-                <h2>All Runs</h2>
-                <div id="runsTable" class="pd-runs"></div>
-            </section>
+                <!-- Right: Active / recent runs -->
+                <div class="pd-panel">
+                    <div class="pd-panel-header">
+                        <h2>Runs</h2>
+                        <span class="pd-muted" id="runCount"></span>
+                    </div>
+                    <div class="pd-run-header">
+                        <span>Company</span>
+                        <span>Status</span>
+                        <span>Progress</span>
+                        <span>Reviews</span>
+                        <span>Time</span>
+                        <span>Actions</span>
+                    </div>
+                    <div class="pd-active-list" id="runsList"></div>
+                </div>
+            </div>
         </main>
     </div>
 
@@ -100,6 +115,17 @@
         const API = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
         const hdrs = () => Auth.getAuthHeaders();
         let refreshTimer = null;
+
+        const STEP_ORDER = [
+            'queued','detecting_platforms','scraping','scraping_trustpilot','scraping_reviews_io','scraping_yotpo',
+            'extracting_context','extracting','building_taxonomy','validating','classifying',
+            'generating_ads','generating_analysis','scheduling_emails','completed'
+        ];
+        // Collapse scraping variants into one slot for the progress bar
+        const PROGRESS_STEPS = [
+            'scraping','extracting_context','extracting','building_taxonomy','validating',
+            'classifying','generating_ads','generating_analysis','scheduling_emails','completed'
+        ];
 
         function esc(s) {
             const d = document.createElement('div');
@@ -114,19 +140,37 @@
             return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
         }
 
-        function fmtTime(iso) {
+        function fmtTimeAgo(iso) {
             if (!iso) return '-';
-            return new Date(iso).toLocaleString('en-US', {
-                month: 'short', day: 'numeric',
-                hour: 'numeric', minute: '2-digit',
-                timeZone: 'America/Los_Angeles',
-            }) + ' PST';
+            const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+            if (diff < 60) return 'just now';
+            if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+            if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+            return `${Math.floor(diff / 86400)}d ago`;
         }
 
-        function statusClass(status) {
-            if (status === 'completed') return 'pd-status-ok';
-            if (status === 'failed') return 'pd-status-fail';
-            return 'pd-status-active';
+        function statusBadge(status, isHanging) {
+            let cls = 'pd-status-active';
+            if (status === 'completed') cls = 'pd-status-ok';
+            else if (status === 'failed') cls = 'pd-status-fail';
+            if (isHanging) cls = 'pd-status-hang';
+            const label = isHanging ? 'HANGING' : status.replace(/_/g, ' ');
+            return `<span class="pd-badge ${cls}">${esc(label)}</span>`;
+        }
+
+        function progressDots(status, stepTimes) {
+            const completedSteps = new Set(Object.keys(stepTimes || {}));
+            // Map scraping variants
+            if (['scraping_trustpilot','scraping_reviews_io','scraping_yotpo'].some(s => completedSteps.has(s))) {
+                completedSteps.add('scraping');
+            }
+
+            return '<div class="pd-step-progress">' + PROGRESS_STEPS.map(step => {
+                let cls = '';
+                if (completedSteps.has(step)) cls = 'done';
+                else if (status.replace(/_/g, ' ') === step.replace(/_/g, ' ')) cls = 'current';
+                return `<div class="pd-step-dot ${cls}" title="${step.replace(/_/g, ' ')}"></div>`;
+            }).join('') + '</div>';
         }
 
         async function loadDashboard() {
@@ -135,7 +179,7 @@
                 const res = await fetch(`${API}/api/founder-admin/pipeline-dashboard?days=${days}`, { headers: hdrs() });
                 if (!res.ok) return;
                 const data = await res.json();
-                renderSummary(data.summary);
+                renderKPIs(data.summary);
                 renderFunnel(data.funnel, data.summary.total_runs);
                 renderRuns(data.runs);
             } catch (e) {
@@ -143,7 +187,7 @@
             }
         }
 
-        function renderSummary(s) {
+        function renderKPIs(s) {
             document.getElementById('statTotal').textContent = s.total_runs;
             document.getElementById('statCompleted').textContent = s.completed;
             document.getElementById('statFailed').textContent = s.failed;
@@ -154,71 +198,56 @@
 
         function renderFunnel(funnel, total) {
             const container = document.getElementById('funnelChart');
-            if (!total) { container.innerHTML = '<p class="pd-muted">No data yet.</p>'; return; }
-            container.innerHTML = funnel.map(f => {
-                const pct = total ? Math.round(f.count / total * 100) : 0;
+            if (!total) { container.innerHTML = '<div class="pd-empty">No data yet.</div>'; return; }
+            // Filter out zero-count steps for cleaner view
+            const visible = funnel.filter(f => f.count > 0);
+            container.innerHTML = visible.map(f => {
+                const pct = Math.round(f.count / total * 100);
+                const label = f.step.replace(/_/g, ' ');
                 return `<div class="pd-funnel-row">
-                    <span class="pd-funnel-label">${esc(f.step)}</span>
+                    <span class="pd-funnel-label">${esc(label)}</span>
                     <div class="pd-funnel-bar-bg">
                         <div class="pd-funnel-bar" style="width:${pct}%"></div>
                     </div>
-                    <span class="pd-funnel-count">${f.count} (${pct}%)</span>
+                    <span class="pd-funnel-count">${f.count}</span>
                 </div>`;
             }).join('');
         }
 
         function renderRuns(runs) {
-            const container = document.getElementById('runsTable');
-            if (!runs.length) { container.innerHTML = '<p class="pd-muted">No runs in this period.</p>'; return; }
+            const container = document.getElementById('runsList');
+            document.getElementById('runCount').textContent = `${runs.length} runs`;
 
-            let html = `<table class="pd-table">
-                <thead><tr>
-                    <th>Company</th>
-                    <th>Status</th>
-                    <th>Platform</th>
-                    <th>Reviews</th>
-                    <th>Emails</th>
-                    <th>Deck</th>
-                    <th>Duration</th>
-                    <th>Started</th>
-                    <th>Steps</th>
-                    <th>Actions</th>
-                </tr></thead><tbody>`;
-
-            for (const r of runs) {
-                const hanging = r.is_hanging ? ' pd-row-hanging' : '';
-                const statusCls = statusClass(r.status);
-
-                // Step timeline
-                const stepHtml = r.steps.map(s =>
-                    `<span class="pd-step-chip" title="${esc(s.step)}: ${fmtDuration(s.duration_seconds)}">${esc(s.step.replace(/_/g, ' ').slice(0, 12))}</span>`
-                ).join('');
-
-                const actions = [];
-                if (r.status === 'failed') {
-                    actions.push(`<button class="btn btn-xs" onclick="retryRun('${r.run_id}')">Retry</button>`);
-                }
-                if (r.is_hanging) {
-                    actions.push(`<button class="btn btn-xs" onclick="cancelRun('${r.run_id}')">Cancel</button>`);
-                    actions.push(`<button class="btn btn-xs" onclick="retryRun('${r.run_id}')">Retry</button>`);
-                }
-
-                html += `<tr class="${hanging}">
-                    <td><strong>${esc(r.company_name)}</strong><br><span class="pd-muted">${esc(r.company_domain)}</span></td>
-                    <td><span class="pd-badge ${statusCls}">${esc(r.status)}</span>${r.is_hanging ? '<span class="pd-badge pd-status-hang">HANGING</span>' : ''}</td>
-                    <td>${esc(r.detected_platform || '-')}</td>
-                    <td>${r.review_count}</td>
-                    <td>${r.email_count}</td>
-                    <td>${r.has_pdf ? 'PDF' : r.has_gamma ? 'Gamma' : '-'}</td>
-                    <td>${fmtDuration(r.total_seconds)}</td>
-                    <td>${fmtTime(r.created_at)}</td>
-                    <td class="pd-steps-cell">${stepHtml || '-'}</td>
-                    <td>${actions.join(' ') || '-'}</td>
-                </tr>`;
+            if (!runs.length) {
+                container.innerHTML = '<div class="pd-empty">No runs in this period.</div>';
+                return;
             }
 
-            html += '</tbody></table>';
-            container.innerHTML = html;
+            container.innerHTML = runs.map(r => {
+                const hangCls = r.is_hanging ? ' hanging' : '';
+                const stepTimes = {};
+                (r.steps || []).forEach(s => { stepTimes[s.step] = s.started_at; });
+
+                const actions = [];
+                if (r.status === 'failed' || r.is_hanging) {
+                    actions.push(`<button class="btn-xs" onclick="retryRun('${r.run_id}')">Retry</button>`);
+                }
+                if (r.is_hanging) {
+                    actions.push(`<button class="btn-xs danger" onclick="cancelRun('${r.run_id}')">Kill</button>`);
+                }
+
+                return `<div class="pd-run-row${hangCls}">
+                    <div>
+                        <div class="pd-run-company">${esc(r.company_name)}</div>
+                        <div class="pd-run-domain">${esc(r.company_domain)}</div>
+                    </div>
+                    <div>${statusBadge(r.status, r.is_hanging)}</div>
+                    <div>${progressDots(r.status, stepTimes)}</div>
+                    <div>${r.review_count || '-'}</div>
+                    <div class="pd-muted">${r.total_seconds ? fmtDuration(r.total_seconds) : fmtTimeAgo(r.created_at)}</div>
+                    <div class="pd-run-actions">${actions.join('') || '-'}</div>
+                </div>`;
+            }).join('');
         }
 
         window.retryRun = async (runId) => {
@@ -235,7 +264,6 @@
             loadDashboard();
         };
 
-        // Days filter
         document.getElementById('daysFilter').addEventListener('change', () => loadDashboard());
 
         // Init
@@ -250,7 +278,6 @@
                 document.getElementById('appShell').style.display = 'flex';
                 document.getElementById('founderEmail').textContent = userInfo.email;
                 loadDashboard();
-                // Live refresh every 15 seconds
                 refreshTimer = setInterval(loadDashboard, 15000);
             });
         }

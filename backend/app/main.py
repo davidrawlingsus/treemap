@@ -284,15 +284,8 @@ async def startup_event():
         _db = SessionLocal()
         terminal_states = {"completed", "failed", "disabled"}
         cutoff = datetime.now(tz.utc) - timedelta(hours=1)
-        orphaned = (
-            _db.query(LeadgenVocRun)
-            .filter(
-                ~LeadgenVocRun.coding_status.in_(terminal_states),
-                LeadgenVocRun.created_at >= cutoff,
-            )
-            .all()
-        )
-        # Mark anything older as failed (stale runs that will never complete)
+
+        # Mark anything older than 1 hour as failed
         stale = (
             _db.query(LeadgenVocRun)
             .filter(
@@ -304,14 +297,23 @@ async def startup_event():
         if stale:
             logger.info("[startup-recovery] Marked %d stale runs as failed", stale)
 
-        for run in orphaned:
-            logger.info("[startup-recovery] Restarting orphaned run %s (%s, status=%s)",
-                        run.run_id, run.company_name, run.coding_status)
-            run.coding_status = "queued"
+        # Find recent non-terminal runs and restart their background threads.
+        # Don't reset their status — the pipeline handles re-entry based on
+        # existing data (skips scrape if rows exist, etc.)
+        orphaned = (
+            _db.query(LeadgenVocRun)
+            .filter(
+                ~LeadgenVocRun.coding_status.in_(terminal_states),
+                LeadgenVocRun.created_at >= cutoff,
+            )
+            .all()
+        )
         _db.commit()
         _db.close()
 
         for run in orphaned:
+            logger.info("[startup-recovery] Restarting run %s (%s, status=%s)",
+                        run.run_id, run.company_name, run.coding_status)
             run_full_pipeline_background(run.run_id)
 
         if orphaned:
