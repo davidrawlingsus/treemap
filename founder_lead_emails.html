@@ -266,18 +266,41 @@
         };
 
         // Init
-        Auth.checkAuth().then((authenticated) => {
-            if (!authenticated) return;
-            const userInfo = Auth.getStoredUserInfo();
-            if (!userInfo?.is_founder) {
-                Auth.showLogin();
-                return;
-            }
-            Auth.hideLogin();
-            document.getElementById('appShell').style.display = '';
-            document.getElementById('founderEmail').textContent = userInfo.email;
-            loadSeries();
-        });
+        console.log('[LE] Page loaded');
+        console.log('[LE] Auth exists:', typeof Auth !== 'undefined');
+        console.log('[LE] Auth.checkAuth exists:', typeof Auth?.checkAuth);
+
+        if (typeof Auth === 'undefined') {
+            console.error('[LE] Auth not loaded — check auth.js');
+            document.body.innerHTML = '<h2 style="padding:40px;color:red;">Auth failed to load. Check console.</h2>';
+        } else {
+            console.log('[LE] Calling Auth.checkAuth()...');
+            Auth.checkAuth().then((authenticated) => {
+                console.log('[LE] checkAuth result:', authenticated);
+                if (!authenticated) {
+                    console.log('[LE] Not authenticated — showing login');
+                    Auth.showLogin();
+                    return;
+                }
+                const userInfo = Auth.getStoredUserInfo();
+                console.log('[LE] userInfo:', JSON.stringify(userInfo));
+                if (!userInfo?.is_founder) {
+                    console.log('[LE] Not founder — showing login');
+                    Auth.showLogin();
+                    return;
+                }
+                console.log('[LE] Founder authenticated — showing app');
+                Auth.hideLogin();
+                const shell = document.getElementById('appShell');
+                console.log('[LE] appShell element:', shell);
+                if (shell) shell.style.display = '';
+                document.getElementById('founderEmail').textContent = userInfo.email;
+                console.log('[LE] Calling loadSeries()...');
+                loadSeries().then(() => console.log('[LE] loadSeries done')).catch(e => console.error('[LE] loadSeries error:', e));
+            }).catch(e => {
+                console.error('[LE] checkAuth error:', e);
+            });
+        }
         document.getElementById('logoutButton')?.addEventListener('click', () => Auth.handleLogout());
     </script>
 </body>
