@@ -110,10 +110,14 @@
         </main>
     </div>
 
-    <script src="/js/founder-admin-common.js"></script>
     <script>
         const API = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
         const hdrs = () => Auth.getAuthHeaders();
+        const esc = (s) => {
+            const d = document.createElement('div');
+            d.textContent = s || '';
+            return d.innerHTML;
+        };
         let currentRunId = null;
         let currentEmails = [];
 
@@ -126,8 +130,8 @@
                 if (!data.length) { list.innerHTML = '<p class="le-muted">No email series yet.</p>'; return; }
                 list.innerHTML = data.map(s => `
                     <div class="le-series-card" data-run-id="${s.run_id}">
-                        <div class="le-series-name">${FounderAdmin.DOM.escapeHtml(s.client_name)}</div>
-                        <div class="le-muted">${FounderAdmin.DOM.escapeHtml(s.email_address)}</div>
+                        <div class="le-series-name">${esc(s.client_name)}</div>
+                        <div class="le-muted">${esc(s.email_address)}</div>
                         <div class="le-series-stats">
                             <span class="le-stat-sent">${s.sent_count} sent</span>
                             <span class="le-stat-queued">${s.queued_count} queued</span>
@@ -165,9 +169,9 @@
                             <span class="le-badge le-badge-${em.status}">${em.status}</span>
                             <span class="le-muted le-email-date">${em.scheduled_for ? new Date(em.scheduled_for).toLocaleDateString('en-GB', {day:'numeric',month:'short'}) : ''}</span>
                         </div>
-                        <div class="le-email-subject">${FounderAdmin.DOM.escapeHtml(em.subject)}</div>
+                        <div class="le-email-subject">${esc(em.subject)}</div>
                         ${em.sent_at ? `<div class="le-muted">Sent ${new Date(em.sent_at).toLocaleString('en-GB', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>` : ''}
-                        ${em.error_message ? `<div class="le-error">${FounderAdmin.DOM.escapeHtml(em.error_message)}</div>` : ''}
+                        ${em.error_message ? `<div class="le-error">${esc(em.error_message)}</div>` : ''}
                         <div class="le-email-row-actions">
                             ${em.status === 'queued' || em.status === 'paused' ? `<button class="btn btn-xs btn-ghost" onclick="cancelEmail('${em.id}')">Cancel</button>` : ''}
                         </div>
@@ -218,17 +222,17 @@
             let bodyHtml = '';
             sections.forEach(sec => {
                 if (sec.type === 'verbatim') {
-                    bodyHtml += `<blockquote><em>"${FounderAdmin.DOM.escapeHtml(sec.content)}"</em>${sec.attribution ? `<br><span class="le-muted">${FounderAdmin.DOM.escapeHtml(sec.attribution)}</span>` : ''}</blockquote>`;
+                    bodyHtml += `<blockquote><em>"${esc(sec.content)}"</em>${sec.attribution ? `<br><span class="le-muted">${esc(sec.attribution)}</span>` : ''}</blockquote>`;
                 } else if (sec.type === 'stat') {
-                    bodyHtml += `<div class="le-preview-stat">${FounderAdmin.DOM.escapeHtml(sec.content)}</div>`;
+                    bodyHtml += `<div class="le-preview-stat">${esc(sec.content)}</div>`;
                 } else if (sec.type === 'cta') {
-                    bodyHtml += `<div class="le-preview-cta">${FounderAdmin.DOM.escapeHtml(sec.content)}</div>`;
+                    bodyHtml += `<div class="le-preview-cta">${esc(sec.content)}</div>`;
                 } else {
-                    bodyHtml += `<p>${FounderAdmin.DOM.escapeHtml(sec.content)}</p>`;
+                    bodyHtml += `<p>${esc(sec.content)}</p>`;
                 }
             });
             if (!bodyHtml && em.extra_data?.strategic_intent) {
-                bodyHtml = `<p class="le-muted"><em>Intent: ${FounderAdmin.DOM.escapeHtml(em.extra_data.strategic_intent)}</em></p>`;
+                bodyHtml = `<p class="le-muted"><em>Intent: ${esc(em.extra_data.strategic_intent)}</em></p>`;
             }
             document.getElementById('previewBody').innerHTML = bodyHtml || '<p class="le-muted">No content available.</p>';
         }
@@ -262,12 +266,17 @@
         };
 
         // Init
-        FounderAdmin.AuthUtils.initializeAuth(
-            (userInfo) => {
-                document.getElementById('founderEmail').textContent = userInfo.email;
-                loadSeries();
+        Auth.checkAuth().then((authenticated) => {
+            if (!authenticated) return;
+            const userInfo = Auth.getStoredUserInfo();
+            if (!userInfo?.is_founder) {
+                Auth.showLogin();
+                return;
             }
-        );
+            Auth.hideLogin();
+            document.getElementById('founderEmail').textContent = userInfo.email;
+            loadSeries();
+        });
         document.getElementById('logoutButton')?.addEventListener('click', () => Auth.handleLogout());
     </script>
 </body>
