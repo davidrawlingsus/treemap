@@ -235,6 +235,34 @@ async def startup_event():
     _sender.start()
     logger.info("Email sender background thread started")
 
+    # Recover orphaned pipeline runs (e.g. killed by deploy SIGTERM)
+    try:
+        from app.database import SessionLocal
+        from app.models.leadgen_voc import LeadgenVocRun
+        from app.services.leadgen_pipeline_runner import run_full_pipeline_background
+
+        _db = SessionLocal()
+        terminal_states = {"completed", "failed", "disabled"}
+        orphaned = (
+            _db.query(LeadgenVocRun)
+            .filter(~LeadgenVocRun.coding_status.in_(terminal_states))
+            .all()
+        )
+        for run in orphaned:
+            logger.info("[startup-recovery] Restarting orphaned run %s (%s, status=%s)",
+                        run.run_id, run.company_name, run.coding_status)
+            run.coding_status = "queued"
+        _db.commit()
+        _db.close()
+
+        for run in orphaned:
+            run_full_pipeline_background(run.run_id)
+
+        if orphaned:
+            logger.info("[startup-recovery] Restarted %d orphaned pipeline run(s)", len(orphaned))
+    except Exception as _e:
+        logger.error("[startup-recovery] Failed: %s", _e)
+
 
 # CORS configuration - allow frontend to communicate with backend
 # Allow all Railway origins (they use *.up.railway.app pattern) for flexibility
