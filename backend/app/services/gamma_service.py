@@ -47,6 +47,7 @@ def generate_deck(
             "textMode": "preserve",
             "format": "presentation",
             "numCards": 20,
+            "themeId": "zlj1eyfj4b520tb",  # Map_The_Gap theme
             "textOptions": {
                 "tone": "professional",
                 "amount": "detailed",
