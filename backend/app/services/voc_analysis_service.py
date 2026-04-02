@@ -370,18 +370,30 @@ def generate_voc_analysis_markdown(
     # Use streaming call for reliability (same as other pipeline LLM calls)
     # But we want raw text output, not JSON-schema-enforced.
     # Use a minimal schema that just wraps the markdown in a string field.
-    result = call_claude_json_schema_streaming(
-        settings=settings,
-        model="claude-opus-4-6",
-        system_prompt=system_prompt,
-        user_prompt=user_prompt,
-        schema={"type": "object", "properties": {"content": {"type": "string"}}, "required": ["content"]},
-        temperature=0.5,
-        max_tokens=64000,
-    )
+    # Retry up to 2 times if the model returns truncated/garbage output.
+    MAX_RETRIES = 2
+    for attempt in range(MAX_RETRIES + 1):
+        result = call_claude_json_schema_streaming(
+            settings=settings,
+            model="claude-opus-4-6",
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            schema={"type": "object", "properties": {"content": {"type": "string"}}, "required": ["content"]},
+            temperature=0.5,
+            max_tokens=64000,
+        )
 
-    markdown = result.get("content", "")
-    logger.info("[voc-analysis] Generated %d chars of markdown for %s", len(markdown), company_name)
+        markdown = result.get("content", "")
+        if len(markdown) > 1000:
+            logger.info("[voc-analysis] Generated %d chars of markdown for %s (attempt %d)",
+                        len(markdown), company_name, attempt + 1)
+            return markdown
+
+        logger.warning("[voc-analysis] Short/empty markdown (%d chars) for %s (attempt %d/%d): %s",
+                       len(markdown), company_name, attempt + 1, MAX_RETRIES + 1, markdown[:200])
+
+    # Return whatever we got on last attempt
+    logger.error("[voc-analysis] All attempts returned short markdown for %s (%d chars)", company_name, len(markdown))
     return markdown
 
 
