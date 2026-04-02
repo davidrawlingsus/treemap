@@ -45,20 +45,33 @@ def create_email_series(
         send_day = email.get("send_day", 0)
         scheduled = now + timedelta(days=send_day)
 
-        # Replace template placeholders in CTA URLs
-        cta_url = email.get("cta_url") or ""
-        if cta_url:
-            cta_url = cta_url.replace("{{MAGIC_LINK_URL}}", magic_link_url)
-            cta_url = cta_url.replace("{{deck_url}}", gamma_deck_url or magic_link_url)
+        # Replace template placeholders throughout
+        def _replace_placeholders(text: str) -> str:
+            if not text:
+                return text
+            text = text.replace("{{MAGIC_LINK_URL}}", magic_link_url)
+            text = text.replace("{{visualisation_url}}", magic_link_url)
+            text = text.replace("{{deck_url}}", gamma_deck_url or magic_link_url)
             if gamma_deck_url:
-                cta_url = cta_url.replace("{{GAMMA_DECK_URL}}", gamma_deck_url)
+                text = text.replace("{{GAMMA_DECK_URL}}", gamma_deck_url)
             else:
-                cta_url = cta_url.replace("{{GAMMA_DECK_URL}}", magic_link_url)
+                text = text.replace("{{GAMMA_DECK_URL}}", magic_link_url)
+            return text
+
+        cta_url = _replace_placeholders(email.get("cta_url") or "")
+
+        # Replace placeholders in body section content
+        body_sections = []
+        for sec in email.get("body_sections", []):
+            body_sections.append({
+                **sec,
+                "content": _replace_placeholders(sec.get("content", "")),
+            })
 
         # Build template_data from the structured content
         template_data = {
-            "headline": email.get("headline", ""),
-            "body_sections": email.get("body_sections", []),
+            "headline": _replace_placeholders(email.get("headline", "")),
+            "body_sections": body_sections,
             "cta_text": email.get("cta_text", ""),
             "cta_url": cta_url,
             "preview_text": email.get("preview_text", ""),
@@ -212,9 +225,17 @@ def _send_via_resend(email_service: Any, email: LeadEmail) -> Optional[str]:
 
 
 def _md_to_html(text: str) -> str:
-    """Convert markdown italics (_text_) to HTML <em> tags."""
+    """Convert markdown italics (_text_) to HTML <em> tags, and auto-link bare URLs."""
     import re
-    return re.sub(r'(?<!\w)_([^_]+?)_(?!\w)', r'<em>\1</em>', text)
+    # Italics
+    text = re.sub(r'(?<!\w)_([^_]+?)_(?!\w)', r'<em>\1</em>', text)
+    # Auto-link bare URLs (not already inside an href)
+    text = re.sub(
+        r'(?<!href=")(https?://[^\s<>"]+)',
+        r'<a href="\1" style="color:#1a73e8;">\1</a>',
+        text,
+    )
+    return text
 
 
 def _strip_md(text: str) -> str:
