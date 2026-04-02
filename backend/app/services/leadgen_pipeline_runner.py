@@ -802,14 +802,9 @@ def _run_full_pipeline(run_id: str) -> None:
                 sent = send_due_emails(settings, db)
                 logger.info("[pipeline %s] Sent %d immediate emails", run_id, sent)
             else:
-                # Fallback: send simple completion email
-                _send_completion_email(db, run, lead_client, settings)
+                logger.warning("[pipeline %s] No emails in VoC analysis — skipping email series", run_id)
         except Exception as e:
             logger.error("[pipeline %s] Email scheduling failed: %s", run_id, e)
-            try:
-                _send_completion_email(db, run, lead_client, settings)
-            except Exception:
-                pass
 
         _update_status(db, run, "completed")
         logger.info("[pipeline %s] Pipeline completed! %d ads", run_id, total_ads)
