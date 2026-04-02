@@ -10,35 +10,35 @@
 </head>
 <body>
     <div class="container">
-        <!-- Screen 1: Email Input -->
-        <section id="screen-email" class="screen active">
+        <!-- Screen 1: URL Input -->
+        <section id="screen-url" class="screen active">
             <div class="card">
                 <h1>See what your customers are <em>really</em> saying</h1>
                 <p class="subtitle">We'll analyze your public reviews and show you the topics, sentiment patterns, and ad opportunities hiding in your customer feedback.</p>
-                <form id="emailForm" class="form-group">
-                    <label for="emailInput">Your work email</label>
-                    <input id="emailInput" type="email" placeholder="you@yourcompany.com" required autocomplete="email">
-                    <button type="submit" class="btn-primary" id="emailSubmitBtn">Get Your Free Analysis</button>
+                <form id="urlForm" class="form-group">
+                    <label for="urlInput">Your company website</label>
+                    <input id="urlInput" type="url" placeholder="https://yourcompany.com" required>
+                    <button type="submit" class="btn-primary" id="urlSubmitBtn">Get Your Free Analysis</button>
                 </form>
-                <p class="disclaimer">We'll use your email domain to find your reviews. No spam, ever.</p>
+                <p class="disclaimer">We'll find your public reviews and analyze them. No spam, ever.</p>
             </div>
         </section>
 
-        <!-- Screen 2: Confirm Website -->
-        <section id="screen-confirm" class="screen">
+        <!-- Screen 2: Email Input -->
+        <section id="screen-email" class="screen">
             <div class="card">
-                <h2>Is this the right website?</h2>
+                <h2>Where should we send your analysis?</h2>
                 <div class="confirm-domain">
                     <span id="domainDisplay" class="domain-badge"></span>
                 </div>
-                <div class="form-group">
-                    <label for="urlOverride">Company website (edit if needed)</label>
-                    <input id="urlOverride" type="url" placeholder="https://yourcompany.com">
-                </div>
-                <div class="btn-row">
-                    <button id="backBtn" class="btn-secondary">Back</button>
-                    <button id="confirmBtn" class="btn-primary">Start Analysis</button>
-                </div>
+                <form id="emailForm" class="form-group">
+                    <label for="emailInput">Your work email</label>
+                    <input id="emailInput" type="email" placeholder="you@yourcompany.com" required autocomplete="email">
+                    <div class="btn-row">
+                        <button type="button" id="backBtn" class="btn-secondary">Back</button>
+                        <button type="submit" id="confirmBtn" class="btn-primary">Start Analysis</button>
+                    </div>
+                </form>
             </div>
         </section>
 
@@ -97,24 +97,33 @@
             document.getElementById(id).classList.add('active');
         }
 
-        // Email form submit
+        let currentUrl = null;
+
+        // URL form submit
+        document.getElementById('urlForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            let url = document.getElementById('urlInput').value.trim();
+            if (!url) return;
+            if (!url.startsWith('http')) url = 'https://' + url;
+            currentUrl = url;
+
+            try {
+                const domain = new URL(url).hostname.replace(/^www\./, '');
+                document.getElementById('domainDisplay').textContent = domain;
+            } catch { document.getElementById('domainDisplay').textContent = url; }
+            showScreen('screen-email');
+        });
+
+        // Back button
+        document.getElementById('backBtn').addEventListener('click', () => showScreen('screen-url'));
+
+        // Email form submit → start analysis
         document.getElementById('emailForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('emailInput').value.trim();
             if (!email) return;
             currentEmail = email;
 
-            const domain = email.split('@')[1];
-            document.getElementById('domainDisplay').textContent = domain;
-            document.getElementById('urlOverride').value = `https://${domain}`;
-            showScreen('screen-confirm');
-        });
-
-        // Back button
-        document.getElementById('backBtn').addEventListener('click', () => showScreen('screen-email'));
-
-        // Confirm and start
-        document.getElementById('confirmBtn').addEventListener('click', async () => {
             const btn = document.getElementById('confirmBtn');
             btn.disabled = true;
             btn.textContent = 'Starting...';
@@ -125,7 +134,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         work_email: currentEmail,
-                        company_url: document.getElementById('urlOverride').value.trim() || null,
+                        company_url: currentUrl,
                     }),
                 });
                 if (!res.ok) {
@@ -150,7 +159,7 @@
         });
 
         // Retry
-        document.getElementById('retryBtn').addEventListener('click', () => showScreen('screen-email'));
+        document.getElementById('retryBtn').addEventListener('click', () => showScreen('screen-url'));
 
         // Status polling
         function startPolling() {
