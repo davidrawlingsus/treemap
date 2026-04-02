@@ -46,12 +46,14 @@ def create_email_series(
         scheduled = now + timedelta(days=send_day)
 
         # Replace template placeholders in CTA URLs
-        cta_url = email.get("cta_url", "")
-        cta_url = cta_url.replace("{{MAGIC_LINK_URL}}", magic_link_url)
-        if gamma_deck_url:
-            cta_url = cta_url.replace("{{GAMMA_DECK_URL}}", gamma_deck_url)
-        else:
-            cta_url = cta_url.replace("{{GAMMA_DECK_URL}}", magic_link_url)
+        cta_url = email.get("cta_url") or ""
+        if cta_url:
+            cta_url = cta_url.replace("{{MAGIC_LINK_URL}}", magic_link_url)
+            cta_url = cta_url.replace("{{deck_url}}", gamma_deck_url or magic_link_url)
+            if gamma_deck_url:
+                cta_url = cta_url.replace("{{GAMMA_DECK_URL}}", gamma_deck_url)
+            else:
+                cta_url = cta_url.replace("{{GAMMA_DECK_URL}}", magic_link_url)
 
         # Build template_data from the structured content
         template_data = {
