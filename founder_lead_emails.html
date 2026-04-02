@@ -234,7 +234,7 @@
             const pdfUrl = td.cta_url || '';
             let bodyHtml = '';
             sections.forEach(sec => {
-                let content = esc(sec.content);
+                let content = esc(sec.content).replace(/(?<!\w)_([^_]+?)_(?!\w)/g, '<em>$1</em>');
                 // Insert PDF link on the anchor phrase
                 if (pdfUrl && content.toLowerCase().includes('this is what it looks like when someone organises it')) {
                     content = content.replace(

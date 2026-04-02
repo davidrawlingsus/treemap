@@ -211,26 +211,32 @@ def _send_via_resend(email_service: Any, email: LeadEmail) -> Optional[str]:
     return resp.json().get("id")
 
 
+def _md_to_html(text: str) -> str:
+    """Convert markdown italics (_text_) to HTML <em> tags."""
+    import re
+    return re.sub(r'(?<!\w)_([^_]+?)_(?!\w)', r'<em>\1</em>', text)
+
+
+def _strip_md(text: str) -> str:
+    """Strip markdown italics for plain text output."""
+    import re
+    return re.sub(r'(?<!\w)_([^_]+?)_(?!\w)', r'\1', text)
+
+
 def _render_html(subject: str, td: Dict[str, Any]) -> str:
     """Render template_data into plain-text-style HTML (no fancy formatting)."""
     sections_html = ""
     pdf_url = td.get("cta_url", "")
     for section in td.get("body_sections", []):
-        content = section.get("content", "")
+        content = _md_to_html(section.get("content", ""))
         # Insert PDF link on the specific anchor phrase
         if pdf_url and "this is what it looks like when someone organises it" in content.lower():
-            content = content.replace(
-                "This is what it looks like when someone organises it",
-                f'<a href="{pdf_url}" style="color:#1a73e8;">This is what it looks like when someone organises it</a>',
+            import re
+            content = re.sub(
+                r"(?i)(this is what it looks like when someone organises it)",
+                f'<a href="{pdf_url}" style="color:#1a73e8;">\\1</a>',
+                content,
             )
-            # Case-insensitive fallback
-            if pdf_url not in content:
-                import re
-                content = re.sub(
-                    r"(?i)(this is what it looks like when someone organises it)",
-                    f'<a href="{pdf_url}" style="color:#1a73e8;">\\1</a>',
-                    content,
-                )
         sections_html += f'<p style="margin:12px 0;line-height:1.6;color:#333;">{content}</p>'
 
     return f"""<!DOCTYPE html>
@@ -245,7 +251,7 @@ def _render_text(subject: str, td: Dict[str, Any]) -> str:
     lines = []
     pdf_url = td.get("cta_url", "")
     for section in td.get("body_sections", []):
-        content = section.get("content", "")
+        content = _strip_md(section.get("content", ""))
         lines.append(content)
         # Add PDF link after the anchor phrase
         if pdf_url and "this is what it looks like when someone organises it" in content.lower():
