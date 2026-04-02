@@ -61,8 +61,8 @@ def fetch_reviews_io_reviews(
         logger.info("[reviews.io] Page %d: %d reviews (total: %d)", page, len(reviews), len(all_reviews))
 
         # Check if there are more pages
-        total = data.get("total", 0)
-        if len(all_reviews) >= total or len(all_reviews) >= max_reviews:
+        total_pages = data.get("total_pages", 1)
+        if page >= total_pages or len(all_reviews) >= max_reviews:
             break
 
         page += 1

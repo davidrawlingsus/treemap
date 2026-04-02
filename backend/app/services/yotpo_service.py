@@ -65,7 +65,8 @@ def fetch_yotpo_reviews(
         # Check pagination
         pagination = response.get("pagination", {})
         total = pagination.get("total", 0)
-        if len(all_reviews) >= total or len(all_reviews) >= max_reviews:
+        total_pages = pagination.get("total_pages") or (total // per_page + 1 if total else 0)
+        if page >= total_pages or len(all_reviews) >= max_reviews:
             break
 
         page += 1
