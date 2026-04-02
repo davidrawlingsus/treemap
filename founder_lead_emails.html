@@ -123,9 +123,16 @@
 
         async function loadSeries() {
             try {
-                const res = await fetch(`${API}/api/founder-admin/lead-emails`, { headers: hdrs() });
-                if (!res.ok) return;
+                const url = `${API}/api/founder-admin/lead-emails`;
+                const h = hdrs();
+                console.log('[LE] Fetching:', url);
+                console.log('[LE] Headers:', JSON.stringify(h));
+                const res = await fetch(url, { headers: h });
+                console.log('[LE] Response:', res.status, res.statusText);
+                console.log('[LE] Response ok:', res.ok);
+                if (!res.ok) { console.error('[LE] API error:', res.status); return; }
                 const data = await res.json();
+                console.log('[LE] Data:', JSON.stringify(data).slice(0, 200));
                 const list = document.getElementById('seriesList');
                 if (!data.length) { list.innerHTML = '<p class="le-muted">No email series yet.</p>'; return; }
                 list.innerHTML = data.map(s => `
