@@ -1,0 +1,294 @@
+/* ─── LEAD EMAIL SERIES STYLES ──────────────────────────────────────────── */
+
+/* Layout: sidebar | main | preview */
+.le-layout {
+    display: flex;
+    gap: 0;
+    min-height: calc(100vh - 80px);
+}
+
+.le-sidebar {
+    width: 280px;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border, #e2e8f0);
+    padding: 20px;
+    overflow-y: auto;
+    background: var(--bg, #f7f8fa);
+}
+.le-sidebar h3 {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted, #718096);
+    margin: 0 0 12px;
+}
+
+.le-main {
+    flex: 1;
+    min-width: 0;
+    padding: 20px;
+    overflow-y: auto;
+}
+
+.le-preview {
+    width: 400px;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border, #e2e8f0);
+    background: #fafbfc;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Series list */
+.le-series-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.le-series-card {
+    padding: 10px 12px;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 6px;
+    cursor: pointer;
+    background: #fff;
+    transition: border-color 0.15s;
+}
+.le-series-card:hover { border-color: #a0aec0; }
+.le-series-card.active {
+    border-color: #303030;
+    box-shadow: 0 0 0 1px #303030;
+}
+
+.le-series-name {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 2px;
+}
+
+.le-series-stats {
+    margin-top: 4px;
+    font-size: 12px;
+    display: flex;
+    gap: 8px;
+}
+.le-stat-sent { color: #22c55e; }
+.le-stat-queued { color: #1a73e8; }
+.le-stat-paused { color: #d97706; }
+
+/* Detail header */
+.le-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 16px;
+}
+.le-detail-header h2 { margin: 0 0 2px; font-size: 20px; }
+.le-detail-actions { display: flex; gap: 8px; }
+
+/* Tabs */
+.le-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border, #e2e8f0);
+    margin-bottom: 16px;
+}
+.le-tab {
+    background: none;
+    border: none;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--muted, #718096);
+    border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+}
+.le-tab:hover { color: #303030; }
+.le-tab.active {
+    color: #303030;
+    border-bottom-color: #303030;
+    font-weight: 600;
+}
+
+/* Email list */
+.le-email-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.le-email-row {
+    padding: 12px 14px;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 6px;
+    cursor: pointer;
+    background: #fff;
+    transition: all 0.15s;
+}
+.le-email-row:hover { border-color: #a0aec0; }
+.le-email-row.selected {
+    border-color: #303030;
+    box-shadow: 0 0 0 1px #303030;
+}
+
+.le-email-row-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+}
+
+.le-email-seq {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.le-email-subject {
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+.le-email-date {
+    margin-left: auto;
+    font-size: 12px;
+}
+
+.le-email-row-actions {
+    margin-top: 4px;
+}
+
+/* Badges */
+.le-badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.le-badge-queued { background: #e8f0fe; color: #1a73e8; }
+.le-badge-sent { background: #f0fdf4; color: #16a34a; }
+.le-badge-paused { background: #fef3c7; color: #d97706; }
+.le-badge-cancelled { background: #f3f4f6; color: #6b7280; }
+.le-badge-failed { background: #fee2e2; color: #dc2626; }
+
+/* Preview panel */
+.le-preview-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border, #e2e8f0);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.le-preview-header h3 { margin: 0; font-size: 14px; font-weight: 600; }
+
+.le-preview-envelope {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border, #e2e8f0);
+    background: #fff;
+}
+.le-preview-subject {
+    font-weight: 600;
+    font-size: 15px;
+    margin-bottom: 4px;
+}
+.le-preview-preheader {
+    font-size: 13px;
+    color: var(--muted, #718096);
+}
+
+.le-preview-body {
+    padding: 20px;
+    font-size: 14px;
+    line-height: 1.7;
+    flex: 1;
+    overflow-y: auto;
+}
+.le-preview-body p {
+    margin: 0 0 12px;
+}
+.le-preview-body blockquote {
+    border-left: 3px solid #cbd5e0;
+    padding: 8px 14px;
+    margin: 12px 0;
+    color: #4a5568;
+    font-size: 13px;
+}
+.le-preview-stat {
+    background: #f0f4ff;
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 15px;
+    color: #1a73e8;
+    text-align: center;
+    margin: 12px 0;
+}
+.le-preview-cta {
+    font-weight: 600;
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border, #e2e8f0);
+}
+
+/* Markdown preview (deck/analysis tabs) */
+.le-markdown-preview {
+    white-space: pre-wrap;
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 16px;
+    background: #fff;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 6px;
+    max-height: 600px;
+    overflow-y: auto;
+    font-family: 'Monaco', 'Menlo', monospace;
+}
+
+/* Empty state */
+.le-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted, #718096);
+}
+
+/* Error text */
+.le-error { color: #dc2626; font-size: 12px; margin-top: 4px; }
+
+/* Muted helper */
+.le-muted { color: var(--muted, #718096); font-size: 13px; }
+
+/* Button overrides */
+.btn-sm {
+    padding: 6px 14px;
+    font-size: 13px;
+    border-radius: 4px;
+    border: 1px solid var(--border, #e2e8f0);
+    background: #fff;
+    cursor: pointer;
+    font-family: inherit;
+}
+.btn-sm:hover { background: #f7f8fa; }
+
+.btn-xs {
+    padding: 3px 10px;
+    font-size: 12px;
+    border-radius: 4px;
+    border: 1px solid var(--border, #e2e8f0);
+    background: #fff;
+    cursor: pointer;
+    font-family: inherit;
+}
+.btn-xs:hover { background: #f7f8fa; }
+
+/* Responsive */
+@media (max-width: 1200px) {
+    .le-preview { width: 340px; }
+}
+@media (max-width: 900px) {
+    .le-layout { flex-direction: column; }
+    .le-sidebar { width: 100%; border-right: none; border-bottom: 1px solid var(--border); }
+    .le-preview { width: 100%; border-left: none; border-top: 1px solid var(--border); }
+}
