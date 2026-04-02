@@ -233,17 +233,25 @@ def public_leadgen_start(
     from app.services.leadgen_pipeline_runner import run_full_pipeline_background
 
     try:
-        company_domain = parse_domain_from_work_email(body.work_email)
+        email_domain = parse_domain_from_work_email(body.work_email)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
-    if not is_likely_work_email_domain(company_domain):
+    if not is_likely_work_email_domain(email_domain):
         raise HTTPException(
             status_code=400,
             detail="Please provide a work email address (personal email domains are not supported).",
         )
 
-    company_url = normalize_url(body.company_url or infer_company_url_from_domain(company_domain))
+    # If user provided/confirmed a different URL, derive domain from that
+    if body.company_url:
+        from urllib.parse import urlparse
+        company_url = normalize_url(body.company_url)
+        parsed = urlparse(company_url)
+        company_domain = (parsed.netloc or parsed.path).lower().replace("www.", "")
+    else:
+        company_url = normalize_url(infer_company_url_from_domain(email_domain))
+        company_domain = email_domain
     company_name = infer_company_name_from_domain(company_domain)
 
     run_id = uuid.uuid4().hex
