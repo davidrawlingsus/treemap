@@ -28,7 +28,7 @@
         </div>
     </div>
 
-    <div id="appShell">
+    <div id="appShell" style="display:none">
         <header>
             <div>
                 <nav class="breadcrumbs">
@@ -274,6 +274,7 @@
                 return;
             }
             Auth.hideLogin();
+            document.getElementById('appShell').style.display = '';
             document.getElementById('founderEmail').textContent = userInfo.email;
             loadSeries();
         });
