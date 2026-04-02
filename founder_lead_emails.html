@@ -300,7 +300,7 @@
                 Auth.hideLogin();
                 const shell = document.getElementById('appShell');
                 console.log('[LE] appShell element:', shell);
-                if (shell) shell.style.display = '';
+                if (shell) shell.style.display = 'flex';
                 document.getElementById('founderEmail').textContent = userInfo.email;
                 console.log('[LE] Calling loadSeries()...');
                 loadSeries().then(() => console.log('[LE] loadSeries done')).catch(e => console.error('[LE] loadSeries error:', e));
