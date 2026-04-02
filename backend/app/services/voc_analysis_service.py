@@ -1,9 +1,12 @@
 """
 VoC Creative Strategy Analysis Service.
 
-After the lead gen pipeline completes, generates a comprehensive
-creative strategy analysis from the VoC data. Produces structured
-JSON for an email series + Gamma deck.
+Two-step process:
+1. generate_voc_analysis_markdown() — Opus produces the full markdown analysis
+2. parse_voc_analysis_to_json() — Sonnet extracts structured JSON from the markdown
+
+The markdown is the canonical output (stored, displayed in slideout).
+The JSON is derived for programmatic use (email queue, Gamma deck).
 """
 
 import json
@@ -12,6 +15,10 @@ from typing import Any, Dict, List
 
 logger = logging.getLogger(__name__)
 
+
+# ---------------------------------------------------------------------------
+# JSON Schema (used by the parse step only)
+# ---------------------------------------------------------------------------
 
 VOC_ANALYSIS_SCHEMA: Dict[str, Any] = {
     "type": "object",
@@ -302,62 +309,9 @@ VOC_ANALYSIS_SCHEMA: Dict[str, Any] = {
 }
 
 
-VOC_ANALYSIS_SYSTEM_PROMPT = """You are a Senior VoC Creative Strategist. You receive a company's customer review data (already categorised into a taxonomy with topics and sentiment) and produce a comprehensive creative strategy analysis.
-
-Your output serves three purposes:
-1. An executive overview and deck content for a presentation
-2. A series of daily emails that deliver insights one by one, building a strategic narrative
-3. Actionable creative strategy insights with verbatim evidence
-
-## Analysis Approach
-
-For each insight:
-- Identify what the brand is probably saying in their ads vs what customers actually say
-- Find the messaging gap — the most expensive disconnect between brand voice and customer voice
-- Extract verbatim quotes that could become ad concepts
-- Map objections and how to reframe them
-- Identify "language gold" — customer phrases worth stealing for creative
-
-## Email Series Rules
-
-- Exactly 9 emails, send_day 1 through 9
-- Each email should stand alone as valuable but also build on previous emails
-- cta_url should use {{MAGIC_LINK_URL}} for app links or {{GAMMA_DECK_URL}} for the deck (email 9)
-- Emails 1-8 cta_url can be null
-
-## Email Content Structure
-
-Each email has body_sections — an array of content blocks:
-- "text": Narrative prose (the analysis, interpretation, strategic advice)
-- "verbatim": A customer quote with attribution
-- "stat": A data point or metric (e.g., "67% of reviews mention...")
-- "cta": A call-to-action block
-
-## Sequence Architecture
-
-Before writing emails, plan the sequence:
-- Choose which insight leads (the most surprising/impactful)
-- Map the narrative arc (each email's role in the story)
-- Choose which insight closes (the one that drives action)
-- Define the through-line connecting all emails
-- Map open loops (questions/hooks planted in earlier emails, resolved in later ones)
-
-## Deck Markdown
-
-Produce clean markdown suitable for Gamma API deck generation:
-- H1: Company name — VoC Creative Strategy
-- H2 sections: Executive Overview, Theme Analysis, Creative Insights, Language Gold, Objection Map
-- Use tables, bullet points, and blockquotes for verbatims
-- Keep it scannable — executives will read this in 5 minutes
-
-## Tone
-
-- Expert but accessible — like a strategist presenting to a CMO
-- Data-driven — every claim backed by specific verbatims
-- Actionable — each insight ends with what to do about it
-- Warm but direct — no filler, no hedging, no "it might be worth considering"
-"""
-
+# ---------------------------------------------------------------------------
+# Step 1: Generate markdown analysis (Opus)
+# ---------------------------------------------------------------------------
 
 VOC_ANALYSIS_USER_PROMPT = """Analyze the following Voice of Customer data for {company_name} ({company_url}) and produce a complete creative strategy analysis.
 
@@ -373,22 +327,24 @@ VOC_ANALYSIS_USER_PROMPT = """Analyze the following Voice of Customer data for {
 ## Ad Topics Generated
 The following themes were selected for ad generation: {ad_topics}
 
-Produce the full analysis following the schema. Include 6-12 insights as the data warrants. Produce exactly 9 emails."""
+Produce the full analysis following the prompt instructions. Output as markdown."""
 
 
-def generate_voc_analysis(
+def generate_voc_analysis_markdown(
     *,
     settings: Any,
+    system_prompt: str,
     company_name: str,
     company_url: str,
     context_text: str,
     validate_output: Dict[str, Any],
     classified_reviews: List[Dict[str, Any]],
     ad_topics: List[str],
-) -> Dict[str, Any]:
-    """Generate a full VoC creative strategy analysis from pipeline outputs.
+) -> str:
+    """Generate the full VoC creative strategy analysis as markdown.
 
-    Returns structured JSON matching VOC_ANALYSIS_SCHEMA.
+    Uses Opus with the live prompt (system_prompt from DB or default).
+    Returns the raw markdown string.
     """
     from app.services.voc_coding_chain_service import call_claude_json_schema_streaming
 
@@ -405,30 +361,88 @@ def generate_voc_analysis(
     )
 
     logger.info(
-        "[voc-analysis] Generating for %s (taxonomy: %d categories, %d classified reviews)",
+        "[voc-analysis] Generating markdown for %s (taxonomy: %d categories, %d classified reviews)",
         company_name,
         len(validate_output.get("categories", [])),
         len(classified_reviews),
     )
 
+    # Use streaming call for reliability (same as other pipeline LLM calls)
+    # But we want raw text output, not JSON-schema-enforced.
+    # Use a minimal schema that just wraps the markdown in a string field.
     result = call_claude_json_schema_streaming(
         settings=settings,
         model="claude-opus-4-6",
-        system_prompt=VOC_ANALYSIS_SYSTEM_PROMPT,
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        schema={"type": "object", "properties": {"content": {"type": "string"}}, "required": ["content"]},
+        temperature=0.5,
+        max_tokens=64000,
+    )
+
+    markdown = result.get("content", "")
+    logger.info("[voc-analysis] Generated %d chars of markdown for %s", len(markdown), company_name)
+    return markdown
+
+
+# ---------------------------------------------------------------------------
+# Step 2: Parse markdown to structured JSON (Sonnet)
+# ---------------------------------------------------------------------------
+
+PARSE_SYSTEM_PROMPT = """You are a precise text-to-JSON converter. You receive a VoC Creative Strategy Analysis written in markdown and extract its content into a structured JSON schema.
+
+Rules:
+- Extract content verbatim from the markdown. Do not summarise, rephrase, or add interpretation.
+- Every customer quote must be preserved exactly as written.
+- If a field in the schema has no corresponding content in the markdown, use null for nullable fields or empty arrays/strings for required fields.
+- The emails section: extract each email's subject line, preview text, body (split into typed sections), CTA, and strategic intent exactly as written.
+- The deck_markdown field: include the full Sections 1-6 content as a single markdown string (everything except the emails).
+- Output valid JSON only. No commentary."""
+
+PARSE_USER_PROMPT = """Extract the following VoC Creative Strategy Analysis markdown into the JSON schema.
+
+## Markdown Analysis
+
+{markdown_content}
+
+Extract into the required JSON schema. Preserve all verbatims, dates, and content exactly as written."""
+
+
+def parse_voc_analysis_to_json(
+    *,
+    settings: Any,
+    markdown_content: str,
+) -> Dict[str, Any]:
+    """Parse a markdown VoC analysis into structured JSON.
+
+    Uses Sonnet (fast, cheap) with JSON schema enforcement.
+    Returns the structured dict matching VOC_ANALYSIS_SCHEMA.
+    """
+    from app.services.voc_coding_chain_service import call_claude_json_schema_streaming
+
+    user_prompt = PARSE_USER_PROMPT.replace("{markdown_content}", markdown_content)
+
+    logger.info("[voc-parse] Parsing %d chars of markdown to JSON", len(markdown_content))
+
+    result = call_claude_json_schema_streaming(
+        settings=settings,
+        model="claude-sonnet-4-5-20250929",
+        system_prompt=PARSE_SYSTEM_PROMPT,
         user_prompt=user_prompt,
         schema=VOC_ANALYSIS_SCHEMA,
-        temperature=0.5,
+        temperature=0.0,
         max_tokens=64000,
     )
 
     email_count = len(result.get("emails", []))
     insight_count = len(result.get("creative_strategy_insights", []))
-    logger.info(
-        "[voc-analysis] Generated %d insights, %d emails for %s",
-        insight_count, email_count, company_name,
-    )
+    logger.info("[voc-parse] Extracted %d insights, %d emails", insight_count, email_count)
     return result
 
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 def _build_classification_summary(classified_reviews: List[Dict[str, Any]]) -> str:
     """Summarise classified reviews by topic with counts and top verbatims."""

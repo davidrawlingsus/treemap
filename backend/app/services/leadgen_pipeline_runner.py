@@ -303,6 +303,7 @@ def _load_live_prompts(db) -> Dict[str, str]:
         "voc_validate": ("validate_system", "validate_user"),
         "voc_classify": ("classify_system", "classify_user"),
         "voc_generate": ("generate_system", "generate_user"),
+        "deck-and-email": ("deck_email_system", None),
     }
     defaults = {
         "extract_system": EXTRACT_SYSTEM_PROMPT_DEFAULT,
@@ -315,6 +316,7 @@ def _load_live_prompts(db) -> Dict[str, str]:
         "classify_user": CLASSIFY_USER_PROMPT_DEFAULT,
         "generate_system": GENERATE_SYSTEM_PROMPT,
         "generate_user": GENERATE_USER_PROMPT,
+        "deck_email_system": "",  # loaded from DB prompt with purpose "deck-and-email"
     }
     result = dict(defaults)
 
@@ -671,14 +673,20 @@ def _run_full_pipeline(run_id: str) -> None:
 
         db.commit()
 
-        # ── Step 8: Generate VoC analysis ──
+        # ── Step 8a: Generate VoC analysis (Opus → markdown) ──
         _update_status(db, run, "generating_analysis")
+        voc_markdown = None
+        voc_analysis = None
         try:
-            from app.services.voc_analysis_service import generate_voc_analysis
+            from app.services.voc_analysis_service import generate_voc_analysis_markdown, parse_voc_analysis_to_json
             from app.models.leadgen_pipeline_output import LeadgenPipelineOutput
 
-            voc_analysis = generate_voc_analysis(
+            # Load the live prompt for deck-and-email
+            deck_email_prompt = prompts.get("deck_email_system", "") or prompts.get("generate_system", "")
+
+            voc_markdown = generate_voc_analysis_markdown(
                 settings=settings,
+                system_prompt=deck_email_prompt,
                 company_name=company_name,
                 company_url=company_url,
                 context_text=context_text,
@@ -687,31 +695,57 @@ def _run_full_pipeline(run_id: str) -> None:
                 ad_topics=[p.get("topic_label", "") for p in payloads],
             )
 
+            # Store the markdown output
             db.add(LeadgenPipelineOutput(
                 run_id=run_id,
-                step_type="voc_analysis",
+                step_type="voc_analysis_markdown",
                 step_order=8,
-                output=voc_analysis,
+                output={"markdown": voc_markdown},
             ))
-            db.commit()
-            logger.info("[pipeline %s] VoC analysis: %d insights, %d emails",
-                         run_id,
-                         len(voc_analysis.get("creative_strategy_insights", [])),
-                         len(voc_analysis.get("emails", [])))
+            db.flush()
+            logger.info("[pipeline %s] VoC markdown: %d chars", run_id, len(voc_markdown))
+
         except Exception as e:
-            logger.error("[pipeline %s] VoC analysis failed (continuing): %s", run_id, e)
-            voc_analysis = None
+            logger.error("[pipeline %s] VoC analysis markdown failed (continuing): %s", run_id, e)
+
+        # ── Step 8b: Parse markdown to JSON (Sonnet) ──
+        if voc_markdown:
+            try:
+                voc_analysis = parse_voc_analysis_to_json(
+                    settings=settings,
+                    markdown_content=voc_markdown,
+                )
+
+                db.add(LeadgenPipelineOutput(
+                    run_id=run_id,
+                    step_type="voc_analysis_json",
+                    step_order=9,
+                    output=voc_analysis,
+                ))
+                db.commit()
+                logger.info("[pipeline %s] VoC JSON: %d insights, %d emails",
+                             run_id,
+                             len(voc_analysis.get("creative_strategy_insights", [])),
+                             len(voc_analysis.get("emails", [])))
+            except Exception as e:
+                logger.error("[pipeline %s] VoC JSON parse failed (continuing): %s", run_id, e)
 
         # ── Step 9: Generate Gamma deck (if configured) ──
         gamma_url = None
         try:
             from app.services.gamma_service import generate_deck
             gamma_api_key = getattr(settings, "gamma_api_key", None)
-            if voc_analysis and gamma_api_key:
+            # Use deck_markdown from JSON if available, otherwise use full markdown
+            deck_content = ""
+            if voc_analysis:
+                deck_content = voc_analysis.get("deck_markdown", "")
+            if not deck_content and voc_markdown:
+                deck_content = voc_markdown
+            if gamma_api_key and deck_content:
                 gamma_url = generate_deck(
                     api_key=gamma_api_key,
                     title=f"VoC Creative Strategy: {company_name}",
-                    markdown_content=voc_analysis.get("deck_markdown", ""),
+                    markdown_content=deck_content,
                 )
         except Exception as e:
             logger.warning("[pipeline %s] Gamma deck failed: %s", run_id, e)
