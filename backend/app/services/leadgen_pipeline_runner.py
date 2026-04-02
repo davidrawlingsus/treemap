@@ -620,72 +620,76 @@ def _run_full_pipeline(run_id: str) -> None:
         lead_client = create_or_update_lead_client(db, run)
         db.commit()
 
-        # ── Step 7: Generate ads ──
-        _update_status(db, run, "generating_ads")
-        business_context = {
-            "brand": company_name,
-            "product": context_text,
-            "website": company_url,
-        }
-        payloads = build_creative_payloads(validate_output, raw_rows, business_context)
-        logger.info("[pipeline %s] Generating ads for %d topics (validate has %d categories, %d total topics)",
-                     run_id, len(payloads),
-                     len(validate_output.get("categories", [])),
-                     sum(len(c.get("topics", [])) for c in validate_output.get("categories", [])))
-
+        # ── Step 7: Generate ads (skippable) ──
         total_ads = 0
-        MAX_TOTAL_ADS = 36
-        for payload in payloads:
-            if total_ads >= MAX_TOTAL_ADS:
-                break
-            user_prompt = assemble_user_prompt(prompts["generate_user"], payload)
-            try:
-                ad_result = call_claude_json_schema_streaming(
-                    settings=settings,
-                    model="claude-opus-4-6",
-                    system_prompt=prompts["generate_system"],
-                    user_prompt=user_prompt,
-                    schema=GENERATE_AD_SCHEMA,
-                    temperature=0.7,
-                    max_tokens=64000,
-                )
-                ads = ad_result.get("ads", [])
-                if isinstance(ads, str):
-                    try:
-                        ads = json.loads(ads)
-                    except (json.JSONDecodeError, ValueError):
-                        ads = []
+        payloads = []
+        if settings.leadgen_skip_ad_generation:
+            logger.info("[pipeline %s] Skipping ad generation (LEADGEN_SKIP_AD_GENERATION=true)", run_id)
+        else:
+            _update_status(db, run, "generating_ads")
+            business_context = {
+                "brand": company_name,
+                "product": context_text,
+                "website": company_url,
+            }
+            payloads = build_creative_payloads(validate_output, raw_rows, business_context)
+            logger.info("[pipeline %s] Generating ads for %d topics (validate has %d categories, %d total topics)",
+                         run_id, len(payloads),
+                         len(validate_output.get("categories", [])),
+                         sum(len(c.get("topics", [])) for c in validate_output.get("categories", [])))
 
-                remaining = MAX_TOTAL_ADS - total_ads
-                if len(ads) > remaining:
-                    ads = ads[:remaining]
-                total_ads += len(ads)
+            MAX_TOTAL_ADS = 36
+            for payload in payloads:
+                if total_ads >= MAX_TOTAL_ADS:
+                    break
+                user_prompt = assemble_user_prompt(prompts["generate_user"], payload)
+                try:
+                    ad_result = call_claude_json_schema_streaming(
+                        settings=settings,
+                        model="claude-opus-4-6",
+                        system_prompt=prompts["generate_system"],
+                        user_prompt=user_prompt,
+                        schema=GENERATE_AD_SCHEMA,
+                        temperature=0.7,
+                        max_tokens=64000,
+                    )
+                    ads = ad_result.get("ads", [])
+                    if isinstance(ads, str):
+                        try:
+                            ads = json.loads(ads)
+                        except (json.JSONDecodeError, ValueError):
+                            ads = []
 
-                # Save as FacebookAd records
-                for ad in ads:
-                    full_json = dict(ad)
-                    if full_json.get("testType") and not full_json.get("angle"):
-                        full_json["angle"] = full_json.pop("testType")
+                    remaining = MAX_TOTAL_ADS - total_ads
+                    if len(ads) > remaining:
+                        ads = ads[:remaining]
+                    total_ads += len(ads)
 
-                    db.add(FacebookAd(
-                        client_id=lead_client.id,
-                        primary_text=ad.get("primary_text", ""),
-                        headline=ad.get("headline", ""),
-                        description=ad.get("description", ""),
-                        call_to_action=ad.get("call_to_action", "LEARN_MORE"),
-                        destination_url=ad.get("destination_url", ""),
-                        voc_evidence=ad.get("voc_evidence", []),
-                        full_json=full_json,
-                        status="draft",
-                    ))
-                db.flush()
-                logger.info("[pipeline %s] Generated %d ads for '%s' (total: %d)",
-                            run_id, len(ads), payload.get("topic_label", ""), total_ads)
-            except Exception as e:
-                logger.error("[pipeline %s] Ad generation failed for '%s': %s",
-                             run_id, payload.get("topic_label", ""), e)
+                    # Save as FacebookAd records
+                    for ad in ads:
+                        full_json = dict(ad)
+                        if full_json.get("testType") and not full_json.get("angle"):
+                            full_json["angle"] = full_json.pop("testType")
 
-        db.commit()
+                        db.add(FacebookAd(
+                            client_id=lead_client.id,
+                            primary_text=ad.get("primary_text", ""),
+                            headline=ad.get("headline", ""),
+                            description=ad.get("description", ""),
+                            call_to_action=ad.get("call_to_action", "LEARN_MORE"),
+                            destination_url=ad.get("destination_url", ""),
+                            voc_evidence=ad.get("voc_evidence", []),
+                            full_json=full_json,
+                            status="draft",
+                        ))
+                    db.flush()
+                    logger.info("[pipeline %s] Generated %d ads for '%s' (total: %d)",
+                                run_id, len(ads), payload.get("topic_label", ""), total_ads)
+                except Exception as e:
+                    logger.error("[pipeline %s] Ad generation failed for '%s': %s",
+                                 run_id, payload.get("topic_label", ""), e)
+
+            db.commit()
 
         # ── Step 8a: Generate VoC analysis (Opus → markdown) ──
         _update_status(db, run, "generating_analysis")

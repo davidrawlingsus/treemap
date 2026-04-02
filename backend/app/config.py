@@ -112,6 +112,7 @@ class Settings(BaseSettings):
     apify_max_reviews: int = Field(default=5000)
     shopify_ingest_shared_secret: str | None = Field(default=None)
     shopify_ingest_max_payload_bytes: int = Field(default=262144)
+    leadgen_skip_ad_generation: bool = Field(default=True)
     voc_coding_enabled: bool = Field(default=False)
     voc_coding_discover_model: str = Field(default="claude-sonnet-4-5-20250929")
     voc_coding_code_model: str = Field(default="claude-haiku-4-5-20251001")
