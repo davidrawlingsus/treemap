@@ -56,10 +56,6 @@ def generate_deck(
         "numCards": 20,
         "themeId": "zlj1eyfj4b520tb",  # Map_The_Gap theme
         "exportAs": "pdf",
-        "textOptions": {
-            "tone": "professional",
-            "amount": "detailed",
-        },
         "imageOptions": {
             "source": "aiGenerated",
             "model": "ideogram-v3",
@@ -103,8 +99,10 @@ def generate_deck(
             # Log warnings from the response
             warnings = data.get("warnings", [])
             if warnings:
-                for w in warnings:
-                    logger.warning("[gamma] Warning: %s", w)
+                if isinstance(warnings, str):
+                    logger.warning("[gamma] Warnings: %s", warnings)
+                else:
+                    logger.warning("[gamma] Warnings: %s", warnings)
 
             generation_id = data.get("id") or data.get("generationId")
             if not generation_id:
