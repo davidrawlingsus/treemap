@@ -235,10 +235,24 @@ async def startup_event():
                 if count:
                     logger.info("[background] Sent %d scheduled emails", count)
 
+                # Pick up rerun_analysis requests
+                from app.services.leadgen_pipeline_runner import rerun_analysis_background
+                rerun_requests = (
+                    _db.query(LeadgenVocRun)
+                    .filter(LeadgenVocRun.coding_status == "rerun_analysis")
+                    .all()
+                )
+                for run in rerun_requests:
+                    if run.run_id not in _active_runs:
+                        logger.info("[background] Rerunning analysis for %s (%s)",
+                                    run.run_id[:16], run.company_name)
+                        _active_runs.add(run.run_id)
+                        rerun_analysis_background(run.run_id)
+
                 # Restart any non-terminal runs that aren't already running
                 cutoff = datetime.now(tz.utc) - timedelta(hours=3)
                 stale_threshold = datetime.now(tz.utc) - timedelta(minutes=10)
-                terminal = {"completed", "failed", "disabled"}
+                terminal = {"completed", "failed", "disabled", "rerun_analysis"}
                 stuck = (
                     _db.query(LeadgenVocRun)
                     .filter(
