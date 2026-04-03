@@ -26,6 +26,7 @@ PIPELINE_STEPS = [
     "scraping_trustpilot",
     "scraping_reviews_io",
     "scraping_yotpo",
+    "scraping_google_reviews",
     "extracting_context",
     "extracting",
     "building_taxonomy",

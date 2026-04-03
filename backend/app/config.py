@@ -112,6 +112,8 @@ class Settings(BaseSettings):
     apify_max_reviews: int = Field(default=5000)
     shopify_ingest_shared_secret: str | None = Field(default=None)
     shopify_ingest_max_payload_bytes: int = Field(default=262144)
+    google_places_api_key: str | None = Field(default=None)
+    apify_google_reviews_actor_id: str | None = Field(default=None)
     leadgen_skip_ad_generation: str = Field(default="true")
 
     @property

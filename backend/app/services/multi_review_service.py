@@ -25,6 +25,7 @@ PLATFORM_DISPLAY = {
     "trustpilot": "Trustpilot",
     "reviews_io": "Reviews.io",
     "yotpo": "Yotpo",
+    "google_reviews": "Google Reviews",
 }
 
 
@@ -58,8 +59,9 @@ def fetch_reviews_best_platform(
     # Fetch from each platform, trying free APIs first
     results: List[FetchResult] = []
 
-    # Sort: free APIs first (reviews_io, yotpo), then paid (trustpilot)
-    free_first = sorted(detected, key=lambda p: 0 if p.platform != "trustpilot" else 1)
+    # Sort: free APIs first (reviews_io, yotpo), then paid (trustpilot, google_reviews via Apify)
+    _PAID_PLATFORMS = {"trustpilot", "google_reviews"}
+    free_first = sorted(detected, key=lambda p: 0 if p.platform not in _PAID_PLATFORMS else 1)
 
     for platform in free_first:
         if on_status:
@@ -75,6 +77,23 @@ def fetch_reviews_best_platform(
             elif platform.platform == "yotpo":
                 from app.services.yotpo_service import fetch_yotpo_reviews
                 reviews = fetch_yotpo_reviews(platform.identifier, max_reviews)
+            elif platform.platform == "google_reviews":
+                google_key = getattr(settings, "google_places_api_key", None)
+                apify_google_actor = getattr(settings, "apify_google_reviews_actor_id", None)
+                apify_token = getattr(settings, "apify_api_token", None)
+                if google_key and apify_token and apify_google_actor:
+                    from app.services.google_reviews_service import fetch_google_reviews_by_domain
+                    reviews = fetch_google_reviews_by_domain(
+                        api_key=google_key,
+                        company_domain=platform.identifier,
+                        max_reviews=max_reviews,
+                        apify_api_token=apify_token,
+                        apify_google_actor_id=apify_google_actor,
+                        apify_timeout_seconds=getattr(settings, "apify_timeout_seconds", 300),
+                    )
+                else:
+                    logger.info("[multi-review] Skipping Google Reviews — API keys not configured")
+                    continue
             elif platform.platform == "trustpilot":
                 from app.services.trustpilot_apify_service import fetch_trustpilot_reviews_by_domain
                 reviews = fetch_trustpilot_reviews_by_domain(

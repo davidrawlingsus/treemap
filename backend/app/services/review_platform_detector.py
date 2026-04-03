@@ -23,8 +23,8 @@ USER_AGENT = (
 
 @dataclass
 class DetectedPlatform:
-    platform: str       # "trustpilot" | "reviews_io" | "yotpo"
-    identifier: str     # domain (TP) | store ID (R.io) | app_key (Yotpo)
+    platform: str       # "trustpilot" | "reviews_io" | "yotpo" | "google_reviews"
+    identifier: str     # domain (TP) | store ID (R.io) | app_key (Yotpo) | domain (Google)
     confidence: str = "medium"  # "high" | "medium" | "low"
 
 
@@ -57,6 +57,9 @@ def detect_review_platforms(
         if _detect_trustpilot_widget(html):
             detected.append(DetectedPlatform("trustpilot", company_domain, "high"))
             logger.info("[detect] Found Trustpilot widget on page")
+
+    # Always include Google Reviews as a source (works by domain lookup)
+    detected.append(DetectedPlatform("google_reviews", company_domain, "medium"))
 
     # Always include Trustpilot as fallback (works by domain without widget detection)
     if not any(p.platform == "trustpilot" for p in detected):

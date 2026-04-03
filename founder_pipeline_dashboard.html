@@ -117,7 +117,7 @@
         let refreshTimer = null;
 
         const STEP_ORDER = [
-            'queued','detecting_platforms','scraping','scraping_trustpilot','scraping_reviews_io','scraping_yotpo',
+            'queued','detecting_platforms','scraping','scraping_trustpilot','scraping_reviews_io','scraping_yotpo','scraping_google_reviews',
             'extracting_context','extracting','building_taxonomy','validating','classifying',
             'generating_ads','generating_analysis','scheduling_emails','completed'
         ];
@@ -161,7 +161,7 @@
         function progressDots(status, stepTimes) {
             const completedSteps = new Set(Object.keys(stepTimes || {}));
             // Map scraping variants
-            if (['scraping_trustpilot','scraping_reviews_io','scraping_yotpo'].some(s => completedSteps.has(s))) {
+            if (['scraping_trustpilot','scraping_reviews_io','scraping_yotpo','scraping_google_reviews'].some(s => completedSteps.has(s))) {
                 completedSteps.add('scraping');
             }
 
