@@ -6,6 +6,7 @@ Fetches Google Maps reviews for a business by:
 2. Scraping reviews via Apify actor (place_id → reviews)
 """
 
+import hashlib
 import logging
 import re
 from typing import Any, Dict, List, Optional
@@ -202,6 +203,18 @@ def _fetch_reviews_via_apify(
     return normalized
 
 
+def _short_review_id(raw_id: str) -> str:
+    """Shorten Google's long base64 review IDs to fit varchar(50) after 'gr_' prefix.
+
+    Produces a deterministic 16-char hex hash (collision-safe for thousands of reviews).
+    """
+    raw = str(raw_id or "")
+    if not raw:
+        return ""
+    # 16 hex chars = 8 bytes of SHA-256, fits easily within 50 - len("gr_") = 47
+    return hashlib.sha256(raw.encode()).hexdigest()[:16]
+
+
 def _normalize_apify_review(item: Dict[str, Any]) -> Dict[str, Any]:
     """Normalize an Apify Google Maps review to the standard format.
 
@@ -213,7 +226,7 @@ def _normalize_apify_review(item: Dict[str, Any]) -> Dict[str, Any]:
         return {}
 
     return {
-        "review_id": str(item.get("reviewId") or item.get("reviewerId") or ""),
+        "review_id": _short_review_id(item.get("reviewId") or item.get("reviewerId") or ""),
         "rating": item.get("stars") or item.get("rating"),
         "title": "",  # Google reviews don't have titles
         "text": text,
