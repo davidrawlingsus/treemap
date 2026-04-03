@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 GAMMA_API_BASE = "https://public-api.gamma.app/v1.0"
 POLL_INTERVAL = 5  # seconds
 MAX_POLLS = 120  # 10 minutes max wait
+MAX_RETRIES = 2  # retry on 429 rate limit
 
 
 @dataclass
@@ -48,47 +49,78 @@ def generate_deck(
         "Content-Type": "application/json",
     }
 
-    # Step 1: Start generation
-    try:
-        body = {
-            "inputText": f"# {title}\n\n{markdown_content}",
-            "textMode": "preserve",
-            "format": "presentation",
-            "numCards": 20,
-            "themeId": "zlj1eyfj4b520tb",  # Map_The_Gap theme
-            "exportAs": "pdf",
-            "textOptions": {
-                "tone": "professional",
-                "amount": "detailed",
-            },
-            "imageOptions": {
-                "source": "aigenerated",
-                "model": "nanobanana",
-                "stylePreset": "illustration",
-            },
-            "sharingOptions": {
-                "externalAccess": "view",
-            },
-        }
+    body = {
+        "inputText": f"# {title}\n\n{markdown_content}",
+        "textMode": "preserve",
+        "format": "presentation",
+        "numCards": 20,
+        "themeId": "zlj1eyfj4b520tb",  # Map_The_Gap theme
+        "exportAs": "pdf",
+        "textOptions": {
+            "tone": "professional",
+            "amount": "detailed",
+        },
+        "imageOptions": {
+            "source": "aigenerated",
+            "model": "nanobanana",
+            "stylePreset": "illustration",
+        },
+        "sharingOptions": {
+            "externalAccess": "view",
+        },
+    }
 
-        logger.info("[gamma] Starting generation for '%s' (%d chars)", title, len(markdown_content))
-        resp = requests.post(
-            f"{GAMMA_API_BASE}/generations",
-            headers=headers,
-            json=body,
-            timeout=30,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        generation_id = data.get("id") or data.get("generationId")
-        if not generation_id:
-            logger.warning("[gamma] No generation ID in response: %s", data)
-            return None
+    logger.info("[gamma] Starting generation for '%s' (%d chars)", title, len(markdown_content))
 
-        logger.info("[gamma] Generation started: %s", generation_id)
+    # Step 1: Start generation (with retry on 429)
+    generation_id = None
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            resp = requests.post(
+                f"{GAMMA_API_BASE}/generations",
+                headers=headers,
+                json=body,
+                timeout=30,
+            )
 
-    except Exception as e:
-        logger.warning("[gamma] Failed to start generation: %s", e)
+            if resp.status_code == 429:
+                retry_after = int(resp.headers.get("Retry-After", 30))
+                logger.warning("[gamma] Rate limited (429). Retrying in %ds (attempt %d/%d)",
+                               retry_after, attempt + 1, MAX_RETRIES + 1)
+                time.sleep(retry_after)
+                continue
+
+            if resp.status_code == 403:
+                logger.error("[gamma] Access denied (403): %s", resp.text[:500])
+                return None
+
+            if not resp.ok:
+                logger.error("[gamma] API error %d: %s", resp.status_code, resp.text[:500])
+                return None
+
+            data = resp.json()
+
+            # Log warnings from the response
+            warnings = data.get("warnings", [])
+            if warnings:
+                for w in warnings:
+                    logger.warning("[gamma] Warning: %s", w)
+
+            generation_id = data.get("id") or data.get("generationId")
+            if not generation_id:
+                logger.error("[gamma] No generation ID in response: %s", str(data)[:500])
+                return None
+
+            logger.info("[gamma] Generation started: %s", generation_id)
+            break
+
+        except Exception as e:
+            logger.error("[gamma] Failed to start generation (attempt %d/%d): %s",
+                         attempt + 1, MAX_RETRIES + 1, e)
+            if attempt < MAX_RETRIES:
+                time.sleep(5)
+
+    if not generation_id:
         return None
 
     # Step 2: Poll until complete
@@ -100,7 +132,17 @@ def generate_deck(
                 headers=headers,
                 timeout=15,
             )
-            poll_resp.raise_for_status()
+
+            if poll_resp.status_code == 429:
+                retry_after = int(poll_resp.headers.get("Retry-After", 10))
+                logger.warning("[gamma] Poll rate limited. Waiting %ds", retry_after)
+                time.sleep(retry_after)
+                continue
+
+            if not poll_resp.ok:
+                logger.warning("[gamma] Poll error %d: %s", poll_resp.status_code, poll_resp.text[:300])
+                continue
+
             poll_data = poll_resp.json()
             status = poll_data.get("status", "")
 
@@ -118,7 +160,7 @@ def generate_deck(
 
             if status == "failed":
                 error = poll_data.get("error") or poll_data.get("message") or "Unknown error"
-                logger.warning("[gamma] Generation failed: %s", error)
+                logger.error("[gamma] Generation failed: %s | Full response: %s", error, str(poll_data)[:500])
                 return None
 
             if i % 6 == 0:
@@ -127,7 +169,7 @@ def generate_deck(
         except Exception as e:
             logger.warning("[gamma] Poll error (attempt %d): %s", i + 1, e)
 
-    logger.warning("[gamma] Generation timed out after %ds", MAX_POLLS * POLL_INTERVAL)
+    logger.error("[gamma] Generation timed out after %ds for '%s'", MAX_POLLS * POLL_INTERVAL, title)
     return None
 
 
