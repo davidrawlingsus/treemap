@@ -43,6 +43,9 @@ def create_email_series(
 
     for email in emails_data:
         send_day = email.get("send_day", 0)
+        # Email 1 always sends immediately regardless of send_day
+        if email.get("sequence_number", 0) == 1:
+            send_day = 0
         scheduled = now + timedelta(days=send_day)
 
         # Replace template placeholders throughout

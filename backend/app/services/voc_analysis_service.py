@@ -282,7 +282,7 @@ VOC_ANALYSIS_SCHEMA: Dict[str, Any] = {
                 "required": ["sequence_number", "send_day", "subject_line", "preview_text", "headline", "body_sections", "cta_text", "cta_url", "strategic_intent"],
                 "properties": {
                     "sequence_number": {"type": "integer", "minimum": 1, "maximum": 9},
-                    "send_day": {"type": "integer", "minimum": 1},
+                    "send_day": {"type": "integer", "minimum": 0},
                     "subject_line": {"type": "string"},
                     "preview_text": {"type": "string", "minLength": 30, "maxLength": 100},
                     "headline": {"type": "string"},

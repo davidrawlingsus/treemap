@@ -61,7 +61,7 @@ def generate_deck(
             "amount": "detailed",
         },
         "imageOptions": {
-            "source": "aigenerated",
+            "source": "aiGenerated",
             "model": "nanobanana",
             "stylePreset": "illustration",
         },

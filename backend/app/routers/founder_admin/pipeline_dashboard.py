@@ -196,3 +196,71 @@ def cancel_run(
     run.coding_status = "failed"
     db.commit()
     return {"cancelled": True, "run_id": run_id}
+
+
+@router.post("/api/founder-admin/pipeline-dashboard/{run_id}/backfill-gamma")
+def backfill_gamma(
+    run_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Generate Gamma deck for a completed run that's missing one."""
+    import threading
+    from app.config import get_settings
+    from app.models.leadgen_pipeline_output import LeadgenPipelineOutput
+
+    run = db.query(LeadgenVocRun).filter(LeadgenVocRun.run_id == run_id).first()
+    if not run:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    # Get deck_markdown from JSON output
+    json_output = (
+        db.query(LeadgenPipelineOutput)
+        .filter(LeadgenPipelineOutput.run_id == run_id, LeadgenPipelineOutput.step_type == "voc_analysis_json")
+        .first()
+    )
+    if not json_output:
+        # Fall back to raw markdown
+        md_output = (
+            db.query(LeadgenPipelineOutput)
+            .filter(LeadgenPipelineOutput.run_id == run_id, LeadgenPipelineOutput.step_type == "voc_analysis_markdown")
+            .first()
+        )
+        deck_content = (md_output.output or {}).get("markdown", "") if md_output else ""
+    else:
+        deck_content = (json_output.output or {}).get("deck_markdown", "")
+
+    if not deck_content:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail="No deck content available for this run")
+
+    settings = get_settings()
+    company_name = run.company_name
+
+    def _generate():
+        from app.services.gamma_service import generate_deck
+        from app.database import SessionLocal
+        from sqlalchemy.orm.attributes import flag_modified
+
+        result = generate_deck(
+            api_key=getattr(settings, "gamma_api_key", None),
+            title=f"VoC Creative Strategy: {company_name}",
+            markdown_content=deck_content,
+        )
+        if result:
+            _db = SessionLocal()
+            _run = _db.query(LeadgenVocRun).filter(LeadgenVocRun.run_id == run_id).first()
+            if _run:
+                payload = _run.payload or {}
+                if result.gamma_url:
+                    payload["gamma_url"] = result.gamma_url
+                if result.pdf_url:
+                    payload["pdf_url"] = result.pdf_url
+                _run.payload = payload
+                flag_modified(_run, "payload")
+                _db.commit()
+            _db.close()
+
+    threading.Thread(target=_generate, daemon=True).start()
+    return {"started": True, "run_id": run_id, "deck_content_length": len(deck_content)}
