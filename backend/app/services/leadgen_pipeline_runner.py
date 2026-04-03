@@ -623,7 +623,7 @@ def _run_full_pipeline(run_id: str) -> None:
         # ── Step 7: Generate ads (skippable) ──
         total_ads = 0
         payloads = []
-        if settings.leadgen_skip_ad_generation:
+        if settings.skip_ad_generation:
             logger.info("[pipeline %s] Skipping ad generation (LEADGEN_SKIP_AD_GENERATION=true)", run_id)
         else:
             _update_status(db, run, "generating_ads")
