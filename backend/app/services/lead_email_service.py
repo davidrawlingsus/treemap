@@ -38,10 +38,11 @@ def create_email_series(
         logger.warning("[email-series] No emails in VoC analysis for run %s", run_id)
         return []
 
-    # Delete any existing emails for this run (idempotent on rerun)
-    existing = db.query(LeadEmail).filter(LeadEmail.run_id == run_id).delete(synchronize_session=False)
+    # Skip if emails already exist for this run (prevent duplicates on re-trigger)
+    existing = db.query(LeadEmail).filter(LeadEmail.run_id == run_id).count()
     if existing:
-        logger.info("[email-series] Deleted %d existing emails for run %s before recreating", existing, run_id)
+        logger.info("[email-series] %d emails already exist for run %s, skipping creation", existing, run_id)
+        return []
 
     now = datetime.now(timezone.utc)
     created: List[LeadEmail] = []
