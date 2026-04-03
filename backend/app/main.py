@@ -249,9 +249,10 @@ async def startup_event():
                         _active_runs.add(run.run_id)
                         rerun_analysis_background(run.run_id)
 
-                # Restart any non-terminal runs that aren't already running
+                # Restart any non-terminal runs that haven't been updated in 30 min
+                # (Opus VoC analysis can take 15-20 min, so 10 min was too aggressive)
                 cutoff = datetime.now(tz.utc) - timedelta(hours=3)
-                stale_threshold = datetime.now(tz.utc) - timedelta(minutes=10)
+                stale_threshold = datetime.now(tz.utc) - timedelta(minutes=30)
                 terminal = {"completed", "failed", "disabled", "rerun_analysis"}
                 stuck = (
                     _db.query(LeadgenVocRun)
@@ -263,23 +264,29 @@ async def startup_event():
                     .all()
                 )
                 for run in stuck:
-                    if run.run_id not in _active_runs:
-                        # Check if this run has voc rows — if yes but no pipeline outputs,
-                        # it was likely flushed by a rerun and needs rerun_analysis, not full restart
-                        from app.models.leadgen_voc import LeadgenVocRow
-                        from app.models.leadgen_pipeline_output import LeadgenPipelineOutput as _PO
-                        has_rows = _db.query(LeadgenVocRow).filter(LeadgenVocRow.run_id == run.run_id).count() > 0
-                        has_outputs = _db.query(_PO).filter(_PO.run_id == run.run_id).count() > 0
-                        if has_rows and not has_outputs and run.coding_status in ("generating_analysis", "scheduling_emails"):
-                            logger.info("[background] Stale rerun detected %s (%s), re-triggering analysis",
-                                        run.run_id[:16], run.company_name)
-                            _active_runs.add(run.run_id)
-                            rerun_analysis_background(run.run_id)
-                        else:
-                            logger.info("[background] Restarting stale run %s (%s, status=%s)",
-                                        run.run_id[:16], run.company_name, run.coding_status)
-                            _active_runs.add(run.run_id)
-                            run_full_pipeline_background(run.run_id)
+                    if run.run_id in _active_runs:
+                        continue
+                    # Check if we already restarted this run recently (survives deploys)
+                    payload = run.payload or {}
+                    last_restart = payload.get("last_restart_at")
+                    if last_restart:
+                        try:
+                            lr = datetime.fromisoformat(last_restart.replace("Z", "+00:00"))
+                            if (datetime.now(tz.utc) - lr).total_seconds() < 1800:  # 30 min cooldown
+                                continue
+                        except (ValueError, TypeError):
+                            pass
+
+                    from sqlalchemy.orm.attributes import flag_modified as _fm
+                    payload["last_restart_at"] = datetime.now(tz.utc).isoformat()
+                    run.payload = payload
+                    _fm(run, "payload")
+                    _db.commit()
+
+                    _active_runs.add(run.run_id)
+                    logger.info("[background] Restarting stale run %s (%s, status=%s)",
+                                run.run_id[:16], run.company_name, run.coding_status)
+                    run_full_pipeline_background(run.run_id)
 
                 # Clean up completed/failed from active tracking
                 if _active_runs:
