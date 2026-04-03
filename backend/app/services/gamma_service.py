@@ -58,7 +58,7 @@ def generate_deck(
         "exportAs": "pdf",
         "imageOptions": {
             "source": "aiGenerated",
-            "model": "ideogram-v3",
+            "model": "gemini-3-pro-image",
             "stylePreset": "illustration",
         },
         "sharingOptions": {
