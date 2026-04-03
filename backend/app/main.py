@@ -235,19 +235,23 @@ async def startup_event():
                 if count:
                     logger.info("[background] Sent %d scheduled emails", count)
 
-                # Restart any queued runs that aren't already running
+                # Restart any non-terminal runs that aren't already running
                 cutoff = datetime.now(tz.utc) - timedelta(hours=3)
-                queued = (
+                stale_threshold = datetime.now(tz.utc) - timedelta(minutes=10)
+                terminal = {"completed", "failed", "disabled"}
+                stuck = (
                     _db.query(LeadgenVocRun)
                     .filter(
-                        LeadgenVocRun.coding_status == "queued",
+                        ~LeadgenVocRun.coding_status.in_(terminal),
                         LeadgenVocRun.created_at >= cutoff,
+                        LeadgenVocRun.updated_at <= stale_threshold,
                     )
                     .all()
                 )
-                for run in queued:
+                for run in stuck:
                     if run.run_id not in _active_runs:
-                        logger.info("[background] Starting queued run %s (%s)", run.run_id[:16], run.company_name)
+                        logger.info("[background] Restarting stale run %s (%s, status=%s)",
+                                    run.run_id[:16], run.company_name, run.coding_status)
                         _active_runs.add(run.run_id)
                         run_full_pipeline_background(run.run_id)
 
