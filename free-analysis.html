@@ -4,240 +4,650 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Free VoC Analysis | MapTheGap.ai</title>
-    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <meta name="description" content="Enter your URL. We'll read every review and show you the gap between what your ads say and what your customers need to hear. Free forever.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/styles/free-analysis.css">
     <script src="/config.js"></script>
 </head>
 <body>
-    <div class="container">
-        <!-- Screen 1: URL Input -->
-        <section id="screen-url" class="screen active">
-            <div class="card">
-                <h1>See what your customers are <em>really</em> saying</h1>
-                <p class="subtitle">We'll analyze your public reviews and show you the topics, sentiment patterns, and ad opportunities hiding in your customer feedback.</p>
-                <form id="urlForm" class="form-group">
-                    <label for="urlInput">Your company website</label>
-                    <input id="urlInput" type="text" placeholder="yourcompany.com" required>
-                    <button type="submit" class="btn-primary" id="urlSubmitBtn">Get Your Free Analysis</button>
-                </form>
-                <p class="disclaimer">We'll find your public reviews and analyze them. No spam, ever.</p>
-            </div>
-        </section>
 
-        <!-- Screen 2: Email Input -->
-        <section id="screen-email" class="screen">
-            <div class="card">
-                <h2>Where should we send your analysis?</h2>
-                <div class="confirm-domain">
-                    <span id="domainDisplay" class="domain-badge"></span>
-                </div>
-                <form id="emailForm" class="form-group">
-                    <label for="emailInput">Your work email</label>
-                    <input id="emailInput" type="email" placeholder="you@yourcompany.com" required autocomplete="email">
-                    <div class="btn-row">
-                        <button type="button" id="backBtn" class="btn-secondary">Back</button>
-                        <button type="submit" id="confirmBtn" class="btn-primary">Start Analysis</button>
-                    </div>
-                </form>
-            </div>
-        </section>
+<!-- ── NAV ──────────────────────────────────── -->
+<nav class="nav">
+    <a href="/" class="nav__logo">Map<span class="accent">The</span>Gap</a>
+    <span class="nav__tagline">Your customers write better copy than your agency.</span>
+</nav>
 
-        <!-- Screen 3: Processing / Confirmation -->
-        <section id="screen-processing" class="screen">
-            <div class="card">
-                <div class="processing-icon">
-                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                        <circle cx="24" cy="24" r="20" stroke="#1a73e8" stroke-width="3" stroke-dasharray="80 40" class="spinner"/>
-                    </svg>
-                </div>
-                <h2>We're analyzing your reviews</h2>
-                <p class="subtitle">This usually takes 8-10 minutes. We'll email you at <strong id="emailConfirm"></strong> when your analysis is ready.</p>
-                <div id="statusTracker" class="status-tracker">
-                    <div class="status-step" data-step="queued">Queued</div>
-                    <div class="status-step" data-step="detecting_platforms">Checking for review services</div>
-                    <div class="status-step" data-step="scraping">Scraping reviews</div>
-                    <div class="status-step" data-step="extracting_context">Analyzing website</div>
-                    <div class="status-step" data-step="extracting">Extracting signals</div>
-                    <div class="status-step" data-step="building_taxonomy">Building taxonomy</div>
-                    <div class="status-step" data-step="validating">Validating</div>
-                    <div class="status-step" data-step="classifying">Classifying reviews</div>
-                    <div class="status-step" data-step="generating_ads">Generating ads</div>
-                    <div class="status-step" data-step="generating_analysis">Building creative strategy</div>
-                    <div class="status-step" data-step="scheduling_emails">Preparing your insights</div>
-                    <div class="status-step" data-step="completed">Complete</div>
-                </div>
-                <p class="muted" id="statusNote">You can close this page — we'll send you an email when it's done.</p>
-            </div>
-        </section>
-
-        <!-- Screen 4: Error -->
-        <section id="screen-error" class="screen">
-            <div class="card">
-                <h2>Something went wrong</h2>
-                <p id="errorMessage" class="error-text"></p>
-                <button id="retryBtn" class="btn-primary">Try Again</button>
-            </div>
-        </section>
+<!-- ── HERO ─────────────────────────────────── -->
+<section class="hero wrap">
+    <div class="fade-up">
+        <span class="hero__pill">Free forever. No credit card. No catch.</span>
     </div>
 
-    <script>
-        const API_BASE = (() => {
-            const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-            const base = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
-            return isLocal ? base : 'https://content-exploration-featurebranch.up.railway.app';
-        })();
+    <div class="fade-up" style="transition-delay:0.1s">
+        <h1>
+            Your customers already wrote your best ads.
+            <span class="accent" style="font-style:italic">But nobody's listening.</span>
+        </h1>
+    </div>
 
-        let currentEmail = '';
-        let currentRunId = null;
-        let pollTimer = null;
+    <div class="fade-up" style="transition-delay:0.2s">
+        <p class="subtitle">
+            Enter your URL. We'll read every review. And show you the gap
+            between what your ads say and what your customers <em>need</em> to hear to convert.
+        </p>
+    </div>
 
-        // Screen navigation
-        function showScreen(id) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-        }
+    <div class="fade-up" style="transition-delay:0.3s">
+        <form id="heroUrlForm" class="hero__input-row">
+            <input type="url" id="heroUrlInput" placeholder="yourstore.com" required>
+            <button type="submit" class="btn-primary">SHOW ME THE GAP</button>
+        </form>
+    </div>
 
-        let currentUrl = null;
+    <div class="fade-up" style="transition-delay:0.4s">
+        <p class="hero__note">Works with Trustpilot, Google Reviews, Reviews.io, and Yotpo.</p>
+    </div>
+</section>
 
-        // URL form submit
-        document.getElementById('urlForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            let url = document.getElementById('urlInput').value.trim();
-            if (!url) return;
-            if (!url.startsWith('http')) url = 'https://' + url;
-            currentUrl = url;
+<!-- ── THE GAP — VISUAL PROOF ──────────────── -->
+<section class="section wrap">
+    <div class="text-center fade-up" style="margin-bottom:3.5rem">
+        <span class="eyebrow">The gap</span>
+        <h2 style="max-width:700px;margin:0 auto 1rem">
+            This is what it looks like when your ads and your customers
+            are speaking different languages
+        </h2>
+        <p class="subtitle" style="max-width:520px;margin:0 auto;font-size:1rem">
+            Real examples. Real brands. Real reviews. The left column is what the brand says. The right is what their customers say.
+        </p>
+    </div>
 
-            try {
-                const domain = new URL(url).hostname.replace(/^www\./, '');
-                document.getElementById('domainDisplay').textContent = domain;
-            } catch { document.getElementById('domainDisplay').textContent = url; }
-            showScreen('screen-email');
-        });
+    <div style="display:flex;flex-direction:column;gap:1rem">
+        <div class="gap-card fade-up">
+            <div class="gap-card__left">
+                <div class="gap-card__label">What Dermatica's ads say</div>
+                <div class="gap-card__quote">"Personalised skincare. Results from 6 weeks. Get a personalised formula designed for your skin."</div>
+            </div>
+            <div class="gap-card__right">
+                <div class="gap-card__label">What their customers say</div>
+                <div class="gap-card__quote">"I tried everything for years. GP prescriptions, expensive products, lotions and potions. Nothing worked. I was running out of hope. Dermatica was the thing that finally ended the search."</div>
+            </div>
+        </div>
 
-        // Back button
-        document.getElementById('backBtn').addEventListener('click', () => showScreen('screen-url'));
+        <div class="gap-card fade-up">
+            <div class="gap-card__left">
+                <div class="gap-card__label">What Rheal's ads say</div>
+                <div class="gap-card__quote">"Organic superfood blends made from the finest natural ingredients to support your daily wellness."</div>
+            </div>
+            <div class="gap-card__right">
+                <div class="gap-card__label">What their customers say</div>
+                <div class="gap-card__quote">"I went to the doctor. Nothing they gave me helped. I tried this. It solved the problem."</div>
+            </div>
+        </div>
 
-        // Email form submit → start analysis
-        document.getElementById('emailForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('emailInput').value.trim();
-            if (!email) return;
-            currentEmail = email;
+        <div class="gap-card fade-up">
+            <div class="gap-card__left">
+                <div class="gap-card__label">What Dermatica's ads say</div>
+                <div class="gap-card__quote">"24/7 dermatology support. Access your personalised treatment plan anytime."</div>
+            </div>
+            <div class="gap-card__right">
+                <div class="gap-card__label">What their customers say</div>
+                <div class="gap-card__quote">"You listen to my problems and concerns. You ask questions to understand where I'm coming from. You put my mind at rest and put me at ease."</div>
+            </div>
+        </div>
+    </div>
 
-            const btn = document.getElementById('confirmBtn');
-            btn.disabled = true;
-            btn.textContent = 'Starting...';
+    <div class="fade-up text-center" style="margin-top:3rem">
+        <p style="font-size:1.625rem;font-weight:700;line-height:1.4;font-style:italic">
+            See the gap? <span class="accent" style="font-style:normal">That's worth millions in wasted ad spend.</span>
+        </p>
+    </div>
+</section>
 
-            try {
-                const res = await fetch(`${API_BASE}/api/public/leadgen/start`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        work_email: currentEmail,
-                        company_url: currentUrl,
-                    }),
-                });
-                if (!res.ok) {
-                    const err = await res.json().catch(() => ({}));
-                    throw new Error(err.detail || `Request failed: ${res.status}`);
-                }
-                const data = await res.json();
-                currentRunId = data.run_id;
-                localStorage.setItem('leadgen_run_id', currentRunId);
-                localStorage.setItem('leadgen_email', currentEmail);
+<!-- ── THE TRANSLATION TAX ─────────────────── -->
+<section class="section wrap">
+    <div class="two-col">
+        <div class="fade-up">
+            <span class="eyebrow">The Translation Tax</span>
+            <h2 style="font-size:2.375rem;margin-bottom:1.5rem">
+                Every day your ads go out in your brand's language.<br>
+                <span class="text-dim">And every day, your customers scroll past them.</span>
+            </h2>
+            <div style="font-size:1rem;color:var(--fg-dim);line-height:1.75;display:flex;flex-direction:column;gap:1rem">
+                <p>Not because your product is bad. Because the words are wrong.</p>
+                <p>Your agency writes "supports digestive health." Your customer writes <span style="color:var(--fg);font-weight:600">"I could've passed for 3 months pregnant at any given time. It's just... gone."</span></p>
+                <p>Your agency writes "clinically proven results." Your customer writes <span style="color:var(--fg);font-weight:600">"I was 24 and had horrific acne. Now all I wear is blush and bronzer."</span></p>
+                <p>One of those stops the scroll at 11pm on a Tuesday. The other gets ignored.</p>
+                <p>The difference between those two sentences is the Translation Tax. The measurable cost of the gap between how your customers talk about your product and how your marketing talks about it.</p>
+            </div>
+        </div>
 
-                document.getElementById('emailConfirm').textContent = currentEmail;
-                showScreen('screen-processing');
-                startPolling();
-            } catch (err) {
-                document.getElementById('errorMessage').textContent = err.message;
-                showScreen('screen-error');
-            } finally {
-                btn.disabled = false;
-                btn.textContent = 'Start Analysis';
-            }
-        });
+        <div class="fade-up" style="transition-delay:0.15s">
+            <div class="card">
+                <div style="font-size:0.8125rem;color:var(--fg-dim);font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:1.5rem">
+                    What lives in your reviews right now
+                </div>
+                <ul class="bullet-list">
+                    <li>The exact words that stop the scroll</li>
+                    <li>The objections your ads don't answer</li>
+                    <li>The buying triggers your creative team doesn't know exist</li>
+                    <li>The audience segments buying despite your messaging</li>
+                    <li>The emotional purchase architecture driving every conversion</li>
+                    <li>The competitor framing you haven't seen</li>
+                </ul>
+                <div class="callout">
+                    Your customers wrote your creative strategy for free. In their own words. Without being asked.
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
 
-        // Retry
-        document.getElementById('retryBtn').addEventListener('click', () => showScreen('screen-url'));
+<!-- ── STATS STRIP ─────────────────────────── -->
+<section class="section--tight wrap stats-strip">
+    <div class="stats-grid">
+        <div class="fade-up">
+            <div class="stat__number">49+</div>
+            <div class="stat__label">Brands analysed</div>
+        </div>
+        <div class="fade-up" style="transition-delay:0.08s">
+            <div class="stat__number">13</div>
+            <div class="stat__label">Direct response dimensions scored</div>
+        </div>
+        <div class="fade-up" style="transition-delay:0.16s">
+            <div class="stat__number">5</div>
+            <div class="stat__label">Buying psychology lenses</div>
+        </div>
+        <div class="fade-up" style="transition-delay:0.24s">
+            <div class="stat__number">&pound;0</div>
+            <div class="stat__label">Cost to you</div>
+        </div>
+    </div>
+</section>
 
-        // Status polling
-        function startPolling() {
-            console.log('[poll] Starting polling for run', currentRunId);
-            if (pollTimer) clearInterval(pollTimer);
-            pollTimer = setInterval(pollStatus, 10000);
-            pollStatus(); // immediate first check
-        }
+<!-- ── HOW IT WORKS ────────────────────────── -->
+<section class="section wrap">
+    <div class="text-center fade-up" style="margin-bottom:4rem">
+        <span class="eyebrow">How it works</span>
+        <h2>10 minutes from URL to strategy</h2>
+    </div>
 
-        async function pollStatus() {
-            if (!currentRunId) return;
-            try {
-                console.log('[poll] Checking status for', currentRunId, 'via', API_BASE);
-                const res = await fetch(`${API_BASE}/api/public/leadgen/${currentRunId}/status`);
-                console.log('[poll] Response:', res.status);
-                if (!res.ok) return;
-                const data = await res.json();
-                console.log('[poll] Status:', data.coding_status, 'platform:', data.detected_platform);
-                updateStatusUI(data.coding_status, data.detected_platform);
+    <div class="three-col">
+        <div class="step fade-up">
+            <div class="step__number">1</div>
+            <h3>Enter your URL</h3>
+            <p>Paste your website. We find your reviews across Trustpilot, Google, Reviews.io, and Yotpo. Every review. Every word.</p>
+        </div>
+        <div class="step fade-up" style="transition-delay:0.1s">
+            <div class="step__number">2</div>
+            <h3>We read like a strategist</h3>
+            <p>Not sentiment analysis. Not star ratings. We extract buying triggers, objection patterns, identity shifts, emotional purchase architecture, and the language your ads should be using but aren't.</p>
+        </div>
+        <div class="step fade-up" style="transition-delay:0.2s">
+            <div class="step__number">3</div>
+            <h3>You see the gap</h3>
+            <p>A full creative strategy document. Daily briefs in your inbox. And a visual map of your reviews organised by the signals that actually drive purchase decisions.</p>
+        </div>
+    </div>
+</section>
 
-                if (data.coding_status === 'completed' || data.coding_status === 'failed') {
-                    clearInterval(pollTimer);
-                    localStorage.removeItem('leadgen_run_id');
-                    localStorage.removeItem('leadgen_email');
-                    if (data.coding_status === 'completed') {
-                        document.getElementById('statusNote').innerHTML =
-                            'Check your email for the link to view your analysis.';
-                        document.querySelector('.processing-icon').innerHTML =
-                            '<svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#22c55e"/><path d="M15 24l6 6 12-12" stroke="#fff" stroke-width="3" fill="none"/></svg>';
-                    } else {
-                        document.getElementById('statusNote').textContent =
-                            'The analysis encountered an error. Please try again.';
-                    }
-                }
-            } catch (e) {
-                console.warn('[poll] Error:', e.message);
-            }
-        }
+<!-- ── WHAT YOU GET ─────────────────────────── -->
+<section class="section wrap">
+    <div class="text-center fade-up" style="margin-bottom:3.5rem">
+        <span class="eyebrow">What you get</span>
+        <h2 style="max-width:600px;margin:0 auto 0.75rem">Everything. For free. No strings.</h2>
+        <p class="subtitle" style="max-width:480px;margin:0 auto;font-size:1rem">This isn't a teaser. It's the deliverable.</p>
+    </div>
 
-        const STATUS_ORDER = ['queued', 'detecting_platforms', 'scraping', 'extracting_context', 'extracting', 'building_taxonomy', 'validating', 'classifying', 'generating_ads', 'generating_analysis', 'scheduling_emails', 'completed'];
+    <div class="three-col">
+        <div class="deliverable fade-up">
+            <div class="deliverable__icon">&#128202;</div>
+            <h3>Creative Strategy Document</h3>
+            <p>The gap between what your ads say and what your customers need to hear, mapped across your entire funnel. Not a summary. A strategic intelligence report with verbatim customer quotes, insight rankings, objection maps, and creative direction for every finding.</p>
+            <p class="deliverable__detail">The kind of document a &pound;75K creative strategist would take 3 months to produce.</p>
+        </div>
+        <div class="deliverable fade-up" style="transition-delay:0.1s">
+            <div class="deliverable__icon">&#128236;</div>
+            <h3>Daily Strategic Brief</h3>
+            <p>Every morning. One email. The single biggest gap or opportunity we see in your data, explained in plain English. A customer quote you haven't noticed. An objection your ads don't answer. An audience buying despite your messaging.</p>
+            <p class="deliverable__detail">Opens your day with the insight your agency missed.</p>
+        </div>
+        <div class="deliverable fade-up" style="transition-delay:0.2s">
+            <div class="deliverable__icon">&#128269;</div>
+            <h3>Visual Review Map</h3>
+            <p>Your reviews, reorganised. Not by star rating. By buying signal. See your reviews the way a creative strategist reads them: grouped by purchase triggers, transformation arcs, objection patterns, and competitor framing.</p>
+            <p class="deliverable__detail">Read your reviews like you've never read them before.</p>
+        </div>
+    </div>
+</section>
 
-        function updateStatusUI(status, detectedPlatform) {
-            // Handle scraping_* sub-statuses (e.g., scraping_reviews_io, scraping_yotpo)
-            const normalizedStatus = status.startsWith('scraping') ? 'scraping' : status;
-            const currentIdx = STATUS_ORDER.indexOf(normalizedStatus);
+<!-- ── REAL INSIGHTS ────────────────────────── -->
+<section class="section wrap">
+    <div class="text-center fade-up" style="margin-bottom:3.5rem">
+        <span class="eyebrow">What this looks like in practice</span>
+        <h2 style="max-width:700px;margin:0 auto 0.75rem">Real insights we found in real reviews</h2>
+        <p class="subtitle" style="max-width:520px;margin:0 auto;font-size:1rem">
+            These came from publicly available Trustpilot data. Your report will be built from your reviews, for your brand, in your market.
+        </p>
+    </div>
 
-            document.querySelectorAll('.status-step').forEach(el => {
-                const stepStatus = el.dataset.step;
-                const stepIdx = STATUS_ORDER.indexOf(stepStatus);
-                el.classList.remove('active', 'done');
-                if (stepIdx < currentIdx) {
-                    el.classList.add('done');
-                    // Show detected platform name on the detection step when done
-                    if (stepStatus === 'detecting_platforms' && detectedPlatform) {
-                        el.textContent = `Found: ${detectedPlatform}`;
-                    }
-                } else if (stepIdx === currentIdx) {
-                    el.classList.add('active');
-                    // Show which platform is being scraped
-                    if (stepStatus === 'scraping' && detectedPlatform) {
-                        el.textContent = `Scraping ${detectedPlatform} reviews`;
-                    }
-                }
+    <div class="insight-grid">
+        <div class="insight fade-up">
+            <div class="insight__badge">Insight #1</div>
+            <h3>Your customers are quitting prescriptions. Your ads talk about ingredients.</h3>
+            <div class="insight__quote-block">
+                <p class="insight__quote">"I have been taking omeprazole for years... that was till I started taking gut health and clean green. I never thought this would be possible."</p>
+                <p class="insight__date">Rheal customer &mdash; Jan 2026</p>
+            </div>
+            <p class="insight__direction">&rarr; TOFU hook: Lead with the failure of conventional medicine, not ingredient lists.</p>
+        </div>
+
+        <div class="insight fade-up" style="transition-delay:0.05s">
+            <div class="insight__badge">Insight #2</div>
+            <h3>Your customers didn't buy skincare. They ended a search.</h3>
+            <div class="insight__quote-block">
+                <p class="insight__quote">"After using it for 6 months I've noticed more difference in my acne than I have in the last 17 years."</p>
+                <p class="insight__date">Dermatica customer &mdash; Jan 2026</p>
+            </div>
+            <p class="insight__direction">&rarr; The 'end of search' narrative is the most powerful hook in this dataset.</p>
+        </div>
+
+        <div class="insight fade-up" style="transition-delay:0.1s">
+            <div class="insight__badge">Insight #3</div>
+            <h3>The phrase '3 months pregnant' is a better ad than anything in your creative library.</h3>
+            <div class="insight__quote-block">
+                <p class="insight__quote">"After years of being permanently bloated (honestly, I could've passed for 3 months pregnant at any given time), it's just... gone."</p>
+                <p class="insight__date">Rheal customer &mdash; Mar 2026</p>
+            </div>
+            <p class="insight__direction">&rarr; Visceral customer language beats clinical descriptors every time.</p>
+        </div>
+
+        <div class="insight fade-up" style="transition-delay:0.15s">
+            <div class="insight__badge">Insight #4</div>
+            <h3>Your product isn't changing skin. It's changing who people are willing to be.</h3>
+            <div class="insight__quote-block">
+                <p class="insight__quote">"I feel confident again after a long time of not wanting anyone to see me as I was."</p>
+                <p class="insight__date">Dermatica customer &mdash; Dec 2025</p>
+            </div>
+            <p class="insight__direction">&rarr; The identity transformation beneath the clinical result is where the real ad lives.</p>
+        </div>
+
+        <div class="insight fade-up" style="transition-delay:0.2s">
+            <div class="insight__badge">Insight #5</div>
+            <h3>A 78-year-old and a 61-year-old scaffolder are your best testimonials.</h3>
+            <div class="insight__quote-block">
+                <p class="insight__quote">"Essential part of my smoothie, 2 years on at a ripe old age of 61... my main occupations are plastering, scaffolding, roofing."</p>
+                <p class="insight__date">Rheal customer &mdash; Mar 2026</p>
+            </div>
+            <p class="insight__direction">&rarr; These violate expectations. Surprise &rarr; credibility &rarr; aspiration.</p>
+        </div>
+
+        <div class="insight fade-up" style="transition-delay:0.25s">
+            <div class="insight__badge">Insight #6</div>
+            <h3>Your sceptics write your best ads.</h3>
+            <div class="insight__quote-block">
+                <p class="insight__quote">"I honestly didn't expect this to work for my skin as I've tried so many different products. However this has almost completely cleared up my hormonal acne."</p>
+                <p class="insight__date">Dermatica customer &mdash; Feb 2026</p>
+            </div>
+            <p class="insight__direction">&rarr; The sceptic-to-believer arc is the most powerful ad structure available.</p>
+        </div>
+    </div>
+
+    <div class="fade-up" style="margin-top:3rem">
+        <div style="text-align:center;padding:2rem;background:rgba(185,240,64,0.04);border:1px solid rgba(185,240,64,0.1);border-radius:0.875rem;max-width:680px;margin:0 auto">
+            <p style="font-size:1.375rem;font-weight:700;line-height:1.4;max-width:600px;margin:0 auto">
+                These aren't reviews. They're ad concepts waiting to be produced. Your customers did the creative strategist's job for free.
+                <span class="accent"> The only thing missing is someone to extract it.</span>
+            </p>
+        </div>
+    </div>
+</section>
+
+<!-- ── CREATIVE STRATEGIST ─────────────────── -->
+<section class="section wrap">
+    <div class="two-col">
+        <div class="card fade-up">
+            <div style="font-size:0.8125rem;color:var(--fg-dim);font-weight:600;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:1.25rem">
+                The role every brand is hiring for
+            </div>
+            <div style="font-size:2.625rem;font-weight:900;color:var(--lime);margin-bottom:0.25rem">2,600+</div>
+            <p style="font-size:0.9375rem;color:var(--fg-dim);margin-bottom:1.5rem;line-height:1.6">
+                active "creative strategist" job listings in the US and UK right now
+            </p>
+            <div class="salary-grid">
+                <div class="salary-box">
+                    <div class="salary-box__number">&pound;55&ndash;75K</div>
+                    <div class="salary-box__label">UK salary range</div>
+                </div>
+                <div class="salary-box">
+                    <div class="salary-box__number">$90&ndash;150K</div>
+                    <div class="salary-box__label">US salary range</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="fade-up" style="transition-delay:0.1s">
+            <h2 style="font-size:2.25rem;margin-bottom:1.5rem">
+                The job companies are paying six figures to fill?
+                <span class="accent">Your customers are already doing half of it.</span>
+            </h2>
+            <div style="font-size:1rem;color:var(--fg-dim);line-height:1.75;display:flex;flex-direction:column;gap:1rem">
+                <p>Creative fatigue at scale. Bridging creative and performance data. Content-market fit across platforms. These are the problems every DTC brand is scrambling to solve.</p>
+                <p>The companies getting it right don't just hire someone who makes ads. They hire a systems thinker who designs the creative process itself.</p>
+                <p style="color:var(--fg);font-weight:600">That's what VoC-driven creative strategy is. A system, not a person. And it starts with listening to what your customers are already telling you.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ── LANGUAGE GOLD ────────────────────────── -->
+<section class="section wrap" style="border-top:1px solid var(--border-dark)">
+    <div class="text-center fade-up" style="margin-bottom:3.5rem">
+        <span class="eyebrow">Language Gold</span>
+        <h2 style="max-width:650px;margin:0 auto 0.75rem">Phrases worth more than your agency retainer</h2>
+        <p class="subtitle" style="max-width:520px;margin:0 auto;font-size:1rem">
+            Every one of these was written by a customer. Every one of them is a better ad than what's running today.
+        </p>
+    </div>
+
+    <div class="three-col" style="gap:1rem">
+        <div class="lang-card fade-up">
+            <div class="lang-card__phrase">"could've passed for 3 months pregnant"</div>
+            <div class="lang-card__potential">&rarr; TOFU hook &mdash; visual, visceral, scroll-stopping</div>
+        </div>
+        <div class="lang-card fade-up" style="transition-delay:0.05s">
+            <div class="lang-card__phrase">"my farts have reduced by at least 75%"</div>
+            <div class="lang-card__potential">&rarr; Disruptive TOFU &mdash; humour + specificity</div>
+        </div>
+        <div class="lang-card fade-up" style="transition-delay:0.1s">
+            <div class="lang-card__phrase">"I've stopped searching for other miracle cures"</div>
+            <div class="lang-card__potential">&rarr; TOFU &mdash; positions as the end of the search</div>
+        </div>
+        <div class="lang-card fade-up" style="transition-delay:0.15s">
+            <div class="lang-card__phrase">"all I wear is blush and bronzer"</div>
+            <div class="lang-card__potential">&rarr; Transformation &mdash; concrete, specific, visual</div>
+        </div>
+        <div class="lang-card fade-up" style="transition-delay:0.2s">
+            <div class="lang-card__phrase">"if I don't take it my partner notices"</div>
+            <div class="lang-card__potential">&rarr; MOFU &mdash; involuntary third-party proof</div>
+        </div>
+        <div class="lang-card fade-up" style="transition-delay:0.25s">
+            <div class="lang-card__phrase">"what's 5 bucks?"</div>
+            <div class="lang-card__potential">&rarr; BOFU &mdash; the customer rewrote your CTA</div>
+        </div>
+    </div>
+</section>
+
+<!-- ── ALGORITHM / BRAND TENSION ───────────── -->
+<section class="section wrap">
+    <div class="featured-box fade-up">
+        <h2>
+            Feed the algorithm<br>
+            <span class="text-dim">without poisoning your brand</span>
+        </h2>
+        <p>Every DTC brand on Meta feels the same tension. You need volume and variety of creative. But you're terrified that generic AI content will dilute the brand.</p>
+        <p class="strong">MapTheGap resolves this. Because the creative doesn't come from AI guessing at your brand voice. It comes from your customers' actual words. The most authentic language your brand will ever produce.</p>
+    </div>
+</section>
+
+<!-- ── FINAL CTA ───────────────────────────── -->
+<section class="cta-section wrap">
+    <div class="fade-up">
+        <h2>
+            Your customers are your creative strategists.
+            <span class="accent" style="font-style:italic">Start listening.</span>
+        </h2>
+    </div>
+    <div class="fade-up" style="transition-delay:0.1s">
+        <p class="subtitle">Enter your URL. Get the full creative strategy document, daily briefs, and visual review map. Free. Takes 10 minutes.</p>
+    </div>
+    <div class="fade-up" style="transition-delay:0.2s">
+        <form id="ctaUrlForm" class="hero__input-row">
+            <input type="url" id="ctaUrlInput" placeholder="yourstore.com" required>
+            <button type="submit" class="btn-primary">SHOW ME THE GAP</button>
+        </form>
+    </div>
+    <div class="fade-up" style="transition-delay:0.3s">
+        <p class="hero__note">No credit card. No demo call. No catch.</p>
+    </div>
+</section>
+
+<!-- ── EMAIL MODAL OVERLAY ─────────────────── -->
+<div id="modalOverlay" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.75);backdrop-filter:blur(4px);align-items:center;justify-content:center">
+    <!-- Screen: Email Input -->
+    <section id="screen-email" class="screen active">
+        <div class="card form-screen">
+            <h2>Where should we send your analysis?</h2>
+            <div class="confirm-domain">
+                <span id="domainDisplay" class="domain-badge"></span>
+            </div>
+            <form id="emailForm" class="form-group">
+                <label for="emailInput">Your work email</label>
+                <input id="emailInput" type="email" placeholder="you@yourcompany.com" required autocomplete="email">
+                <div class="btn-row">
+                    <button type="button" id="backBtn" class="btn-secondary">Back</button>
+                    <button type="submit" id="confirmBtn" class="btn-primary">START ANALYSIS</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- Screen: Processing -->
+    <section id="screen-processing" class="screen">
+        <div class="card form-screen">
+            <div class="processing-icon">
+                <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                    <circle cx="24" cy="24" r="20" stroke="#B9F040" stroke-width="3" stroke-dasharray="80 40" class="spinner"/>
+                </svg>
+            </div>
+            <h2>We're analysing your reviews</h2>
+            <p class="subtitle" style="font-size:0.9375rem;margin-bottom:1.5rem">
+                This usually takes 8&ndash;10 minutes. We'll email you at <strong id="emailConfirm"></strong> when your analysis is ready.
+            </p>
+            <div id="statusTracker" class="status-tracker">
+                <div class="status-step" data-step="queued">Queued</div>
+                <div class="status-step" data-step="detecting_platforms">Checking for review services</div>
+                <div class="status-step" data-step="scraping">Scraping reviews</div>
+                <div class="status-step" data-step="extracting_context">Analysing website</div>
+                <div class="status-step" data-step="extracting">Extracting signals</div>
+                <div class="status-step" data-step="building_taxonomy">Building taxonomy</div>
+                <div class="status-step" data-step="validating">Validating</div>
+                <div class="status-step" data-step="classifying">Classifying reviews</div>
+                <div class="status-step" data-step="generating_ads">Generating ads</div>
+                <div class="status-step" data-step="generating_analysis">Building creative strategy</div>
+                <div class="status-step" data-step="scheduling_emails">Preparing your insights</div>
+                <div class="status-step" data-step="completed">Complete</div>
+            </div>
+            <p class="muted" id="statusNote">You can close this page &mdash; we'll send you an email when it's done.</p>
+        </div>
+    </section>
+
+    <!-- Screen: Error -->
+    <section id="screen-error" class="screen">
+        <div class="card form-screen">
+            <h2>Something went wrong</h2>
+            <p id="errorMessage" class="error-text"></p>
+            <button id="retryBtn" class="btn-primary" style="width:100%">TRY AGAIN</button>
+        </div>
+    </section>
+</div>
+
+<!-- ── FOOTER ──────────────────────────────── -->
+<footer class="footer">
+    <div class="footer__logo">Map<span class="accent">The</span>Gap</div>
+    <div class="footer__credit">Built by David at MapTheGap. 13 years. 49+ brands. One gap.</div>
+</footer>
+
+<!-- ── SCRIPTS ─────────────────────────────── -->
+<script>
+    // Scroll-triggered fade-up animations
+    (function initFadeUp() {
+        const obs = new IntersectionObserver((entries) => {
+            entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); obs.unobserve(e.target); } });
+        }, { threshold: 0.1 });
+        document.querySelectorAll('.fade-up').forEach(el => obs.observe(el));
+    })();
+
+    // ── API & state ──
+    const API_BASE = (() => {
+        const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const base = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+        return isLocal ? base : 'https://content-exploration-featurebranch.up.railway.app';
+    })();
+
+    let currentEmail = '';
+    let currentRunId = null;
+    let pollTimer = null;
+    let currentUrl = null;
+
+    const overlay = document.getElementById('modalOverlay');
+
+    function showModal() { overlay.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+    function hideModal() { overlay.style.display = 'none'; document.body.style.overflow = ''; }
+
+    function showScreen(id) {
+        overlay.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+    }
+
+    // ── URL form submit (both hero & CTA) ──
+    function handleUrlSubmit(e) {
+        e.preventDefault();
+        const input = e.target.querySelector('input');
+        let url = input.value.trim();
+        if (!url) return;
+        if (!url.startsWith('http')) url = 'https://' + url;
+        currentUrl = url;
+
+        try {
+            const domain = new URL(url).hostname.replace(/^www\./, '');
+            document.getElementById('domainDisplay').textContent = domain;
+        } catch { document.getElementById('domainDisplay').textContent = url; }
+
+        showScreen('screen-email');
+        showModal();
+    }
+
+    document.getElementById('heroUrlForm').addEventListener('submit', handleUrlSubmit);
+    document.getElementById('ctaUrlForm').addEventListener('submit', handleUrlSubmit);
+
+    // Back button
+    document.getElementById('backBtn').addEventListener('click', () => hideModal());
+
+    // Email form submit
+    document.getElementById('emailForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('emailInput').value.trim();
+        if (!email) return;
+        currentEmail = email;
+
+        const btn = document.getElementById('confirmBtn');
+        btn.disabled = true;
+        btn.textContent = 'STARTING...';
+
+        try {
+            const res = await fetch(`${API_BASE}/api/public/leadgen/start`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ work_email: currentEmail, company_url: currentUrl }),
             });
-        }
-
-        // Restore from localStorage on page load
-        (function restore() {
-            const savedRunId = localStorage.getItem('leadgen_run_id');
-            const savedEmail = localStorage.getItem('leadgen_email');
-            if (savedRunId && savedEmail) {
-                currentRunId = savedRunId;
-                currentEmail = savedEmail;
-                document.getElementById('emailConfirm').textContent = savedEmail;
-                showScreen('screen-processing');
-                startPolling();
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.detail || `Request failed: ${res.status}`);
             }
-        })();
-    </script>
+            const data = await res.json();
+            currentRunId = data.run_id;
+            localStorage.setItem('leadgen_run_id', currentRunId);
+            localStorage.setItem('leadgen_email', currentEmail);
+
+            document.getElementById('emailConfirm').textContent = currentEmail;
+            showScreen('screen-processing');
+            startPolling();
+        } catch (err) {
+            document.getElementById('errorMessage').textContent = err.message;
+            showScreen('screen-error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'START ANALYSIS';
+        }
+    });
+
+    // Retry
+    document.getElementById('retryBtn').addEventListener('click', () => hideModal());
+
+    // Close modal on overlay click (not card)
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) hideModal(); });
+
+    // ── Status polling ──
+    function startPolling() {
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(pollStatus, 10000);
+        pollStatus();
+    }
+
+    async function pollStatus() {
+        if (!currentRunId) return;
+        try {
+            const res = await fetch(`${API_BASE}/api/public/leadgen/${currentRunId}/status`);
+            if (!res.ok) return;
+            const data = await res.json();
+            updateStatusUI(data.coding_status, data.detected_platform);
+
+            if (data.coding_status === 'completed' || data.coding_status === 'failed') {
+                clearInterval(pollTimer);
+                localStorage.removeItem('leadgen_run_id');
+                localStorage.removeItem('leadgen_email');
+                if (data.coding_status === 'completed') {
+                    document.getElementById('statusNote').innerHTML = 'Check your email for the link to view your analysis.';
+                    document.querySelector('.processing-icon').innerHTML =
+                        '<svg width="48" height="48" viewBox="0 0 48 48"><circle cx="24" cy="24" r="20" fill="#22c55e"/><path d="M15 24l6 6 12-12" stroke="#fff" stroke-width="3" fill="none"/></svg>';
+                } else {
+                    document.getElementById('statusNote').textContent = 'The analysis encountered an error. Please try again.';
+                }
+            }
+        } catch (e) { console.warn('[poll] Error:', e.message); }
+    }
+
+    const STATUS_ORDER = ['queued', 'detecting_platforms', 'scraping', 'extracting_context', 'extracting', 'building_taxonomy', 'validating', 'classifying', 'generating_ads', 'generating_analysis', 'scheduling_emails', 'completed'];
+
+    function updateStatusUI(status, detectedPlatform) {
+        const normalizedStatus = status.startsWith('scraping') ? 'scraping' : status;
+        const currentIdx = STATUS_ORDER.indexOf(normalizedStatus);
+
+        document.querySelectorAll('.status-step').forEach(el => {
+            const stepStatus = el.dataset.step;
+            const stepIdx = STATUS_ORDER.indexOf(stepStatus);
+            el.classList.remove('active', 'done');
+            if (stepIdx < currentIdx) {
+                el.classList.add('done');
+                if (stepStatus === 'detecting_platforms' && detectedPlatform) {
+                    el.textContent = `Found: ${detectedPlatform}`;
+                }
+            } else if (stepIdx === currentIdx) {
+                el.classList.add('active');
+                if (stepStatus === 'scraping' && detectedPlatform) {
+                    el.textContent = `Scraping ${detectedPlatform} reviews`;
+                }
+            }
+        });
+    }
+
+    // Restore from localStorage on page load
+    (function restore() {
+        const savedRunId = localStorage.getItem('leadgen_run_id');
+        const savedEmail = localStorage.getItem('leadgen_email');
+        if (savedRunId && savedEmail) {
+            currentRunId = savedRunId;
+            currentEmail = savedEmail;
+            document.getElementById('emailConfirm').textContent = savedEmail;
+            showScreen('screen-processing');
+            showModal();
+            startPolling();
+        }
+    })();
+</script>
+
 </body>
 </html>
