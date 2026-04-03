@@ -827,23 +827,8 @@ def _run_full_pipeline(run_id: str) -> None:
             # Build magic link for the email CTAs
             magic_link_url, magic_token, magic_email = _build_magic_link(db, run, lead_client, settings)
 
-            # Take screenshot of the visualization
-            try:
-                from app.services.screenshot_service import capture_visualization_screenshot
-                base_url = getattr(settings, "frontend_base_url", "https://vizualizd.mapthegap.ai").rstrip("/")
-                screenshot_url = capture_visualization_screenshot(
-                    frontend_base_url=base_url,
-                    token=magic_token,
-                    email=magic_email,
-                    client_id=str(lead_client.id),
-                    company_name=company_name,
-                )
-                if screenshot_url:
-                    lead_client.screenshot_url = screenshot_url
-                    db.commit()
-                    logger.info("[pipeline %s] Screenshot: %s", run_id, screenshot_url)
-            except Exception as e:
-                logger.warning("[pipeline %s] Screenshot failed (continuing): %s", run_id, e)
+            # Screenshot capture — disabled until tested. Enable with LEADGEN_SCREENSHOT_ENABLED=true
+            # from app.services.screenshot_service import capture_visualization_screenshot
 
             if voc_analysis and voc_analysis.get("emails"):
                 from app.services.lead_email_service import create_email_series, send_due_emails
