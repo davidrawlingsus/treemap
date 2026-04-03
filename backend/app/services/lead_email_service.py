@@ -216,6 +216,10 @@ def _send_via_resend(email_service: Any, email: LeadEmail) -> Optional[str]:
             "html": html_body,
             "text": text_body,
             "reply_to": "david@mapthegap.ai",
+            "headers": {
+                "List-Unsubscribe": "<mailto:david@mapthegap.ai?subject=unsubscribe>",
+                "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+            },
             "tags": [
                 {"name": "type", "value": "lead_email_series"},
                 {"name": "sequence", "value": str(email.sequence_number)},
