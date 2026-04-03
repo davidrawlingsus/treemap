@@ -51,7 +51,7 @@ def generate_deck(
 
     body = {
         "inputText": f"# {title}\n\n{markdown_content}",
-        "textMode": "condensed",
+        "textMode": "condense",
         "format": "presentation",
         "numCards": 20,
         "themeId": "zlj1eyfj4b520tb",  # Map_The_Gap theme
