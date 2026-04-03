@@ -249,43 +249,40 @@ async def startup_event():
                         _active_runs.add(run.run_id)
                         rerun_analysis_background(run.run_id)
 
-                # Restart any non-terminal runs that haven't been updated in 30 min
-                # (Opus VoC analysis can take 15-20 min, so 10 min was too aggressive)
+                # Restart runs with stale heartbeats (thread died)
+                from app.services.leadgen_pipeline_runner import HEARTBEAT_STALE_SECONDS
                 cutoff = datetime.now(tz.utc) - timedelta(hours=3)
-                stale_threshold = datetime.now(tz.utc) - timedelta(minutes=30)
                 terminal = {"completed", "failed", "disabled", "rerun_analysis"}
-                stuck = (
+                active_runs = (
                     _db.query(LeadgenVocRun)
                     .filter(
                         ~LeadgenVocRun.coding_status.in_(terminal),
                         LeadgenVocRun.created_at >= cutoff,
-                        LeadgenVocRun.updated_at <= stale_threshold,
                     )
                     .all()
                 )
-                for run in stuck:
+                now = datetime.now(tz.utc)
+                for run in active_runs:
                     if run.run_id in _active_runs:
                         continue
-                    # Check if we already restarted this run recently (survives deploys)
                     payload = run.payload or {}
-                    last_restart = payload.get("last_restart_at")
-                    if last_restart:
+                    heartbeat = payload.get("heartbeat")
+                    if not heartbeat:
+                        # No heartbeat yet — use updated_at as fallback
+                        last_alive = run.updated_at or run.created_at
+                    else:
                         try:
-                            lr = datetime.fromisoformat(last_restart.replace("Z", "+00:00"))
-                            if (datetime.now(tz.utc) - lr).total_seconds() < 1800:  # 30 min cooldown
-                                continue
+                            last_alive = datetime.fromisoformat(heartbeat.replace("Z", "+00:00"))
                         except (ValueError, TypeError):
-                            pass
+                            last_alive = run.updated_at or run.created_at
 
-                    from sqlalchemy.orm.attributes import flag_modified as _fm
-                    payload["last_restart_at"] = datetime.now(tz.utc).isoformat()
-                    run.payload = payload
-                    _fm(run, "payload")
-                    _db.commit()
+                    seconds_since = (now - last_alive).total_seconds()
+                    if seconds_since < HEARTBEAT_STALE_SECONDS:
+                        continue  # still alive
 
+                    logger.info("[background] Heartbeat stale (%ds) for %s (%s, status=%s). Restarting.",
+                                int(seconds_since), run.run_id[:16], run.company_name, run.coding_status)
                     _active_runs.add(run.run_id)
-                    logger.info("[background] Restarting stale run %s (%s, status=%s)",
-                                run.run_id[:16], run.company_name, run.coding_status)
                     run_full_pipeline_background(run.run_id)
 
                 # Clean up completed/failed from active tracking

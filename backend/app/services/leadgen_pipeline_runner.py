@@ -278,22 +278,52 @@ def assemble_user_prompt(template: str, payload: Dict) -> str:
 def _update_status(db, run, status: str):
     """Update the coding_status on a LeadgenVocRun and commit.
 
-    Also records a timestamp for each status transition in payload.step_times.
+    Also records a timestamp for each status transition in payload.step_times,
+    and updates the heartbeat.
     """
     from sqlalchemy.orm.attributes import flag_modified
 
     run.coding_status = status
 
-    # Record step timing in payload
+    # Record step timing and heartbeat in payload
     payload = run.payload or {}
     step_times = payload.get("step_times", {})
     step_times[status] = datetime.now(timezone.utc).isoformat()
     payload["step_times"] = step_times
+    payload["heartbeat"] = datetime.now(timezone.utc).isoformat()
     run.payload = payload
     flag_modified(run, "payload")
 
     db.commit()
     logger.info("[pipeline %s] status -> %s", run.run_id, status)
+
+
+# Heartbeat interval (seconds)
+HEARTBEAT_INTERVAL = 30
+HEARTBEAT_STALE_SECONDS = 120  # consider dead after 2 min without heartbeat
+
+
+def _start_heartbeat(run_id: str, stop_event: threading.Event):
+    """Background thread that updates the heartbeat timestamp every 30s."""
+    from app.models.leadgen_voc import LeadgenVocRun as _HBRun
+    from sqlalchemy.orm.attributes import flag_modified as _fm
+
+    while not stop_event.is_set():
+        stop_event.wait(HEARTBEAT_INTERVAL)
+        if stop_event.is_set():
+            break
+        try:
+            _db = SessionLocal()
+            _run = _db.query(_HBRun).filter(_HBRun.run_id == run_id).first()
+            if _run:
+                payload = _run.payload or {}
+                payload["heartbeat"] = datetime.now(timezone.utc).isoformat()
+                _run.payload = payload
+                _fm(_run, "payload")
+                _db.commit()
+            _db.close()
+        except Exception:
+            pass  # heartbeat is best-effort
 
 
 def _load_live_prompts(db) -> Dict[str, str]:
@@ -355,10 +385,19 @@ def _load_live_prompts(db) -> Dict[str, str]:
 # ---------------------------------------------------------------------------
 
 def run_full_pipeline_background(run_id: str) -> None:
-    """Launch the full pipeline in a daemon thread."""
-    t = threading.Thread(target=_run_full_pipeline, args=(run_id,), daemon=True)
+    """Launch the full pipeline in a daemon thread with heartbeat."""
+    stop_heartbeat = threading.Event()
+
+    def _run_with_heartbeat():
+        try:
+            _run_full_pipeline(run_id)
+        finally:
+            stop_heartbeat.set()
+
+    threading.Thread(target=_start_heartbeat, args=(run_id, stop_heartbeat), daemon=True).start()
+    t = threading.Thread(target=_run_with_heartbeat, daemon=True)
     t.start()
-    logger.info("[pipeline %s] Background thread started", run_id)
+    logger.info("[pipeline %s] Background thread + heartbeat started", run_id)
 
 
 def _run_full_pipeline(run_id: str) -> None:
@@ -1069,10 +1108,19 @@ def rerun_analysis_and_emails(run_id: str) -> None:
 
 
 def rerun_analysis_background(run_id: str) -> None:
-    """Launch rerun_analysis_and_emails in a daemon thread."""
-    t = threading.Thread(target=rerun_analysis_and_emails, args=(run_id,), daemon=True)
+    """Launch rerun_analysis_and_emails in a daemon thread with heartbeat."""
+    stop_heartbeat = threading.Event()
+
+    def _run_with_heartbeat():
+        try:
+            rerun_analysis_and_emails(run_id)
+        finally:
+            stop_heartbeat.set()
+
+    threading.Thread(target=_start_heartbeat, args=(run_id, stop_heartbeat), daemon=True).start()
+    t = threading.Thread(target=_run_with_heartbeat, daemon=True)
     t.start()
-    logger.info("[rerun %s] Background thread started", run_id)
+    logger.info("[rerun %s] Background thread + heartbeat started", run_id)
 
 
 def _send_completion_email(db, run, client, settings) -> None:
