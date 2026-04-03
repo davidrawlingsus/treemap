@@ -463,10 +463,24 @@ def parse_voc_analysis_to_json(
         max_tokens=64000,
     )
 
+    # Post-process: strip em dashes from all email content
+    result = _strip_em_dashes(result)
+
     email_count = len(result.get("emails", []))
     insight_count = len(result.get("creative_strategy_insights", []))
     logger.info("[voc-parse] Extracted %d insights, %d emails", insight_count, email_count)
     return result
+
+
+def _strip_em_dashes(data: Any) -> Any:
+    """Recursively replace em dashes (—) and en dashes (–) with hyphens (-) in all strings."""
+    if isinstance(data, str):
+        return data.replace("\u2014", "-").replace("\u2013", "-")
+    if isinstance(data, dict):
+        return {k: _strip_em_dashes(v) for k, v in data.items()}
+    if isinstance(data, list):
+        return [_strip_em_dashes(item) for item in data]
+    return data
 
 
 # ---------------------------------------------------------------------------
