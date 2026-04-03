@@ -264,10 +264,22 @@ async def startup_event():
                 )
                 for run in stuck:
                     if run.run_id not in _active_runs:
-                        logger.info("[background] Restarting stale run %s (%s, status=%s)",
-                                    run.run_id[:16], run.company_name, run.coding_status)
-                        _active_runs.add(run.run_id)
-                        run_full_pipeline_background(run.run_id)
+                        # Check if this run has voc rows — if yes but no pipeline outputs,
+                        # it was likely flushed by a rerun and needs rerun_analysis, not full restart
+                        from app.models.leadgen_voc import LeadgenVocRow
+                        from app.models.leadgen_pipeline_output import LeadgenPipelineOutput as _PO
+                        has_rows = _db.query(LeadgenVocRow).filter(LeadgenVocRow.run_id == run.run_id).count() > 0
+                        has_outputs = _db.query(_PO).filter(_PO.run_id == run.run_id).count() > 0
+                        if has_rows and not has_outputs and run.coding_status in ("generating_analysis", "scheduling_emails"):
+                            logger.info("[background] Stale rerun detected %s (%s), re-triggering analysis",
+                                        run.run_id[:16], run.company_name)
+                            _active_runs.add(run.run_id)
+                            rerun_analysis_background(run.run_id)
+                        else:
+                            logger.info("[background] Restarting stale run %s (%s, status=%s)",
+                                        run.run_id[:16], run.company_name, run.coding_status)
+                            _active_runs.add(run.run_id)
+                            run_full_pipeline_background(run.run_id)
 
                 # Clean up completed/failed from active tracking
                 if _active_runs:
