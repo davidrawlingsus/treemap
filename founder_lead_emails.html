@@ -81,12 +81,19 @@
 
                     <div class="le-tabs">
                         <button class="le-tab active" data-tab="emails">Emails</button>
+                        <button class="le-tab" data-tab="screenshot">Screenshot</button>
                         <button class="le-tab" data-tab="deck">Deck</button>
                         <button class="le-tab" data-tab="analysis">Full Analysis</button>
                     </div>
 
                     <div id="tab-emails" class="le-tab-content">
                         <div id="emailTimeline" class="le-email-list"></div>
+                    </div>
+
+                    <div id="tab-screenshot" class="le-tab-content" style="display:none;">
+                        <div id="screenshotContent" style="text-align:center;padding:20px;">
+                            <p class="le-muted">No screenshot available.</p>
+                        </div>
                     </div>
 
                     <div id="tab-deck" class="le-tab-content" style="display:none;">
@@ -199,6 +206,14 @@
                         showPreview(parseInt(row.dataset.idx));
                     });
                 });
+
+                // Screenshot
+                const ssContainer = document.getElementById('screenshotContent');
+                if (data.screenshot_url) {
+                    ssContainer.innerHTML = `<img src="${esc(data.screenshot_url)}" style="max-width:100%;border-radius:8px;border:1px solid var(--border,#e2e8f0);" alt="Visualization screenshot"><p style="margin-top:8px;"><a href="${esc(data.screenshot_url)}" target="_blank" class="le-muted">Open full size</a></p>`;
+                } else {
+                    ssContainer.innerHTML = '<p class="le-muted">No screenshot available yet.</p>';
+                }
 
                 // Deck
                 document.getElementById('deckContent').textContent = data.deck_markdown || 'No deck content available.';

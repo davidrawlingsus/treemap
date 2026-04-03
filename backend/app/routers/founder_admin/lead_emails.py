@@ -122,6 +122,7 @@ def get_lead_email_series(
         "deck_markdown": deck_markdown,
         "gamma_url": gamma_url,
         "pdf_url": pdf_url,
+        "screenshot_url": client.screenshot_url if client else None,
         "emails": [
             {
                 "id": str(e.id),
