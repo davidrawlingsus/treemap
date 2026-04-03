@@ -659,6 +659,45 @@ def _run_full_pipeline(run_id: str) -> None:
         lead_client = create_or_update_lead_client(db, run)
         db.commit()
 
+        # ── Screenshot: capture visualization in parallel ──
+        # Runs in a separate thread so it doesn't block the pipeline
+        screenshot_thread = None
+        screenshot_result = {"url": None}
+        try:
+            from app.services.screenshot_service import capture_visualization_screenshot
+            from app.auth import generate_magic_link_token as _gen_token
+            from app.models.user import User as _User
+
+            _ss_email = run.work_email
+            _ss_user = db.query(_User).filter(_User.email == _ss_email.lower()).first()
+            if _ss_user:
+                _ss_token, _ss_hash, _ss_exp = _gen_token()
+                _ss_user.magic_link_token = _ss_hash
+                _ss_user.magic_link_expires_at = _ss_exp
+                db.commit()
+
+                _ss_base = getattr(settings, "frontend_base_url", "https://vizualizd.mapthegap.ai").rstrip("/")
+                _ss_client_id = str(lead_client.id)
+                _ss_name = company_name
+
+                def _capture_screenshot():
+                    try:
+                        screenshot_result["url"] = capture_visualization_screenshot(
+                            frontend_base_url=_ss_base,
+                            token=_ss_token,
+                            email=_ss_email,
+                            client_id=_ss_client_id,
+                            company_name=_ss_name,
+                        )
+                    except Exception as _e:
+                        logger.warning("[pipeline %s] Screenshot thread failed: %s", run_id, _e)
+
+                screenshot_thread = threading.Thread(target=_capture_screenshot, daemon=True)
+                screenshot_thread.start()
+                logger.info("[pipeline %s] Screenshot capture started in background", run_id)
+        except Exception as e:
+            logger.warning("[pipeline %s] Screenshot setup failed (continuing): %s", run_id, e)
+
         # ── Step 7: Generate ads (skippable) ──
         total_ads = 0
         payloads = []
@@ -821,14 +860,20 @@ def _run_full_pipeline(run_id: str) -> None:
         except Exception as e:
             logger.warning("[pipeline %s] Gamma deck failed: %s", run_id, e)
 
+        # ── Wait for screenshot if still running ──
+        if screenshot_thread and screenshot_thread.is_alive():
+            logger.info("[pipeline %s] Waiting for screenshot to finish...", run_id)
+            screenshot_thread.join(timeout=60)
+        if screenshot_result["url"]:
+            lead_client.screenshot_url = screenshot_result["url"]
+            db.commit()
+            logger.info("[pipeline %s] Screenshot saved: %s", run_id, screenshot_result["url"])
+
         # ── Step 10: Create email series + send D+0 ──
         _update_status(db, run, "scheduling_emails")
         try:
             # Build magic link for the email CTAs
             magic_link_url, magic_token, magic_email = _build_magic_link(db, run, lead_client, settings)
-
-            # Screenshot capture — disabled until tested. Enable with LEADGEN_SCREENSHOT_ENABLED=true
-            # from app.services.screenshot_service import capture_visualization_screenshot
 
             if voc_analysis and voc_analysis.get("emails"):
                 from app.services.lead_email_service import create_email_series, send_due_emails

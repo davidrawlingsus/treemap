@@ -12,7 +12,7 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 SCREENSHOT_WAIT_MS = 8000  # wait for treemap to render
-VIEWPORT = {"width": 1280, "height": 900}
+VIEWPORT = {"width": 2560, "height": 1440}
 
 
 def capture_visualization_screenshot(
@@ -49,16 +49,18 @@ def capture_visualization_screenshot(
             page = browser.new_page(viewport=VIEWPORT)
 
             # Navigate with magic link — auth happens automatically
-            page.goto(url, wait_until="networkidle", timeout=30000)
+            # Use domcontentloaded instead of networkidle (page has persistent connections)
+            page.goto(url, wait_until="domcontentloaded", timeout=30000)
 
-            # Wait for the treemap to render
-            page.wait_for_timeout(SCREENSHOT_WAIT_MS)
-
-            # Try to wait for the treemap SVG to appear
+            # Wait for the treemap to render (D3 needs time to build SVG)
             try:
-                page.wait_for_selector("svg", timeout=10000)
+                page.wait_for_selector("svg rect", timeout=20000)
+                logger.info("[screenshot] Treemap SVG detected")
             except Exception:
-                logger.warning("[screenshot] SVG not found, taking screenshot anyway")
+                logger.warning("[screenshot] SVG rect not found, waiting fixed time")
+
+            # Extra wait for animations/transitions to settle
+            page.wait_for_timeout(SCREENSHOT_WAIT_MS)
 
             # Take screenshot
             screenshot_bytes = page.screenshot(full_page=False)
