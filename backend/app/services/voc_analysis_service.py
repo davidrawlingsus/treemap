@@ -418,6 +418,14 @@ Rules:
 - If a field in the schema has no corresponding content in the markdown, use null for nullable fields or empty arrays/strings for required fields.
 - The emails section: extract each email's subject line, preview text, body (split into typed sections), CTA, and strategic intent exactly as written.
 - The deck_markdown field: include the full Sections 1-6 content as a single markdown string (everything except the emails).
+
+Email body_sections extraction rules:
+- Split each email body into separate body_sections. Each paragraph becomes one section.
+- Customer verbatims formatted as _"quote text"_ must be extracted as type "verbatim" with ONLY the quote text in the content field (strip the underscores and surrounding quotes — the renderer adds formatting).
+- All other paragraphs are type "text".
+- PRESERVE all template placeholders exactly as written: {{visualisation_url}}, {{GAMMA_DECK_URL}}, {{MAGIC_LINK_URL}}. These are replaced programmatically at send time.
+- The P.S. section at the end of emails (containing the visualisation link) should be included as regular "text" body_sections. Do not omit it.
+
 - Output valid JSON only. No commentary."""
 
 PARSE_USER_PROMPT = """Extract the following VoC Creative Strategy Analysis markdown into the JSON schema.

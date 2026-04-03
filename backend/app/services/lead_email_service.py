@@ -256,7 +256,14 @@ def _render_html(subject: str, td: Dict[str, Any]) -> str:
     sections_html = ""
     pdf_url = td.get("cta_url", "")
     for section in td.get("body_sections", []):
+        stype = section.get("type", "text")
         content = _md_to_html(section.get("content", ""))
+        # Verbatim sections: wrap in italics with quotes
+        if stype == "verbatim":
+            # Strip any existing quotes to avoid doubling
+            clean = content.strip().strip('"').strip('\u201c').strip('\u201d').strip()
+            sections_html += f'<p style="margin:12px 0;line-height:1.6;color:#333;"><em>"{clean}"</em></p>'
+            continue
         # Insert PDF link on the specific anchor phrase
         if pdf_url and "this is what it looks like when someone organises it" in content.lower():
             import re
@@ -282,8 +289,13 @@ def _render_text(subject: str, td: Dict[str, Any]) -> str:
     lines = []
     pdf_url = td.get("cta_url", "")
     for section in td.get("body_sections", []):
+        stype = section.get("type", "text")
         content = _strip_md(section.get("content", ""))
-        lines.append(content)
+        if stype == "verbatim":
+            clean = content.strip().strip('"').strip('\u201c').strip('\u201d').strip()
+            lines.append(f'"{clean}"')
+        else:
+            lines.append(content)
         # Add PDF link after the anchor phrase
         if pdf_url and "this is what it looks like when someone organises it" in content.lower():
             lines.append(pdf_url)
