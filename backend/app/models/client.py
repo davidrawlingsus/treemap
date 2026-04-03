@@ -26,6 +26,7 @@ class Client(Base):
     is_lead = Column(Boolean, default=False, nullable=False)
     leadgen_run_id = Column(String(64), nullable=True, unique=True)
     site_key = Column(String(32), nullable=True, unique=True, index=True)
+    screenshot_url = Column(String(500), nullable=True)
 
     # Relationships
     founder = relationship("User", foreign_keys=[founder_user_id], back_populates="founded_clients")

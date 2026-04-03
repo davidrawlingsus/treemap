@@ -825,7 +825,25 @@ def _run_full_pipeline(run_id: str) -> None:
         _update_status(db, run, "scheduling_emails")
         try:
             # Build magic link for the email CTAs
-            magic_link_url = _build_magic_link(db, run, lead_client, settings)
+            magic_link_url, magic_token, magic_email = _build_magic_link(db, run, lead_client, settings)
+
+            # Take screenshot of the visualization
+            try:
+                from app.services.screenshot_service import capture_visualization_screenshot
+                base_url = getattr(settings, "frontend_base_url", "https://vizualizd.mapthegap.ai").rstrip("/")
+                screenshot_url = capture_visualization_screenshot(
+                    frontend_base_url=base_url,
+                    token=magic_token,
+                    email=magic_email,
+                    client_id=str(lead_client.id),
+                    company_name=company_name,
+                )
+                if screenshot_url:
+                    lead_client.screenshot_url = screenshot_url
+                    db.commit()
+                    logger.info("[pipeline %s] Screenshot: %s", run_id, screenshot_url)
+            except Exception as e:
+                logger.warning("[pipeline %s] Screenshot failed (continuing): %s", run_id, e)
 
             if voc_analysis and voc_analysis.get("emails"):
                 from app.services.lead_email_service import create_email_series, send_due_emails
@@ -837,6 +855,7 @@ def _run_full_pipeline(run_id: str) -> None:
                     voc_analysis=voc_analysis,
                     magic_link_url=magic_link_url,
                     gamma_deck_url=(deck_result.pdf_url if deck_result and deck_result.pdf_url else gamma_url),
+                    screenshot_url=lead_client.screenshot_url,
                 )
                 db.commit()
                 logger.info("[pipeline %s] Scheduled %d emails", run_id, len(emails))
@@ -866,8 +885,11 @@ def _run_full_pipeline(run_id: str) -> None:
         db.close()
 
 
-def _build_magic_link(db, run, client, settings) -> str:
-    """Create a user + membership + magic link token for the lead. Returns the magic link URL."""
+def _build_magic_link(db, run, client, settings) -> tuple:
+    """Create a user + membership + magic link token for the lead.
+
+    Returns (magic_link_url, raw_token, email) — raw_token is needed for screenshot auth.
+    """
     from app.auth import generate_magic_link_token
     from app.models.user import User
     from app.models.membership import Membership
@@ -902,8 +924,10 @@ def _build_magic_link(db, run, client, settings) -> str:
     redirect_path = getattr(settings, "magic_link_redirect_path", "").lstrip("/")
     base_url = getattr(settings, "frontend_base_url", "https://vizualizd.mapthegap.ai").rstrip("/")
     if redirect_path:
-        return f"{base_url}/{redirect_path}?token={quote(token)}&email={quote(email)}"
-    return f"{base_url}?token={quote(token)}&email={quote(email)}"
+        url = f"{base_url}/{redirect_path}?token={quote(token)}&email={quote(email)}"
+    else:
+        url = f"{base_url}?token={quote(token)}&email={quote(email)}"
+    return url, token, email
 
 
 def rerun_analysis_and_emails(run_id: str) -> None:
@@ -1073,13 +1097,14 @@ def rerun_analysis_and_emails(run_id: str) -> None:
         # Step 10: Email series
         _update_status(db, run, "scheduling_emails")
         try:
-            magic_link_url = _build_magic_link(db, run, lead_client, settings)
+            magic_link_url, magic_token, magic_email = _build_magic_link(db, run, lead_client, settings)
             if voc_analysis and voc_analysis.get("emails"):
                 emails = create_email_series(
                     db, run_id=run_id, client_id=lead_client.id,
                     email_address=run.work_email, voc_analysis=voc_analysis,
                     magic_link_url=magic_link_url,
                     gamma_deck_url=(deck_result.pdf_url if deck_result and deck_result.pdf_url else gamma_url),
+                    screenshot_url=lead_client.screenshot_url,
                 )
                 db.commit()
                 logger.info("[rerun %s] Scheduled %d emails", run_id, len(emails))
