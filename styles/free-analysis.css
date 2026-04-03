@@ -731,6 +731,57 @@ h3 {
     color: var(--fg-dim);
 }
 
+/* ── Logo Slider ───────────────────────────── */
+.logo-slider-section {
+    padding: 3rem 0 4rem;
+    overflow: hidden;
+}
+
+.logo-slider__label {
+    text-align: center;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--fg-dim);
+    margin-bottom: 2rem;
+}
+
+.logo-slider {
+    position: relative;
+    width: 100%;
+    mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 10%, black 90%, transparent);
+}
+
+.logo-slider__track {
+    display: flex;
+    align-items: center;
+    gap: 3rem;
+    width: max-content;
+    animation: slide 40s linear infinite;
+}
+
+.logo-slider__track img {
+    height: 40px;
+    width: auto;
+    object-fit: contain;
+    filter: grayscale(100%);
+    opacity: 0.5;
+    transition: filter 0.3s ease, opacity 0.3s ease;
+    flex-shrink: 0;
+}
+
+.logo-slider__track img:hover {
+    filter: grayscale(0%);
+    opacity: 1;
+}
+
+@keyframes slide {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
 /* ── Scroll Animations ─────────────────────── */
 .fade-up {
     opacity: 0;
@@ -757,6 +808,7 @@ h3 {
         transition-duration: 0.01ms !important;
     }
     .fade-up { opacity: 1; transform: none; }
+    .logo-slider__track { animation: none; }
 }
 
 /* ── Responsive ────────────────────────────── */
