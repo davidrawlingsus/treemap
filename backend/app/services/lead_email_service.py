@@ -267,10 +267,13 @@ def _render_html(subject: str, td: Dict[str, Any]) -> str:
             )
         sections_html += f'<p style="margin:12px 0;line-height:1.6;color:#333;">{content}</p>'
 
+    unsub = '<p style="margin:40px 0 0;font-size:11px;color:#a0aec0;">Not useful? <a href="mailto:david@mapthegap.ai?subject=unsubscribe" style="color:#a0aec0;">Unsubscribe</a></p>'
+
     return f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
 <body style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px;">
 {sections_html}
+{unsub}
 </body></html>"""
 
 
@@ -285,6 +288,8 @@ def _render_text(subject: str, td: Dict[str, Any]) -> str:
         if pdf_url and "this is what it looks like when someone organises it" in content.lower():
             lines.append(pdf_url)
         lines.append("")
+    lines.append("")
+    lines.append("Not useful? Reply 'unsubscribe' to stop these emails.")
     return "\n".join(lines)
 
 
