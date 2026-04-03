@@ -198,6 +198,24 @@ def cancel_run(
     return {"cancelled": True, "run_id": run_id}
 
 
+@router.post("/api/founder-admin/pipeline-dashboard/{run_id}/rerun-analysis")
+def rerun_analysis(
+    run_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Flush and re-run VoC analysis, Gamma deck, and email series for a run."""
+    from app.services.leadgen_pipeline_runner import rerun_analysis_background
+
+    run = db.query(LeadgenVocRun).filter(LeadgenVocRun.run_id == run_id).first()
+    if not run:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Run not found")
+
+    rerun_analysis_background(run_id)
+    return {"started": True, "run_id": run_id, "company_name": run.company_name}
+
+
 @router.post("/api/founder-admin/pipeline-dashboard/{run_id}/backfill-gamma")
 def backfill_gamma(
     run_id: str,

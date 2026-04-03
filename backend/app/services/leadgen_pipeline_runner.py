@@ -867,6 +867,214 @@ def _build_magic_link(db, run, client, settings) -> str:
     return f"{base_url}?token={quote(token)}&email={quote(email)}"
 
 
+def rerun_analysis_and_emails(run_id: str) -> None:
+    """Re-run steps 8-10 (VoC analysis, Gamma deck, email series) for a completed run.
+
+    Flushes existing outputs, emails, and deck data, then re-generates.
+    Runs in a background thread.
+    """
+    from app.models.leadgen_voc import LeadgenVocRun, LeadgenVocRow
+    from app.models.leadgen_pipeline_output import LeadgenPipelineOutput
+    from app.models.lead_email import LeadEmail
+    from app.models.client import Client
+    from app.services.voc_analysis_service import generate_voc_analysis_markdown, parse_voc_analysis_to_json
+    from app.services.gamma_service import generate_deck
+    from app.services.lead_email_service import create_email_series, send_due_emails
+    from app.services.voc_coding_chain_service import merge_coded_reviews_into_rows, _format_reviews_for_coding
+    from app.services.leadgen_voc_service import get_leadgen_rows_as_process_voc_dicts
+    from sqlalchemy.orm.attributes import flag_modified
+
+    db = SessionLocal()
+    settings = get_settings()
+
+    try:
+        run = db.query(LeadgenVocRun).filter(LeadgenVocRun.run_id == run_id).first()
+        if not run:
+            logger.error("[rerun %s] Run not found", run_id)
+            return
+
+        company_name = run.company_name
+        company_url = run.company_url
+        logger.info("[rerun %s] Starting analysis rerun for %s", run_id, company_name)
+
+        # Load live prompts
+        prompts = _load_live_prompts(db)
+
+        # Get the client
+        lead_client = db.query(Client).filter(Client.id == run.converted_client_uuid).first()
+        if not lead_client:
+            logger.error("[rerun %s] Client not found", run_id)
+            return
+
+        # Get context text from client
+        context_text = lead_client.business_summary or company_name
+
+        # Get validate output from the existing pipeline (we need it for the analysis prompt)
+        # Re-derive from classified rows
+        raw_rows = get_leadgen_rows_as_process_voc_dicts(db, run_id)
+        all_coded = []
+        for row in raw_rows:
+            if row.get("topics"):
+                all_coded.append(row)
+
+        # We need validate_output — check if it was stored, otherwise reconstruct from rows
+        # For now, build a minimal structure from the coded topics
+        categories = {}
+        for row in all_coded:
+            for topic in row.get("topics", []):
+                cat = topic.get("category", "Unknown")
+                label = topic.get("label", "Unknown")
+                if cat not in categories:
+                    categories[cat] = {"category": cat, "topics": {}}
+                if label not in categories[cat]["topics"]:
+                    categories[cat]["topics"][label] = {
+                        "label": label,
+                        "signal_count": 0,
+                        "verbatims": [],
+                    }
+                categories[cat]["topics"][label]["signal_count"] += 1
+                value = row.get("value", "")
+                if value and len(categories[cat]["topics"][label]["verbatims"]) < 5:
+                    categories[cat]["topics"][label]["verbatims"].append(value[:300])
+
+        validate_output = {
+            "categories": [
+                {
+                    "category": c["category"],
+                    "topics": list(c["topics"].values()),
+                }
+                for c in categories.values()
+            ]
+        }
+
+        # Flush existing outputs
+        db.query(LeadgenPipelineOutput).filter(
+            LeadgenPipelineOutput.run_id == run_id,
+            LeadgenPipelineOutput.step_type.in_(["voc_analysis_markdown", "voc_analysis_json"]),
+        ).delete(synchronize_session=False)
+        db.query(LeadEmail).filter(LeadEmail.run_id == run_id).delete(synchronize_session=False)
+
+        # Clear gamma/pdf from payload
+        payload = run.payload or {}
+        payload.pop("gamma_url", None)
+        payload.pop("pdf_url", None)
+        run.payload = payload
+        flag_modified(run, "payload")
+        db.commit()
+        logger.info("[rerun %s] Flushed old outputs, emails, and deck data", run_id)
+
+        # Step 8a: VoC analysis markdown
+        _update_status(db, run, "generating_analysis")
+        deck_email_prompt = prompts.get("deck_email_system", "") or prompts.get("generate_system", "")
+
+        voc_markdown = generate_voc_analysis_markdown(
+            settings=settings,
+            system_prompt=deck_email_prompt,
+            company_name=company_name,
+            company_url=company_url,
+            context_text=context_text,
+            validate_output=validate_output,
+            classified_reviews=all_coded,
+            ad_topics=[],
+        )
+
+        db.add(LeadgenPipelineOutput(
+            run_id=run_id, step_type="voc_analysis_markdown", step_order=8,
+            output={"markdown": voc_markdown},
+        ))
+        db.flush()
+        logger.info("[rerun %s] VoC markdown: %d chars", run_id, len(voc_markdown))
+
+        # Step 8b: Parse to JSON
+        voc_analysis = None
+        if voc_markdown and len(voc_markdown) > 1000:
+            voc_analysis = parse_voc_analysis_to_json(
+                settings=settings, markdown_content=voc_markdown,
+            )
+            db.add(LeadgenPipelineOutput(
+                run_id=run_id, step_type="voc_analysis_json", step_order=9,
+                output=voc_analysis,
+            ))
+            db.commit()
+            logger.info("[rerun %s] VoC JSON: %d insights, %d emails",
+                        run_id,
+                        len(voc_analysis.get("creative_strategy_insights", [])),
+                        len(voc_analysis.get("emails", [])))
+
+        # Step 9: Gamma deck
+        gamma_url = None
+        deck_result = None
+        try:
+            gamma_api_key = getattr(settings, "gamma_api_key", None)
+            deck_content = ""
+            if voc_analysis:
+                deck_content = voc_analysis.get("deck_markdown", "")
+            if not deck_content and voc_markdown:
+                deck_content = voc_markdown
+            if gamma_api_key and deck_content:
+                deck_result = generate_deck(
+                    api_key=gamma_api_key,
+                    title=f"VoC Creative Strategy: {company_name}",
+                    markdown_content=deck_content,
+                )
+                if deck_result:
+                    gamma_url = deck_result.gamma_url
+            if gamma_url or (deck_result and deck_result.pdf_url):
+                payload = run.payload or {}
+                if gamma_url:
+                    payload["gamma_url"] = gamma_url
+                if deck_result and deck_result.pdf_url:
+                    payload["pdf_url"] = deck_result.pdf_url
+                run.payload = payload
+                flag_modified(run, "payload")
+                db.commit()
+        except Exception as e:
+            logger.warning("[rerun %s] Gamma deck failed: %s", run_id, e)
+
+        # Step 10: Email series
+        _update_status(db, run, "scheduling_emails")
+        try:
+            magic_link_url = _build_magic_link(db, run, lead_client, settings)
+            if voc_analysis and voc_analysis.get("emails"):
+                emails = create_email_series(
+                    db, run_id=run_id, client_id=lead_client.id,
+                    email_address=run.work_email, voc_analysis=voc_analysis,
+                    magic_link_url=magic_link_url,
+                    gamma_deck_url=(deck_result.pdf_url if deck_result and deck_result.pdf_url else gamma_url),
+                )
+                db.commit()
+                logger.info("[rerun %s] Scheduled %d emails", run_id, len(emails))
+                sent = send_due_emails(settings, db)
+                logger.info("[rerun %s] Sent %d immediate emails", run_id, sent)
+            else:
+                logger.warning("[rerun %s] No emails in VoC analysis", run_id)
+        except Exception as e:
+            logger.error("[rerun %s] Email scheduling failed: %s", run_id, e)
+
+        _update_status(db, run, "completed")
+        logger.info("[rerun %s] Rerun completed for %s", run_id, company_name)
+
+    except Exception as exc:
+        logger.error("[rerun %s] Failed: %s", run_id, exc, exc_info=True)
+        try:
+            db.rollback()
+            run = db.query(LeadgenVocRun).filter(LeadgenVocRun.run_id == run_id).first()
+            if run:
+                run.coding_status = "failed"
+                db.commit()
+        except Exception:
+            pass
+    finally:
+        db.close()
+
+
+def rerun_analysis_background(run_id: str) -> None:
+    """Launch rerun_analysis_and_emails in a daemon thread."""
+    t = threading.Thread(target=rerun_analysis_and_emails, args=(run_id,), daemon=True)
+    t.start()
+    logger.info("[rerun %s] Background thread started", run_id)
+
+
 def _send_completion_email(db, run, client, settings) -> None:
     """Send the 'your analysis is ready' email with a magic link."""
     from app.auth import generate_magic_link_token
