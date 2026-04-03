@@ -51,11 +51,14 @@ def generate_deck(
 
     body = {
         "inputText": f"# {title}\n\n{markdown_content}",
-        "textMode": "preserve",
+        "textMode": "condensed",
         "format": "presentation",
         "numCards": 20,
         "themeId": "zlj1eyfj4b520tb",  # Map_The_Gap theme
         "exportAs": "pdf",
+        "textOptions": {
+            "amount": "detailed",
+        },
         "imageOptions": {
             "source": "aiGenerated",
             "model": "gemini-3-pro-image",
