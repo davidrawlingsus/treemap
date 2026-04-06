@@ -349,8 +349,11 @@ class MetaAdsLibraryScraper:
                         all_copy.extend(final)
                         break
                 
-                logger.info(f"Total ad copy items found: {len(all_copy)}")
+                logger.warning(f"[SCRAPE-DIAG] Total ad copy items found: {len(all_copy)}")
                 items_with_media = sum(1 for c in all_copy if c.media_items)
+                items_with_video = sum(1 for c in all_copy if c.media_items and any(m.media_type == 'video' for m in c.media_items))
+                items_with_image = sum(1 for c in all_copy if c.media_items and any(m.media_type == 'image' for m in c.media_items))
+                logger.warning(f"[SCRAPE-DIAG] Copy scrape results: {len(all_copy)} ads, {items_with_media} with media ({items_with_video} video, {items_with_image} image), {len(all_copy) - items_with_media} with NO media")
                 log_scrape_done(len(all_copy), items_with_media)
             finally:
                 await browser.close()
@@ -527,6 +530,33 @@ class MetaAdsLibraryScraper:
                     if (video) adFormat = 'video';
                     else if (largeImages.length > 1) adFormat = 'carousel';
 
+                    // Diagnostic: what media elements exist in this container?
+                    const _allVidsInContainer = container.querySelectorAll('video');
+                    const _allImgsInContainer = container.querySelectorAll('img');
+                    const _mediaDiag = {
+                        libraryId: data.libraryId,
+                        foundVideos: videos.length,
+                        foundImages: images.length,
+                        rawVideoEls: _allVidsInContainer.length,
+                        rawImgEls: _allImgsInContainer.length,
+                        videoSrcs: Array.from(_allVidsInContainer).map(v => ({
+                            src: (v.src || '').substring(0, 80),
+                            poster: (v.poster || '').substring(0, 80),
+                            hasSrc: !!v.src,
+                        })),
+                        imgSrcs: Array.from(_allImgsInContainer).slice(0, 5).map(i => ({
+                            src: (i.src || '').substring(0, 80),
+                            w: i.naturalWidth || i.width || 0,
+                            h: i.naturalHeight || i.height || 0,
+                            isAdMedia: isAdMediaUrl(i.src),
+                        })),
+                        containerChildCount: container.children.length,
+                        containerDepth: (() => { let d = 0; let n = container; while (n.parentElement) { n = n.parentElement; d++; } return d; })(),
+                    };
+                    if (videos.length === 0 && images.length === 0) {
+                        results.push({ _mediaDiag });
+                    }
+
                     let mediaThumbnailUrl = null;
                     if (video && video.poster) mediaThumbnailUrl = video.poster;
                     else if (video && video.url) mediaThumbnailUrl = video.url;
@@ -623,7 +653,15 @@ class MetaAdsLibraryScraper:
         ''')
         
         log_scrape_extract(len(raw) if raw else 0, raw or [])
-        
+
+        # Extract and log media diagnostics
+        media_diags = [r for r in raw if '_mediaDiag' in r]
+        raw = [r for r in raw if '_mediaDiag' not in r]
+        if media_diags:
+            logger.warning(f"[SCRAPE-DIAG] {len(media_diags)} ad cards with NO media found. Details:")
+            for d in media_diags[:10]:
+                logger.warning(f"[SCRAPE-DIAG]   {d['_mediaDiag']}")
+
         items = []
         for r in raw:
             body_text = (r.get('bodyText') or '').strip()
