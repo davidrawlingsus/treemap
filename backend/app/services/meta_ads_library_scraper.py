@@ -393,15 +393,33 @@ class MetaAdsLibraryScraper:
                 };
 
                 // Walk up from a span to find the ad card container.
-                // Stop when the container has ad media OR we hit a node that
-                // also contains a *sibling* Library ID (meaning we went too far).
+                // Stop when:
+                //  1. Container has ad media (creative image/video), OR
+                //  2. Container has ANY scontent/fbcdn image including profile pics
+                //     (good-enough boundary even without creative media), OR
+                //  3. Container contains multiple Library IDs (we've gone too far)
                 const findContainer = (span) => {
                     let container = span;
+                    let bestContainer = span;
                     for (let i = 0; i < 20 && container.parentElement; i++) {
                         container = container.parentElement;
-                        if (hasAdMedia(container)) break;
+                        // Best stop: found actual ad creative media
+                        if (hasAdMedia(container)) return container;
+                        // Good stop: any Meta CDN image (including profile pic) —
+                        // means we've reached the ad card level
+                        const anyMetaImg = container.querySelector('img[src*="scontent"], img[src*="fbcdn"]');
+                        if (anyMetaImg) bestContainer = container;
+                        // Hard stop: multiple Library IDs = we've gone too far
+                        const libIdSpans = container.querySelectorAll('span');
+                        let libIdCount = 0;
+                        for (const s of libIdSpans) {
+                            if (/^Library ID:\s*\d+$/.test(s.textContent?.trim() || '')) {
+                                libIdCount++;
+                                if (libIdCount > 1) return bestContainer;
+                            }
+                        }
                     }
-                    return container;
+                    return bestContainer;
                 };
 
                 // ---- 1. locate ad cards via Library ID spans ----
@@ -763,11 +781,22 @@ class MetaAdsLibraryScraper:
                 };
                 const findContainer = (span) => {
                     let container = span;
+                    let bestContainer = span;
                     for (let i = 0; i < 20 && container.parentElement; i++) {
                         container = container.parentElement;
-                        if (hasAdMedia(container)) break;
+                        if (hasAdMedia(container)) return container;
+                        const anyMetaImg = container.querySelector('img[src*="scontent"], img[src*="fbcdn"]');
+                        if (anyMetaImg) bestContainer = container;
+                        const libIdSpans = container.querySelectorAll('span');
+                        let libIdCount = 0;
+                        for (const s of libIdSpans) {
+                            if (/^Library ID:\s*\d+$/.test(s.textContent?.trim() || '')) {
+                                libIdCount++;
+                                if (libIdCount > 1) return bestContainer;
+                            }
+                        }
                     }
-                    return container;
+                    return bestContainer;
                 };
 
                 // ---- locate ad cards via Library ID / date spans ----
