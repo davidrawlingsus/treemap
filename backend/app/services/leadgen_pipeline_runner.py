@@ -1056,10 +1056,11 @@ def rerun_analysis_and_emails(run_id: str) -> None:
         ).delete(synchronize_session=False)
         db.query(LeadEmail).filter(LeadEmail.run_id == run_id).delete(synchronize_session=False)
 
-        # Clear gamma/pdf from payload
+        # Clear gamma/pdf from payload, mark as rerun for recovery
         payload = run.payload or {}
         payload.pop("gamma_url", None)
         payload.pop("pdf_url", None)
+        payload["is_rerun"] = True
         run.payload = payload
         flag_modified(run, "payload")
         db.commit()
@@ -1153,6 +1154,13 @@ def rerun_analysis_and_emails(run_id: str) -> None:
                 logger.warning("[rerun %s] No emails in VoC analysis", run_id)
         except Exception as e:
             logger.error("[rerun %s] Email scheduling failed: %s", run_id, e)
+
+        # Clear rerun flag
+        payload = run.payload or {}
+        payload.pop("is_rerun", None)
+        run.payload = payload
+        from sqlalchemy.orm.attributes import flag_modified as _fm2
+        _fm2(run, "payload")
 
         _update_status(db, run, "completed")
         logger.info("[rerun %s] Rerun completed for %s", run_id, company_name)

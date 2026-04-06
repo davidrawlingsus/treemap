@@ -280,10 +280,16 @@ async def startup_event():
                     if seconds_since < HEARTBEAT_STALE_SECONDS:
                         continue  # still alive
 
-                    logger.info("[background] Heartbeat stale (%ds) for %s (%s, status=%s). Restarting.",
-                                int(seconds_since), run.run_id[:16], run.company_name, run.coding_status)
                     _active_runs.add(run.run_id)
-                    run_full_pipeline_background(run.run_id)
+                    # Check if this was a rerun (flag set in payload by rerun function)
+                    if payload.get("is_rerun"):
+                        logger.info("[background] Heartbeat stale (%ds) for rerun %s (%s). Re-triggering analysis.",
+                                    int(seconds_since), run.run_id[:16], run.company_name)
+                        rerun_analysis_background(run.run_id)
+                    else:
+                        logger.info("[background] Heartbeat stale (%ds) for %s (%s, status=%s). Restarting.",
+                                    int(seconds_since), run.run_id[:16], run.company_name, run.coding_status)
+                        run_full_pipeline_background(run.run_id)
 
                 # Clean up completed/failed from active tracking
                 if _active_runs:
