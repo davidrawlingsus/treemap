@@ -167,32 +167,57 @@ class MetaAdsLibraryScraper:
                 # Wait for ad cards to load
                 await page.wait_for_timeout(5000)
 
+                # Diagnostic: count what's on the page
+                diag = await page.evaluate('''() => {
+                    const libraryIds = [];
+                    for (const span of document.querySelectorAll('span')) {
+                        const m = (span.textContent || '').trim().match(/^Library ID:\\s*(\\d+)$/);
+                        if (m) libraryIds.push(m[1]);
+                    }
+                    const allVideos = document.querySelectorAll('video');
+                    const videosWithSrc = document.querySelectorAll('video[src]');
+                    const allImgs = document.querySelectorAll('img');
+                    const scontentImgs = document.querySelectorAll('img[src*="scontent"]');
+                    return {
+                        libraryIdCount: libraryIds.length,
+                        libraryIdSample: libraryIds.slice(0, 5),
+                        totalVideos: allVideos.length,
+                        videosWithSrc: videosWithSrc.length,
+                        totalImgs: allImgs.length,
+                        scontentImgs: scontentImgs.length,
+                        bodyHeight: document.body.scrollHeight,
+                        viewportHeight: window.innerHeight,
+                    };
+                }''')
+                logger.warning(f"[SCRAPE-DIAG] Initial page state: {diag}")
+
                 # Scroll to load more ads
                 for scroll_num in range(max_scrolls):
                     # Extract media from current page state
                     new_media = await self._extract_media_from_page(page, seen_urls)
                     media_items.extend(new_media)
 
-                    logger.info(f"Scroll {scroll_num + 1}: Found {len(new_media)} new ad media items (total: {len(media_items)})")
+                    logger.warning(f"[SCRAPE-DIAG] Scroll {scroll_num + 1}: Found {len(new_media)} new media items (total: {len(media_items)})")
 
                     # Scroll down
                     await page.evaluate('window.scrollBy(0, window.innerHeight * 2)')
                     await page.wait_for_timeout(3000)
-                    
+
                     # Check if we've reached the bottom
                     at_bottom = await page.evaluate('''
                         () => {
                             return (window.innerHeight + window.scrollY) >= document.body.scrollHeight - 100;
                         }
                     ''')
-                    
+
                     if at_bottom:
+                        logger.warning(f"[SCRAPE-DIAG] Hit bottom at scroll {scroll_num + 1}")
                         # One more extraction in case new content loaded
                         final_media = await self._extract_media_from_page(page, seen_urls)
                         media_items.extend(final_media)
                         break
-                
-                logger.info(f"Total ad media items found: {len(media_items)}")
+
+                logger.warning(f"[SCRAPE-DIAG] Total ad media items found: {len(media_items)}")
                 
             finally:
                 await browser.close()
@@ -648,15 +673,19 @@ class MetaAdsLibraryScraper:
                 }
 
                 // ---- extract media from each card container ----
+                const _diag = { cards: adCards.size, cardsWithMedia: 0, cardsNoMedia: [], totalMedia: 0 };
                 for (const [container, cardData] of adCards) {
                     const seen = new Set();
 
-                    const videos = container.querySelectorAll('video[src]');
+                    // Also check videos without src but with poster
+                    const videos = container.querySelectorAll('video');
                     for (const video of videos) {
                         const src = video.src || video.getAttribute('src');
-                        if (!src || !isAdMediaUrl(src) || seen.has(src)) continue;
-                        seen.add(src);
-                        cardData.media.push({ url: src, type: 'video' });
+                        const poster = video.poster || video.getAttribute('poster');
+                        const url = src || poster;
+                        if (!url || !isAdMediaUrl(url) || seen.has(url)) continue;
+                        seen.add(url);
+                        cardData.media.push({ url: src || poster, type: 'video' });
                     }
 
                     const images = container.querySelectorAll('img[src]');
@@ -670,7 +699,24 @@ class MetaAdsLibraryScraper:
                         cardData.media.push({ url: src, type: 'image' });
                     }
 
+                    if (cardData.media.length > 0) {
+                        _diag.cardsWithMedia++;
+                    } else {
+                        // Diagnostic: why no media?
+                        const allVids = container.querySelectorAll('video');
+                        const allImgs = container.querySelectorAll('img');
+                        const containerTag = container.tagName + '.' + (container.className || '').slice(0, 40);
+                        _diag.cardsNoMedia.push({
+                            id: cardData.libraryId,
+                            videos: allVids.length,
+                            imgs: allImgs.length,
+                            containerDepth: (() => { let d = 0; let n = container; while (n.parentElement) { n = n.parentElement; d++; } return d; })(),
+                            container: containerTag,
+                        });
+                    }
+
                     for (const media of cardData.media) {
+                        _diag.totalMedia++;
                         results.push({
                             url: media.url,
                             type: media.type,
@@ -679,6 +725,8 @@ class MetaAdsLibraryScraper:
                         });
                     }
                 }
+                // Attach diagnostic as special entry
+                results.push({ _diag: _diag });
 
                 // ---- fallback: find orphaned media not in any card ----
                 const foundUrls = new Set(results.map(r => r.url));
@@ -726,10 +774,15 @@ class MetaAdsLibraryScraper:
             }
         ''')
         
-        # Log extraction stats
+        # Extract and log diagnostics
+        diag_items = [item for item in ad_data if '_diag' in item]
+        ad_data = [item for item in ad_data if '_diag' not in item]
+        for d in diag_items:
+            logger.warning(f"[SCRAPE-DIAG] Card extraction: {d['_diag']}")
+
         items_with_metadata = sum(1 for item in ad_data if item.get('libraryId') or item.get('startedRunningOn'))
-        logger.info(f"Extracted {len(ad_data)} media items, {items_with_metadata} with metadata")
-        
+        logger.warning(f"[SCRAPE-DIAG] Extracted {len(ad_data)} media items, {items_with_metadata} with metadata")
+
         for item in ad_data:
             url = item['url']
             if url not in seen_urls:
