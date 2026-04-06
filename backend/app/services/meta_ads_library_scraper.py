@@ -226,14 +226,14 @@ class MetaAdsLibraryScraper:
                 )
                 page = await context.new_page()
                 await page.goto(url, timeout=self.timeout, wait_until='networkidle')
-                await page.wait_for_timeout(3000)
-                
+                await page.wait_for_timeout(5000)
+
                 for scroll_num in range(max_scrolls):
                     new_items = await self._extract_copy_from_page(page, seen_keys)
                     all_copy.extend(new_items)
-                    logger.info(f"Scroll {scroll_num + 1}: Found {len(new_items)} ad copy items")
+                    logger.info(f"Scroll {scroll_num + 1}: Found {len(new_items)} new ad copy items (total: {len(all_copy)})")
                     await page.evaluate('window.scrollBy(0, window.innerHeight * 2)')
-                    await page.wait_for_timeout(2000)
+                    await page.wait_for_timeout(3000)
                     at_bottom = await page.evaluate(
                         '() => (window.innerHeight + window.scrollY) >= document.body.scrollHeight - 100'
                     )
@@ -255,96 +255,98 @@ class MetaAdsLibraryScraper:
         raw = await page.evaluate('''
             () => {
                 const results = [];
+
+                // ---- helpers ----
+                const META_MEDIA_URL = /(scontent|fbcdn\\.net|video\\.[a-z0-9-]+\\.fna\\.fbcdn|cdninstagram)/i;
+                const isAdMediaUrl = (url) => {
+                    if (!url || typeof url !== 'string') return false;
+                    const u = url.toLowerCase();
+                    if (u.includes('s60x60') || u.includes('_s60x60')) return false;
+                    if (u.includes('/rsrc.php/') || u.includes('static.xx.fbcdn')) return false;
+                    return META_MEDIA_URL.test(url);
+                };
+                // true if the element contains a large ad media image (not profile pic)
+                const hasAdMedia = (el) => {
+                    const vid = el.querySelector('video[src]');
+                    if (vid && isAdMediaUrl(vid.src || vid.getAttribute('src'))) return true;
+                    const imgs = el.querySelectorAll('img[src]');
+                    for (const img of imgs) {
+                        const src = img.src || img.getAttribute('src');
+                        if (!isAdMediaUrl(src)) continue;
+                        // skip small profile pictures
+                        const w = img.naturalWidth || img.width || 0;
+                        const h = img.naturalHeight || img.height || 0;
+                        if (w > 0 && w < 80 && h > 0 && h < 80) continue;
+                        return true;
+                    }
+                    return false;
+                };
+
+                // Walk up from a span to find the ad card container.
+                // Stop when the container has ad media OR we hit a node that
+                // also contains a *sibling* Library ID (meaning we went too far).
+                const findContainer = (span) => {
+                    let container = span;
+                    for (let i = 0; i < 20 && container.parentElement; i++) {
+                        container = container.parentElement;
+                        if (hasAdMedia(container)) break;
+                    }
+                    return container;
+                };
+
+                // ---- 1. locate ad cards via Library ID spans ----
                 const allSpans = document.querySelectorAll('span');
                 const adCards = new Map();
-                
+
                 for (const span of allSpans) {
                     const text = span.textContent?.trim() || '';
+
                     const libraryIdMatch = text.match(/^Library ID:\\s*(\\d+)$/);
                     if (libraryIdMatch) {
-                        let container = span;
-                        for (let i = 0; i < 15 && container.parentElement; i++) {
-                            container = container.parentElement;
-                            const hasVideo = container.querySelector('video[src]');
-                            const hasImage = container.querySelector('img[src*="scontent"], img[src*="fbcdn"]');
-                            if (hasVideo || hasImage) break;
-                        }
-                        const key = container;
+                        const key = findContainer(span);
                         if (!adCards.has(key)) adCards.set(key, { libraryId: null, startedRunningOn: null, endedRunningOn: null, status: null, adsUsingCreative: null });
                         adCards.get(key).libraryId = libraryIdMatch[1];
                     }
                     const dateMatch = text.match(/^Started running on\\s+([A-Za-z]+\\s+\\d{1,2},?\\s+\\d{4})$/);
                     if (dateMatch) {
-                        let container = span;
-                        for (let i = 0; i < 15 && container.parentElement; i++) {
-                            container = container.parentElement;
-                            const hasVideo = container.querySelector('video[src]');
-                            const hasImage = container.querySelector('img[src*="scontent"], img[src*="fbcdn"]');
-                            if (hasVideo || hasImage) break;
-                        }
-                        const key = container;
+                        const key = findContainer(span);
                         if (!adCards.has(key)) adCards.set(key, { libraryId: null, startedRunningOn: null, endedRunningOn: null, status: null, adsUsingCreative: null });
                         adCards.get(key).startedRunningOn = dateMatch[1];
                     }
                     const endedMatch = text.match(/Ended\\s+([A-Za-z]+\\s+\\d{1,2},?\\s+\\d{4})/);
                     if (endedMatch) {
-                        let container = span;
-                        for (let i = 0; i < 15 && container.parentElement; i++) {
-                            container = container.parentElement;
-                            const hasVideo = container.querySelector('video[src]');
-                            const hasImage = container.querySelector('img[src*="scontent"], img[src*="fbcdn"]');
-                            if (hasVideo || hasImage) break;
-                        }
-                        const key = container;
+                        const key = findContainer(span);
                         if (adCards.has(key)) adCards.get(key).endedRunningOn = endedMatch[1];
                     }
                     if (/^Active$|^Paused$|^Ended$/i.test(text)) {
-                        let container = span;
-                        for (let i = 0; i < 15 && container.parentElement; i++) {
-                            container = container.parentElement;
-                            const hasVideo = container.querySelector('video[src]');
-                            const hasImage = container.querySelector('img[src*="scontent"], img[src*="fbcdn"]');
-                            if (hasVideo || hasImage) break;
-                        }
-                        const key = container;
+                        const key = findContainer(span);
                         if (!adCards.has(key)) adCards.set(key, { libraryId: null, startedRunningOn: null, endedRunningOn: null, status: null, adsUsingCreative: null });
                         adCards.get(key).status = text;
                     }
                     const adsMatch = text.match(/(\\d+)\\s+ads?\\s+use this creative/i);
                     if (adsMatch) {
-                        let container = span;
-                        for (let i = 0; i < 15 && container.parentElement; i++) {
-                            container = container.parentElement;
-                            const hasVideo = container.querySelector('video[src]');
-                            const hasImage = container.querySelector('img[src*="scontent"], img[src*="fbcdn"]');
-                            if (hasVideo || hasImage) break;
-                        }
-                        const key = container;
+                        const key = findContainer(span);
                         if (!adCards.has(key)) adCards.set(key, { libraryId: null, startedRunningOn: null, endedRunningOn: null, status: null, adsUsingCreative: null });
                         adCards.get(key).adsUsingCreative = parseInt(adsMatch[1], 10);
                     }
                 }
-                
-                const META_MEDIA_URL = /(scontent|fbcdn\\.net|video\\.\\d+\\.fbcdn|cdninstagram)/i;
-                const isAdMediaUrl = (url) => {
-                    if (!url || typeof url !== 'string') return false;
-                    const u = url.toLowerCase();
-                    if (u.includes('s60x60') || u.includes('_s60x60')) return false;
-                    return META_MEDIA_URL.test(url);
-                };
+
+                // ---- 2. extract media from each card ----
                 const findMediaInContainer = (el) => {
                     const videos = [], images = [];
                     const seen = new Set();
                     const walk = (node, depth) => {
-                        if (depth > 25) return;
+                        if (depth > 30) return;
                         if (node.nodeType !== 1) return;
                         if (node.tagName === 'VIDEO') {
                             const src = node.src || node.getAttribute('src');
                             const poster = node.poster || node.getAttribute('poster');
-                            const url = src || poster;
-                            if (url && isAdMediaUrl(url) && !seen.has(url)) {
-                                seen.add(url);
-                                videos.push({ url, poster: poster || null });
+                            if (src && isAdMediaUrl(src) && !seen.has(src)) {
+                                seen.add(src);
+                                videos.push({ url: src, poster: poster || null });
+                            } else if (!src && poster && isAdMediaUrl(poster) && !seen.has(poster)) {
+                                seen.add(poster);
+                                videos.push({ url: poster, poster: poster });
                             }
                             return;
                         }
@@ -359,51 +361,86 @@ class MetaAdsLibraryScraper:
                         for (const c of node.children || []) walk(c, depth + 1);
                     };
                     walk(el, 0);
-                    if (videos.length === 0 && images.length === 0 && el.parentElement) {
-                        walk(el.parentElement, 0);
-                    }
                     return { videos, images };
                 };
+
+                // ---- 3. extract copy, links, CTA from each card ----
                 for (const [container, data] of adCards) {
                     let bodyText = '';
                     let headlineText = '';
-                    
+                    let descriptionText = '';
+
                     const preWrapDivs = container.querySelectorAll('div[style*="white-space: pre-wrap"]');
                     for (const div of preWrapDivs) {
                         const t = (div.innerText || div.textContent || '').trim();
                         if (t.length > bodyText.length && t.length > 20) bodyText = t;
                     }
-                    
-                    const lineClampDivs = container.querySelectorAll('div[style*="line-clamp"]');
-                    for (const div of lineClampDivs) {
-                        const t = (div.innerText || div.textContent || '').trim();
-                        const withoutSponsored = t.replace(/^Sponsored\\s*/i, '').trim();
-                        if (withoutSponsored.length > 0 && withoutSponsored.length <= 200)
-                            headlineText = withoutSponsored;
+
+                    // CTA link area has headline + description in line-clamped divs
+                    const ctaLink = container.querySelector('a[target="_blank"][href*="l.facebook.com"], a[target="_blank"][href*="l.php"]');
+                    if (ctaLink) {
+                        const clampDivs = ctaLink.querySelectorAll('div[style*="line-clamp"]');
+                        for (const div of clampDivs) {
+                            const t = (div.innerText || div.textContent || '').trim();
+                            if (!t) continue;
+                            const style = div.getAttribute('style') || '';
+                            const heightMatch = style.match(/max-height:\\s*(\\d+)px/);
+                            const height = heightMatch ? parseInt(heightMatch[1], 10) : 0;
+                            // Headline: typically 28px height (2 lines of 14px)
+                            if (height >= 20 && height <= 30 && t.length > 0 && !headlineText) {
+                                headlineText = t;
+                            }
+                            // Description: also in a clamp div, slightly different sizing
+                            else if (t.length > 0 && t !== headlineText && !descriptionText) {
+                                descriptionText = t;
+                            }
+                        }
                     }
-                    
+
+                    // Fallback: scan all line-clamp divs in the container
+                    if (!headlineText) {
+                        const lineClampDivs = container.querySelectorAll('div[style*="line-clamp"]');
+                        for (const div of lineClampDivs) {
+                            const t = (div.innerText || div.textContent || '').trim();
+                            const withoutSponsored = t.replace(/^Sponsored\\s*/i, '').trim();
+                            if (withoutSponsored.length > 0 && withoutSponsored.length <= 200)
+                                headlineText = withoutSponsored;
+                        }
+                    }
+
                     const fullText = (container.innerText || container.textContent || '').trim();
                     if (bodyText.length < 10 && fullText.length >= 10) bodyText = fullText;
-                    
+
                     if (bodyText.length < 5) continue;
-                    
+
                     let adFormat = 'image';
                     const { videos, images } = findMediaInContainer(container);
                     const video = videos[0];
                     const largeImages = images;
                     if (video) adFormat = 'video';
                     else if (largeImages.length > 1) adFormat = 'carousel';
-                    
+
                     let mediaThumbnailUrl = null;
                     if (video && video.poster) mediaThumbnailUrl = video.poster;
                     else if (video && video.url) mediaThumbnailUrl = video.url;
                     else if (largeImages.length > 0 && largeImages[0].url) mediaThumbnailUrl = largeImages[0].url;
-                    
+
                     let cta = null;
                     let destinationUrl = null;
                     let pageName = null;
                     let pageUrl = null;
                     let pageProfileImageUrl = null;
+
+                    // Extract CTA button text (e.g. "Learn More", "Shop Now")
+                    const ctaButtons = container.querySelectorAll('div[role="button"]');
+                    for (const btn of ctaButtons) {
+                        const t = (btn.innerText || btn.textContent || '').trim();
+                        if (/^(learn more|shop now|sign up|get offer|download|watch more|send message|apply now|book now|start trial|take quiz|subscribe|order now|get quote|listen now|see menu|request time|get directions|contact us|message page)$/i.test(t)) {
+                            cta = t;
+                            break;
+                        }
+                    }
+
                     const links = container.querySelectorAll('a[target="_blank"][href]');
                     for (const a of links) {
                         const href = (a.getAttribute('href') || a.href || '').trim();
@@ -422,27 +459,28 @@ class MetaAdsLibraryScraper:
                         } else if (href.startsWith('http') && !href.includes('facebook.com')) {
                             destinationUrl = href;
                         }
-                        if (destinationUrl && text && text.length <= 100) cta = text;
+                        // Only use link text as CTA if we didn't find a button CTA
+                        if (!cta && destinationUrl && text && text.length <= 100) cta = text;
                         if (destinationUrl) break;
                     }
+
+                    // Profile image: look for small branded image
                     const profileImg = container.querySelector('img[alt][src*="scontent"], img[alt][src*="fbcdn"]');
                     if (profileImg && profileImg.alt && pageName && (profileImg.alt === pageName || profileImg.alt.includes(pageName))) {
                         pageProfileImageUrl = profileImg.src;
-                    } else if (largeImages.length > 0 && !video) {
-                        pageProfileImageUrl = null;
                     } else {
                         const smallImg = container.querySelector('img[src*="s60x60"], img[src*="_s60x60"]');
                         if (smallImg) pageProfileImageUrl = smallImg.src;
                     }
-                    
+
                     const mediaItems = [];
                     if (video && video.url) {
                         let durSec = null;
-                        const fullText = container.innerText || '';
-                        const slashMatch = fullText.match(/\\/\\s*(\\d+):(\\d+)/);
+                        const containerText = container.innerText || '';
+                        const slashMatch = containerText.match(/\\/\\s*(\\d+):(\\d+)/);
                         if (slashMatch) durSec = parseInt(slashMatch[1], 10) * 60 + parseInt(slashMatch[2], 10);
                         else {
-                            const m = fullText.match(/(\\d+):(\\d+)/);
+                            const m = containerText.match(/(\\d+):(\\d+)/);
                             if (m) durSec = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
                         }
                         mediaItems.push({ type: 'video', url: video.url, posterUrl: video.poster || null, durationSeconds: durSec, sortOrder: 0 });
@@ -453,7 +491,7 @@ class MetaAdsLibraryScraper:
                             mediaItems.push({ type: 'image', url: src, posterUrl: null, durationSeconds: null, sortOrder: i });
                         }
                     }
-                    
+
                     results.push({
                         libraryId: data.libraryId,
                         startedRunningOn: data.startedRunningOn,
@@ -462,6 +500,7 @@ class MetaAdsLibraryScraper:
                         adsUsingCreative: data.adsUsingCreative || null,
                         bodyText: bodyText,
                         headlineText: headlineText || null,
+                        descriptionText: descriptionText || null,
                         adFormat: adFormat,
                         mediaThumbnailUrl: mediaThumbnailUrl,
                         cta: cta,
@@ -514,7 +553,7 @@ class MetaAdsLibraryScraper:
             items.append(AdCopyItem(
                 primary_text=body_clean[:5000],
                 headline=headline_text,
-                description=None,
+                description=(r.get('descriptionText') or '').strip() or None,
                 library_id=r.get('libraryId'),
                 started_running_on=r.get('startedRunningOn'),
                 ad_delivery_start_time=r.get('startedRunningOn'),
