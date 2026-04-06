@@ -163,21 +163,21 @@ class MetaAdsLibraryScraper:
                 # Navigate to the URL
                 logger.info(f"Navigating to Meta Ads Library: {url}")
                 await page.goto(url, timeout=self.timeout, wait_until='networkidle')
-                
+
                 # Wait for ad cards to load
-                await page.wait_for_timeout(3000)
-                
+                await page.wait_for_timeout(5000)
+
                 # Scroll to load more ads
                 for scroll_num in range(max_scrolls):
                     # Extract media from current page state
                     new_media = await self._extract_media_from_page(page, seen_urls)
                     media_items.extend(new_media)
-                    
-                    logger.info(f"Scroll {scroll_num + 1}: Found {len(new_media)} new ad media items")
-                    
+
+                    logger.info(f"Scroll {scroll_num + 1}: Found {len(new_media)} new ad media items (total: {len(media_items)})")
+
                     # Scroll down
                     await page.evaluate('window.scrollBy(0, window.innerHeight * 2)')
-                    await page.wait_for_timeout(2000)
+                    await page.wait_for_timeout(3000)
                     
                     # Check if we've reached the bottom
                     at_bottom = await page.evaluate('''
@@ -592,120 +592,84 @@ class MetaAdsLibraryScraper:
         ad_data = await page.evaluate('''
             () => {
                 const results = [];
-                
-                // Exclusion patterns for URLs we don't want
-                const excludePatterns = [
-                    '/rsrc.php/',      // Static resources
-                    '/static/',        // Static files
-                    '/emoji/',         // Emoji sprites
-                    '/images/reaction', // Reaction icons
-                    '/images/messaging', // Messaging icons
-                    'data:image/',     // Data URIs (often small icons)
-                    '/platform/',      // Platform icons
-                    '/ajax/',          // AJAX resources
-                    'sprite',          // Sprite sheets
-                    '/share_icons/',   // Share icons
-                    '/icons/',         // General icons
-                    'transparent.gif', // Tracking pixels
-                    'pixel',           // Tracking pixels
-                    '/badge/',         // Badges
-                    '/logo/',          // Logos (not ad content)
-                    's60x60',          // Small thumbnails (like profile pics)
-                    '_s60x60',         // Small thumbnails variant
-                ];
-                
-                // Strategy: Find text elements containing "Library ID:" and "Started running on"
-                // then find the nearest ad card container, then find media within that container
-                
-                // Get all text nodes containing our target patterns
+
+                // ---- helpers (shared with _extract_copy_from_page) ----
+                const META_MEDIA_URL = /(scontent|fbcdn\\.net|video\\.[a-z0-9-]+\\.fna\\.fbcdn|cdninstagram)/i;
+                const isAdMediaUrl = (url) => {
+                    if (!url || typeof url !== 'string') return false;
+                    const u = url.toLowerCase();
+                    if (u.includes('s60x60') || u.includes('_s60x60')) return false;
+                    if (u.includes('/rsrc.php/') || u.includes('static.xx.fbcdn')) return false;
+                    return META_MEDIA_URL.test(url);
+                };
+                const hasAdMedia = (el) => {
+                    const vid = el.querySelector('video[src]');
+                    if (vid && isAdMediaUrl(vid.src || vid.getAttribute('src'))) return true;
+                    const imgs = el.querySelectorAll('img[src]');
+                    for (const img of imgs) {
+                        const src = img.src || img.getAttribute('src');
+                        if (!isAdMediaUrl(src)) continue;
+                        const w = img.naturalWidth || img.width || 0;
+                        const h = img.naturalHeight || img.height || 0;
+                        if (w > 0 && w < 80 && h > 0 && h < 80) continue;
+                        return true;
+                    }
+                    return false;
+                };
+                const findContainer = (span) => {
+                    let container = span;
+                    for (let i = 0; i < 20 && container.parentElement; i++) {
+                        container = container.parentElement;
+                        if (hasAdMedia(container)) break;
+                    }
+                    return container;
+                };
+
+                // ---- locate ad cards via Library ID / date spans ----
                 const allSpans = document.querySelectorAll('span');
-                const adCards = new Map(); // Map of container -> {libraryId, startedRunningOn, media[]}
-                
+                const adCards = new Map();
+
                 for (const span of allSpans) {
                     const text = span.textContent?.trim() || '';
-                    
-                    // Look for "Library ID: {number}"
+
                     const libraryIdMatch = text.match(/^Library ID:\\s*(\\d+)$/);
                     if (libraryIdMatch) {
-                        // Walk up to find a reasonable container (go up ~10-15 levels)
-                        let container = span;
-                        for (let i = 0; i < 15 && container.parentElement; i++) {
-                            container = container.parentElement;
-                            // Stop if we find a container that has both media and metadata
-                            const hasVideo = container.querySelector('video[src]');
-                            const hasImage = container.querySelector('img[src*="scontent"], img[src*="fbcdn"]');
-                            if (hasVideo || hasImage) break;
-                        }
-                        
-                        const key = container;
-                        if (!adCards.has(key)) {
-                            adCards.set(key, { libraryId: null, startedRunningOn: null, media: [] });
-                        }
+                        const key = findContainer(span);
+                        if (!adCards.has(key)) adCards.set(key, { libraryId: null, startedRunningOn: null, media: [] });
                         adCards.get(key).libraryId = libraryIdMatch[1];
                     }
-                    
-                    // Look for "Started running on {date}"
+
                     const dateMatch = text.match(/^Started running on\\s+([A-Za-z]+\\s+\\d{1,2},?\\s+\\d{4})$/);
                     if (dateMatch) {
-                        // Walk up to find container
-                        let container = span;
-                        for (let i = 0; i < 15 && container.parentElement; i++) {
-                            container = container.parentElement;
-                            const hasVideo = container.querySelector('video[src]');
-                            const hasImage = container.querySelector('img[src*="scontent"], img[src*="fbcdn"]');
-                            if (hasVideo || hasImage) break;
-                        }
-                        
-                        const key = container;
-                        if (!adCards.has(key)) {
-                            adCards.set(key, { libraryId: null, startedRunningOn: null, media: [] });
-                        }
+                        const key = findContainer(span);
+                        if (!adCards.has(key)) adCards.set(key, { libraryId: null, startedRunningOn: null, media: [] });
                         adCards.get(key).startedRunningOn = dateMatch[1];
                     }
                 }
-                
-                // Now extract media from each identified ad card container
+
+                // ---- extract media from each card container ----
                 for (const [container, cardData] of adCards) {
-                    // Find videos in this container
+                    const seen = new Set();
+
                     const videos = container.querySelectorAll('video[src]');
                     for (const video of videos) {
-                        const src = video.src;
-                        if (!src) continue;
-                        
-                        // Check if from Meta CDN
-                        const isMetaCDN = src.includes('fbcdn') || src.includes('video');
-                        if (!isMetaCDN) continue;
-                        
+                        const src = video.src || video.getAttribute('src');
+                        if (!src || !isAdMediaUrl(src) || seen.has(src)) continue;
+                        seen.add(src);
                         cardData.media.push({ url: src, type: 'video' });
                     }
-                    
-                    // Find images in this container
+
                     const images = container.querySelectorAll('img[src]');
                     for (const img of images) {
-                        const src = img.src;
-                        if (!src) continue;
-                        
-                        // Skip excluded patterns
-                        const isExcluded = excludePatterns.some(pattern => 
-                            src.toLowerCase().includes(pattern.toLowerCase())
-                        );
-                        if (isExcluded) continue;
-                        
-                        // Must be from Meta's content delivery
-                        const isMetaCDN = src.includes('scontent') || 
-                                         src.includes('fbcdn.net') ||
-                                         src.includes('xx.fbcdn');
-                        if (!isMetaCDN) continue;
-                        
-                        // Size check - skip small images (icons, profile pics)
-                        const width = img.naturalWidth || img.width || 0;
-                        const height = img.naturalHeight || img.height || 0;
-                        if (width < 100 && height < 100) continue;
-                        
+                        const src = img.src || img.getAttribute('src');
+                        if (!src || !isAdMediaUrl(src) || seen.has(src)) continue;
+                        const w = img.naturalWidth || img.width || 0;
+                        const h = img.naturalHeight || img.height || 0;
+                        if (w > 0 && w < 80 && h > 0 && h < 80) continue;
+                        seen.add(src);
                         cardData.media.push({ url: src, type: 'image' });
                     }
-                    
-                    // Add results for each media item with the card's metadata
+
                     for (const media of cardData.media) {
                         results.push({
                             url: media.url,
@@ -715,108 +679,50 @@ class MetaAdsLibraryScraper:
                         });
                     }
                 }
-                
-                // Fallback: Also find media that might not be in identified containers
-                // (in case some cards don't have the metadata text visible)
+
+                // ---- fallback: find orphaned media not in any card ----
+                const foundUrls = new Set(results.map(r => r.url));
+
                 const allVideos = document.querySelectorAll('video[src]');
                 for (const video of allVideos) {
-                    const src = video.src;
-                    if (!src) continue;
-                    if (!src.includes('fbcdn') && !src.includes('video')) continue;
-                    
-                    // Check if already found
-                    const alreadyFound = results.some(r => r.url === src);
-                    if (alreadyFound) continue;
-                    
-                    // Try to find metadata in ancestor text
-                    let startedRunningOn = null;
-                    let libraryId = null;
+                    const src = video.src || video.getAttribute('src');
+                    if (!src || !isAdMediaUrl(src) || foundUrls.has(src)) continue;
+                    foundUrls.add(src);
+
+                    let startedRunningOn = null, libraryId = null;
                     let ancestor = video.parentElement;
                     for (let i = 0; i < 20 && ancestor; i++) {
                         const text = ancestor.textContent || '';
-                        if (!libraryId) {
-                            const idMatch = text.match(/Library ID:\\s*(\\d+)/);
-                            if (idMatch) libraryId = idMatch[1];
-                        }
-                        if (!startedRunningOn) {
-                            const dateMatch = text.match(/Started running on\\s+([A-Za-z]+\\s+\\d{1,2},?\\s+\\d{4})/);
-                            if (dateMatch) startedRunningOn = dateMatch[1];
-                        }
+                        if (!libraryId) { const m = text.match(/Library ID:\\s*(\\d+)/); if (m) libraryId = m[1]; }
+                        if (!startedRunningOn) { const m = text.match(/Started running on\\s+([A-Za-z]+\\s+\\d{1,2},?\\s+\\d{4})/); if (m) startedRunningOn = m[1]; }
                         if (libraryId && startedRunningOn) break;
                         ancestor = ancestor.parentElement;
                     }
-                    
-                    results.push({
-                        url: src,
-                        type: 'video',
-                        startedRunningOn: startedRunningOn,
-                        libraryId: libraryId
-                    });
+                    results.push({ url: src, type: 'video', startedRunningOn, libraryId });
                 }
-                
+
                 const allImages = document.querySelectorAll('img[src]');
                 for (const img of allImages) {
-                    const src = img.src;
-                    if (!src) continue;
-                    
-                    // Skip excluded patterns
-                    const isExcluded = excludePatterns.some(pattern => 
-                        src.toLowerCase().includes(pattern.toLowerCase())
-                    );
-                    if (isExcluded) continue;
-                    
-                    // Must be from Meta's CDN
-                    const isMetaCDN = src.includes('scontent') || 
-                                     src.includes('fbcdn.net') ||
-                                     src.includes('xx.fbcdn');
-                    if (!isMetaCDN) continue;
-                    
-                    // Size check
-                    const width = img.naturalWidth || img.width || 0;
-                    const height = img.naturalHeight || img.height || 0;
-                    if (width < 100 && height < 100) continue;
-                    
-                    // Check if already found
-                    const alreadyFound = results.some(r => r.url === src);
-                    if (alreadyFound) continue;
-                    
-                    // Try to find metadata in ancestor text
-                    let startedRunningOn = null;
-                    let libraryId = null;
+                    const src = img.src || img.getAttribute('src');
+                    if (!src || !isAdMediaUrl(src) || foundUrls.has(src)) continue;
+                    const w = img.naturalWidth || img.width || 0;
+                    const h = img.naturalHeight || img.height || 0;
+                    if (w > 0 && w < 80 && h > 0 && h < 80) continue;
+                    foundUrls.add(src);
+
+                    let startedRunningOn = null, libraryId = null;
                     let ancestor = img.parentElement;
                     for (let i = 0; i < 20 && ancestor; i++) {
                         const text = ancestor.textContent || '';
-                        if (!libraryId) {
-                            const idMatch = text.match(/Library ID:\\s*(\\d+)/);
-                            if (idMatch) libraryId = idMatch[1];
-                        }
-                        if (!startedRunningOn) {
-                            const dateMatch = text.match(/Started running on\\s+([A-Za-z]+\\s+\\d{1,2},?\\s+\\d{4})/);
-                            if (dateMatch) startedRunningOn = dateMatch[1];
-                        }
+                        if (!libraryId) { const m = text.match(/Library ID:\\s*(\\d+)/); if (m) libraryId = m[1]; }
+                        if (!startedRunningOn) { const m = text.match(/Started running on\\s+([A-Za-z]+\\s+\\d{1,2},?\\s+\\d{4})/); if (m) startedRunningOn = m[1]; }
                         if (libraryId && startedRunningOn) break;
                         ancestor = ancestor.parentElement;
                     }
-                    
-                    results.push({
-                        url: src,
-                        type: 'image',
-                        startedRunningOn: startedRunningOn,
-                        libraryId: libraryId
-                    });
+                    results.push({ url: src, type: 'image', startedRunningOn, libraryId });
                 }
-                
-                // Deduplicate results by URL
-                const uniqueResults = [];
-                const seenUrls = new Set();
-                for (const result of results) {
-                    if (!seenUrls.has(result.url)) {
-                        seenUrls.add(result.url);
-                        uniqueResults.push(result);
-                    }
-                }
-                
-                return uniqueResults;
+
+                return results;
             }
         ''')
         
