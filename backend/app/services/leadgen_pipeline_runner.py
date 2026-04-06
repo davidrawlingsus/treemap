@@ -544,12 +544,16 @@ def _run_full_pipeline(run_id: str) -> None:
         def _fmt_review(r):
             rid = r.get("respondent_id", "")
             value = r.get("value", "")
-            date = (r.get("survey_metadata") or {}).get("review_date") or r.get("created", "")
+            meta = r.get("survey_metadata") or {}
+            date = meta.get("review_date") or r.get("created", "")
+            reviewer = meta.get("reviewer_name", "")
+            parts = []
+            if reviewer:
+                parts.append(reviewer)
             if date:
-                # Normalize to just the date portion
-                date_str = str(date)[:10]
-                return f"Review {rid} ({date_str}):\n{value}"
-            return f"Review {rid}:\n{value}"
+                parts.append(str(date)[:10])
+            label = f" ({', '.join(parts)})" if parts else ""
+            return f"Review {rid}{label}:\n{value}"
 
         reviews_text = "\n\n".join(
             _fmt_review(r) for r in raw_rows if r.get("value")
