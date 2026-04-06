@@ -4577,6 +4577,9 @@
                     text: v.text || '',
                     id: uniqueId
                 };
+                // Include reviewer name if available
+                const reviewerName = v.reviewer_name || v.reviewerName || null;
+                if (reviewerName) item.reviewer_name = reviewerName;
                 // Include feedback date if available
                 const feedbackDate = v.reviewDate || v.reviewDateOfExperience
                     || v.date || v.submit_date || v.publishedAt || null;
@@ -4659,6 +4662,9 @@
                                 text: v.text,
                                 id: v.row_id !== undefined ? v.row_id : (v.index !== undefined ? v.index : null)
                             };
+                            // Include reviewer name if available
+                            const reviewerName = v.reviewer_name || v.reviewerName || null;
+                            if (reviewerName) item.reviewer_name = reviewerName;
                             // Include feedback date if available
                             const feedbackDate = v.reviewDate || v.reviewDateOfExperience
                                 || v.date || v.submit_date || v.publishedAt || null;
