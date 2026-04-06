@@ -7,6 +7,8 @@
     'use strict';
 
     const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+    const _isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    const LONG_RUNNING_URL = _isLocal ? API_BASE_URL : 'https://content-exploration-featurebranch.up.railway.app';
     const USER_MESSAGE_LOG_PREVIEW_LENGTH = 100; // characters
 
     /**
@@ -202,7 +204,7 @@
         },
 
         async executeLeadStream(promptId, vocData, onChunk, onDone, onError, origin = null) {
-            const endpoint = `${API_BASE_URL}/api/founder/prompts/${promptId}/execute?stream=true`;
+            const endpoint = `${LONG_RUNNING_URL}/api/founder/prompts/${promptId}/execute?stream=true`;
             const userMessagePayload = {
                 voc_data: vocData,
                 origin: origin || null
@@ -293,7 +295,7 @@
                 timestamp: new Date().toISOString()
             });
 
-            const endpoint = `${API_BASE_URL}/api/clients/${clientId}/prompts/${promptId}/execute?stream=true`;
+            const endpoint = `${LONG_RUNNING_URL}/api/clients/${clientId}/prompts/${promptId}/execute?stream=true`;
             
             try {
                 const authHeaders = getAuthHeaders();
