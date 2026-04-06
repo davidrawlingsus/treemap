@@ -19,11 +19,14 @@
       <input type="email" id="emailInput" placeholder="you@company.com" autocomplete="email">
       <button id="sendLinkBtn" class="btn btn-primary">Send Magic Link</button>
       <div id="loginMessage" class="message" style="display: none;"></div>
-      <div id="verifySection" style="display: none;">
-        <p class="description">Check your email and paste the magic link token:</p>
-        <input type="text" id="tokenInput" placeholder="Paste token from email">
-        <button id="verifyBtn" class="btn btn-primary">Verify</button>
-      </div>
+    </div>
+
+    <!-- Waiting for magic link click -->
+    <div id="waitingSection" class="section" style="display: none;">
+      <p class="description">Magic link sent to <strong id="waitingEmail"></strong></p>
+      <p class="description">Click the link in your email to sign in. You'll be authenticated automatically.</p>
+      <p class="description muted">You can close this popup — just reopen it after clicking the link.</p>
+      <button id="resetAuthBtn" class="btn-link" style="margin-top: 8px;">Use a different email</button>
     </div>
 
     <!-- Main -->

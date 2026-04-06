@@ -19,9 +19,8 @@ const wrongPageSection = $("#wrongPageSection");
 const emailInput = $("#emailInput");
 const sendLinkBtn = $("#sendLinkBtn");
 const loginMessage = $("#loginMessage");
-const verifySection = $("#verifySection");
-const tokenInput = $("#tokenInput");
-const verifyBtn = $("#verifyBtn");
+const waitingSection = $("#waitingSection");
+const waitingEmail = $("#waitingEmail");
 const userEmail = $("#userEmail");
 const logoutBtn = $("#logoutBtn");
 const clientSelect = $("#clientSelect");
@@ -52,7 +51,7 @@ async function setToken(token) {
 }
 
 async function clearToken() {
-  await chrome.storage.local.remove("vzd_token");
+  await chrome.storage.local.remove(["vzd_token", "vzd_email", "vzd_magic_link_pending"]);
 }
 
 async function apiFetch(path, options = {}) {
@@ -67,7 +66,13 @@ async function apiFetch(path, options = {}) {
 async function checkAuth() {
   const token = await getToken();
   if (!token) {
-    showLogin();
+    // Check if we're waiting for a magic link click
+    const { vzd_magic_link_pending } = await chrome.storage.local.get("vzd_magic_link_pending");
+    if (vzd_magic_link_pending) {
+      showWaiting(vzd_magic_link_pending);
+    } else {
+      showLogin();
+    }
     return;
   }
   try {
@@ -78,6 +83,8 @@ async function checkAuth() {
       return;
     }
     const user = await res.json();
+    // Clear pending state on successful auth
+    await chrome.storage.local.remove("vzd_magic_link_pending");
     showMain(user);
   } catch {
     showLogin();
@@ -88,12 +95,22 @@ function showLogin() {
   loginSection.style.display = "block";
   mainSection.style.display = "none";
   wrongPageSection.style.display = "none";
+  waitingSection.style.display = "none";
+}
+
+function showWaiting(email) {
+  loginSection.style.display = "none";
+  mainSection.style.display = "none";
+  wrongPageSection.style.display = "none";
+  waitingSection.style.display = "block";
+  waitingEmail.textContent = email;
 }
 
 async function showMain(user) {
   loginSection.style.display = "none";
   mainSection.style.display = "block";
   wrongPageSection.style.display = "none";
+  waitingSection.style.display = "none";
   userEmail.textContent = user.email || "";
 
   // Check if we're on a Meta Ads Library page
@@ -111,16 +128,14 @@ async function showMain(user) {
 async function loadClients(user) {
   clientSelect.innerHTML = '<option value="">Select a brand</option>';
 
-  // Use accessible_clients from /me response, plus fetch all clients if founder
   let clients = user.accessible_clients || [];
 
-  // If founder, also fetch all clients (which includes ad_library_only)
+  // If founder, also fetch all clients (includes ad_library_only)
   if (user.is_founder) {
     try {
       const res = await apiFetch("/api/clients");
       if (res.ok) {
         const allClients = await res.json();
-        // Merge, dedup by id
         const seen = new Set(clients.map((c) => c.id || c.client_id));
         for (const c of allClients) {
           const cid = c.id || c.client_id;
@@ -162,8 +177,9 @@ sendLinkBtn.addEventListener("click", async () => {
       body: JSON.stringify({ email }),
     });
     if (res.ok) {
-      showMessage(loginMessage, "Check your email for the magic link.", "success");
-      verifySection.style.display = "block";
+      // Persist that we're waiting for the magic link
+      await chrome.storage.local.set({ vzd_magic_link_pending: email });
+      showWaiting(email);
     } else {
       const data = await res.json().catch(() => ({}));
       showMessage(loginMessage, data.detail || "Failed to send magic link.", "error");
@@ -175,42 +191,10 @@ sendLinkBtn.addEventListener("click", async () => {
   }
 });
 
-verifyBtn.addEventListener("click", async () => {
-  const email = emailInput.value.trim();
-  let token = tokenInput.value.trim();
-  if (!email || !token) return;
-
-  // If they pasted the full URL, extract the token param
-  if (token.includes("token=")) {
-    try {
-      const url = new URL(token);
-      token = url.searchParams.get("token") || token;
-    } catch {
-      const match = token.match(/token=([^&]+)/);
-      if (match) token = decodeURIComponent(match[1]);
-    }
-  }
-
-  verifyBtn.disabled = true;
-  try {
-    const res = await fetch(`${API_BASE}/api/auth/magic-link/verify`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, token }),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      await setToken(data.access_token);
-      await checkAuth();
-    } else {
-      const data = await res.json().catch(() => ({}));
-      showMessage(loginMessage, data.detail || "Invalid or expired token.", "error");
-    }
-  } catch {
-    showMessage(loginMessage, "Network error.", "error");
-  } finally {
-    verifyBtn.disabled = false;
-  }
+// "Try different email" from waiting screen
+$("#resetAuthBtn")?.addEventListener("click", async () => {
+  await chrome.storage.local.remove("vzd_magic_link_pending");
+  showLogin();
 });
 
 // ---- Logout ----
@@ -297,6 +281,14 @@ importBtn.addEventListener("click", async () => {
   } finally {
     importBtn.disabled = false;
     importBtn.textContent = "Import";
+  }
+});
+
+// ---- Listen for auth changes from the auth-listener content script ----
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.vzd_token?.newValue) {
+    // Token was just set by the auth-listener — re-check auth
+    checkAuth();
   }
 });
 

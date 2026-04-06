@@ -7,12 +7,22 @@
   "host_permissions": [
     "https://www.facebook.com/ads/library/*",
     "https://api.mapthegap.ai/*",
-    "http://localhost:8000/*"
+    "https://vizualizd.marketably.ai/*",
+    "http://localhost:8000/*",
+    "http://localhost:3000/*"
   ],
   "content_scripts": [
     {
       "matches": ["*://www.facebook.com/ads/library/*"],
       "js": ["content/extractor.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "*://vizualizd.marketably.ai/*",
+        "*://localhost/*"
+      ],
+      "js": ["content/auth-listener.js"],
       "run_at": "document_idle"
     }
   ],
