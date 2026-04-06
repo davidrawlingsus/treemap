@@ -193,18 +193,94 @@ class MetaAdsLibraryScraper:
             logger.warning("[SCRAPE-DIAG] Screenshot failed: %s", e)
 
     async def _dump_page_html(self, page, label: str = "debug") -> None:
-        """Dump the full rendered DOM to a temp file for inspection."""
-        import tempfile
-        import os
-        path = os.path.join(tempfile.gettempdir(), f"scrape_{label}_{int(time.time())}.html")
+        """Log a structured summary of the rendered DOM for debugging."""
         try:
-            html = await page.content()
-            with open(path, 'w', encoding='utf-8') as f:
-                f.write(html)
-            size_kb = len(html) // 1024
-            logger.warning("[SCRAPE-DIAG] Page HTML saved to: %s (%d KB)", path, size_kb)
+            summary = await page.evaluate('''() => {
+                const html = document.documentElement.outerHTML;
+
+                // Count key elements
+                const videos = document.querySelectorAll('video');
+                const imgs = document.querySelectorAll('img');
+                const allText = document.body.innerText || '';
+
+                // Find all Library ID mentions in the raw HTML (even if not visible)
+                const htmlLibIds = (html.match(/Library ID[:\\s]*\\d+/gi) || []);
+
+                // Find all scontent/fbcdn URLs in the raw HTML
+                const mediaUrls = (html.match(/https?:\\/\\/[^"'\\s]*(?:scontent|fbcdn|video\\.[a-z0-9-]+\\.fna)[^"'\\s]*/gi) || []);
+                const uniqueMediaUrls = [...new Set(mediaUrls)];
+
+                // Categorize media URLs
+                const videoUrls = uniqueMediaUrls.filter(u => u.includes('video.') || u.includes('.mp4'));
+                const imgUrls = uniqueMediaUrls.filter(u => !u.includes('video.') && !u.includes('.mp4'));
+                const smallImgUrls = imgUrls.filter(u => u.includes('s60x60') || u.includes('s148x148'));
+                const largeImgUrls = imgUrls.filter(u => !u.includes('s60x60') && !u.includes('s148x148') && !u.includes('/rsrc.php'));
+
+                // Check for login/overlay elements
+                const dialogs = document.querySelectorAll('[role="dialog"], [role="alertdialog"]');
+                const visibleDialogs = [];
+                for (const d of dialogs) {
+                    const style = window.getComputedStyle(d);
+                    if (style.display !== 'none' && style.visibility !== 'hidden') {
+                        visibleDialogs.push((d.innerText || '').substring(0, 100));
+                    }
+                }
+
+                // Get the outer HTML of the first ad card area (find by Library ID text)
+                let firstAdCardHtml = '';
+                const spans = document.querySelectorAll('span');
+                for (const span of spans) {
+                    if (/^Library ID:\\s*\\d+$/.test(span.textContent?.trim() || '')) {
+                        // Walk up to a reasonable container
+                        let container = span;
+                        for (let i = 0; i < 12 && container.parentElement; i++) {
+                            container = container.parentElement;
+                        }
+                        firstAdCardHtml = container.outerHTML.substring(0, 3000);
+                        break;
+                    }
+                }
+
+                // Check page title and URL
+                const title = document.title;
+                const url = window.location.href;
+
+                return {
+                    title,
+                    url: url.substring(0, 200),
+                    htmlSize: html.length,
+                    bodyTextLength: allText.length,
+                    videoElements: videos.length,
+                    imgElements: imgs.length,
+                    htmlLibraryIds: htmlLibIds.length,
+                    htmlLibraryIdSamples: htmlLibIds.slice(0, 5),
+                    totalMediaUrls: uniqueMediaUrls.length,
+                    videoUrls: videoUrls.length,
+                    videoUrlSamples: videoUrls.slice(0, 3).map(u => u.substring(0, 100)),
+                    largeImgUrls: largeImgUrls.length,
+                    largeImgUrlSamples: largeImgUrls.slice(0, 3).map(u => u.substring(0, 100)),
+                    smallImgUrls: smallImgUrls.length,
+                    visibleDialogs,
+                    firstAdCardHtml,
+                };
+            }''')
+
+            logger.warning("[SCRAPE-DIAG] === PAGE SUMMARY (%s) ===", label)
+            logger.warning("[SCRAPE-DIAG] Title: %s | URL: %s", summary.get('title'), summary.get('url'))
+            logger.warning("[SCRAPE-DIAG] HTML size: %d KB | Body text: %d chars", summary.get('htmlSize', 0) // 1024, summary.get('bodyTextLength', 0))
+            logger.warning("[SCRAPE-DIAG] Elements: %d videos, %d imgs", summary.get('videoElements', 0), summary.get('imgElements', 0))
+            logger.warning("[SCRAPE-DIAG] Library IDs in HTML: %d — %s", summary.get('htmlLibraryIds', 0), summary.get('htmlLibraryIdSamples'))
+            logger.warning("[SCRAPE-DIAG] Media URLs in HTML: %d total (%d video, %d large img, %d small/profile)",
+                          summary.get('totalMediaUrls', 0), summary.get('videoUrls', 0),
+                          summary.get('largeImgUrls', 0), summary.get('smallImgUrls', 0))
+            logger.warning("[SCRAPE-DIAG] Video URL samples: %s", summary.get('videoUrlSamples'))
+            logger.warning("[SCRAPE-DIAG] Large img URL samples: %s", summary.get('largeImgUrlSamples'))
+            if summary.get('visibleDialogs'):
+                logger.warning("[SCRAPE-DIAG] Visible dialogs: %s", summary.get('visibleDialogs'))
+            if summary.get('firstAdCardHtml'):
+                logger.warning("[SCRAPE-DIAG] First ad card HTML (3KB): %s", summary.get('firstAdCardHtml'))
         except Exception as e:
-            logger.warning("[SCRAPE-DIAG] HTML dump failed: %s", e)
+            logger.warning("[SCRAPE-DIAG] Page summary failed: %s", e)
     
     async def scrape_ads_library(self, url: str, max_scrolls: int = 5) -> List[MediaItem]:
         """
