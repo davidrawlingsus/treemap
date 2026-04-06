@@ -311,14 +311,16 @@ class MetaAdsLibraryScraper:
             browser = await p.chromium.launch(headless=self.headless)
             
             try:
-                # Create context with realistic viewport
+                # Create context with English locale to ensure consistent rendering
                 context = await browser.new_context(
                     viewport={'width': 1920, 'height': 1080},
-                    user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+                    user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+                    locale='en-US',
+                    extra_http_headers={'Accept-Language': 'en-US,en;q=0.9'},
                 )
-                
+
                 page = await context.new_page()
-                
+
                 # Navigate to the URL
                 logger.info(f"Navigating to Meta Ads Library: {url}")
                 await page.goto(url, timeout=self.timeout, wait_until='networkidle')
@@ -414,7 +416,9 @@ class MetaAdsLibraryScraper:
             try:
                 context = await browser.new_context(
                     viewport={'width': 1920, 'height': 1080},
-                    user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
+                    user_agent='Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+                    locale='en-US',
+                    extra_http_headers={'Accept-Language': 'en-US,en;q=0.9'},
                 )
                 page = await context.new_page()
                 await page.goto(url, timeout=self.timeout, wait_until='networkidle')
