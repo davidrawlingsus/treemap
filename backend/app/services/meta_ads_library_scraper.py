@@ -191,6 +191,20 @@ class MetaAdsLibraryScraper:
             logger.warning("[SCRAPE-DIAG] Screenshot saved to: %s", path)
         except Exception as e:
             logger.warning("[SCRAPE-DIAG] Screenshot failed: %s", e)
+
+    async def _dump_page_html(self, page, label: str = "debug") -> None:
+        """Dump the full rendered DOM to a temp file for inspection."""
+        import tempfile
+        import os
+        path = os.path.join(tempfile.gettempdir(), f"scrape_{label}_{int(time.time())}.html")
+        try:
+            html = await page.content()
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(html)
+            size_kb = len(html) // 1024
+            logger.warning("[SCRAPE-DIAG] Page HTML saved to: %s (%d KB)", path, size_kb)
+        except Exception as e:
+            logger.warning("[SCRAPE-DIAG] HTML dump failed: %s", e)
     
     async def scrape_ads_library(self, url: str, max_scrolls: int = 5) -> List[MediaItem]:
         """
@@ -240,8 +254,9 @@ class MetaAdsLibraryScraper:
                 # Wait for ad cards to load after consent
                 await page.wait_for_timeout(5000)
 
-                # Debug screenshot
+                # Debug: save full page HTML and screenshot
                 await self._take_debug_screenshot(page, "media_after_consent")
+                await self._dump_page_html(page, "media_initial")
 
                 # Phase 1: Scroll through entire page to load all ads
                 # Use big scrolls to trigger "load more" and discover all ad cards
