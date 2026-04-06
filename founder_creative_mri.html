@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="/styles/founder-admin.css">
     <link rel="stylesheet" href="/styles/founder-creative-mri.css">
     <link rel="stylesheet" href="/styles/ads.css">
-    <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://unpkg.com/masonry-layout@4/dist/masonry.pkgd.min.js"></script>
     <script src="/config.js"></script>
     <script src="/auth.js"></script>
@@ -36,8 +35,8 @@
                     <span class="breadcrumbs-separator">›</span>
                     <span>Creative MRI</span>
                 </nav>
-                <h1>Creative Effectiveness Command Center</h1>
-                <div class="subtitle">What exists and how it behaves · Why it performs · What to do next.</div>
+                <h1>Ad Library</h1>
+                <div class="subtitle">Import and browse ads from Meta Ads Library.</div>
             </div>
             <div class="founder-meta">
                 <span id="founderEmail"></span>
@@ -49,11 +48,10 @@
             <div id="mriSetupSidebarSlot" class="mri-setup-sidebar-slot">
                 <div class="panel mri-panel brands-imports-panel" id="brandsImportsPanel">
                 <h2>Brands & Imports</h2>
-                <p class="mri-panel-desc">Add diagnosis-only brands and import ads from Meta Ads Library. These brands do not appear in the visualization app.</p>
+                <p class="mri-panel-desc">Add brands and import ads from Meta Ads Library.</p>
                 <div class="mri-tabs mri-tabs--primary" role="tablist" aria-label="Brand type">
                     <button class="mri-tab mri-tab--active" role="tab" id="tabNewBrand" data-tab="new">New Brand</button>
                     <button class="mri-tab" role="tab" id="tabExistingBrand" data-tab="existing">Existing Brand</button>
-                    <button class="mri-tab" role="tab" id="tabHistory" data-tab="history">History</button>
                 </div>
 
                 <div id="paneNewBrand" class="mri-tab-pane mri-tab-pane--active" role="tabpanel">
@@ -66,7 +64,7 @@
                             <label for="newBrandUrlInput">Meta Ads Library URL</label>
                             <input type="url" id="newBrandUrlInput" placeholder="https://www.facebook.com/ads/library/..." />
                         </div>
-                        <button class="btn btn-primary" id="addAndImportButton">Import and Run</button>
+                        <button class="btn btn-primary" id="addAndImportButton">Import Ads</button>
                         <div id="addAndImportMessage" class="mri-message" style="display: none;"></div>
                     </div>
                 </div>
@@ -90,13 +88,7 @@
                                 <option value="">Use latest import</option>
                             </select>
                         </div>
-                        <div id="recentReportsSection" class="mri-form-row" style="display: none;">
-                            <label>Load saved report</label>
-                            <select id="recentReportsSelect">
-                                <option value="">— No saved reports —</option>
-                            </select>
-                        </div>
-                        <button class="btn btn-primary" id="runReportButton">Run report</button>
+                        <button class="btn btn-primary" id="viewAdsButton">View Ads</button>
                     </div>
                     <div id="paneNewImport" class="mri-tab-pane" role="tabpanel" hidden>
                         <div class="mri-form-row">
@@ -112,13 +104,6 @@
                     </div>
                     </div>
                 </div>
-
-                <div id="paneHistory" class="mri-tab-pane" role="tabpanel" hidden>
-                    <p class="mri-panel-desc">Previous reports you can reopen. Click a report to view it.</p>
-                    <div id="historyReportsList" class="mri-history-list">
-                        <p class="mri-history-empty" id="historyEmpty">Loading…</p>
-                    </div>
-                </div>
                 </div>
             </div>
 
@@ -132,98 +117,30 @@
 
             <div class="panel mri-results" id="mriResults" style="display: none;">
                 <div class="mri-report-header">
-                    <h2 id="mriReportTitle" class="mri-report-title">Ad Creative MRI</h2>
+                    <h2 id="mriReportTitle" class="mri-report-title">Ad Library</h2>
                     <div class="mri-report-header-actions">
-                        <button type="button" class="mri-edit-pencil-btn" id="mriEditButton" title="Edit report" aria-label="Edit report">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                        </button>
-                        <button type="button" class="btn btn-primary mri-save-btn" id="mriSaveButton">Save</button>
-                        <button type="button" class="btn btn-secondary mri-cancel-btn" id="mriCancelEditButton">Cancel</button>
                         <button type="button" class="btn btn-secondary mri-back-to-setup" id="backToSetupButton" style="display: none;">
                             Back to setup
                         </button>
                     </div>
                 </div>
-                <p class="mri-panel-desc" id="mriLabel">Copy-based effectiveness diagnostics.</p>
+                <p class="mri-panel-desc" id="mriLabel"></p>
                 <div id="mriLoading" class="mri-loading mri-loading--active" style="display: none;">
                     <div class="mri-loading-prelude">
                         <div class="mri-loading-spinner" aria-hidden="true"></div>
-                        <p class="mri-loading-title">Running report…</p>
-                        <p class="mri-loading-detail" id="mriLoadingDetail">Claude analyzes each ad (plus Gemini for video and images). This can take 1–2 minutes for many ads.</p>
-                    </div>
-                    <div class="mri-progress-container" style="margin-top: 0; max-width: 360px; width: 100%;">
-                        <div class="mri-progress-track">
-                            <div class="mri-progress-fill" id="mriProgressFill" style="width: 0%"></div>
-                        </div>
-                        <p class="mri-progress-message" id="mriProgressMessage"></p>
-                        <p class="mri-loading-stuck" id="mriLoadingStuck" style="display: none;"></p>
+                        <p class="mri-loading-title">Loading ads…</p>
                     </div>
                 </div>
                 <div id="mriContent" style="display: none;">
-                    <div class="command-center-section health-summary command-center-section--full">
-                        <h3 class="mri-section-heading">Health Summary</h3>
-                        <div class="mri-summary" id="mriSummary"></div>
-                    </div>
-                    <div class="command-center-section impact-scoreboard">
-                        <div class="impact-scoreboard-grid" id="mriImpactScoreboard"></div>
-                    </div>
-                    <h3 class="mri-section-heading">Charts</h3>
-                    <div class="mri-charts">
-                        <div class="mri-chart mri-chart--d3" id="mriChartSubscores">
-                            <h4 class="mri-chart-title mri-subsection-heading">13 Direct-Response Dimensions</h4>
-                            <div id="mriChartDimensions"></div>
-                        </div>
-                        <div class="mri-chart" id="mriChartFindingsSection">
-                            <h4 class="mri-chart-title mri-subsection-heading">Top Strengths & Biggest Leaks</h4>
-                            <div id="mriChartFindings"></div>
-                        </div>
-                        <div class="mri-chart" id="mriChartHooks">
-                            <h4 class="mri-chart-title mri-subsection-heading">Hook type distribution</h4>
-                            <div class="mri-chart-bars" id="mriChartHooksBars"></div>
-                        </div>
-                        <div class="mri-chart" id="mriChartFunnel">
-                            <h4 class="mri-chart-title mri-subsection-heading">Funnel stage distribution</h4>
-                            <div class="mri-chart-bars" id="mriChartFunnelBars"></div>
-                        </div>
-                        <div class="mri-chart mri-chart--d3">
-                            <h4 class="mri-chart-title mri-subsection-heading">1. Launch cadence (launches/week)</h4>
-                            <div id="mriChartLaunchCadence"></div>
-                        </div>
-                        <div class="mri-chart mri-chart--d3">
-                            <h4 class="mri-chart-title mri-subsection-heading">2. Rotation depth (active creatives/week)</h4>
-                            <div id="mriChartRotationDepth"></div>
-                        </div>
-                        <div class="mri-chart mri-chart--d3">
-                            <h4 class="mri-chart-title mri-subsection-heading">3. Creative half-life (run length days)</h4>
-                            <div id="mriChartHalfLife"></div>
-                        </div>
-                        <div class="mri-chart mri-chart--d3">
-                            <h4 class="mri-chart-title mri-subsection-heading">4. Format mix over time</h4>
-                            <div id="mriChartFormatMix"></div>
-                        </div>
-                        <div class="mri-chart mri-chart--d3">
-                            <h4 class="mri-chart-title mri-subsection-heading">5. Funnel mix over time</h4>
-                            <div id="mriChartFunnelMix"></div>
-                        </div>
-                        <div class="mri-chart mri-chart--d3">
-                            <h4 class="mri-chart-title mri-subsection-heading">6. Hook × Funnel</h4>
-                            <div id="mriChartHookFunnel"></div>
-                        </div>
-                        <!-- Charts 7-8 replaced by dimension bars + findings above -->
-                    </div>
-                    <h3 class="mri-section-heading">Ad Critique</h3>
                     <div id="mriAdsList" class="mri-ads-grid"></div>
                 </div>
-                <div id="mriEmpty" class="mri-loading" style="display: none;">Run a report to see results.</div>
+                <div id="mriEmpty" class="mri-loading" style="display: none;">Select a brand and import to view ads.</div>
             </div>
         </main>
     </div>
 
     <script type="module">
-        import { renderAllMriCharts } from '/js/renderers/mri-charts.js';
         import { renderFBAdMockup, formatCTA, extractDomain, formatPrimaryText } from '/js/renderers/fb-ad-mockup.js';
-        import { toPascalCase } from '/js/utils/format.js';
-        import { updateCreativeMriReport } from '/js/services/api-creative-mri.js';
 
         const API_BASE_URL = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
 
@@ -234,34 +151,34 @@
             return {};
         }
 
+        function escapeHtml(s) {
+            if (s == null) return '';
+            const div = document.createElement('div');
+            div.textContent = s;
+            return div.innerHTML;
+        }
+
         const existingBrandSelect = document.getElementById('existingBrandSelect');
         const importSelect = document.getElementById('importSelect');
-        const runReportButton = document.getElementById('runReportButton');
+        const viewAdsButton = document.getElementById('viewAdsButton');
         const mriResults = document.getElementById('mriResults');
         const mriLoading = document.getElementById('mriLoading');
         const mriContent = document.getElementById('mriContent');
         const mriEmpty = document.getElementById('mriEmpty');
-        const mriSummary = document.getElementById('mriSummary');
         const mriAdsList = document.getElementById('mriAdsList');
-        const mriImpactScoreboard = document.getElementById('mriImpactScoreboard');
         let mriMasonryInstance = null;
-        let currentReportData = null;
 
         async function loadClients() {
             const res = await fetch(`${API_BASE_URL}/api/clients`, { headers: getAuthHeaders() });
             if (!res.ok) return;
             const clients = await res.json();
-            const optionHtml = (c) => {
-                const label = c.name || c.client_name || c.id || 'Unknown';
-                const suffix = c.ad_library_only ? ' (Diagnosis)' : '';
-                return { value: c.id || c.client_id, text: label + suffix };
-            };
             existingBrandSelect.innerHTML = '<option value="">Select a brand</option>';
             (clients || []).forEach(c => {
-                const { value, text } = optionHtml(c);
+                const label = c.name || c.client_name || c.id || 'Unknown';
+                const suffix = c.ad_library_only ? ' (Diagnosis)' : '';
                 const opt = document.createElement('option');
-                opt.value = value;
-                opt.textContent = text;
+                opt.value = c.id || c.client_id;
+                opt.textContent = label + suffix;
                 existingBrandSelect.appendChild(opt);
             });
         }
@@ -300,37 +217,19 @@
         existingBrandSelect.addEventListener('change', () => {
             const hasBrand = !!existingBrandSelect.value;
             existingBrandImportSection.hidden = !hasBrand;
-            if (hasBrand) {
-                loadImports();
-                loadRecentReports();
-            } else {
-                document.getElementById('recentReportsSection').style.display = 'none';
-            }
+            if (hasBrand) loadImports();
         });
 
-        document.getElementById('recentReportsSelect').addEventListener('change', async () => {
-            const reportId = document.getElementById('recentReportsSelect').value;
-            const clientId = existingBrandSelect.value;
-            if (!reportId || !clientId) return;
-            closeSetupModal();
-            setUrlReportParams(clientId, reportId);
-            await loadStoredReportAndRender();
-        });
-
+        // Tab switching
         function switchPrimaryTab(tab) {
             const isNew = tab === 'new';
             const isExisting = tab === 'existing';
-            const isHistory = tab === 'history';
             document.getElementById('tabNewBrand').classList.toggle('mri-tab--active', isNew);
             document.getElementById('tabExistingBrand').classList.toggle('mri-tab--active', isExisting);
-            document.getElementById('tabHistory').classList.toggle('mri-tab--active', isHistory);
             document.getElementById('paneNewBrand').classList.toggle('mri-tab-pane--active', isNew);
             document.getElementById('paneNewBrand').hidden = !isNew;
             document.getElementById('paneExistingBrand').classList.toggle('mri-tab-pane--active', isExisting);
             document.getElementById('paneExistingBrand').hidden = !isExisting;
-            document.getElementById('paneHistory').classList.toggle('mri-tab-pane--active', isHistory);
-            document.getElementById('paneHistory').hidden = !isHistory;
-            if (isHistory) loadHistoryReports();
         }
         function switchSecondaryTab(tab) {
             const isExisting = tab === 'existing-import';
@@ -345,10 +244,10 @@
         }
         document.getElementById('tabNewBrand').addEventListener('click', () => switchPrimaryTab('new'));
         document.getElementById('tabExistingBrand').addEventListener('click', () => switchPrimaryTab('existing'));
-        document.getElementById('tabHistory').addEventListener('click', () => switchPrimaryTab('history'));
         document.getElementById('tabExistingImport').addEventListener('click', () => switchSecondaryTab('existing-import'));
         document.getElementById('tabNewImport').addEventListener('click', () => switchSecondaryTab('new-import'));
 
+        // New brand: create + import + auto-view
         document.getElementById('addAndImportButton').addEventListener('click', async () => {
             const nameInput = document.getElementById('brandNameInput');
             const urlInput = document.getElementById('newBrandUrlInput');
@@ -398,7 +297,7 @@
                     await loadClients();
                     return;
                 }
-                msgEl.textContent = `Brand "${name}" created. Importing ads… Report will run automatically when ready.`;
+                msgEl.textContent = `Brand "${name}" created. Importing ads…`;
                 msgEl.className = 'mri-message mri-message--success';
                 msgEl.style.display = 'block';
                 nameInput.value = '';
@@ -407,6 +306,7 @@
                 existingBrandSelect.value = brandId;
                 existingBrandImportSection.hidden = false;
                 await loadImports();
+                // Poll until import is ready, then display ads
                 const pollInterval = 10000;
                 const maxWait = 3 * 60 * 1000;
                 const startedAt = Date.now();
@@ -421,21 +321,12 @@
                             await loadImports();
                             importSelect.value = items[0].id;
                             closeSetupModal();
-                            mriResults.style.display = 'block';
-                            enterReportView();
-                            mriLoading.style.display = 'flex';
-                            mriContent.style.display = 'none';
-                            mriEmpty.style.display = 'none';
-                            document.getElementById('mriProgressFill').style.width = '0%';
-                            document.getElementById('mriProgressMessage').textContent = '';
-                            mriLoading.classList.remove('mri-loading--progress');
-                            document.getElementById('mriLoadingDetail').textContent = 'Starting report…';
-                            runReportButton.click();
+                            await loadAndRenderAds(brandId, items[0].id);
                             return;
                         }
-                        msgEl.textContent = `Importing ads… (${Math.round((Date.now() - startedAt) / 1000)}s elapsed). Report will run when ready.`;
+                        msgEl.textContent = `Importing ads… (${Math.round((Date.now() - startedAt) / 1000)}s elapsed).`;
                     }
-                    msgEl.textContent = `Import is taking longer than expected. Switch to Existing Brand and run report manually when ready.`;
+                    msgEl.textContent = `Import is taking longer than expected. Switch to Existing Brand and view ads manually when ready.`;
                     msgEl.className = 'mri-message mri-message--error';
                 };
                 await pollUntilReady();
@@ -444,6 +335,7 @@
             }
         });
 
+        // Import ads for existing brand
         document.getElementById('importAdsButton').addEventListener('click', async () => {
             const brandId = existingBrandSelect.value;
             const urlInput = document.getElementById('existingBrandUrlInput');
@@ -479,7 +371,7 @@
                     msgEl.style.display = 'block';
                     return;
                 }
-                msgEl.textContent = 'Import started. This may take 1–2 minutes. Switch to Existing Import when done to run a report.';
+                msgEl.textContent = 'Import started. This may take 1–2 minutes. Switch to Existing Import when done to view ads.';
                 msgEl.className = 'mri-message mri-message--success';
                 msgEl.style.display = 'block';
                 urlInput.value = '';
@@ -489,64 +381,148 @@
             }
         });
 
-        runReportButton.addEventListener('click', async () => {
+        // View ads button — fetch ads from import and render
+        viewAdsButton.addEventListener('click', async () => {
             const clientId = existingBrandSelect.value;
             if (!clientId) {
                 alert('Select a brand first.');
                 return;
             }
             closeSetupModal();
+            const importId = importSelect.value;
+            await loadAndRenderAds(clientId, importId);
+        });
+
+        async function loadAndRenderAds(clientId, importId) {
             mriResults.style.display = 'block';
             enterReportView();
-            const brandLabel = existingBrandSelect.options[existingBrandSelect.selectedIndex]?.textContent || '—';
-            const reportTitleEl = document.getElementById('mriReportTitle');
-            if (reportTitleEl && brandLabel && brandLabel !== '—') {
-                reportTitleEl.textContent = `${brandLabel}'s Ad Creative MRI`;
-            }
             mriLoading.style.display = 'flex';
             mriContent.style.display = 'none';
             mriEmpty.style.display = 'none';
-            document.getElementById('mriProgressFill').style.width = '0%';
-            document.getElementById('mriProgressMessage').textContent = '';
-            mriLoading.classList.remove('mri-loading--progress');
-            document.getElementById('mriLoadingDetail').textContent = 'Starting report…';
-            runReportButton.disabled = true;
-            const importLabel = importSelect.options[importSelect.selectedIndex]?.textContent || 'Latest';
+
+            const brandLabel = existingBrandSelect.options[existingBrandSelect.selectedIndex]?.textContent || '—';
+            const reportTitleEl = document.getElementById('mriReportTitle');
+            if (reportTitleEl && brandLabel && brandLabel !== '—') {
+                reportTitleEl.textContent = `${brandLabel}'s Ads`;
+            }
+
             try {
-                const body = {};
-                const importId = importSelect.value;
-                if (importId) body.ad_library_import_id = importId;
-                const res = await fetch(`${API_BASE_URL}/api/clients/${clientId}/creative-mri/report`, {
-                    method: 'POST',
-                    headers: { ...getAuthHeaders(), 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body),
-                });
-                if (!res.ok) {
-                    const err = await res.json().catch(() => ({}));
-                    mriLoading.style.display = 'none';
-                    mriEmpty.style.display = 'block';
-                    mriEmpty.textContent = err.detail || `Error ${res.status}`;
-                    return;
+                let resolvedImportId = importId;
+                if (!resolvedImportId) {
+                    // Get latest import
+                    const importsRes = await fetch(`${API_BASE_URL}/api/clients/${clientId}/ad-library-imports`, { headers: getAuthHeaders() });
+                    if (!importsRes.ok) throw new Error('Failed to load imports');
+                    const importsData = await importsRes.json();
+                    const items = importsData.items || [];
+                    if (!items.length) throw new Error('No imports found for this brand.');
+                    resolvedImportId = items[0].id;
                 }
+
+                const res = await fetch(`${API_BASE_URL}/api/clients/${clientId}/ad-library-imports/${resolvedImportId}`, { headers: getAuthHeaders() });
+                if (!res.ok) throw new Error(`Failed to load ads (${res.status})`);
                 const data = await res.json();
-                const reportId = data.report_id;
-                if (!reportId) {
+                const ads = data.ads || [];
+
+                if (!ads.length) {
                     mriLoading.style.display = 'none';
                     mriEmpty.style.display = 'block';
-                    mriEmpty.textContent = 'No report ID returned.';
+                    mriEmpty.textContent = 'No ads in this import.';
                     return;
                 }
-                setUrlReportParams(clientId, reportId);
-                await loadStoredReportAndRender();
+
+                document.getElementById('mriLabel').textContent = `${ads.length} ads`;
+                mriLoading.style.display = 'none';
+                mriContent.style.display = 'block';
+                renderAds(ads, brandLabel);
+
+                // Update URL for shareability
+                const url = new URL(window.location.href);
+                url.searchParams.set('client_id', clientId);
+                url.searchParams.set('import_id', resolvedImportId);
+                window.history.replaceState({}, '', url.toString());
             } catch (e) {
                 mriLoading.style.display = 'none';
                 mriEmpty.style.display = 'block';
-                mriEmpty.textContent = 'Report failed: ' + (e.message || String(e));
+                mriEmpty.textContent = e.message || 'Failed to load ads.';
                 console.error(e);
-            } finally {
-                runReportButton.disabled = false;
             }
-        });
+        }
+
+        function renderAds(ads, brandLabel) {
+            const KNOWN_CTA_PHRASES = ['shop now', 'learn more', 'sign up', 'get offer', 'download', 'watch more', 'send message', 'apply now', 'book now', 'start trial', 'take quiz'];
+            const isLikelyHeadline = (s) => !s || s.length > 25 || !KNOWN_CTA_PHRASES.includes(s.toLowerCase().trim());
+            const getCtaForButton = (ad) => {
+                const c = (ad.cta || '').trim();
+                if (isLikelyHeadline(c)) return 'Learn more';
+                return formatCTA(c.replace(/\s+/g, '_'));
+            };
+            const getHeadlineForMockup = (ad) => {
+                const h = (ad.headline || '').trim();
+                if (h) return h;
+                const c = (ad.cta || '').trim();
+                return isLikelyHeadline(c) ? c : '';
+            };
+            const firstMediaUrl = (ad) => {
+                const items = ad.media_items || [];
+                const first = items[0];
+                return first?.url || ad.media_thumbnail_url || null;
+            };
+            const getPosterUrlForVideo = (ad) => {
+                const items = ad.media_items || [];
+                const first = items[0];
+                return (first?.poster_url || ad.media_thumbnail_url || '').trim() || null;
+            };
+
+            const cardsHtml = ads.map(ad => {
+                const isVideo = (ad.ad_format || '').toLowerCase() === 'video' || (ad.media_items || []).some(m => (m || {}).media_type === 'video');
+                const imageUrl = firstMediaUrl(ad);
+                const posterUrl = isVideo ? getPosterUrlForVideo(ad) : null;
+                const pageName = ad.page_name || brandLabel || 'Sponsored';
+                const mockup = renderFBAdMockup({
+                    adId: ad.id || '',
+                    primaryText: formatPrimaryText(ad.primary_text || ''),
+                    headline: escapeHtml(getHeadlineForMockup(ad)),
+                    description: escapeHtml(ad.description || ''),
+                    cta: getCtaForButton(ad),
+                    displayUrl: extractDomain(ad.destination_url || ''),
+                    logoSrc: ad.page_profile_image_url || '',
+                    clientName: pageName,
+                    imageUrl,
+                    posterUrl: posterUrl || undefined,
+                    readOnly: true
+                });
+                return `
+                    <div class="mri-ad-card mri-ad-card--masonry ads-card">
+                        <div class="mri-ad-card__mockup ads-card__mockup">${mockup}</div>
+                    </div>
+                `;
+            }).join('');
+
+            mriAdsList.innerHTML = `
+                <div class="mri-ads-grid-sizer"></div>
+                <div class="mri-ads-gutter-sizer"></div>
+                ${cardsHtml}
+            `;
+
+            if (typeof Masonry !== 'undefined') {
+                if (mriMasonryInstance) mriMasonryInstance.destroy();
+                mriMasonryInstance = new Masonry(mriAdsList, {
+                    itemSelector: '.mri-ad-card',
+                    columnWidth: '.mri-ads-grid-sizer',
+                    gutter: '.mri-ads-gutter-sizer',
+                    percentPosition: true,
+                    horizontalOrder: true
+                });
+                mriAdsList.querySelectorAll('.pe-fb-ad__media.has-image img, .pe-fb-ad__media.has-image video').forEach((el) => {
+                    if (el.tagName === 'IMG' && !el.complete) {
+                        el.addEventListener('load', () => mriMasonryInstance?.layout());
+                        el.addEventListener('error', () => mriMasonryInstance?.layout());
+                    } else if (el.tagName === 'VIDEO') {
+                        el.addEventListener('loadeddata', () => mriMasonryInstance?.layout());
+                    }
+                });
+            }
+        }
 
         function enterReportView() {
             document.getElementById('mriMain').classList.add('mri-report-view');
@@ -574,639 +550,63 @@
         document.getElementById('backToSetupButton').addEventListener('click', openSetupModal);
         document.getElementById('mriSetupModalClose').addEventListener('click', closeSetupModal);
         document.getElementById('mriSetupModalBackdrop').addEventListener('click', closeSetupModal);
-
-        let editModeOriginalSummary = '';
-        let editModeOriginalScoreboard = '';
-        const mriEditButton = document.getElementById('mriEditButton');
-        const mriSaveButton = document.getElementById('mriSaveButton');
-        const mriCancelEditButton = document.getElementById('mriCancelEditButton');
-        const mriReportHeaderActions = document.querySelector('.mri-report-header-actions');
-
-        function enterEditMode() {
-            if (!currentReportData || !mriSummary || !mriImpactScoreboard) return;
-            editModeOriginalSummary = mriSummary.innerHTML;
-            editModeOriginalScoreboard = mriImpactScoreboard.innerHTML;
-            mriSummary.contentEditable = 'true';
-            mriImpactScoreboard.contentEditable = 'true';
-            mriContent.classList.add('mri-edit-mode');
-            mriReportHeaderActions?.classList.add('is-edit-mode');
-        }
-
-        function exitEditMode() {
-            mriSummary.contentEditable = 'false';
-            mriImpactScoreboard.contentEditable = 'false';
-            mriContent.classList.remove('mri-edit-mode');
-            mriReportHeaderActions?.classList.remove('is-edit-mode');
-        }
-
-        mriEditButton?.addEventListener('click', () => {
-            if (!currentReportData) return;
-            enterEditMode();
-        });
-
-        mriCancelEditButton?.addEventListener('click', () => {
-            mriSummary.innerHTML = editModeOriginalSummary;
-            mriImpactScoreboard.innerHTML = editModeOriginalScoreboard;
-            exitEditMode();
-        });
-
-        mriSaveButton?.addEventListener('click', async () => {
-            if (!currentReportData) return;
-            const { report, clientId, reportId } = currentReportData;
-            const updatedReport = {
-                ...report,
-                edited_sections: {
-                    summary: mriSummary.innerHTML,
-                    impact_scoreboard: mriImpactScoreboard.innerHTML,
-                },
-            };
-            mriSaveButton.disabled = true;
-            try {
-                await updateCreativeMriReport(clientId, reportId, updatedReport, getAuthHeaders);
-                currentReportData = { ...currentReportData, report: updatedReport };
-                exitEditMode();
-            } catch (err) {
-                console.error('Failed to save report:', err);
-                alert('Failed to save: ' + (err.message || 'Unknown error'));
-            } finally {
-                mriSaveButton.disabled = false;
-            }
-        });
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && mriSetupModalOverlay.classList.contains('mri-setup-modal--open')) {
                 closeSetupModal();
             }
         });
 
-        function escapeHtml(s) {
-            if (s == null) return '';
-            const div = document.createElement('div');
-            div.textContent = s;
-            return div.innerHTML;
-        }
-
-        function getUrlReportParams() {
+        // On load: check URL params for direct linking
+        async function tryLoadFromUrl() {
             const params = new URLSearchParams(window.location.search);
             const clientId = params.get('client_id');
+            const importId = params.get('import_id');
             const reportId = params.get('report_id');
-            return { clientId, reportId };
-        }
 
-        function setUrlReportParams(clientId, reportId) {
-            const url = new URL(window.location.href);
-            url.searchParams.set('client_id', clientId);
-            url.searchParams.set('report_id', reportId);
-            window.history.replaceState({}, '', url.toString());
-        }
-
-        function renderReport(report, brandLabel, importLabel) {
-            const reportTitleEl = document.getElementById('mriReportTitle');
-            if (reportTitleEl) {
-                reportTitleEl.textContent = (brandLabel && brandLabel !== '—')
-                    ? `${brandLabel}'s Ad Creative MRI`
-                    : 'Ad Creative MRI';
-            }
-            const exec = report.executive_summary || {};
-            const ads = report.ads || [];
-            const analysis = report.analysis || {};
-            // Diagnostic: count ads with video transcripts (for debugging missing transcripts)
-            const ds = analysis?.analysis?.dataset_summary || {};
-            const funnelShare = ds.funnel?.stage_share || {};
-
-            const edited = report.edited_sections || {};
-            if (edited.summary) mriSummary.innerHTML = edited.summary;
-            if (edited.impact_scoreboard) mriImpactScoreboard.innerHTML = edited.impact_scoreboard;
-
-            const synth = report.synthesized_summary || {};
-            if (synth.executive_summary || synth.dataset_overview || synth.top_5_high_impact_actions) {
-                renderSynthesizedSummary(synth, edited);
-            } else {
-                renderLegacySummary(exec, funnelShare, edited);
-            }
-
-            function renderBarRow(label, value, maxVal, fillClass = '') {
-                const pct = maxVal ? Math.round((value / maxVal) * 100) : 0;
-                return `
-                    <div class="mri-bar-row">
-                        <span class="mri-bar-label" title="${escapeHtml(label)}">${escapeHtml(label)}</span>
-                        <div class="mri-bar-track"><div class="mri-bar-fill ${fillClass}" style="width: ${pct}%"></div></div>
-                        <span class="mri-bar-value">${value}</span>
-                    </div>`;
-            }
-
-            // v2: dimension bars and findings are rendered by mri-charts.js renderAllMriCharts()
-            // Legacy v1 subscores fallback
-            const subscoresSummary = exec.subscores_summary || [];
-            if (!report.batch_synthesis && subscoresSummary.length > 0) {
-                const barsEl = document.getElementById('mriChartDimensions');
-                if (barsEl) barsEl.innerHTML = subscoresSummary
-                    .map(s => renderBarRow(s.label || toPascalCase(s.name), (s.average || 0).toFixed(0), 100)).join('');
-            }
-
-            const ALL_HOOK_TYPES = ['direct_benefit','pain_agitation','authority','social_proof','ranking','newness','contrarian','identity','instructional','urgency_scarcity','story','offer_led','question','curiosity_gap','comparison','mechanism_tease','unknown'];
-            const ALL_FUNNEL_STAGES = ['tofu','mofu','bofu'];
-            const hookCounts = {};
-            ALL_HOOK_TYPES.forEach(h => { hookCounts[h] = 0; });
-            ads.forEach(ad => { const h = (ad.hook_type || 'unknown').toLowerCase();
-                if (hookCounts[h] !== undefined) hookCounts[h]++; else hookCounts['unknown']++; });
-            const hookMax = Math.max(...Object.values(hookCounts), 1);
-            document.getElementById('mriChartHooksBars').innerHTML = ALL_HOOK_TYPES
-                .map(h => ({ name: h, count: hookCounts[h] ?? 0 }))
-                .sort((a, b) => b.count - a.count)
-                .map(({ name, count }) => renderBarRow(toPascalCase(name), count, hookMax, 'mri-bar-fill--hook')).join('');
-
-            const funnelCounts = { tofu: 0, mofu: 0, bofu: 0 };
-            ads.forEach(ad => { const f = (ad.funnel_stage || 'tofu').toLowerCase();
-                if (funnelCounts[f] !== undefined) funnelCounts[f]++; });
-            const funnelMax = Math.max(...Object.values(funnelCounts), 1);
-            document.getElementById('mriChartFunnelBars').innerHTML = ALL_FUNNEL_STAGES
-                .map(f => ({ name: f, count: funnelCounts[f] ?? 0 }))
-                .map(({ name, count }) => renderBarRow(name.toUpperCase(), count, funnelMax, 'mri-bar-fill--funnel')).join('');
-
-            function formatSummaryText(str) {
-                if (str == null || str === '') return '';
-                return escapeHtml(String(str)).replace(/\n/g, '<br>');
-            }
-
-            function renderSynthesizedSummary(synth, edited = {}) {
-                const exec = synth.executive_summary || {};
-                const dataset = synth.dataset_overview || {};
-                const actions = synth.top_5_high_impact_actions || [];
-                const funnel = synth.funnel_analysis || {};
-                const hook = synth.hook_analysis || {};
-                const proof = synth.proof_and_credibility || {};
-                const offer = synth.offer_and_conversion || {};
-                const roadmap = synth['90_day_creative_roadmap'] || {};
-
-                if (!edited.summary) {
-                document.getElementById('mriSummary').innerHTML = `
-                    ${exec.core_diagnosis ? `<div class="mri-summary-block"><p><strong>Core diagnosis:</strong> ${formatSummaryText(exec.core_diagnosis)}</p></div>` : ''}
-                    ${exec.primary_constraint ? `<div class="mri-summary-block"><p><strong>Primary constraint:</strong> ${formatSummaryText(exec.primary_constraint)}</p></div>` : ''}
-                    ${(exec.secondary_constraints || []).length ? `<div class="mri-summary-block"><p><strong>Secondary constraints:</strong></p><ul>${exec.secondary_constraints.map(c => `<li>${formatSummaryText(c)}</li>`).join('')}</ul></div>` : ''}
-                    ${(exec.hidden_strengths || []).length ? `<div class="mri-summary-block"><p><strong>Hidden strengths:</strong></p><ul>${exec.hidden_strengths.map(s => `<li>${formatSummaryText(s)}</li>`).join('')}</ul></div>` : ''}
-                    ${funnel.structural_gap ? `<div class="mri-summary-block"><p><strong>Funnel gap:</strong> ${formatSummaryText(funnel.structural_gap)}</p></div>` : ''}
-                    ${hook.implication ? `<div class="mri-summary-block"><p><strong>Hook implication:</strong> ${formatSummaryText(hook.implication)}</p></div>` : ''}
-                    ${proof.risk ? `<div class="mri-summary-block"><p><strong>Proof credibility risk:</strong> ${formatSummaryText(proof.risk)}</p></div>` : ''}
-                    ${offer.conversion_structural_risk ? `<div class="mri-summary-block"><p><strong>Conversion risk:</strong> ${formatSummaryText(offer.conversion_structural_risk)}</p></div>` : ''}
-                `;
-                }
-
-                const actionCells = (actions || []).slice(0, 5).map((a, i) => `
-                    <div class="impact-scoreboard-cell mri-action-item">
-                        <div class="mri-action-header">
-                            <span class="mri-action-number">${i + 1}</span>
-                            <div class="mri-action-header-content">
-                                <strong>${escapeHtml(a.action_title || 'Action ' + (i + 1))}</strong>
-                                <span class="mri-action-meta">${escapeHtml(a.impact_confidence || '')} impact · ${escapeHtml(a.effort_level || '')} effort</span>
-                            </div>
-                        </div>
-                        ${a.why_it_matters ? `<p class="mri-action-why">${formatSummaryText(a.why_it_matters)}</p>` : ''}
-                        ${a.what_to_produce?.creative_brief?.length ? `<ul class="mri-action-brief">${(a.what_to_produce.creative_brief || []).map(b => `<li>${formatSummaryText(b)}</li>`).join('')}</ul>` : ''}
-                    </div>
-                `).join('');
-                const roadmapHtml = roadmap.phase_1_weeks_1_4?.focus ? `
-                    <div class="impact-scoreboard-cell mri-roadmap-cell">
-                        <h4 class="mri-subsection-heading">90-day roadmap</h4>
-                        <div class="mri-roadmap-phases">
-                            <p><strong>Phase 1 (weeks 1–4):</strong> ${formatSummaryText(roadmap.phase_1_weeks_1_4.focus)}</p>
-                            <p><strong>Phase 2 (weeks 5–8):</strong> ${formatSummaryText(roadmap.phase_2_weeks_5_8?.focus || '—')}</p>
-                            <p><strong>Phase 3 (weeks 9–12):</strong> ${formatSummaryText(roadmap.phase_3_weeks_9_12?.focus || '—')}</p>
-                        </div>
-                    </div>
-                ` : '';
-                const cells = actionCells + roadmapHtml;
-                if (!edited.impact_scoreboard) {
-                    document.getElementById('mriImpactScoreboard').innerHTML = cells
-                        ? `<h3 class="mri-section-heading">Top 5 high-impact actions</h3><div class="impact-scoreboard-grid-inner">${cells}</div>`
-                        : '<p class="muted">No synthesized summary available. Run a new report with the synthesize prompt configured.</p>';
-                }
-            }
-
-            function renderLegacySummary(exec, funnelShare, edited = {}) {
-                if (!edited.summary) {
-                // v2: batch_synthesis available — show dimension-based summary
-                const synth = report?.batch_synthesis;
-                if (synth && synth.dimensions) {
-                    const narrative = synth.executive_narrative || '';
-                    const overallScore = synth.overall_score ?? exec.overall_effectiveness_score ?? 0;
-                    const leaks = (synth.bottom_3 || []).map(b => `<li><strong>${escapeHtml(b.dimension?.replace(/_/g, ' ') || '')}</strong> (${b.score}/100): ${escapeHtml(b.finding || '')}</li>`).join('');
-                    const strengths = (synth.top_3 || []).map(t => `<li><strong>${escapeHtml(t.dimension?.replace(/_/g, ' ') || '')}</strong> (${t.score}/100): ${escapeHtml(t.finding || '')}</li>`).join('');
-                    mriSummary.innerHTML = `
-                        <h3 class="mri-section-heading">Executive Summary</h3>
-                        <p><span class="score">${overallScore}</span> / 100 (13-dimension direct-response score)</p>
-                        ${narrative ? `<p style="font-size:14px;color:#2d3748;margin:12px 0;line-height:1.6;">${escapeHtml(narrative)}</p>` : ''}
-                        <p><strong>Biggest leaks:</strong></p>
-                        <ul>${leaks || '<li>None identified</li>'}</ul>
-                        <p><strong>Top strengths:</strong></p>
-                        <ul>${strengths || '<li>None identified</li>'}</ul>
-                    `;
-                } else {
-                    // v1 legacy fallback
-                    mriSummary.innerHTML = `
-                        <p class="muted" style="margin-bottom: 12px;">Legacy summary — run a new report for the v2 13-dimension analysis.</p>
-                        <h3 class="mri-section-heading">Executive summary</h3>
-                        <p><span class="score">${exec.overall_effectiveness_score ?? 0}</span> / 100 (copy-based effectiveness)</p>
-                        <p><strong>Subscores:</strong></p>
-                        <ul>${(exec.subscores_summary || []).map(s => `<li>${s.name}: ${s.average}</li>`).join('')}</ul>
-                        <p><strong>Top strengths:</strong></p>
-                        <ul>${(exec.top_strengths || []).map(s => `<li>${s.subscore || s.dimension || ''} (avg ${s.average || s.score || ''}) – ${(s.headline || s.finding || '').slice(0, 80)}</li>`).join('')}</ul>
-                        <p><strong>Top leaks:</strong></p>
-                        <ul>${(exec.top_leaks || []).map(s => `<li>${s.subscore || s.dimension || ''} (avg ${s.average || s.score || ''}) – ${(s.headline || s.finding || '').slice(0, 80)}</li>`).join('')}</ul>
-                        <p><strong>Fast wins:</strong></p>
-                        <ul>${(exec.fast_wins || []).map(w => `<li>${w}</li>`).join('')}</ul>
-                    `;
-                }
-                }
-                if (!edited.impact_scoreboard) {
-                document.getElementById('mriImpactScoreboard').innerHTML = `
-                    <p><strong>Performance lift potential:</strong> +${Math.round(exec.overall_effectiveness_score || 0) - 50}% (copy-based proxy)</p>
-                    <p><strong>Biggest drags:</strong></p>
-                    <ul>${(exec.top_leaks || []).slice(0, 3).map(l => `<li>${l.subscore}</li>`).join('')}</ul>
-                    <p><strong>Quick wins:</strong></p>
-                    <ul>${(exec.fast_wins || []).slice(0, 3).map(w => `<li>${escapeHtml(w)}</li>`).join('')}</ul>
-                    <p class="muted">Funnel mix: TOFU ${Math.round((funnelShare.tofu || 0) * 100)}% / MOFU ${Math.round((funnelShare.mofu || 0) * 100)}% / BOFU ${Math.round((funnelShare.bofu || 0) * 100)}%</p>
-                `;
-                }
-            }
-
-            renderAllMriCharts(report);
-
-            const MRI_DEBUG = /mri_debug=1/i.test(window.location.search || '');
-            const firstMediaUrl = (ad) => {
-                const items = ad.media_items || [];
-                const first = items[0];
-                const url = first?.url || ad.media_thumbnail_url || null;
-                if (MRI_DEBUG) {
-                    console.debug('[MRI media]', {
-                        ad_id: ad.id,
-                        media_items_count: items.length,
-                        media_thumbnail_url: !!ad.media_thumbnail_url,
-                        resolved_url: url ? url.substring(0, 80) + '...' : null,
-                        source: url ? (first?.url ? 'media_items[0]' : 'media_thumbnail_url') : 'none',
-                    });
-                }
-                return url;
-            };
-            const getPosterUrlForVideo = (ad) => {
-                const items = ad.media_items || [];
-                const first = items[0];
-                return (first?.poster_url || ad.media_thumbnail_url || '').trim() || null;
-            };
-            const getVideoTranscript = (ad) => {
-                const items = ad.media_items || [];
-                const video = items.find(m => (m || {}).media_type === 'video');
-                const analysis = video?.video_analysis_json;
-                if (!analysis || typeof analysis !== 'object') {
-                    if (MRI_DEBUG && video) {
-                        console.debug('[MRI transcript]', {
-                            ad_id: ad.id,
-                            has_video: true,
-                            has_analysis: !!analysis,
-                            analysis_type: typeof analysis,
-                            video_keys: video ? Object.keys(video) : [],
-                        });
-                    }
-                    return null;
-                }
-                const transcript = analysis.transcript || analysis.timeline_first_2s?.transcript_excerpt || null;
-                if (MRI_DEBUG) {
-                    console.debug('[MRI transcript]', {
-                        ad_id: ad.id,
-                        has_transcript: !!transcript,
-                        transcript_len: transcript ? transcript.length : 0,
-                        transcript_preview: transcript ? transcript.substring(0, 60) + '...' : null,
-                        analysis_keys: Object.keys(analysis),
-                    });
-                }
-                return transcript;
-            };
-            const KNOWN_CTA_PHRASES = ['shop now', 'learn more', 'sign up', 'get offer', 'download', 'watch more', 'send message', 'apply now', 'book now', 'start trial', 'take quiz'];
-            const isLikelyHeadline = (s) => !s || s.length > 25 || !KNOWN_CTA_PHRASES.includes(s.toLowerCase().trim());
-            const getCtaForButton = (ad) => {
-                if (ad.llm?.cta_type) return formatCTA(ad.llm.cta_type);
-                const c = (ad.cta || '').trim();
-                if (isLikelyHeadline(c)) return 'Learn more';
-                return formatCTA(c.replace(/\s+/g, '_'));
-            };
-            const getHeadlineForMockup = (ad) => {
-                const h = (ad.headline || '').trim();
-                if (h) return h;
-                const c = (ad.cta || '').trim();
-                return isLikelyHeadline(c) ? c : '';
-            };
-            if (!ads.length) {
-                mriAdsList.innerHTML = '<p class="muted">No ads in this report.</p>';
-                if (mriMasonryInstance) { mriMasonryInstance.destroy(); mriMasonryInstance = null; }
-                return;
-            }
-            const cardsHtml = ads.map(ad => {
-                const llm = ad.llm || {};
-                const angle = llm.angle || ad.angle || '—';
-                const whatToChange = (llm.what_to_change || ad.what_to_change || []);
-                const mofuJob = (ad.funnel_stage || '').toLowerCase() === 'mofu' ? (llm.mofu_job_type || '') : '';
-                const claimAudit = llm.claim_audit || {};
-                const topRisk = (claimAudit.top_risks || [])[0];
-                const vf2s = llm.video_first_2s || {};
-                const isVideo = (ad.ad_format || '').toLowerCase() === 'video' || (ad.media_items || []).some(m => (m || {}).media_type === 'video');
-                const first2sBadge = isVideo && vf2s.applicable ? (vf2s.quality || 'missing') : '';
-                const videoTranscript = getVideoTranscript(ad);
-                const imageUrl = firstMediaUrl(ad);
-                const posterUrl = isVideo ? getPosterUrlForVideo(ad) : null;
-                const mockup = renderFBAdMockup({
-                    adId: ad.id || '',
-                    primaryText: formatPrimaryText(ad.primary_text || ''),
-                    headline: escapeHtml(getHeadlineForMockup(ad)),
-                    description: escapeHtml(ad.description || ''),
-                    cta: getCtaForButton(ad),
-                    displayUrl: extractDomain(ad.destination_url || ''),
-                    logoSrc: '',
-                    clientName: brandLabel || 'Sponsored',
-                    imageUrl,
-                    posterUrl: posterUrl || undefined,
-                    readOnly: true
-                });
-                // v2 classification labels
-                const beliefCount = (llm.belief_clusters || []).length;
-                const closePattern = llm.close_pattern || '—';
-                const proofCount = (llm.sentences || []).filter(s => s.type === 'proof').length;
-                const claimCount = (llm.sentences || []).filter(s => s.type === 'claim').length;
-                const fkGrade = (llm.flesch_kincaid || {}).flesch_kincaid_grade;
-
-                const labelsParts = [
-                    `Stage: ${escapeHtml(ad.funnel_stage ?? '—')}`,
-                    `Hook: ${escapeHtml(ad.hook_type ?? '—')}`,
-                    beliefCount ? `Beliefs: ${beliefCount}` : '',
-                    (claimCount || proofCount) ? `Claims: ${claimCount} / Proof: ${proofCount}` : '',
-                    closePattern !== '—' ? `Close: ${escapeHtml(closePattern)}` : '',
-                    fkGrade != null ? `FK Grade: ${fkGrade}` : '',
-                ].filter(Boolean);
-                const whatToChangeHtml = whatToChange.length ? `<ul class="ads-card__voc-list">${whatToChange.map(w => `<li class="ads-card__voc-item">${escapeHtml(w)}</li>`).join('')}</ul>` : '<p class="ads-card__detail-value">No suggestions</p>';
-                const transcriptHtml = videoTranscript ? `<div class="mri-ad-card__transcript-body">${escapeHtml(videoTranscript)}</div>` : '';
-                const accordions = [
-                    { title: 'What to change', body: whatToChangeHtml },
-                    ...(videoTranscript ? [{ title: 'Video transcript', body: transcriptHtml }] : [])
-                ];
-                const accordionsHtml = accordions.map(acc => `
-                    <div class="ads-accordion">
-                        <button class="ads-accordion__trigger" type="button">
-                            <span class="ads-accordion__title">${escapeHtml(acc.title)}</span>
-                            <svg class="ads-accordion__chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </button>
-                        <div class="ads-accordion__content">
-                            <div class="ads-accordion__body">${acc.body}</div>
-                        </div>
-                    </div>
-                `).join('');
-                return `
-                    <div class="mri-ad-card mri-ad-card--masonry ads-card">
-                        <div class="mri-ad-card__header ads-card__header">
-                            <div class="mri-ad-card__labels">${labelsParts.map(l => `<span class="mri-ad-card__label">${l}</span>`).join('')}</div>
-                        </div>
-                        <div class="mri-ad-card__mockup ads-card__mockup">${mockup}</div>
-                        <div class="ads-card__accordions">${accordionsHtml}</div>
-                    </div>
-                `;
-            }).join('');
-            mriAdsList.innerHTML = `
-                <div class="mri-ads-grid-sizer"></div>
-                <div class="mri-ads-gutter-sizer"></div>
-                ${cardsHtml}
-            `;
-            if (typeof Masonry !== 'undefined') {
-                if (mriMasonryInstance) mriMasonryInstance.destroy();
-                mriMasonryInstance = new Masonry(mriAdsList, {
-                    itemSelector: '.mri-ad-card',
-                    columnWidth: '.mri-ads-grid-sizer',
-                    gutter: '.mri-ads-gutter-sizer',
-                    percentPosition: true,
-                    horizontalOrder: true
-                });
-                mriAdsList.querySelectorAll('.pe-fb-ad__media.has-image img, .pe-fb-ad__media.has-image video').forEach((el) => {
-                    if (el.tagName === 'IMG' && !el.complete) {
-                        el.addEventListener('load', () => mriMasonryInstance?.layout());
-                        el.addEventListener('error', () => mriMasonryInstance?.layout());
-                    } else if (el.tagName === 'VIDEO') {
-                        el.addEventListener('loadeddata', () => mriMasonryInstance?.layout());
-                    }
-                });
-            }
-            if (!mriAdsList._accordionHandler) {
-                mriAdsList._accordionHandler = true;
-                mriAdsList.addEventListener('click', (e) => {
-                    const trigger = e.target.closest('.ads-accordion__trigger');
-                    if (trigger) {
-                        const accordion = trigger.closest('.ads-accordion');
-                        if (accordion) {
-                            accordion.classList.toggle('expanded');
-                            setTimeout(() => mriMasonryInstance?.layout(), 260);
-                        }
-                    }
-                });
-            }
-        }
-
-        async function loadReportById(clientId, reportId) {
-            const res = await fetch(`${API_BASE_URL}/api/clients/${clientId}/creative-mri/reports/${reportId}`, { headers: getAuthHeaders() });
-            if (!res.ok) return null;
-            return res.json();
-        }
-
-        async function loadStoredReportAndRender() {
-            const { clientId, reportId } = getUrlReportParams();
-            if (!clientId || !reportId) return false;
-
-            mriResults.style.display = 'block';
-            enterReportView();
-            mriLoading.style.display = 'flex';
-            mriContent.style.display = 'none';
-            mriEmpty.style.display = 'none';
-            document.getElementById('mriLoadingDetail').textContent = 'Loading report…';
-
-            const data = await loadReportById(clientId, reportId);
-            if (!data) {
-                mriLoading.style.display = 'none';
-                mriEmpty.style.display = 'block';
-                mriEmpty.textContent = 'Report not found.';
-                return true;
-            }
-
-            if (data.status === 'complete' && data.report) {
-                mriLoading.style.display = 'none';
-                mriContent.style.display = 'block';
+            if (clientId && importId) {
                 existingBrandSelect.value = clientId;
                 existingBrandImportSection.hidden = false;
                 await loadImports();
-                await loadRecentReports();
-                switchPrimaryTab('existing');
-                const clientOpt = existingBrandSelect.options[existingBrandSelect.selectedIndex];
-                const meta = data.report.meta || {};
-                const adCount = meta.total_ads ?? '?';
-                currentReportData = { report: data.report, clientId, reportId };
-                renderReport(data.report, clientOpt?.textContent || '—', `${adCount} ads`);
+                await loadAndRenderAds(clientId, importId);
                 return true;
             }
 
-            if (data.status === 'failed') {
-                mriLoading.style.display = 'none';
-                mriEmpty.style.display = 'block';
-                mriEmpty.textContent = data.error_message || 'Report failed.';
-                return true;
-            }
-
-            // status === 'running' (or pending)
-            const STUCK_REPORT_MINUTES = 15;
-            function updateProgressUI(data) {
-                const total = data.progress_total ?? 1;
-                const current = data.progress_current ?? 0;
-                const msg = data.progress_message || 'Report is still being generated. Checking every 5 seconds…';
-                const isSynthesizing = /synthesiz/i.test(msg);
-                const adPhaseComplete = total > 0 && current >= total;
-
-                if (isSynthesizing || adPhaseComplete) {
-                    mriLoading.classList.remove('mri-loading--progress');
-                    mriLoading.classList.add('mri-loading--synthesize');
-                    document.getElementById('mriLoadingDetail').textContent = 'Synthesising data, won\'t be long';
-                    document.querySelector('.mri-loading-title').textContent = 'Synthesising…';
-                    document.getElementById('mriProgressMessage').textContent = '';
-                } else {
-                    mriLoading.classList.remove('mri-loading--synthesize');
-                    const pct = total > 0 ? Math.round((current / total) * 100) : 0;
-                    document.getElementById('mriProgressFill').style.width = pct + '%';
-                    document.getElementById('mriLoadingDetail').textContent = msg;
-                    document.getElementById('mriProgressMessage').textContent = msg;
-                    document.querySelector('.mri-loading-title').textContent = 'Running report…';
-                    if (total > 0 || msg) {
-                        mriLoading.classList.add('mri-loading--progress');
+            // Support loading existing MRI reports — just show their ads
+            if (clientId && reportId) {
+                try {
+                    const res = await fetch(`${API_BASE_URL}/api/clients/${clientId}/creative-mri/reports/${reportId}`, { headers: getAuthHeaders() });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.status === 'complete' && data.report) {
+                            const ads = data.report.ads || [];
+                            if (ads.length) {
+                                existingBrandSelect.value = clientId;
+                                existingBrandImportSection.hidden = false;
+                                await loadImports();
+                                mriResults.style.display = 'block';
+                                enterReportView();
+                                const brandLabel = existingBrandSelect.options[existingBrandSelect.selectedIndex]?.textContent || '—';
+                                document.getElementById('mriReportTitle').textContent = brandLabel !== '—' ? `${brandLabel}'s Ads` : 'Ads';
+                                document.getElementById('mriLabel').textContent = `${ads.length} ads`;
+                                mriContent.style.display = 'block';
+                                renderAds(ads, brandLabel);
+                                return true;
+                            }
+                        }
                     }
-                }
-                const stuckEl = document.getElementById('mriLoadingStuck');
-                if (data.created_at) {
-                    const started = new Date(data.created_at).getTime();
-                    const minutes = Math.floor((Date.now() - started) / 60000);
-                    if (minutes >= STUCK_REPORT_MINUTES) {
-                        stuckEl.textContent = `This report may be stuck. It's been running for ${minutes} minutes (most complete in 1–2 min). You can go back and try again.`;
-                        stuckEl.style.display = 'block';
-                    } else {
-                        stuckEl.style.display = 'none';
-                    }
-                } else {
-                    stuckEl.style.display = 'none';
+                } catch (e) {
+                    console.error('Failed to load report ads:', e);
                 }
             }
-            updateProgressUI(data);
-            const pollStoredReport = async () => {
-                const d = await loadReportById(clientId, reportId);
-                if (!d) return;
-                if (d.status === 'complete' && d.report) {
-                    mriLoading.style.display = 'none';
-                    mriContent.style.display = 'block';
-                    existingBrandSelect.value = clientId;
-                    existingBrandImportSection.hidden = false;
-                    await loadImports();
-                    await loadRecentReports();
-                    switchPrimaryTab('existing');
-                    const clientOpt = existingBrandSelect.options[existingBrandSelect.selectedIndex];
-                    const meta = d.report.meta || {};
-                    const adCount = meta.total_ads ?? '?';
-                    currentReportData = { report: d.report, clientId, reportId };
-                    renderReport(d.report, clientOpt?.textContent || '—', `${adCount} ads`);
-                    return;
-                }
-                if (d.status === 'failed') {
-                    mriLoading.style.display = 'none';
-                    mriEmpty.style.display = 'block';
-                    mriEmpty.textContent = d.error_message || 'Report failed.';
-                    return;
-                }
-                updateProgressUI(d);
-                setTimeout(pollStoredReport, 5000);
-            };
-            setTimeout(pollStoredReport, 5000);
-            return true;
-        }
 
-        async function loadRecentReports() {
-            const clientId = existingBrandSelect.value;
-            const sel = document.getElementById('recentReportsSelect');
-            const section = document.getElementById('recentReportsSection');
-            if (!clientId) {
-                section.style.display = 'none';
-                return;
-            }
-            const res = await fetch(`${API_BASE_URL}/api/clients/${clientId}/creative-mri/reports?limit=20`, { headers: getAuthHeaders() });
-            if (!res.ok) {
-                section.style.display = 'none';
-                return;
-            }
-            const data = await res.json();
-            const items = data.items || [];
-            sel.innerHTML = '<option value="">— No saved reports —</option>';
-            items.forEach(r => {
-                const opt = document.createElement('option');
-                opt.value = r.id;
-                let status = r.status === 'complete' ? 'complete' : r.status;
-                if (r.status === 'running') {
-                    const minutes = r.created_at ? Math.floor((Date.now() - new Date(r.created_at).getTime()) / 60000) : 0;
-                    status = minutes >= 15 ? 'running (possibly stuck)' : 'running';
-                }
-                const date = r.created_at ? new Date(r.created_at).toLocaleString() : '';
-                opt.textContent = `${status} · ${date}`;
-                sel.appendChild(opt);
-            });
-            section.style.display = items.length ? 'block' : 'none';
-        }
-
-        async function loadHistoryReports() {
-            const listEl = document.getElementById('historyReportsList');
-            const emptyEl = document.getElementById('historyEmpty');
-            emptyEl.textContent = 'Loading…';
-            emptyEl.style.display = 'block';
-            listEl.querySelectorAll('.mri-history-item').forEach(el => el.remove());
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/creative-mri/reports?limit=50`, { headers: getAuthHeaders() });
-                if (!res.ok) {
-                    emptyEl.textContent = 'Failed to load reports.';
-                    return;
-                }
-                const data = await res.json();
-                const items = data.items || [];
-                emptyEl.style.display = items.length ? 'none' : 'block';
-                emptyEl.textContent = items.length ? '' : 'No previous reports yet. Run a report from New Brand or Existing Brand.';
-                items.forEach(r => {
-                    const row = document.createElement('button');
-                    row.type = 'button';
-                    row.className = 'mri-history-item';
-                    const date = r.created_at ? new Date(r.created_at).toLocaleString() : '—';
-                    const adInfo = r.ad_count != null ? ` · ${r.ad_count} ads` : '';
-                    let statusLabel = r.status === 'complete' ? 'Complete' : r.status === 'failed' ? 'Failed' : r.status;
-                    if (r.status === 'running') {
-                        const minutes = r.created_at ? Math.floor((Date.now() - new Date(r.created_at).getTime()) / 60000) : 0;
-                        statusLabel = minutes >= 15 ? 'Running (possibly stuck)' : 'Running';
-                    }
-                    row.innerHTML = `
-                        <span class="mri-history-brand">${escapeHtml(r.client_name || '—')}</span>
-                        <span class="mri-history-meta">${escapeHtml(date)}${escapeHtml(adInfo)} · ${escapeHtml(statusLabel)}</span>
-                    `;
-                    row.addEventListener('click', async () => {
-                        closeSetupModal();
-                        setUrlReportParams(r.client_id, r.id);
-                        await loadStoredReportAndRender();
-                    });
-                    listEl.appendChild(row);
-                });
-            } catch (e) {
-                emptyEl.textContent = 'Failed to load reports.';
-                emptyEl.style.display = 'block';
-            }
+            return false;
         }
 
         function showApp() {
             document.getElementById('appShell').style.display = 'flex';
             document.getElementById('founderEmail').textContent = window.Auth?.getStoredUserInfo?.()?.email || '';
             loadClients().then(async () => {
-                const loaded = await loadStoredReportAndRender();
+                const loaded = await tryLoadFromUrl();
                 if (!loaded) existingBrandImportSection.hidden = !existingBrandSelect.value;
             });
         }
