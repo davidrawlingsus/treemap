@@ -514,7 +514,9 @@ def _build_classification_summary(classified_reviews: List[Dict[str, Any]]) -> s
             td["sentiments"][s] = td["sentiments"].get(s, 0) + 1
             value = review.get("value") or review.get("text", "")
             if value and len(td["sample_verbatims"]) < 5:
-                td["sample_verbatims"].append(value[:300])
+                date = (review.get("survey_metadata") or {}).get("review_date") or review.get("created", "")
+                date_str = f" ({str(date)[:10]})" if date else ""
+                td["sample_verbatims"].append(f"{value[:300]}{date_str}")
 
     total = len(classified_reviews)
     lines = [

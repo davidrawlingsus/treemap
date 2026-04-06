@@ -541,9 +541,18 @@ def _run_full_pipeline(run_id: str) -> None:
         _update_status(db, run, "extracting")
         raw_rows = get_leadgen_rows_as_process_voc_dicts(db, run_id)
         logger.info("[pipeline %s] Extracting from %d reviews", run_id, len(raw_rows))
+        def _fmt_review(r):
+            rid = r.get("respondent_id", "")
+            value = r.get("value", "")
+            date = (r.get("survey_metadata") or {}).get("review_date") or r.get("created", "")
+            if date:
+                # Normalize to just the date portion
+                date_str = str(date)[:10]
+                return f"Review {rid} ({date_str}):\n{value}"
+            return f"Review {rid}:\n{value}"
+
         reviews_text = "\n\n".join(
-            f"Review {r.get('respondent_id', '')}:\n{r.get('value', '')}"
-            for r in raw_rows if r.get("value")
+            _fmt_review(r) for r in raw_rows if r.get("value")
         )
         extract_user = (
             prompts["extract_user"]
