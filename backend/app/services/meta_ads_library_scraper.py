@@ -243,56 +243,56 @@ class MetaAdsLibraryScraper:
                 # Debug screenshot
                 await self._take_debug_screenshot(page, "media_after_consent")
 
-                # Diagnostic: count what's on the page
+                # Phase 1: Scroll through entire page to load all ads
+                # Use big scrolls to trigger "load more" and discover all ad cards
+                for scroll_num in range(max_scrolls):
+                    await page.evaluate('window.scrollBy(0, window.innerHeight * 2)')
+                    await page.wait_for_timeout(2000)
+                    at_bottom = await page.evaluate(
+                        '() => (window.innerHeight + window.scrollY) >= document.body.scrollHeight - 100'
+                    )
+                    if at_bottom:
+                        break
+
+                # Phase 2: Slow-scroll back through the page to trigger lazy-loading
+                # of media for each ad card
+                await page.evaluate('window.scrollTo(0, 0)')
+                await page.wait_for_timeout(1000)
+
+                page_height = await page.evaluate('document.body.scrollHeight')
+                viewport = await page.evaluate('window.innerHeight')
+                scroll_step = viewport // 2  # Half-viewport steps for overlap
+                scroll_pos = 0
+
+                while scroll_pos < page_height:
+                    await page.evaluate(f'window.scrollTo(0, {scroll_pos})')
+                    await page.wait_for_timeout(800)
+                    scroll_pos += scroll_step
+
+                # Final: scroll to bottom and wait for any remaining loads
+                await page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
+                await page.wait_for_timeout(2000)
+
+                # Diagnostic
                 diag = await page.evaluate('''() => {
                     const libraryIds = [];
                     for (const span of document.querySelectorAll('span')) {
                         const m = (span.textContent || '').trim().match(/^Library ID:\\s*(\\d+)$/);
                         if (m) libraryIds.push(m[1]);
                     }
-                    const allVideos = document.querySelectorAll('video');
-                    const videosWithSrc = document.querySelectorAll('video[src]');
-                    const allImgs = document.querySelectorAll('img');
-                    const scontentImgs = document.querySelectorAll('img[src*="scontent"]');
                     return {
                         libraryIdCount: libraryIds.length,
-                        libraryIdSample: libraryIds.slice(0, 5),
-                        totalVideos: allVideos.length,
-                        videosWithSrc: videosWithSrc.length,
-                        totalImgs: allImgs.length,
-                        scontentImgs: scontentImgs.length,
+                        totalVideos: document.querySelectorAll('video').length,
+                        videosWithSrc: document.querySelectorAll('video[src]').length,
+                        totalImgs: document.querySelectorAll('img').length,
+                        scontentImgs: document.querySelectorAll('img[src*="scontent"]').length,
                         bodyHeight: document.body.scrollHeight,
-                        viewportHeight: window.innerHeight,
                     };
                 }''')
-                logger.warning(f"[SCRAPE-DIAG] Initial page state: {diag}")
+                logger.warning(f"[SCRAPE-DIAG] After slow-scroll: {diag}")
 
-                # Scroll to load more ads
-                for scroll_num in range(max_scrolls):
-                    # Extract media from current page state
-                    new_media = await self._extract_media_from_page(page, seen_urls)
-                    media_items.extend(new_media)
-
-                    logger.warning(f"[SCRAPE-DIAG] Scroll {scroll_num + 1}: Found {len(new_media)} new media items (total: {len(media_items)})")
-
-                    # Scroll down
-                    await page.evaluate('window.scrollBy(0, window.innerHeight * 2)')
-                    await page.wait_for_timeout(3000)
-
-                    # Check if we've reached the bottom
-                    at_bottom = await page.evaluate('''
-                        () => {
-                            return (window.innerHeight + window.scrollY) >= document.body.scrollHeight - 100;
-                        }
-                    ''')
-
-                    if at_bottom:
-                        logger.warning(f"[SCRAPE-DIAG] Hit bottom at scroll {scroll_num + 1}")
-                        # One more extraction in case new content loaded
-                        final_media = await self._extract_media_from_page(page, seen_urls)
-                        media_items.extend(final_media)
-                        break
-
+                # Single extraction pass now that all media should be loaded
+                media_items = await self._extract_media_from_page(page, seen_urls)
                 logger.warning(f"[SCRAPE-DIAG] Total ad media items found: {len(media_items)}")
                 
             finally:
@@ -335,20 +335,37 @@ class MetaAdsLibraryScraper:
                 # Wait for ad cards to load after consent
                 await page.wait_for_timeout(5000)
 
+                # Phase 1: Scroll through entire page to load all ad cards
                 for scroll_num in range(max_scrolls):
-                    new_items = await self._extract_copy_from_page(page, seen_keys)
-                    all_copy.extend(new_items)
-                    logger.info(f"Scroll {scroll_num + 1}: Found {len(new_items)} new ad copy items (total: {len(all_copy)})")
                     await page.evaluate('window.scrollBy(0, window.innerHeight * 2)')
-                    await page.wait_for_timeout(3000)
+                    await page.wait_for_timeout(2000)
                     at_bottom = await page.evaluate(
                         '() => (window.innerHeight + window.scrollY) >= document.body.scrollHeight - 100'
                     )
                     if at_bottom:
-                        final = await self._extract_copy_from_page(page, seen_keys)
-                        all_copy.extend(final)
                         break
-                
+
+                # Phase 2: Slow-scroll back through to trigger lazy-loading of media
+                await page.evaluate('window.scrollTo(0, 0)')
+                await page.wait_for_timeout(1000)
+
+                page_height = await page.evaluate('document.body.scrollHeight')
+                viewport = await page.evaluate('window.innerHeight')
+                scroll_step = viewport // 2
+                scroll_pos = 0
+
+                while scroll_pos < page_height:
+                    await page.evaluate(f'window.scrollTo(0, {scroll_pos})')
+                    await page.wait_for_timeout(800)
+                    scroll_pos += scroll_step
+
+                # Final: scroll to bottom and wait
+                await page.evaluate('window.scrollTo(0, document.body.scrollHeight)')
+                await page.wait_for_timeout(2000)
+
+                # Single extraction pass with all media loaded
+                all_copy = await self._extract_copy_from_page(page, seen_keys)
+
                 logger.warning(f"[SCRAPE-DIAG] Total ad copy items found: {len(all_copy)}")
                 items_with_media = sum(1 for c in all_copy if c.media_items)
                 items_with_video = sum(1 for c in all_copy if c.media_items and any(m.media_type == 'video' for m in c.media_items))
