@@ -581,6 +581,10 @@ app.include_router(api_keys.router)
 from app.routers import widget_survey
 app.include_router(widget_survey.router)
 
+# Include ad library extension import router
+from app.routers import ad_library_extension
+app.include_router(ad_library_extension.router)
+
 
 if __name__ == "__main__":
     import uvicorn

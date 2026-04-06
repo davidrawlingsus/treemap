@@ -95,6 +95,54 @@ class AdLibraryImportFromUrlRequest(BaseModel):
     max_scrolls: int = Field(default=5, ge=1, le=20, description="Scrolls to load more ads")
 
 
+# --- Extension import schemas ---
+
+class ExtensionMediaItem(BaseModel):
+    """Media item sent from the Chrome extension."""
+    media_type: str  # image | video
+    url: str
+    poster_url: Optional[str] = None
+    duration_seconds: Optional[int] = None
+    sort_order: int = 0
+
+
+class ExtensionAdItem(BaseModel):
+    """Single ad sent from the Chrome extension."""
+    primary_text: str
+    headline: Optional[str] = None
+    description: Optional[str] = None
+    library_id: Optional[str] = None
+    started_running_on: Optional[str] = None
+    ad_delivery_start_time: Optional[str] = None
+    ad_delivery_end_time: Optional[str] = None
+    ad_format: Optional[str] = None
+    cta: Optional[str] = None
+    destination_url: Optional[str] = None
+    media_thumbnail_url: Optional[str] = None
+    status: Optional[str] = None
+    platforms: Optional[List[str]] = None
+    ads_using_creative_count: Optional[int] = None
+    page_name: Optional[str] = None
+    page_url: Optional[str] = None
+    page_profile_image_url: Optional[str] = None
+    media_items: List[ExtensionMediaItem] = []
+
+
+class ExtensionImportRequest(BaseModel):
+    """Request from Chrome extension to import pre-scraped ads."""
+    source_url: str = Field(..., description="Meta Ads Library page URL the user was on")
+    ads: List[ExtensionAdItem] = Field(..., max_length=500)
+
+
+class ExtensionImportResponse(BaseModel):
+    """Response after extension import is created."""
+    import_id: UUID
+    ad_count: int
+    skipped_count: int = 0
+    media_count: int = 0
+    message: str = "Import created. Media files are being processed in the background."
+
+
 class VocAdsComparisonRequest(BaseModel):
     """Request to run VOC vs Ads comparison."""
     ad_source: str = Field(

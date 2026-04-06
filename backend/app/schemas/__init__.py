@@ -138,6 +138,10 @@ from .ad_library_import import (
     AdLibraryImportStartedResponse,
     AdLibraryImportFromUrlRequest,
     VocAdsComparisonRequest,
+    ExtensionMediaItem,
+    ExtensionAdItem,
+    ExtensionImportRequest,
+    ExtensionImportResponse,
 )
 
 from .meta_ads import (

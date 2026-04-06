@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vizualizd Importer</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup">
+    <div class="header">
+      <h1>Vizualizd</h1>
+      <p class="subtitle">Ad Library Importer</p>
+    </div>
+
+    <!-- Login -->
+    <div id="loginSection" class="section" style="display: none;">
+      <p class="description">Sign in with your Vizualizd account.</p>
+      <input type="email" id="emailInput" placeholder="you@company.com" autocomplete="email">
+      <button id="sendLinkBtn" class="btn btn-primary">Send Magic Link</button>
+      <div id="loginMessage" class="message" style="display: none;"></div>
+      <div id="verifySection" style="display: none;">
+        <p class="description">Check your email and paste the magic link token:</p>
+        <input type="text" id="tokenInput" placeholder="Paste token from email">
+        <button id="verifyBtn" class="btn btn-primary">Verify</button>
+      </div>
+    </div>
+
+    <!-- Main -->
+    <div id="mainSection" class="section" style="display: none;">
+      <div class="user-bar">
+        <span id="userEmail" class="user-email"></span>
+        <button id="logoutBtn" class="btn-link">Logout</button>
+      </div>
+
+      <label for="clientSelect" class="label">Import to</label>
+      <select id="clientSelect">
+        <option value="">Select a brand</option>
+      </select>
+
+      <button id="extractBtn" class="btn btn-primary" disabled>Extract Ads from Page</button>
+
+      <div id="extractResult" style="display: none;">
+        <p id="extractCount" class="extract-count"></p>
+        <button id="importBtn" class="btn btn-success">Import</button>
+      </div>
+
+      <div id="statusMessage" class="message" style="display: none;"></div>
+    </div>
+
+    <!-- Not on ads library page -->
+    <div id="wrongPageSection" class="section" style="display: none;">
+      <p class="description">Navigate to a <strong>Meta Ads Library</strong> page to use this extension.</p>
+      <p class="description muted">facebook.com/ads/library/...</p>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
