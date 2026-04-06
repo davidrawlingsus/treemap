@@ -122,6 +122,75 @@ class MetaAdsLibraryScraper:
             return page_ids[0] if page_ids else None
         except Exception:
             return None
+
+    async def _dismiss_cookie_consent(self, page) -> None:
+        """Dismiss Meta/Facebook cookie consent dialogs and overlays."""
+        # Common cookie consent button selectors on Meta
+        consent_selectors = [
+            'button[data-cookiebanner="accept_button"]',
+            'button[data-testid="cookie-policy-manage-dialog-accept-button"]',
+            'button[title="Allow all cookies"]',
+            'button[title="Allow essential and optional cookies"]',
+            'button[title="Accept All"]',
+            'button[title="Accept all"]',
+            '[aria-label="Allow all cookies"]',
+            '[aria-label="Accept All"]',
+            '[aria-label="Allow essential and optional cookies"]',
+        ]
+        for selector in consent_selectors:
+            try:
+                btn = page.locator(selector).first
+                if await btn.is_visible(timeout=500):
+                    await btn.click()
+                    logger.warning("[SCRAPE] Dismissed cookie consent via: %s", selector)
+                    await page.wait_for_timeout(1000)
+                    return
+            except Exception:
+                continue
+
+        # Fallback: look for buttons containing cookie-related text
+        try:
+            buttons = await page.query_selector_all('button, div[role="button"]')
+            for btn in buttons:
+                text = (await btn.inner_text() or '').strip().lower()
+                if text in ('allow all cookies', 'accept all', 'allow essential and optional cookies',
+                            'allow all', 'accept all cookies', 'only allow essential cookies'):
+                    await btn.click()
+                    logger.warning("[SCRAPE] Dismissed cookie consent via button text: %s", text)
+                    await page.wait_for_timeout(1000)
+                    return
+        except Exception:
+            pass
+
+        # Check if there's a blocking overlay and log it
+        has_overlay = await page.evaluate('''() => {
+            const dialogs = document.querySelectorAll('[role="dialog"], [role="alertdialog"]');
+            const overlays = [];
+            for (const d of dialogs) {
+                const style = window.getComputedStyle(d);
+                if (style.display !== 'none' && style.visibility !== 'hidden') {
+                    overlays.push({
+                        role: d.getAttribute('role'),
+                        text: (d.innerText || '').substring(0, 200),
+                        buttons: Array.from(d.querySelectorAll('button, [role="button"]')).map(b => (b.innerText || '').trim()).filter(t => t.length > 0 && t.length < 60),
+                    });
+                }
+            }
+            return overlays;
+        }''')
+        if has_overlay:
+            logger.warning("[SCRAPE-DIAG] Visible overlays/dialogs found: %s", has_overlay)
+
+    async def _take_debug_screenshot(self, page, label: str = "debug") -> None:
+        """Take a screenshot for debugging scraper issues."""
+        import tempfile
+        import os
+        path = os.path.join(tempfile.gettempdir(), f"scrape_{label}_{int(time.time())}.png")
+        try:
+            await page.screenshot(path=path, full_page=False)
+            logger.warning("[SCRAPE-DIAG] Screenshot saved to: %s", path)
+        except Exception as e:
+            logger.warning("[SCRAPE-DIAG] Screenshot failed: %s", e)
     
     async def scrape_ads_library(self, url: str, max_scrolls: int = 5) -> List[MediaItem]:
         """
@@ -164,8 +233,15 @@ class MetaAdsLibraryScraper:
                 logger.info(f"Navigating to Meta Ads Library: {url}")
                 await page.goto(url, timeout=self.timeout, wait_until='networkidle')
 
-                # Wait for ad cards to load
+                # Dismiss cookie consent if present
+                await page.wait_for_timeout(2000)
+                await self._dismiss_cookie_consent(page)
+
+                # Wait for ad cards to load after consent
                 await page.wait_for_timeout(5000)
+
+                # Debug screenshot
+                await self._take_debug_screenshot(page, "media_after_consent")
 
                 # Diagnostic: count what's on the page
                 diag = await page.evaluate('''() => {
@@ -251,6 +327,12 @@ class MetaAdsLibraryScraper:
                 )
                 page = await context.new_page()
                 await page.goto(url, timeout=self.timeout, wait_until='networkidle')
+
+                # Dismiss cookie consent if present
+                await page.wait_for_timeout(2000)
+                await self._dismiss_cookie_consent(page)
+
+                # Wait for ad cards to load after consent
                 await page.wait_for_timeout(5000)
 
                 for scroll_num in range(max_scrolls):
