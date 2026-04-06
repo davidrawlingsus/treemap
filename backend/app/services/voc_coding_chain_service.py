@@ -123,10 +123,20 @@ def finalize_checkpoint(settings: Any, state: Dict[str, Any]) -> Path:
 def _format_reviews_for_discovery(reviews: List[Dict[str, Any]]) -> str:
     lines: List[str] = []
     for row in reviews:
-        rating = row.get("survey_metadata", {}).get("rating")
+        meta = row.get("survey_metadata") or {}
+        rating = meta.get("rating")
+        reviewer = meta.get("reviewer_name", "")
+        date = meta.get("review_date") or row.get("created", "")
+        date_str = str(date)[:10] if date else ""
         text = (row.get("value") or "").strip()
         rid = row.get("respondent_id")
-        lines.append(f'ID: {rid}\nRating: {rating}\nReview: "{text}"')
+        header = f"ID: {rid}"
+        if reviewer:
+            header += f"\nReviewer: {reviewer}"
+        if date_str:
+            header += f"\nDate: {date_str}"
+        header += f"\nRating: {rating}"
+        lines.append(f'{header}\nReview: "{text}"')
     return "\n\n---\n\n".join(lines)
 
 
