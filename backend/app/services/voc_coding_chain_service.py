@@ -130,9 +130,10 @@ def _format_reviews_for_discovery(reviews: List[Dict[str, Any]]) -> str:
         date_str = str(date)[:10] if date else ""
         text = (row.get("value") or "").strip()
         rid = row.get("respondent_id")
-        header = f"ID: {rid}"
         if reviewer:
-            header += f"\nReviewer: {reviewer}"
+            header = f"Reviewer: {reviewer}"
+        else:
+            header = f"ID: {rid}"
         if date_str:
             header += f"\nDate: {date_str}"
         header += f"\nRating: {rating}"
