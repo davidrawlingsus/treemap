@@ -231,6 +231,10 @@ async function runImport(ads, sourceUrl, clientId) {
 // ---- Message handling ----
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "startImport") {
+    if (importState.status === "uploading" || importState.status === "importing") {
+      sendResponse({ started: false, error: "An import is already in progress" });
+      return true;
+    }
     const { ads, sourceUrl, clientId, tabId } = message;
     sourceTabId = tabId || null;
     resetState();

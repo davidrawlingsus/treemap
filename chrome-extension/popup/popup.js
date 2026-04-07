@@ -319,13 +319,18 @@ importBtn.addEventListener("click", async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
   // Send to service worker for background processing
-  chrome.runtime.sendMessage({
+  const response = await chrome.runtime.sendMessage({
     action: "startImport",
     ads: extractedAds,
     sourceUrl: extractedUrl || "",
     clientId: clientSelect.value,
     tabId: tab?.id || null,
   });
+
+  if (response?.started === false) {
+    showMessage(statusMessage, response.error || "Cannot start import right now.", "error");
+    return;
+  }
 
   // Show progress immediately
   showProgress({ status: "uploading", uploadedMedia: 0, totalMedia: 0 });
