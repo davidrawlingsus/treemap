@@ -37,25 +37,30 @@ function broadcastState() {
 }
 
 // ---- Media upload ----
-async function uploadMediaFile(url, clientId, token) {
+async function uploadMediaFile(url, clientId, token, mediaType) {
   // Fetch the media from FB CDN (works in browser context)
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
   const blob = await response.blob();
 
   // Determine filename and extension
+  // Use mediaType hint from ad data since FB CDN may return wrong content-type
   const contentType = blob.type || "image/jpeg";
   let ext = "jpg";
-  if (contentType.includes("video")) ext = "mp4";
+  if (mediaType === "video" || contentType.includes("video")) ext = "mp4";
   else if (contentType.includes("png")) ext = "png";
   else if (contentType.includes("webp")) ext = "webp";
   else if (contentType.includes("gif")) ext = "gif";
 
+  // For videos, ensure correct content type in the upload
+  const uploadType = mediaType === "video" ? "video/mp4" : contentType;
+
   const filename = `ext-import-${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${ext}`;
 
   // Upload to Vercel Blob via the existing endpoint
+  const uploadBlob = new Blob([blob], { type: uploadType });
   const formData = new FormData();
-  formData.append("file", blob, filename);
+  formData.append("file", uploadBlob, filename);
 
   const uploadRes = await fetch(`${API_BASE}/api/upload-ad-image?client_id=${clientId}`, {
     method: "POST",
@@ -101,9 +106,9 @@ async function runImport(ads, sourceUrl, clientId) {
     for (const media of ad.media_items || []) {
       if (media.url) {
         try {
-          media.url = await uploadMediaFile(media.url, clientId, token);
+          media.url = await uploadMediaFile(media.url, clientId, token, media.media_type);
         } catch (e) {
-          console.warn("Failed to upload media:", media.url?.substring(0, 60), e.message);
+          console.warn("Failed to upload media:", media.media_type, media.url?.substring(0, 60), e.message);
           // Keep original URL as fallback
         }
         importState.uploadedMedia++;
@@ -112,7 +117,7 @@ async function runImport(ads, sourceUrl, clientId) {
       // Upload poster_url for videos
       if (media.poster_url) {
         try {
-          media.poster_url = await uploadMediaFile(media.poster_url, clientId, token);
+          media.poster_url = await uploadMediaFile(media.poster_url, clientId, token, "image");
         } catch (e) {
           // Non-critical, keep original
         }
@@ -122,7 +127,7 @@ async function runImport(ads, sourceUrl, clientId) {
     // Upload thumbnail
     if (ad.media_thumbnail_url) {
       try {
-        ad.media_thumbnail_url = await uploadMediaFile(ad.media_thumbnail_url, clientId, token);
+        ad.media_thumbnail_url = await uploadMediaFile(ad.media_thumbnail_url, clientId, token, "image");
       } catch (e) {
         // Non-critical
       }
@@ -133,7 +138,7 @@ async function runImport(ads, sourceUrl, clientId) {
     // Upload profile image
     if (ad.page_profile_image_url) {
       try {
-        ad.page_profile_image_url = await uploadMediaFile(ad.page_profile_image_url, clientId, token);
+        ad.page_profile_image_url = await uploadMediaFile(ad.page_profile_image_url, clientId, token, "image");
       } catch (e) {
         // Non-critical
       }

@@ -51,15 +51,24 @@ async def _analyze_videos_background(import_id: UUID) -> None:
         if not media_items:
             return
 
-        logger.info("Analyzing %d videos for import %s", len(media_items), import_id)
-        for i, media in enumerate(media_items):
+        # Filter to only Vercel Blob URLs (FB CDN URLs are unreachable from server)
+        analyzable = [m for m in media_items if m.url and "vercel" in m.url.lower()]
+        skipped = len(media_items) - len(analyzable)
+        if skipped:
+            logger.warning("Skipping %d videos with non-Blob URLs (FB CDN unreachable from server)", skipped)
+        if not analyzable:
+            logger.info("No analyzable video URLs for import %s", import_id)
+            return
+
+        logger.info("Analyzing %d videos for import %s", len(analyzable), import_id)
+        for i, media in enumerate(analyzable):
             try:
                 analysis = await gemini.analyze_video_url(media.url)
                 if analysis:
                     media.video_analysis_json = analysis
                     db.commit()
                     transcript = (analysis.get("transcript") or "")[:60]
-                    logger.info("Video %d/%d analyzed (transcript: %s...)", i + 1, len(media_items), transcript)
+                    logger.info("Video %d/%d analyzed (transcript: %s...)", i + 1, len(analyzable), transcript)
             except Exception as e:
                 logger.warning("Video analysis failed for media %s: %s", media.id, e)
 
