@@ -124,10 +124,11 @@ def _do_import(client_id, body, db, current_user):
             if m.url:
                 content_type = "video/mp4" if m.media_type == "video" else "image/jpeg"
                 started = parse_date_string(ad_data.started_running_on) if ad_data.started_running_on else None
+                raw_filename = m.url.rsplit("/", 1)[-1].split("?")[0] if "/" in m.url else "imported"
                 ad_image = AdImage(
                     client_id=client_id,
                     url=m.url,
-                    filename=m.url.rsplit("/", 1)[-1] if "/" in m.url else "imported",
+                    filename=raw_filename[:250],
                     file_size=0,
                     content_type=content_type,
                     uploaded_by=current_user.id,
