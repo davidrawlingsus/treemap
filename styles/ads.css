@@ -995,6 +995,15 @@
     pointer-events: auto;
 }
 
+.ads-card--current .ads-accordion__trigger {
+    background: #f8fafb;
+    color: #37352f;
+}
+
+.ads-card--current .ads-accordion__trigger:hover {
+    background: #edf0f5;
+}
+
 .ads-card__current-labels {
     display: flex;
     flex-wrap: wrap;
