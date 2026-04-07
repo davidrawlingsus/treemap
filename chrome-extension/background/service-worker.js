@@ -37,14 +37,37 @@ function broadcastState() {
 }
 
 // ---- Media upload ----
+// Tab ID of the Facebook Ads Library page (for content script communication)
+let sourceTabId = null;
+
 async function uploadMediaFile(url, clientId, token, mediaType) {
-  // Fetch the media from FB CDN (works in browser context)
+  if (mediaType === "video" && sourceTabId) {
+    // Videos: route through content script (has FB page context/cookies)
+    return uploadViaContentScript(url, clientId, token, mediaType);
+  }
+  // Images: direct fetch works from service worker
+  return uploadDirect(url, clientId, token, mediaType);
+}
+
+async function uploadViaContentScript(url, clientId, token, mediaType) {
+  const response = await chrome.tabs.sendMessage(sourceTabId, {
+    action: "downloadAndUpload",
+    url,
+    clientId,
+    token,
+    mediaType,
+  });
+  if (!response?.success) {
+    throw new Error(response?.error || "Content script upload failed");
+  }
+  return response.url;
+}
+
+async function uploadDirect(url, clientId, token, mediaType) {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
   const blob = await response.blob();
 
-  // Determine filename and extension
-  // Use mediaType hint from ad data since FB CDN may return wrong content-type
   const contentType = blob.type || "image/jpeg";
   let ext = "jpg";
   if (mediaType === "video" || contentType.includes("video")) ext = "mp4";
@@ -52,12 +75,9 @@ async function uploadMediaFile(url, clientId, token, mediaType) {
   else if (contentType.includes("webp")) ext = "webp";
   else if (contentType.includes("gif")) ext = "gif";
 
-  // For videos, ensure correct content type in the upload
   const uploadType = mediaType === "video" ? "video/mp4" : contentType;
-
   const filename = `ext-import-${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${ext}`;
 
-  // Upload to Vercel Blob via the existing endpoint
   const uploadBlob = new Blob([blob], { type: uploadType });
   const formData = new FormData();
   formData.append("file", uploadBlob, filename);
@@ -74,7 +94,7 @@ async function uploadMediaFile(url, clientId, token, mediaType) {
   }
 
   const data = await uploadRes.json();
-  return data.url; // Permanent Vercel Blob URL
+  return data.url;
 }
 
 // ---- Main import flow ----
@@ -186,7 +206,8 @@ async function runImport(ads, sourceUrl, clientId) {
 // ---- Message handling ----
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "startImport") {
-    const { ads, sourceUrl, clientId } = message;
+    const { ads, sourceUrl, clientId, tabId } = message;
+    sourceTabId = tabId || null;
     resetState();
     runImport(ads, sourceUrl, clientId);
     sendResponse({ started: true });

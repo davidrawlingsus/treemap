@@ -359,7 +359,45 @@
     return results;
   }
 
-  // Listen for messages from the popup
+  // Download a media file and upload it to the API (for videos that need page context)
+  async function downloadAndUpload({ url, clientId, token, mediaType }) {
+    const API_BASE = "https://api.mapthegap.ai";
+
+    // Download from FB CDN (works here because we're in the page context)
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Download failed: ${response.status}`);
+    const blob = await response.blob();
+
+    // Determine correct type and extension
+    const isVideo = mediaType === "video" || blob.type.includes("video");
+    const ext = isVideo ? "mp4" : "jpg";
+    const uploadType = isVideo ? "video/mp4" : (blob.type || "image/jpeg");
+    const filename = `ext-import-${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${ext}`;
+
+    // Upload to Vercel Blob
+    const uploadBlob = new Blob([blob], { type: uploadType });
+    const formData = new FormData();
+    formData.append("file", uploadBlob, filename);
+
+    const uploadRes = await fetch(
+      `${API_BASE}/api/upload-ad-image?client_id=${clientId}`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      }
+    );
+
+    if (!uploadRes.ok) {
+      const err = await uploadRes.json().catch(() => ({}));
+      throw new Error(err.error || `Upload failed: ${uploadRes.status}`);
+    }
+
+    const data = await uploadRes.json();
+    return data.url; // Permanent Vercel Blob URL
+  }
+
+  // Listen for messages from the popup / service worker
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === "extractAds") {
       try {
@@ -368,7 +406,14 @@
       } catch (err) {
         sendResponse({ success: false, error: err.message });
       }
-      return true; // keep channel open for async response
+      return true;
+    }
+
+    if (message.action === "downloadAndUpload") {
+      downloadAndUpload(message)
+        .then((blobUrl) => sendResponse({ success: true, url: blobUrl }))
+        .catch((err) => sendResponse({ success: false, error: err.message }));
+      return true; // keep channel open for async
     }
   });
 })();

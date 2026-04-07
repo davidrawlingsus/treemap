@@ -315,12 +315,16 @@ importBtn.addEventListener("click", async () => {
   if (!extractedAds || !clientSelect.value) return;
   hideMessage(statusMessage);
 
+  // Get the FB Ads Library tab ID so service worker can route video downloads
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
   // Send to service worker for background processing
   chrome.runtime.sendMessage({
     action: "startImport",
     ads: extractedAds,
     sourceUrl: extractedUrl || "",
     clientId: clientSelect.value,
+    tabId: tab?.id || null,
   });
 
   // Show progress immediately
