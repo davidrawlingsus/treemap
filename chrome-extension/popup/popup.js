@@ -202,6 +202,8 @@ async function loadClients(user) {
         const allClients = await res.json();
         const seen = new Set(clients.map((c) => c.id || c.client_id));
         for (const c of allClients) {
+          // Skip lead clients (auto-generated from lead gen pipeline)
+          if (c.is_lead) continue;
           const cid = c.id || c.client_id;
           if (!seen.has(cid)) {
             clients.push(c);
