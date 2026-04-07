@@ -841,6 +841,113 @@
     }
 }
 
+/* ============ Video Player Overlay ============ */
+
+.pe-fb-ad__video-wrapper {
+    position: relative;
+    width: 100%;
+    cursor: pointer;
+    background: #000;
+}
+
+.pe-fb-ad__video-wrapper video {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: contain;
+}
+
+/* Large center play button (shown when paused) */
+.pe-fb-ad__video-play-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.2s;
+}
+
+.pe-fb-ad__video-wrapper.is-playing .pe-fb-ad__video-play-btn {
+    opacity: 0;
+}
+
+/* Bottom controls bar */
+.pe-fb-ad__video-controls {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: linear-gradient(transparent, rgba(0,0,0,0.7));
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.pe-fb-ad__video-wrapper:hover .pe-fb-ad__video-controls,
+.pe-fb-ad__video-wrapper.is-playing .pe-fb-ad__video-controls {
+    opacity: 1;
+}
+
+.pe-fb-ad__video-ctrl-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    opacity: 0.9;
+}
+
+.pe-fb-ad__video-ctrl-btn:hover {
+    opacity: 1;
+}
+
+/* Progress bar */
+.pe-fb-ad__video-progress {
+    flex: 1;
+    height: 4px;
+    background: rgba(255,255,255,0.3);
+    border-radius: 2px;
+    cursor: pointer;
+    position: relative;
+}
+
+.pe-fb-ad__video-progress:hover {
+    height: 6px;
+}
+
+.pe-fb-ad__video-progress-fill {
+    height: 100%;
+    background: #fff;
+    border-radius: 2px;
+    width: 0%;
+    pointer-events: none;
+}
+
+/* Time label */
+.pe-fb-ad__video-time {
+    font-size: 11px;
+    color: rgba(255,255,255,0.9);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 28px;
+}
+
+/* Ensure pointer events work on current ad cards */
+.ads-card--current .pe-fb-ad__video-wrapper,
+.ads-card--current .pe-fb-ad__video-controls,
+.ads-card--current .pe-fb-ad__video-ctrl-btn,
+.ads-card--current .pe-fb-ad__video-progress {
+    pointer-events: auto;
+}
+
 /* ============ Source Toggle (Test Ads / Current Ads) ============ */
 
 .ads-source-toggle {

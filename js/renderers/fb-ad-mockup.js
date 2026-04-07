@@ -73,7 +73,26 @@ export function renderFBAdMockup({ adId, primaryText, headline, description, cta
             </div>
             <div class="pe-fb-ad__media ${imageUrl ? 'has-image' : ''}" style="width:100%;${imageUrl ? '' : 'aspect-ratio:1.91/1;'}position:relative;cursor:pointer;margin:0;padding:0;${imageUrl ? '' : 'background:linear-gradient(to top right,transparent calc(50% - 1px),#9ca3af calc(50% - 1px),#9ca3af calc(50% + 1px),transparent calc(50% + 1px)),linear-gradient(to top left,transparent calc(50% - 1px),#9ca3af calc(50% - 1px),#9ca3af calc(50% + 1px),transparent calc(50% + 1px)),#e5e7eb;'}">
                 ${imageUrl ? (isVideoUrl(imageUrl)
-                    ? `<video src="${escapeHtml(imageUrl)}" ${posterUrl ? `poster="${escapeHtml(getOptimizedImageUrl(posterUrl, 500, 80))}"` : ''} style="width:100%;height:auto;display:block;object-fit:contain;cursor:pointer;" playsinline preload="metadata" onclick="this.paused?this.play():this.pause()"></video>`
+                    ? `<div class="pe-fb-ad__video-wrapper">
+                        <video src="${escapeHtml(imageUrl)}" ${posterUrl ? `poster="${escapeHtml(getOptimizedImageUrl(posterUrl, 500, 80))}"` : ''} playsinline preload="metadata"></video>
+                        <div class="pe-fb-ad__video-play-btn">
+                            <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="24" fill="rgba(0,0,0,0.5)"/><path d="M19 15L35 24L19 33V15Z" fill="white"/></svg>
+                        </div>
+                        <div class="pe-fb-ad__video-controls">
+                            <button class="pe-fb-ad__video-ctrl-btn pe-fb-ad__video-playpause" type="button" aria-label="Play">
+                                <svg class="pe-fb-ad__icon-play" width="14" height="14" viewBox="0 0 14 14" fill="white"><path d="M3 1L12 7L3 13V1Z"/></svg>
+                                <svg class="pe-fb-ad__icon-pause" width="14" height="14" viewBox="0 0 14 14" fill="white" style="display:none"><rect x="2" y="1" width="3.5" height="12"/><rect x="8.5" y="1" width="3.5" height="12"/></svg>
+                            </button>
+                            <div class="pe-fb-ad__video-progress">
+                                <div class="pe-fb-ad__video-progress-fill"></div>
+                            </div>
+                            <span class="pe-fb-ad__video-time">0:00</span>
+                            <button class="pe-fb-ad__video-ctrl-btn pe-fb-ad__video-mute" type="button" aria-label="Mute">
+                                <svg class="pe-fb-ad__icon-unmuted" width="14" height="14" viewBox="0 0 16 16" fill="white"><path d="M8 2L4 6H1v4h3l4 4V2z"/><path d="M11.4 4.6a5 5 0 010 6.8M13.5 2.5a8 8 0 010 11" stroke="white" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>
+                                <svg class="pe-fb-ad__icon-muted" width="14" height="14" viewBox="0 0 16 16" fill="white" style="display:none"><path d="M8 2L4 6H1v4h3l4 4V2z"/><path d="M12 5l4 4M16 5l-4 4" stroke="white" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg>
+                            </button>
+                        </div>
+                    </div>`
                     : `<img src="${escapeHtml(getOptimizedImageUrl(imageUrl, 500, 80))}" alt="Ad image" style="width:100%;height:auto;display:block;object-fit:contain;" loading="lazy">`)
                 : '<div class="pe-fb-ad__media-placeholder" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#9ca3af;font-size:14px;pointer-events:none;">Click to add media</div>'}
                 ${imageUrl && !readOnly ? `<button class="pe-fb-ad__media-delete" data-ad-id="${adId}" title="Remove media" type="button"><img src="/images/delete_button.png" alt="Delete" width="12" height="12"></button>` : ''}
@@ -161,3 +180,118 @@ export function formatPrimaryText(text) {
         })
         .join('');
 }
+
+// ============ Video Player Controller ============
+// Delegated event handler for all video players rendered by renderFBAdMockup.
+
+function formatTime(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function getWrapper(el) {
+    return el.closest('.pe-fb-ad__video-wrapper');
+}
+
+function getVideo(wrapper) {
+    return wrapper?.querySelector('video');
+}
+
+function updatePlayPauseIcons(wrapper, playing) {
+    wrapper.classList.toggle('is-playing', playing);
+    const playIcon = wrapper.querySelector('.pe-fb-ad__icon-play');
+    const pauseIcon = wrapper.querySelector('.pe-fb-ad__icon-pause');
+    if (playIcon) playIcon.style.display = playing ? 'none' : '';
+    if (pauseIcon) pauseIcon.style.display = playing ? '' : 'none';
+}
+
+function updateMuteIcons(wrapper, muted) {
+    const unmutedIcon = wrapper.querySelector('.pe-fb-ad__icon-unmuted');
+    const mutedIcon = wrapper.querySelector('.pe-fb-ad__icon-muted');
+    if (unmutedIcon) unmutedIcon.style.display = muted ? 'none' : '';
+    if (mutedIcon) mutedIcon.style.display = muted ? '' : 'none';
+}
+
+document.addEventListener('click', (e) => {
+    // Play/pause button
+    const playPauseBtn = e.target.closest('.pe-fb-ad__video-playpause');
+    if (playPauseBtn) {
+        e.stopPropagation();
+        const wrapper = getWrapper(playPauseBtn);
+        const video = getVideo(wrapper);
+        if (!video) return;
+        if (video.paused) { video.play(); } else { video.pause(); }
+        return;
+    }
+
+    // Mute button
+    const muteBtn = e.target.closest('.pe-fb-ad__video-mute');
+    if (muteBtn) {
+        e.stopPropagation();
+        const wrapper = getWrapper(muteBtn);
+        const video = getVideo(wrapper);
+        if (!video) return;
+        video.muted = !video.muted;
+        updateMuteIcons(wrapper, video.muted);
+        return;
+    }
+
+    // Progress bar seek
+    const progressBar = e.target.closest('.pe-fb-ad__video-progress');
+    if (progressBar) {
+        e.stopPropagation();
+        const wrapper = getWrapper(progressBar);
+        const video = getVideo(wrapper);
+        if (!video || !video.duration) return;
+        const rect = progressBar.getBoundingClientRect();
+        const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+        video.currentTime = pct * video.duration;
+        return;
+    }
+
+    // Click on video or wrapper to toggle play/pause
+    const wrapper = e.target.closest('.pe-fb-ad__video-wrapper');
+    if (wrapper && (e.target === wrapper || e.target.tagName === 'VIDEO' || e.target.closest('.pe-fb-ad__video-play-btn'))) {
+        const video = getVideo(wrapper);
+        if (!video) return;
+        if (video.paused) { video.play(); } else { video.pause(); }
+    }
+});
+
+// Delegated video event listeners (play, pause, timeupdate)
+document.addEventListener('play', (e) => {
+    if (e.target.tagName !== 'VIDEO') return;
+    const wrapper = getWrapper(e.target);
+    if (wrapper) updatePlayPauseIcons(wrapper, true);
+}, true);
+
+document.addEventListener('pause', (e) => {
+    if (e.target.tagName !== 'VIDEO') return;
+    const wrapper = getWrapper(e.target);
+    if (wrapper) updatePlayPauseIcons(wrapper, false);
+}, true);
+
+document.addEventListener('timeupdate', (e) => {
+    if (e.target.tagName !== 'VIDEO') return;
+    const video = e.target;
+    const wrapper = getWrapper(video);
+    if (!wrapper) return;
+    const fill = wrapper.querySelector('.pe-fb-ad__video-progress-fill');
+    const timeEl = wrapper.querySelector('.pe-fb-ad__video-time');
+    if (fill && video.duration) {
+        fill.style.width = (video.currentTime / video.duration * 100) + '%';
+    }
+    if (timeEl) {
+        timeEl.textContent = formatTime(video.currentTime);
+    }
+}, true);
+
+document.addEventListener('loadedmetadata', (e) => {
+    if (e.target.tagName !== 'VIDEO') return;
+    const video = e.target;
+    const wrapper = getWrapper(video);
+    if (!wrapper) return;
+    const timeEl = wrapper.querySelector('.pe-fb-ad__video-time');
+    if (timeEl) timeEl.textContent = formatTime(video.duration);
+}, true);
