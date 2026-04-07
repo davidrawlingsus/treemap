@@ -50,17 +50,42 @@ async function uploadMediaFile(url, clientId, token, mediaType) {
 }
 
 async function uploadViaContentScript(url, clientId, token, mediaType) {
-  const response = await chrome.tabs.sendMessage(sourceTabId, {
-    action: "downloadAndUpload",
+  // Step 1: Content script downloads from FB CDN (has page context)
+  const dlResponse = await chrome.tabs.sendMessage(sourceTabId, {
+    action: "downloadMedia",
     url,
-    clientId,
-    token,
-    mediaType,
   });
-  if (!response?.success) {
-    throw new Error(response?.error || "Content script upload failed");
+  if (!dlResponse?.success) {
+    throw new Error(dlResponse?.error || "Content script download failed");
   }
-  return response.url;
+
+  // Step 2: Convert data URL back to blob in service worker
+  const fetchResponse = await fetch(dlResponse.dataUrl);
+  const blob = await fetchResponse.blob();
+
+  // Step 3: Upload from service worker (has CORS bypass via host_permissions)
+  const isVideo = mediaType === "video" || (dlResponse.type || "").includes("video");
+  const ext = isVideo ? "mp4" : "jpg";
+  const uploadType = isVideo ? "video/mp4" : (dlResponse.type || "image/jpeg");
+  const filename = `ext-import-${Date.now()}-${Math.random().toString(36).slice(2, 9)}.${ext}`;
+
+  const uploadBlob = new Blob([blob], { type: uploadType });
+  const formData = new FormData();
+  formData.append("file", uploadBlob, filename);
+
+  const uploadRes = await fetch(`${API_BASE}/api/upload-ad-image?client_id=${clientId}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+
+  if (!uploadRes.ok) {
+    const err = await uploadRes.json().catch(() => ({}));
+    throw new Error(err.error || `Upload failed: ${uploadRes.status}`);
+  }
+
+  const data = await uploadRes.json();
+  return data.url;
 }
 
 async function uploadDirect(url, clientId, token, mediaType) {
