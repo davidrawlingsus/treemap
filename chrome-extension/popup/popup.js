@@ -1,6 +1,7 @@
 /**
  * Vizualizd Ad Library Importer — Popup Script
  * Handles auth, client selection, extraction trigger, and import.
+ * Media upload runs in the service worker so it survives popup close.
  */
 
 const API_BASE = "https://api.mapthegap.ai";
@@ -16,6 +17,7 @@ let extractedUrl = null;
 const loginSection = $("#loginSection");
 const mainSection = $("#mainSection");
 const wrongPageSection = $("#wrongPageSection");
+const progressSection = $("#progressSection");
 const emailInput = $("#emailInput");
 const sendLinkBtn = $("#sendLinkBtn");
 const loginMessage = $("#loginMessage");
@@ -29,6 +31,8 @@ const extractResult = $("#extractResult");
 const extractCount = $("#extractCount");
 const importBtn = $("#importBtn");
 const statusMessage = $("#statusMessage");
+const progressFill = $("#progressFill");
+const progressLabel = $("#progressLabel");
 
 // ---- Helpers ----
 function showMessage(el, text, type = "info") {
@@ -39,6 +43,14 @@ function showMessage(el, text, type = "info") {
 
 function hideMessage(el) {
   el.style.display = "none";
+}
+
+function hideAllSections() {
+  loginSection.style.display = "none";
+  mainSection.style.display = "none";
+  wrongPageSection.style.display = "none";
+  waitingSection.style.display = "none";
+  progressSection.style.display = "none";
 }
 
 async function getToken() {
@@ -62,11 +74,73 @@ async function apiFetch(path, options = {}) {
   return res;
 }
 
+// ---- Check if import is in progress ----
+async function checkImportState() {
+  try {
+    const response = await chrome.runtime.sendMessage({ action: "getImportState" });
+    const state = response?.state;
+    if (!state || state.status === "idle") return false;
+
+    if (state.status === "uploading" || state.status === "importing") {
+      showProgress(state);
+      return true;
+    }
+
+    if (state.status === "done") {
+      showDone(state);
+      return true;
+    }
+
+    if (state.status === "error") {
+      showError(state);
+      return true;
+    }
+  } catch {
+    // Service worker not responding
+  }
+  return false;
+}
+
+function showProgress(state) {
+  hideAllSections();
+  progressSection.style.display = "block";
+  const pct = state.totalMedia > 0 ? Math.round((state.uploadedMedia / state.totalMedia) * 100) : 0;
+  progressFill.style.width = pct + "%";
+  if (state.status === "uploading") {
+    progressLabel.textContent = `Uploading media ${state.uploadedMedia}/${state.totalMedia}`;
+  } else {
+    progressLabel.textContent = "Saving import...";
+  }
+}
+
+function showDone(state) {
+  hideAllSections();
+  mainSection.style.display = "block";
+  let msg = `Imported ${state.adCount} ads with ${state.mediaCount} media items.`;
+  if (state.skippedCount > 0) msg += ` ${state.skippedCount} duplicates skipped.`;
+  showMessage(statusMessage, msg, "success");
+  extractResult.style.display = "none";
+  extractedAds = null;
+  // Reset service worker state
+  chrome.runtime.sendMessage({ action: "resetImportState" }).catch(() => {});
+}
+
+function showError(state) {
+  hideAllSections();
+  mainSection.style.display = "block";
+  showMessage(statusMessage, "Import failed: " + (state.error || "Unknown error"), "error");
+  // Reset service worker state
+  chrome.runtime.sendMessage({ action: "resetImportState" }).catch(() => {});
+}
+
 // ---- Auth ----
 async function checkAuth() {
+  // First check if an import is running
+  const importing = await checkImportState();
+  if (importing) return;
+
   const token = await getToken();
   if (!token) {
-    // Check if we're waiting for a magic link click
     const { vzd_magic_link_pending } = await chrome.storage.local.get("vzd_magic_link_pending");
     if (vzd_magic_link_pending) {
       showWaiting(vzd_magic_link_pending);
@@ -83,7 +157,6 @@ async function checkAuth() {
       return;
     }
     const user = await res.json();
-    // Clear pending state on successful auth
     await chrome.storage.local.remove("vzd_magic_link_pending");
     showMain(user);
   } catch {
@@ -92,28 +165,21 @@ async function checkAuth() {
 }
 
 function showLogin() {
+  hideAllSections();
   loginSection.style.display = "block";
-  mainSection.style.display = "none";
-  wrongPageSection.style.display = "none";
-  waitingSection.style.display = "none";
 }
 
 function showWaiting(email) {
-  loginSection.style.display = "none";
-  mainSection.style.display = "none";
-  wrongPageSection.style.display = "none";
+  hideAllSections();
   waitingSection.style.display = "block";
   waitingEmail.textContent = email;
 }
 
 async function showMain(user) {
-  loginSection.style.display = "none";
+  hideAllSections();
   mainSection.style.display = "block";
-  wrongPageSection.style.display = "none";
-  waitingSection.style.display = "none";
   userEmail.textContent = user.email || "";
 
-  // Check if we're on a Meta Ads Library page
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const isAdsLibrary = tab?.url?.includes("facebook.com/ads/library");
   if (!isAdsLibrary) {
@@ -127,10 +193,8 @@ async function showMain(user) {
 
 async function loadClients(user) {
   clientSelect.innerHTML = '<option value="">Select a brand</option>';
-
   let clients = user.accessible_clients || [];
 
-  // If founder, also fetch all clients (includes ad_library_only)
   if (user.is_founder) {
     try {
       const res = await apiFetch("/api/clients");
@@ -177,7 +241,6 @@ sendLinkBtn.addEventListener("click", async () => {
       body: JSON.stringify({ email }),
     });
     if (res.ok) {
-      // Persist that we're waiting for the magic link
       await chrome.storage.local.set({ vzd_magic_link_pending: email });
       showWaiting(email);
     } else {
@@ -191,7 +254,6 @@ sendLinkBtn.addEventListener("click", async () => {
   }
 });
 
-// "Try different email" from waiting screen
 $("#resetAuthBtn")?.addEventListener("click", async () => {
   await chrome.storage.local.remove("vzd_magic_link_pending");
   showLogin();
@@ -242,52 +304,40 @@ extractBtn.addEventListener("click", async () => {
   }
 });
 
-// ---- Import ----
+// ---- Import (delegate to service worker) ----
 importBtn.addEventListener("click", async () => {
   if (!extractedAds || !clientSelect.value) return;
-  importBtn.disabled = true;
-  importBtn.textContent = "Importing...";
   hideMessage(statusMessage);
 
-  try {
-    const res = await apiFetch(
-      `/api/clients/${clientSelect.value}/ad-library-imports/from-extension`,
-      {
-        method: "POST",
-        body: JSON.stringify({
-          source_url: extractedUrl || window.location.href,
-          ads: extractedAds,
-        }),
-      }
-    );
+  // Send to service worker for background processing
+  chrome.runtime.sendMessage({
+    action: "startImport",
+    ads: extractedAds,
+    sourceUrl: extractedUrl || "",
+    clientId: clientSelect.value,
+  });
 
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      showMessage(statusMessage, data.detail || `Import failed (${res.status})`, "error");
-      return;
-    }
+  // Show progress immediately
+  showProgress({ status: "uploading", uploadedMedia: 0, totalMedia: 0 });
+});
 
-    const data = await res.json();
-    let msg = `Imported ${data.ad_count} ads with ${data.media_count} media items.`;
-    if (data.skipped_count > 0) {
-      msg += ` ${data.skipped_count} duplicates skipped.`;
+// ---- Listen for progress updates from service worker ----
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.action === "importProgress") {
+    const state = message.state;
+    if (state.status === "uploading" || state.status === "importing") {
+      showProgress(state);
+    } else if (state.status === "done") {
+      showDone(state);
+    } else if (state.status === "error") {
+      showError(state);
     }
-    msg += " Media files are being processed in the background.";
-    showMessage(statusMessage, msg, "success");
-    extractResult.style.display = "none";
-    extractedAds = null;
-  } catch (err) {
-    showMessage(statusMessage, "Network error: " + err.message, "error");
-  } finally {
-    importBtn.disabled = false;
-    importBtn.textContent = "Import";
   }
 });
 
-// ---- Listen for auth changes from the auth-listener content script ----
+// ---- Listen for auth changes ----
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && changes.vzd_token?.newValue) {
-    // Token was just set by the auth-listener — re-check auth
     checkAuth();
   }
 });

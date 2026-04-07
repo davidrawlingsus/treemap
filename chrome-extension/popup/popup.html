@@ -51,6 +51,16 @@
       <div id="statusMessage" class="message" style="display: none;"></div>
     </div>
 
+    <!-- Upload progress (persists across popup close/reopen) -->
+    <div id="progressSection" class="section" style="display: none;">
+      <p class="description"><strong>Importing ads...</strong></p>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <p class="description muted" id="progressLabel">Uploading media 0/0</p>
+      <p class="description muted">You can close this popup — the import continues in the background.</p>
+    </div>
+
     <!-- Not on ads library page -->
     <div id="wrongPageSection" class="section" style="display: none;">
       <p class="description">Navigate to a <strong>Meta Ads Library</strong> page to use this extension.</p>

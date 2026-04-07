@@ -4,6 +4,9 @@
   "version": "1.0.0",
   "description": "Import ads from Meta Ads Library into Vizualizd with one click.",
   "permissions": ["activeTab", "storage"],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
   "host_permissions": [
     "https://www.facebook.com/ads/library/*",
     "https://api.mapthegap.ai/*",
