@@ -7,7 +7,7 @@
   "host_permissions": [
     "https://www.facebook.com/ads/library/*",
     "https://api.mapthegap.ai/*",
-    "https://vizualizd.marketably.ai/*",
+    "https://vizualizd.mapthegap.ai/*",
     "http://localhost:8000/*",
     "http://localhost:3000/*"
   ],
