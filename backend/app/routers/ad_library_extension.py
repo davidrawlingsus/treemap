@@ -140,6 +140,14 @@ def _do_import(client_id, body, db, current_user):
 
         ad_count += 1
 
+    # If client has no logo, use the profile image from the first imported ad
+    if not client.logo_url:
+        for ad_data in body.ads:
+            if ad_data.page_profile_image_url:
+                client.logo_url = ad_data.page_profile_image_url
+                db.add(client)
+                break
+
     db.commit()
 
     logger.info(
