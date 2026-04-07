@@ -182,8 +182,12 @@ export function formatPrimaryText(text) {
 }
 
 // ============ Video Player Controller ============
-// Delegated event handler for all video players rendered by renderFBAdMockup.
-console.log('[VIDEO-DBG] fb-ad-mockup.js video controller loaded, registering click handler');
+
+export function initVideoPlayerControls() {
+    if (window._vzdVideoControlsInit) return;
+    window._vzdVideoControlsInit = true;
+    _registerVideoHandlers();
+}
 
 function formatTime(seconds) {
     const m = Math.floor(seconds / 60);
@@ -214,6 +218,8 @@ function updateMuteIcons(wrapper, muted) {
     if (mutedIcon) mutedIcon.style.display = muted ? '' : 'none';
 }
 
+function _registerVideoHandlers() {
+console.log('[VIDEO-DBG] Registering video click handler');
 document.addEventListener('click', (e) => {
     console.debug('[VIDEO-DBG] click target:', e.target.tagName, e.target.className?.toString?.()?.substring(0, 60));
     console.debug('[VIDEO-DBG] closest wrapper:', !!e.target.closest('.pe-fb-ad__video-wrapper'));
@@ -308,3 +314,4 @@ document.addEventListener('loadedmetadata', (e) => {
     const timeEl = wrapper.querySelector('.pe-fb-ad__video-time');
     if (timeEl) timeEl.textContent = formatTime(video.duration);
 }, true);
+} // end _registerVideoHandlers
