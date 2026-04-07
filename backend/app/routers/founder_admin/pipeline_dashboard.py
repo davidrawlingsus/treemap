@@ -110,6 +110,7 @@ def get_pipeline_dashboard(
 
         run_details.append({
             "run_id": run.run_id,
+            "client_id": str(run.converted_client_uuid) if run.converted_client_uuid else None,
             "company_name": run.company_name,
             "company_domain": run.company_domain,
             "status": run.coding_status,

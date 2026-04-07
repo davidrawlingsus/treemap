@@ -140,7 +140,7 @@
 }
 .pd-run-row {
     display: grid;
-    grid-template-columns: 1fr 140px 100px 80px 60px 80px;
+    grid-template-columns: 1fr 140px 100px 80px 60px 80px 36px;
     gap: 12px;
     align-items: center;
     padding: 12px 20px;
@@ -208,7 +208,7 @@
 /* Table header row */
 .pd-run-header {
     display: grid;
-    grid-template-columns: 1fr 140px 100px 80px 60px 80px;
+    grid-template-columns: 1fr 140px 100px 80px 60px 80px 36px;
     gap: 12px;
     padding: 10px 20px;
     border-bottom: 1px solid var(--border, #e2e8f0);
@@ -225,6 +225,50 @@
     display: flex;
     gap: 4px;
 }
+
+/* Three-dot menu */
+.pd-menu-wrap {
+    position: relative;
+}
+.pd-menu-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    color: var(--muted, #718096);
+    padding: 2px 6px;
+    border-radius: 4px;
+    line-height: 1;
+}
+.pd-menu-btn:hover { background: #f3f4f6; }
+.pd-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background: #fff;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    min-width: 180px;
+    z-index: 100;
+    overflow: hidden;
+}
+.pd-menu.open { display: block; }
+.pd-menu-item {
+    display: block;
+    width: 100%;
+    padding: 9px 14px;
+    font-size: 13px;
+    color: #1a1a1a;
+    text-decoration: none;
+    background: none;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+}
+.pd-menu-item:hover { background: #f7f8fa; }
 
 /* ─── Full runs table (below) ─────────────────────────────────────── */
 

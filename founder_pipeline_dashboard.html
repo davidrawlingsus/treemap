@@ -104,6 +104,7 @@
                         <span>Reviews</span>
                         <span>Time</span>
                         <span>Actions</span>
+                        <span></span>
                     </div>
                     <div class="pd-active-list" id="runsList"></div>
                 </div>
@@ -246,9 +247,40 @@
                     <div>${r.review_count || '-'}</div>
                     <div class="pd-muted">${r.total_seconds ? fmtDuration(r.total_seconds) : fmtTimeAgo(r.created_at)}</div>
                     <div class="pd-run-actions">${actions.join('') || '-'}</div>
+                    <div class="pd-menu-wrap">
+                        <button class="pd-menu-btn" onclick="toggleRunMenu(event, '${r.run_id}')">&#8942;</button>
+                        <div class="pd-menu" id="menu-${r.run_id}">
+                            ${r.client_id ? `<a class="pd-menu-item" href="/?client_uuid=${r.client_id}" target="_blank">View Visualization</a>` : ''}
+                            ${r.email_count > 0 ? `<a class="pd-menu-item" href="/founder_lead_emails.html#${r.run_id}" target="_blank">View Emails</a>` : ''}
+                            ${r.status === 'completed' ? `<button class="pd-menu-item" onclick="rerunAnalysis('${r.run_id}')">Rerun Analysis</button>` : ''}
+                        </div>
+                    </div>
                 </div>`;
             }).join('');
         }
+
+        window.toggleRunMenu = (event, runId) => {
+            event.stopPropagation();
+            // Close all other menus
+            document.querySelectorAll('.pd-menu.open').forEach(m => {
+                if (m.id !== 'menu-' + runId) m.classList.remove('open');
+            });
+            const menu = document.getElementById('menu-' + runId);
+            if (menu) menu.classList.toggle('open');
+        };
+
+        // Close menus on click outside
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.pd-menu.open').forEach(m => m.classList.remove('open'));
+        });
+
+        window.rerunAnalysis = async (runId) => {
+            document.querySelectorAll('.pd-menu.open').forEach(m => m.classList.remove('open'));
+            await fetch(`${API}/api/founder-admin/pipeline-dashboard/${runId}/rerun-analysis`, {
+                method: 'POST', headers: hdrs(),
+            });
+            loadDashboard();
+        };
 
         window.retryRun = async (runId) => {
             await fetch(`${API}/api/founder-admin/pipeline-dashboard/${runId}/retry`, {
