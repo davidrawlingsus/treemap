@@ -183,6 +183,7 @@ export function formatPrimaryText(text) {
 
 // ============ Video Player Controller ============
 // Delegated event handler for all video players rendered by renderFBAdMockup.
+console.log('[VIDEO-DBG] fb-ad-mockup.js video controller loaded, registering click handler');
 
 function formatTime(seconds) {
     const m = Math.floor(seconds / 60);
