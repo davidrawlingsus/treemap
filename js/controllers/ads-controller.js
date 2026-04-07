@@ -102,14 +102,14 @@ export function renderAdsPage() {
     
     const ads = getAdsCache();
     const source = getAdsSource();
-    const filteredAds = source === 'current' ? ads : getFilteredAndSortedAds(ads);
+    const filteredAds = getFilteredAndSortedAds(ads);
     const viewMode = getAdsViewMode();
     updateSourceToggleUI();
     updateControlBarForSource();
+    updateAdsSortUI();
 
     if (source === 'test') {
         updateAdsFilterBadge();
-        updateAdsSortUI();
         updateViewToggleUI();
     }
 
@@ -150,31 +150,35 @@ function getFilteredAndSortedAds(ads) {
             ad.headline?.toLowerCase().includes(term) ||
             ad.primary_text?.toLowerCase().includes(term) ||
             ad.description?.toLowerCase().includes(term) ||
+            ad.cta?.toLowerCase().includes(term) ||
+            ad.page_name?.toLowerCase().includes(term) ||
             ad.full_json?.title?.toLowerCase().includes(term)
         );
     }
-    
-    filters.forEach(filter => {
-        filtered = filtered.filter(ad => {
-            // Status is on the ad object, not in full_json
-            if (filter.field === 'status') {
-                const adStatus = normalizeStatus(ad.status);
-                return adStatus === filter.value.toLowerCase();
-            }
-            // Other fields are in full_json
-            // For 'angle', also check legacy 'testType' key for pre-migration data
-            let value = ad.full_json?.[filter.field];
-            if (!value && filter.field === 'angle') {
-                value = ad.full_json?.testType;
-            }
-            if (!value) return false;
-            return value.toLowerCase() === filter.value.toLowerCase();
+
+    // Only apply filters for test ads (current ads don't have angle/funnel)
+    if (getAdsSource() === 'test') {
+        filters.forEach(filter => {
+            filtered = filtered.filter(ad => {
+                if (filter.field === 'status') {
+                    const adStatus = normalizeStatus(ad.status);
+                    return adStatus === filter.value.toLowerCase();
+                }
+                let value = ad.full_json?.[filter.field];
+                if (!value && filter.field === 'angle') {
+                    value = ad.full_json?.testType;
+                }
+                if (!value) return false;
+                return value.toLowerCase() === filter.value.toLowerCase();
+            });
         });
-    });
-    
+    }
+
     filtered.sort((a, b) => {
-        const dateA = new Date(a.created_at);
-        const dateB = new Date(b.created_at);
+        // Use created_at for test ads, started_running_on for current ads
+        const dateField = getAdsSource() === 'current' ? 'started_running_on' : 'created_at';
+        const dateA = new Date(a[dateField] || a.created_at || 0);
+        const dateB = new Date(b[dateField] || b.created_at || 0);
         return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
     });
     
@@ -278,12 +282,10 @@ function updateControlBarForSource() {
     const source = getAdsSource();
     const isCurrent = source === 'current';
 
-    // Hide/show controls that don't apply to current ads
+    // Hide controls that don't apply to current ads
     const hideSelectors = [
-        '.ads-section-search',
         '#adsFilterChips',
         '#adsFilterMenuBtn',
-        '#adsSortBtn',
         '#adsBulkPublishBtn',
         '.ads-find-replace-button',
         '#adsViewToggle',
@@ -292,10 +294,6 @@ function updateControlBarForSource() {
         const el = document.querySelector(sel);
         if (el) el.style.display = isCurrent ? 'none' : '';
     });
-
-    // Also hide the sort dropdown parent
-    const sortBtn = document.getElementById('adsSortBtn');
-    if (sortBtn?.parentElement) sortBtn.parentElement.style.display = isCurrent ? 'none' : '';
 
     // Update heading
     const heading = document.querySelector('#ads-section .control-bar h1');
