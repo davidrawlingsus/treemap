@@ -5,7 +5,7 @@
  */
 
 import { deleteFacebookAd, updateFacebookAd } from '/js/services/api-facebook-ads.js';
-import { getAdsCache, removeAdFromCache, updateAdInCache, getAdsSearchTerm, getAdsFilters, getSelectedAdIds, toggleAdSelection, isAdSelected, clearAdsSelection } from '/js/state/ads-state.js';
+import { getAdsCache, removeAdFromCache, updateAdInCache, getAdsSearchTerm, getAdsFilters, getSelectedAdIds, toggleAdSelection, isAdSelected, clearAdsSelection, getAdsSource } from '/js/state/ads-state.js';
 import { AD_STATUS_OPTIONS, normalizeStatus, getStatusConfig } from '/js/controllers/ads-filter-ui.js';
 import { escapeHtml } from '/js/utils/dom.js';
 import { renderFBAdMockup, formatCTA, extractDomain, formatPrimaryText } from '/js/renderers/fb-ad-mockup.js';
@@ -98,20 +98,25 @@ export function renderAdsGrid(container, ads) {
         return;
     }
     
+    const source = getAdsSource();
+    const cardRenderer = source === 'current' ? renderCurrentAdCard : renderAdCard;
+
     // Add sizer elements for Masonry + ad cards
     container.innerHTML = `
         <div class="ads-grid-sizer"></div>
         <div class="ads-gutter-sizer"></div>
-        ${ads.map(ad => renderAdCard(ad)).join('')}
+        ${ads.map(ad => cardRenderer(ad)).join('')}
     `;
-    
+
     // Attach event delegation for interactive elements
-    attachEventListeners(container);
-    
+    if (source === 'test') {
+        attachEventListeners(container);
+    }
+
     // Initialize Masonry for horizontal-first reading order
     initMasonry(container);
-    
-    updateBulkPublishButton();
+
+    if (source === 'test') updateBulkPublishButton();
 }
 
 /**
@@ -480,6 +485,57 @@ async function saveAdEdits(adId, adCard) {
             saveBtn.textContent = 'Save';
         }
     }
+}
+
+/**
+ * Render a read-only ad card for "Current Ads" (imported from Meta Ad Library)
+ */
+function renderCurrentAdCard(ad) {
+    const primaryText = ad.primary_text || '';
+    const headline = escapeHtml(ad.headline || '');
+    const description = escapeHtml(ad.description || '');
+    const cta = formatCTA(ad.cta || 'LEARN_MORE');
+    const destinationUrl = ad.destination_url || '';
+    const displayUrl = extractDomain(destinationUrl);
+    const pageName = ad.page_name || 'Sponsored';
+    const logoSrc = ad.page_profile_image_url || '';
+
+    // Resolve media URL: first media item, then thumbnail
+    const mediaItems = ad.media_items || [];
+    const firstMedia = mediaItems[0];
+    const imageUrl = firstMedia?.url || ad.media_thumbnail_url || null;
+    const isVideo = ad.ad_format === 'video' || firstMedia?.media_type === 'video';
+    const posterUrl = isVideo ? (firstMedia?.poster_url || ad.media_thumbnail_url || null) : undefined;
+
+    const formattedPrimaryText = formatPrimaryText(primaryText);
+
+    const mockup = renderFBAdMockup({
+        adId: ad.id || '',
+        primaryText: formattedPrimaryText,
+        headline,
+        description,
+        cta,
+        displayUrl,
+        logoSrc,
+        clientName: pageName,
+        imageUrl: isVideo ? undefined : imageUrl,
+        posterUrl,
+        readOnly: true,
+    });
+
+    // Metadata labels
+    const labels = [];
+    if (ad.status) labels.push(`<span class="ads-card__current-label">${escapeHtml(ad.status)}</span>`);
+    if (ad.started_running_on) labels.push(`<span class="ads-card__current-label">${escapeHtml(ad.started_running_on)}</span>`);
+    if (ad.ad_format) labels.push(`<span class="ads-card__current-label">${escapeHtml(ad.ad_format)}</span>`);
+    const labelsHtml = labels.length ? `<div class="ads-card__current-labels">${labels.join('')}</div>` : '';
+
+    return `
+        <div class="ads-card ads-card--current">
+            ${labelsHtml}
+            <div class="ads-card__mockup">${mockup}</div>
+        </div>
+    `;
 }
 
 /**

@@ -5,12 +5,13 @@
  */
 
 import { fetchFacebookAds } from '/js/services/api-facebook-ads.js';
-import { 
-    getAdsCache, setAdsCache, setAdsLoading, setAdsError, 
+import {
+    getAdsCache, setAdsCache, setAdsLoading, setAdsError,
     getAdsCurrentClientId, setAdsCurrentClientId,
     getAdsSearchTerm, setAdsSearchTerm,
     getAdsFilters, getAdsSortOrder, setAdsSortOrder,
     getAdsViewMode, setAdsViewMode as stateSetViewMode,
+    getAdsSource, setAdsSource as stateSetAdsSource,
     getSelectedAdIds, clearAdsSelection
 } from '/js/state/ads-state.js';
 import { renderAdsGrid, showLoading, renderError, updateBulkPublishButton } from '/js/renderers/ads-renderer.js';
@@ -53,26 +54,36 @@ export async function initAdsPage() {
         return;
     }
     
+    const source = getAdsSource();
     const cachedClientId = getAdsCurrentClientId();
     const cachedAds = getAdsCache();
-    
-    if (cachedClientId === clientId && cachedAds.length > 0) {
+
+    // Use a cache key that includes the source so switching triggers a re-fetch
+    const cacheKey = `${clientId}:${source}`;
+    if (cachedClientId === cacheKey && cachedAds.length > 0) {
         renderAdsPage();
         return;
     }
-    
+
     showLoading(container);
     setAdsLoading(true);
     setAdsError(null);
-    
+
     try {
-        const response = await fetchFacebookAds(clientId);
-        const ads = response.items || [];
+        let ads = [];
+        if (source === 'current') {
+            ads = await fetchCurrentAds(clientId);
+        } else {
+            const response = await fetchFacebookAds(clientId);
+            ads = response.items || [];
+        }
         setAdsCache(ads);
-        setAdsCurrentClientId(clientId);
+        setAdsCurrentClientId(cacheKey);
         setAdsLoading(false);
-        
-        populateAdsFilterOptions(getUniqueFilterValues);
+
+        if (source === 'test') {
+            populateAdsFilterOptions(getUniqueFilterValues);
+        }
         renderAdsPage();
     } catch (error) {
         console.error('[AdsController] Failed to load ads:', error);
@@ -90,19 +101,25 @@ export function renderAdsPage() {
     if (!container) return;
     
     const ads = getAdsCache();
-    const filteredAds = getFilteredAndSortedAds(ads);
+    const source = getAdsSource();
+    const filteredAds = source === 'current' ? ads : getFilteredAndSortedAds(ads);
     const viewMode = getAdsViewMode();
-    updateAdsFilterBadge();
-    updateAdsSortUI();
-    updateViewToggleUI();
-    
-    // Render based on view mode
-    if (viewMode === 'kanban') {
+    updateSourceToggleUI();
+    updateControlBarForSource();
+
+    if (source === 'test') {
+        updateAdsFilterBadge();
+        updateAdsSortUI();
+        updateViewToggleUI();
+    }
+
+    // Render based on view mode (current ads always grid)
+    if (source === 'test' && viewMode === 'kanban') {
         renderAdsKanban(container, filteredAds);
     } else {
         renderAdsGrid(container, filteredAds);
     }
-    updateBulkPublishButton();
+    if (source === 'test') updateBulkPublishButton();
 }
 
 /**
@@ -218,6 +235,71 @@ function updateViewToggleUI() {
 function setAdsViewMode(mode) {
     stateSetViewMode(mode);
     renderAdsPage();
+}
+
+// ============ Source Toggle ============
+
+async function fetchCurrentAds(clientId) {
+    const apiBase = window.APP_CONFIG?.API_BASE_URL || 'http://localhost:8000';
+    const headers = window.Auth?.getAuthHeaders?.() || {};
+
+    // Get imports list
+    const importsRes = await fetch(`${apiBase}/api/clients/${clientId}/ad-library-imports`, { headers });
+    if (!importsRes.ok) throw new Error('Failed to load ad library imports');
+    const importsData = await importsRes.json();
+    const imports = importsData.items || [];
+    if (!imports.length) return [];
+
+    // Get latest import with full ads
+    const latestId = imports[0].id;
+    const detailRes = await fetch(`${apiBase}/api/clients/${clientId}/ad-library-imports/${latestId}`, { headers });
+    if (!detailRes.ok) throw new Error('Failed to load import details');
+    const detail = await detailRes.json();
+    return detail.ads || [];
+}
+
+function switchAdsSource(source) {
+    stateSetAdsSource(source);
+    setAdsCache([]);
+    setAdsCurrentClientId(null);
+    updateSourceToggleUI();
+    updateControlBarForSource();
+    initAdsPage();
+}
+
+function updateSourceToggleUI() {
+    const source = getAdsSource();
+    document.querySelectorAll('.ads-source-toggle__btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.source === source);
+    });
+}
+
+function updateControlBarForSource() {
+    const source = getAdsSource();
+    const isCurrent = source === 'current';
+
+    // Hide/show controls that don't apply to current ads
+    const hideSelectors = [
+        '.ads-section-search',
+        '#adsFilterChips',
+        '#adsFilterMenuBtn',
+        '#adsSortBtn',
+        '#adsBulkPublishBtn',
+        '.ads-find-replace-button',
+        '#adsViewToggle',
+    ];
+    hideSelectors.forEach(sel => {
+        const el = document.querySelector(sel);
+        if (el) el.style.display = isCurrent ? 'none' : '';
+    });
+
+    // Also hide the sort dropdown parent
+    const sortBtn = document.getElementById('adsSortBtn');
+    if (sortBtn?.parentElement) sortBtn.parentElement.style.display = isCurrent ? 'none' : '';
+
+    // Update heading
+    const heading = document.querySelector('#ads-section .control-bar h1');
+    if (heading) heading.textContent = isCurrent ? 'Current Ads' : 'Saved Ads';
 }
 
 // ============ Event Handlers ============
@@ -350,3 +432,4 @@ window.toggleAdsInlineFilterDropdown = toggleAdsInlineFilterDropdown;
 window.toggleAdsInlineFilterValue = toggleAdsInlineFilterValue;
 window.removeAdsInlineFilter = removeAdsInlineFilter;
 window.setAdsViewMode = setAdsViewMode;
+window.switchAdsSource = switchAdsSource;

@@ -19,6 +19,9 @@ let adsSortOrder = 'desc';
 // View mode state
 let adsViewMode = 'grid'; // 'grid' | 'kanban'
 
+// Source toggle state
+let adsSource = 'test'; // 'test' | 'current'
+
 // Bulk selection state (for bulk publish)
 let adsSelectedIds = new Set();
 
@@ -98,6 +101,7 @@ export function clearAdsState() {
     adsSortBy = 'created_at';
     adsSortOrder = 'desc';
     adsViewMode = 'grid';
+    adsSource = 'test';
     adsSelectedIds = new Set();
 }
 
@@ -252,6 +256,24 @@ export function setAdsViewMode(mode) {
     adsViewMode = mode;
 }
 
+// ============ Source Toggle State ============
+
+/**
+ * Get current ads source
+ * @returns {string} 'test' or 'current'
+ */
+export function getAdsSource() {
+    return adsSource;
+}
+
+/**
+ * Set ads source
+ * @param {string} source - 'test' or 'current'
+ */
+export function setAdsSource(source) {
+    adsSource = source;
+}
+
 // ============ Bulk Selection State ============
 
 /**
@@ -322,5 +344,8 @@ window.adsStateModule = {
     toggleAdsSortOrder,
     // View mode
     getAdsViewMode,
-    setAdsViewMode
+    setAdsViewMode,
+    // Source toggle
+    getAdsSource,
+    setAdsSource
 };
