@@ -214,12 +214,18 @@ function updateMuteIcons(wrapper, muted) {
 }
 
 document.addEventListener('click', (e) => {
+    console.debug('[VIDEO-DBG] click target:', e.target.tagName, e.target.className?.toString?.()?.substring(0, 60));
+    console.debug('[VIDEO-DBG] closest wrapper:', !!e.target.closest('.pe-fb-ad__video-wrapper'));
+    console.debug('[VIDEO-DBG] closest controls:', !!e.target.closest('.pe-fb-ad__video-controls'));
+    console.debug('[VIDEO-DBG] closest playpause:', !!e.target.closest('.pe-fb-ad__video-playpause'));
+
     // Play/pause button
     const playPauseBtn = e.target.closest('.pe-fb-ad__video-playpause');
     if (playPauseBtn) {
         e.stopPropagation();
         const wrapper = getWrapper(playPauseBtn);
         const video = getVideo(wrapper);
+        console.debug('[VIDEO-DBG] playpause btn clicked, video:', !!video, 'paused:', video?.paused);
         if (!video) return;
         if (video.paused) { video.play(); } else { video.pause(); }
         return;
@@ -254,8 +260,14 @@ document.addEventListener('click', (e) => {
     const wrapper = e.target.closest('.pe-fb-ad__video-wrapper');
     if (wrapper && !e.target.closest('.pe-fb-ad__video-controls')) {
         const video = getVideo(wrapper);
+        console.debug('[VIDEO-DBG] wrapper click, video:', !!video, 'paused:', video?.paused, 'src:', video?.src?.substring(0, 60));
         if (!video) return;
-        if (video.paused) { video.play(); } else { video.pause(); }
+        const playPromise = video.paused ? video.play() : (video.pause(), Promise.resolve());
+        if (playPromise && playPromise.catch) {
+            playPromise.catch(err => console.error('[VIDEO-DBG] play() error:', err));
+        }
+    } else if (wrapper) {
+        console.debug('[VIDEO-DBG] click inside wrapper but on controls, ignoring');
     }
 });
 
