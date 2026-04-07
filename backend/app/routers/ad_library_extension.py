@@ -40,6 +40,16 @@ def import_from_extension(
     Creates AdLibraryImport + AdLibraryAd + AdLibraryMedia + AdImage records.
     Media URLs are expected to be permanent (already uploaded to Vercel Blob by the extension).
     """
+    try:
+        return _do_import(client_id, body, db, current_user)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Extension import failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def _do_import(client_id, body, db, current_user):
     client = db.query(Client).filter(Client.id == client_id).first()
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
