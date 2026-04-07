@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user_flexible
 from app.authorization import verify_client_access
 from app.database import get_db, SessionLocal
-from app.models import User, Client, AdLibraryImport, AdLibraryAd, AdLibraryMedia
+from app.models import User, Client, AdLibraryImport, AdLibraryAd, AdLibraryMedia, AdImage
 from app.schemas.ad_library_import import (
     ExtensionImportRequest,
     ExtensionImportResponse,
@@ -74,8 +74,10 @@ async def _download_and_reupload(url: str, client_id: str, blob_token: str) -> s
         return None
 
 
-async def _reupload_media_background(import_id: UUID) -> None:
-    """Background task: download FB CDN media and re-upload to Vercel Blob."""
+async def _reupload_media_background(import_id: UUID, user_id: UUID | None = None) -> None:
+    """Background task: download FB CDN media, re-upload to Vercel Blob, create AdImage records."""
+    from app.services.meta_ads_library_scraper import parse_date_string
+
     blob_token = os.getenv("BLOB_READ_WRITE_TOKEN")
     if not blob_token:
         logger.warning("No BLOB_READ_WRITE_TOKEN, skipping media re-upload for import %s", import_id)
@@ -87,6 +89,7 @@ async def _reupload_media_background(import_id: UUID) -> None:
         if not import_obj:
             return
         client_id = str(import_obj.client_id)
+        client_uuid = import_obj.client_id
 
         # Collect all URLs that need re-uploading
         ads = db.query(AdLibraryAd).filter(AdLibraryAd.import_id == import_id).all()
@@ -96,6 +99,12 @@ async def _reupload_media_background(import_id: UUID) -> None:
             .filter(AdLibraryAd.import_id == import_id)
             .all()
         )
+
+        # Build a map from media → parent ad for AdImage creation
+        ad_by_id = {ad.id: ad for ad in ads}
+        media_to_ad = {}
+        for media in media_items:
+            media_to_ad[media.id] = ad_by_id.get(media.ad_id)
 
         sem = asyncio.Semaphore(5)
 
@@ -120,8 +129,34 @@ async def _reupload_media_background(import_id: UUID) -> None:
         await asyncio.gather(*tasks, return_exceptions=True)
         db.commit()
 
+        # Create AdImage records for the Media tab
+        ad_images_created = 0
+        for media in media_items:
+            if not media.url or "vercel" not in media.url.lower():
+                continue  # Re-upload failed, skip
+            parent_ad = media_to_ad.get(media.id)
+            content_type = "video/mp4" if media.media_type == "video" else "image/jpeg"
+            started = parse_date_string(parent_ad.started_running_on) if parent_ad else None
+            ad_image = AdImage(
+                client_id=client_uuid,
+                url=media.url,
+                filename=media.url.rsplit("/", 1)[-1] if "/" in media.url else "imported",
+                file_size=0,
+                content_type=content_type,
+                uploaded_by=user_id,
+                started_running_on=started,
+                library_id=parent_ad.library_id if parent_ad else None,
+                source_url=import_obj.source_url,
+            )
+            db.add(ad_image)
+            ad_images_created += 1
+        db.commit()
+
         reuploaded = sum(1 for m in media_items if m.url and "vercel" in m.url.lower())
-        logger.info("Extension import %s: re-uploaded %d/%d media URLs", import_id, reuploaded, len(media_items))
+        logger.info(
+            "Extension import %s: re-uploaded %d/%d media, created %d AdImage records",
+            import_id, reuploaded, len(media_items), ad_images_created,
+        )
     except Exception as e:
         logger.exception("Background media re-upload failed for import %s: %s", import_id, e)
     finally:
@@ -219,8 +254,8 @@ async def import_from_extension(
 
     db.commit()
 
-    # Kick off background media re-upload
-    background_tasks.add_task(asyncio.run, _reupload_media_background(imp.id))
+    # Kick off background media re-upload + AdImage creation
+    background_tasks.add_task(asyncio.run, _reupload_media_background(imp.id, current_user.id))
 
     return ExtensionImportResponse(
         import_id=imp.id,
