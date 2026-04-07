@@ -384,3 +384,77 @@ def update_email_content(
 
     db.commit()
     return email
+
+
+def reassign_email_series(
+    db: Session,
+    run_id: str,
+    email_addresses: List[str],
+) -> int:
+    """Re-assign a series to new recipient(s) and restart the schedule.
+
+    Cancels all existing queued/paused emails, then creates fresh copies
+    of them for each email address with a new D+0, D+1, D+2... schedule.
+    """
+    import copy as _copy
+
+    # Grab unsent emails as templates before cancelling
+    unsent = (
+        db.query(LeadEmail)
+        .filter(
+            LeadEmail.run_id == run_id,
+            LeadEmail.status.in_(["queued", "paused"]),
+        )
+        .order_by(LeadEmail.sequence_number.asc())
+        .all()
+    )
+    if not unsent:
+        logger.warning("[email-series] No unsent emails to reassign for run %s", run_id)
+        return 0
+
+    # Snapshot the data we need before cancelling
+    templates = []
+    for em in unsent:
+        templates.append({
+            "client_id": em.client_id,
+            "subject": em.subject,
+            "preview_text": em.preview_text,
+            "template_data": _copy.deepcopy(em.template_data) if em.template_data else None,
+            "sequence_number": em.sequence_number,
+            "extra_data": _copy.deepcopy(em.extra_data) if em.extra_data else None,
+        })
+
+    # Cancel existing unsent emails
+    for em in unsent:
+        em.status = "cancelled"
+    db.flush()
+
+    now = datetime.now(timezone.utc)
+    created = 0
+
+    for addr in email_addresses:
+        addr = addr.strip()
+        if not addr:
+            continue
+        for i, tpl in enumerate(templates):
+            record = LeadEmail(
+                run_id=run_id,
+                client_id=tpl["client_id"],
+                email_address=addr,
+                subject=tpl["subject"],
+                preview_text=tpl["preview_text"],
+                template_data=tpl["template_data"],
+                sequence_number=tpl["sequence_number"],
+                scheduled_for=now + timedelta(days=i),
+                status="queued",
+                extra_data=tpl["extra_data"],
+            )
+            db.add(record)
+            created += 1
+
+    db.commit()
+    logger.info(
+        "[email-series] Reassigned run %s to %d recipient(s), created %d emails",
+        run_id, len(email_addresses), created,
+    )
+    return created

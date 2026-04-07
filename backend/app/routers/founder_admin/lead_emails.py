@@ -217,6 +217,29 @@ def update_email(
 # Test send — send all emails to founder immediately
 # ---------------------------------------------------------------------------
 
+class ReassignRequest(BaseModel):
+    email_addresses: list[str]
+
+
+@router.post("/api/founder-admin/lead-emails/{run_id}/reassign")
+def reassign_series(
+    run_id: str,
+    body: ReassignRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Re-assign a series to new recipient(s) and restart the schedule."""
+    if not body.email_addresses:
+        raise HTTPException(status_code=400, detail="At least one email address required")
+    from app.services.lead_email_service import reassign_email_series
+    created = reassign_email_series(db, run_id, body.email_addresses)
+    return {"created": created, "email_addresses": body.email_addresses}
+
+
+# ---------------------------------------------------------------------------
+# Test send — send all emails to founder immediately
+# ---------------------------------------------------------------------------
+
 class TestSendRequest(BaseModel):
     test_email: str
 

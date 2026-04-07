@@ -299,6 +299,102 @@
 }
 .btn-xs:hover { background: #f7f8fa; }
 
+/* Preview header layout */
+.le-preview-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Edit mode */
+.le-edit-input {
+    width: 100%;
+    padding: 6px 10px;
+    font-size: 15px;
+    font-weight: 600;
+    font-family: inherit;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 4px;
+    outline: none;
+    box-sizing: border-box;
+}
+.le-edit-input:focus { border-color: #303030; }
+
+.le-edit-textarea {
+    width: 100%;
+    padding: 8px 10px;
+    font-size: 14px;
+    font-family: inherit;
+    line-height: 1.6;
+    border: 1px solid var(--border, #e2e8f0);
+    border-radius: 4px;
+    outline: none;
+    resize: vertical;
+    box-sizing: border-box;
+}
+.le-edit-textarea:focus { border-color: #303030; }
+
+.le-edit-section {
+    margin-bottom: 12px;
+}
+.le-edit-section label {
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.le-edit-actions {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border, #e2e8f0);
+    display: flex;
+    gap: 8px;
+}
+
+.le-btn-save {
+    background: #303030;
+    color: #fff;
+    border-color: #303030;
+}
+.le-btn-save:hover { background: #1a1a1a; }
+
+/* Overlay / Modal */
+.le-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.le-modal {
+    background: #fff;
+    border-radius: 8px;
+    padding: 24px;
+    width: 440px;
+    max-width: 90vw;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+}
+.le-modal h3 {
+    margin: 0 0 8px;
+    font-size: 18px;
+}
+.le-modal p {
+    margin: 0 0 16px;
+}
+.le-modal .le-edit-textarea {
+    margin-bottom: 16px;
+}
+
+.le-modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
     .le-preview { flex: 1; }
