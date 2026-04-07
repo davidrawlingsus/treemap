@@ -153,15 +153,17 @@ function initMasonry(container) {
         horizontalOrder: true
     });
     
-    // Trigger Masonry relayout when images load to ensure correct card positioning
-    // (images load async after Masonry init, changing card heights)
+    // Trigger Masonry relayout when images/videos load to ensure correct card positioning
     container.querySelectorAll('.pe-fb-ad__media.has-image img').forEach((img) => {
         if (!img.complete) {
             img.addEventListener('load', scheduleLayoutFromImageLoad);
             img.addEventListener('error', scheduleLayoutFromImageLoad);
-        } else {
-            scheduleLayoutFromImageLoad();
         }
+    });
+    container.querySelectorAll('.pe-fb-ad__media video').forEach((video) => {
+        video.addEventListener('loadeddata', scheduleLayoutFromImageLoad);
+        video.addEventListener('loadedmetadata', scheduleLayoutFromImageLoad);
+        video.addEventListener('error', scheduleLayoutFromImageLoad);
     });
 }
 
