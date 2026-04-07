@@ -877,12 +877,13 @@
 
 /* ============ Current Ad Card ============ */
 
-.ads-card--current {
+.ads-card--current .pe-fb-ad__text-field {
     pointer-events: none;
 }
 
-.ads-card--current .pe-fb-ad__text-field {
-    pointer-events: none;
+.ads-card--current video {
+    pointer-events: auto;
+    cursor: pointer;
 }
 
 .ads-card__current-labels {
