@@ -359,22 +359,80 @@
     return results;
   }
 
-  // Download a media file from FB CDN (works here because we're in the page context)
-  // Returns base64 data URL for the service worker to upload
-  async function downloadMedia(url) {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`Download failed: ${response.status}`);
-    const blob = await response.blob();
-
+  // Download a media file from FB CDN using the PAGE's fetch context
+  // (content script fetch uses extension origin which FB CDN blocks via CORS)
+  // Injects a script into the page world, downloads there, and passes data back via postMessage
+  function downloadMedia(url) {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve({
-        dataUrl: reader.result,
-        type: blob.type,
-        size: blob.size,
-      });
-      reader.onerror = () => reject(new Error("Failed to read blob"));
-      reader.readAsDataURL(blob);
+      const requestId = Math.random().toString(36).slice(2);
+
+      // Listen for the response from the injected page script
+      function onMessage(event) {
+        if (event.source !== window) return;
+        if (event.data?.type !== "VZD_DOWNLOAD_RESULT") return;
+        if (event.data?.requestId !== requestId) return;
+        window.removeEventListener("message", onMessage);
+
+        if (event.data.success) {
+          resolve({
+            dataUrl: event.data.dataUrl,
+            type: event.data.blobType,
+            size: event.data.size,
+          });
+        } else {
+          reject(new Error(event.data.error || "Page download failed"));
+        }
+      }
+      window.addEventListener("message", onMessage);
+
+      // Inject a script into the page's MAIN world to do the fetch
+      const script = document.createElement("script");
+      script.textContent = `
+        (async () => {
+          const requestId = ${JSON.stringify(requestId)};
+          const url = ${JSON.stringify(url)};
+          try {
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error("HTTP " + resp.status);
+            const blob = await resp.blob();
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              window.postMessage({
+                type: "VZD_DOWNLOAD_RESULT",
+                requestId,
+                success: true,
+                dataUrl: reader.result,
+                blobType: blob.type,
+                size: blob.size,
+              }, "*");
+            };
+            reader.onerror = () => {
+              window.postMessage({
+                type: "VZD_DOWNLOAD_RESULT",
+                requestId,
+                success: false,
+                error: "FileReader failed",
+              }, "*");
+            };
+            reader.readAsDataURL(blob);
+          } catch (e) {
+            window.postMessage({
+              type: "VZD_DOWNLOAD_RESULT",
+              requestId,
+              success: false,
+              error: e.message,
+            }, "*");
+          }
+        })();
+      `;
+      document.documentElement.appendChild(script);
+      script.remove();
+
+      // Timeout after 120s
+      setTimeout(() => {
+        window.removeEventListener("message", onMessage);
+        reject(new Error("Download timed out (120s)"));
+      }, 120000);
     });
   }
 
