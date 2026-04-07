@@ -916,6 +916,13 @@ def _run_full_pipeline(run_id: str) -> None:
         except Exception as e:
             logger.error("[pipeline %s] Email scheduling failed: %s", run_id, e)
 
+        # Clear restart_count on success so future re-runs start fresh
+        from sqlalchemy.orm.attributes import flag_modified as _fm_done
+        payload = run.payload or {}
+        payload.pop("restart_count", None)
+        run.payload = payload
+        _fm_done(run, "payload")
+
         _update_status(db, run, "completed")
         logger.info("[pipeline %s] Pipeline completed! %d ads", run_id, total_ads)
 

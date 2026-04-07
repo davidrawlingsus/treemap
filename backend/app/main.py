@@ -318,46 +318,65 @@ async def startup_event():
         from app.database import SessionLocal
         from app.models.leadgen_voc import LeadgenVocRun
         from app.services.leadgen_pipeline_runner import run_full_pipeline_background
+        from sqlalchemy.orm.attributes import flag_modified as _startup_fm
 
         from datetime import datetime, timedelta, timezone as tz
 
         _db = SessionLocal()
         terminal_states = {"completed", "failed", "disabled"}
-        cutoff = datetime.now(tz.utc) - timedelta(hours=3)
+        hard_cutoff = datetime.now(tz.utc) - timedelta(hours=24)
+        MAX_RESTART_COUNT = 5
 
-        # Mark anything older than 1 hour as failed
-        stale = (
+        # Mark anything older than 24h as permanently failed
+        very_old = (
             _db.query(LeadgenVocRun)
             .filter(
                 ~LeadgenVocRun.coding_status.in_(terminal_states),
-                LeadgenVocRun.created_at < cutoff,
+                LeadgenVocRun.created_at < hard_cutoff,
             )
             .update({"coding_status": "failed"})
         )
-        if stale:
-            logger.info("[startup-recovery] Marked %d stale runs as failed", stale)
+        if very_old:
+            logger.info("[startup-recovery] Marked %d very old runs as failed", very_old)
 
-        # Find recent non-terminal runs and restart their background threads.
-        # Don't reset their status — the pipeline handles re-entry based on
-        # existing data (skips scrape if rows exist, etc.)
+        # Find ALL non-terminal runs (including older ones) and restart if
+        # they haven't exceeded the max restart count.  Railway deploys can
+        # kill long-running extractions repeatedly, so we need to keep
+        # retrying until the pipeline completes or hits the limit.
         orphaned = (
             _db.query(LeadgenVocRun)
             .filter(
                 ~LeadgenVocRun.coding_status.in_(terminal_states),
-                LeadgenVocRun.created_at >= cutoff,
+                LeadgenVocRun.created_at >= hard_cutoff,
             )
             .all()
         )
+
+        to_restart = []
+        for run in orphaned:
+            payload = run.payload or {}
+            restart_count = payload.get("restart_count", 0)
+            if restart_count >= MAX_RESTART_COUNT:
+                logger.warning("[startup-recovery] Run %s (%s) exceeded %d restarts — marking failed",
+                               run.run_id[:16], run.company_name, MAX_RESTART_COUNT)
+                run.coding_status = "failed"
+            else:
+                payload["restart_count"] = restart_count + 1
+                run.payload = payload
+                _startup_fm(run, "payload")
+                to_restart.append(run)
+
         _db.commit()
         _db.close()
 
-        for run in orphaned:
-            logger.info("[startup-recovery] Restarting run %s (%s, status=%s)",
-                        run.run_id, run.company_name, run.coding_status)
+        for run in to_restart:
+            logger.info("[startup-recovery] Restarting run %s (%s, status=%s, restart #%d)",
+                        run.run_id, run.company_name, run.coding_status,
+                        (run.payload or {}).get("restart_count", 0))
             run_full_pipeline_background(run.run_id)
 
-        if orphaned:
-            logger.info("[startup-recovery] Restarted %d orphaned pipeline run(s)", len(orphaned))
+        if to_restart:
+            logger.info("[startup-recovery] Restarted %d orphaned pipeline run(s)", len(to_restart))
     except Exception as _e:
         logger.error("[startup-recovery] Failed: %s", _e)
 
