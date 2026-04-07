@@ -367,28 +367,23 @@ def generate_voc_analysis_markdown(
         len(classified_reviews),
     )
 
-    # Call Anthropic directly for raw text — no JSON schema wrapping.
-    # JSON schema mode causes Opus to truncate or return garbage for very large outputs
-    # because 70k+ chars of markdown must be escaped inside a JSON string.
-    import anthropic
-    import httpx
+    # Use the same streaming infrastructure as other pipeline steps.
+    # Wrap in a minimal JSON schema — the content field holds the markdown.
+    from app.services.voc_coding_chain_service import call_claude_json_schema_streaming
 
     MAX_RETRIES = 2
     for attempt in range(MAX_RETRIES + 1):
         try:
-            # Must pass http_client to work around anthropic SDK / httpx version mismatch
-            client = anthropic.Anthropic(
-                api_key=settings.anthropic_api_key,
-                http_client=httpx.Client(timeout=600.0),
-            )
-            response = client.messages.create(
+            result = call_claude_json_schema_streaming(
+                settings=settings,
                 model="claude-opus-4-6",
-                max_tokens=64000,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                schema={"type": "object", "properties": {"content": {"type": "string"}}, "required": ["content"]},
                 temperature=0.5,
-                system=system_prompt,
-                messages=[{"role": "user", "content": user_prompt}],
+                max_tokens=64000,
             )
-            markdown = response.content[0].text if response.content else ""
+            markdown = result.get("content", "")
 
             if len(markdown) > 1000:
                 logger.info("[voc-analysis] Generated %d chars of markdown for %s (attempt %d)",
