@@ -1,5 +1,5 @@
 /**
- * Vizualizd Ad Library Importer — Service Worker
+ * MapTheGap Ad Library Importer — Service Worker
  * Handles background media upload so the user can close the popup
  * and navigate freely while media is being processed.
  */
@@ -17,6 +17,9 @@ let importState = {
   mediaCount: 0,
   error: null,
   importId: null,
+  leadgen: false,
+  leadgenStarted: false,
+  companyName: null,
 };
 
 function resetState() {
@@ -29,6 +32,9 @@ function resetState() {
     mediaCount: 0,
     error: null,
     importId: null,
+    leadgen: false,
+    leadgenStarted: false,
+    companyName: null,
   };
 }
 
@@ -73,7 +79,10 @@ async function uploadViaContentScript(url, clientId, token, mediaType) {
   const formData = new FormData();
   formData.append("file", uploadBlob, filename);
 
-  const uploadRes = await fetch(`${API_BASE}/api/upload-ad-image?client_id=${clientId}`, {
+  const uploadUrl = clientId
+    ? `${API_BASE}/api/upload-ad-image?client_id=${clientId}`
+    : `${API_BASE}/api/upload-ad-image`;
+  const uploadRes = await fetch(uploadUrl, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
     body: formData,
@@ -107,7 +116,10 @@ async function uploadDirect(url, clientId, token, mediaType) {
   const formData = new FormData();
   formData.append("file", uploadBlob, filename);
 
-  const uploadRes = await fetch(`${API_BASE}/api/upload-ad-image?client_id=${clientId}`, {
+  const uploadUrl = clientId
+    ? `${API_BASE}/api/upload-ad-image?client_id=${clientId}`
+    : `${API_BASE}/api/upload-ad-image`;
+  const uploadRes = await fetch(uploadUrl, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
     body: formData,
@@ -123,7 +135,7 @@ async function uploadDirect(url, clientId, token, mediaType) {
 }
 
 // ---- Main import flow ----
-async function runImport(ads, sourceUrl, clientId) {
+async function runImport(ads, sourceUrl, clientId, leadgen = false) {
   const { vzd_token: token } = await chrome.storage.local.get("vzd_token");
   if (!token) {
     importState.status = "error";
@@ -197,17 +209,23 @@ async function runImport(ads, sourceUrl, clientId) {
   broadcastState();
 
   try {
-    const res = await fetch(
-      `${API_BASE}/api/clients/${clientId}/ad-library-imports/from-extension`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ source_url: sourceUrl, ads }),
-      }
-    );
+    let postUrl, postBody;
+    if (leadgen) {
+      postUrl = `${API_BASE}/api/ad-library-imports/from-extension-leadgen`;
+      postBody = JSON.stringify({ source_url: sourceUrl, ads });
+    } else {
+      postUrl = `${API_BASE}/api/clients/${clientId}/ad-library-imports/from-extension`;
+      postBody = JSON.stringify({ source_url: sourceUrl, ads });
+    }
+
+    const res = await fetch(postUrl, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: postBody,
+    });
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -220,6 +238,12 @@ async function runImport(ads, sourceUrl, clientId) {
     importState.skippedCount = data.skipped_count;
     importState.mediaCount = data.media_count;
     importState.importId = data.import_id;
+
+    if (leadgen) {
+      importState.leadgenStarted = true;
+      importState.companyName = data.company_name || null;
+    }
+
     broadcastState();
   } catch (e) {
     importState.status = "error";
@@ -235,10 +259,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ started: false, error: "An import is already in progress" });
       return true;
     }
-    const { ads, sourceUrl, clientId, tabId } = message;
+    const { ads, sourceUrl, clientId, tabId, leadgen } = message;
     sourceTabId = tabId || null;
     resetState();
-    runImport(ads, sourceUrl, clientId);
+    importState.leadgen = !!leadgen;
+    runImport(ads, sourceUrl, clientId, !!leadgen);
     sendResponse({ started: true });
     return true;
   }

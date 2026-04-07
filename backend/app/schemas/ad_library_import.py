@@ -144,6 +144,24 @@ class ExtensionImportResponse(BaseModel):
     message: str = "Import created. Media files are being processed in the background."
 
 
+class ExtensionLeadgenImportRequest(BaseModel):
+    """Request from Chrome extension to import ads and trigger lead gen pipeline."""
+    source_url: str = Field(..., description="Meta Ads Library page URL")
+    ads: List[ExtensionAdItem] = Field(..., max_length=500)
+
+
+class ExtensionLeadgenImportResponse(BaseModel):
+    """Response after leadgen import is created and pipeline queued."""
+    import_id: UUID
+    run_id: str
+    company_name: str
+    company_domain: str
+    ad_count: int
+    skipped_count: int = 0
+    media_count: int = 0
+    message: str = "Import created. Lead gen pipeline starting in background."
+
+
 class VocAdsComparisonRequest(BaseModel):
     """Request to run VOC vs Ads comparison."""
     ad_source: str = Field(

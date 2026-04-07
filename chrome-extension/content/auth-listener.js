@@ -1,6 +1,6 @@
 /**
- * Vizualizd Auth Listener — Content Script
- * Runs on the Vizualizd app domain.
+ * MapTheGap Auth Listener — Content Script
+ * Runs on the MapTheGap app domain.
  *
  * Polls localStorage for the JWT after the app's auth flow completes.
  * Copies it to chrome.storage.local so the extension popup can use it.

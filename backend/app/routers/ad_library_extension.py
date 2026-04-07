@@ -3,9 +3,13 @@ Ad Library Extension import API.
 Accepts pre-scraped ad data from the Chrome extension.
 Media URLs should already be permanent Vercel Blob URLs (uploaded by the extension).
 POST /api/clients/{client_id}/ad-library-imports/from-extension
+POST /api/ad-library-imports/from-extension-leadgen
 """
 import asyncio
 import logging
+import threading
+import uuid
+from urllib.parse import urlparse
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
@@ -19,6 +23,8 @@ from app.models import User, Client, AdLibraryImport, AdLibraryAd, AdLibraryMedi
 from app.schemas.ad_library_import import (
     ExtensionImportRequest,
     ExtensionImportResponse,
+    ExtensionLeadgenImportRequest,
+    ExtensionLeadgenImportResponse,
 )
 from app.services.meta_ads_library_scraper import parse_date_string
 
@@ -221,3 +227,268 @@ def _do_import(client_id, body, db, current_user):
         skipped_count=skipped_count,
         media_count=media_count,
     )
+
+
+# ---------------------------------------------------------------------------
+# Lead gen flow from extension
+# ---------------------------------------------------------------------------
+
+def _extract_company_info(ads):
+    """Extract company name, URL, domain, and logo from ad data."""
+    company_name = None
+    company_url = None
+    company_domain = None
+    logo_url = None
+
+    for ad in ads:
+        if not company_name and ad.page_name:
+            company_name = ad.page_name
+        if not logo_url and ad.page_profile_image_url:
+            logo_url = ad.page_profile_image_url
+        if not company_url and ad.destination_url:
+            try:
+                parsed = urlparse(ad.destination_url)
+                host = (parsed.netloc or "").lower().split(":")[0]
+                if host and "facebook.com" not in host and "fb.com" not in host:
+                    if host.startswith("www."):
+                        host = host[4:]
+                    company_domain = host
+                    company_url = f"https://{host}"
+            except Exception:
+                pass
+        if company_name and company_url and logo_url:
+            break
+
+    # Fallback: try page_url for domain
+    if not company_domain:
+        for ad in ads:
+            if ad.page_url:
+                company_name = company_name or ad.page_name or "Unknown"
+                break
+
+    return company_name or "Unknown", company_url or "", company_domain or "", logo_url
+
+
+@router.post(
+    "/api/ad-library-imports/from-extension-leadgen",
+    response_model=ExtensionLeadgenImportResponse,
+    status_code=202,
+)
+def import_from_extension_leadgen(
+    body: ExtensionLeadgenImportRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_flexible),
+):
+    """
+    Import ads from the Chrome extension and trigger the full lead gen pipeline.
+    Creates a client, imports ads, then runs Gemini analysis + pipeline in background.
+    """
+    if not current_user.is_founder:
+        raise HTTPException(status_code=403, detail="Founder access required for lead gen")
+
+    if not body.ads:
+        raise HTTPException(status_code=400, detail="No ads provided")
+
+    company_name, company_url, company_domain, logo_url = _extract_company_info(body.ads)
+
+    if not company_domain:
+        raise HTTPException(
+            status_code=400,
+            detail="Could not determine company domain from ad destination URLs",
+        )
+
+    try:
+        # 1. Create LeadgenVocRun
+        from app.models.leadgen_voc import LeadgenVocRun
+
+        run_id = uuid.uuid4().hex
+        run = LeadgenVocRun(
+            run_id=run_id,
+            work_email=current_user.email,
+            company_domain=company_domain,
+            company_url=company_url,
+            company_name=company_name,
+            review_count=0,
+            coding_enabled=True,
+            coding_status="queued",
+            payload={"source": "extension_leadgen"},
+        )
+        db.add(run)
+        db.flush()
+
+        # 2. Create client via existing helper
+        from app.services.leadgen_voc_service import create_or_update_lead_client
+
+        lead_client = create_or_update_lead_client(db, run, founder_user_id=current_user.id)
+        if logo_url:
+            lead_client.logo_url = logo_url
+        if company_url:
+            lead_client.client_url = company_url
+        db.flush()
+
+        # 3. Import ads into the new client
+        result = _do_import(lead_client.id, body, db, current_user)
+
+        db.commit()
+
+        # 4. Launch background chain in daemon thread
+        import_id = result.import_id
+        _start_leadgen_background(import_id, run_id)
+
+        logger.info(
+            "Leadgen import: company=%s, domain=%s, run_id=%s, ads=%d",
+            company_name, company_domain, run_id, result.ad_count,
+        )
+
+        return ExtensionLeadgenImportResponse(
+            import_id=import_id,
+            run_id=run_id,
+            company_name=company_name,
+            company_domain=company_domain,
+            ad_count=result.ad_count,
+            skipped_count=result.skipped_count,
+            media_count=result.media_count,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.exception("Leadgen extension import failed: %s", e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def _start_leadgen_background(import_id: UUID, run_id: str):
+    """Launch the leadgen background chain in a daemon thread."""
+    def _run():
+        loop = asyncio.new_event_loop()
+        try:
+            loop.run_until_complete(_leadgen_post_import_background(import_id, run_id))
+        finally:
+            loop.close()
+
+    threading.Thread(target=_run, daemon=True).start()
+    logger.info("Leadgen background chain started: import=%s, run=%s", import_id, run_id)
+
+
+async def _leadgen_post_import_background(import_id: UUID, run_id: str):
+    """
+    Background chain after leadgen import:
+    1. Run Gemini video analysis
+    2. Package deduplicated ads + transcripts as company context
+    3. Start the lead gen pipeline
+    """
+    from sqlalchemy.orm.attributes import flag_modified
+    from app.models.leadgen_voc import LeadgenVocRun
+
+    db = SessionLocal()
+    try:
+        # Step 1: Gemini video analysis (await completion)
+        logger.info("[leadgen %s] Starting Gemini video analysis", run_id)
+        await _analyze_videos_background(import_id)
+        logger.info("[leadgen %s] Gemini analysis complete", run_id)
+
+        # Step 2: Collect all ads for this import
+        ads = (
+            db.query(AdLibraryAd)
+            .filter(AdLibraryAd.import_id == import_id)
+            .all()
+        )
+
+        if not ads:
+            logger.warning("[leadgen %s] No ads found for import %s", run_id, import_id)
+            return
+
+        # Step 3: Build deduplicated context
+        context_text = _build_ad_context(ads, db)
+
+        # Step 4: Store context in run payload
+        run = db.query(LeadgenVocRun).filter(LeadgenVocRun.run_id == run_id).first()
+        if not run:
+            logger.error("[leadgen %s] Run not found", run_id)
+            return
+
+        payload = run.payload or {}
+        payload["ad_context_text"] = context_text
+        payload["import_id"] = str(import_id)
+        run.payload = payload
+        flag_modified(run, "payload")
+        db.commit()
+
+        logger.info("[leadgen %s] Ad context packaged (%d chars), starting pipeline", run_id, len(context_text))
+
+        # Step 5: Start the lead gen pipeline
+        from app.services.leadgen_pipeline_runner import run_full_pipeline_background
+        run_full_pipeline_background(run_id)
+
+    except Exception as e:
+        logger.exception("[leadgen %s] Background chain failed: %s", run_id, e)
+        try:
+            run = db.query(LeadgenVocRun).filter(LeadgenVocRun.run_id == run_id).first()
+            if run:
+                run.coding_status = "failed"
+                db.commit()
+        except Exception:
+            pass
+    finally:
+        db.close()
+
+
+def _build_ad_context(ads, db):
+    """Build deduplicated company context string from imported ads + transcripts."""
+    company_name = ads[0].page_name or "Unknown" if ads else "Unknown"
+
+    # Deduplicate ads by primary_text
+    seen_texts = set()
+    unique_ads = []
+    for ad in ads:
+        text_key = (ad.primary_text or "").strip()
+        if text_key and text_key not in seen_texts:
+            seen_texts.add(text_key)
+            unique_ads.append(ad)
+
+    # Build ad summaries
+    ad_sections = []
+    for i, ad in enumerate(unique_ads, 1):
+        parts = []
+        if ad.headline:
+            parts.append(f"Headline: {ad.headline}")
+        if ad.primary_text:
+            parts.append(f"Copy: {ad.primary_text[:500]}")
+        if ad.cta:
+            parts.append(f"CTA: {ad.cta}")
+        if ad.destination_url:
+            parts.append(f"URL: {ad.destination_url}")
+        if parts:
+            ad_sections.append(f"Ad {i}:\n" + "\n".join(parts))
+
+    # Collect and deduplicate transcripts
+    seen_transcripts = set()
+    transcripts = []
+    for ad in ads:
+        for media in (ad.media_items or []):
+            analysis = media.video_analysis_json
+            if not analysis or not isinstance(analysis, dict):
+                continue
+            transcript = (analysis.get("transcript") or "").strip()
+            if transcript and transcript not in seen_transcripts:
+                seen_transcripts.add(transcript)
+                transcripts.append({
+                    "headline": ad.headline or "Untitled",
+                    "transcript": transcript,
+                })
+            if len(transcripts) >= 10:
+                break
+        if len(transcripts) >= 10:
+            break
+
+    # Assemble context
+    parts = [f"Company: {company_name}"]
+    if ad_sections:
+        parts.append(f"\n## Ads (from Meta Ad Library)\n")
+        parts.append("\n---\n".join(ad_sections))
+    if transcripts:
+        parts.append(f"\n## Video Transcripts\n")
+        for t in transcripts:
+            parts.append(f"Ad: {t['headline']}\nTranscript: {t['transcript']}\n---")
+
+    return "\n".join(parts)

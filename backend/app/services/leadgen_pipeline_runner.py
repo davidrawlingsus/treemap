@@ -504,36 +504,45 @@ def _run_full_pipeline(run_id: str) -> None:
         # ── Step 2: Context extraction (optional) ──
         _update_status(db, run, "extracting_context")
         context_text = ""
-        try:
-            from app.services.product_context_service import extract_product_context_from_url_service
-            from app.services.llm_service import LLMService
-            llm = LLMService(
-                openai_api_key=getattr(settings, "openai_api_key", None),
-                anthropic_api_key=getattr(settings, "anthropic_api_key", None),
-            )
-            ctx = extract_product_context_from_url_service(db, llm, company_url)
-            context_text = ctx.get("context_text", "") if isinstance(ctx, dict) else ""
-            logger.info("[pipeline %s] Context extracted (%d chars)", run_id, len(context_text))
-        except Exception as e:
-            logger.warning("[pipeline %s] Context extraction failed (continuing): %s", run_id, e)
-            context_text = company_name
+
+        # Check if ad-based context was pre-supplied (from extension leadgen flow)
+        run_payload = run.payload or {}
+        if run_payload.get("ad_context_text"):
+            context_text = run_payload["ad_context_text"]
+            logger.info("[pipeline %s] Using pre-supplied ad context (%d chars), skipping website scrape",
+                        run_id, len(context_text))
+        else:
+            try:
+                from app.services.product_context_service import extract_product_context_from_url_service
+                from app.services.llm_service import LLMService
+                llm = LLMService(
+                    openai_api_key=getattr(settings, "openai_api_key", None),
+                    anthropic_api_key=getattr(settings, "anthropic_api_key", None),
+                )
+                ctx = extract_product_context_from_url_service(db, llm, company_url)
+                context_text = ctx.get("context_text", "") if isinstance(ctx, dict) else ""
+                logger.info("[pipeline %s] Context extracted (%d chars)", run_id, len(context_text))
+            except Exception as e:
+                logger.warning("[pipeline %s] Context extraction failed (continuing): %s", run_id, e)
+                context_text = company_name
 
         # Save business context and logo to the lead client
         lead_client.business_summary = context_text
         lead_client.client_url = company_url
 
-        # Try to fetch company logo via Clearbit
-        try:
-            import requests as req
-            logo_url = f"https://logo.clearbit.com/{company_domain}"
-            logo_resp = req.head(logo_url, timeout=5, allow_redirects=True)
-            if logo_resp.status_code == 200:
-                lead_client.logo_url = logo_url
-                logger.info("[pipeline %s] Logo found: %s", run_id, logo_url)
-            else:
-                logger.info("[pipeline %s] No logo found for %s (status %d)", run_id, company_domain, logo_resp.status_code)
-        except Exception as e:
-            logger.warning("[pipeline %s] Logo fetch failed: %s", run_id, e)
+        # Logo: skip Clearbit if already set (e.g. from extension import)
+        if not lead_client.logo_url:
+            try:
+                import requests as req
+                logo_url = f"https://logo.clearbit.com/{company_domain}"
+                logo_resp = req.head(logo_url, timeout=5, allow_redirects=True)
+                if logo_resp.status_code == 200:
+                    lead_client.logo_url = logo_url
+                    logger.info("[pipeline %s] Logo found: %s", run_id, logo_url)
+                else:
+                    logger.info("[pipeline %s] No logo found for %s (status %d)", run_id, company_domain, logo_resp.status_code)
+            except Exception as e:
+                logger.warning("[pipeline %s] Logo fetch failed: %s", run_id, e)
 
         db.commit()
 

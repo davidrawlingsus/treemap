@@ -1,5 +1,5 @@
 /**
- * Vizualizd Ad Library Extractor — Content Script
+ * MapTheGap Ad Library Extractor — Content Script
  * Runs on facebook.com/ads/library/* pages.
  * Extracts ad data from the DOM when triggered by the popup.
  */

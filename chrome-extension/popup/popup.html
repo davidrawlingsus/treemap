@@ -3,19 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vizualizd Importer</title>
+  <title>MapTheGap Importer</title>
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div class="popup">
     <div class="header">
-      <h1>Vizualizd</h1>
+      <h1>MapTheGap</h1>
       <p class="subtitle">Ad Library Importer</p>
     </div>
 
     <!-- Login -->
     <div id="loginSection" class="section" style="display: none;">
-      <p class="description">Sign in with your Vizualizd account.</p>
+      <p class="description">Sign in with your MapTheGap account.</p>
       <input type="email" id="emailInput" placeholder="you@company.com" autocomplete="email">
       <button id="sendLinkBtn" class="btn btn-primary">Send Magic Link</button>
       <div id="loginMessage" class="message" style="display: none;"></div>
@@ -36,10 +36,20 @@
         <button id="logoutBtn" class="btn-link">Logout</button>
       </div>
 
-      <label for="clientSelect" class="label">Import to</label>
-      <select id="clientSelect">
-        <option value="">Select a brand</option>
-      </select>
+      <div id="clientGroup">
+        <label for="clientSelect" class="label">Import to</label>
+        <select id="clientSelect">
+          <option value="">Select a brand</option>
+        </select>
+      </div>
+
+      <label class="checkbox-label" id="leadgenLabel">
+        <input type="checkbox" id="leadgenToggle">
+        <span>Trigger lead gen flow</span>
+      </label>
+      <p id="leadgenInfo" class="description muted" style="display: none;">
+        Pipeline results will be sent to <strong id="leadgenEmail"></strong>
+      </p>
 
       <button id="extractBtn" class="btn btn-primary" disabled>Extract Ads from Page</button>
 

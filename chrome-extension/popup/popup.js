@@ -1,5 +1,5 @@
 /**
- * Vizualizd Ad Library Importer — Popup Script
+ * MapTheGap Ad Library Importer — Popup Script
  * Handles auth, client selection, extraction trigger, and import.
  * Media upload runs in the service worker so it survives popup close.
  */
@@ -33,6 +33,10 @@ const importBtn = $("#importBtn");
 const statusMessage = $("#statusMessage");
 const progressFill = $("#progressFill");
 const progressLabel = $("#progressLabel");
+const leadgenToggle = $("#leadgenToggle");
+const leadgenInfo = $("#leadgenInfo");
+const leadgenEmail = $("#leadgenEmail");
+const clientGroup = $("#clientGroup");
 
 // ---- Helpers ----
 function showMessage(el, text, type = "info") {
@@ -116,8 +120,13 @@ function showProgress(state) {
 function showDone(state) {
   hideAllSections();
   mainSection.style.display = "block";
-  let msg = `Imported ${state.adCount} ads with ${state.mediaCount} media items.`;
-  if (state.skippedCount > 0) msg += ` ${state.skippedCount} duplicates skipped.`;
+  let msg;
+  if (state.leadgenStarted) {
+    msg = `Lead gen pipeline started for ${state.companyName || "company"}. Results will be sent to ${userEmail.textContent}.`;
+  } else {
+    msg = `Imported ${state.adCount} ads with ${state.mediaCount} media items.`;
+    if (state.skippedCount > 0) msg += ` ${state.skippedCount} duplicates skipped.`;
+  }
   showMessage(statusMessage, msg, "success");
   extractResult.style.display = "none";
   extractedAds = null;
@@ -180,6 +189,12 @@ async function showMain(user) {
   mainSection.style.display = "block";
   userEmail.textContent = user.email || "";
 
+  // Only show lead gen toggle for founder users
+  const leadgenLabel = $("#leadgenLabel");
+  if (leadgenLabel) {
+    leadgenLabel.style.display = user.is_founder ? "flex" : "none";
+  }
+
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const isAdsLibrary = tab?.url?.includes("facebook.com/ads/library");
   if (!isAdsLibrary) {
@@ -230,11 +245,26 @@ async function loadClients(user) {
   }
 
   clientSelect.addEventListener("change", () => {
-    extractBtn.disabled = !clientSelect.value;
+    extractBtn.disabled = !leadgenToggle.checked && !clientSelect.value;
     extractResult.style.display = "none";
     hideMessage(statusMessage);
   });
 }
+
+// ---- Lead gen toggle ----
+leadgenToggle.addEventListener("change", () => {
+  const checked = leadgenToggle.checked;
+  clientGroup.style.display = checked ? "none" : "block";
+  leadgenInfo.style.display = checked ? "block" : "none";
+  if (checked) {
+    leadgenEmail.textContent = userEmail.textContent;
+    extractBtn.disabled = false;
+  } else {
+    extractBtn.disabled = !clientSelect.value;
+  }
+  extractResult.style.display = "none";
+  hideMessage(statusMessage);
+});
 
 // ---- Magic link auth ----
 sendLinkBtn.addEventListener("click", async () => {
@@ -307,14 +337,15 @@ extractBtn.addEventListener("click", async () => {
       "error"
     );
   } finally {
-    extractBtn.disabled = !clientSelect.value;
+    extractBtn.disabled = !leadgenToggle.checked && !clientSelect.value;
     extractBtn.textContent = "Extract Ads from Page";
   }
 });
 
 // ---- Import (delegate to service worker) ----
 importBtn.addEventListener("click", async () => {
-  if (!extractedAds || !clientSelect.value) return;
+  const isLeadgen = leadgenToggle.checked;
+  if (!extractedAds || (!isLeadgen && !clientSelect.value)) return;
   hideMessage(statusMessage);
 
   // Get the FB Ads Library tab ID so service worker can route video downloads
@@ -325,8 +356,9 @@ importBtn.addEventListener("click", async () => {
     action: "startImport",
     ads: extractedAds,
     sourceUrl: extractedUrl || "",
-    clientId: clientSelect.value,
+    clientId: isLeadgen ? null : clientSelect.value,
     tabId: tab?.id || null,
+    leadgen: isLeadgen,
   });
 
   if (response?.started === false) {
