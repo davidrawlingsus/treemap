@@ -168,56 +168,81 @@ async def backfill_ad_images(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user_flexible),
 ):
-    """One-off: create AdImage records from existing AdLibraryMedia with Vercel URLs."""
+    """One-off: re-upload all AdLibraryMedia to Vercel Blob and create AdImage records."""
     from app.services.meta_ads_library_scraper import parse_date_string
     from sqlalchemy.orm import joinedload
 
     if not current_user.is_founder:
         raise HTTPException(status_code=403, detail="Founders only")
 
-    media_items = (
+    blob_token = os.getenv("BLOB_READ_WRITE_TOKEN")
+    if not blob_token:
+        raise HTTPException(status_code=503, detail="BLOB_READ_WRITE_TOKEN not set")
+
+    # Get ALL AdLibraryMedia that don't already have a corresponding AdImage
+    all_media = (
         db.query(AdLibraryMedia)
         .join(AdLibraryAd)
         .join(AdLibraryImport)
         .options(joinedload(AdLibraryMedia.ad).joinedload(AdLibraryAd.import_run))
-        .filter(AdLibraryMedia.url.ilike("%vercel%"))
         .all()
     )
 
-    existing_urls = set(
-        row[0] for row in db.query(AdImage.url).filter(AdImage.url.ilike("%vercel%")).all()
+    existing_ad_image_urls = set(
+        row[0] for row in db.query(AdImage.url).all() if row[0]
     )
 
+    reuploaded = 0
     created = 0
-    for media in media_items:
-        if media.url in existing_urls:
-            continue
+    errors = 0
+
+    for media in all_media:
         ad = media.ad
         if not ad:
             continue
         imp = getattr(ad, "import_run", None)
-        client_id = imp.client_id if imp else None
-        if not client_id:
+        if not imp:
             continue
+        client_id = str(imp.client_id)
 
-        content_type = "video/mp4" if media.media_type == "video" else "image/jpeg"
-        started = parse_date_string(ad.started_running_on) if ad.started_running_on else None
+        # Re-upload to Vercel Blob if not already done
+        url = media.url
+        if url and "vercel" not in url.lower():
+            new_url = await _download_and_reupload(url, client_id, blob_token)
+            if new_url:
+                media.url = new_url
+                db.add(media)
+                reuploaded += 1
+            else:
+                errors += 1
+                continue
 
-        ad_image = AdImage(
-            client_id=client_id,
-            url=media.url,
-            filename=media.url.rsplit("/", 1)[-1] if "/" in media.url else "imported",
-            file_size=0,
-            content_type=content_type,
-            started_running_on=started,
-            library_id=ad.library_id,
-            source_url=imp.source_url if imp else None,
-        )
-        db.add(ad_image)
-        created += 1
+        # Create AdImage if URL not already in ad_images table
+        if media.url and media.url not in existing_ad_image_urls:
+            content_type = "video/mp4" if media.media_type == "video" else "image/jpeg"
+            started = parse_date_string(ad.started_running_on) if ad.started_running_on else None
+            ad_image = AdImage(
+                client_id=imp.client_id,
+                url=media.url,
+                filename=media.url.rsplit("/", 1)[-1] if "/" in media.url else "imported",
+                file_size=0,
+                content_type=content_type,
+                uploaded_by=current_user.id,
+                started_running_on=started,
+                library_id=ad.library_id,
+                source_url=imp.source_url,
+            )
+            db.add(ad_image)
+            existing_ad_image_urls.add(media.url)
+            created += 1
 
     db.commit()
-    return {"created": created, "total_media_with_vercel": len(media_items), "already_existed": len(existing_urls)}
+    return {
+        "total_media": len(all_media),
+        "reuploaded": reuploaded,
+        "ad_images_created": created,
+        "errors": errors,
+    }
 
 
 @router.post(
@@ -312,7 +337,7 @@ async def import_from_extension(
     db.commit()
 
     # Kick off background media re-upload + AdImage creation
-    background_tasks.add_task(asyncio.run, _reupload_media_background(imp.id, current_user.id))
+    background_tasks.add_task(_reupload_media_background, imp.id, current_user.id)
 
     return ExtensionImportResponse(
         import_id=imp.id,
