@@ -359,14 +359,13 @@
     return results;
   }
 
-  // Download a media file from FB CDN using the PAGE's fetch context
+  // Download a media file from FB CDN via the MAIN world page-downloader.js
   // (content script fetch uses extension origin which FB CDN blocks via CORS)
-  // Injects a script into the page world, downloads there, and passes data back via postMessage
+  // page-downloader.js runs in MAIN world and listens for VZD_DOWNLOAD_REQUEST
   function downloadMedia(url) {
     return new Promise((resolve, reject) => {
       const requestId = Math.random().toString(36).slice(2);
 
-      // Listen for the response from the injected page script
       function onMessage(event) {
         if (event.source !== window) return;
         if (event.data?.type !== "VZD_DOWNLOAD_RESULT") return;
@@ -385,48 +384,12 @@
       }
       window.addEventListener("message", onMessage);
 
-      // Inject a script into the page's MAIN world to do the fetch
-      const script = document.createElement("script");
-      script.textContent = `
-        (async () => {
-          const requestId = ${JSON.stringify(requestId)};
-          const url = ${JSON.stringify(url)};
-          try {
-            const resp = await fetch(url);
-            if (!resp.ok) throw new Error("HTTP " + resp.status);
-            const blob = await resp.blob();
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              window.postMessage({
-                type: "VZD_DOWNLOAD_RESULT",
-                requestId,
-                success: true,
-                dataUrl: reader.result,
-                blobType: blob.type,
-                size: blob.size,
-              }, "*");
-            };
-            reader.onerror = () => {
-              window.postMessage({
-                type: "VZD_DOWNLOAD_RESULT",
-                requestId,
-                success: false,
-                error: "FileReader failed",
-              }, "*");
-            };
-            reader.readAsDataURL(blob);
-          } catch (e) {
-            window.postMessage({
-              type: "VZD_DOWNLOAD_RESULT",
-              requestId,
-              success: false,
-              error: e.message,
-            }, "*");
-          }
-        })();
-      `;
-      document.documentElement.appendChild(script);
-      script.remove();
+      // Send request to MAIN world script
+      window.postMessage({
+        type: "VZD_DOWNLOAD_REQUEST",
+        requestId,
+        url,
+      }, "*");
 
       // Timeout after 120s
       setTimeout(() => {

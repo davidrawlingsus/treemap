@@ -21,6 +21,12 @@
       "run_at": "document_idle"
     },
     {
+      "matches": ["*://www.facebook.com/*"],
+      "js": ["content/page-downloader.js"],
+      "run_at": "document_idle",
+      "world": "MAIN"
+    },
+    {
       "matches": [
         "*://vizualizd.mapthegap.ai/*",
         "*://localhost/*"
