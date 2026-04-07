@@ -1069,7 +1069,7 @@
 
         <!-- Overview Section (Gamma deck iframe) -->
         <div id="overview-section" class="spa-section">
-            <iframe id="overviewIframe" class="overview-iframe" title="Overview Deck" allowfullscreen></iframe>
+            <iframe id="overviewIframe" class="overview-iframe" title="Overview Deck" allow="fullscreen"></iframe>
         </div>
 
         <!-- Visualizations Section -->
@@ -2071,6 +2071,11 @@
             .then(data => {
                 clientGammaUrl = data.gamma_url;
                 if (_navOverview) _navOverview.style.display = '';
+                // Preload iframe so it's ready when user clicks the tab
+                const _iframe = document.getElementById('overviewIframe');
+                if (_iframe && clientGammaUrl) {
+                    _iframe.src = clientGammaUrl.replace('/docs/', '/embed/');
+                }
             })
             .catch(() => {
                 clientGammaUrl = null;
@@ -6608,13 +6613,11 @@
             }
             if (overviewSection) {
                 overviewSection.classList.remove('active');
-                if (!overviewSection.classList.contains('active')) {
-                    overviewSection.style.display = 'none';
-                    overviewSection.style.height = '0';
-                    overviewSection.style.minHeight = '0';
-                    overviewSection.style.maxHeight = '0';
-                    overviewSection.style.overflow = 'hidden';
-                }
+                // Use visibility instead of display:none to keep iframe loaded
+                overviewSection.style.visibility = 'hidden';
+                overviewSection.style.position = 'absolute';
+                overviewSection.style.height = '0';
+                overviewSection.style.overflow = 'hidden';
             }
 
             // Remove active class from all nav items
@@ -6631,6 +6634,8 @@
             if (viewName === 'overview') {
                 if (overviewSection) {
                     overviewSection.classList.add('active');
+                    overviewSection.style.visibility = '';
+                    overviewSection.style.position = '';
                     overviewSection.style.display = '';
                     overviewSection.style.height = '';
                     overviewSection.style.minHeight = '';
@@ -6642,10 +6647,13 @@
                     mainContainer.style.minHeight = '100vh';
                     mainContainer.setAttribute('data-view', 'overview');
                 }
-                // Lazy-load iframe src
+                // Lazy-load iframe src (transform /docs/ to /embed/ for Gamma)
                 const iframe = document.getElementById('overviewIframe');
-                if (iframe && clientGammaUrl && iframe.src !== clientGammaUrl) {
-                    iframe.src = clientGammaUrl;
+                if (iframe && clientGammaUrl) {
+                    const embedUrl = clientGammaUrl.replace('/docs/', '/embed/');
+                    if (iframe.src !== embedUrl) {
+                        iframe.src = embedUrl;
+                    }
                 }
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             } else if (viewName === 'visualizations') {
