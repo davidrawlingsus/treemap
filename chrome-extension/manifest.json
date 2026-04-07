@@ -19,7 +19,7 @@
     },
     {
       "matches": [
-        "*://vizualizd.marketably.ai/*",
+        "*://vizualizd.mapthegap.ai/*",
         "*://localhost/*"
       ],
       "js": ["content/auth-listener.js"],
