@@ -219,99 +219,91 @@ function updateMuteIcons(wrapper, muted) {
 }
 
 function _registerVideoHandlers() {
-console.log('[VIDEO-DBG] Registering video click handler');
-document.addEventListener('click', (e) => {
-    console.debug('[VIDEO-DBG] click target:', e.target.tagName, e.target.className?.toString?.()?.substring(0, 60));
-    console.debug('[VIDEO-DBG] closest wrapper:', !!e.target.closest('.pe-fb-ad__video-wrapper'));
-    console.debug('[VIDEO-DBG] closest controls:', !!e.target.closest('.pe-fb-ad__video-controls'));
-    console.debug('[VIDEO-DBG] closest playpause:', !!e.target.closest('.pe-fb-ad__video-playpause'));
+    console.log('[VIDEO] Registering video handlers');
 
-    // Play/pause button
-    const playPauseBtn = e.target.closest('.pe-fb-ad__video-playpause');
-    if (playPauseBtn) {
-        e.stopPropagation();
-        const wrapper = getWrapper(playPauseBtn);
-        const video = getVideo(wrapper);
-        console.debug('[VIDEO-DBG] playpause btn clicked, video:', !!video, 'paused:', video?.paused);
-        if (!video) return;
-        if (video.paused) { video.play(); } else { video.pause(); }
-        return;
-    }
+    // CAPTURE phase — fires before any stopPropagation in bubbling phase
+    document.addEventListener('click', (e) => {
+        // Check if click is anywhere near a video
+        const wrapper = e.target.closest('.pe-fb-ad__video-wrapper');
+        const mediaDiv = e.target.closest('.pe-fb-ad__media');
+        const card = e.target.closest('.ads-card');
 
-    // Mute button
-    const muteBtn = e.target.closest('.pe-fb-ad__video-mute');
-    if (muteBtn) {
-        e.stopPropagation();
-        const wrapper = getWrapper(muteBtn);
-        const video = getVideo(wrapper);
-        if (!video) return;
-        video.muted = !video.muted;
-        updateMuteIcons(wrapper, video.muted);
-        return;
-    }
+        // Deep debug: log ALL clicks to find what's swallowing media clicks
+        const tag = e.target.tagName;
+        const cls = (e.target.className?.toString?.() || '').substring(0, 80);
+        const pe = window.getComputedStyle(e.target).pointerEvents;
+        console.log(`[VIDEO] CAPTURE click: <${tag}> class="${cls}" pointer-events=${pe} wrapper=${!!wrapper} media=${!!mediaDiv} card=${!!card}`);
 
-    // Progress bar seek
-    const progressBar = e.target.closest('.pe-fb-ad__video-progress');
-    if (progressBar) {
-        e.stopPropagation();
-        const wrapper = getWrapper(progressBar);
-        const video = getVideo(wrapper);
-        if (!video || !video.duration) return;
-        const rect = progressBar.getBoundingClientRect();
-        const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-        video.currentTime = pct * video.duration;
-        return;
-    }
+        if (!wrapper) return;
 
-    // Click on video or wrapper to toggle play/pause (but not on controls)
-    const wrapper = e.target.closest('.pe-fb-ad__video-wrapper');
-    if (wrapper && !e.target.closest('.pe-fb-ad__video-controls')) {
-        const video = getVideo(wrapper);
-        console.debug('[VIDEO-DBG] wrapper click, video:', !!video, 'paused:', video?.paused, 'src:', video?.src?.substring(0, 60));
-        if (!video) return;
-        const playPromise = video.paused ? video.play() : (video.pause(), Promise.resolve());
-        if (playPromise && playPromise.catch) {
-            playPromise.catch(err => console.error('[VIDEO-DBG] play() error:', err));
+        const controls = e.target.closest('.pe-fb-ad__video-controls');
+        const video = wrapper.querySelector('video');
+
+        if (!video) {
+            console.warn('[VIDEO] No video element found in wrapper');
+            return;
         }
-    } else if (wrapper) {
-        console.debug('[VIDEO-DBG] click inside wrapper but on controls, ignoring');
-    }
-});
 
-// Delegated video event listeners (play, pause, timeupdate)
-document.addEventListener('play', (e) => {
-    if (e.target.tagName !== 'VIDEO') return;
-    const wrapper = getWrapper(e.target);
-    if (wrapper) updatePlayPauseIcons(wrapper, true);
-}, true);
+        // Progress bar seek
+        const progressBar = e.target.closest('.pe-fb-ad__video-progress');
+        if (progressBar) {
+            e.stopPropagation();
+            e.preventDefault();
+            if (video.duration) {
+                const rect = progressBar.getBoundingClientRect();
+                const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+                video.currentTime = pct * video.duration;
+            }
+            return;
+        }
 
-document.addEventListener('pause', (e) => {
-    if (e.target.tagName !== 'VIDEO') return;
-    const wrapper = getWrapper(e.target);
-    if (wrapper) updatePlayPauseIcons(wrapper, false);
-}, true);
+        // Mute toggle
+        if (e.target.closest('.pe-fb-ad__video-mute')) {
+            e.stopPropagation();
+            e.preventDefault();
+            video.muted = !video.muted;
+            updateMuteIcons(wrapper, video.muted);
+            return;
+        }
 
-document.addEventListener('timeupdate', (e) => {
-    if (e.target.tagName !== 'VIDEO') return;
-    const video = e.target;
-    const wrapper = getWrapper(video);
-    if (!wrapper) return;
-    const fill = wrapper.querySelector('.pe-fb-ad__video-progress-fill');
-    const timeEl = wrapper.querySelector('.pe-fb-ad__video-time');
-    if (fill && video.duration) {
-        fill.style.width = (video.currentTime / video.duration * 100) + '%';
-    }
-    if (timeEl) {
-        timeEl.textContent = formatTime(video.currentTime);
-    }
-}, true);
+        // Play/pause (button or anywhere on wrapper except controls)
+        if (e.target.closest('.pe-fb-ad__video-playpause') || !controls) {
+            e.stopPropagation();
+            e.preventDefault();
+            console.log('[VIDEO] Toggle play/pause, paused:', video.paused, 'src:', video.src?.substring(0, 60));
+            const p = video.paused ? video.play() : (video.pause(), null);
+            if (p?.catch) p.catch(err => console.error('[VIDEO] play() failed:', err));
+        }
+    }, true); // true = CAPTURE phase
 
-document.addEventListener('loadedmetadata', (e) => {
-    if (e.target.tagName !== 'VIDEO') return;
-    const video = e.target;
-    const wrapper = getWrapper(video);
-    if (!wrapper) return;
-    const timeEl = wrapper.querySelector('.pe-fb-ad__video-time');
-    if (timeEl) timeEl.textContent = formatTime(video.duration);
-}, true);
+    // State listeners (capture phase)
+    document.addEventListener('play', (e) => {
+        if (e.target.tagName !== 'VIDEO') return;
+        const w = getWrapper(e.target);
+        if (w) updatePlayPauseIcons(w, true);
+    }, true);
+
+    document.addEventListener('pause', (e) => {
+        if (e.target.tagName !== 'VIDEO') return;
+        const w = getWrapper(e.target);
+        if (w) updatePlayPauseIcons(w, false);
+    }, true);
+
+    document.addEventListener('timeupdate', (e) => {
+        if (e.target.tagName !== 'VIDEO') return;
+        const w = getWrapper(e.target);
+        if (!w) return;
+        const fill = w.querySelector('.pe-fb-ad__video-progress-fill');
+        const timeEl = w.querySelector('.pe-fb-ad__video-time');
+        if (fill && e.target.duration) fill.style.width = (e.target.currentTime / e.target.duration * 100) + '%';
+        if (timeEl) timeEl.textContent = formatTime(e.target.currentTime);
+    }, true);
+
+    document.addEventListener('loadedmetadata', (e) => {
+        if (e.target.tagName !== 'VIDEO') return;
+        const w = getWrapper(e.target);
+        if (!w) return;
+        const timeEl = w.querySelector('.pe-fb-ad__video-time');
+        if (timeEl) timeEl.textContent = formatTime(e.target.duration);
+    }, true);
 } // end _registerVideoHandlers
