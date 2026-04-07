@@ -990,7 +990,8 @@
     pointer-events: none;
 }
 
-.ads-card--current .pe-fb-ad__media {
+.ads-card--current .pe-fb-ad__media,
+.ads-card--current .ads-card__accordions {
     pointer-events: auto;
 }
 

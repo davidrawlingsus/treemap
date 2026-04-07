@@ -16,6 +16,7 @@ class AdLibraryMediaResponse(BaseModel):
     poster_url: Optional[str] = None
     duration_seconds: Optional[int] = None
     sort_order: int = 0
+    video_analysis_json: Optional[dict] = None
 
     class Config:
         from_attributes = True

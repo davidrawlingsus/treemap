@@ -116,6 +116,19 @@ export function renderAdsGrid(container, ads) {
     // Initialize Masonry for horizontal-first reading order
     initMasonry(container);
 
+    // Accordion click handler for current ads (transcript expand/collapse)
+    if (source === 'current') {
+        container.addEventListener('click', (e) => {
+            const trigger = e.target.closest('.ads-accordion__trigger');
+            if (!trigger) return;
+            const accordion = trigger.closest('.ads-accordion');
+            if (accordion) {
+                accordion.classList.toggle('expanded');
+                setTimeout(() => masonryInstance?.layout(), 260);
+            }
+        });
+    }
+
     if (source === 'test') updateBulkPublishButton();
 }
 
@@ -537,10 +550,32 @@ function renderCurrentAdCard(ad) {
     if (ad.ad_format) labels.push(`<span class="ads-card__current-label">${escapeHtml(ad.ad_format)}</span>`);
     const labelsHtml = labels.length ? `<div class="ads-card__current-labels">${labels.join('')}</div>` : '';
 
+    // Video transcript accordion
+    const videoMedia = mediaItems.find(m => m.media_type === 'video');
+    const transcript = videoMedia?.video_analysis_json?.transcript;
+    const transcriptHtml = transcript ? `
+        <div class="ads-card__accordions">
+            <div class="ads-accordion">
+                <button class="ads-accordion__trigger" type="button">
+                    <span class="ads-accordion__title">Video Transcript</span>
+                    <svg class="ads-accordion__chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                <div class="ads-accordion__content">
+                    <div class="ads-accordion__body">
+                        <p class="ads-card__detail-value">${escapeHtml(transcript)}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    ` : '';
+
     return `
         <div class="ads-card ads-card--current">
             ${labelsHtml}
             <div class="ads-card__mockup">${mockup}</div>
+            ${transcriptHtml}
         </div>
     `;
 }
