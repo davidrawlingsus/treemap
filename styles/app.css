@@ -334,6 +334,14 @@ body.slideout-open {
     padding: initial !important;
 }
 
+/* Overview iframe (Gamma deck embed) */
+.overview-iframe {
+    width: 100%;
+    height: calc(100vh - 60px);
+    border: none;
+    display: block;
+}
+
 /* When showing insights, allow container to size naturally */
 #mainContainer[data-view="insights"] {
     min-height: auto !important;

@@ -1193,3 +1193,33 @@ def delete_action(
     
     return {"message": "Action deleted successfully"}
 
+
+@router.get("/{client_id}/deck-url")
+def get_deck_url(
+    client_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Return Gamma deck URL and PDF URL for a client's lead gen run."""
+    from app.models.leadgen_voc import LeadgenVocRun
+
+    verify_client_access(client_id, current_user, db)
+
+    run = (
+        db.query(LeadgenVocRun)
+        .filter(LeadgenVocRun.converted_client_uuid == client_id)
+        .order_by(LeadgenVocRun.created_at.desc())
+        .first()
+    )
+
+    if not run or not run.payload:
+        raise HTTPException(status_code=404, detail="No deck found")
+
+    gamma_url = run.payload.get("gamma_url")
+    if not gamma_url:
+        raise HTTPException(status_code=404, detail="No deck found")
+
+    return {
+        "gamma_url": gamma_url,
+        "pdf_url": run.payload.get("pdf_url"),
+    }

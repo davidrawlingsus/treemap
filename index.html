@@ -861,6 +861,9 @@
         <!-- Navigation Menu -->
         <nav class="app-navigation">
             <div class="nav-menu" id="navMenu">
+                <a href="#" class="nav-menu-item" id="navOverview" onclick="navigateToView('overview'); return false;" style="display: none;">
+                    <span>Overview</span>
+                </a>
                 <a href="#" class="nav-menu-item" id="navVisualizations" onclick="navigateToView('visualizations'); return false;">
                     <span>Visualizations</span>
                 </a>
@@ -1062,6 +1065,11 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <!-- Overview Section (Gamma deck iframe) -->
+        <div id="overview-section" class="spa-section">
+            <iframe id="overviewIframe" class="overview-iframe" title="Overview Deck" allowfullscreen></iframe>
         </div>
 
         <!-- Visualizations Section -->
@@ -1422,6 +1430,7 @@
         // For backward compatibility during migration, keep local variables that sync with module
         // These will be replaced gradually with direct getter/setter calls
         let currentClientId = null;
+        let clientGammaUrl = null;
         let currentProjectName = null;
         let currentDataSourceId = null;
         let currentQuestionRefKey = null;
@@ -2050,6 +2059,30 @@
                 loadInsightsPage().catch(err => console.warn('Failed to load insights for panel:', err));
             }
             
+            // Fetch deck URL for Overview tab (async, non-blocking)
+            const _navOverview = document.getElementById('navOverview');
+            fetch(`${window.APP_CONFIG.API_BASE_URL}/api/clients/${clientId}/deck-url`, {
+                headers: getAuthHeaders()
+            })
+            .then(resp => {
+                if (resp.ok) return resp.json();
+                throw new Error('No deck');
+            })
+            .then(data => {
+                clientGammaUrl = data.gamma_url;
+                if (_navOverview) _navOverview.style.display = '';
+            })
+            .catch(() => {
+                clientGammaUrl = null;
+                if (_navOverview) _navOverview.style.display = 'none';
+                const _ovSection = document.getElementById('overview-section');
+                if (_ovSection && _ovSection.classList.contains('active')) {
+                    navigateToView('visualizations');
+                }
+                const _iframe = document.getElementById('overviewIframe');
+                if (_iframe) _iframe.src = 'about:blank';
+            });
+
             saveState();
             hasAutoLaunched = true;
             const loginContainer = document.querySelector('.login-container');
@@ -6470,7 +6503,9 @@
             const imagesSection = document.getElementById('images-section');
             const surveysSection = document.getElementById('surveys-section');
             const settingsSection = document.getElementById('settings-section');
+            const overviewSection = document.getElementById('overview-section');
             const dataSourceSelector = document.getElementById('dataSourceSelector');
+            const navOverview = document.getElementById('navOverview');
             const navVisualizations = document.getElementById('navVisualizations');
             const navInsights = document.getElementById('navInsights');
             const navHistory = document.getElementById('navHistory');
@@ -6571,8 +6606,19 @@
                     settingsSection.style.overflow = 'hidden';
                 }
             }
-            
+            if (overviewSection) {
+                overviewSection.classList.remove('active');
+                if (!overviewSection.classList.contains('active')) {
+                    overviewSection.style.display = 'none';
+                    overviewSection.style.height = '0';
+                    overviewSection.style.minHeight = '0';
+                    overviewSection.style.maxHeight = '0';
+                    overviewSection.style.overflow = 'hidden';
+                }
+            }
+
             // Remove active class from all nav items
+            if (navOverview) navOverview.classList.remove('active');
             if (navVisualizations) navVisualizations.classList.remove('active');
             if (navInsights) navInsights.classList.remove('active');
             if (navHistory) navHistory.classList.remove('active');
@@ -6582,7 +6628,27 @@
             if (navSettings) navSettings.classList.remove('active');
             
             // Show selected section and update nav - CSS class will handle the showing
-            if (viewName === 'visualizations') {
+            if (viewName === 'overview') {
+                if (overviewSection) {
+                    overviewSection.classList.add('active');
+                    overviewSection.style.display = '';
+                    overviewSection.style.height = '';
+                    overviewSection.style.minHeight = '';
+                    overviewSection.style.maxHeight = '';
+                    overviewSection.style.overflow = '';
+                }
+                if (navOverview) navOverview.classList.add('active');
+                if (mainContainer) {
+                    mainContainer.style.minHeight = '100vh';
+                    mainContainer.setAttribute('data-view', 'overview');
+                }
+                // Lazy-load iframe src
+                const iframe = document.getElementById('overviewIframe');
+                if (iframe && clientGammaUrl && iframe.src !== clientGammaUrl) {
+                    iframe.src = clientGammaUrl;
+                }
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } else if (viewName === 'visualizations') {
                 if (dataSourceSelector) dataSourceSelector.style.display = '';
                 if (vizSection) {
                     vizSection.classList.add('active');
@@ -6888,7 +6954,9 @@
             // Update URL hash without reload
             const urlParams = new URLSearchParams(window.location.search);
             let hash = '#/';
-            if (viewName === 'insights') {
+            if (viewName === 'overview') {
+                hash = '#/overview';
+            } else if (viewName === 'insights') {
                 hash = '#/insights';
             } else if (viewName === 'history') {
                 hash = '#/history';
@@ -6916,7 +6984,9 @@
             const imagesSection = document.getElementById('images-section');
             const surveysSection = document.getElementById('surveys-section');
             const settingsSection = document.getElementById('settings-section');
+            const overviewSection = document.getElementById('overview-section');
             const dataSourceSelector = document.getElementById('dataSourceSelector');
+            const navOverview = document.getElementById('navOverview');
             const navVisualizations = document.getElementById('navVisualizations');
             const navInsights = document.getElementById('navInsights');
             const navHistory = document.getElementById('navHistory');
@@ -6926,8 +6996,8 @@
             const navSurveys = document.getElementById('navSurveys');
             const navSettings = document.getElementById('navSettings');
             const mainContainer = document.getElementById('mainContainer');
-            const sections = [vizSection, insightsSection, historySection, adsSection, emailsSection, imagesSection, surveysSection, settingsSection];
-            const navItems = [navVisualizations, navInsights, navHistory, navAds, navEmails, navImages, navSurveys, navSettings];
+            const sections = [overviewSection, vizSection, insightsSection, historySection, adsSection, emailsSection, imagesSection, surveysSection, settingsSection];
+            const navItems = [navOverview, navVisualizations, navInsights, navHistory, navAds, navEmails, navImages, navSurveys, navSettings];
             sections.forEach(section => {
                 if (section) {
                     section.classList.remove('active');
@@ -6940,15 +7010,16 @@
             });
             navItems.forEach(nav => { if (nav) nav.classList.remove('active'); });
             let viewName = 'visualizations';
-            if (hash === '#/insights') viewName = 'insights';
+            if (hash === '#/overview') viewName = 'overview';
+            else if (hash === '#/insights') viewName = 'insights';
             else if (hash === '#/history') viewName = 'history';
             else if (hash === '#/ads') viewName = 'ads';
             else if (hash === '#/emails') viewName = 'emails';
             else if (hash === '#/images') viewName = 'images';
             else if (hash === '#/surveys') viewName = 'surveys';
             else if (hash === '#/settings') viewName = 'settings';
-            const activeSection = viewName === 'visualizations' ? vizSection : viewName === 'insights' ? insightsSection : viewName === 'history' ? historySection : viewName === 'ads' ? adsSection : viewName === 'emails' ? emailsSection : viewName === 'images' ? imagesSection : viewName === 'surveys' ? surveysSection : settingsSection;
-            const activeNav = viewName === 'visualizations' ? navVisualizations : viewName === 'insights' ? navInsights : viewName === 'history' ? navHistory : viewName === 'ads' ? navAds : viewName === 'emails' ? navEmails : viewName === 'images' ? navImages : viewName === 'surveys' ? navSurveys : navSettings;
+            const activeSection = viewName === 'overview' ? overviewSection : viewName === 'visualizations' ? vizSection : viewName === 'insights' ? insightsSection : viewName === 'history' ? historySection : viewName === 'ads' ? adsSection : viewName === 'emails' ? emailsSection : viewName === 'images' ? imagesSection : viewName === 'surveys' ? surveysSection : settingsSection;
+            const activeNav = viewName === 'overview' ? navOverview : viewName === 'visualizations' ? navVisualizations : viewName === 'insights' ? navInsights : viewName === 'history' ? navHistory : viewName === 'ads' ? navAds : viewName === 'emails' ? navEmails : viewName === 'images' ? navImages : viewName === 'surveys' ? navSurveys : navSettings;
             if (activeSection) {
                 activeSection.classList.add('active');
                 activeSection.style.display = '';
@@ -6974,7 +7045,9 @@
         // Apply initial hash routing after client is ready (used after selectClientAndLaunch)
         function applyInitialHashRouting() {
             const hash = window.location.hash;
-            if (hash === '#/insights') {
+            if (hash === '#/overview') {
+                navigateToView('overview');
+            } else if (hash === '#/insights') {
                 navigateToView('insights');
             } else if (hash === '#/history') {
                 navigateToView('history');
@@ -6998,7 +7071,9 @@
         // Handle browser back/forward buttons
         window.addEventListener('popstate', (event) => {
             const hash = window.location.hash;
-            if (hash === '#/insights') {
+            if (hash === '#/overview') {
+                navigateToView('overview');
+            } else if (hash === '#/insights') {
                 navigateToView('insights');
             } else if (hash === '#/history') {
                 navigateToView('history');
