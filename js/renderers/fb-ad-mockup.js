@@ -12,7 +12,7 @@ import { getOptimizedImageUrl } from '/js/utils/image.js';
  * @param {string} url - Media URL
  * @returns {boolean}
  */
-function isVideoUrl(url) {
+export function isVideoUrl(url) {
     if (!url) return false;
     const videoExtensions = ['.mp4', '.webm', '.mov', '.avi', '.mkv', '.m4v'];
     const lowerUrl = url.toLowerCase();

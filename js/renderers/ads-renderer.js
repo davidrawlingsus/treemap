@@ -8,7 +8,7 @@ import { deleteFacebookAd, updateFacebookAd } from '/js/services/api-facebook-ad
 import { getAdsCache, removeAdFromCache, updateAdInCache, getAdsSearchTerm, getAdsFilters, getSelectedAdIds, toggleAdSelection, isAdSelected, clearAdsSelection, getAdsSource } from '/js/state/ads-state.js';
 import { AD_STATUS_OPTIONS, normalizeStatus, getStatusConfig } from '/js/controllers/ads-filter-ui.js';
 import { escapeHtml } from '/js/utils/dom.js';
-import { renderFBAdMockup, formatCTA, extractDomain, formatPrimaryText } from '/js/renderers/fb-ad-mockup.js';
+import { renderFBAdMockup, formatCTA, extractDomain, formatPrimaryText, isVideoUrl } from '/js/renderers/fb-ad-mockup.js';
 import { showMetaPublishModal } from '/js/renderers/meta-publish-modal.js';
 
 // Store Masonry instance for cleanup/relayout
@@ -503,9 +503,14 @@ function renderCurrentAdCard(ad) {
     // Resolve media URL: first media item, then thumbnail
     const mediaItems = ad.media_items || [];
     const firstMedia = mediaItems[0];
-    const imageUrl = firstMedia?.url || ad.media_thumbnail_url || null;
+    let imageUrl = firstMedia?.url || ad.media_thumbnail_url || null;
     const isVideo = ad.ad_format === 'video' || firstMedia?.media_type === 'video';
     const posterUrl = isVideo ? (firstMedia?.poster_url || ad.media_thumbnail_url || null) : undefined;
+
+    // Ensure video URLs are detectable by isVideoUrl() — append .mp4 hint if needed
+    if (isVideo && imageUrl && !isVideoUrl(imageUrl)) {
+        imageUrl = imageUrl + '#.mp4';
+    }
 
     const formattedPrimaryText = formatPrimaryText(primaryText);
 
@@ -518,7 +523,7 @@ function renderCurrentAdCard(ad) {
         displayUrl,
         logoSrc,
         clientName: pageName,
-        imageUrl: isVideo ? undefined : imageUrl,
+        imageUrl,
         posterUrl,
         readOnly: true,
     });
