@@ -251,24 +251,21 @@ async def startup_event():
 
                 # Restart runs with stale heartbeats (thread died)
                 from app.services.leadgen_pipeline_runner import HEARTBEAT_STALE_SECONDS
-                cutoff = datetime.now(tz.utc) - timedelta(hours=3)
+                bg_cutoff = datetime.now(tz.utc) - timedelta(hours=24)
                 terminal = {"completed", "failed", "disabled", "rerun_analysis"}
                 active_runs = (
                     _db.query(LeadgenVocRun)
                     .filter(
                         ~LeadgenVocRun.coding_status.in_(terminal),
-                        LeadgenVocRun.created_at >= cutoff,
+                        LeadgenVocRun.created_at >= bg_cutoff,
                     )
                     .all()
                 )
                 now = datetime.now(tz.utc)
                 for run in active_runs:
-                    if run.run_id in _active_runs:
-                        continue
                     payload = run.payload or {}
                     heartbeat = payload.get("heartbeat")
                     if not heartbeat:
-                        # No heartbeat yet — use updated_at as fallback
                         last_alive = run.updated_at or run.created_at
                     else:
                         try:
@@ -278,10 +275,22 @@ async def startup_event():
 
                     seconds_since = (now - last_alive).total_seconds()
                     if seconds_since < HEARTBEAT_STALE_SECONDS:
-                        continue  # still alive
+                        # Run has a fresh heartbeat — it's alive.
+                        # If we were tracking it as active, keep tracking.
+                        continue
+
+                    # Heartbeat is stale. If we already tried restarting
+                    # this run and it's STILL stale, allow re-detection
+                    # by removing from _active_runs so it can be retried.
+                    if run.run_id in _active_runs:
+                        # Already tried once — remove from tracking so we
+                        # can restart it on the next loop iteration.
+                        _active_runs.discard(run.run_id)
+                        logger.info("[background] Run %s still stale after restart — will retry next loop",
+                                    run.run_id[:16])
+                        continue
 
                     _active_runs.add(run.run_id)
-                    # Check if this was a rerun (flag set in payload by rerun function)
                     if payload.get("is_rerun"):
                         logger.info("[background] Heartbeat stale (%ds) for rerun %s (%s). Re-triggering analysis.",
                                     int(seconds_since), run.run_id[:16], run.company_name)

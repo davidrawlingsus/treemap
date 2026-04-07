@@ -312,6 +312,7 @@ def _start_heartbeat(run_id: str, stop_event: threading.Event):
         stop_event.wait(HEARTBEAT_INTERVAL)
         if stop_event.is_set():
             break
+        _db = None
         try:
             _db = SessionLocal()
             _run = _db.query(_HBRun).filter(_HBRun.run_id == run_id).first()
@@ -321,9 +322,11 @@ def _start_heartbeat(run_id: str, stop_event: threading.Event):
                 _run.payload = payload
                 _fm(_run, "payload")
                 _db.commit()
-            _db.close()
-        except Exception:
-            pass  # heartbeat is best-effort
+        except Exception as _hb_err:
+            logger.debug("[heartbeat %s] Update failed: %s", run_id[:16], _hb_err)
+        finally:
+            if _db:
+                _db.close()
 
 
 def _load_live_prompts(db) -> Dict[str, str]:

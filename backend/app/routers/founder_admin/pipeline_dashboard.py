@@ -82,11 +82,21 @@ def get_pipeline_dashboard(
                 "duration_seconds": round(duration_s, 1) if duration_s is not None else None,
             })
 
-        # Detect hanging
+        # Detect hanging — check both updated_at and the heartbeat in
+        # payload, since the heartbeat thread may update the payload even
+        # when updated_at lags (different DB sessions / ORM edge-cases).
         is_hanging = False
         if run.coding_status not in TERMINAL_STATES:
-            last_update = run.updated_at or run.created_at
-            if last_update and (now - last_update).total_seconds() > HANG_THRESHOLD_MINUTES * 60:
+            last_alive = run.updated_at or run.created_at
+            hb_str = payload.get("heartbeat")
+            if hb_str:
+                try:
+                    hb_dt = datetime.fromisoformat(hb_str.replace("Z", "+00:00"))
+                    if last_alive is None or hb_dt > last_alive:
+                        last_alive = hb_dt
+                except (ValueError, TypeError):
+                    pass
+            if last_alive and (now - last_alive).total_seconds() > HANG_THRESHOLD_MINUTES * 60:
                 is_hanging = True
 
         # Total duration
