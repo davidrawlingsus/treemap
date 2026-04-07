@@ -212,6 +212,12 @@ async function loadClients(user) {
     } catch {}
   }
 
+  clients.sort((a, b) => {
+    const nameA = (a.name || a.client_name || "").toLowerCase();
+    const nameB = (b.name || b.client_name || "").toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
+
   for (const c of clients) {
     const opt = document.createElement("option");
     opt.value = c.id || c.client_id;
