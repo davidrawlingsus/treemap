@@ -219,30 +219,13 @@ function updateMuteIcons(wrapper, muted) {
 }
 
 function _registerVideoHandlers() {
-    console.log('[VIDEO] Registering video handlers');
-
-    // CAPTURE phase — fires before any stopPropagation in bubbling phase
+    // Capture phase — fires before any bubbling-phase stopPropagation
     document.addEventListener('click', (e) => {
-        // Check if click is anywhere near a video
         const wrapper = e.target.closest('.pe-fb-ad__video-wrapper');
-        const mediaDiv = e.target.closest('.pe-fb-ad__media');
-        const card = e.target.closest('.ads-card');
-
-        // Deep debug: log ALL clicks to find what's swallowing media clicks
-        const tag = e.target.tagName;
-        const cls = (e.target.className?.toString?.() || '').substring(0, 80);
-        const pe = window.getComputedStyle(e.target).pointerEvents;
-        console.log(`[VIDEO] CAPTURE click: <${tag}> class="${cls}" pointer-events=${pe} wrapper=${!!wrapper} media=${!!mediaDiv} card=${!!card}`);
-
         if (!wrapper) return;
 
-        const controls = e.target.closest('.pe-fb-ad__video-controls');
         const video = wrapper.querySelector('video');
-
-        if (!video) {
-            console.warn('[VIDEO] No video element found in wrapper');
-            return;
-        }
+        if (!video) return;
 
         // Progress bar seek
         const progressBar = e.target.closest('.pe-fb-ad__video-progress');
@@ -267,14 +250,14 @@ function _registerVideoHandlers() {
         }
 
         // Play/pause (button or anywhere on wrapper except controls)
+        const controls = e.target.closest('.pe-fb-ad__video-controls');
         if (e.target.closest('.pe-fb-ad__video-playpause') || !controls) {
             e.stopPropagation();
             e.preventDefault();
-            console.log('[VIDEO] Toggle play/pause, paused:', video.paused, 'src:', video.src?.substring(0, 60));
             const p = video.paused ? video.play() : (video.pause(), null);
-            if (p?.catch) p.catch(err => console.error('[VIDEO] play() failed:', err));
+            if (p?.catch) p.catch(() => {});
         }
-    }, true); // true = CAPTURE phase
+    }, true);
 
     // State listeners (capture phase)
     document.addEventListener('play', (e) => {
