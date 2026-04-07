@@ -849,6 +849,7 @@
     background: rgba(55, 53, 47, 0.06);
     border-radius: 6px;
     padding: 2px;
+    margin-left: auto;
 }
 
 .ads-source-toggle__btn {
