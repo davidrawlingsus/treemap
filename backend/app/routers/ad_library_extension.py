@@ -163,6 +163,63 @@ async def _reupload_media_background(import_id: UUID, user_id: UUID | None = Non
         db.close()
 
 
+@router.post("/api/admin/backfill-ad-images")
+async def backfill_ad_images(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user_flexible),
+):
+    """One-off: create AdImage records from existing AdLibraryMedia with Vercel URLs."""
+    from app.services.meta_ads_library_scraper import parse_date_string
+    from sqlalchemy.orm import joinedload
+
+    if not current_user.is_founder:
+        raise HTTPException(status_code=403, detail="Founders only")
+
+    media_items = (
+        db.query(AdLibraryMedia)
+        .join(AdLibraryAd)
+        .join(AdLibraryImport)
+        .options(joinedload(AdLibraryMedia.ad).joinedload(AdLibraryAd.import_run))
+        .filter(AdLibraryMedia.url.ilike("%vercel%"))
+        .all()
+    )
+
+    existing_urls = set(
+        row[0] for row in db.query(AdImage.url).filter(AdImage.url.ilike("%vercel%")).all()
+    )
+
+    created = 0
+    for media in media_items:
+        if media.url in existing_urls:
+            continue
+        ad = media.ad
+        if not ad:
+            continue
+        imp = getattr(ad, "import_run", None)
+        client_id = imp.client_id if imp else None
+        if not client_id:
+            continue
+
+        content_type = "video/mp4" if media.media_type == "video" else "image/jpeg"
+        started = parse_date_string(ad.started_running_on) if ad.started_running_on else None
+
+        ad_image = AdImage(
+            client_id=client_id,
+            url=media.url,
+            filename=media.url.rsplit("/", 1)[-1] if "/" in media.url else "imported",
+            file_size=0,
+            content_type=content_type,
+            started_running_on=started,
+            library_id=ad.library_id,
+            source_url=imp.source_url if imp else None,
+        )
+        db.add(ad_image)
+        created += 1
+
+    db.commit()
+    return {"created": created, "total_media_with_vercel": len(media_items), "already_existed": len(existing_urls)}
+
+
 @router.post(
     "/api/clients/{client_id}/ad-library-imports/from-extension",
     response_model=ExtensionImportResponse,
