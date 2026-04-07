@@ -848,6 +848,7 @@
     width: 100%;
     cursor: pointer;
     background: #000;
+    pointer-events: auto;
 }
 
 .pe-fb-ad__video-wrapper video {
@@ -989,9 +990,8 @@
     pointer-events: none;
 }
 
-.ads-card--current video {
+.ads-card--current .pe-fb-ad__media {
     pointer-events: auto;
-    cursor: pointer;
 }
 
 .ads-card__current-labels {

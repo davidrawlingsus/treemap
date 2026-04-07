@@ -250,9 +250,9 @@ document.addEventListener('click', (e) => {
         return;
     }
 
-    // Click on video or wrapper to toggle play/pause
+    // Click on video or wrapper to toggle play/pause (but not on controls)
     const wrapper = e.target.closest('.pe-fb-ad__video-wrapper');
-    if (wrapper && (e.target === wrapper || e.target.tagName === 'VIDEO' || e.target.closest('.pe-fb-ad__video-play-btn'))) {
+    if (wrapper && !e.target.closest('.pe-fb-ad__video-controls')) {
         const video = getVideo(wrapper);
         if (!video) return;
         if (video.paused) { video.play(); } else { video.pause(); }
