@@ -860,6 +860,9 @@
     <div class="container" id="mainContainer" style="display: none;">
         <!-- Navigation Menu -->
         <nav class="app-navigation">
+            <select id="clientSelect" class="nav-client-select" style="display: none;">
+                <option value="">Loading...</option>
+            </select>
             <div class="nav-menu" id="navMenu">
                 <a href="#" class="nav-menu-item" id="navOverview" onclick="navigateToView('overview'); return false;" style="display: none;">
                     <span>Overview</span>
@@ -919,11 +922,7 @@
             <div class="data-source-selector__content">
                 <div class="filter-panels">
                     <div class="filter-panel active" id="clientPanel" role="tabpanel" aria-labelledby="clientTab">
-                        <!-- Lead mode toggle removed — leads are now unified with clients -->
-                        <label for="clientSelect">Business:</label>
-                        <select id="clientSelect">
-                            <option value="">Loading...</option>
-                        </select>
+                        <!-- clientSelect moved to app-navigation -->
                     </div>
 
                     <div class="filter-panel" id="projectPanel" role="tabpanel" aria-labelledby="projectTab">
@@ -2039,8 +2038,10 @@
         }
 
         function selectClientAndLaunch(clientId) {
+            console.log('[Overview] selectClientAndLaunch called:', clientId, 'current:', currentClientId, 'hasAutoLaunched:', hasAutoLaunched);
             // Prevent multiple calls
             if (hasAutoLaunched && currentClientId === clientId) {
+                console.log('[Overview] SKIPPED - same client');
                 return;
             }
             currentClientId = clientId;
@@ -2069,15 +2070,19 @@
                 throw new Error('No deck');
             })
             .then(data => {
+                console.log('[Overview] deck-url response:', data);
                 clientGammaUrl = data.gamma_url;
                 if (_navOverview) _navOverview.style.display = '';
-                // Preload iframe so it's ready when user clicks the tab
+                // Preload iframe for the new client
                 const _iframe = document.getElementById('overviewIframe');
-                if (_iframe && clientGammaUrl) {
-                    _iframe.src = clientGammaUrl.replace('/docs/', '/embed/');
+                const embedUrl = clientGammaUrl ? clientGammaUrl.replace('/docs/', '/embed/') : null;
+                console.log('[Overview] Setting iframe src to:', embedUrl, 'iframe found:', !!_iframe);
+                if (_iframe && embedUrl) {
+                    _iframe.src = embedUrl;
                 }
             })
-            .catch(() => {
+            .catch(err => {
+                console.log('[Overview] deck-url failed:', err.message);
                 clientGammaUrl = null;
                 if (_navOverview) _navOverview.style.display = 'none';
                 const _ovSection = document.getElementById('overview-section');
@@ -2340,10 +2345,11 @@
                 if (allClients.length === 0) {
                     console.log('No clients available');
                     select.innerHTML = '<option value="">No clients available</option>';
-                    select.disabled = true;
+                    select.style.display = 'none';
                     return;
                 }
-                select.disabled = false;
+                // Only show dropdown if user has access to more than one client
+                select.style.display = allClients.length > 1 ? '' : 'none';
                 
                 // Check URL parameters for client_uuid and other state (e.g., when navigating back)
                 const urlParams = new URLSearchParams(window.location.search);
@@ -2557,6 +2563,35 @@
                 loadInsightsPage().catch(err => console.warn('Failed to load insights for panel:', err));
             }
 
+            // Fetch deck URL for Overview tab
+            const __navOverview = document.getElementById('navOverview');
+            fetch(`${window.APP_CONFIG.API_BASE_URL}/api/clients/${newClientId}/deck-url`, {
+                headers: getAuthHeaders()
+            })
+            .then(resp => {
+                if (resp.ok) return resp.json();
+                throw new Error('No deck');
+            })
+            .then(data => {
+                console.log('[Overview] Client switch deck-url:', data);
+                clientGammaUrl = data.gamma_url;
+                if (__navOverview) __navOverview.style.display = '';
+                const __iframe = document.getElementById('overviewIframe');
+                if (__iframe && clientGammaUrl) {
+                    __iframe.src = clientGammaUrl.replace('/docs/', '/embed/');
+                }
+            })
+            .catch(() => {
+                clientGammaUrl = null;
+                if (__navOverview) __navOverview.style.display = 'none';
+                const __ovSection = document.getElementById('overview-section');
+                if (__ovSection && __ovSection.classList.contains('active')) {
+                    navigateToView('visualizations');
+                }
+                const __iframe = document.getElementById('overviewIframe');
+                if (__iframe) __iframe.src = 'about:blank';
+            });
+
             // Update header logo for the selected client
             const selectedClient = allClients.find(c => c.client_uuid === newClientId);
             if (selectedClient && typeof window.updateHeaderLogo === 'function') {
@@ -2571,6 +2606,10 @@
             updateAddDataButton(); // Update Add button with new client
             await loadClientProjects(currentClientId);
             renderFavourites(); // Re-render favourites for new client
+
+            // Re-navigate to current view so it reloads for the new client
+            const activeView = document.getElementById('mainContainer')?.getAttribute('data-view') || 'visualizations';
+            navigateToView(activeView);
         }
         
         // Load projects for a specific client - wrapper that uses API module for fetching, handles DOM/state
@@ -6647,13 +6686,13 @@
                     mainContainer.style.minHeight = '100vh';
                     mainContainer.setAttribute('data-view', 'overview');
                 }
-                // Lazy-load iframe src (transform /docs/ to /embed/ for Gamma)
+                // Set iframe src (transform /docs/ to /embed/ for Gamma)
                 const iframe = document.getElementById('overviewIframe');
+                console.log('[Overview] navigateToView: clientGammaUrl=', clientGammaUrl, 'iframe=', !!iframe, 'current src=', iframe?.src);
                 if (iframe && clientGammaUrl) {
                     const embedUrl = clientGammaUrl.replace('/docs/', '/embed/');
-                    if (iframe.src !== embedUrl) {
-                        iframe.src = embedUrl;
-                    }
+                    console.log('[Overview] Setting iframe to:', embedUrl);
+                    iframe.src = embedUrl;
                 }
                 window.scrollTo({ top: 0, behavior: 'smooth' });
             } else if (viewName === 'visualizations') {
