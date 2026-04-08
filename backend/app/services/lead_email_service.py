@@ -63,10 +63,12 @@ def create_email_series(
                 return text
             viz = visualization_url or magic_link_url
             ovw = overview_url or gamma_deck_url or magic_link_url
+            ads = viz + "#/ads" if viz and "#" not in viz else viz
             text = text.replace("{{visualization_url}}", viz)
             text = text.replace("{{visualisation_url}}", viz)
             text = text.replace("{{MAGIC_LINK_URL}}", viz)
             text = text.replace("{{overview_url}}", ovw)
+            text = text.replace("{{ads_url}}", ads)
             if screenshot_url:
                 text = text.replace("{{screenshot_url}}", screenshot_url)
             text = text.replace("{{deck_url}}", gamma_deck_url or viz)
