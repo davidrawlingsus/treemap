@@ -84,6 +84,7 @@
 
                     <div class="le-tabs">
                         <button class="le-tab active" data-tab="emails">Emails</button>
+                        <button class="le-tab" data-tab="sharing">Sharing Links</button>
                         <button class="le-tab" data-tab="screenshot">Screenshot</button>
                         <button class="le-tab" data-tab="deck">Deck</button>
                         <button class="le-tab" data-tab="analysis">Full Analysis</button>
@@ -91,6 +92,12 @@
 
                     <div id="tab-emails" class="le-tab-content">
                         <div id="emailTimeline" class="le-email-list"></div>
+                    </div>
+
+                    <div id="tab-sharing" class="le-tab-content" style="display:none;">
+                        <div id="sharingLinksContent" style="padding:16px;">
+                            <p class="le-muted">No sharing links available.</p>
+                        </div>
                     </div>
 
                     <div id="tab-screenshot" class="le-tab-content" style="display:none;">
@@ -251,6 +258,33 @@
                 if (data.gamma_url) deckLinks.push(`<a href="${data.gamma_url}" target="_blank" class="btn btn-sm">View Gamma Deck &rarr;</a>`);
                 if (data.pdf_url) deckLinks.push(`<a href="${data.pdf_url}" target="_blank" class="btn btn-sm">Download PDF &darr;</a>`);
                 document.getElementById('gammaLink').innerHTML = deckLinks.join(' ');
+
+                // Sharing links
+                const sl = data.sharing_links || {};
+                const slContainer = document.getElementById('sharingLinksContent');
+                const linkRows = [
+                    { label: 'Visualization', url: sl.visualization },
+                    { label: 'Overview', url: sl.overview },
+                    { label: 'Gamma Deck', url: sl.gamma_deck },
+                    { label: 'PDF Report', url: sl.pdf },
+                    { label: 'Screenshot', url: sl.screenshot },
+                ].filter(r => r.url);
+
+                if (linkRows.length) {
+                    slContainer.innerHTML = `
+                        <p class="le-muted" style="margin-bottom:12px;">Authenticated links for sharing outside the email sequence. Click to copy.</p>
+                        <div class="le-sharing-links">
+                            ${linkRows.map(r => `
+                                <div class="le-sharing-row">
+                                    <span class="le-sharing-label">${esc(r.label)}</span>
+                                    <input type="text" class="le-sharing-url" value="${esc(r.url)}" readonly onclick="this.select();document.execCommand('copy');this.parentElement.querySelector('.le-copy-toast').style.opacity=1;setTimeout(()=>this.parentElement.querySelector('.le-copy-toast').style.opacity=0,1200);">
+                                    <span class="le-copy-toast">Copied!</span>
+                                </div>
+                            `).join('')}
+                        </div>`;
+                } else {
+                    slContainer.innerHTML = '<p class="le-muted">No sharing links available yet. Links are generated when the pipeline completes.</p>';
+                }
 
                 // Analysis
                 document.getElementById('analysisContent').textContent = data.voc_markdown || 'No analysis available.';

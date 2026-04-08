@@ -108,9 +108,24 @@ def get_lead_email_series(
             deck_markdown = (out.output or {}).get("deck_markdown")
         # gamma_url would be stored in run payload
     pdf_url = None
+    sharing_links = {}
     if run and run.payload:
         gamma_url = run.payload.get("gamma_url")
         pdf_url = run.payload.get("pdf_url")
+        # Build authenticated sharing links from the run auth token
+        auth_token = run.payload.get("auth_token")
+        if auth_token and client:
+            from app.config import get_settings
+            settings = get_settings()
+            base_url = getattr(settings, "frontend_base_url", "https://vizualizd.mapthegap.ai").rstrip("/")
+            client_id = str(client.id)
+            sharing_links = {
+                "visualization": f"{base_url}?client_uuid={client_id}&auth={auth_token}",
+                "overview": f"{base_url}?client_uuid={client_id}&auth={auth_token}#/overview",
+                "gamma_deck": gamma_url,
+                "pdf": pdf_url,
+                "screenshot": client.screenshot_url if client else None,
+            }
 
     return {
         "run_id": run_id,
@@ -123,6 +138,7 @@ def get_lead_email_series(
         "gamma_url": gamma_url,
         "pdf_url": pdf_url,
         "screenshot_url": client.screenshot_url if client else None,
+        "sharing_links": sharing_links,
         "emails": [
             {
                 "id": str(e.id),
