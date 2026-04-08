@@ -383,7 +383,7 @@
     global.history.replaceState({}, global.document.title, cleanUrl);
 
     try {
-      const resp = await fetch(`${apiBase}/api/auth/run-token/verify?token=${encodeURIComponent(authToken)}`, {
+      const resp = await fetch(`${getApiBaseUrl()}/api/auth/run-token/verify?token=${encodeURIComponent(authToken)}`, {
         method: 'GET',
       });
       if (!resp.ok) throw new Error('Invalid run token');
