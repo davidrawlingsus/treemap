@@ -212,8 +212,12 @@ def test_send_all(settings: Any, db: Session, run_id: str, test_email: str) -> i
     return sent
 
 
-def preview_send_email(settings: Any, db: Session, email_id: UUID, test_email: str) -> str:
-    """Send a single email to a test address for preview. Does not change status."""
+def preview_send_email(settings: Any, db: Session, email_id: UUID, recipients) -> str:
+    """Send a single email to one or more addresses for preview. Does not change status.
+
+    recipients can be a string (single email) or a list of strings.
+    All recipients receive the same email in one API call.
+    """
     from app.utils import build_email_service
 
     email = db.query(LeadEmail).filter(LeadEmail.id == email_id).first()
@@ -224,6 +228,10 @@ def preview_send_email(settings: Any, db: Session, email_id: UUID, test_email: s
     if not email_service or not email_service.is_configured():
         raise ValueError("Email service not configured")
 
+    # Normalise to list
+    if isinstance(recipients, str):
+        recipients = [recipients]
+
     td = email.template_data or {}
     html_body = _render_html(email.subject, td)
     text_body = _render_text(email.subject, td)
@@ -233,7 +241,7 @@ def preview_send_email(settings: Any, db: Session, email_id: UUID, test_email: s
         headers={"Authorization": f"Bearer {email_service.api_key}"},
         json={
             "from": "David Rawlings <david@mapthegap.ai>",
-            "to": [test_email],
+            "to": recipients,
             "subject": f"[PREVIEW] {email.subject}",
             "html": html_body,
             "text": text_body,
@@ -247,7 +255,7 @@ def preview_send_email(settings: Any, db: Session, email_id: UUID, test_email: s
     )
     resp.raise_for_status()
     resend_id = resp.json().get("id", "")
-    logger.info("[preview-send] Sent preview of email %s (seq %d) to %s", email.id, email.sequence_number, test_email)
+    logger.info("[preview-send] Sent preview of email %s (seq %d) to %s", email.id, email.sequence_number, recipients)
     return resend_id
 
 

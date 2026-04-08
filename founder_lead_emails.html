@@ -141,6 +141,19 @@
                 </div>
             </aside>
 
+            <!-- Send preview overlay -->
+            <div class="le-overlay" id="sendPreviewOverlay" style="display:none;">
+                <div class="le-modal">
+                    <h3>Send Email Preview</h3>
+                    <p class="le-muted">Enter recipient email addresses, one per line. All recipients receive the same email.</p>
+                    <textarea id="sendPreviewEmails" class="le-edit-textarea" rows="3" placeholder="jane@company.com&#10;bob@company.com"></textarea>
+                    <div class="le-modal-actions">
+                        <button id="sendPreviewConfirmBtn" class="btn btn-sm le-btn-save">Send</button>
+                        <button id="sendPreviewCancelBtn" class="btn btn-sm">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Re-assign overlay -->
             <div class="le-overlay" id="reassignOverlay" style="display:none;">
                 <div class="le-modal">
@@ -586,25 +599,45 @@
         });
 
         // Send preview
-        document.getElementById('previewSendBtn').addEventListener('click', async () => {
+        document.getElementById('previewSendBtn').addEventListener('click', () => {
             const em = currentEmails[currentPreviewIdx];
             if (!em) return;
-            const btn = document.getElementById('previewSendBtn');
+            document.getElementById('sendPreviewEmails').value = 'david@rawlings.us';
+            document.getElementById('sendPreviewOverlay').style.display = '';
+        });
+        document.getElementById('sendPreviewOverlay').addEventListener('click', (e) => {
+            if (e.target === e.currentTarget) e.currentTarget.style.display = 'none';
+        });
+        document.getElementById('sendPreviewCancelBtn').addEventListener('click', () => {
+            document.getElementById('sendPreviewOverlay').style.display = 'none';
+        });
+        document.getElementById('sendPreviewConfirmBtn').addEventListener('click', async () => {
+            const em = currentEmails[currentPreviewIdx];
+            if (!em) return;
+            const raw = document.getElementById('sendPreviewEmails').value.trim();
+            const addresses = raw.split('\n').map(l => l.trim()).filter(Boolean);
+            if (!addresses.length) return;
+
+            const btn = document.getElementById('sendPreviewConfirmBtn');
             btn.disabled = true;
             btn.textContent = 'Sending...';
             try {
                 const res = await fetch(`${API}/api/founder-admin/lead-emails/${em.id}/preview-send`, {
                     method: 'POST',
                     headers: { ...hdrs(), 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ test_email: 'david@rawlings.us' }),
+                    body: JSON.stringify({ test_emails: addresses }),
                 });
                 if (!res.ok) throw new Error('Failed to send');
-                btn.textContent = 'Sent!';
-                setTimeout(() => { btn.textContent = 'Send Preview'; btn.disabled = false; }, 3000);
+                btn.textContent = `Sent to ${addresses.length}!`;
+                setTimeout(() => {
+                    btn.textContent = 'Send';
+                    btn.disabled = false;
+                    document.getElementById('sendPreviewOverlay').style.display = 'none';
+                }, 2000);
             } catch (e) {
                 console.error('Preview send failed:', e);
                 btn.textContent = 'Failed';
-                setTimeout(() => { btn.textContent = 'Send Preview'; btn.disabled = false; }, 3000);
+                setTimeout(() => { btn.textContent = 'Send'; btn.disabled = false; }, 2000);
             }
         });
 

@@ -234,7 +234,8 @@ def update_email(
 # ---------------------------------------------------------------------------
 
 class PreviewSendRequest(BaseModel):
-    test_email: str
+    test_email: Optional[str] = None
+    test_emails: Optional[list[str]] = None
 
 
 @router.post("/api/founder-admin/lead-emails/{email_id}/preview-send")
@@ -244,15 +245,20 @@ def preview_send_email(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_founder),
 ):
-    """Send a single email to a test address for preview."""
+    """Send a single email to one or more addresses for preview."""
     from app.services.lead_email_service import preview_send_email as _preview_send
     from app.config import get_settings
     settings = get_settings()
+    # Support both single email and list
+    recipients = body.test_emails or ([body.test_email] if body.test_email else [])
+    recipients = [e.strip() for e in recipients if e and e.strip()]
+    if not recipients:
+        raise HTTPException(status_code=400, detail="No email addresses provided")
     try:
-        resend_id = _preview_send(settings, db, email_id, body.test_email)
+        resend_id = _preview_send(settings, db, email_id, recipients)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
-    return {"sent": True, "resend_id": resend_id}
+    return {"sent": True, "resend_id": resend_id, "recipients": len(recipients)}
 
 
 class ReassignRequest(BaseModel):
