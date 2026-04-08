@@ -36,7 +36,7 @@
     min-width: 0;
     border-left: 1px solid var(--border, #e2e8f0);
     background: #fafbfc;
-    overflow-y: auto;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
 }
@@ -220,6 +220,7 @@
     font-size: 14px;
     line-height: 1.7;
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
 }
 .le-preview-body p {
@@ -371,6 +372,9 @@
     border-top: 1px solid var(--border, #e2e8f0);
     display: flex;
     gap: 8px;
+    flex-shrink: 0;
+    background: #fafbfc;
+    z-index: 10;
 }
 
 .le-btn-save {

@@ -314,11 +314,11 @@
 
         function sectionsToHtml(sections, pdfUrl) {
             // Convert body_sections to a single HTML string for the Quill editor
-            let html = '';
+            const parts = [];
             (sections || []).forEach(sec => {
-                html += renderSectionHtml(sec, pdfUrl);
+                parts.push(renderSectionHtml(sec, pdfUrl));
             });
-            return html;
+            return parts.join('<p><br></p>');
         }
 
         function nodeToMarkdown(node) {
