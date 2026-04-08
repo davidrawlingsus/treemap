@@ -55,8 +55,19 @@ export function renderFBAdMockup({ adId, primaryText, headline, description, cta
                 <button class="pe-fb-ad__edit-save" data-ad-id="${adId}" type="button">Save</button>
             </div>`;
 
+    const isGated = window.currentClientIsLead && !window.leadAdsRevealed;
+    const gatedClass = isGated ? ' pe-fb-ad--lead-gated' : '';
+    const gatedWrapperClass = isGated ? ' pe-fb-ad__primary-text-wrapper--gated' : '';
+    const gateOverlayHtml = isGated ? `
+                <div class="pe-fb-ad__gate-overlay">
+                    <div class="pe-fb-ad__gate-cta">
+                        <span class="pe-fb-ad__gate-cta-text">Book a Strategy Call</span>
+                        <span class="pe-fb-ad__gate-cta-sub">& Test These Ads For Free</span>
+                    </div>
+                </div>` : '';
+
     return `
-        <div class="pe-fb-ad" style="margin:0;padding:0;border:1px solid #dce0e5;display:block;width:100%;background:#fff;border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,0.1);overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.3333;color:#050505;">
+        <div class="pe-fb-ad${gatedClass}" style="margin:0;padding:0;border:1px solid #dce0e5;display:block;width:100%;background:#fff;border-radius:8px;box-shadow:0 1px 2px rgba(0,0,0,0.1);overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:15px;line-height:1.3333;color:#050505;">
             <div class="pe-fb-ad__header" style="padding:12px 12px 0;margin:0;display:flex;align-items:center;gap:8px;position:relative;">${editIconHtml}
                 <div class="pe-fb-ad__profile-pic" style="${profilePicStyle}">${profilePicContent}</div>
                 <div class="pe-fb-ad__info" style="flex:1;min-width:0;margin:0;padding:0;">
@@ -68,8 +79,9 @@ export function renderFBAdMockup({ adId, primaryText, headline, description, cta
                     </div>
                 </div>
             </div>
-            <div class="pe-fb-ad__primary-text-wrapper" style="padding:8px 12px;margin:0;">
+            <div class="pe-fb-ad__primary-text-wrapper${gatedWrapperClass}" style="padding:8px 12px;margin:0;">
                 <div class="pe-fb-ad__primary-text" style="font-size:15px;line-height:1.4;color:#050505;margin:0;padding:0;">${primaryText}</div>
+                ${gateOverlayHtml}
             </div>
             <div class="pe-fb-ad__media ${imageUrl ? 'has-image' : ''}" style="width:100%;${imageUrl ? '' : 'aspect-ratio:1.91/1;'}position:relative;cursor:pointer;margin:0;padding:0;${imageUrl ? '' : 'background:linear-gradient(to top right,transparent calc(50% - 1px),#9ca3af calc(50% - 1px),#9ca3af calc(50% + 1px),transparent calc(50% + 1px)),linear-gradient(to top left,transparent calc(50% - 1px),#9ca3af calc(50% - 1px),#9ca3af calc(50% + 1px),transparent calc(50% + 1px)),#e5e7eb;'}">
                 ${imageUrl ? (isVideoUrl(imageUrl)

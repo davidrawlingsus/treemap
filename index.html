@@ -690,6 +690,22 @@
         window.adsControllerInitAdsPage = adsControllerInitAdsPage;
         window.initAdsPage = adsControllerInitAdsPage;
         window.renderAdsPage = adsControllerRenderAdsPage;
+
+        window.toggleLeadAdsReveal = function() {
+            window.leadAdsRevealed = !window.leadAdsRevealed;
+            const btn = document.getElementById('leadAdsRevealToggle');
+            if (btn) btn.textContent = window.leadAdsRevealed ? 'Hide Full Ads' : 'Show Full Ads';
+            if (typeof initAdsPage === 'function') initAdsPage();
+        };
+
+        window.updateLeadAdsToggle = function() {
+            const btn = document.getElementById('leadAdsRevealToggle');
+            if (!btn) return;
+            const userInfo = window.Auth?.getStoredUserInfo?.();
+            const isFounder = userInfo?.is_founder;
+            btn.style.display = (isFounder && window.currentClientIsLead) ? '' : 'none';
+            btn.textContent = window.leadAdsRevealed ? 'Hide Full Ads' : 'Show Full Ads';
+        };
         window.handleAdsBulkPublish = adsControllerHandleAdsBulkPublish;
         window.emailsControllerInitEmailsPage = emailsControllerInitEmailsPage;
         window.initEmailsPage = emailsControllerInitEmailsPage;
@@ -1433,6 +1449,8 @@
         // These will be replaced gradually with direct getter/setter calls
         let currentClientId = null;
         let clientGammaUrl = null;
+        window.currentClientIsLead = false;
+        window.leadAdsRevealed = false;
         let currentProjectName = null;
         let currentDataSourceId = null;
         let currentQuestionRefKey = null;
@@ -2053,6 +2071,11 @@
             subStateSetActivePlan(clientId);
             updateNavPlanBadge();
 
+            // Track lead status for ad gating
+            const _selClient = allClients.find(c => c.client_uuid === clientId);
+            window.currentClientIsLead = _selClient?.is_lead || false;
+            window.leadAdsRevealed = false;
+
             // Sync Insights tab client ID to keep both tabs in sync
             if (typeof insightsCurrentClientId !== 'undefined') {
                 insightsCurrentClientId = clientId;
@@ -2555,6 +2578,11 @@
             }
             currentClientId = newClientId;
             lastClientsModeClientId = newClientId;
+
+            // Track lead status for ad gating
+            const _switchClient = allClients.find(c => c.client_uuid === newClientId);
+            window.currentClientIsLead = _switchClient?.is_lead || false;
+            window.leadAdsRevealed = false;
 
             // Sync Insights tab client ID to keep both tabs in sync
             if (typeof insightsCurrentClientId !== 'undefined') {
@@ -6887,6 +6915,7 @@
                 if (typeof initAdsPage === 'function') {
                     initAdsPage();
                 }
+                if (typeof updateLeadAdsToggle === 'function') updateLeadAdsToggle();
                 if (adsSection) upgradeRenderBanner(adsSection, 'ad');
                 
                 // Scroll to top to ensure ads section is visible
@@ -17156,6 +17185,7 @@
                 <button type="button" class="ads-source-toggle__btn active" data-source="test" onclick="switchAdsSource('test')">Test Ads</button>
                 <button type="button" class="ads-source-toggle__btn" data-source="current" onclick="switchAdsSource('current')">Current Ads</button>
             </div>
+            <button type="button" class="ads-source-toggle__btn" id="leadAdsRevealToggle" style="display:none;" onclick="toggleLeadAdsReveal()">Show Full Ads</button>
 
             <!-- View Toggle -->
             <div class="ads-view-toggle" id="adsViewToggle">

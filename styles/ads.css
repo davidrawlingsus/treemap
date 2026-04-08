@@ -2289,3 +2289,66 @@
 @keyframes publishCheckDraw {
     to { stroke-dashoffset: 0; }
 }
+
+/* ─── Lead ad gating ──────────────────────────────────────────────── */
+
+.pe-fb-ad__primary-text-wrapper--gated {
+    position: relative;
+    max-height: 6.5em;
+    overflow: hidden;
+}
+
+.pe-fb-ad__gate-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 100%;
+    background: linear-gradient(
+        to bottom,
+        transparent 0%,
+        transparent 25%,
+        rgba(255, 255, 255, 0.8) 55%,
+        #fff 80%
+    );
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 14px;
+}
+
+.pe-fb-ad__gate-cta {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.pe-fb-ad__gate-cta-text {
+    background: #B9F040;
+    color: #1a1a1a;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 8px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    border: none;
+    font-family: inherit;
+}
+.pe-fb-ad__gate-cta-text:hover {
+    background: #a8e030;
+}
+
+.pe-fb-ad__gate-cta-sub {
+    font-size: 12px;
+    color: #65676b;
+}
+
+/* Hide media, link details, footer when gated */
+.pe-fb-ad--lead-gated .pe-fb-ad__media,
+.pe-fb-ad--lead-gated .pe-fb-ad__link-details,
+.pe-fb-ad--lead-gated .pe-fb-ad__footer,
+.pe-fb-ad--lead-gated .pe-fb-ad__edit-controls {
+    display: none;
+}
