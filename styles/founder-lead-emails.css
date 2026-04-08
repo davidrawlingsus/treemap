@@ -306,19 +306,28 @@
     gap: 8px;
 }
 
-/* Edit mode */
-.le-edit-input {
-    width: 100%;
-    padding: 6px 10px;
-    font-size: 15px;
-    font-weight: 600;
-    font-family: inherit;
-    border: 1px solid var(--border, #e2e8f0);
-    border-radius: 4px;
+/* Edit mode — WYSIWYG contenteditable */
+.le-editable {
     outline: none;
-    box-sizing: border-box;
+    border: 1px solid #cbd5e0;
+    border-radius: 4px;
+    padding: 4px 8px;
+    transition: border-color 0.15s;
 }
-.le-edit-input:focus { border-color: #303030; }
+.le-editable:focus { border-color: #303030; }
+
+.le-editable-section {
+    outline: none;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 4px 8px;
+    margin: -4px -8px;
+    margin-bottom: 12px;
+    transition: border-color 0.15s, background 0.15s;
+    cursor: text;
+}
+.le-editable-section:hover { border-color: #e2e8f0; background: #fafbfc; }
+.le-editable-section:focus { border-color: #303030; background: #fff; }
 
 .le-edit-textarea {
     width: 100%;
@@ -333,17 +342,6 @@
     box-sizing: border-box;
 }
 .le-edit-textarea:focus { border-color: #303030; }
-
-.le-edit-section {
-    margin-bottom: 12px;
-}
-.le-edit-section label {
-    display: block;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 4px;
-}
 
 .le-edit-actions {
     padding: 12px 20px;

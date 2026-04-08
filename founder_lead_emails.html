@@ -279,20 +279,7 @@
             const pdfUrl = td.cta_url || '';
             let bodyHtml = '';
             sections.forEach(sec => {
-                let content = esc(sec.content).replace(/(?<!\w)_([^_]+?)_(?!\w)/g, '<em>$1</em>');
-                if (sec.type === 'verbatim') {
-                    const clean = content.replace(/^[""\u201c]+|[""\u201d]+$/g, '').trim();
-                    bodyHtml += `<p><em>"${clean}"</em></p>`;
-                    return;
-                }
-                // Insert PDF link on the anchor phrase
-                if (pdfUrl && content.toLowerCase().includes('this is what it looks like when someone organises it')) {
-                    content = content.replace(
-                        /this is what it looks like when someone organises it/i,
-                        `<a href="${esc(pdfUrl)}" target="_blank" style="color:#1a73e8;">$&</a>`
-                    );
-                }
-                bodyHtml += `<p>${content}</p>`;
+                bodyHtml += renderSectionHtml(sec, pdfUrl);
             });
             if (!bodyHtml && em.extra_data?.strategic_intent) {
                 bodyHtml = `<p class="le-muted"><em>Intent: ${esc(em.extra_data.strategic_intent)}</em></p>`;
@@ -300,25 +287,39 @@
             document.getElementById('previewBody').innerHTML = bodyHtml || '<p class="le-muted">No content available.</p>';
         }
 
+        function renderSectionHtml(sec, pdfUrl) {
+            let content = esc(sec.content).replace(/(?<!\w)_([^_]+?)_(?!\w)/g, '<em>$1</em>');
+            if (sec.type === 'verbatim') {
+                const clean = content.replace(/^[""\u201c]+|[""\u201d]+$/g, '').trim();
+                return `<p><em>"${clean}"</em></p>`;
+            }
+            if (pdfUrl && content.toLowerCase().includes('this is what it looks like when someone organises it')) {
+                content = content.replace(
+                    /this is what it looks like when someone organises it/i,
+                    `<a href="${esc(pdfUrl)}" target="_blank" style="color:#1a73e8;">$&</a>`
+                );
+            }
+            return `<p>${content}</p>`;
+        }
+
         function enterEditMode() {
             const em = currentEmails[currentPreviewIdx];
             if (!em) return;
             editMode = true;
 
-            // Subject becomes editable input
-            document.getElementById('previewSubject').innerHTML =
-                `<input type="text" class="le-edit-input" id="editSubject" value="${esc(em.subject)}">`;
+            // Subject becomes contenteditable
+            const subjectEl = document.getElementById('previewSubject');
+            subjectEl.setAttribute('contenteditable', 'true');
+            subjectEl.classList.add('le-editable');
 
-            // Body sections become textareas
+            // Body sections become contenteditable divs with same visual rendering
             const td = em.template_data || {};
             const sections = td.body_sections || [];
+            const pdfUrl = td.cta_url || '';
             let editHtml = '';
             sections.forEach((sec, i) => {
-                const label = sec.type === 'verbatim' ? 'Quote' : `Paragraph ${i + 1}`;
-                editHtml += `<div class="le-edit-section">
-                    <label class="le-muted">${label}</label>
-                    <textarea class="le-edit-textarea" data-section-idx="${i}" rows="4">${esc(sec.content)}</textarea>
-                </div>`;
+                const html = renderSectionHtml(sec, pdfUrl);
+                editHtml += `<div class="le-editable-section" contenteditable="true" data-section-idx="${i}" data-section-type="${sec.type || 'text'}">${html}</div>`;
             });
             document.getElementById('previewBody').innerHTML = editHtml || '<p class="le-muted">No content to edit.</p>';
 
@@ -326,17 +327,43 @@
             document.getElementById('editActions').style.display = '';
         }
 
+        function extractPlainText(el) {
+            // Walk the DOM and convert back to plain text with _italic_ markers
+            let text = '';
+            el.childNodes.forEach(node => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    text += node.textContent;
+                } else if (node.nodeName === 'EM' || node.nodeName === 'I') {
+                    text += `_${node.textContent}_`;
+                } else if (node.nodeName === 'A') {
+                    text += node.textContent;
+                } else if (node.nodeName === 'P' || node.nodeName === 'DIV' || node.nodeName === 'BR') {
+                    if (text && !text.endsWith('\n')) text += '\n';
+                    text += extractPlainText(node);
+                } else {
+                    text += node.textContent;
+                }
+            });
+            return text.trim();
+        }
+
         async function saveEdit() {
             const em = currentEmails[currentPreviewIdx];
             if (!em) return;
 
-            const newSubject = document.getElementById('editSubject')?.value || em.subject;
+            const subjectEl = document.getElementById('previewSubject');
+            const newSubject = subjectEl.textContent.trim() || em.subject;
             const td = JSON.parse(JSON.stringify(em.template_data || {}));
-            const textareas = document.querySelectorAll('#previewBody textarea[data-section-idx]');
-            textareas.forEach(ta => {
-                const i = parseInt(ta.dataset.sectionIdx);
+            const editables = document.querySelectorAll('#previewBody .le-editable-section');
+            editables.forEach(div => {
+                const i = parseInt(div.dataset.sectionIdx);
                 if (td.body_sections && td.body_sections[i]) {
-                    td.body_sections[i].content = ta.value;
+                    let raw = extractPlainText(div);
+                    // For verbatim, strip surrounding quotes user may have left
+                    if (div.dataset.sectionType === 'verbatim') {
+                        raw = raw.replace(/^[""\u201c"\u201d]+|[""\u201d"\u201c]+$/g, '').trim();
+                    }
+                    td.body_sections[i].content = raw;
                 }
             });
 
