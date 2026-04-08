@@ -306,7 +306,7 @@
     gap: 8px;
 }
 
-/* Edit mode — WYSIWYG contenteditable */
+/* Edit mode — subject inline editable */
 .le-editable {
     outline: none;
     border: 1px solid #cbd5e0;
@@ -316,18 +316,41 @@
 }
 .le-editable:focus { border-color: #303030; }
 
-.le-editable-section {
-    outline: none;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    padding: 4px 8px;
-    margin: -4px -8px;
-    margin-bottom: 12px;
-    transition: border-color 0.15s, background 0.15s;
-    cursor: text;
+/* Quill editor overrides */
+#editorWrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
-.le-editable-section:hover { border-color: #e2e8f0; background: #fafbfc; }
-.le-editable-section:focus { border-color: #303030; background: #fff; }
+#editorWrap .ql-toolbar {
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    background: #fafbfc;
+    flex-shrink: 0;
+}
+#editorWrap .ql-container {
+    border: none;
+    flex: 1;
+    overflow-y: auto;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.7;
+}
+#editorWrap .ql-editor {
+    padding: 20px;
+}
+#editorWrap .ql-editor p {
+    margin-bottom: 12px;
+}
+#editorWrap .ql-editor blockquote {
+    border-left: 3px solid #cbd5e0;
+    padding: 8px 14px;
+    margin: 12px 0;
+    color: #4a5568;
+    font-style: italic;
+}
 
 .le-edit-textarea {
     width: 100%;

@@ -11,6 +11,8 @@
     <link rel="stylesheet" href="/styles.css">
     <link rel="stylesheet" href="/styles/founder-admin.css">
     <link rel="stylesheet" href="/styles/founder-lead-emails.css">
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
     <script src="/config.js"></script>
     <script src="/auth.js"></script>
 </head>
@@ -123,6 +125,9 @@
                     <div class="le-preview-preheader" id="previewPreheader"></div>
                 </div>
                 <div class="le-preview-body" id="previewBody"></div>
+                <div id="editorWrap" style="display:none;">
+                    <div id="quillEditor"></div>
+                </div>
                 <div class="le-edit-actions" id="editActions" style="display:none;">
                     <button id="saveEditBtn" class="btn btn-sm le-btn-save">Save</button>
                     <button id="cancelEditBtn" class="btn btn-sm">Cancel</button>
@@ -156,6 +161,7 @@
         let currentEmails = [];
         let currentPreviewIdx = null;
         let editMode = false;
+        let quillInstance = null;
 
         async function loadSeries() {
             try {
@@ -304,49 +310,94 @@
             return `<p>${content}</p>`;
         }
 
+        function sectionsToHtml(sections, pdfUrl) {
+            // Convert body_sections to a single HTML string for the Quill editor
+            let html = '';
+            (sections || []).forEach(sec => {
+                html += renderSectionHtml(sec, pdfUrl);
+            });
+            return html;
+        }
+
+        function htmlToSections(html) {
+            // Parse Quill HTML back into body_sections array
+            const tmp = document.createElement('div');
+            tmp.innerHTML = html;
+            const sections = [];
+            tmp.querySelectorAll('p, blockquote').forEach(el => {
+                const text = el.textContent.trim();
+                if (!text) return;
+                if (el.tagName === 'BLOCKQUOTE') {
+                    sections.push({ type: 'verbatim', content: text });
+                } else {
+                    // Convert <em>/<strong>/<a> back to markdown-style markers
+                    let content = '';
+                    el.childNodes.forEach(node => {
+                        if (node.nodeType === Node.TEXT_NODE) {
+                            content += node.textContent;
+                        } else if (node.nodeName === 'EM' || node.nodeName === 'I') {
+                            content += `_${node.textContent}_`;
+                        } else if (node.nodeName === 'STRONG' || node.nodeName === 'B') {
+                            content += node.textContent;
+                        } else if (node.nodeName === 'A') {
+                            content += node.textContent;
+                        } else {
+                            content += node.textContent;
+                        }
+                    });
+                    sections.push({ type: 'text', content: content.trim() });
+                }
+            });
+            return sections;
+        }
+
         function enterEditMode() {
             const em = currentEmails[currentPreviewIdx];
             if (!em) return;
             editMode = true;
 
-            // Subject becomes contenteditable
+            // Subject becomes editable input
             const subjectEl = document.getElementById('previewSubject');
             subjectEl.setAttribute('contenteditable', 'true');
             subjectEl.classList.add('le-editable');
 
-            // Body sections become contenteditable divs with same visual rendering
+            // Hide preview body, show Quill editor
+            document.getElementById('previewBody').style.display = 'none';
+            const editorWrap = document.getElementById('editorWrap');
+            editorWrap.style.display = '';
+
+            // Destroy previous Quill instance if any
+            if (quillInstance) {
+                quillInstance = null;
+                document.getElementById('quillEditor').innerHTML = '';
+            }
+
+            // Build HTML from sections
             const td = em.template_data || {};
-            const sections = td.body_sections || [];
             const pdfUrl = td.cta_url || '';
-            let editHtml = '';
-            sections.forEach((sec, i) => {
-                const html = renderSectionHtml(sec, pdfUrl);
-                editHtml += `<div class="le-editable-section" contenteditable="true" data-section-idx="${i}" data-section-type="${sec.type || 'text'}">${html}</div>`;
+            const html = sectionsToHtml(td.body_sections, pdfUrl);
+
+            // Init Quill
+            quillInstance = new Quill('#quillEditor', {
+                theme: 'snow',
+                modules: {
+                    toolbar: [
+                        ['bold', 'italic'],
+                        ['blockquote'],
+                        ['link'],
+                        [{ list: 'ordered' }, { list: 'bullet' }],
+                        ['clean'],
+                    ],
+                },
+                placeholder: 'Write your email...',
             });
-            document.getElementById('previewBody').innerHTML = editHtml || '<p class="le-muted">No content to edit.</p>';
+
+            // Load content
+            quillInstance.clipboard.dangerouslyPasteHTML(html);
 
             document.getElementById('editPreviewBtn').style.display = 'none';
+            document.getElementById('previewSendBtn').style.display = 'none';
             document.getElementById('editActions').style.display = '';
-        }
-
-        function extractPlainText(el) {
-            // Walk the DOM and convert back to plain text with _italic_ markers
-            let text = '';
-            el.childNodes.forEach(node => {
-                if (node.nodeType === Node.TEXT_NODE) {
-                    text += node.textContent;
-                } else if (node.nodeName === 'EM' || node.nodeName === 'I') {
-                    text += `_${node.textContent}_`;
-                } else if (node.nodeName === 'A') {
-                    text += node.textContent;
-                } else if (node.nodeName === 'P' || node.nodeName === 'DIV' || node.nodeName === 'BR') {
-                    if (text && !text.endsWith('\n')) text += '\n';
-                    text += extractPlainText(node);
-                } else {
-                    text += node.textContent;
-                }
-            });
-            return text.trim();
         }
 
         async function saveEdit() {
@@ -355,19 +406,13 @@
 
             const subjectEl = document.getElementById('previewSubject');
             const newSubject = subjectEl.textContent.trim() || em.subject;
+
+            // Extract HTML from Quill and convert to sections
+            const editorHtml = quillInstance.root.innerHTML;
+            const newSections = htmlToSections(editorHtml);
+
             const td = JSON.parse(JSON.stringify(em.template_data || {}));
-            const editables = document.querySelectorAll('#previewBody .le-editable-section');
-            editables.forEach(div => {
-                const i = parseInt(div.dataset.sectionIdx);
-                if (td.body_sections && td.body_sections[i]) {
-                    let raw = extractPlainText(div);
-                    // For verbatim, strip surrounding quotes user may have left
-                    if (div.dataset.sectionType === 'verbatim') {
-                        raw = raw.replace(/^[""\u201c"\u201d]+|[""\u201d"\u201c]+$/g, '').trim();
-                    }
-                    td.body_sections[i].content = raw;
-                }
-            });
+            td.body_sections = newSections;
 
             const saveBtn = document.getElementById('saveEditBtn');
             saveBtn.disabled = true;
@@ -389,12 +434,27 @@
                 const row = document.querySelector(`.le-email-row[data-idx="${currentPreviewIdx}"]`);
                 if (row) row.querySelector('.le-email-subject').textContent = newSubject;
 
+                exitEditMode();
                 showPreview(currentPreviewIdx);
             } catch (e) {
                 console.error('Failed to save edit:', e);
                 saveBtn.textContent = 'Error';
                 setTimeout(() => { saveBtn.textContent = 'Save'; saveBtn.disabled = false; }, 2000);
             }
+        }
+
+        function exitEditMode() {
+            editMode = false;
+            document.getElementById('editorWrap').style.display = 'none';
+            document.getElementById('previewBody').style.display = '';
+            document.getElementById('editActions').style.display = 'none';
+            if (quillInstance) {
+                quillInstance = null;
+                document.getElementById('quillEditor').innerHTML = '';
+            }
+            const subjectEl = document.getElementById('previewSubject');
+            subjectEl.removeAttribute('contenteditable');
+            subjectEl.classList.remove('le-editable');
         }
 
         // Tabs
@@ -511,6 +571,7 @@
         document.getElementById('editPreviewBtn').addEventListener('click', enterEditMode);
         document.getElementById('saveEditBtn').addEventListener('click', saveEdit);
         document.getElementById('cancelEditBtn').addEventListener('click', () => {
+            exitEditMode();
             showPreview(currentPreviewIdx);
         });
 
