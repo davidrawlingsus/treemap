@@ -808,7 +808,7 @@ def _run_full_pipeline(run_id: str) -> None:
                 company_url=company_url,
                 context_text=context_text,
                 validate_output=validate_output,
-                classified_reviews=all_coded,
+                classified_reviews=merged_rows,
                 ad_topics=[p.get("topic_label", "") for p in payloads],
             )
 
