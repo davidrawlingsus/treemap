@@ -321,6 +321,23 @@
             return html;
         }
 
+        function nodeToMarkdown(node) {
+            // Recursively convert DOM nodes to plain text with markdown markers
+            if (node.nodeType === Node.TEXT_NODE) return node.textContent;
+            if (node.nodeName === 'A') {
+                const href = node.getAttribute('href');
+                if (href) return `[${node.textContent}](${href})`;
+                return node.textContent;
+            }
+            if (node.nodeName === 'EM' || node.nodeName === 'I') {
+                return `_${node.textContent}_`;
+            }
+            // For any wrapper (span, strong, div, etc.), recurse into children
+            let result = '';
+            node.childNodes.forEach(child => { result += nodeToMarkdown(child); });
+            return result;
+        }
+
         function htmlToSections(html) {
             // Parse Quill HTML back into body_sections array
             const tmp = document.createElement('div');
@@ -332,26 +349,8 @@
                 if (el.tagName === 'BLOCKQUOTE') {
                     sections.push({ type: 'verbatim', content: text });
                 } else {
-                    // Convert <em>/<strong>/<a> back to markdown-style markers
                     let content = '';
-                    el.childNodes.forEach(node => {
-                        if (node.nodeType === Node.TEXT_NODE) {
-                            content += node.textContent;
-                        } else if (node.nodeName === 'EM' || node.nodeName === 'I') {
-                            content += `_${node.textContent}_`;
-                        } else if (node.nodeName === 'STRONG' || node.nodeName === 'B') {
-                            content += node.textContent;
-                        } else if (node.nodeName === 'A') {
-                            const href = node.getAttribute('href');
-                            if (href) {
-                                content += `[${node.textContent}](${href})`;
-                            } else {
-                                content += node.textContent;
-                            }
-                        } else {
-                            content += node.textContent;
-                        }
-                    });
+                    el.childNodes.forEach(node => { content += nodeToMarkdown(node); });
                     sections.push({ type: 'text', content: content.trim() });
                 }
             });
