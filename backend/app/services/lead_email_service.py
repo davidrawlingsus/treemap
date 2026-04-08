@@ -28,6 +28,8 @@ def create_email_series(
     magic_link_url: str,
     gamma_deck_url: Optional[str] = None,
     screenshot_url: Optional[str] = None,
+    visualization_url: Optional[str] = None,
+    overview_url: Optional[str] = None,
 ) -> List[LeadEmail]:
     """Create LeadEmail records from VoC analysis output.
 
@@ -59,15 +61,16 @@ def create_email_series(
         def _replace_placeholders(text: str) -> str:
             if not text:
                 return text
-            text = text.replace("{{MAGIC_LINK_URL}}", magic_link_url)
-            text = text.replace("{{visualisation_url}}", magic_link_url)
+            viz = visualization_url or magic_link_url
+            ovw = overview_url or gamma_deck_url or magic_link_url
+            text = text.replace("{{visualization_url}}", viz)
+            text = text.replace("{{visualisation_url}}", viz)
+            text = text.replace("{{MAGIC_LINK_URL}}", viz)
+            text = text.replace("{{overview_url}}", ovw)
             if screenshot_url:
                 text = text.replace("{{screenshot_url}}", screenshot_url)
-            text = text.replace("{{deck_url}}", gamma_deck_url or magic_link_url)
-            if gamma_deck_url:
-                text = text.replace("{{GAMMA_DECK_URL}}", gamma_deck_url)
-            else:
-                text = text.replace("{{GAMMA_DECK_URL}}", magic_link_url)
+            text = text.replace("{{deck_url}}", gamma_deck_url or viz)
+            text = text.replace("{{GAMMA_DECK_URL}}", gamma_deck_url or viz)
             return text
 
         cta_url = _replace_placeholders(email.get("cta_url") or "")

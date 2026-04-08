@@ -364,9 +364,57 @@
     }
   };
 
+  const processRunAuthTokenIfPresent = async () => {
+    const params = new URLSearchParams(global.location.search);
+    const authToken = params.get('auth');
+    if (!authToken) return false;
+
+    // Prevent duplicate processing
+    const authKey = `run_auth_${authToken.substring(0, 10)}`;
+    const state = global.sessionStorage.getItem(authKey);
+    if (state === 'processing' || state === 'completed') {
+      return state === 'completed';
+    }
+    global.sessionStorage.setItem(authKey, 'processing');
+
+    // Clean auth param from URL, keep client_uuid and hash
+    params.delete('auth');
+    const cleanUrl = `${global.location.pathname}${params.toString() ? `?${params.toString()}` : ''}${global.location.hash}`;
+    global.history.replaceState({}, global.document.title, cleanUrl);
+
+    try {
+      const resp = await fetch(`${apiBase}/api/auth/run-token/verify?token=${encodeURIComponent(authToken)}`, {
+        method: 'GET',
+      });
+      if (!resp.ok) throw new Error('Invalid run token');
+      const result = await resp.json();
+      setAuthToken(result.access_token);
+
+      const userInfo = await fetchCurrentUser();
+      setUserInfo(userInfo);
+
+      global.dispatchEvent(
+        new CustomEvent('auth:authenticated', { detail: { user: userInfo } })
+      );
+
+      global.sessionStorage.setItem(authKey, 'completed');
+      return true;
+    } catch (error) {
+      console.error('[RUN AUTH] Failed to verify run token', error);
+      global.sessionStorage.removeItem(authKey);
+      return false;
+    }
+  };
+
   const checkAuth = async () => {
     const impersonated = await processImpersonationTokenIfPresent();
     if (impersonated) {
+      hideLogin();
+      return true;
+    }
+
+    const runAuthed = await processRunAuthTokenIfPresent();
+    if (runAuthed) {
       hideLogin();
       return true;
     }
@@ -439,6 +487,7 @@
     showLogin,
     hideLogin,
     processMagicLinkIfPresent,
+    processRunAuthTokenIfPresent,
     initLoginForm,
   };
 

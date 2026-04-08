@@ -894,7 +894,7 @@ def _run_full_pipeline(run_id: str) -> None:
         _update_status(db, run, "scheduling_emails")
         try:
             # Build magic link for the email CTAs
-            magic_link_url, magic_token, magic_email = _build_magic_link(db, run, lead_client, settings)
+            magic_link_url, magic_token, magic_email, viz_url, overview_url = _build_magic_link(db, run, lead_client, settings)
 
             if voc_analysis and voc_analysis.get("emails"):
                 from app.services.lead_email_service import create_email_series, send_due_emails
@@ -907,6 +907,8 @@ def _run_full_pipeline(run_id: str) -> None:
                     magic_link_url=magic_link_url,
                     gamma_deck_url=(deck_result.pdf_url if deck_result and deck_result.pdf_url else gamma_url),
                     screenshot_url=lead_client.screenshot_url,
+                    visualization_url=viz_url,
+                    overview_url=overview_url,
                 )
                 db.commit()
                 logger.info("[pipeline %s] Scheduled %d emails", run_id, len(emails))
@@ -944,13 +946,17 @@ def _run_full_pipeline(run_id: str) -> None:
 
 
 def _build_magic_link(db, run, client, settings) -> tuple:
-    """Create a user + membership + magic link token for the lead.
+    """Create a user + membership + magic link token + run auth token.
 
-    Returns (magic_link_url, raw_token, email) — raw_token is needed for screenshot auth.
+    Returns (magic_link_url, raw_token, email, visualization_url, overview_url).
+    raw_token is for screenshot auth. visualization_url/overview_url use the
+    non-expiring run auth token for email links.
     """
+    import secrets
     from app.auth import generate_magic_link_token
     from app.models.user import User
     from app.models.membership import Membership
+    from sqlalchemy.orm.attributes import flag_modified
     from urllib.parse import quote
 
     email = run.work_email
@@ -973,19 +979,35 @@ def _build_magic_link(db, run, client, settings) -> tuple:
         ))
         db.flush()
 
+    # Magic link token (for screenshot auth, expires)
     token, token_hash, expires_at = generate_magic_link_token()
     user.magic_link_token = token_hash
     user.magic_link_expires_at = expires_at
-    # Don't update last_magic_link_sent_at — internal token, not user-requested login
+
+    # Run auth token (for email links, never expires)
+    auth_token = secrets.token_urlsafe(32)
+    payload = run.payload or {}
+    payload["auth_token"] = auth_token
+    run.payload = payload
+    flag_modified(run, "payload")
+
     db.commit()
 
-    redirect_path = getattr(settings, "magic_link_redirect_path", "").lstrip("/")
     base_url = getattr(settings, "frontend_base_url", "https://vizualizd.mapthegap.ai").rstrip("/")
+    client_id = str(client.id)
+
+    # Magic link URL (for screenshot auth)
+    redirect_path = getattr(settings, "magic_link_redirect_path", "").lstrip("/")
     if redirect_path:
-        url = f"{base_url}/{redirect_path}?token={quote(token)}&email={quote(email)}"
+        magic_url = f"{base_url}/{redirect_path}?token={quote(token)}&email={quote(email)}"
     else:
-        url = f"{base_url}?token={quote(token)}&email={quote(email)}"
-    return url, token, email
+        magic_url = f"{base_url}?token={quote(token)}&email={quote(email)}"
+
+    # Authenticated URLs (for email merge tags, non-expiring)
+    visualization_url = f"{base_url}?client_uuid={client_id}&auth={auth_token}"
+    overview_url = f"{base_url}?client_uuid={client_id}&auth={auth_token}#/overview"
+
+    return magic_url, token, email, visualization_url, overview_url
 
 
 def rerun_analysis_and_emails(run_id: str) -> None:
@@ -1156,7 +1178,7 @@ def rerun_analysis_and_emails(run_id: str) -> None:
         # Step 10: Email series
         _update_status(db, run, "scheduling_emails")
         try:
-            magic_link_url, magic_token, magic_email = _build_magic_link(db, run, lead_client, settings)
+            magic_link_url, magic_token, magic_email, viz_url, overview_url = _build_magic_link(db, run, lead_client, settings)
             if voc_analysis and voc_analysis.get("emails"):
                 emails = create_email_series(
                     db, run_id=run_id, client_id=lead_client.id,
@@ -1164,6 +1186,8 @@ def rerun_analysis_and_emails(run_id: str) -> None:
                     magic_link_url=magic_link_url,
                     gamma_deck_url=(deck_result.pdf_url if deck_result and deck_result.pdf_url else gamma_url),
                     screenshot_url=lead_client.screenshot_url,
+                    visualization_url=viz_url,
+                    overview_url=overview_url,
                 )
                 db.commit()
                 logger.info("[rerun %s] Scheduled %d emails", run_id, len(emails))

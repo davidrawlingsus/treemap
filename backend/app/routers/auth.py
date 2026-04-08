@@ -395,6 +395,61 @@ def verify_magic_link(payload: MagicLinkVerifyRequest, db: Session = Depends(get
     return {"access_token": access_token, "token_type": "bearer"}
 
 
+@router.get("/run-token/verify", response_model=Token)
+def verify_run_token(
+    token: str,
+    db: Session = Depends(get_db),
+):
+    """Verify a run-based auth token and issue a JWT.
+
+    These tokens are non-expiring, stored in LeadgenVocRun.payload.
+    Used in email links so prospects can access their visualization at any time.
+    """
+    from app.models.leadgen_voc import LeadgenVocRun
+
+    if not token or len(token) < 10:
+        raise HTTPException(status_code=400, detail="Invalid token")
+
+    run = (
+        db.query(LeadgenVocRun)
+        .filter(LeadgenVocRun.payload["auth_token"].astext == token)
+        .first()
+    )
+    if not run:
+        raise HTTPException(status_code=400, detail="Invalid or unknown token")
+
+    email = (run.work_email or "").strip().lower()
+    if not email:
+        raise HTTPException(status_code=400, detail="No email associated with this run")
+
+    user = db.query(User).filter(func.lower(User.email) == email).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="User not found")
+
+    # Ensure membership to the run's client
+    if run.converted_client_uuid:
+        existing = (
+            db.query(Membership)
+            .filter(Membership.user_id == user.id, Membership.client_id == run.converted_client_uuid)
+            .first()
+        )
+        if not existing:
+            now = datetime.now(timezone.utc)
+            db.add(Membership(
+                user_id=user.id, client_id=run.converted_client_uuid,
+                role="viewer", status="active",
+                provisioned_at=now, provisioned_by=user.id,
+                provisioning_method="run_token", joined_at=now,
+            ))
+
+    user.last_login_at = datetime.now(timezone.utc)
+    db.commit()
+
+    access_token = create_access_token(data={"sub": str(user.id)})
+    logger.info("Run-token verified for %s (run %s)", email, run.run_id[:16])
+    return {"access_token": access_token, "token_type": "bearer"}
+
+
 @router.get("/google/init")
 def google_oauth_init():
     """
