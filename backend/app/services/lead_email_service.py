@@ -280,8 +280,14 @@ def _send_via_resend(email_service: Any, email: LeadEmail) -> Optional[str]:
 
 
 def _md_to_html(text: str) -> str:
-    """Convert markdown italics (_text_) to HTML <em> tags, and auto-link bare URLs."""
+    """Convert markdown formatting to HTML: italics, links, and auto-link bare URLs."""
     import re
+    # Markdown links [text](url)
+    text = re.sub(
+        r'\[([^\]]+)\]\(([^)]+)\)',
+        r'<a href="\2" style="color:#1a73e8;">\1</a>',
+        text,
+    )
     # Italics
     text = re.sub(r'(?<!\w)_([^_]+?)_(?!\w)', r'<em>\1</em>', text)
     # Auto-link bare URLs (not already inside an href)
@@ -294,9 +300,13 @@ def _md_to_html(text: str) -> str:
 
 
 def _strip_md(text: str) -> str:
-    """Strip markdown italics for plain text output."""
+    """Strip markdown formatting for plain text output."""
     import re
-    return re.sub(r'(?<!\w)_([^_]+?)_(?!\w)', r'\1', text)
+    # Markdown links [text](url) → text (url)
+    text = re.sub(r'\[([^\]]+)\]\(([^)]+)\)', r'\1 (\2)', text)
+    # Italics
+    text = re.sub(r'(?<!\w)_([^_]+?)_(?!\w)', r'\1', text)
+    return text
 
 
 def _render_html(subject: str, td: Dict[str, Any]) -> str:
