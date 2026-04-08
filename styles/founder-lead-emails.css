@@ -319,10 +319,11 @@
 
 /* Quill editor overrides */
 #editorWrap {
-    flex: 1;
+    flex: 1 1 0;
     display: flex;
     flex-direction: column;
     min-height: 0;
+    overflow: hidden;
 }
 #editorWrap .ql-toolbar {
     border-left: none;
@@ -333,7 +334,8 @@
 }
 #editorWrap .ql-container {
     border: none;
-    flex: 1;
+    flex: 1 1 0;
+    min-height: 0;
     overflow-y: auto;
     font-family: inherit;
     font-size: 14px;
@@ -341,6 +343,7 @@
 }
 #editorWrap .ql-editor {
     padding: 20px;
+    overflow-y: auto;
 }
 #editorWrap .ql-editor p {
     margin-bottom: 12px;
