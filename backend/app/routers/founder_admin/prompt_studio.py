@@ -1189,7 +1189,8 @@ def prompt_studio_run_validate(
 CLASSIFY_SYSTEM_PROMPT_DEFAULT = (
     "You are a review classifier. Given a taxonomy of categories and topics, "
     "assign every review to the most relevant topics. Each review MUST get at "
-    "least one topic. Return ALL reviews — never skip any."
+    "least one topic. Return ALL reviews — never skip any. "
+    "Use the exact respondent_id from each review in your output."
 )
 
 CLASSIFY_USER_PROMPT_DEFAULT = (
