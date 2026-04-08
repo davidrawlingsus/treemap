@@ -372,11 +372,11 @@
             const editorWrap = document.getElementById('editorWrap');
             editorWrap.style.display = '';
 
-            // Destroy previous Quill instance if any
-            if (quillInstance) {
-                quillInstance = null;
-                document.getElementById('quillEditor').innerHTML = '';
-            }
+            // Destroy previous Quill instance — clear entire wrap and re-create container
+            quillInstance = null;
+            const editorDiv = document.getElementById('quillEditor');
+            // Remove toolbar siblings that Quill injects
+            editorWrap.innerHTML = '<div id="quillEditor"></div>';
 
             // Build HTML from sections
             const td = em.template_data || {};
@@ -451,13 +451,12 @@
 
         function exitEditMode() {
             editMode = false;
-            document.getElementById('editorWrap').style.display = 'none';
+            const wrap = document.getElementById('editorWrap');
+            wrap.style.display = 'none';
+            wrap.innerHTML = '<div id="quillEditor"></div>';
+            quillInstance = null;
             document.getElementById('previewBody').style.display = '';
             document.getElementById('editActions').style.display = 'none';
-            if (quillInstance) {
-                quillInstance = null;
-                document.getElementById('quillEditor').innerHTML = '';
-            }
             const subjectEl = document.getElementById('previewSubject');
             subjectEl.removeAttribute('contenteditable');
             subjectEl.classList.remove('le-editable');
