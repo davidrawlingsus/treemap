@@ -863,6 +863,9 @@
             <select id="clientSelect" class="nav-client-select" style="display: none;">
                 <option value="">Loading...</option>
             </select>
+            <button class="nav-hamburger" id="navHamburger" aria-label="Toggle menu" onclick="document.getElementById('navMenu').classList.toggle('open'); this.classList.toggle('open');">
+                <span></span><span></span><span></span>
+            </button>
             <div class="nav-menu" id="navMenu">
                 <a href="#" class="nav-menu-item" id="navOverview" onclick="navigateToView('overview'); return false;" style="display: none;">
                     <span>Overview</span>
@@ -1079,6 +1082,11 @@
                 <div class="treemap-header">
                     <div class="treemap-header-top">
                         <h2 class="treemap-title">Topic Distribution</h2>
+                        <button class="chart__toggle" onclick="toggleTreemap(this)" aria-label="Toggle treemap visibility">
+                            <svg class="chart__toggle-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 6 L8 10 L12 6" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                        </button>
                     </div>
                     <div class="treemap-search-input-wrapper">
                         <input
@@ -1095,11 +1103,6 @@
                             style="display: none;"
                         >&times;</button>
                     </div>
-                    <button class="chart__toggle" onclick="toggleTreemap(this)" aria-label="Toggle treemap visibility">
-                        <svg class="chart__toggle-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M4 6 L8 10 L12 6" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                    </button>
                 </div>
                 <div class="treemap-svg-container">
                     <div class="loading" id="loading">Loading data...</div>
@@ -2794,30 +2797,33 @@
         // Update treemap title with question text if available
         function updateTreemapTitle() {
             const treemapTitleEl = document.querySelector('.treemap-title');
-            if (!treemapTitleEl || !fullRawData || fullRawData.length === 0) {
-                return;
-            }
-            
+            if (!treemapTitleEl) return;
+
             let questionText = null;
-            
+
             // Only show question_text when a specific dimension is selected
             // This avoids confusion when "All Dimensions" is selected (multiple questions possible)
-            if (currentQuestionRefKey) {
-                const dimensionRow = fullRawData.find(row => 
-                    row.dimension_ref === currentQuestionRefKey && 
-                    row.question_text && 
+            if (currentQuestionRefKey && fullRawData && fullRawData.length > 0) {
+                const dimensionRow = fullRawData.find(row =>
+                    row.dimension_ref === currentQuestionRefKey &&
+                    row.question_text &&
                     row.question_text.trim() !== ''
                 );
                 if (dimensionRow) {
                     questionText = dimensionRow.question_text;
                 }
             }
-            
+
+            // Build default title with client name
+            const client = allClients.find(c => c.client_uuid === currentClientId);
+            const clientName = client?.client_name;
+            const defaultTitle = clientName ? `${clientName}'s Reviews, Analyzed` : 'Topic Distribution';
+
             // Update the title
             if (questionText) {
                 treemapTitleEl.textContent = questionText;
             } else {
-                treemapTitleEl.textContent = 'Topic Distribution';
+                treemapTitleEl.textContent = defaultTitle;
             }
         }
         
@@ -6539,6 +6545,12 @@
 
         // SPA Routing Functions
         function navigateToView(viewName) {
+            // Close mobile hamburger menu
+            const navMenu = document.getElementById('navMenu');
+            const navHamburger = document.getElementById('navHamburger');
+            if (navMenu) navMenu.classList.remove('open');
+            if (navHamburger) navHamburger.classList.remove('open');
+
             const vizSection = document.getElementById('visualizations-section');
             const insightsSection = document.getElementById('insights-section');
             const historySection = document.getElementById('history-section');
