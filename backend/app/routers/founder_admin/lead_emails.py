@@ -217,6 +217,28 @@ def update_email(
 # Test send — send all emails to founder immediately
 # ---------------------------------------------------------------------------
 
+class PreviewSendRequest(BaseModel):
+    test_email: str
+
+
+@router.post("/api/founder-admin/lead-emails/{email_id}/preview-send")
+def preview_send_email(
+    email_id: UUID,
+    body: PreviewSendRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Send a single email to a test address for preview."""
+    from app.services.lead_email_service import preview_send_email as _preview_send
+    from app.config import get_settings
+    settings = get_settings()
+    try:
+        resend_id = _preview_send(settings, db, email_id, body.test_email)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"sent": True, "resend_id": resend_id}
+
+
 class ReassignRequest(BaseModel):
     email_addresses: list[str]
 

@@ -207,6 +207,45 @@ def test_send_all(settings: Any, db: Session, run_id: str, test_email: str) -> i
     return sent
 
 
+def preview_send_email(settings: Any, db: Session, email_id: UUID, test_email: str) -> str:
+    """Send a single email to a test address for preview. Does not change status."""
+    from app.utils import build_email_service
+
+    email = db.query(LeadEmail).filter(LeadEmail.id == email_id).first()
+    if not email:
+        raise ValueError("Email not found")
+
+    email_service = build_email_service(settings)
+    if not email_service or not email_service.is_configured():
+        raise ValueError("Email service not configured")
+
+    td = email.template_data or {}
+    html_body = _render_html(email.subject, td)
+    text_body = _render_text(email.subject, td)
+
+    resp = requests.post(
+        "https://api.resend.com/emails",
+        headers={"Authorization": f"Bearer {email_service.api_key}"},
+        json={
+            "from": "David Rawlings <david@mapthegap.ai>",
+            "to": [test_email],
+            "subject": f"[PREVIEW] {email.subject}",
+            "html": html_body,
+            "text": text_body,
+            "reply_to": "david@mapthegap.ai",
+            "tags": [
+                {"name": "type", "value": "lead_email_preview"},
+                {"name": "sequence", "value": str(email.sequence_number)},
+            ],
+        },
+        timeout=15,
+    )
+    resp.raise_for_status()
+    resend_id = resp.json().get("id", "")
+    logger.info("[preview-send] Sent preview of email %s (seq %d) to %s", email.id, email.sequence_number, test_email)
+    return resend_id
+
+
 def _send_via_resend(email_service: Any, email: LeadEmail) -> Optional[str]:
     """Send a single email via Resend API. Returns the Resend email ID."""
     td = email.template_data or {}

@@ -114,6 +114,7 @@
                     <h3>Email Preview</h3>
                     <div class="le-preview-header-right">
                         <span class="le-muted" id="previewMeta"></span>
+                        <button id="previewSendBtn" class="btn btn-xs" style="display:none;">Send Preview</button>
                         <button id="editPreviewBtn" class="btn btn-xs" style="display:none;">Edit</button>
                     </div>
                 </div>
@@ -269,9 +270,10 @@
             document.getElementById('previewSubject').textContent = em.subject;
             document.getElementById('previewPreheader').textContent = em.preview_text || '';
 
-            // Show Edit button only for unsent emails
+            // Show action buttons
             const canEdit = em.status === 'queued' || em.status === 'paused';
             document.getElementById('editPreviewBtn').style.display = canEdit ? '' : 'none';
+            document.getElementById('previewSendBtn').style.display = '';
             document.getElementById('editActions').style.display = 'none';
 
             const td = em.template_data || {};
@@ -479,6 +481,29 @@
                 console.error('Failed to reassign:', e);
                 btn.textContent = 'Error';
                 setTimeout(() => { btn.textContent = 'Re-assign & Restart'; btn.disabled = false; }, 2000);
+            }
+        });
+
+        // Send preview
+        document.getElementById('previewSendBtn').addEventListener('click', async () => {
+            const em = currentEmails[currentPreviewIdx];
+            if (!em) return;
+            const btn = document.getElementById('previewSendBtn');
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+            try {
+                const res = await fetch(`${API}/api/founder-admin/lead-emails/${em.id}/preview-send`, {
+                    method: 'POST',
+                    headers: { ...hdrs(), 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ test_email: 'david@rawlings.us' }),
+                });
+                if (!res.ok) throw new Error('Failed to send');
+                btn.textContent = 'Sent!';
+                setTimeout(() => { btn.textContent = 'Send Preview'; btn.disabled = false; }, 3000);
+            } catch (e) {
+                console.error('Preview send failed:', e);
+                btn.textContent = 'Failed';
+                setTimeout(() => { btn.textContent = 'Send Preview'; btn.disabled = false; }, 3000);
             }
         });
 
