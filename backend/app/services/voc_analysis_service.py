@@ -367,23 +367,22 @@ def generate_voc_analysis_markdown(
         len(classified_reviews),
     )
 
-    # Use the same streaming infrastructure as other pipeline steps.
-    # Wrap in a minimal JSON schema — the content field holds the markdown.
-    from app.services.voc_coding_chain_service import call_claude_json_schema_streaming
+    # Stream raw text — no JSON schema wrapping.
+    # The {"content": "string"} tool-forcing approach fails for large outputs (70k+ chars)
+    # because Opus has to escape all newlines/quotes inside a JSON string value.
+    from app.services.voc_coding_chain_service import call_claude_raw_text_streaming
 
     MAX_RETRIES = 2
     for attempt in range(MAX_RETRIES + 1):
         try:
-            result = call_claude_json_schema_streaming(
+            markdown = call_claude_raw_text_streaming(
                 settings=settings,
                 model="claude-opus-4-6",
                 system_prompt=system_prompt,
                 user_prompt=user_prompt,
-                schema={"type": "object", "properties": {"content": {"type": "string"}}, "required": ["content"]},
                 temperature=0.5,
                 max_tokens=64000,
             )
-            markdown = result.get("content", "")
 
             if len(markdown) > 1000:
                 # Validate the markdown references the actual company

@@ -535,6 +535,109 @@ def call_claude_json_schema_streaming(
     return result
 
 
+def call_claude_raw_text_streaming(
+    *,
+    settings: Any,
+    model: str,
+    system_prompt: str,
+    user_prompt: str,
+    temperature: float,
+    max_tokens: int,
+) -> str:
+    """Call Claude and return raw text output (no JSON schema / tool forcing).
+
+    Uses the same background-thread + heartbeat approach for reliability,
+    but streams plain text instead of forcing output through a JSON tool.
+    Better for very large outputs (50-70k chars) that don't fit well in JSON string escaping.
+    """
+    import time as _time
+    import queue
+    import threading
+
+    _log = logging.getLogger(__name__)
+
+    api_key = (getattr(settings, "anthropic_api_key", None) or "").strip()
+    if not api_key:
+        raise VocCodingChainError("config", "ANTHROPIC_API_KEY is required")
+
+    from anthropic import Anthropic
+
+    client = Anthropic(api_key=api_key, http_client=httpx.Client(timeout=600.0))
+
+    params = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "temperature": temperature,
+        "system": system_prompt,
+        "messages": [{"role": "user", "content": user_prompt}],
+        "stream": True,
+    }
+
+    _log.info("[raw-stream] Starting model=%s max_tokens=%d prompt_len=%d", model, max_tokens, len(user_prompt))
+
+    start = _time.time()
+    text_chunks: list = []
+    output_tokens = 0
+    input_tokens = 0
+    event_queue: queue.Queue = queue.Queue()
+    _SENTINEL = object()
+
+    def _reader():
+        try:
+            _log.info("[raw-stream-thread] Opening Anthropic stream...")
+            with client.messages.stream(**params) as stream:
+                _log.info("[raw-stream-thread] Stream opened")
+                for event in stream:
+                    event_queue.put(event)
+                event_queue.put(_SENTINEL)
+                _log.info("[raw-stream-thread] Stream ended normally")
+        except Exception as exc:
+            _log.error("[raw-stream-thread] Exception: %s", exc)
+            event_queue.put(exc)
+
+    thread = threading.Thread(target=_reader, daemon=True)
+    thread.start()
+
+    done = False
+    while not done:
+        try:
+            item = event_queue.get(timeout=10)
+        except queue.Empty:
+            continue
+
+        if item is _SENTINEL:
+            done = True
+            break
+
+        if isinstance(item, Exception):
+            raise VocCodingChainError("llm_call", str(item))
+
+        etype = getattr(item, "type", "")
+        if etype == "message_start":
+            usage = getattr(item, "message", None)
+            if usage:
+                input_tokens = getattr(usage, "usage", {}).get("input_tokens", 0) if hasattr(usage, "usage") else 0
+                _log.info("[raw-stream] input_tokens=%d", input_tokens)
+        elif etype == "content_block_delta":
+            delta = getattr(item, "delta", None)
+            if delta:
+                text = getattr(delta, "text", "")
+                if text:
+                    text_chunks.append(text)
+        elif etype == "message_delta":
+            usage = getattr(item, "usage", None)
+            if usage:
+                output_tokens = getattr(usage, "output_tokens", 0)
+
+    thread.join(timeout=5)
+
+    result = "".join(text_chunks)
+    elapsed = round(_time.time() - start, 2)
+    _log.info("[raw-stream] Complete. elapsed=%.2fs input=%d output=%d chars=%d",
+              elapsed, input_tokens, output_tokens, len(result))
+    return result
+
+
 def _get_live_prompt_by_purpose(db: Session, purpose: str) -> Optional[Prompt]:
     purpose_lower = (purpose or "").strip().lower()
     if not purpose_lower:
