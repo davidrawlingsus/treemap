@@ -310,7 +310,7 @@ def import_from_extension_leadgen(
             company_name=company_name,
             review_count=0,
             coding_enabled=True,
-            coding_status="queued",
+            coding_status="pending_import",
             payload={"source": "extension_leadgen"},
         )
         db.add(run)

@@ -252,7 +252,7 @@ async def startup_event():
                 # Restart runs with stale heartbeats (thread died)
                 from app.services.leadgen_pipeline_runner import HEARTBEAT_STALE_SECONDS
                 bg_cutoff = datetime.now(tz.utc) - timedelta(hours=24)
-                terminal = {"completed", "failed", "disabled", "rerun_analysis"}
+                terminal = {"completed", "failed", "disabled", "rerun_analysis", "pending_import"}
                 active_runs = (
                     _db.query(LeadgenVocRun)
                     .filter(
@@ -332,7 +332,7 @@ async def startup_event():
         from datetime import datetime, timedelta, timezone as tz
 
         _db = SessionLocal()
-        terminal_states = {"completed", "failed", "disabled"}
+        terminal_states = {"completed", "failed", "disabled", "pending_import"}
         hard_cutoff = datetime.now(tz.utc) - timedelta(hours=24)
         MAX_RESTART_COUNT = 5
 
