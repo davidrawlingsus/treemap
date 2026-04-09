@@ -570,7 +570,6 @@ def call_claude_raw_text_streaming(
         "temperature": temperature,
         "system": system_prompt,
         "messages": [{"role": "user", "content": user_prompt}],
-        "stream": True,
     }
 
     _log.info("[raw-stream] Starting model=%s max_tokens=%d prompt_len=%d", model, max_tokens, len(user_prompt))
