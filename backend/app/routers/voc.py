@@ -373,7 +373,7 @@ def get_voc_clients(
         client = db.query(Client).filter(Client.id == row.client_uuid).first()
         client_map[row.client_uuid] = {
             'client_uuid': row.client_uuid,
-            'client_name': row.client_name,
+            'client_name': client.name if client else row.client_name,
             'data_source_count': row.data_source_count,
             'logo_url': client.logo_url if client else None,
             'header_color': client.header_color if client else None,
