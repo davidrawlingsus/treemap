@@ -812,14 +812,19 @@ def _run_full_pipeline(run_id: str) -> None:
                 ad_topics=[p.get("topic_label", "") for p in payloads],
             )
 
-            # Store the markdown output
-            db.add(LeadgenPipelineOutput(
-                run_id=run_id,
-                step_type="voc_analysis_markdown",
-                step_order=8,
-                output={"markdown": voc_markdown},
-            ))
-            db.flush()
+            # Store the markdown output (skip if already exists)
+            existing_md = db.query(LeadgenPipelineOutput).filter(
+                LeadgenPipelineOutput.run_id == run_id,
+                LeadgenPipelineOutput.step_type == "voc_analysis_markdown",
+            ).first()
+            if not existing_md:
+                db.add(LeadgenPipelineOutput(
+                    run_id=run_id,
+                    step_type="voc_analysis_markdown",
+                    step_order=8,
+                    output={"markdown": voc_markdown},
+                ))
+                db.flush()
             logger.info("[pipeline %s] VoC markdown: %d chars", run_id, len(voc_markdown))
 
         except Exception as e:
@@ -833,12 +838,18 @@ def _run_full_pipeline(run_id: str) -> None:
                     markdown_content=voc_markdown,
                 )
 
-                db.add(LeadgenPipelineOutput(
-                    run_id=run_id,
-                    step_type="voc_analysis_json",
-                    step_order=9,
-                    output=voc_analysis,
-                ))
+                # Store JSON output (skip if already exists)
+                existing_json = db.query(LeadgenPipelineOutput).filter(
+                    LeadgenPipelineOutput.run_id == run_id,
+                    LeadgenPipelineOutput.step_type == "voc_analysis_json",
+                ).first()
+                if not existing_json:
+                    db.add(LeadgenPipelineOutput(
+                        run_id=run_id,
+                        step_type="voc_analysis_json",
+                        step_order=9,
+                        output=voc_analysis,
+                    ))
                 db.commit()
                 logger.info("[pipeline %s] VoC JSON: %d insights, %d emails",
                              run_id,
@@ -848,38 +859,39 @@ def _run_full_pipeline(run_id: str) -> None:
                 logger.error("[pipeline %s] VoC JSON parse failed (continuing): %s", run_id, e)
 
         # ── Step 9: Generate Gamma deck (if configured) ──
-        gamma_url = None
+        gamma_url = (run.payload or {}).get("gamma_url")
         deck_result = None
-        try:
-            from app.services.gamma_service import generate_deck
-            gamma_api_key = getattr(settings, "gamma_api_key", None)
-            # Use deck_markdown from JSON if available, otherwise use full markdown
-            deck_content = ""
-            if voc_analysis:
-                deck_content = voc_analysis.get("deck_markdown", "")
-            if not deck_content and voc_markdown:
-                deck_content = voc_markdown
-            if gamma_api_key and deck_content:
-                deck_result = generate_deck(
-                    api_key=gamma_api_key,
-                    title=f"VoC Creative Strategy: {company_name}",
-                    markdown_content=deck_content,
-                )
-                if deck_result:
-                    gamma_url = deck_result.gamma_url
-            # Store gamma URLs in run payload
-            if gamma_url or (deck_result and deck_result.pdf_url):
-                payload = run.payload or {}
-                if gamma_url:
-                    payload["gamma_url"] = gamma_url
-                if deck_result and deck_result.pdf_url:
-                    payload["pdf_url"] = deck_result.pdf_url
-                run.payload = payload
-                from sqlalchemy.orm.attributes import flag_modified
-                flag_modified(run, "payload")
-                db.commit()
-        except Exception as e:
-            logger.warning("[pipeline %s] Gamma deck failed: %s", run_id, e)
+        if gamma_url:
+            logger.info("[pipeline %s] Gamma deck already exists (%s), skipping", run_id, gamma_url)
+        else:
+            try:
+                from app.services.gamma_service import generate_deck
+                gamma_api_key = getattr(settings, "gamma_api_key", None)
+                deck_content = ""
+                if voc_analysis:
+                    deck_content = voc_analysis.get("deck_markdown", "")
+                if not deck_content and voc_markdown:
+                    deck_content = voc_markdown
+                if gamma_api_key and deck_content:
+                    deck_result = generate_deck(
+                        api_key=gamma_api_key,
+                        title=f"VoC Creative Strategy: {company_name}",
+                        markdown_content=deck_content,
+                    )
+                    if deck_result:
+                        gamma_url = deck_result.gamma_url
+                if gamma_url or (deck_result and deck_result.pdf_url):
+                    payload = run.payload or {}
+                    if gamma_url:
+                        payload["gamma_url"] = gamma_url
+                    if deck_result and deck_result.pdf_url:
+                        payload["pdf_url"] = deck_result.pdf_url
+                    run.payload = payload
+                    from sqlalchemy.orm.attributes import flag_modified
+                    flag_modified(run, "payload")
+                    db.commit()
+            except Exception as e:
+                logger.warning("[pipeline %s] Gamma deck failed: %s", run_id, e)
 
         # ── Wait for screenshot if still running ──
         if screenshot_thread and screenshot_thread.is_alive():
