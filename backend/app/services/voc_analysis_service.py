@@ -386,6 +386,11 @@ def generate_voc_analysis_markdown(
             markdown = result.get("content", "")
 
             if len(markdown) > 1000:
+                # Validate the markdown references the actual company
+                if company_name.lower() not in markdown.lower():
+                    logger.warning("[voc-analysis] Markdown doesn't mention company '%s' (%d chars, attempt %d/%d). Rejecting.",
+                                   company_name, len(markdown), attempt + 1, MAX_RETRIES + 1)
+                    continue
                 logger.info("[voc-analysis] Generated %d chars of markdown for %s (attempt %d)",
                             len(markdown), company_name, attempt + 1)
                 return markdown

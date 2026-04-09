@@ -20,6 +20,10 @@ from app.database import SessionLocal
 
 logger = logging.getLogger(__name__)
 
+# Per-run lock to prevent concurrent execution of the same pipeline
+_run_locks: Dict[str, threading.Lock] = {}
+_run_locks_guard = threading.Lock()
+
 
 # ---------------------------------------------------------------------------
 # Ad generation prompts (moved from frontend js/prompt-studio/main.js)
@@ -387,14 +391,35 @@ def _load_live_prompts(db) -> Dict[str, str]:
 # Full pipeline runner (runs in background thread)
 # ---------------------------------------------------------------------------
 
+def _get_run_lock(run_id: str) -> threading.Lock:
+    """Get or create a lock for a specific run_id."""
+    with _run_locks_guard:
+        if run_id not in _run_locks:
+            _run_locks[run_id] = threading.Lock()
+        return _run_locks[run_id]
+
+
+def _release_run_lock(run_id: str):
+    """Clean up the lock entry after the run completes."""
+    with _run_locks_guard:
+        _run_locks.pop(run_id, None)
+
+
 def run_full_pipeline_background(run_id: str) -> None:
     """Launch the full pipeline in a daemon thread with heartbeat."""
     stop_heartbeat = threading.Event()
 
     def _run_with_heartbeat():
+        lock = _get_run_lock(run_id)
+        if not lock.acquire(blocking=False):
+            logger.warning("[pipeline %s] Already running, skipping duplicate launch", run_id)
+            stop_heartbeat.set()
+            return
         try:
             _run_full_pipeline(run_id)
         finally:
+            lock.release()
+            _release_run_lock(run_id)
             stop_heartbeat.set()
 
     threading.Thread(target=_start_heartbeat, args=(run_id, stop_heartbeat), daemon=True).start()
@@ -1239,9 +1264,16 @@ def rerun_analysis_background(run_id: str) -> None:
     stop_heartbeat = threading.Event()
 
     def _run_with_heartbeat():
+        lock = _get_run_lock(run_id)
+        if not lock.acquire(blocking=False):
+            logger.warning("[rerun %s] Already running, skipping duplicate launch", run_id)
+            stop_heartbeat.set()
+            return
         try:
             rerun_analysis_and_emails(run_id)
         finally:
+            lock.release()
+            _release_run_lock(run_id)
             stop_heartbeat.set()
 
     threading.Thread(target=_start_heartbeat, args=(run_id, stop_heartbeat), daemon=True).start()
