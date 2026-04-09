@@ -613,9 +613,11 @@ def call_claude_raw_text_streaming(
 
         etype = getattr(item, "type", "")
         if etype == "message_start":
-            usage = getattr(item, "message", None)
-            if usage:
-                input_tokens = getattr(usage, "usage", {}).get("input_tokens", 0) if hasattr(usage, "usage") else 0
+            msg = getattr(item, "message", None)
+            if msg:
+                u = getattr(msg, "usage", None)
+                if u:
+                    input_tokens = getattr(u, "input_tokens", 0)
                 _log.info("[raw-stream] input_tokens=%d", input_tokens)
         elif etype == "content_block_delta":
             delta = getattr(item, "delta", None)
@@ -624,9 +626,9 @@ def call_claude_raw_text_streaming(
                 if text:
                     text_chunks.append(text)
         elif etype == "message_delta":
-            usage = getattr(item, "usage", None)
-            if usage:
-                output_tokens = getattr(usage, "output_tokens", 0)
+            u = getattr(item, "usage", None)
+            if u:
+                output_tokens = getattr(u, "output_tokens", 0)
 
     thread.join(timeout=5)
 
