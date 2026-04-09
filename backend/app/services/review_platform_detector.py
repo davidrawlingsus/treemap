@@ -104,6 +104,9 @@ _YOTPO_SIGNATURES = [
     "yotpo-widget",
     "yotpoWidgetsContainer",
     "class=\"yotpo",
+    "YOTPO_KEY",
+    "yotpoToken",
+    "useYotpoRefresh",
 ]
 
 # Patterns to extract app_key
@@ -114,8 +117,8 @@ _YOTPO_KEY_PATTERNS = [
     re.compile(r'yotpo\.com/v1/loader/([a-zA-Z0-9]+)', re.IGNORECASE),
     # yotpo.com/widget/APP_KEY or yotpo.com/...?appkey=APP_KEY
     re.compile(r'yotpo\.com/[^"\']*?(?:widget/|appkey=)([a-zA-Z0-9]+)', re.IGNORECASE),
-    # JS variable: appKey: "...", appkey: "...", yotpoAppKey = "..."
-    re.compile(r'(?:app_?key|yotpoAppKey)\s*[:=]\s*["\']([a-zA-Z0-9]+)["\']', re.IGNORECASE),
+    # JS variable: appKey: "...", appkey: "...", yotpoAppKey = "...", YOTPO_KEY: "..."
+    re.compile(r'(?:app_?key|yotpoAppKey|YOTPO_KEY|yotpoToken)\s*["\'\\]*\s*[:=]\s*["\'\\]*([a-zA-Z0-9]{8,})', re.IGNORECASE),
 ]
 
 
