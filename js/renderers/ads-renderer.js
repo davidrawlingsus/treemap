@@ -274,9 +274,11 @@ function renderAdCard(ad) {
             </div>
             
             <div class="ads-card__voc-evidence">
+                <div class="ads-card__section-title">The VoC</div>
                 ${vocHtml}
             </div>
 
+            <div class="ads-card__section-title ads-card__section-title--ad">The Ad</div>
             <div class="ads-card__mockup">
                 ${renderFBAdMockup({
                     adId: id,

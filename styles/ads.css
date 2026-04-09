@@ -2290,6 +2290,21 @@
     to { stroke-dashoffset: 0; }
 }
 
+/* ─── Section titles ──────────────────────────────────────────────── */
+
+.ads-card__section-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #a0aec0;
+    padding: 6px 16px 0;
+}
+
+.ads-card__section-title--ad {
+    padding-bottom: 4px;
+}
+
 /* ─── Lead ad gating ──────────────────────────────────────────────── */
 
 /* The gated wrapper sits inside the primary text wrapper.
