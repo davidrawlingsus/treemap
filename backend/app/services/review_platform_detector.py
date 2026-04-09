@@ -58,10 +58,14 @@ def detect_review_platforms(
             detected.append(DetectedPlatform("trustpilot", company_domain, "high"))
             logger.info("[detect] Found Trustpilot widget on page")
 
-    # Always include Google Reviews as a source (works by domain lookup)
-    detected.append(DetectedPlatform("google_reviews", company_domain, "medium"))
+        # Check Google Reviews widget presence (only add if detected, not as fallback)
+        if _detect_google_reviews_widget(html):
+            detected.append(DetectedPlatform("google_reviews", company_domain, "high"))
+            logger.info("[detect] Found Google Reviews widget on page")
 
     # Always include Trustpilot as fallback (works by domain without widget detection)
+    # Google Reviews NOT included as fallback — too prone to finding the wrong business
+    # for D2C e-commerce brands with ambiguous names
     if not any(p.platform == "trustpilot" for p in detected):
         detected.append(DetectedPlatform("trustpilot", company_domain, "low"))
 
@@ -187,3 +191,25 @@ def _detect_trustpilot_widget(html: str) -> bool:
     """Check if Trustpilot widgets are present on the page."""
     html_lower = html.lower()
     return any(sig.lower() in html_lower for sig in _TRUSTPILOT_SIGNATURES)
+
+
+# ---------------------------------------------------------------------------
+# Google Reviews detection (widget presence only)
+# ---------------------------------------------------------------------------
+
+_GOOGLE_REVIEWS_SIGNATURES = [
+    "google.com/maps",
+    "maps.googleapis.com",
+    "google-reviews",
+    "googlereviews",
+    "data-google-place",
+    "elfsight.com/google-review",
+    "widget.trustindex.io",
+    "google_review",
+]
+
+
+def _detect_google_reviews_widget(html: str) -> bool:
+    """Check if Google Reviews widgets are present on the page."""
+    html_lower = html.lower()
+    return any(sig.lower() in html_lower for sig in _GOOGLE_REVIEWS_SIGNATURES)
