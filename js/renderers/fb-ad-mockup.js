@@ -55,14 +55,14 @@ export function renderFBAdMockup({ adId, primaryText, headline, description, cta
                 <button class="pe-fb-ad__edit-save" data-ad-id="${adId}" type="button">Save</button>
             </div>`;
 
-    const isGated = window.currentClientIsLead && !window.leadAdsRevealed;
+    const isGated = window.currentClientIsLead && !window.leadAdsRevealed && !readOnly;
     const gatedClass = isGated ? ' pe-fb-ad--lead-gated' : '';
     const gatedWrapperClass = isGated ? ' pe-fb-ad__primary-text-wrapper--gated' : '';
     const gateOverlayHtml = isGated ? `
-                <div class="pe-fb-ad__gate-overlay">
-                    <div class="pe-fb-ad__gate-cta">
-                        <span class="pe-fb-ad__gate-cta-text">Book a Strategy Call</span>
-                        <span class="pe-fb-ad__gate-cta-sub">& Test These Ads For Free</span>
+                <div style="position:absolute;top:2em;left:0;right:0;bottom:0;min-height:80px;background:linear-gradient(to bottom,rgba(255,255,255,0) 0%,rgba(255,255,255,0.85) 25%,#fff 50%);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;z-index:2;">
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:8px;">
+                        <div onclick="if(window.Calendly){Calendly.initPopupWidget({url:'https://calendly.com/david-rawlings-gfm7/mapthegap-strategy-call'});return false;}" style="background:#B9F040;color:#1a1a1a;font-weight:700;font-size:14px;padding:10px 28px;border-radius:6px;cursor:pointer;border:2px solid #a8d835;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;white-space:nowrap;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.1);">Book a Strategy Call</div>
+                        <div style="font-size:12px;color:#65676b;text-align:center;">& Test These Ads For Free</div>
                     </div>
                 </div>` : '';
 
@@ -79,7 +79,7 @@ export function renderFBAdMockup({ adId, primaryText, headline, description, cta
                     </div>
                 </div>
             </div>
-            <div class="pe-fb-ad__primary-text-wrapper${gatedWrapperClass}" style="padding:8px 12px;margin:0;">
+            <div class="pe-fb-ad__primary-text-wrapper${gatedWrapperClass}" style="padding:8px 12px;margin:0;${isGated ? 'position:relative;' : ''}">
                 <div class="pe-fb-ad__primary-text" style="font-size:15px;line-height:1.4;color:#050505;margin:0;padding:0;">${primaryText}</div>
                 ${gateOverlayHtml}
             </div>

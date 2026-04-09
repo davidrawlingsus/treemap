@@ -2292,63 +2292,73 @@
 
 /* ─── Lead ad gating ──────────────────────────────────────────────── */
 
+/* The gated wrapper sits inside the primary text wrapper.
+   The card keeps its natural height — the overlay covers everything
+   below the first ~3 lines with a gradient fade to white + CTA. */
 .pe-fb-ad__primary-text-wrapper--gated {
     position: relative;
-    max-height: 6.5em;
-    overflow: hidden;
 }
 
 .pe-fb-ad__gate-overlay {
     position: absolute;
-    bottom: 0;
+    top: 3.2em;  /* start fading after ~2-3 lines of visible text */
     left: 0;
     right: 0;
-    height: 100%;
+    bottom: 0;
+    min-height: 80px;
     background: linear-gradient(
         to bottom,
-        transparent 0%,
-        transparent 25%,
-        rgba(255, 255, 255, 0.8) 55%,
-        #fff 80%
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.85) 30%,
+        #fff 55%
     );
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: center;
-    padding-bottom: 14px;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 2;
 }
 
 .pe-fb-ad__gate-cta {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
+    margin-top: 8px;
 }
 
-.pe-fb-ad__gate-cta-text {
+.pe-fb-ad__gate-cta-btn {
     background: #B9F040;
     color: #1a1a1a;
-    font-weight: 600;
+    font-weight: 700;
     font-size: 14px;
-    padding: 8px 20px;
-    border-radius: 4px;
+    padding: 10px 28px;
+    border-radius: 6px;
     cursor: pointer;
-    text-decoration: none;
-    border: none;
-    font-family: inherit;
+    border: 2px solid #a8d835;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    white-space: nowrap;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
-.pe-fb-ad__gate-cta-text:hover {
-    background: #a8e030;
+.pe-fb-ad__gate-cta-btn:hover {
+    background: #c5f55a;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
 .pe-fb-ad__gate-cta-sub {
+    display: block;
     font-size: 12px;
     color: #65676b;
+    text-align: center;
 }
 
-/* Hide media, link details, footer when gated */
+/* Hide media, link details, footer, edit icon when gated */
 .pe-fb-ad--lead-gated .pe-fb-ad__media,
 .pe-fb-ad--lead-gated .pe-fb-ad__link-details,
 .pe-fb-ad--lead-gated .pe-fb-ad__footer,
-.pe-fb-ad--lead-gated .pe-fb-ad__edit-controls {
-    display: none;
+.pe-fb-ad--lead-gated .pe-fb-ad__edit-controls,
+.pe-fb-ad--lead-gated .pe-fb-ad__edit-icon {
+    display: none !important;
 }

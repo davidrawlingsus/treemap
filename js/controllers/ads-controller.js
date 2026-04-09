@@ -34,6 +34,7 @@ import {
  * Initialize the Ads page - load and render ads
  */
 export async function initAdsPage() {
+    if (typeof window.updateLeadAdsToggle === 'function') window.updateLeadAdsToggle();
     const container = document.getElementById('adsGrid');
     if (!container) {
         console.error('[AdsController] adsGrid container not found');

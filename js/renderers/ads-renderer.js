@@ -273,6 +273,10 @@ function renderAdCard(ad) {
                 </div>
             </div>
             
+            <div class="ads-card__voc-evidence">
+                ${vocHtml}
+            </div>
+
             <div class="ads-card__mockup">
                 ${renderFBAdMockup({
                     adId: id,
@@ -285,22 +289,6 @@ function renderAdCard(ad) {
                     clientName,
                     imageUrl
                 })}
-            </div>
-            
-            <div class="ads-card__accordions">
-                <div class="ads-accordion">
-                    <button class="ads-accordion__trigger" data-accordion="voc-evidence">
-                        <span class="ads-accordion__title">VoC Evidence</span>
-                        <svg class="ads-accordion__chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                    </button>
-                    <div class="ads-accordion__content">
-                        <div class="ads-accordion__body">
-                            ${vocHtml}
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
     `;

@@ -34,6 +34,8 @@
     <link rel="stylesheet" href="/styles/app.css">
     <link rel="stylesheet" href="/styles/upgrade-prompts.css">
     <link rel="stylesheet" href="/styles/ads.css">
+    <link href="https://assets.calendly.com/assets/external/widget.css" rel="stylesheet">
+    <script src="https://assets.calendly.com/assets/external/widget.js" async></script>
     <link rel="stylesheet" href="/styles/emails.css">
     <link rel="stylesheet" href="/styles/emails-lanes.css">
     <link rel="stylesheet" href="/styles/images.css">
@@ -2075,6 +2077,8 @@
             const _selClient = allClients.find(c => c.client_uuid === clientId);
             window.currentClientIsLead = _selClient?.is_lead || false;
             window.leadAdsRevealed = false;
+            console.log('[LeadGate] selectClientAndLaunch:', clientId, 'allClients.length:', allClients.length, 'found:', !!_selClient, 'is_lead:', _selClient?.is_lead, 'currentClientIsLead:', window.currentClientIsLead);
+            if (typeof updateLeadAdsToggle === 'function') updateLeadAdsToggle();
 
             // Sync Insights tab client ID to keep both tabs in sync
             if (typeof insightsCurrentClientId !== 'undefined') {
@@ -2496,12 +2500,16 @@
                 // Set the select value to match the current client
                 if (currentClientId) {
                     select.value = currentClientId;
-                    
+
                     // Update header logo for initially selected client
                     const selectedClient = allClients.find(c => c.client_uuid === currentClientId);
                     if (selectedClient && typeof window.updateHeaderLogo === 'function') {
                         window.updateHeaderLogo(selectedClient.logo_url, selectedClient.header_color);
                     }
+
+                    // Set lead status for ad gating (allClients is now populated)
+                    window.currentClientIsLead = selectedClient?.is_lead || false;
+                    if (typeof updateLeadAdsToggle === 'function') updateLeadAdsToggle();
                     
                     // If we restored from URL, trigger the client selection to load data (only once)
                     // Check if we're in login/selection mode (login container visible or main container hidden)
@@ -2583,6 +2591,7 @@
             const _switchClient = allClients.find(c => c.client_uuid === newClientId);
             window.currentClientIsLead = _switchClient?.is_lead || false;
             window.leadAdsRevealed = false;
+            if (typeof updateLeadAdsToggle === 'function') updateLeadAdsToggle();
 
             // Sync Insights tab client ID to keep both tabs in sync
             if (typeof insightsCurrentClientId !== 'undefined') {
