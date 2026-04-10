@@ -503,10 +503,33 @@
     document.head.appendChild(style);
   }
 
-  // Find the first <hr> inside a container (divider between metadata and ad creative)
+  // Find insertion point: just after the ad copy div
   function findInsertionPoint(container) {
-    const hr = container.querySelector("hr");
-    return hr || null;
+    // The ad copy lives in a div with style="white-space: pre-wrap" inside ._7jyr
+    const copyWrapper = container.querySelector("._7jyr");
+    if (copyWrapper) return copyWrapper.nextSibling || copyWrapper;
+    // Fallback: look for the pre-wrap div directly
+    const preWrap = container.querySelector('div[style*="white-space: pre-wrap"]');
+    if (preWrap) {
+      // Walk up to the nearest block-level ancestor that contains just the copy
+      let el = preWrap;
+      for (let i = 0; i < 5 && el.parentElement; i++) {
+        if (el.parentElement.classList.contains("_7jyr") || el.parentElement === container) break;
+        el = el.parentElement;
+      }
+      return el.nextSibling || el;
+    }
+    return null;
+  }
+
+  // Insert panel at the insertion point
+  function insertAtPoint(container, panel) {
+    const ref = findInsertionPoint(container);
+    if (ref && ref.parentNode) {
+      ref.parentNode.insertBefore(panel, ref);
+    } else {
+      container.prepend(panel);
+    }
   }
 
   // ---- Inject analysis panel onto an ad card ----
@@ -520,13 +543,7 @@
     const panel = document.createElement("div");
     panel.className = "vzd-analysis";
     panel.innerHTML = html;
-
-    const hr = findInsertionPoint(container);
-    if (hr) {
-      hr.parentNode.insertBefore(panel, hr);
-    } else {
-      container.prepend(panel);
-    }
+    insertAtPoint(container, panel);
   }
 
   // Show loading indicator on an ad card
@@ -540,13 +557,7 @@
     const panel = document.createElement("div");
     panel.className = "vzd-analysis vzd-loading";
     panel.innerHTML = '<div class="vzd-loading-spinner"></div>Analyzing...';
-
-    const hr = findInsertionPoint(container);
-    if (hr) {
-      hr.parentNode.insertBefore(panel, hr);
-    } else {
-      container.prepend(panel);
-    }
+    insertAtPoint(container, panel);
   }
 
   // Download a media file from FB CDN via the MAIN world page-downloader.js
