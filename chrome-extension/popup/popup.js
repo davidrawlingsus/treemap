@@ -677,7 +677,13 @@ function renderSynthesisText(raw, streaming) {
   const block = raw.replace(/===SYNTHESIS===/g, "").replace(/===END===/g, "").trim();
   if (!block) return `<div class="panel-status">Generating synthesis...</div>`;
 
-  const opportunity = getField(block, "OPPORTUNITY");
+  const opportunityRaw = getField(block, "OPPORTUNITY");
+
+  // Extract just the number from "7 — long explanation text"
+  const oppMatch = opportunityRaw.match(/^(\d+)/);
+  const oppNum = oppMatch ? parseInt(oppMatch[1], 10) : 0;
+  const oppExplanation = opportunityRaw.replace(/^\d+\s*[—–-]\s*/, "").trim();
+
   const summary = getField(block, "SUMMARY");
 
   // Multi-line fields: PATTERNS and PLAYBOOK may have bullet points
@@ -690,12 +696,14 @@ function renderSynthesisText(raw, streaming) {
   const patterns = getMultiline("PATTERNS");
   const playbook = getMultiline("PLAYBOOK");
 
-  const oppNum = parseInt(opportunity, 10);
   const oppClass = oppNum >= 7 ? "opp-high" : oppNum >= 4 ? "opp-mid" : "opp-low";
 
   let html = `<div class="synthesis-card">`;
-  if (opportunity) {
-    html += `<div class="synthesis-opp-row"><span class="synthesis-label">Opportunity Score</span><span class="synthesis-opp ${oppClass}">${opportunity}/10</span></div>`;
+  if (oppNum) {
+    html += `<div class="synthesis-opp-row"><span class="synthesis-label">Opportunity Score</span><span class="synthesis-opp ${oppClass}">${oppNum}/10</span></div>`;
+  }
+  if (oppExplanation) {
+    html += `<div class="synthesis-summary">${escHtml(oppExplanation)}</div>`;
   }
   if (summary) {
     html += `<div class="synthesis-summary">${escHtml(summary)}</div>`;
