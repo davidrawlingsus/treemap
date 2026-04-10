@@ -4,8 +4,13 @@
  * and navigate freely while media is being processed.
  */
 
-const API_BASE = "https://api.mapthegap.ai";
-// const API_BASE = "http://localhost:8000";
+//const API_BASE = "https://api.mapthegap.ai";
+ const API_BASE = "http://localhost:8000";
+
+// ---- Open side panel on icon click ----
+chrome.action.onClicked.addListener(async (tab) => {
+  await chrome.sidePanel.open({ tabId: tab.id });
+});
 
 // ---- State ----
 let importState = {

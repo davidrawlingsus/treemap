@@ -3,14 +3,26 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MapTheGap Importer</title>
+  <title>MapTheGap — Ad Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
   <div class="popup">
     <div class="header">
-      <h1>MapTheGap</h1>
-      <p class="subtitle">Ad Library Importer</p>
+      <div class="header-row">
+        <div>
+          <h1><span class="brand-map">Map</span><span class="brand-the">The</span><span class="brand-gap">Gap</span></h1>
+          <p class="subtitle">Ad Intelligence</p>
+        </div>
+        <button id="extractBtn" class="btn-icon" style="display: none;" title="Re-extract ads from page">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M13.65 2.35A7.96 7.96 0 0 0 8 0C3.58 0 0 3.58 0 8s3.58 8 8 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 8 14 6 6 0 1 1 8 2c1.66 0 3.14.69 4.22 1.78L9 7h7V0l-2.35 2.35z" fill="currentColor"/>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <!-- Login -->
@@ -31,33 +43,59 @@
 
     <!-- Main -->
     <div id="mainSection" class="section" style="display: none;">
-      <div class="user-bar">
-        <span id="userEmail" class="user-email"></span>
-        <button id="logoutBtn" class="btn-link">Logout</button>
-      </div>
-
-      <div id="clientGroup">
-        <label for="clientSelect" class="label">Import to</label>
-        <select id="clientSelect">
-          <option value="">Select a brand</option>
-        </select>
-      </div>
-
-      <label class="checkbox-label" id="leadgenLabel">
-        <input type="checkbox" id="leadgenToggle">
-        <span>Trigger lead gen flow</span>
-      </label>
-      <p id="leadgenInfo" class="description muted" style="display: none;">
-        Pipeline results will be sent to <strong id="leadgenEmail"></strong>
-      </p>
-
-      <button id="extractBtn" class="btn btn-primary" disabled>Extract Ads from Page</button>
+      <span id="userEmail" style="display:none;"></span>
 
       <div id="extractResult" style="display: none;">
         <p id="extractCount" class="extract-count"></p>
-        <div class="btn-row">
-          <button id="importBtn" class="btn btn-success">Import</button>
-          <button id="analyzeBtn" class="btn btn-analyze">Analyze</button>
+
+        <!-- Ad Scores Section -->
+        <div class="panel-section">
+          <h3 class="panel-heading">Ad Scores</h3>
+          <div id="adAnalysisLoading" class="loading-state">
+            <div class="spinner"></div>
+            <p>Analyzing ad copy...</p>
+          </div>
+          <div id="adAnalysisResults"></div>
+        </div>
+
+        <!-- Reviews Section -->
+        <div class="panel-section">
+          <h3 class="panel-heading">Reviews</h3>
+          <div id="reviewEngineLoading" class="loading-state">
+            <div class="spinner"></div>
+            <p>Detecting review platforms...</p>
+          </div>
+          <div id="reviewEngineResults"></div>
+
+          <!-- Signal (sub-section) -->
+          <div id="reviewSignalSection" style="display: none;">
+            <h4 class="panel-subheading">Signal</h4>
+            <div id="reviewSignalLoading" class="loading-state">
+              <div class="spinner"></div>
+              <p>Analyzing review signal...</p>
+            </div>
+            <div id="reviewSignalResults"></div>
+          </div>
+        </div>
+
+        <!-- Import controls -->
+        <div class="import-section">
+          <div id="clientGroup">
+            <label for="clientSelect" class="label">Import to</label>
+            <select id="clientSelect">
+              <option value="">Select a brand</option>
+            </select>
+          </div>
+
+          <label class="checkbox-label" id="leadgenLabel">
+            <input type="checkbox" id="leadgenToggle">
+            <span>Trigger lead gen flow</span>
+          </label>
+          <p id="leadgenInfo" class="description muted" style="display: none;">
+            Pipeline results will be sent to <strong id="leadgenEmail"></strong>
+          </p>
+
+          <button id="importBtn" class="btn btn-success btn-import-full" disabled>Import Ads</button>
         </div>
       </div>
 
@@ -72,48 +110,6 @@
       </div>
       <p class="description muted" id="progressLabel">Uploading media 0/0</p>
       <p class="description muted">You can close this popup — the import continues in the background.</p>
-    </div>
-
-    <!-- Analysis results -->
-    <div id="analysisSection" class="section" style="display: none;">
-      <div class="analysis-header">
-        <h2>Ad Intelligence</h2>
-        <button id="analysisBackBtn" class="btn-link">Back</button>
-      </div>
-
-      <!-- Tab bar -->
-      <div class="tab-bar">
-        <button class="tab active" data-tab="adAnalysis">Ad Scores</button>
-        <button class="tab" data-tab="reviewEngine">Reviews</button>
-        <button class="tab" data-tab="reviewSignal">Signal</button>
-      </div>
-
-      <!-- Ad Analysis Panel -->
-      <div id="adAnalysisPanel" class="tab-panel active">
-        <div id="adAnalysisLoading" class="loading-state">
-          <div class="spinner"></div>
-          <p>Analyzing ad copy...</p>
-        </div>
-        <div id="adAnalysisResults"></div>
-      </div>
-
-      <!-- Review Engine Panel -->
-      <div id="reviewEnginePanel" class="tab-panel">
-        <div id="reviewEngineLoading" class="loading-state">
-          <div class="spinner"></div>
-          <p>Detecting review platforms...</p>
-        </div>
-        <div id="reviewEngineResults"></div>
-      </div>
-
-      <!-- Review Signal Panel -->
-      <div id="reviewSignalPanel" class="tab-panel">
-        <div id="reviewSignalLoading" class="loading-state">
-          <div class="spinner"></div>
-          <p>Fetching &amp; analyzing reviews...</p>
-        </div>
-        <div id="reviewSignalResults"></div>
-      </div>
     </div>
 
     <!-- Not on ads library page -->

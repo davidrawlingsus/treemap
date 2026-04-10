@@ -1,13 +1,16 @@
 """
 Extension analysis API — ad copy analysis, review engine detection, review signal scoring.
 
-Called by the Chrome extension popup after ad extraction.
+Called by the Chrome extension sidebar after ad extraction.
+Ad analysis and review signal endpoints stream text via SSE.
 """
+import json
 import logging
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.auth import get_current_user_flexible
@@ -39,10 +42,6 @@ class AnalyzeAdsRequest(BaseModel):
     ads: List[AdForAnalysis] = Field(..., min_length=1, max_length=50)
 
 
-class AnalyzeAdsResponse(BaseModel):
-    results: List[Dict[str, Any]]
-
-
 class DetectReviewsRequest(BaseModel):
     destination_url: str = Field(..., description="Destination URL from any extracted ad")
 
@@ -54,6 +53,7 @@ class DetectedPlatformResponse(BaseModel):
     confidence: str
     scrapable: bool
     scraper_notes: str
+    review_url: Optional[str] = None
 
 
 class DetectReviewsResponse(BaseModel):
@@ -66,13 +66,6 @@ class AnalyzeReviewSignalRequest(BaseModel):
     destination_url: str = Field(..., description="Destination URL to find reviews for")
     platform: Optional[str] = Field(None, description="Specific platform to use (auto-detect if omitted)")
     max_reviews: int = Field(20, ge=1, le=50)
-
-
-class AnalyzeReviewSignalResponse(BaseModel):
-    platform_used: str
-    platform_display: str
-    review_count: int
-    signal_results: List[Dict[str, Any]]
 
 
 # ---------------------------------------------------------------------------
@@ -101,6 +94,23 @@ SCRAPER_NOTES = {
     "okendo": "Widget API available via subscriber ID.",
 }
 
+def _build_review_url(platform: str, identifier: str, domain: str) -> Optional[str]:
+    """Construct a public review page URL where available."""
+    if platform == "trustpilot" and domain:
+        return f"https://www.trustpilot.com/review/{domain}"
+    if platform == "reviews_io" and identifier:
+        return f"https://www.reviews.io/company-reviews/store/{identifier}"
+    if platform == "judge_me" and identifier:
+        return f"https://judge.me/reviews/{identifier}"
+    return None
+
+
+SSE_HEADERS = {
+    "Cache-Control": "no-cache",
+    "X-Accel-Buffering": "no",
+    "Connection": "keep-alive",
+}
+
 
 def _extract_domain(url: str) -> tuple:
     """Extract (domain, full_url) from a destination URL."""
@@ -108,12 +118,10 @@ def _extract_domain(url: str) -> tuple:
         parsed = urlparse(url)
         host = (parsed.netloc or "").lower().split(":")[0]
         if not host:
-            # Try adding scheme
             parsed = urlparse(f"https://{url}")
             host = (parsed.netloc or "").lower().split(":")[0]
         if host.startswith("www."):
             host = host[4:]
-        # Skip FB tracking redirects
         if "facebook.com" in host or "fb.com" in host:
             return "", ""
         return host, f"https://{host}"
@@ -121,30 +129,64 @@ def _extract_domain(url: str) -> tuple:
         return "", ""
 
 
+def _sse_generator(text_gen):
+    """Wrap a text generator into SSE data: lines."""
+    for chunk in text_gen:
+        # Escape newlines for SSE — send each chunk as a data line
+        escaped = chunk.replace("\n", "\ndata: ")
+        yield f"data: {escaped}\n\n"
+    yield "data: [DONE]\n\n"
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
 
-@router.post("/analyze-ads", response_model=AnalyzeAdsResponse)
+@router.post("/analyze-ads")
 def analyze_ads(
     body: AnalyzeAdsRequest,
     current_user: User = Depends(get_current_user_flexible),
 ):
-    """Analyze extracted ad copy through the Full Funnel rubric.
-
-    Returns per-ad scores for hook, mind-movie, specificity, emotional charge,
-    VoC density, funnel stage, latency, and an overall grade.
-    """
+    """Stream Full Funnel ad analysis as formatted text via SSE."""
     settings = get_settings()
     if not settings.anthropic_api_key:
         raise HTTPException(status_code=503, detail="Anthropic API key not configured")
 
-    from app.services.ad_analysis_service import analyze_ads_full_funnel
+    from app.services.ad_analysis_service import stream_ads_analysis
 
     ads_data = [ad.model_dump() for ad in body.ads]
-    results = analyze_ads_full_funnel(ads_data, settings.anthropic_api_key)
+    text_gen = stream_ads_analysis(ads_data, settings.anthropic_api_key)
 
-    return AnalyzeAdsResponse(results=results)
+    return StreamingResponse(
+        _sse_generator(text_gen),
+        media_type="text/event-stream",
+        headers=SSE_HEADERS,
+    )
+
+
+class SynthesisRequest(BaseModel):
+    analysis_text: str = Field(..., description="Full per-ad analysis text to synthesize")
+
+
+@router.post("/synthesize")
+def synthesize_ads(
+    body: SynthesisRequest,
+    current_user: User = Depends(get_current_user_flexible),
+):
+    """Stream opportunity synthesis based on completed ad analysis."""
+    settings = get_settings()
+    if not settings.anthropic_api_key:
+        raise HTTPException(status_code=503, detail="Anthropic API key not configured")
+
+    from app.services.ad_analysis_service import stream_synthesis
+
+    text_gen = stream_synthesis(body.analysis_text, settings.anthropic_api_key)
+
+    return StreamingResponse(
+        _sse_generator(text_gen),
+        media_type="text/event-stream",
+        headers=SSE_HEADERS,
+    )
 
 
 @router.post("/detect-reviews", response_model=DetectReviewsResponse)
@@ -152,12 +194,7 @@ def detect_reviews(
     body: DetectReviewsRequest,
     current_user: User = Depends(get_current_user_flexible),
 ):
-    """Detect which review platform(s) a business uses from their website.
-
-    Fetches the destination URL's homepage HTML and checks for known
-    review widget signatures (Trustpilot, Yotpo, Reviews.io, Judge.me, etc.).
-    Reports whether each platform can be scraped programmatically.
-    """
+    """Detect which review platform(s) a business uses from their website."""
     domain, company_url = _extract_domain(body.destination_url)
     if not domain:
         raise HTTPException(status_code=400, detail="Could not extract domain from URL")
@@ -171,6 +208,7 @@ def detect_reviews(
         display = PLATFORM_DISPLAY.get(p.platform, p.platform.title())
         notes = SCRAPER_NOTES.get(p.platform, "Manual scraping may be required.")
         scrapable = p.platform in {"trustpilot", "reviews_io", "yotpo", "google_reviews", "judge_me"}
+        review_url = _build_review_url(p.platform, p.identifier, domain)
         platforms.append(DetectedPlatformResponse(
             platform=p.platform,
             platform_display=display,
@@ -178,6 +216,7 @@ def detect_reviews(
             confidence=p.confidence,
             scrapable=scrapable,
             scraper_notes=notes,
+            review_url=review_url,
         ))
 
     return DetectReviewsResponse(
@@ -187,16 +226,12 @@ def detect_reviews(
     )
 
 
-@router.post("/analyze-review-signal", response_model=AnalyzeReviewSignalResponse)
+@router.post("/analyze-review-signal")
 def analyze_review_signal(
     body: AnalyzeReviewSignalRequest,
     current_user: User = Depends(get_current_user_flexible),
 ):
-    """Fetch reviews from detected platform and analyze them for signal quality.
-
-    High-signal reviews are full of emotion, transformation arcs, and specific detail.
-    Low-signal reviews are generic praise ("fast shipping", "great CS").
-    """
+    """Stream review signal analysis as formatted text via SSE."""
     settings = get_settings()
     if not settings.anthropic_api_key:
         raise HTTPException(status_code=503, detail="Anthropic API key not configured")
@@ -216,34 +251,32 @@ def analyze_review_signal(
     )
 
     if not fetch_result.reviews:
-        return AnalyzeReviewSignalResponse(
-            platform_used=fetch_result.platform,
-            platform_display=fetch_result.platform_display,
-            review_count=0,
-            signal_results=[{
-                "summary": True,
-                "total_reviews": 0,
-                "high_signal_count": 0,
-                "medium_signal_count": 0,
-                "low_signal_count": 0,
-                "overall_signal_grade": "F",
-                "top_themes": [],
-                "verdict": f"No reviews found for {domain}."
-            }],
+        # Return a static SSE stream for "no reviews"
+        def no_reviews_gen():
+            yield "===SUMMARY===\n"
+            yield f"GRADE: F\nHIGH: 0\nMEDIUM: 0\nLOW: 0\n"
+            yield f"THEMES: none\n"
+            yield f"VERDICT: No reviews found for {domain}.\n"
+            yield "===END==="
+
+        return StreamingResponse(
+            _sse_generator(no_reviews_gen()),
+            media_type="text/event-stream",
+            headers={**SSE_HEADERS, "X-Platform": fetch_result.platform or "",
+                     "X-Platform-Display": fetch_result.platform_display or ""},
         )
 
-    # Analyze signal quality
-    from app.services.ad_analysis_service import analyze_review_signal as _analyze
+    from app.services.ad_analysis_service import stream_review_signal
 
-    signal_results = _analyze(
+    text_gen = stream_review_signal(
         fetch_result.reviews,
         settings.anthropic_api_key,
         max_reviews=body.max_reviews,
     )
 
-    return AnalyzeReviewSignalResponse(
-        platform_used=fetch_result.platform,
-        platform_display=fetch_result.platform_display,
-        review_count=len(fetch_result.reviews),
-        signal_results=signal_results,
+    return StreamingResponse(
+        _sse_generator(text_gen),
+        media_type="text/event-stream",
+        headers={**SSE_HEADERS, "X-Platform": fetch_result.platform or "",
+                 "X-Platform-Display": fetch_result.platform_display or ""},
     )

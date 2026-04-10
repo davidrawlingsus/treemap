@@ -4,8 +4,8 @@
  * Media upload runs in the service worker so it survives popup close.
  */
 
-const API_BASE = "https://api.mapthegap.ai";
-// const API_BASE = "http://localhost:8000"; // uncomment for local dev
+//const API_BASE = "https://api.mapthegap.ai";
+const API_BASE = "http://localhost:8000"; // uncomment for local dev
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -18,7 +18,7 @@ const loginSection = $("#loginSection");
 const mainSection = $("#mainSection");
 const wrongPageSection = $("#wrongPageSection");
 const progressSection = $("#progressSection");
-const analysisSection = $("#analysisSection");
+// analysisSection removed — tabs are inline
 const emailInput = $("#emailInput");
 const sendLinkBtn = $("#sendLinkBtn");
 const loginMessage = $("#loginMessage");
@@ -31,7 +31,7 @@ const extractBtn = $("#extractBtn");
 const extractResult = $("#extractResult");
 const extractCount = $("#extractCount");
 const importBtn = $("#importBtn");
-const analyzeBtn = $("#analyzeBtn");
+// analyzeBtn removed — analysis runs automatically after extraction
 const statusMessage = $("#statusMessage");
 const progressFill = $("#progressFill");
 const progressLabel = $("#progressLabel");
@@ -39,7 +39,7 @@ const leadgenToggle = $("#leadgenToggle");
 const leadgenInfo = $("#leadgenInfo");
 const leadgenEmail = $("#leadgenEmail");
 const clientGroup = $("#clientGroup");
-const analysisBackBtn = $("#analysisBackBtn");
+// analysisSection removed — analysis is now inline in mainSection
 
 // ---- Helpers ----
 function showMessage(el, text, type = "info") {
@@ -58,7 +58,6 @@ function hideAllSections() {
   wrongPageSection.style.display = "none";
   waitingSection.style.display = "none";
   progressSection.style.display = "none";
-  analysisSection.style.display = "none";
 }
 
 async function getToken() {
@@ -208,6 +207,9 @@ async function showMain(user) {
   }
 
   await loadClients(user);
+
+  // Auto-extract and analyze on open
+  autoExtractAndAnalyze(tab);
 }
 
 async function loadClients(user) {
@@ -249,8 +251,7 @@ async function loadClients(user) {
   }
 
   clientSelect.addEventListener("change", () => {
-    extractBtn.disabled = !leadgenToggle.checked && !clientSelect.value;
-    extractResult.style.display = "none";
+    importBtn.disabled = !leadgenToggle.checked && !clientSelect.value;
     hideMessage(statusMessage);
   });
 }
@@ -262,11 +263,10 @@ leadgenToggle.addEventListener("change", () => {
   leadgenInfo.style.display = checked ? "block" : "none";
   if (checked) {
     leadgenEmail.textContent = userEmail.textContent;
-    extractBtn.disabled = false;
+    importBtn.disabled = false;
   } else {
-    extractBtn.disabled = !clientSelect.value;
+    importBtn.disabled = !clientSelect.value;
   }
-  extractResult.style.display = "none";
   hideMessage(statusMessage);
 });
 
@@ -302,7 +302,7 @@ $("#resetAuthBtn")?.addEventListener("click", async () => {
 });
 
 // ---- Logout ----
-logoutBtn.addEventListener("click", async () => {
+logoutBtn?.addEventListener("click", async () => {
   await clearToken();
   extractedAds = null;
   extractResult.style.display = "none";
@@ -310,15 +310,14 @@ logoutBtn.addEventListener("click", async () => {
   showLogin();
 });
 
-// ---- Extract ----
-extractBtn.addEventListener("click", async () => {
+// ---- Auto-extract on popup open ----
+async function autoExtractAndAnalyze(tab) {
   extractBtn.disabled = true;
-  extractBtn.textContent = "Extracting...";
+  extractBtn.classList.add("btn-icon-spin");
   hideMessage(statusMessage);
   extractResult.style.display = "none";
 
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     const response = await chrome.tabs.sendMessage(tab.id, { action: "extractAds" });
 
     if (!response || !response.success) {
@@ -334,6 +333,8 @@ extractBtn.addEventListener("click", async () => {
     );
     extractCount.textContent = `Found ${extractedAds.length} ads with ${mediaCount} media items`;
     extractResult.style.display = "block";
+
+    startAnalysis();
   } catch (err) {
     showMessage(
       statusMessage,
@@ -341,9 +342,16 @@ extractBtn.addEventListener("click", async () => {
       "error"
     );
   } finally {
-    extractBtn.disabled = !leadgenToggle.checked && !clientSelect.value;
-    extractBtn.textContent = "Extract Ads from Page";
+    extractBtn.disabled = false;
+    extractBtn.classList.remove("btn-icon-spin");
+    extractBtn.style.display = "flex";
   }
+}
+
+// ---- Manual re-extract ----
+extractBtn.addEventListener("click", async () => {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  autoExtractAndAnalyze(tab);
 });
 
 // ---- Import (delegate to service worker) ----
@@ -396,32 +404,12 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 // =========================================================================
-// ANALYSIS FLOW
+// ANALYSIS FLOW — SSE streaming with progressive rendering
 // =========================================================================
 
-// ---- Tab switching ----
-document.querySelectorAll(".tab").forEach((tab) => {
-  tab.addEventListener("click", () => {
-    document.querySelectorAll(".tab").forEach((t) => t.classList.remove("active"));
-    document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
-    tab.classList.add("active");
-    const panelId = tab.dataset.tab + "Panel";
-    document.getElementById(panelId)?.classList.add("active");
-  });
-});
-
-// ---- Back button ----
-analysisBackBtn.addEventListener("click", () => {
-  hideAllSections();
-  mainSection.style.display = "block";
-});
-
-// ---- Analyze button ----
-analyzeBtn.addEventListener("click", async () => {
+// ---- Auto-analysis after extraction ----
+function startAnalysis() {
   if (!extractedAds || extractedAds.length === 0) return;
-
-  hideAllSections();
-  analysisSection.style.display = "block";
 
   // Reset panels
   $("#adAnalysisLoading").style.display = "block";
@@ -441,10 +429,10 @@ analyzeBtn.addEventListener("click", async () => {
   }
 
   // Fire all 3 API calls in parallel
-  runAdAnalysis();
+  streamAdAnalysis();
   if (destinationUrl) {
     runReviewDetection(destinationUrl);
-    runReviewSignal(destinationUrl);
+    streamReviewSignal(destinationUrl);
   } else {
     $("#reviewEngineLoading").style.display = "none";
     $("#reviewEngineResults").innerHTML =
@@ -453,137 +441,279 @@ analyzeBtn.addEventListener("click", async () => {
     $("#reviewSignalResults").innerHTML =
       '<div class="panel-empty">No destination URL found in ads — cannot analyze reviews.</div>';
   }
-});
+}
 
-// ---- Ad Analysis ----
-async function runAdAnalysis() {
+// ---- SSE helper: stream a POST endpoint, accumulate text, call render on each chunk ----
+async function streamSSE(path, body, onChunk, onDone, onError) {
   try {
-    const res = await apiFetch("/api/extension/analyze-ads", {
+    const token = await getToken();
+    const res = await fetch(`${API_BASE}${path}`, {
       method: "POST",
-      body: JSON.stringify({
-        ads: extractedAds.map((ad) => ({
-          library_id: ad.library_id || null,
-          primary_text: ad.primary_text || "",
-          headline: ad.headline || null,
-          description: ad.description || null,
-          cta: ad.cta || null,
-          ad_format: ad.ad_format || null,
-          started_running_on: ad.started_running_on || null,
-          ad_delivery_end_time: ad.ad_delivery_end_time || null,
-          status: ad.status || null,
-          destination_url: ad.destination_url || null,
-        })),
-      }),
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
     });
-
-    $("#adAnalysisLoading").style.display = "none";
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      $("#adAnalysisResults").innerHTML =
-        `<div class="panel-error">Analysis failed: ${err.detail || res.status}</div>`;
+      onError(err.detail || `HTTP ${res.status}`);
       return;
     }
 
-    const data = await res.json();
-    renderAdAnalysis(data.results);
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let accumulated = "";
+    let lineBuf = "";
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      lineBuf += decoder.decode(value, { stream: true });
+
+      // SSE events are separated by blank lines (\n\n)
+      const events = lineBuf.split("\n\n");
+      // Last element may be incomplete — keep it in buffer
+      lineBuf = events.pop() || "";
+
+      for (const event of events) {
+        if (!event.trim()) continue;
+        // Each event may have multiple "data: " lines (one per source newline)
+        // Reassemble them with newlines to preserve the original text structure
+        const dataLines = event.split("\n")
+          .filter((l) => l.startsWith("data: "))
+          .map((l) => l.slice(6));
+
+        const payload = dataLines.join("\n");
+        if (payload === "[DONE]") {
+          onDone(accumulated);
+          return;
+        }
+        accumulated += payload;
+        onChunk(accumulated);
+      }
+    }
+    onDone(accumulated);
   } catch (err) {
-    $("#adAnalysisLoading").style.display = "none";
-    $("#adAnalysisResults").innerHTML =
-      `<div class="panel-error">Network error: ${err.message}</div>`;
+    onError(err.message);
   }
 }
 
-function scoreClass(n) {
-  if (n >= 7) return "score-high";
-  if (n >= 4) return "score-mid";
-  return "score-low";
-}
-
-function renderAdAnalysis(results) {
+// ---- Ad Analysis (streaming → injected onto page) ----
+async function streamAdAnalysis() {
   const container = $("#adAnalysisResults");
-  if (!results || results.length === 0 || results[0]?.error) {
-    container.innerHTML = `<div class="panel-error">${results?.[0]?.error || "No results returned."}</div>`;
-    return;
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tabId = tab?.id;
+
+  // Show loading indicators on each ad card
+  if (tabId) {
+    for (let i = 0; i < extractedAds.length; i++) {
+      chrome.tabs.sendMessage(tabId, { action: "injectLoading", adIndex: i })
+        .catch((e) => console.warn(`[VZD] injectLoading failed for ad ${i}:`, e));
+    }
+  } else {
+    console.warn("[VZD] No active tab found for injection");
   }
 
-  container.innerHTML = results
-    .map((r, i) => {
-      const grade = r.overall_grade || "?";
-      const gradeClass = `grade-${grade}`;
-      const latencyClass = `latency-${(r.latency_rating || "medium").toLowerCase()}`;
-      const funnelClass = `funnel-${r.funnel_stage || "TOF"}`;
+  let injectedCount = 0;
+  let lastInjectedCount = 0;
 
-      return `
-        <div class="ad-card" id="adCard${i}">
-          <div class="ad-card-header">
-            <span class="ad-card-id">${r.library_id ? "ID: " + r.library_id : "Ad " + (i + 1)}</span>
-            <span class="grade-badge ${gradeClass}">${grade}</span>
-          </div>
-          <div class="verdict-line">${escHtml(r.one_line_verdict || "")}</div>
-          ${r.biggest_weakness ? `<div class="weakness-line">Weakness: ${escHtml(r.biggest_weakness)}</div>` : ""}
-          <div class="score-grid">
-            <div class="score-row">
-              <span class="score-label">Hook</span>
-              <span class="score-value ${scoreClass(r.hook_score)}">${r.hook_score ?? "-"}/10</span>
-            </div>
-            <div class="score-row">
-              <span class="score-label">Mind Movie</span>
-              <span class="score-value ${scoreClass(r.mind_movie_score)}">${r.mind_movie_score ?? "-"}/10</span>
-            </div>
-            <div class="score-row">
-              <span class="score-label">Specificity</span>
-              <span class="score-value ${scoreClass(r.specificity_score)}">${r.specificity_score ?? "-"}/10</span>
-            </div>
-            <div class="score-row">
-              <span class="score-label">Emotion</span>
-              <span class="score-value ${scoreClass(r.emotional_charge)}">${r.emotional_charge ?? "-"}/10</span>
-            </div>
-            <div class="score-row">
-              <span class="score-label">VoC Density</span>
-              <span class="score-value ${scoreClass(r.voc_density)}">${r.voc_density ?? "-"}/10</span>
-            </div>
-            <div class="score-row">
-              <span class="score-label">Latency</span>
-              <span class="latency-badge ${latencyClass}">${r.latency_rating || "?"}</span>
-            </div>
-            <div class="score-row">
-              <span class="score-label">Funnel</span>
-              <span class="funnel-badge ${funnelClass}">${r.funnel_stage || "?"}</span>
-            </div>
-            ${r.ad_age_days != null ? `
-            <div class="score-row">
-              <span class="score-label">Age</span>
-              <span class="score-value">${r.ad_age_days}d</span>
-            </div>` : ""}
-          </div>
-          <button class="expand-btn" onclick="toggleAdDetail(${i})">Show detail</button>
-          <div class="score-detail">
-            ${r.hook_analysis ? `<p><strong>Hook:</strong> ${escHtml(r.hook_analysis)}</p>` : ""}
-            ${r.mind_movie_analysis ? `<p><strong>Mind Movie:</strong> ${escHtml(r.mind_movie_analysis)}</p>` : ""}
-            ${r.specificity_analysis ? `<p><strong>Specificity:</strong> ${escHtml(r.specificity_analysis)}</p>` : ""}
-            ${r.emotional_analysis ? `<p><strong>Emotion:</strong> ${escHtml(r.emotional_analysis)}</p>` : ""}
-            ${r.voc_analysis ? `<p><strong>VoC:</strong> ${escHtml(r.voc_analysis)}</p>` : ""}
-            ${r.latency_analysis ? `<p><strong>Latency:</strong> ${escHtml(r.latency_analysis)}</p>` : ""}
-            ${r.funnel_reasoning ? `<p><strong>Funnel:</strong> ${escHtml(r.funnel_reasoning)}</p>` : ""}
-            ${r.longevity_signal ? `<p><strong>Longevity:</strong> ${escHtml(r.longevity_signal)}</p>` : ""}
-          </div>
-        </div>
-      `;
-    })
-    .join("");
+  function injectCompletedBlocks(text) {
+    const completedBlocks = parseCompletedAdBlocks(text);
+    for (let i = lastInjectedCount; i < completedBlocks.length; i++) {
+      const html = buildAdCardHtml(completedBlocks[i]);
+      if (tabId) {
+        chrome.tabs.sendMessage(tabId, { action: "injectAnalysis", adIndex: i, html })
+          .then((resp) => console.log(`[VZD] Injected ad ${i}:`, resp))
+          .catch((e) => console.warn(`[VZD] injectAnalysis failed for ad ${i}:`, e));
+      }
+      injectedCount++;
+    }
+    lastInjectedCount = completedBlocks.length;
+  }
+
+  streamSSE(
+    "/api/extension/analyze-ads",
+    {
+      ads: extractedAds.map((ad) => ({
+        library_id: ad.library_id || null,
+        primary_text: ad.primary_text || "",
+        headline: ad.headline || null,
+        description: ad.description || null,
+        cta: ad.cta || null,
+        ad_format: ad.ad_format || null,
+        started_running_on: ad.started_running_on || null,
+        ad_delivery_end_time: ad.ad_delivery_end_time || null,
+        status: ad.status || null,
+        destination_url: ad.destination_url || null,
+      })),
+    },
+    // onChunk
+    (text) => {
+      $("#adAnalysisLoading").style.display = "none";
+      injectCompletedBlocks(text);
+      container.innerHTML = `<div class="panel-status">Analyzing ${injectedCount} of ${extractedAds.length} ads...</div>`;
+    },
+    // onDone
+    (text) => {
+      $("#adAnalysisLoading").style.display = "none";
+      injectCompletedBlocks(text);
+      container.innerHTML = `<div class="panel-status">All ${injectedCount} ads analyzed — generating synthesis...</div>`;
+      // Fire synthesis
+      streamSynthesis(text, container);
+    },
+    // onError
+    (msg) => {
+      $("#adAnalysisLoading").style.display = "none";
+      container.innerHTML = `<div class="panel-error">Analysis failed: ${escHtml(msg)}</div>`;
+    }
+  );
 }
 
-// Toggle expand/collapse for ad detail
-window.toggleAdDetail = function (i) {
-  const card = document.getElementById(`adCard${i}`);
-  if (!card) return;
-  card.classList.toggle("expanded");
-  const btn = card.querySelector(".expand-btn");
-  if (btn) btn.textContent = card.classList.contains("expanded") ? "Hide detail" : "Show detail";
-};
+// ---- Parse completed ===AD=== ... ===END=== blocks from streamed text ----
+function parseCompletedAdBlocks(raw) {
+  const blocks = [];
+  const parts = raw.split("===AD===").slice(1); // skip anything before first marker
+  for (const part of parts) {
+    const endIdx = part.indexOf("===END===");
+    if (endIdx === -1) continue; // block not yet complete
+    blocks.push(part.substring(0, endIdx).trim());
+  }
+  return blocks;
+}
 
-// ---- Review Engine Detection ----
+// ---- Extract a field from a text block ----
+function getField(block, label) {
+  const re = new RegExp(`^${label}:\\s*(.+)$`, "m");
+  const m = block.match(re);
+  return m ? m[1].trim() : "";
+}
+
+// ---- Build HTML for injection onto the FB page ad card ----
+function buildAdCardHtml(block) {
+  const grade = getField(block, "GRADE");
+  const verdict = getField(block, "VERDICT");
+  const weakness = getField(block, "WEAKNESS");
+  const longevity = getField(block, "LONGEVITY");
+
+  // Score line: "7 — Analysis text here" → score badge + analysis text
+  const scoreHtml = (label, display) => {
+    const raw = getField(block, label);
+    if (!raw) return "";
+    const m = raw.match(/^(\d+)\s*[—–-]\s*(.+)$/);
+    if (m) {
+      const n = parseInt(m[1], 10);
+      const cls = n >= 7 ? "vzd-score-high" : n >= 4 ? "vzd-score-mid" : "vzd-score-low";
+      return `
+        <div class="vzd-dimension">
+          <div class="vzd-score-item">
+            <span class="vzd-score-label">${display}</span>
+            <span class="vzd-score-val ${cls}">${n}/10</span>
+          </div>
+          <div class="vzd-score-reason">${escHtml(m[2])}</div>
+        </div>`;
+    }
+    return `<div class="vzd-dimension"><div class="vzd-score-item"><span class="vzd-score-label">${display}</span></div><div class="vzd-score-reason">${escHtml(raw)}</div></div>`;
+  };
+
+  // Tag line: "low — Analysis text" → tag badge + analysis text
+  const tagHtml = (label, display, prefix) => {
+    const raw = getField(block, label);
+    if (!raw) return "";
+    const m = raw.match(/^(\S+)\s*[—–-]\s*(.+)$/);
+    if (m) {
+      return `
+        <div class="vzd-dimension">
+          <div class="vzd-score-item">
+            <span class="vzd-score-label">${display}</span>
+            <span class="vzd-tag ${prefix}-${m[1].toLowerCase()}">${m[1]}</span>
+          </div>
+          <div class="vzd-score-reason">${escHtml(m[2])}</div>
+        </div>`;
+    }
+    return `<div class="vzd-dimension"><div class="vzd-score-item"><span class="vzd-score-label">${display}</span></div><div class="vzd-score-reason">${escHtml(raw)}</div></div>`;
+  };
+
+  return `
+    <div class="vzd-grade-row">
+      ${grade ? `<span class="vzd-grade vzd-grade-${grade}">${grade}</span>` : ""}
+      ${verdict ? `<span class="vzd-verdict">${escHtml(verdict)}</span>` : ""}
+    </div>
+    ${weakness ? `<div class="vzd-weakness">Weakness: ${escHtml(weakness)}</div>` : ""}
+    ${scoreHtml("HOOK", "Hook")}
+    ${scoreHtml("MIND MOVIE", "Mind Movie")}
+    ${scoreHtml("SPECIFICITY", "Specificity")}
+    ${scoreHtml("EMOTION", "Emotion")}
+    ${scoreHtml("VOC DENSITY", "VoC Density")}
+    ${tagHtml("LATENCY", "Latency", "vzd-latency")}
+    ${tagHtml("FUNNEL", "Funnel", "vzd-funnel")}
+    ${longevity ? `<div class="vzd-longevity">${escHtml(longevity)}</div>` : ""}
+  `;
+}
+
+// ---- Opportunity Synthesis (streams into sidebar after all ads analyzed) ----
+function streamSynthesis(analysisText, container) {
+  streamSSE(
+    "/api/extension/synthesize",
+    { analysis_text: analysisText },
+    // onChunk
+    (text) => {
+      container.innerHTML = renderSynthesisText(text, true);
+    },
+    // onDone
+    (text) => {
+      container.innerHTML = renderSynthesisText(text, false);
+    },
+    // onError
+    (msg) => {
+      container.innerHTML = `<div class="panel-error">Synthesis failed: ${escHtml(msg)}</div>`;
+    }
+  );
+}
+
+function renderSynthesisText(raw, streaming) {
+  const block = raw.replace(/===SYNTHESIS===/g, "").replace(/===END===/g, "").trim();
+  if (!block) return `<div class="panel-status">Generating synthesis...</div>`;
+
+  const opportunity = getField(block, "OPPORTUNITY");
+  const summary = getField(block, "SUMMARY");
+
+  // Multi-line fields: PATTERNS and PLAYBOOK may have bullet points
+  const getMultiline = (label) => {
+    const re = new RegExp(`^${label}:\\s*(.+(?:\\n(?![A-Z]+:).+)*)`, "m");
+    const m = block.match(re);
+    return m ? m[1].trim() : "";
+  };
+
+  const patterns = getMultiline("PATTERNS");
+  const playbook = getMultiline("PLAYBOOK");
+
+  const oppNum = parseInt(opportunity, 10);
+  const oppClass = oppNum >= 7 ? "opp-high" : oppNum >= 4 ? "opp-mid" : "opp-low";
+
+  let html = `<div class="synthesis-card">`;
+  if (opportunity) {
+    html += `<div class="synthesis-opp-row"><span class="synthesis-label">Opportunity Score</span><span class="synthesis-opp ${oppClass}">${opportunity}/10</span></div>`;
+  }
+  if (summary) {
+    html += `<div class="synthesis-summary">${escHtml(summary)}</div>`;
+  }
+  if (patterns) {
+    html += `<div class="synthesis-section-label">Patterns</div><div class="synthesis-bullets">${escHtml(patterns)}</div>`;
+  }
+  if (playbook) {
+    html += `<div class="synthesis-section-label">Playbook</div><div class="synthesis-bullets">${escHtml(playbook)}</div>`;
+  }
+  if (streaming) {
+    html += `<div class="synthesis-streaming">...</div>`;
+  }
+  html += `</div>`;
+  return html;
+}
+
+// ---- Review Engine Detection (still JSON, not streamed) ----
 async function runReviewDetection(destinationUrl) {
   try {
     const res = await apiFetch("/api/extension/detect-reviews", {
@@ -624,7 +754,7 @@ function renderReviewEngine(data) {
       (p) => `
     <div class="platform-card">
       <div class="platform-row">
-        <span class="platform-name">${escHtml(p.platform_display)}</span>
+        <span class="platform-name">${p.review_url ? `<a href="${escHtml(p.review_url)}" target="_blank" class="platform-link">${escHtml(p.platform_display)}</a>` : escHtml(p.platform_display)}</span>
         <span class="confidence-badge confidence-${p.confidence}">${p.confidence}</span>
       </div>
       <div class="platform-row">
@@ -639,90 +769,102 @@ function renderReviewEngine(data) {
   container.innerHTML = html;
 }
 
-// ---- Review Signal Analysis ----
-async function runReviewSignal(destinationUrl) {
-  try {
-    const res = await apiFetch("/api/extension/analyze-review-signal", {
-      method: "POST",
-      body: JSON.stringify({ destination_url: destinationUrl, max_reviews: 20 }),
-    });
+// ---- Review Signal Analysis (streaming) ----
+function streamReviewSignal(destinationUrl) {
+  const container = $("#reviewSignalResults");
+  const section = $("#reviewSignalSection");
+  if (section) section.style.display = "block";
 
-    $("#reviewSignalLoading").style.display = "none";
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      $("#reviewSignalResults").innerHTML =
-        `<div class="panel-error">Signal analysis failed: ${err.detail || res.status}</div>`;
-      return;
+  streamSSE(
+    "/api/extension/analyze-review-signal",
+    { destination_url: destinationUrl, max_reviews: 20 },
+    // onChunk
+    (text) => {
+      $("#reviewSignalLoading").style.display = "none";
+      container.innerHTML = renderSignalText(text);
+    },
+    // onDone
+    (text) => {
+      $("#reviewSignalLoading").style.display = "none";
+      container.innerHTML = renderSignalText(text);
+    },
+    // onError
+    (msg) => {
+      $("#reviewSignalLoading").style.display = "none";
+      container.innerHTML = `<div class="panel-error">Signal analysis failed: ${escHtml(msg)}</div>`;
     }
-
-    const data = await res.json();
-    renderReviewSignal(data);
-  } catch (err) {
-    $("#reviewSignalLoading").style.display = "none";
-    $("#reviewSignalResults").innerHTML =
-      `<div class="panel-error">Network error: ${err.message}</div>`;
-  }
+  );
 }
 
-function renderReviewSignal(data) {
-  const container = $("#reviewSignalResults");
-
-  if (data.review_count === 0) {
-    container.innerHTML = `<div class="panel-empty">No reviews found on ${escHtml(data.platform_display || "any platform")}.</div>`;
-    return;
-  }
-
-  const summary = data.signal_results?.find((r) => r.summary);
-  const reviews = data.signal_results?.filter((r) => !r.summary) || [];
-
+// ---- Parse and render review signal text ----
+function renderSignalText(raw) {
   let html = "";
 
-  // Summary card
-  if (summary) {
+  // Parse summary block
+  const summaryMatch = raw.match(/===SUMMARY===([\s\S]*?)===END===/);
+  if (summaryMatch) {
+    const block = summaryMatch[1];
+    const get = (label) => {
+      const m = block.match(new RegExp(`^${label}:\\s*(.+)$`, "m"));
+      return m ? m[1].trim() : "";
+    };
+    const grade = get("GRADE");
+    const high = get("HIGH");
+    const medium = get("MEDIUM");
+    const low = get("LOW");
+    const themes = get("THEMES");
+    const verdict = get("VERDICT");
+
     html += `
       <div class="signal-summary">
         <div class="signal-summary-header">
-          <span class="signal-summary-title">Signal Report — ${escHtml(data.platform_display)}</span>
-          <span class="grade-badge grade-${summary.overall_signal_grade || "C"}">${summary.overall_signal_grade || "?"}</span>
+          <span class="signal-summary-title">Signal Report</span>
+          ${grade ? `<span class="grade-badge grade-${grade}">${grade}</span>` : ""}
         </div>
         <div class="signal-counts">
-          <span class="signal-count signal-count-high">High: ${summary.high_signal_count ?? 0}</span>
-          <span class="signal-count signal-count-medium">Med: ${summary.medium_signal_count ?? 0}</span>
-          <span class="signal-count signal-count-low">Low: ${summary.low_signal_count ?? 0}</span>
+          <span class="signal-count signal-count-high">High: ${high || 0}</span>
+          <span class="signal-count signal-count-medium">Med: ${medium || 0}</span>
+          <span class="signal-count signal-count-low">Low: ${low || 0}</span>
         </div>
-        <div class="signal-verdict">${escHtml(summary.verdict || "")}</div>
-        ${
-          summary.top_themes?.length
-            ? `<div class="signal-themes">${summary.top_themes.map((t) => `<span class="theme-tag">${escHtml(t)}</span>`).join("")}</div>`
-            : ""
-        }
+        ${verdict ? `<div class="signal-verdict">${escHtml(verdict)}</div>` : ""}
+        ${themes && themes !== "none" ? `<div class="signal-themes">${themes.split(",").map((t) => `<span class="theme-tag">${escHtml(t.trim())}</span>`).join("")}</div>` : ""}
+      </div>
+    `;
+  } else if (raw.includes("===SUMMARY===")) {
+    // Summary started but not finished yet — show what we have
+    html += '<div class="signal-summary"><div class="stream-text">' + escHtml(raw.replace("===SUMMARY===", "").trim()) + "</div></div>";
+    return html;
+  }
+
+  // Parse review blocks
+  const reviewBlocks = raw.split("===REVIEW===").slice(1);
+  for (const block of reviewBlocks) {
+    const clean = block.replace(/===END===/g, "").trim();
+    if (!clean) continue;
+    const get = (label) => {
+      const m = clean.match(new RegExp(`^${label}:\\s*(.+)$`, "m"));
+      return m ? m[1].trim() : "";
+    };
+
+    const index = get("INDEX");
+    const signal = get("SIGNAL");
+    const score = get("SCORE");
+    const reason = get("REASON");
+    const quote = get("QUOTE");
+
+    html += `
+      <div class="review-signal-card">
+        <div class="review-signal-row">
+          <span class="review-signal-label">Review ${escHtml(index || "?")}</span>
+          ${signal ? `<span class="signal-badge signal-${signal}">${signal}${score ? ` (${score})` : ""}</span>` : ""}
+        </div>
+        ${reason ? `<div class="review-reason">${escHtml(reason)}</div>` : ""}
+        ${quote && quote !== "none" ? `<div class="usable-quote">"${escHtml(quote)}"</div>` : ""}
       </div>
     `;
   }
 
-  // Per-review cards (show high/medium first)
-  const sorted = [...reviews].sort((a, b) => {
-    const order = { high: 0, medium: 1, low: 2 };
-    return (order[a.signal_level] ?? 1) - (order[b.signal_level] ?? 1);
-  });
-
-  html += sorted
-    .map(
-      (r) => `
-    <div class="review-signal-card">
-      <div class="review-signal-row">
-        <span class="review-signal-label">Review ${(r.review_index ?? 0) + 1}</span>
-        <span class="signal-badge signal-${r.signal_level || "low"}">${r.signal_level || "?"} (${r.signal_score ?? "?"})</span>
-      </div>
-      <div class="review-reason">${escHtml(r.reason || "")}</div>
-      ${r.usable_quote ? `<div class="usable-quote">"${escHtml(r.usable_quote)}"</div>` : ""}
-    </div>
-  `
-    )
-    .join("");
-
-  container.innerHTML = html;
+  return html || '<div class="stream-text">' + escHtml(raw) + "</div>";
 }
 
 // ---- Util ----

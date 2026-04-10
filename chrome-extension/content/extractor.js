@@ -334,6 +334,10 @@
         .replace(/\n\s*\n/g, "\n")
         .trim();
 
+      // Tag the DOM container so we can inject analysis results back onto it
+      const adIndex = results.length;
+      container.setAttribute("data-vzd-ad-index", adIndex);
+
       results.push({
         primary_text: primaryText.substring(0, 5000),
         headline: headlineText || null,
@@ -357,6 +361,175 @@
     }
 
     return results;
+  }
+
+  // ---- Inject analysis styles once (Marketably brand) ----
+  function ensureStyles() {
+    if (document.getElementById("vzd-analysis-styles")) return;
+
+    // Load Lato font
+    if (!document.querySelector('link[href*="fonts.googleapis.com/css2?family=Lato"]')) {
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = "https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap";
+      document.head.appendChild(link);
+    }
+
+    const style = document.createElement("style");
+    style.id = "vzd-analysis-styles";
+    style.textContent = `
+        .vzd-analysis {
+          margin-top: 0;
+          padding: 14px 16px;
+          background: #fff;
+          border: 1px solid #e4e6eb;
+          border-top: none;
+          border-left: 3px solid #B9F040;
+          border-radius: 0 0 8px 8px;
+          font-family: 'Lato', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+          font-size: 13px;
+          color: #1c1e21;
+        }
+        .vzd-grade-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 6px;
+        }
+        .vzd-grade {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 28px;
+          height: 28px;
+          border-radius: 6px;
+          font-size: 14px;
+          font-weight: 900;
+          flex-shrink: 0;
+        }
+        .vzd-grade-A { background: #dcfce7; color: #166534; }
+        .vzd-grade-B { background: #ecfccb; color: #3f6212; }
+        .vzd-grade-C { background: #fef9c3; color: #854d0e; }
+        .vzd-grade-D { background: #fee2e2; color: #991b1b; }
+        .vzd-grade-F { background: #fecaca; color: #7f1d1d; }
+        .vzd-verdict {
+          font-size: 13px;
+          font-weight: 700;
+          color: #1c1e21;
+          line-height: 1.3;
+        }
+        .vzd-weakness {
+          font-size: 12px;
+          color: #b91c1c;
+          margin-bottom: 6px;
+          line-height: 1.3;
+          padding-left: 38px;
+        }
+        .vzd-dimension {
+          padding: 5px 0;
+          border-bottom: 1px solid #f0f2f5;
+        }
+        .vzd-dimension:last-of-type { border-bottom: none; }
+        .vzd-score-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 12px;
+        }
+        .vzd-score-label {
+          color: #65676b;
+          font-weight: 600;
+          font-size: 11px;
+        }
+        .vzd-score-val { font-weight: 800; font-size: 12px; }
+        .vzd-score-high { color: #166534; }
+        .vzd-score-mid { color: #a16207; }
+        .vzd-score-low { color: #b91c1c; }
+        .vzd-tag {
+          display: inline-block;
+          padding: 1px 7px;
+          border-radius: 4px;
+          font-size: 10px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+        }
+        .vzd-latency-low { background: #dcfce7; color: #166534; }
+        .vzd-latency-medium { background: #fef9c3; color: #854d0e; }
+        .vzd-latency-high { background: #fee2e2; color: #991b1b; }
+        .vzd-funnel-TOF { background: #dbeafe; color: #1e40af; }
+        .vzd-funnel-MOF { background: #ede9fe; color: #5b21b6; }
+        .vzd-funnel-BOF { background: #dcfce7; color: #166534; }
+        .vzd-score-reason {
+          font-size: 11px;
+          color: #8a8d91;
+          line-height: 1.4;
+          margin-top: 1px;
+        }
+        .vzd-longevity {
+          margin-top: 6px;
+          padding-top: 6px;
+          border-top: 1px solid #f0f2f5;
+          font-size: 11px;
+          color: #8a8d91;
+          font-style: italic;
+          line-height: 1.3;
+        }
+        .vzd-loading {
+          text-align: center;
+          padding: 16px 14px;
+          background: #0F1B28;
+          border-left-color: #B9F040;
+          color: #B9F040;
+          font-size: 12px;
+          font-weight: 700;
+          letter-spacing: 0.5px;
+        }
+        .vzd-loading-spinner {
+          width: 22px;
+          height: 22px;
+          border: 2.5px solid rgba(185, 240, 64, 0.15);
+          border-top-color: #B9F040;
+          border-radius: 50%;
+          animation: vzdSpin 0.7s linear infinite;
+          margin: 0 auto 8px;
+        }
+        @keyframes vzdSpin {
+          to { transform: rotate(360deg); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .vzd-loading-spinner { animation: none !important; }
+        }
+      `;
+    document.head.appendChild(style);
+  }
+
+  // ---- Inject analysis panel onto an ad card ----
+  function injectAnalysis(adIndex, html) {
+    const container = document.querySelector(`[data-vzd-ad-index="${adIndex}"]`);
+    if (!container) return;
+    const existing = container.querySelector(".vzd-analysis");
+    if (existing) existing.remove();
+    ensureStyles();
+
+    const panel = document.createElement("div");
+    panel.className = "vzd-analysis";
+    panel.innerHTML = html;
+    container.appendChild(panel);
+  }
+
+  // Show loading indicator on an ad card
+  function injectLoading(adIndex) {
+    const container = document.querySelector(`[data-vzd-ad-index="${adIndex}"]`);
+    if (!container) return;
+    const existing = container.querySelector(".vzd-analysis");
+    if (existing) existing.remove();
+    ensureStyles();
+
+    const panel = document.createElement("div");
+    panel.className = "vzd-analysis vzd-loading";
+    panel.innerHTML = '<div class="vzd-loading-spinner"></div>Analyzing...';
+    container.appendChild(panel);
   }
 
   // Download a media file from FB CDN via the MAIN world page-downloader.js
@@ -416,6 +589,18 @@
         .then((result) => sendResponse({ success: true, ...result }))
         .catch((err) => sendResponse({ success: false, error: err.message }));
       return true; // keep channel open for async
+    }
+
+    if (message.action === "injectLoading") {
+      injectLoading(message.adIndex);
+      sendResponse({ success: true });
+      return true;
+    }
+
+    if (message.action === "injectAnalysis") {
+      injectAnalysis(message.adIndex, message.html);
+      sendResponse({ success: true });
+      return true;
     }
   });
 })();

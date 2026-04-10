@@ -1,53 +1,42 @@
 """
 Ad analysis service — Full Funnel rubric scoring via Claude.
 
-Assesses ad copy quality through the lens of direct-response creative strategy:
-hook strength, mind-movie language, emotional specificity, funnel stage, latency.
-
-Also provides review signal analysis — scoring reviews for emotional arc
-vs. low-signal "fast shipping / great customer service" filler.
+Streams analysis as formatted text rather than JSON to avoid parsing issues.
+Also provides review signal analysis with the same streaming approach.
 """
 
 import json
 import logging
-from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Generator, List, Optional
 
 import anthropic
+import httpx
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Full Funnel Ad Analysis
+# Full Funnel Ad Analysis (streaming text)
 # ---------------------------------------------------------------------------
 
 FULL_FUNNEL_SYSTEM_PROMPT = """\
 You are a senior Facebook Ads creative strategist who specialises in direct-response performance creative grounded in Voice of Customer (VoC) methodology.
 
-You will receive one or more Facebook ads (primary text, headline, description, CTA, format, age info). For EACH ad, produce a JSON object with these fields:
+You will receive one or more Facebook ads. For EACH ad, write your analysis using EXACTLY this format (keep the markers and labels exactly as shown):
 
-{
-  "library_id": "<from input>",
-  "hook_score": <1-10>,
-  "hook_analysis": "<1-2 sentences: what hook technique is used, why it does/doesn't stop the scroll>",
-  "mind_movie_score": <1-10>,
-  "mind_movie_analysis": "<1-2 sentences: does the copy create vivid mental imagery with specific, lived-in scenarios, or is it abstract/generic?>",
-  "specificity_score": <1-10>,
-  "specificity_analysis": "<1-2 sentences: is the language concrete (numbers, names, textures, emotions) or vague (best ever, amazing, life-changing)?>",
-  "emotional_charge": <1-10>,
-  "emotional_analysis": "<1-2 sentences: how emotionally loaded is the copy? Does it hit desire, fear, frustration, relief, envy, pride?>",
-  "voc_density": <1-10>,
-  "voc_analysis": "<1-2 sentences: does this sound like a real customer talking, or like a copywriter writing?>",
-  "funnel_stage": "TOF|MOF|BOF",
-  "funnel_reasoning": "<1 sentence>",
-  "latency_rating": "low|medium|high",
-  "latency_analysis": "<1-2 sentences: how much distance is there between reading the ad and wanting to act? Low latency = you want to click now. High latency = it's informational, brand-y, or too abstract to drive action.>",
-  "overall_grade": "A|B|C|D|F",
-  "one_line_verdict": "<1 punchy sentence summarising the ad's quality>",
-  "biggest_weakness": "<1 sentence: the single most impactful improvement>",
-  "ad_age_days": <number or null>,
-  "longevity_signal": "<1 sentence: what does the run-time tell us about performance?>"
-}
+===AD===
+ID: <library_id or "Ad N">
+GRADE: <A|B|C|D|F>
+VERDICT: <1 punchy sentence summarising the ad's quality>
+WEAKNESS: <1 sentence: the single most impactful improvement>
+HOOK: <1-10> — <1-2 sentences: what hook technique is used, why it does/doesn't stop the scroll>
+MIND MOVIE: <1-10> — <1-2 sentences: does the copy create vivid mental imagery?>
+SPECIFICITY: <1-10> — <1-2 sentences: concrete numbers/names vs vague claims?>
+EMOTION: <1-10> — <1-2 sentences: how emotionally loaded? desire, fear, frustration, relief?>
+VOC DENSITY: <1-10> — <1-2 sentences: sounds like a customer or a copywriter?>
+LATENCY: <low|medium|high> — <1-2 sentences: distance between reading and wanting to act>
+FUNNEL: <TOF|MOF|BOF> — <1 sentence reasoning>
+LONGEVITY: <1 sentence: what does run-time tell us about performance?>
+===END===
 
 Scoring guide:
 - 1-3: Weak / generic / no technique present
@@ -56,30 +45,20 @@ Scoring guide:
 - 8-9: Excellent — would expect strong CTR
 - 10: Elite — textbook-level execution
 
-Hook scoring: Look for pattern interrupts, curiosity gaps, bold claims, emotional openers, specific numbers, counter-intuitive statements. Generic "Are you tired of..." = 3. "I spent $47,000 testing this" = 8+.
-
-Mind movie scoring: Does the reader SEE themselves in a specific scene? "You're sitting on the couch..." = high. "Get the best results" = low.
-
-Latency: Low latency ads create urgency and desire — you feel the pull to click. High latency ads feel educational, brand-building, or too abstract to prompt action. Most great DR ads are low-to-medium latency.
-
-Return a JSON array of objects. One per ad. No markdown, no explanation — just valid JSON."""
+Write nothing before the first ===AD=== and nothing after the last ===END===."""
 
 
-def analyze_ads_full_funnel(
+def stream_ads_analysis(
     ads: List[Dict[str, Any]],
     anthropic_api_key: str,
-) -> List[Dict[str, Any]]:
-    """Run Full Funnel rubric analysis on extracted ad copy via Claude.
+) -> Generator[str, None, None]:
+    """Stream Full Funnel rubric analysis as formatted text chunks via Claude.
 
-    Args:
-        ads: List of ad dicts with primary_text, headline, description, etc.
-        anthropic_api_key: Anthropic API key for Claude calls.
-
-    Returns:
-        List of analysis result dicts, one per ad.
+    Yields text chunks as they arrive from the Claude streaming API.
     """
     if not ads:
-        return []
+        yield "No ads to analyze."
+        return
 
     # Build the user message with all ads
     ad_descriptions = []
@@ -113,37 +92,75 @@ def analyze_ads_full_funnel(
     )
 
     try:
-        client = anthropic.Anthropic(api_key=anthropic_api_key)
-        response = client.messages.create(
+        client = anthropic.Anthropic(
+            api_key=anthropic_api_key,
+            http_client=httpx.Client(timeout=180.0),
+        )
+
+        with client.messages.stream(
             model="claude-sonnet-4-5-20250929",
             max_tokens=4096,
             system=FULL_FUNNEL_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_message}],
-        )
+        ) as stream:
+            for text in stream.text_stream:
+                yield text
 
-        raw = response.content[0].text.strip()
-        # Strip markdown fences if present
-        if raw.startswith("```"):
-            raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
-            if raw.endswith("```"):
-                raw = raw[:-3]
-            raw = raw.strip()
-
-        results = json.loads(raw)
-        if isinstance(results, dict):
-            results = [results]
-        return results
-
-    except json.JSONDecodeError as e:
-        logger.error("Failed to parse Claude response as JSON: %s", e)
-        return [{"error": "Failed to parse analysis response", "raw": raw[:500]}]
     except Exception as e:
-        logger.exception("Full Funnel analysis failed: %s", e)
-        return [{"error": str(e)}]
+        logger.exception("Full Funnel streaming analysis failed: %s", e)
+        yield f"\n\nError: {e}"
 
 
 # ---------------------------------------------------------------------------
-# Review Signal Analysis
+# Opportunity Synthesis (streaming text)
+# ---------------------------------------------------------------------------
+
+SYNTHESIS_SYSTEM_PROMPT = """\
+You are a senior performance creative strategist. You have just analyzed a set of Facebook ads for a single advertiser.
+
+Given the full per-ad analysis below, write a short synthesis using EXACTLY this format:
+
+===SYNTHESIS===
+OPPORTUNITY: <1-10 score — how beatable is this advertiser's creative? 10 = wide open, their ads are weak and you can crush them. 1 = elite creative, very hard to outperform.>
+SUMMARY: <2-3 sentences: overall quality of this advertiser's creative suite. Are they sophisticated or formulaic? VoC-rich or generic?>
+PATTERNS: <2-3 bullet points — recurring strengths or weaknesses across ads>
+PLAYBOOK: <2-3 bullet points — specific creative angles or tactics you'd use to beat them>
+===END===
+
+Write nothing before ===SYNTHESIS=== and nothing after ===END===."""
+
+
+def stream_synthesis(
+    analysis_text: str,
+    anthropic_api_key: str,
+) -> Generator[str, None, None]:
+    """Stream opportunity synthesis based on completed per-ad analysis."""
+    if not analysis_text.strip():
+        yield "===SYNTHESIS===\nOPPORTUNITY: ?\nSUMMARY: No analysis available.\nPATTERNS: None\nPLAYBOOK: None\n===END==="
+        return
+
+    try:
+        client = anthropic.Anthropic(
+            api_key=anthropic_api_key,
+            http_client=httpx.Client(timeout=180.0),
+        )
+
+        with client.messages.stream(
+            model="claude-sonnet-4-5-20250929",
+            max_tokens=1024,
+            system=SYNTHESIS_SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": f"Here is the per-ad analysis:\n\n{analysis_text}"}],
+        ) as stream:
+            for text in stream.text_stream:
+                yield text
+
+    except Exception as e:
+        logger.exception("Synthesis streaming failed: %s", e)
+        yield f"\n\nError: {e}"
+
+
+# ---------------------------------------------------------------------------
+# Review Signal Analysis (streaming text)
 # ---------------------------------------------------------------------------
 
 REVIEW_SIGNAL_SYSTEM_PROMPT = """\
@@ -163,54 +180,47 @@ LOW-SIGNAL reviews contain:
 - One-liners with no specificity
 - No emotional content or transformation
 
-You will receive a batch of reviews. For EACH review, return:
-{
-  "review_index": <0-based index>,
-  "signal_level": "high|medium|low",
-  "signal_score": <1-10>,
-  "reason": "<1 sentence explaining why>",
-  "usable_quote": "<best verbatim snippet for ad copy, or null if low signal>",
-  "themes": ["<theme1>", "<theme2>"]
-}
+IMPORTANT CONTEXT: You are analyzing a SAMPLE of ~20 reviews from the first page. A full extraction would pull hundreds or thousands. Grade the POTENTIAL of this review corpus, not just the sample:
+- 2-3 high-signal reviews in a sample of 20 is a STRONG signal — a full extraction will yield 10x-50x more usable material. Grade this A or B.
+- Even 1 high-signal review with emotional depth suggests the customer base produces rich VoC language. That's encouraging.
+- Only grade C or below if the sample is almost entirely generic praise with zero emotional content, transformation arcs, or specificity.
+- The question is: "If we scraped ALL their reviews, would we find enough gold for VoC-driven ad campaigns?" Be optimistic when there are encouraging signs.
 
-Also return a summary object at the end:
-{
-  "summary": true,
-  "total_reviews": <n>,
-  "high_signal_count": <n>,
-  "medium_signal_count": <n>,
-  "low_signal_count": <n>,
-  "overall_signal_grade": "A|B|C|D|F",
-  "top_themes": ["<theme1>", "<theme2>", "<theme3>"],
-  "verdict": "<2-3 sentences: is this review corpus rich enough for VoC-driven ads? What's the overall quality of customer language?>"
-}
+For each batch of reviews, write your analysis using EXACTLY this format:
 
-Return a JSON array. No markdown, no explanation — just valid JSON."""
+===SUMMARY===
+GRADE: <A|B|C|D|F>
+HIGH: <count>
+MEDIUM: <count>
+LOW: <count>
+THEMES: <theme1>, <theme2>, <theme3>
+VERDICT: <2-3 sentences: assess the POTENTIAL of this review corpus at scale. If there are high-signal reviews in this small sample, note that a full extraction would multiply that signal significantly.>
+===END===
+
+Then for EACH review:
+
+===REVIEW===
+INDEX: <1-based number>
+SIGNAL: <high|medium|low>
+SCORE: <1-10>
+REASON: <1 sentence explaining why>
+QUOTE: <best verbatim snippet for ad copy, or "none" if low signal>
+===END===
+
+Write nothing before ===SUMMARY=== and nothing after the last ===END===.
+Sort reviews by signal level: high first, then medium, then low."""
 
 
-def analyze_review_signal(
+def stream_review_signal(
     reviews: List[Dict[str, Any]],
     anthropic_api_key: str,
     max_reviews: int = 20,
-) -> List[Dict[str, Any]]:
-    """Analyze reviews for signal quality — emotion, arc, specificity vs generic praise.
-
-    Args:
-        reviews: List of review dicts with at minimum a "text" or "body" field.
-        anthropic_api_key: Anthropic API key.
-        max_reviews: Cap on reviews to send (keeps token cost reasonable).
-
-    Returns:
-        List of per-review signal assessments plus a summary object.
-    """
+) -> Generator[str, None, None]:
+    """Stream review signal analysis as formatted text chunks via Claude."""
     if not reviews:
-        return [{"summary": True, "total_reviews": 0, "high_signal_count": 0,
-                 "medium_signal_count": 0, "low_signal_count": 0,
-                 "overall_signal_grade": "F",
-                 "top_themes": [],
-                 "verdict": "No reviews available to analyze."}]
+        yield "===SUMMARY===\nGRADE: F\nHIGH: 0\nMEDIUM: 0\nLOW: 0\nTHEMES: none\nVERDICT: No reviews available to analyze.\n===END==="
+        return
 
-    # Normalize review text
     capped = reviews[:max_reviews]
     review_texts = []
     for i, r in enumerate(capped):
@@ -229,10 +239,8 @@ def analyze_review_signal(
         review_texts.append("\n".join(parts))
 
     if not review_texts:
-        return [{"summary": True, "total_reviews": 0, "high_signal_count": 0,
-                 "medium_signal_count": 0, "low_signal_count": 0,
-                 "overall_signal_grade": "F", "top_themes": [],
-                 "verdict": "No reviews had readable text."}]
+        yield "===SUMMARY===\nGRADE: F\nHIGH: 0\nMEDIUM: 0\nLOW: 0\nTHEMES: none\nVERDICT: No reviews had readable text.\n===END==="
+        return
 
     user_message = (
         f"Analyze these {len(review_texts)} reviews for signal quality.\n\n"
@@ -240,29 +248,20 @@ def analyze_review_signal(
     )
 
     try:
-        client = anthropic.Anthropic(api_key=anthropic_api_key)
-        response = client.messages.create(
+        client = anthropic.Anthropic(
+            api_key=anthropic_api_key,
+            http_client=httpx.Client(timeout=180.0),
+        )
+
+        with client.messages.stream(
             model="claude-sonnet-4-5-20250929",
             max_tokens=4096,
             system=REVIEW_SIGNAL_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_message}],
-        )
+        ) as stream:
+            for text in stream.text_stream:
+                yield text
 
-        raw = response.content[0].text.strip()
-        if raw.startswith("```"):
-            raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
-            if raw.endswith("```"):
-                raw = raw[:-3]
-            raw = raw.strip()
-
-        results = json.loads(raw)
-        if isinstance(results, dict):
-            results = [results]
-        return results
-
-    except json.JSONDecodeError as e:
-        logger.error("Failed to parse review signal response: %s", e)
-        return [{"error": "Failed to parse analysis response", "raw": raw[:500]}]
     except Exception as e:
-        logger.exception("Review signal analysis failed: %s", e)
-        return [{"error": str(e)}]
+        logger.exception("Review signal streaming analysis failed: %s", e)
+        yield f"\n\nError: {e}"
