@@ -4,8 +4,8 @@
  * Media upload runs in the service worker so it survives popup close.
  */
 
-//const API_BASE = "https://api.mapthegap.ai";
-const API_BASE = "http://localhost:8000"; // uncomment for local dev
+const API_BASE = "https://api.mapthegap.ai";
+// const API_BASE = "http://localhost:8000"; // uncomment for local dev
 
 const $ = (sel) => document.querySelector(sel);
 
