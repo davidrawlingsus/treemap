@@ -225,7 +225,7 @@ def update_email(
         template_data=body.template_data,
     )
     if not email:
-        raise HTTPException(status_code=404, detail="Email not found or already sent")
+        raise HTTPException(status_code=404, detail="Email not found")
     return {"updated": True, "id": str(email.id)}
 
 

@@ -432,9 +432,9 @@ def update_email_content(
     subject: Optional[str] = None,
     template_data: Optional[Dict] = None,
 ) -> Optional[LeadEmail]:
-    """Update content of an unsent email."""
+    """Update content of an email (any status)."""
     email = db.query(LeadEmail).filter(LeadEmail.id == email_id).first()
-    if not email or email.status not in ("queued", "paused"):
+    if not email:
         return None
 
     if subject is not None:

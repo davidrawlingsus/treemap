@@ -324,8 +324,7 @@
             document.getElementById('previewPreheader').textContent = em.preview_text || '';
 
             // Show action buttons
-            const canEdit = em.status === 'queued' || em.status === 'paused';
-            document.getElementById('editPreviewBtn').style.display = canEdit ? '' : 'none';
+            document.getElementById('editPreviewBtn').style.display = '';
             document.getElementById('previewSendBtn').style.display = '';
             document.getElementById('editActions').style.display = 'none';
 
