@@ -379,13 +379,13 @@
     style.id = "vzd-analysis-styles";
     style.textContent = `
         .vzd-analysis {
-          margin-top: 0;
+          margin-bottom: 0;
           padding: 14px 16px;
           background: #fff;
           border: 1px solid #e4e6eb;
-          border-top: none;
+          border-bottom: none;
           border-left: 3px solid #B9F040;
-          border-radius: 0 0 8px 8px;
+          border-radius: 8px 8px 0 0;
           font-family: 'Lato', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
           font-size: 13px;
           color: #1c1e21;
@@ -515,7 +515,7 @@
     const panel = document.createElement("div");
     panel.className = "vzd-analysis";
     panel.innerHTML = html;
-    container.appendChild(panel);
+    container.prepend(panel);
   }
 
   // Show loading indicator on an ad card
@@ -529,7 +529,7 @@
     const panel = document.createElement("div");
     panel.className = "vzd-analysis vzd-loading";
     panel.innerHTML = '<div class="vzd-loading-spinner"></div>Analyzing...';
-    container.appendChild(panel);
+    container.prepend(panel);
   }
 
   // Download a media file from FB CDN via the MAIN world page-downloader.js
