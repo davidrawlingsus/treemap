@@ -476,22 +476,20 @@
         }
         .vzd-loading {
           text-align: center;
-          padding: 16px 14px;
-          background: #0F1B28;
-          border-left-color: #B9F040;
-          color: #B9F040;
+          padding: 14px;
+          color: #1c1e21;
           font-size: 12px;
           font-weight: 700;
-          letter-spacing: 0.5px;
+          letter-spacing: 0.3px;
         }
         .vzd-loading-spinner {
-          width: 22px;
-          height: 22px;
-          border: 2.5px solid rgba(185, 240, 64, 0.15);
-          border-top-color: #B9F040;
+          width: 20px;
+          height: 20px;
+          border: 2.5px solid #e4e6eb;
+          border-top-color: #1c1e21;
           border-radius: 50%;
           animation: vzdSpin 0.7s linear infinite;
-          margin: 0 auto 8px;
+          margin: 0 auto 6px;
         }
         @keyframes vzdSpin {
           to { transform: rotate(360deg); }
