@@ -63,6 +63,29 @@ def detect_review_platforms(
             detected.append(DetectedPlatform("google_reviews", company_domain, "high"))
             logger.info("[detect] Found Google Reviews widget on page")
 
+        # Check Judge.me
+        judgeme_id = _detect_judge_me(html)
+        if judgeme_id:
+            detected.append(DetectedPlatform("judge_me", judgeme_id, "high"))
+            logger.info("[detect] Found Judge.me: %s", judgeme_id[:20])
+
+        # Check Stamped.io
+        stamped_id = _detect_stamped(html)
+        if stamped_id:
+            detected.append(DetectedPlatform("stamped", stamped_id, "high"))
+            logger.info("[detect] Found Stamped.io: %s", stamped_id[:20])
+
+        # Check Loox
+        if _detect_loox(html):
+            detected.append(DetectedPlatform("loox", company_domain, "high"))
+            logger.info("[detect] Found Loox on page")
+
+        # Check Okendo
+        okendo_id = _detect_okendo(html)
+        if okendo_id:
+            detected.append(DetectedPlatform("okendo", okendo_id, "high"))
+            logger.info("[detect] Found Okendo: %s", okendo_id[:20])
+
     # Always include Trustpilot as fallback (works by domain without widget detection)
     # Google Reviews NOT included as fallback — too prone to finding the wrong business
     # for D2C e-commerce brands with ambiguous names
@@ -216,3 +239,132 @@ def _detect_google_reviews_widget(html: str) -> bool:
     """Check if Google Reviews widgets are present on the page."""
     html_lower = html.lower()
     return any(sig.lower() in html_lower for sig in _GOOGLE_REVIEWS_SIGNATURES)
+
+
+# ---------------------------------------------------------------------------
+# Judge.me detection
+# ---------------------------------------------------------------------------
+
+_JUDGEME_SIGNATURES = [
+    "judge.me",
+    "judgeme",
+    "jdgm-widget",
+    "jdgm-rev",
+    "jdgm-badge",
+    "jdgm-carousel",
+    "data-jdgm",
+]
+
+_JUDGEME_SHOP_PATTERNS = [
+    # judge.me/reviews/SHOP_DOMAIN
+    re.compile(r'judge\.me/reviews/([a-zA-Z0-9._-]+)', re.IGNORECASE),
+    # data-shop-domain="..."
+    re.compile(r'data-shop-domain\s*=\s*["\']([a-zA-Z0-9._-]+)["\']', re.IGNORECASE),
+    # judgeme.com/shop/SHOP
+    re.compile(r'judgeme\.com/shop/([a-zA-Z0-9._-]+)', re.IGNORECASE),
+]
+
+
+def _detect_judge_me(html: str) -> Optional[str]:
+    """Check for Judge.me presence and extract shop identifier."""
+    html_lower = html.lower()
+    if not any(sig.lower() in html_lower for sig in _JUDGEME_SIGNATURES):
+        return None
+
+    for pattern in _JUDGEME_SHOP_PATTERNS:
+        match = pattern.search(html)
+        if match:
+            return match.group(1)
+
+    # Detected but can't extract identifier
+    logger.info("[detect] Judge.me signatures found but could not extract shop ID")
+    return "detected"
+
+
+# ---------------------------------------------------------------------------
+# Stamped.io detection
+# ---------------------------------------------------------------------------
+
+_STAMPED_SIGNATURES = [
+    "stamped.io",
+    "stampedio",
+    "stamped-badge",
+    "stamped-reviews",
+    "stamped-ugc",
+    "data-store-hash",
+    "stamped-main-widget",
+]
+
+_STAMPED_KEY_PATTERNS = [
+    re.compile(r'data-api-key\s*=\s*["\']([a-zA-Z0-9]+)["\']', re.IGNORECASE),
+    re.compile(r'data-store-hash\s*=\s*["\']([a-zA-Z0-9]+)["\']', re.IGNORECASE),
+    re.compile(r'stamped\.io/[^"\']*?apiKey=([a-zA-Z0-9]+)', re.IGNORECASE),
+]
+
+
+def _detect_stamped(html: str) -> Optional[str]:
+    """Check for Stamped.io presence and extract API key / store hash."""
+    html_lower = html.lower()
+    if not any(sig.lower() in html_lower for sig in _STAMPED_SIGNATURES):
+        return None
+
+    for pattern in _STAMPED_KEY_PATTERNS:
+        match = pattern.search(html)
+        if match:
+            return match.group(1)
+
+    logger.info("[detect] Stamped.io signatures found but could not extract key")
+    return "detected"
+
+
+# ---------------------------------------------------------------------------
+# Loox detection
+# ---------------------------------------------------------------------------
+
+_LOOX_SIGNATURES = [
+    "loox.io",
+    "loox-widget",
+    "loox-rating",
+    "loox-review",
+    "loox.app",
+]
+
+
+def _detect_loox(html: str) -> bool:
+    """Check if Loox review widgets are present on the page."""
+    html_lower = html.lower()
+    return any(sig.lower() in html_lower for sig in _LOOX_SIGNATURES)
+
+
+# ---------------------------------------------------------------------------
+# Okendo detection
+# ---------------------------------------------------------------------------
+
+_OKENDO_SIGNATURES = [
+    "okendo.io",
+    "oke-widget",
+    "oke-reviews",
+    "okendo-reviews",
+    "data-oke-",
+    "okeReviews",
+]
+
+_OKENDO_ID_PATTERNS = [
+    re.compile(r'data-oke-reviews-subscriber-id\s*=\s*["\']([a-zA-Z0-9-]+)["\']', re.IGNORECASE),
+    re.compile(r'okendo\.io/[^"\']*?subscriberId=([a-zA-Z0-9-]+)', re.IGNORECASE),
+]
+
+
+def _detect_okendo(html: str) -> Optional[str]:
+    """Check for Okendo presence and extract subscriber ID."""
+    html_lower = html.lower()
+    if not any(sig.lower() in html_lower for sig in _OKENDO_SIGNATURES):
+        return None
+
+    for pattern in _OKENDO_ID_PATTERNS:
+        match = pattern.search(html)
+        if match:
+            return match.group(1)
+
+    logger.info("[detect] Okendo signatures found but could not extract subscriber ID")
+    return "detected"

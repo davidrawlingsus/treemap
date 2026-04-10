@@ -55,7 +55,10 @@
 
       <div id="extractResult" style="display: none;">
         <p id="extractCount" class="extract-count"></p>
-        <button id="importBtn" class="btn btn-success">Import</button>
+        <div class="btn-row">
+          <button id="importBtn" class="btn btn-success">Import</button>
+          <button id="analyzeBtn" class="btn btn-analyze">Analyze</button>
+        </div>
       </div>
 
       <div id="statusMessage" class="message" style="display: none;"></div>
@@ -69,6 +72,48 @@
       </div>
       <p class="description muted" id="progressLabel">Uploading media 0/0</p>
       <p class="description muted">You can close this popup — the import continues in the background.</p>
+    </div>
+
+    <!-- Analysis results -->
+    <div id="analysisSection" class="section" style="display: none;">
+      <div class="analysis-header">
+        <h2>Ad Intelligence</h2>
+        <button id="analysisBackBtn" class="btn-link">Back</button>
+      </div>
+
+      <!-- Tab bar -->
+      <div class="tab-bar">
+        <button class="tab active" data-tab="adAnalysis">Ad Scores</button>
+        <button class="tab" data-tab="reviewEngine">Reviews</button>
+        <button class="tab" data-tab="reviewSignal">Signal</button>
+      </div>
+
+      <!-- Ad Analysis Panel -->
+      <div id="adAnalysisPanel" class="tab-panel active">
+        <div id="adAnalysisLoading" class="loading-state">
+          <div class="spinner"></div>
+          <p>Analyzing ad copy...</p>
+        </div>
+        <div id="adAnalysisResults"></div>
+      </div>
+
+      <!-- Review Engine Panel -->
+      <div id="reviewEnginePanel" class="tab-panel">
+        <div id="reviewEngineLoading" class="loading-state">
+          <div class="spinner"></div>
+          <p>Detecting review platforms...</p>
+        </div>
+        <div id="reviewEngineResults"></div>
+      </div>
+
+      <!-- Review Signal Panel -->
+      <div id="reviewSignalPanel" class="tab-panel">
+        <div id="reviewSignalLoading" class="loading-state">
+          <div class="spinner"></div>
+          <p>Fetching &amp; analyzing reviews...</p>
+        </div>
+        <div id="reviewSignalResults"></div>
+      </div>
     </div>
 
     <!-- Not on ads library page -->

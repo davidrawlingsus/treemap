@@ -613,6 +613,10 @@ app.include_router(widget_survey.router)
 from app.routers import ad_library_extension
 app.include_router(ad_library_extension.router)
 
+# Include extension analysis router (ad analysis, review detection, review signal)
+from app.routers import extension_analysis
+app.include_router(extension_analysis.router)
+
 
 if __name__ == "__main__":
     import uvicorn
