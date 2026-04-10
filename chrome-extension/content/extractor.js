@@ -383,9 +383,8 @@
           padding: 14px 16px;
           background: #fff;
           border: 1px solid #e4e6eb;
-          border-bottom: none;
           border-left: 3px solid #B9F040;
-          border-radius: 8px 8px 0 0;
+          border-radius: 0;
           font-family: 'Lato', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
           font-size: 13px;
           color: #1c1e21;
@@ -504,6 +503,12 @@
     document.head.appendChild(style);
   }
 
+  // Find the first <hr> inside a container (divider between metadata and ad creative)
+  function findInsertionPoint(container) {
+    const hr = container.querySelector("hr");
+    return hr || null;
+  }
+
   // ---- Inject analysis panel onto an ad card ----
   function injectAnalysis(adIndex, html) {
     const container = document.querySelector(`[data-vzd-ad-index="${adIndex}"]`);
@@ -515,7 +520,13 @@
     const panel = document.createElement("div");
     panel.className = "vzd-analysis";
     panel.innerHTML = html;
-    container.prepend(panel);
+
+    const hr = findInsertionPoint(container);
+    if (hr) {
+      hr.parentNode.insertBefore(panel, hr);
+    } else {
+      container.prepend(panel);
+    }
   }
 
   // Show loading indicator on an ad card
@@ -529,7 +540,13 @@
     const panel = document.createElement("div");
     panel.className = "vzd-analysis vzd-loading";
     panel.innerHTML = '<div class="vzd-loading-spinner"></div>Analyzing...';
-    container.prepend(panel);
+
+    const hr = findInsertionPoint(container);
+    if (hr) {
+      hr.parentNode.insertBefore(panel, hr);
+    } else {
+      container.prepend(panel);
+    }
   }
 
   // Download a media file from FB CDN via the MAIN world page-downloader.js
