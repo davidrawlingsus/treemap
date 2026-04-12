@@ -117,8 +117,14 @@ def _parse_reviews_html(html: str) -> List[Dict[str, Any]]:
             continue
 
         # Reviewer name (in .title, NOT .name which is the product)
-        reviewer_el = card.select_one(".title, .feed-item-title-wrapper")
-        reviewer = reviewer_el.get_text(strip=True) if reviewer_el else "Anonymous"
+        # Extract only direct text, not the verified badge text inside
+        reviewer_el = card.select_one(".title")
+        if reviewer_el:
+            # Get only the first text node, before the verified badge span
+            reviewer = reviewer_el.find(string=True, recursive=False)
+            reviewer = (reviewer.strip() if reviewer else "") or reviewer_el.get_text(strip=True)
+        else:
+            reviewer = "Anonymous"
 
         # Product name
         product_el = card.select_one(".name")

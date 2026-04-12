@@ -364,9 +364,12 @@ def _detect_loox(html: str) -> Optional[str]:
     if not any(sig.lower() in html_lower for sig in _LOOX_SIGNATURES):
         return None
 
-    # Try to extract widget ID and hash from iframe src
+    # Unescape JSON-escaped forward slashes (common in Shopify inline scripts)
+    html_unescaped = html.replace("\\/", "/")
+
+    # Try to extract widget ID and hash
     for pattern in _LOOX_ID_PATTERNS:
-        match = pattern.search(html)
+        match = pattern.search(html_unescaped)
         if match:
             widget_id = match.group(1)
             hash_param = match.group(2) if match.lastindex >= 2 else ""
