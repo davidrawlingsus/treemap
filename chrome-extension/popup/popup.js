@@ -831,15 +831,8 @@ function renderSignalText(raw) {
     };
     const platform = getSrc("PLATFORM");
     const reviewCount = getSrc("REVIEWS");
-    // Trace is multiline — grab everything after "TRACE: " until end
-    const traceMatch = srcBlock.match(/^TRACE:\s*([\s\S]*)/m);
-    const trace = traceMatch ? traceMatch[1].trim() : "";
-
     if (platform && platform !== "None") {
       html += `<div class="signal-source">Analyzing ${reviewCount} reviews from <strong>${escHtml(platform)}</strong></div>`;
-    }
-    if (trace) {
-      html += `<pre class="signal-trace">${escHtml(trace)}</pre>`;
     }
   }
 
