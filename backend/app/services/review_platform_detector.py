@@ -76,9 +76,10 @@ def detect_review_platforms(
             logger.info("[detect] Found Stamped.io: %s", stamped_id[:20])
 
         # Check Loox
-        if _detect_loox(html):
-            detected.append(DetectedPlatform("loox", company_domain, "high"))
-            logger.info("[detect] Found Loox on page")
+        loox_id = _detect_loox(html)
+        if loox_id:
+            detected.append(DetectedPlatform("loox", loox_id, "high"))
+            logger.info("[detect] Found Loox: %s", loox_id[:30])
 
         # Check Okendo
         okendo_id = _detect_okendo(html)
@@ -329,11 +330,36 @@ _LOOX_SIGNATURES = [
     "loox.app",
 ]
 
+_LOOX_ID_PATTERNS = [
+    # iframe src: loox.io/widget/{WIDGET_ID}/reviews?h={HASH}
+    re.compile(r'loox\.io/widget/([a-zA-Z0-9]+)/reviews\?[^"\']*h=([a-zA-Z0-9]+)', re.IGNORECASE),
+    # script src: loox.io/widget/{WIDGET_ID}/loox.*.js
+    re.compile(r'loox\.io/widget/([a-zA-Z0-9]+)/loox', re.IGNORECASE),
+]
 
-def _detect_loox(html: str) -> bool:
-    """Check if Loox review widgets are present on the page."""
+
+def _detect_loox(html: str) -> Optional[str]:
+    """Check for Loox presence and extract widget ID + hash.
+
+    Returns 'widget_id|hash' if both found, 'widget_id' if only ID found,
+    or None if no Loox signatures detected.
+    """
     html_lower = html.lower()
-    return any(sig.lower() in html_lower for sig in _LOOX_SIGNATURES)
+    if not any(sig.lower() in html_lower for sig in _LOOX_SIGNATURES):
+        return None
+
+    # Try to extract widget ID and hash from iframe src
+    for pattern in _LOOX_ID_PATTERNS:
+        match = pattern.search(html)
+        if match:
+            widget_id = match.group(1)
+            hash_param = match.group(2) if match.lastindex >= 2 else ""
+            if hash_param:
+                return f"{widget_id}|{hash_param}"
+            return widget_id
+
+    # Loox detected but can't extract identifiers
+    return "detected"
 
 
 # ---------------------------------------------------------------------------

@@ -114,6 +114,7 @@ class Settings(BaseSettings):
     shopify_ingest_max_payload_bytes: int = Field(default=262144)
     google_places_api_key: str | None = Field(default=None)
     apify_google_reviews_actor_id: str | None = Field(default=None)
+    apify_judgeme_actor_id: str | None = Field(default=None)
     leadgen_skip_ad_generation: str = Field(default="true")
 
     @property

@@ -84,14 +84,14 @@ PLATFORM_DISPLAY = {
 }
 
 SCRAPER_NOTES = {
-    "trustpilot": "Scrapable via Apify actor. Public API available.",
+    "trustpilot": "Scrapable via Apify actor. Public reviews page available.",
     "reviews_io": "Free public API. No auth needed for store reviews.",
-    "yotpo": "Public widget API. App key extractable from page source.",
+    "yotpo": "Free public widget API. App key extracted from page source.",
     "google_reviews": "Scrapable via Google Places API + Apify.",
-    "judge_me": "Public widget API at judge.me/reviews/{shop}.json. Easily scrapable.",
-    "stamped": "Public widget API. Store hash extractable from embed code.",
-    "loox": "Widget API available. Requires store identifier from embed.",
-    "okendo": "Widget API available via subscriber ID.",
+    "judge_me": "Scrapable via Apify actor. Shop domain extracted from page.",
+    "stamped": "Free public widget API. API key extracted from embed code.",
+    "loox": "Free widget HTML endpoint. Widget ID + hash extracted from iframe.",
+    "okendo": "Free public JSON API. Subscriber ID extracted from page.",
 }
 
 def _build_review_url(platform: str, identifier: str, domain: str) -> Optional[str]:
@@ -207,7 +207,7 @@ def detect_reviews(
     for p in detected:
         display = PLATFORM_DISPLAY.get(p.platform, p.platform.title())
         notes = SCRAPER_NOTES.get(p.platform, "Manual scraping may be required.")
-        scrapable = p.platform in {"trustpilot", "reviews_io", "yotpo", "google_reviews", "judge_me"}
+        scrapable = p.platform in {"trustpilot", "reviews_io", "yotpo", "google_reviews", "judge_me", "okendo", "stamped", "loox"}
         review_url = _build_review_url(p.platform, p.identifier, domain)
         platforms.append(DetectedPlatformResponse(
             platform=p.platform,

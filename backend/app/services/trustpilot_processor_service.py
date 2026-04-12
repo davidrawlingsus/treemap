@@ -91,6 +91,14 @@ def build_pre_llm_process_voc_rows(
             source_name, source_key, prefix = "Reviews.io", "reviewsio", "rio"
         elif "google" in source_hint:
             source_name, source_key, prefix = "Google Reviews", "google_reviews", "gr"
+        elif "okendo" in source_hint:
+            source_name, source_key, prefix = "Okendo", "okendo", "ok"
+        elif "stamped" in source_hint:
+            source_name, source_key, prefix = "Stamped.io", "stamped", "st"
+        elif "loox" in source_hint:
+            source_name, source_key, prefix = "Loox", "loox", "lx"
+        elif "judge" in source_hint:
+            source_name, source_key, prefix = "Judge.me", "judgeme", "jm"
         else:
             source_name, source_key, prefix = "Trustpilot", "trustpilot", "tp"
 

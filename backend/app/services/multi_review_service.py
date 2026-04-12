@@ -3,7 +3,9 @@ Multi-platform review orchestrator.
 
 Detects which review platforms a company uses, fetches from each,
 and returns reviews from the platform with the most results.
-Tries free APIs (Reviews.io, Yotpo) before paid (Trustpilot via Apify).
+
+Signal ranking: on-site embedded widgets = brand endorsement = highest signal.
+Tries free APIs first, then paid (Apify), with Trustpilot as last resort.
 """
 
 import logging
@@ -26,7 +28,17 @@ PLATFORM_DISPLAY = {
     "reviews_io": "Reviews.io",
     "yotpo": "Yotpo",
     "google_reviews": "Google Reviews",
+    "judge_me": "Judge.me",
+    "stamped": "Stamped.io",
+    "loox": "Loox",
+    "okendo": "Okendo",
 }
+
+# Platforms that cost money per scrape (Apify actors)
+_PAID_PLATFORMS = {"trustpilot", "google_reviews", "judge_me"}
+
+# Free on-site widget APIs — highest signal, try these first
+_FREE_ONSITE_PLATFORMS = {"reviews_io", "yotpo", "okendo", "stamped", "loox"}
 
 
 def fetch_reviews_best_platform(
@@ -36,13 +48,16 @@ def fetch_reviews_best_platform(
     max_reviews: int = 200,
     on_status: Any = None,
 ) -> FetchResult:
-    """Detect review platforms and fetch from the one with the most reviews.
+    """Detect review platforms and fetch from the best one.
 
-    Tries free APIs first (Reviews.io, Yotpo), then Trustpilot via Apify.
-    Returns a FetchResult with the winning platform's reviews.
+    Signal ranking (on-site widget = brand endorsement = high signal):
+    1. Free on-site widgets: Reviews.io, Yotpo, Okendo, Stamped, Loox
+    2. Paid on-site: Judge.me (Apify)
+    3. Trustpilot — only if widget embedded on site (confidence=high)
+    4. Fallback: Trustpilot by domain (always available, lowest signal)
+    5. Google Reviews (rarely brand-curated, last resort)
 
-    Args:
-        on_status: Optional callback(status_str) for progress updates.
+    Short-circuits if any free platform returns ≥20 reviews.
     """
     from app.services.review_platform_detector import detect_review_platforms
 
@@ -56,14 +71,30 @@ def fetch_reviews_best_platform(
         ", ".join(f"{p.platform}({p.confidence})" for p in detected),
     )
 
-    # Fetch from each platform, trying free APIs first
+    # Sort by signal ranking:
+    # 1. Free on-site widgets first
+    # 2. Paid on-site (Judge.me) second
+    # 3. Trustpilot (high confidence = embedded widget) third
+    # 4. Trustpilot (low confidence = fallback) fourth
+    # 5. Google Reviews last
+    def _sort_key(p):
+        if p.platform in _FREE_ONSITE_PLATFORMS:
+            return 0
+        if p.platform == "judge_me":
+            return 1
+        if p.platform == "trustpilot" and p.confidence == "high":
+            return 2
+        if p.platform == "trustpilot":
+            return 3
+        if p.platform == "google_reviews":
+            return 4
+        return 5
+
+    ranked = sorted(detected, key=_sort_key)
+
     results: List[FetchResult] = []
 
-    # Sort: free APIs first (reviews_io, yotpo), then paid (trustpilot, google_reviews via Apify)
-    _PAID_PLATFORMS = {"trustpilot", "google_reviews"}
-    free_first = sorted(detected, key=lambda p: 0 if p.platform not in _PAID_PLATFORMS else 1)
-
-    for platform in free_first:
+    for platform in ranked:
         if on_status:
             on_status(f"scraping_{platform.platform}")
 
@@ -71,61 +102,24 @@ def fetch_reviews_best_platform(
         logger.info("[multi-review] Trying %s (identifier=%s)...", display, platform.identifier[:30])
 
         try:
-            if platform.platform == "reviews_io":
-                from app.services.reviews_io_service import fetch_reviews_io_reviews
-                reviews = fetch_reviews_io_reviews(platform.identifier, max_reviews)
-            elif platform.platform == "yotpo":
-                from app.services.yotpo_service import fetch_yotpo_reviews
-                reviews = fetch_yotpo_reviews(platform.identifier, max_reviews)
-            elif platform.platform == "google_reviews":
-                google_key = getattr(settings, "google_places_api_key", None)
-                apify_google_actor = getattr(settings, "apify_google_reviews_actor_id", None)
-                apify_token = getattr(settings, "apify_api_token", None)
-                if google_key and apify_token and apify_google_actor:
-                    from app.services.google_reviews_service import fetch_google_reviews_by_domain
-                    reviews = fetch_google_reviews_by_domain(
-                        api_key=google_key,
-                        company_domain=platform.identifier,
-                        max_reviews=max_reviews,
-                        apify_api_token=apify_token,
-                        apify_google_actor_id=apify_google_actor,
-                        apify_timeout_seconds=getattr(settings, "apify_timeout_seconds", 300),
-                    )
-                else:
-                    logger.info("[multi-review] Skipping Google Reviews — API keys not configured")
-                    continue
-            elif platform.platform == "trustpilot":
-                from app.services.trustpilot_apify_service import fetch_trustpilot_reviews_by_domain
-                reviews = fetch_trustpilot_reviews_by_domain(
-                    settings=settings,
-                    domain=platform.identifier,
-                    max_reviews=max_reviews,
-                )
-            else:
-                continue
-
-            result = FetchResult(
-                platform=platform.platform,
-                platform_display=display,
-                reviews=reviews,
-            )
-            results.append(result)
-            logger.info("[multi-review] %s returned %d reviews", display, len(reviews))
-
-            # If a free API returned enough reviews, skip Trustpilot (saves cost)
-            if platform.platform != "trustpilot" and len(reviews) >= 20:
-                logger.info("[multi-review] %s has sufficient reviews, skipping remaining platforms", display)
-                break
-
+            reviews = _fetch_from_platform(platform, settings, company_domain, max_reviews)
+            if reviews is None:
+                continue  # platform skipped (missing config)
         except Exception as e:
             err_msg = getattr(e, "detail", None) or str(e)
             logger.warning("[multi-review] %s failed: %s", display, err_msg)
-            results.append(FetchResult(
-                platform=platform.platform,
-                platform_display=display,
-                reviews=[],
-                error=str(err_msg),
-            ))
+            results.append(FetchResult(platform.platform, display, [], error=str(err_msg)))
+            continue
+
+        result = FetchResult(platform.platform, display, reviews)
+        results.append(result)
+        logger.info("[multi-review] %s returned %d reviews", display, len(reviews))
+
+        # Short-circuit: if a free on-site platform has enough reviews, skip the rest
+        is_free = platform.platform in _FREE_ONSITE_PLATFORMS
+        if is_free and len(reviews) >= 20:
+            logger.info("[multi-review] %s has sufficient reviews, skipping remaining", display)
+            break
 
     # Pick the platform with the most reviews
     if not results or all(len(r.reviews) == 0 for r in results):
@@ -139,3 +133,78 @@ def fetch_reviews_best_platform(
         ", ".join(f"{r.platform_display}={len(r.reviews)}" for r in results),
     )
     return best
+
+
+def _fetch_from_platform(
+    platform: Any,
+    settings: Any,
+    company_domain: str,
+    max_reviews: int,
+) -> Optional[List[Dict[str, Any]]]:
+    """Fetch reviews from a specific platform. Returns None to skip."""
+
+    if platform.platform == "reviews_io":
+        from app.services.reviews_io_service import fetch_reviews_io_reviews
+        return fetch_reviews_io_reviews(platform.identifier, max_reviews)
+
+    if platform.platform == "yotpo":
+        from app.services.yotpo_service import fetch_yotpo_reviews
+        return fetch_yotpo_reviews(platform.identifier, max_reviews)
+
+    if platform.platform == "okendo":
+        from app.services.okendo_service import fetch_okendo_reviews
+        return fetch_okendo_reviews(platform.identifier, max_reviews)
+
+    if platform.platform == "stamped":
+        from app.services.stamped_service import fetch_stamped_reviews
+        return fetch_stamped_reviews(
+            store_url=f"https://{company_domain}",
+            api_key=platform.identifier,
+            max_reviews=max_reviews,
+        )
+
+    if platform.platform == "loox":
+        from app.services.loox_service import fetch_loox_reviews
+        # Identifier format: "widget_id|hash" or just "widget_id" or "detected"
+        parts = platform.identifier.split("|", 1)
+        widget_id = parts[0]
+        hash_param = parts[1] if len(parts) > 1 else ""
+        if not hash_param or widget_id == "detected":
+            logger.info("[multi-review] Loox detected but missing hash param, skipping extraction")
+            return None
+        return fetch_loox_reviews(widget_id, hash_param, max_reviews)
+
+    if platform.platform == "judge_me":
+        from app.services.judgeme_apify_service import fetch_judgeme_reviews
+        if not getattr(settings, "apify_judgeme_actor_id", None):
+            logger.info("[multi-review] Skipping Judge.me — actor ID not configured")
+            return None
+        return fetch_judgeme_reviews(platform.identifier, settings, max_reviews)
+
+    if platform.platform == "google_reviews":
+        google_key = getattr(settings, "google_places_api_key", None)
+        apify_google_actor = getattr(settings, "apify_google_reviews_actor_id", None)
+        apify_token = getattr(settings, "apify_api_token", None)
+        if not (google_key and apify_token and apify_google_actor):
+            logger.info("[multi-review] Skipping Google Reviews — API keys not configured")
+            return None
+        from app.services.google_reviews_service import fetch_google_reviews_by_domain
+        return fetch_google_reviews_by_domain(
+            api_key=google_key,
+            company_domain=platform.identifier,
+            max_reviews=max_reviews,
+            apify_api_token=apify_token,
+            apify_google_actor_id=apify_google_actor,
+            apify_timeout_seconds=getattr(settings, "apify_timeout_seconds", 300),
+        )
+
+    if platform.platform == "trustpilot":
+        from app.services.trustpilot_apify_service import fetch_trustpilot_reviews_by_domain
+        return fetch_trustpilot_reviews_by_domain(
+            settings=settings,
+            domain=platform.identifier,
+            max_reviews=max_reviews,
+        )
+
+    logger.warning("[multi-review] Unknown platform: %s", platform.platform)
+    return None
