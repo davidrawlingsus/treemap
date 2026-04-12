@@ -93,8 +93,17 @@ def fetch_reviews_best_platform(
     ranked = sorted(detected, key=_sort_key)
 
     results: List[FetchResult] = []
+    has_sufficient_free = False  # True once any free platform returns ≥20
 
     for platform in ranked:
+        is_free = platform.platform in _FREE_ONSITE_PLATFORMS
+        is_paid = platform.platform in _PAID_PLATFORMS
+
+        # Skip paid platforms if we already have sufficient free results
+        if is_paid and has_sufficient_free:
+            logger.info("[multi-review] Skipping paid %s — already have sufficient free reviews", platform.platform)
+            continue
+
         if on_status:
             on_status(f"scraping_{platform.platform}")
 
@@ -115,11 +124,9 @@ def fetch_reviews_best_platform(
         results.append(result)
         logger.info("[multi-review] %s returned %d reviews", display, len(reviews))
 
-        # Short-circuit: if a free on-site platform has enough reviews, skip the rest
-        is_free = platform.platform in _FREE_ONSITE_PLATFORMS
+        # Track if any free platform has enough — but keep trying other free ones
         if is_free and len(reviews) >= 20:
-            logger.info("[multi-review] %s has sufficient reviews, skipping remaining", display)
-            break
+            has_sufficient_free = True
 
     # Pick the platform with the most reviews
     if not results or all(len(r.reviews) == 0 for r in results):
