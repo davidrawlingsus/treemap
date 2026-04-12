@@ -107,15 +107,7 @@ def fetch_reviews_best_platform(
     trace.append(f"Ranked: {', '.join(p.platform for p in ranked)}")
 
     results: List[FetchResult] = []
-
-    # Check if ANY on-site platform was detected — if so, fallbacks are blocked
-    # regardless of whether extraction succeeds. Detection = brand endorsement.
-    has_onsite_detected = any(
-        p.platform in _ONSITE_PLATFORMS or (p.platform == "trustpilot" and p.confidence == "high")
-        for p in detected
-    )
-    if has_onsite_detected:
-        trace.append("On-site platform detected — fallbacks (Google, Trustpilot domain) blocked")
+    has_onsite_reviews = False  # True once on-site extraction returns reviews
 
     for platform in ranked:
         is_onsite = platform.platform in _ONSITE_PLATFORMS
@@ -128,8 +120,8 @@ def fetch_reviews_best_platform(
             platform.platform == "trustpilot" and platform.confidence != "high"
         )
 
-        # Fallback platforms only tried if NO on-site platform was even detected
-        if is_fallback and has_onsite_detected:
+        # Fallback platforms only tried if on-site platforms returned 0 reviews
+        if is_fallback and has_onsite_reviews:
             msg = f"SKIP {platform.platform}: fallback, on-site reviews available"
             trace.append(msg)
             logger.info("[multi-review] %s", msg)
@@ -171,6 +163,9 @@ def fetch_reviews_best_platform(
         results.append(result)
         logger.info("[multi-review] %s", msg)
 
+        # Track if on-site platform returned actual reviews
+        if is_onsite and len(reviews) > 0:
+            has_onsite_reviews = True
 
     # Pick the platform with the most reviews
     if not results or all(len(r.reviews) == 0 for r in results):
