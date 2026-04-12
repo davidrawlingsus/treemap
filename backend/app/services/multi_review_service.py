@@ -34,11 +34,15 @@ PLATFORM_DISPLAY = {
     "okendo": "Okendo",
 }
 
-# Platforms that cost money per scrape (Apify actors)
-_PAID_PLATFORMS = {"trustpilot", "google_reviews", "judge_me"}
+# On-site widget platforms — brand chose this = highest signal
+# These are tried first regardless of cost
+_ONSITE_PLATFORMS = {"reviews_io", "yotpo", "okendo", "stamped", "loox", "judge_me"}
 
-# Free on-site widget APIs — highest signal, try these first
+# Free on-site widget APIs (no Apify cost)
 _FREE_ONSITE_PLATFORMS = {"reviews_io", "yotpo", "okendo", "stamped", "loox"}
+
+# Fallback-only platforms — never on-site, used as last resort
+_FALLBACK_PLATFORMS = {"google_reviews"}
 
 
 def fetch_reviews_best_platform(
@@ -93,15 +97,29 @@ def fetch_reviews_best_platform(
     ranked = sorted(detected, key=_sort_key)
 
     results: List[FetchResult] = []
-    has_sufficient_free = False  # True once any free platform returns ≥20
+    has_onsite_reviews = False  # True once any on-site platform returns reviews
 
     for platform in ranked:
+        is_onsite = platform.platform in _ONSITE_PLATFORMS
         is_free = platform.platform in _FREE_ONSITE_PLATFORMS
-        is_paid = platform.platform in _PAID_PLATFORMS
+        # Trustpilot with high confidence = embedded on-site; low confidence = fallback
+        is_trustpilot_embedded = platform.platform == "trustpilot" and platform.confidence == "high"
+        if is_trustpilot_embedded:
+            is_onsite = True
+        is_fallback = platform.platform in _FALLBACK_PLATFORMS or (
+            platform.platform == "trustpilot" and platform.confidence != "high"
+        )
 
-        # Skip paid platforms if we already have sufficient free results
-        if is_paid and has_sufficient_free:
-            logger.info("[multi-review] Skipping paid %s — already have sufficient free reviews", platform.platform)
+        # Fallback platforms only tried if NO on-site platform returned reviews
+        if is_fallback and has_onsite_reviews:
+            logger.info("[multi-review] Skipping fallback %s — on-site reviews available", platform.platform)
+            continue
+
+        # Skip paid on-site (Judge.me) if free on-site already has sufficient reviews
+        if platform.platform == "judge_me" and any(
+            r.platform in _FREE_ONSITE_PLATFORMS and len(r.reviews) >= 20 for r in results
+        ):
+            logger.info("[multi-review] Skipping Judge.me — free on-site has sufficient reviews")
             continue
 
         if on_status:
@@ -124,9 +142,9 @@ def fetch_reviews_best_platform(
         results.append(result)
         logger.info("[multi-review] %s returned %d reviews", display, len(reviews))
 
-        # Track if any free platform has enough — but keep trying other free ones
-        if is_free and len(reviews) >= 20:
-            has_sufficient_free = True
+        # Track if any on-site platform returned reviews (even 1 blocks fallbacks)
+        if is_onsite and len(reviews) > 0:
+            has_onsite_reviews = True
 
     # Pick the platform with the most reviews
     if not results or all(len(r.reviews) == 0 for r in results):
