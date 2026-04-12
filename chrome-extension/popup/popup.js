@@ -516,8 +516,7 @@ async function streamAdAnalysis() {
 
   if (tabId) {
     for (let i = 0; i < adsToAnalyze; i++) {
-      chrome.tabs.sendMessage(tabId, { action: "injectLoading", adIndex: i })
-        .catch((e) => console.warn(`[VZD] injectLoading failed for ad ${i}:`, e));
+      chrome.tabs.sendMessage(tabId, { action: "injectLoading", adIndex: i }).catch(() => {});
     }
   } else {
     console.warn("[VZD] No active tab found for injection");
@@ -531,9 +530,7 @@ async function streamAdAnalysis() {
     for (let i = lastInjectedCount; i < completedBlocks.length; i++) {
       const html = buildAdCardHtml(completedBlocks[i]);
       if (tabId) {
-        chrome.tabs.sendMessage(tabId, { action: "injectAnalysis", adIndex: i, html })
-          .then((resp) => console.log(`[VZD] Injected ad ${i}:`, resp))
-          .catch((e) => console.warn(`[VZD] injectAnalysis failed for ad ${i}:`, e));
+        chrome.tabs.sendMessage(tabId, { action: "injectAnalysis", adIndex: i, html }).catch(() => {});
       }
       injectedCount++;
     }
