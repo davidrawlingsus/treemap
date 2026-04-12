@@ -83,7 +83,18 @@ def fetch_loox_reviews(
 
 
 def _parse_reviews_html(html: str) -> List[Dict[str, Any]]:
-    """Parse review data from Loox widget HTML response."""
+    """Parse review data from Loox widget HTML response.
+
+    Loox structure (as of 2026):
+    - Review card: .grid-item-wrap
+    - Reviewer name: .title or .feed-item-title-wrapper
+    - Review text: .main-text
+    - Product name: .name (confusingly named)
+    - Rating: aria-label on .stars ul ("Rating icons: N / 5 star review")
+              or count of data-lx-fill="full" SVGs
+    - Verified: .loox-verified-badge present
+    - Review ID: data-testid="review-{ID}-stars" on .stars div
+    """
     try:
         from bs4 import BeautifulSoup
     except ImportError:
@@ -93,35 +104,52 @@ def _parse_reviews_html(html: str) -> List[Dict[str, Any]]:
     soup = BeautifulSoup(html, "html.parser")
     reviews = []
 
-    # Loox uses various class patterns for review cards
-    cards = soup.select(".loox-review, .review-card, [data-review-id]")
+    cards = soup.select(".grid-item-wrap")
     if not cards:
-        # Fallback: look for any div with review-like content
-        cards = soup.find_all("div", class_=lambda c: c and "review" in c.lower()) if soup else []
+        logger.warning("[loox] No .grid-item-wrap cards found in HTML (%d bytes)", len(html))
+        return []
 
     for card in cards:
-        text_el = card.select_one(".loox-review-content, .review-body, .review-text, p")
-        reviewer_el = card.select_one(".loox-review-author, .reviewer-name, .review-author")
-        product_el = card.select_one(".loox-review-product, .product-name, .review-product")
-        rating_el = card.select_one("[data-rating], .star-rating, .rating")
-        verified_el = card.select_one(".verified, .verified-badge")
-
+        # Review text
+        text_el = card.select_one(".main-text")
         text = text_el.get_text(strip=True) if text_el else ""
         if not text:
             continue
 
+        # Reviewer name (in .title, NOT .name which is the product)
+        reviewer_el = card.select_one(".title, .feed-item-title-wrapper")
         reviewer = reviewer_el.get_text(strip=True) if reviewer_el else "Anonymous"
+
+        # Product name
+        product_el = card.select_one(".name")
         product = product_el.get_text(strip=True) if product_el else ""
 
+        # Rating from aria-label or filled star count
         rating = None
-        if rating_el:
-            rating_str = rating_el.get("data-rating") or rating_el.get_text(strip=True)
-            try:
-                rating = int(float(rating_str))
-            except (ValueError, TypeError):
-                pass
+        stars_el = card.select_one(".stars")
+        if stars_el:
+            # Try aria-label first: "Rating icons:  5 / 5 star review"
+            ul = stars_el.select_one("ul[aria-label]")
+            if ul:
+                import re
+                m = re.search(r"(\d+)\s*/\s*5", ul.get("aria-label", ""))
+                if m:
+                    rating = int(m.group(1))
+            # Fallback: count filled stars
+            if rating is None:
+                filled = stars_el.select('[data-lx-fill="full"]')
+                if filled:
+                    rating = len(filled)
 
-        is_verified = verified_el is not None
+        # Verified badge
+        is_verified = card.select_one(".loox-verified-badge") is not None
+
+        # Review ID from data-testid
+        review_id = ""
+        if stars_el:
+            testid = stars_el.get("data-testid", "")
+            if testid.startswith("review-") and testid.endswith("-stars"):
+                review_id = testid[7:-6]  # strip "review-" and "-stars"
 
         reviews.append({
             "text": text,
@@ -129,9 +157,10 @@ def _parse_reviews_html(html: str) -> List[Dict[str, Any]]:
             "product": product,
             "rating": rating,
             "verified": is_verified,
-            "review_id": card.get("data-review-id", ""),
+            "review_id": review_id,
         })
 
+    logger.info("[loox] Parsed %d reviews from HTML", len(reviews))
     return reviews
 
 
