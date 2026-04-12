@@ -333,8 +333,12 @@ _LOOX_SIGNATURES = [
 _LOOX_ID_PATTERNS = [
     # iframe src: loox.io/widget/{WIDGET_ID}/reviews?h={HASH}
     re.compile(r'loox\.io/widget/([a-zA-Z0-9]+)/reviews\?[^"\']*h=([a-zA-Z0-9]+)', re.IGNORECASE),
-    # script src: loox.io/widget/{WIDGET_ID}/loox.*.js
-    re.compile(r'loox\.io/widget/([a-zA-Z0-9]+)/loox', re.IGNORECASE),
+    # script/iframe: loox.io/widget/{WIDGET_ID}/ (any path after widget ID)
+    re.compile(r'loox\.io/widget/([a-zA-Z0-9]{6,})', re.IGNORECASE),
+    # loox.app/widget/{WIDGET_ID}
+    re.compile(r'loox\.app/widget/([a-zA-Z0-9]{6,})', re.IGNORECASE),
+    # data attribute: data-loox-id="..." or data-widget-id="..."
+    re.compile(r'data-(?:loox-id|widget-id)\s*=\s*["\']([a-zA-Z0-9]{6,})["\']', re.IGNORECASE),
 ]
 
 

@@ -169,8 +169,8 @@ def _fetch_from_platform(
         parts = platform.identifier.split("|", 1)
         widget_id = parts[0]
         hash_param = parts[1] if len(parts) > 1 else ""
-        if not hash_param or widget_id == "detected":
-            logger.info("[multi-review] Loox detected but missing hash param, skipping extraction")
+        if widget_id == "detected":
+            logger.info("[multi-review] Loox detected but no widget ID extracted, skipping")
             return None
         return fetch_loox_reviews(widget_id, hash_param, max_reviews)
 

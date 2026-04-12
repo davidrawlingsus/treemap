@@ -35,21 +35,24 @@ def fetch_loox_reviews(
     Returns normalized review dicts matching the standard format.
     Returns empty list on any error (pipeline continues with other sources).
     """
-    if not widget_id or not hash_param:
-        logger.warning("[loox] Missing widget_id or hash, skipping")
+    if not widget_id:
+        logger.warning("[loox] Missing widget_id, skipping")
         return []
 
     all_reviews: List[Dict[str, Any]] = []
     page = 1
     url = f"{WIDGET_BASE}/{widget_id}/reviews"
 
-    logger.info("[loox] Fetching reviews for widget=%s (max=%d)", widget_id, max_reviews)
+    logger.info("[loox] Fetching reviews for widget=%s hash=%s (max=%d)", widget_id, hash_param or "none", max_reviews)
 
     while len(all_reviews) < max_reviews:
         try:
+            params = {"limit": per_page, "page": page}
+            if hash_param:
+                params["h"] = hash_param
             resp = requests.get(
                 url,
-                params={"h": hash_param, "limit": per_page, "page": page},
+                params=params,
                 headers={"User-Agent": USER_AGENT},
                 timeout=15,
             )
