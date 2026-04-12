@@ -21,6 +21,11 @@ class FetchResult:
     platform_display: str
     reviews: List[Dict[str, Any]]
     error: Optional[str] = None
+    trace: List[str] = None  # debug log of platform selection decisions
+
+    def __post_init__(self):
+        if self.trace is None:
+            self.trace = []
 
 
 PLATFORM_DISPLAY = {
@@ -95,6 +100,10 @@ def fetch_reviews_best_platform(
         return 5
 
     ranked = sorted(detected, key=_sort_key)
+    trace: List[str] = []
+
+    trace.append(f"Detected: {', '.join(f'{p.platform}({p.confidence}, id={p.identifier[:30]})' for p in detected)}")
+    trace.append(f"Ranked: {', '.join(p.platform for p in ranked)}")
 
     results: List[FetchResult] = []
     has_onsite_reviews = False  # True once any on-site platform returns reviews
@@ -112,14 +121,18 @@ def fetch_reviews_best_platform(
 
         # Fallback platforms only tried if NO on-site platform returned reviews
         if is_fallback and has_onsite_reviews:
-            logger.info("[multi-review] Skipping fallback %s — on-site reviews available", platform.platform)
+            msg = f"SKIP {platform.platform}: fallback, on-site reviews available"
+            trace.append(msg)
+            logger.info("[multi-review] %s", msg)
             continue
 
         # Skip paid on-site (Judge.me) if free on-site already has sufficient reviews
         if platform.platform == "judge_me" and any(
             r.platform in _FREE_ONSITE_PLATFORMS and len(r.reviews) >= 20 for r in results
         ):
-            logger.info("[multi-review] Skipping Judge.me — free on-site has sufficient reviews")
+            msg = "SKIP judge_me: free on-site has sufficient reviews"
+            trace.append(msg)
+            logger.info("[multi-review] %s", msg)
             continue
 
         if on_status:
@@ -131,16 +144,23 @@ def fetch_reviews_best_platform(
         try:
             reviews = _fetch_from_platform(platform, settings, company_domain, max_reviews)
             if reviews is None:
-                continue  # platform skipped (missing config)
+                msg = f"SKIP {platform.platform}: missing config"
+                trace.append(msg)
+                logger.info("[multi-review] %s", msg)
+                continue
         except Exception as e:
             err_msg = getattr(e, "detail", None) or str(e)
-            logger.warning("[multi-review] %s failed: %s", display, err_msg)
+            msg = f"FAIL {platform.platform}: {err_msg}"
+            trace.append(msg)
+            logger.warning("[multi-review] %s", msg)
             results.append(FetchResult(platform.platform, display, [], error=str(err_msg)))
             continue
 
+        msg = f"OK {platform.platform}: {len(reviews)} reviews"
+        trace.append(msg)
         result = FetchResult(platform.platform, display, reviews)
         results.append(result)
-        logger.info("[multi-review] %s returned %d reviews", display, len(reviews))
+        logger.info("[multi-review] %s", msg)
 
         # Track if any on-site platform returned reviews (even 1 blocks fallbacks)
         if is_onsite and len(reviews) > 0:
@@ -149,9 +169,13 @@ def fetch_reviews_best_platform(
     # Pick the platform with the most reviews
     if not results or all(len(r.reviews) == 0 for r in results):
         logger.warning("[multi-review] No reviews found on any platform for %s", company_domain)
-        return FetchResult(platform="none", platform_display="None", reviews=[])
+        no_result = FetchResult(platform="none", platform_display="None", reviews=[])
+        no_result.trace = trace
+        return no_result
 
     best = max(results, key=lambda r: len(r.reviews))
+    trace.append(f"SELECTED: {best.platform} ({len(best.reviews)} reviews)")
+    best.trace = trace
     logger.info(
         "[multi-review] Best platform for %s: %s with %d reviews (tried: %s)",
         company_domain, best.platform_display, len(best.reviews),

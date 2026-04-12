@@ -478,6 +478,19 @@ select option {
   color: #B9F040;
 }
 
+.signal-trace {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 6px 8px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  line-height: 1.4;
+}
+
 /* ==========================================================================
    Review Signal
    ========================================================================== */
