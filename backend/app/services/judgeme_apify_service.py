@@ -22,40 +22,45 @@ def _first_non_empty(data: Dict[str, Any], keys: List[str]) -> Optional[Any]:
 
 
 def _normalize_apify_review(item: Dict[str, Any]) -> Dict[str, Any]:
-    """Normalize a Judge.me Apify review to the standard format."""
-    text = _first_non_empty(item, ["body", "text", "content", "reviewBody", "review"]) or ""
-    title = _first_non_empty(item, ["title", "headline", "reviewTitle"]) or ""
-    if not text.strip() and not title.strip():
+    """Normalize a Judge.me Apify review to the standard format.
+
+    Actor output fields (stanvanrooy6/judge-me-scraper):
+    review_id, author, review_title, body, rating, date, date_utc,
+    product_name, product_url, verified_buyer, images, videos,
+    source, id, location, title, content, pictures
+    """
+    text = (item.get("body") or item.get("content") or "").strip()
+    title = (item.get("review_title") or item.get("title") or "").strip()
+    if not text and not title:
         return {}
 
-    reviewer = item.get("reviewer") if isinstance(item.get("reviewer"), dict) else {}
-    reviewer_name = (
-        _first_non_empty(item, ["reviewer_name", "author"])
-        or _first_non_empty(reviewer, ["displayName", "name"])
-        or "Anonymous"
-    )
-
     return {
-        "review_id": str(_first_non_empty(item, ["id", "reviewId", "review_id"]) or ""),
-        "rating": _first_non_empty(item, ["rating", "stars", "score"]),
-        "title": title.strip(),
-        "text": text.strip(),
-        "published_at": _first_non_empty(item, [
-            "created_at", "publishedAt", "date", "createdAt", "reviewDate",
-        ]),
-        "language": _first_non_empty(item, ["language", "lang"]) or "en",
-        "country": _first_non_empty(item, ["country", "countryCode"]) or "",
-        "review_url": _first_non_empty(item, ["url", "reviewUrl"]) or "",
-        "reviewer_name": reviewer_name,
+        "review_id": str(item.get("review_id") or item.get("id") or ""),
+        "rating": item.get("rating"),
+        "title": title,
+        "text": text,
+        "published_at": item.get("date_utc") or item.get("date") or "",
+        "language": "en",
+        "country": item.get("location") or "",
+        "review_url": item.get("product_url") or "",
+        "reviewer_name": item.get("author") or "Anonymous",
         "source": "judge_me_apify",
         "raw_item": item,
     }
 
 
 def _build_actor_input(shop_domain: str, max_reviews: int) -> Dict[str, Any]:
-    """Build input for the Judge.me Apify actor."""
+    """Build input for the Judge.me Apify actor (stanvanrooy6/judge-me-scraper).
+
+    The actor expects 'startUrl' — a URL to the Shopify store.
+    """
+    # Ensure it's a full URL
+    if not shop_domain.startswith("http"):
+        url = f"https://{shop_domain}"
+    else:
+        url = shop_domain
     return {
-        "shopDomain": shop_domain,
+        "startUrl": url,
         "maxReviews": max_reviews,
     }
 
