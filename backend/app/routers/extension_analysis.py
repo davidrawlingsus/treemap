@@ -250,9 +250,17 @@ def analyze_review_signal(
         max_reviews=body.max_reviews,
     )
 
+    # Build source preamble so the frontend knows which platform was selected
+    source_line = (
+        f"===SOURCE===\n"
+        f"PLATFORM: {fetch_result.platform_display}\n"
+        f"REVIEWS: {len(fetch_result.reviews)}\n"
+        f"===END===\n"
+    )
+
     if not fetch_result.reviews:
-        # Return a static SSE stream for "no reviews"
         def no_reviews_gen():
+            yield source_line
             yield "===SUMMARY===\n"
             yield f"GRADE: F\nHIGH: 0\nMEDIUM: 0\nLOW: 0\n"
             yield f"THEMES: none\n"
@@ -262,21 +270,21 @@ def analyze_review_signal(
         return StreamingResponse(
             _sse_generator(no_reviews_gen()),
             media_type="text/event-stream",
-            headers={**SSE_HEADERS, "X-Platform": fetch_result.platform or "",
-                     "X-Platform-Display": fetch_result.platform_display or ""},
+            headers=SSE_HEADERS,
         )
 
     from app.services.ad_analysis_service import stream_review_signal
 
-    text_gen = stream_review_signal(
-        fetch_result.reviews,
-        settings.anthropic_api_key,
-        max_reviews=body.max_reviews,
-    )
+    def signal_with_source():
+        yield source_line
+        yield from stream_review_signal(
+            fetch_result.reviews,
+            settings.anthropic_api_key,
+            max_reviews=body.max_reviews,
+        )
 
     return StreamingResponse(
-        _sse_generator(text_gen),
+        _sse_generator(signal_with_source()),
         media_type="text/event-stream",
-        headers={**SSE_HEADERS, "X-Platform": fetch_result.platform or "",
-                 "X-Platform-Display": fetch_result.platform_display or ""},
+        headers=SSE_HEADERS,
     )

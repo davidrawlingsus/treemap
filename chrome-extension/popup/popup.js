@@ -811,6 +811,21 @@ function streamReviewSignal(destinationUrl) {
 function renderSignalText(raw) {
   let html = "";
 
+  // Parse source block (which platform was selected)
+  const sourceMatch = raw.match(/===SOURCE===([\s\S]*?)===END===/);
+  if (sourceMatch) {
+    const srcBlock = sourceMatch[1];
+    const getSrc = (label) => {
+      const m = srcBlock.match(new RegExp(`^${label}:\\s*(.+)$`, "m"));
+      return m ? m[1].trim() : "";
+    };
+    const platform = getSrc("PLATFORM");
+    const reviewCount = getSrc("REVIEWS");
+    if (platform && platform !== "None") {
+      html += `<div class="signal-source">Analyzing ${reviewCount} reviews from <strong>${escHtml(platform)}</strong></div>`;
+    }
+  }
+
   // Parse summary block
   const summaryMatch = raw.match(/===SUMMARY===([\s\S]*?)===END===/);
   if (summaryMatch) {

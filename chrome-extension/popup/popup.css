@@ -463,6 +463,21 @@ select option {
   margin-bottom: 6px;
 }
 
+/* Signal source badge */
+.signal-source {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  border-left: 2px solid #B9F040;
+}
+
+.signal-source strong {
+  color: #B9F040;
+}
+
 /* ==========================================================================
    Review Signal
    ========================================================================== */
