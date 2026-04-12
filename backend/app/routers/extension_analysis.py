@@ -67,6 +67,7 @@ class AnalyzeReviewSignalRequest(BaseModel):
     destination_url: str = Field(..., description="Destination URL to find reviews for")
     platform: Optional[str] = Field(None, description="Specific platform to use (auto-detect if omitted)")
     max_reviews: int = Field(20, ge=1, le=50)
+    page_html: Optional[str] = Field(None, description="Pre-fetched HTML from extension (bypasses WAFs)")
 
 
 # ---------------------------------------------------------------------------
@@ -249,6 +250,7 @@ def analyze_review_signal(
         company_url=company_url,
         company_domain=domain,
         max_reviews=body.max_reviews,
+        prefetched_html=body.page_html,
     )
 
     # Build source preamble so the frontend knows which platform was selected

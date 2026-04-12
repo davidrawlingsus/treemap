@@ -408,7 +408,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 // =========================================================================
 
 // ---- Auto-analysis after extraction ----
-function startAnalysis() {
+async function startAnalysis() {
   if (!extractedAds || extractedAds.length === 0) return;
 
   // Reset panels
@@ -428,11 +428,18 @@ function startAnalysis() {
     }
   }
 
-  // Fire all 3 API calls in parallel
+  // Fire ad analysis immediately
   streamAdAnalysis();
   if (destinationUrl) {
-    runReviewDetection(destinationUrl);
-    streamReviewSignal(destinationUrl);
+    // Pre-fetch destination page HTML once, share with both review endpoints
+    let pageHtml = null;
+    try {
+      const fetchResp = await chrome.runtime.sendMessage({ action: "fetchPageHtml", url: destinationUrl });
+      if (fetchResp?.success && fetchResp.html) pageHtml = fetchResp.html;
+    } catch (e) { /* backend will use its own fetch */ }
+
+    runReviewDetection(destinationUrl, pageHtml);
+    streamReviewSignal(destinationUrl, pageHtml);
   } else {
     $("#reviewEngineLoading").style.display = "none";
     $("#reviewEngineResults").innerHTML =
@@ -725,20 +732,8 @@ function renderSynthesisText(raw, streaming) {
 }
 
 // ---- Review Engine Detection (still JSON, not streamed) ----
-async function runReviewDetection(destinationUrl) {
+async function runReviewDetection(destinationUrl, pageHtml) {
   try {
-    // Try to fetch the destination page HTML via service worker
-    // This can bypass some WAFs that block server-side fetches
-    let pageHtml = null;
-    try {
-      const fetchResp = await chrome.runtime.sendMessage({ action: "fetchPageHtml", url: destinationUrl });
-      if (fetchResp?.success && fetchResp.html) {
-        pageHtml = fetchResp.html;
-      }
-    } catch (e) {
-      // Fetch failed — backend will use its own fetch
-    }
-
     const body = { destination_url: destinationUrl };
     if (pageHtml) body.page_html = pageHtml;
 
@@ -793,14 +788,17 @@ function renderReviewEngine(data) {
 }
 
 // ---- Review Signal Analysis (streaming) ----
-function streamReviewSignal(destinationUrl) {
+function streamReviewSignal(destinationUrl, pageHtml) {
   const container = $("#reviewSignalResults");
   const section = $("#reviewSignalSection");
   if (section) section.style.display = "block";
 
+  const body = { destination_url: destinationUrl, max_reviews: 20 };
+  if (pageHtml) body.page_html = pageHtml;
+
   streamSSE(
     "/api/extension/analyze-review-signal",
-    { destination_url: destinationUrl, max_reviews: 20 },
+    body,
     // onChunk
     (text) => {
       $("#reviewSignalLoading").style.display = "none";

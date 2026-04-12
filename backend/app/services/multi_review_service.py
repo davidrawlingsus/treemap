@@ -56,6 +56,7 @@ def fetch_reviews_best_platform(
     company_domain: str,
     max_reviews: int = 200,
     on_status: Any = None,
+    prefetched_html: Optional[str] = None,
 ) -> FetchResult:
     """Detect review platforms and fetch from the best one.
 
@@ -73,7 +74,7 @@ def fetch_reviews_best_platform(
     if on_status:
         on_status("detecting_platforms")
 
-    detected = detect_review_platforms(company_url, company_domain)
+    detected = detect_review_platforms(company_url, company_domain, prefetched_html=prefetched_html)
     logger.info(
         "[multi-review] Detected platforms for %s: %s",
         company_domain,
