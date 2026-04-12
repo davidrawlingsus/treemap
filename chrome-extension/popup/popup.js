@@ -511,9 +511,11 @@ async function streamAdAnalysis() {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const tabId = tab?.id;
 
-  // Show loading indicators on each ad card
+  // Analyze up to 50 ads (show loading on those)
+  const adsToAnalyze = Math.min(extractedAds.length, 50);
+
   if (tabId) {
-    for (let i = 0; i < extractedAds.length; i++) {
+    for (let i = 0; i < adsToAnalyze; i++) {
       chrome.tabs.sendMessage(tabId, { action: "injectLoading", adIndex: i })
         .catch((e) => console.warn(`[VZD] injectLoading failed for ad ${i}:`, e));
     }
@@ -541,7 +543,7 @@ async function streamAdAnalysis() {
   streamSSE(
     "/api/extension/analyze-ads",
     {
-      ads: extractedAds.map((ad) => ({
+      ads: extractedAds.slice(0, 50).map((ad) => ({
         library_id: ad.library_id || null,
         primary_text: ad.primary_text || "",
         headline: ad.headline || null,
@@ -558,7 +560,7 @@ async function streamAdAnalysis() {
     (text) => {
       $("#adAnalysisLoading").style.display = "none";
       injectCompletedBlocks(text);
-      container.innerHTML = `<div class="panel-status">Analyzing ${injectedCount} of ${extractedAds.length} ads...</div>`;
+      container.innerHTML = `<div class="panel-status">Analyzing ${injectedCount} of ${adsToAnalyze} ads...</div>`;
     },
     // onDone
     (text) => {

@@ -39,7 +39,7 @@ class AdForAnalysis(BaseModel):
 
 
 class AnalyzeAdsRequest(BaseModel):
-    ads: List[AdForAnalysis] = Field(..., min_length=1, max_length=50)
+    ads: List[AdForAnalysis] = Field(..., min_length=1, max_length=200)
 
 
 class DetectReviewsRequest(BaseModel):
