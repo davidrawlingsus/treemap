@@ -87,6 +87,12 @@ def detect_review_platforms(
             detected.append(DetectedPlatform("okendo", okendo_id, "high"))
             logger.info("[detect] Found Okendo: %s", okendo_id[:20])
 
+    # If HTML fetch failed (Cloudflare/WAF block), probe free review APIs directly
+    if not html:
+        logger.info("[detect] HTML fetch failed for %s — running blind API probes", company_domain)
+        probed = _probe_review_apis(company_domain)
+        detected.extend(probed)
+
     # Always include Trustpilot as fallback (works by domain without widget detection)
     # Google Reviews NOT included as fallback — too prone to finding the wrong business
     # for D2C e-commerce brands with ambiguous names
@@ -430,3 +436,61 @@ def _detect_okendo(html: str) -> Optional[str]:
 
     logger.info("[detect] Okendo signatures found but could not extract subscriber ID")
     return "detected"
+
+
+# ---------------------------------------------------------------------------
+# Blind API probes (when HTML fetch is blocked by Cloudflare/WAF)
+# ---------------------------------------------------------------------------
+
+def _probe_review_apis(company_domain: str) -> List[DetectedPlatform]:
+    """Probe free review APIs directly when we can't access the website HTML.
+
+    Tries Yotpo, Reviews.io, and Okendo discovery approaches to find
+    which platform the site uses without needing to render the page.
+    """
+    probed: List[DetectedPlatform] = []
+
+    # Probe Reviews.io — try the domain as store ID
+    try:
+        resp = requests.get(
+            "https://api.reviews.io/merchant/reviews",
+            params={"store": company_domain, "page": 1, "per_page": 1},
+            headers={"User-Agent": USER_AGENT},
+            timeout=8,
+        )
+        if resp.ok:
+            data = resp.json()
+            reviews = data.get("reviews", [])
+            if reviews:
+                probed.append(DetectedPlatform("reviews_io", company_domain, "medium"))
+                logger.info("[probe] Reviews.io has reviews for %s", company_domain)
+    except Exception:
+        pass
+
+    # Probe Yotpo — try fetching site reviews with domain as app_key
+    # (unlikely to work without the real key, but worth trying)
+
+    # Probe Judge.me — try the myshopify.com domain pattern
+    shopify_domain = company_domain.replace(".com", "").replace(".", "") + ".myshopify.com"
+    try:
+        resp = requests.get(
+            f"https://judge.me/api/v1/reviews",
+            params={"shop_domain": shopify_domain, "per_page": 1},
+            headers={"User-Agent": USER_AGENT},
+            timeout=8,
+        )
+        if resp.ok:
+            data = resp.json()
+            reviews = data.get("reviews", [])
+            if reviews:
+                probed.append(DetectedPlatform("judge_me", shopify_domain, "medium"))
+                logger.info("[probe] Judge.me has reviews for %s", shopify_domain)
+    except Exception:
+        pass
+
+    if probed:
+        logger.info("[probe] Found %d platform(s) via blind probes for %s", len(probed), company_domain)
+    else:
+        logger.info("[probe] No platforms found via blind probes for %s", company_domain)
+
+    return probed
