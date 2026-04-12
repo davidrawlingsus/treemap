@@ -257,13 +257,20 @@ _JUDGEME_SIGNATURES = [
 ]
 
 _JUDGEME_SHOP_PATTERNS = [
-    # judge.me/reviews/SHOP_DOMAIN
-    re.compile(r'judge\.me/reviews/([a-zA-Z0-9._-]+)', re.IGNORECASE),
-    # data-shop-domain="..."
+    # Shopify.shop = "store-name.myshopify.com" (most reliable)
+    re.compile(r'Shopify\.shop\s*=\s*["\']([a-zA-Z0-9._-]+\.myshopify\.com)["\']', re.IGNORECASE),
+    # data-shop-domain="store-name.myshopify.com"
+    re.compile(r'data-shop-domain\s*=\s*["\']([a-zA-Z0-9._-]+\.myshopify\.com)["\']', re.IGNORECASE),
+    # data-shop-domain="store-name" (without .myshopify.com)
     re.compile(r'data-shop-domain\s*=\s*["\']([a-zA-Z0-9._-]+)["\']', re.IGNORECASE),
-    # judgeme.com/shop/SHOP
-    re.compile(r'judgeme\.com/shop/([a-zA-Z0-9._-]+)', re.IGNORECASE),
+    # judge.me/reviews/STORE.myshopify.com (specific shop review page)
+    re.compile(r'judge\.me/reviews/([a-zA-Z0-9._-]+\.myshopify\.com)', re.IGNORECASE),
+    # Any .myshopify.com reference in the page (broad fallback)
+    re.compile(r'["\']([a-zA-Z0-9-]+\.myshopify\.com)["\']', re.IGNORECASE),
 ]
+
+# False positives to filter out from judge.me/reviews/ matches
+_JUDGEME_SHOP_BLACKLIST = {"stores", "login", "terms", "privacy", "api", "widget", "badges"}
 
 
 def _detect_judge_me(html: str) -> Optional[str]:
@@ -275,7 +282,12 @@ def _detect_judge_me(html: str) -> Optional[str]:
     for pattern in _JUDGEME_SHOP_PATTERNS:
         match = pattern.search(html)
         if match:
-            return match.group(1)
+            identifier = match.group(1)
+            # Filter out generic paths that aren't shop domains
+            if identifier.lower() in _JUDGEME_SHOP_BLACKLIST:
+                continue
+            logger.info("[detect] Judge.me shop identifier: %s", identifier)
+            return identifier
 
     # Detected but can't extract identifier
     logger.info("[detect] Judge.me signatures found but could not extract shop ID")

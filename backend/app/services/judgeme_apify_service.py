@@ -70,8 +70,9 @@ def fetch_judgeme_reviews(
     Returns normalized review dicts matching the standard format.
     Raises HTTPException on config or actor errors.
     """
-    if not shop_domain or shop_domain == "detected":
-        logger.warning("[judge.me] No valid shop domain, skipping")
+    _invalid = {"detected", "stores", "login", "terms", "privacy", "api", "widget", "badges"}
+    if not shop_domain or shop_domain.lower() in _invalid:
+        logger.warning("[judge.me] No valid shop domain (%s), skipping", shop_domain)
         return []
 
     try:
