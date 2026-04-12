@@ -38,24 +38,32 @@ def fetch_okendo_reviews(
     url = f"{API_BASE}/{subscriber_id}/reviews"
     offset = 0
 
-    logger.info("[okendo] Fetching reviews for subscriber=%s (max=%d)", subscriber_id[:12], max_reviews)
+    logger.info("[okendo] Fetching reviews for subscriber=%s url=%s (max=%d)", subscriber_id, url, max_reviews)
 
     while len(all_reviews) < max_reviews:
         try:
             resp = requests.get(
                 url,
                 params={"limit": per_page, "offset": offset},
-                headers={"User-Agent": USER_AGENT},
+                headers={
+                    "User-Agent": USER_AGENT,
+                    "Accept": "application/json",
+                },
                 timeout=15,
             )
+            logger.info("[okendo] Response status=%d for offset=%d", resp.status_code, offset)
             resp.raise_for_status()
             data = resp.json()
         except Exception as e:
             logger.warning("[okendo] API request failed (offset %d): %s", offset, e)
             break
 
+        # Okendo may nest reviews under different keys
         reviews = data.get("reviews", [])
+        if not reviews and isinstance(data, list):
+            reviews = data  # response is the array directly
         if not reviews:
+            logger.info("[okendo] No reviews in response at offset %d. Keys: %s", offset, list(data.keys()) if isinstance(data, dict) else type(data))
             break
 
         for item in reviews:

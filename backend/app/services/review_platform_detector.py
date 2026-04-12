@@ -373,11 +373,26 @@ _OKENDO_SIGNATURES = [
     "okendo-reviews",
     "data-oke-",
     "okeReviews",
+    "d3hw6dc1ow8pp2.cloudfront.net",  # Okendo CDN
 ]
 
+# UUID pattern for subscriber IDs (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+_UUID_PATTERN = r'[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}'
+
 _OKENDO_ID_PATTERNS = [
-    re.compile(r'data-oke-reviews-subscriber-id\s*=\s*["\']([a-zA-Z0-9-]+)["\']', re.IGNORECASE),
-    re.compile(r'okendo\.io/[^"\']*?subscriberId=([a-zA-Z0-9-]+)', re.IGNORECASE),
+    # data-oke-reviews-subscriber-id="UUID"
+    re.compile(r'data-oke-reviews-subscriber-id\s*=\s*["\'](' + _UUID_PATTERN + r')["\']', re.IGNORECASE),
+    # subscriberId=UUID in URL params
+    re.compile(r'okendo\.io/[^"\']*?subscriberId=(' + _UUID_PATTERN + r')', re.IGNORECASE),
+    # CDN URL: cdn-static.okendo.io/widget/UUID/ or d3hw6dc1ow8pp2.cloudfront.net/reviews-widget-plus/UUID/
+    re.compile(r'(?:cdn-static\.okendo\.io|d3hw6dc1ow8pp2\.cloudfront\.net)/[^"\']*?(' + _UUID_PATTERN + r')', re.IGNORECASE),
+    # JSON config: "subscriberId":"UUID" or subscriberId: "UUID"
+    re.compile(r'["\']?subscriberId["\']?\s*[:=]\s*["\'](' + _UUID_PATTERN + r')["\']', re.IGNORECASE),
+    # data-oke-subscriber-id (alternate attribute)
+    re.compile(r'data-oke-subscriber-id\s*=\s*["\'](' + _UUID_PATTERN + r')["\']', re.IGNORECASE),
+    # Shopify app embed: any UUID near "okendo" context (broad fallback)
+    re.compile(r'okendo[^"\']{0,100}(' + _UUID_PATTERN + r')', re.IGNORECASE),
+    re.compile(r'(' + _UUID_PATTERN + r')[^"\']{0,100}okendo', re.IGNORECASE),
 ]
 
 
@@ -390,7 +405,9 @@ def _detect_okendo(html: str) -> Optional[str]:
     for pattern in _OKENDO_ID_PATTERNS:
         match = pattern.search(html)
         if match:
-            return match.group(1)
+            subscriber_id = match.group(1)
+            logger.info("[detect] Okendo subscriber ID extracted: %s", subscriber_id)
+            return subscriber_id
 
     logger.info("[detect] Okendo signatures found but could not extract subscriber ID")
     return "detected"
