@@ -458,7 +458,11 @@ async function streamSSE(path, body, onChunk, onDone, onError) {
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      onError(err.detail || `HTTP ${res.status}`);
+      const detail = err.detail;
+      const msg = typeof detail === "string" ? detail
+        : typeof detail === "object" ? JSON.stringify(detail)
+        : `HTTP ${res.status}`;
+      onError(msg);
       return;
     }
 
