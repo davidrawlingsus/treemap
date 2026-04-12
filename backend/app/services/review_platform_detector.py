@@ -442,6 +442,29 @@ def _detect_okendo(html: str) -> Optional[str]:
             logger.info("[detect] Okendo subscriber ID extracted: %s", subscriber_id)
             return subscriber_id
 
+    # Fallback: Okendo detected but subscriber ID not in the usual spots.
+    # Try all UUIDs on the page against the Okendo API (headless/custom frontends
+    # bury the ID among other UUIDs without a clean config variable).
+    all_uuids = set(re.findall(_UUID_PATTERN, html, re.IGNORECASE))
+    if all_uuids:
+        logger.info("[detect] Okendo detected, probing %d UUIDs against API...", len(all_uuids))
+        for uuid in all_uuids:
+            try:
+                resp = requests.get(
+                    f"https://api.okendo.io/v1/stores/{uuid}/reviews",
+                    params={"limit": 1},
+                    headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
+                    timeout=5,
+                )
+                if resp.ok:
+                    data = resp.json()
+                    if data.get("reviews"):
+                        logger.info("[detect] Okendo subscriber ID found via probe: %s", uuid)
+                        return uuid
+            except Exception:
+                continue
+        logger.info("[detect] Okendo UUID probe: none of %d UUIDs returned reviews", len(all_uuids))
+
     logger.info("[detect] Okendo signatures found but could not extract subscriber ID")
     return "detected"
 
