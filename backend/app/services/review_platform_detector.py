@@ -31,14 +31,22 @@ class DetectedPlatform:
 def detect_review_platforms(
     company_url: str,
     company_domain: str,
+    prefetched_html: Optional[str] = None,
 ) -> List[DetectedPlatform]:
     """Fetch website HTML and detect review platforms.
 
     Returns a list of detected platforms sorted by confidence (high first).
     Always includes Trustpilot as a fallback (Apify works by domain alone).
+
+    Args:
+        prefetched_html: HTML pre-fetched by the Chrome extension (bypasses WAFs).
     """
     detected: List[DetectedPlatform] = []
-    html = _fetch_page_html(company_url)
+
+    # Use pre-fetched HTML from extension if available, otherwise fetch ourselves
+    html = prefetched_html or _fetch_page_html(company_url)
+    if prefetched_html:
+        logger.info("[detect] Using pre-fetched HTML from extension (%d bytes)", len(prefetched_html))
 
     if html:
         # Check Yotpo

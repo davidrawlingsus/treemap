@@ -283,4 +283,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     sendResponse({ ok: true });
     return true;
   }
+
+  if (message.action === "fetchPageHtml") {
+    // Fetch a URL from the service worker context (bypasses some WAFs)
+    fetch(message.url, {
+      headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" },
+      redirect: "follow",
+    })
+      .then((resp) => resp.ok ? resp.text() : null)
+      .then((html) => sendResponse({ success: true, html }))
+      .catch((err) => sendResponse({ success: false, error: err.message }));
+    return true; // async
+  }
 });

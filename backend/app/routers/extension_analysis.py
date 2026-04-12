@@ -44,6 +44,7 @@ class AnalyzeAdsRequest(BaseModel):
 
 class DetectReviewsRequest(BaseModel):
     destination_url: str = Field(..., description="Destination URL from any extracted ad")
+    page_html: Optional[str] = Field(None, description="Pre-fetched HTML from extension (bypasses WAFs)")
 
 
 class DetectedPlatformResponse(BaseModel):
@@ -201,7 +202,7 @@ def detect_reviews(
 
     from app.services.review_platform_detector import detect_review_platforms
 
-    detected = detect_review_platforms(company_url, domain)
+    detected = detect_review_platforms(company_url, domain, prefetched_html=body.page_html)
 
     platforms = []
     for p in detected:

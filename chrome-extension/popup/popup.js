@@ -727,9 +727,24 @@ function renderSynthesisText(raw, streaming) {
 // ---- Review Engine Detection (still JSON, not streamed) ----
 async function runReviewDetection(destinationUrl) {
   try {
+    // Try to fetch the destination page HTML via service worker
+    // This can bypass some WAFs that block server-side fetches
+    let pageHtml = null;
+    try {
+      const fetchResp = await chrome.runtime.sendMessage({ action: "fetchPageHtml", url: destinationUrl });
+      if (fetchResp?.success && fetchResp.html) {
+        pageHtml = fetchResp.html;
+      }
+    } catch (e) {
+      // Fetch failed — backend will use its own fetch
+    }
+
+    const body = { destination_url: destinationUrl };
+    if (pageHtml) body.page_html = pageHtml;
+
     const res = await apiFetch("/api/extension/detect-reviews", {
       method: "POST",
-      body: JSON.stringify({ destination_url: destinationUrl }),
+      body: JSON.stringify(body),
     });
 
     $("#reviewEngineLoading").style.display = "none";
