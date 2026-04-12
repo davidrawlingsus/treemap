@@ -407,6 +407,8 @@ _OKENDO_SIGNATURES = [
     "data-oke-",
     "okeReviews",
     "d3hw6dc1ow8pp2.cloudfront.net",  # Okendo CDN
+    "OKENDO_USER_ID",                  # Env var in headless Shopify frontends
+    "okendo_user",                     # Lowercase variant
 ]
 
 # UUID pattern for subscriber IDs (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
@@ -423,9 +425,11 @@ _OKENDO_ID_PATTERNS = [
     re.compile(r'["\']?subscriberId["\']?\s*[:=]\s*["\'](' + _UUID_PATTERN + r')["\']', re.IGNORECASE),
     # data-oke-subscriber-id (alternate attribute)
     re.compile(r'data-oke-subscriber-id\s*=\s*["\'](' + _UUID_PATTERN + r')["\']', re.IGNORECASE),
+    # OKENDO_USER_ID env var: value is often nearby in JSON/config
+    re.compile(r'OKENDO_USER_ID["\s:=,]+(' + _UUID_PATTERN + r')', re.IGNORECASE),
     # Shopify app embed: any UUID near "okendo" context (broad fallback)
-    re.compile(r'okendo[^"\']{0,100}(' + _UUID_PATTERN + r')', re.IGNORECASE),
-    re.compile(r'(' + _UUID_PATTERN + r')[^"\']{0,100}okendo', re.IGNORECASE),
+    re.compile(r'okendo[^"\']{0,200}(' + _UUID_PATTERN + r')', re.IGNORECASE),
+    re.compile(r'(' + _UUID_PATTERN + r')[^"\']{0,200}okendo', re.IGNORECASE),
 ]
 
 
@@ -443,12 +447,25 @@ def _detect_okendo(html: str) -> Optional[str]:
             return subscriber_id
 
     # Fallback: Okendo detected but subscriber ID not in the usual spots.
-    # Try all UUIDs on the page against the Okendo API (headless/custom frontends
-    # bury the ID among other UUIDs without a clean config variable).
-    all_uuids = set(re.findall(_UUID_PATTERN, html, re.IGNORECASE))
+    # Try UUIDs found near "okendo" context first, then a sample of others.
+    # Cap total probes to avoid timeouts on pages with hundreds of UUIDs.
+    all_uuids = list(set(re.findall(_UUID_PATTERN, html, re.IGNORECASE)))
     if all_uuids:
-        logger.info("[detect] Okendo detected, probing %d UUIDs against API...", len(all_uuids))
-        for uuid in all_uuids:
+        # Prioritize UUIDs within 500 chars of "okendo" text
+        nearby_uuids = set()
+        for m in re.finditer(r'okendo', html, re.IGNORECASE):
+            start = max(0, m.start() - 500)
+            end = min(len(html), m.end() + 500)
+            chunk = html[start:end]
+            nearby_uuids.update(re.findall(_UUID_PATTERN, chunk, re.IGNORECASE))
+
+        # Probe nearby UUIDs first, then a few others, max 15 total
+        probe_order = list(nearby_uuids) + [u for u in all_uuids if u not in nearby_uuids]
+        probe_order = probe_order[:15]
+
+        logger.info("[detect] Okendo detected, probing %d UUIDs (%d nearby) against API...",
+                     len(probe_order), len(nearby_uuids))
+        for uuid in probe_order:
             try:
                 resp = requests.get(
                     f"https://api.okendo.io/v1/stores/{uuid}/reviews",
@@ -463,7 +480,7 @@ def _detect_okendo(html: str) -> Optional[str]:
                         return uuid
             except Exception:
                 continue
-        logger.info("[detect] Okendo UUID probe: none of %d UUIDs returned reviews", len(all_uuids))
+        logger.info("[detect] Okendo UUID probe: none of %d UUIDs returned reviews", len(probe_order))
 
     logger.info("[detect] Okendo signatures found but could not extract subscriber ID")
     return "detected"
