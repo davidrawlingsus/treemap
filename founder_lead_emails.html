@@ -112,6 +112,9 @@
                     </div>
 
                     <div id="tab-analysis" class="le-tab-content" style="display:none;">
+                        <div class="le-tab-toolbar">
+                            <button class="btn btn-xs le-copy-btn" id="copyAnalysisBtn" type="button">Copy</button>
+                        </div>
                         <div id="analysisContent" class="le-markdown-preview"></div>
                     </div>
                 </div>
@@ -123,6 +126,7 @@
                     <h3>Email Preview</h3>
                     <div class="le-preview-header-right">
                         <span class="le-muted" id="previewMeta"></span>
+                        <button id="copyEmailBtn" class="btn btn-xs le-copy-btn" type="button">Copy</button>
                         <button id="previewSendBtn" class="btn btn-xs" style="display:none;">Send Preview</button>
                         <button id="editPreviewBtn" class="btn btn-xs" style="display:none;">Edit</button>
                     </div>
@@ -653,6 +657,28 @@
             await fetch(`${API}/api/founder-admin/lead-emails/${emailId}/cancel`, { method: 'POST', headers: hdrs() });
             if (currentRunId) loadDetail(currentRunId);
         };
+
+        // Copy helpers
+        function flashCopyBtn(btn, ok) {
+            const orig = btn.textContent;
+            btn.textContent = ok ? 'Copied!' : 'Failed';
+            btn.classList.add('le-copy-btn-flash');
+            setTimeout(() => { btn.textContent = orig; btn.classList.remove('le-copy-btn-flash'); }, 1500);
+        }
+
+        document.getElementById('copyAnalysisBtn').addEventListener('click', () => {
+            const text = document.getElementById('analysisContent').textContent;
+            const btn = document.getElementById('copyAnalysisBtn');
+            navigator.clipboard.writeText(text).then(() => flashCopyBtn(btn, true)).catch(() => flashCopyBtn(btn, false));
+        });
+
+        document.getElementById('copyEmailBtn').addEventListener('click', () => {
+            const subject = document.getElementById('previewSubject').textContent;
+            const body = document.getElementById('previewBody').innerText;
+            const text = `Subject: ${subject}\n\n${body}`;
+            const btn = document.getElementById('copyEmailBtn');
+            navigator.clipboard.writeText(text).then(() => flashCopyBtn(btn, true)).catch(() => flashCopyBtn(btn, false));
+        });
 
         // Init
         console.log('[LE] Page loaded');

@@ -423,6 +423,23 @@
     justify-content: flex-end;
 }
 
+/* Copy button */
+.le-copy-btn {
+    color: #303030;
+    transition: all 0.15s;
+}
+.le-copy-btn-flash {
+    color: #16a34a !important;
+    border-color: #16a34a !important;
+}
+
+/* Tab toolbar (sits above content) */
+.le-tab-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
     .le-preview { flex: 1; }
