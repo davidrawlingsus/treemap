@@ -3,9 +3,11 @@ Ad analysis service — Full Funnel rubric scoring via Claude.
 
 Streams analysis as formatted text rather than JSON to avoid parsing issues.
 Also provides review signal analysis with the same streaming approach.
+
+Prompts are loaded from the database (prompts table) by purpose, with
+hardcoded constants as fallback if DB lookup fails.
 """
 
-import json
 import logging
 from typing import Any, Dict, Generator, List, Optional
 
@@ -13,6 +15,31 @@ import anthropic
 import httpx
 
 logger = logging.getLogger(__name__)
+
+
+def _load_prompt(purpose: str, fallback: str) -> tuple:
+    """Load a prompt from the database by purpose. Returns (system_message, model).
+
+    Falls back to the hardcoded prompt if DB is unavailable or prompt not found.
+    """
+    try:
+        from app.database import SessionLocal
+        from app.models import Prompt
+        db = SessionLocal()
+        try:
+            prompt = (
+                db.query(Prompt)
+                .filter(Prompt.prompt_purpose == purpose, Prompt.status == "live")
+                .order_by(Prompt.version.desc())
+                .first()
+            )
+            if prompt and prompt.system_message:
+                return prompt.system_message, prompt.llm_model or "claude-sonnet-4-5-20250929"
+        finally:
+            db.close()
+    except Exception as e:
+        logger.debug("Could not load prompt '%s' from DB, using fallback: %s", purpose, e)
+    return fallback, "claude-sonnet-4-5-20250929"
 
 # ---------------------------------------------------------------------------
 # Full Funnel Ad Analysis (streaming text)
@@ -92,6 +119,8 @@ def stream_ads_analysis(
     )
 
     try:
+        system_prompt, model = _load_prompt("extension_ad_analysis", FULL_FUNNEL_SYSTEM_PROMPT)
+
         client = anthropic.Anthropic(
             api_key=anthropic_api_key,
             http_client=httpx.Client(timeout=180.0),
@@ -101,9 +130,9 @@ def stream_ads_analysis(
         token_budget = max(4096, len(ads) * 300 + 512)
 
         with client.messages.stream(
-            model="claude-sonnet-4-5-20250929",
+            model=model,
             max_tokens=token_budget,
-            system=FULL_FUNNEL_SYSTEM_PROMPT,
+            system=system_prompt,
             messages=[{"role": "user", "content": user_message}],
         ) as stream:
             for text in stream.text_stream:
@@ -143,15 +172,17 @@ def stream_synthesis(
         return
 
     try:
+        system_prompt, model = _load_prompt("extension_synthesis", SYNTHESIS_SYSTEM_PROMPT)
+
         client = anthropic.Anthropic(
             api_key=anthropic_api_key,
             http_client=httpx.Client(timeout=180.0),
         )
 
         with client.messages.stream(
-            model="claude-sonnet-4-5-20250929",
+            model=model,
             max_tokens=1024,
-            system=SYNTHESIS_SYSTEM_PROMPT,
+            system=system_prompt,
             messages=[{"role": "user", "content": f"Here is the per-ad analysis:\n\n{analysis_text}"}],
         ) as stream:
             for text in stream.text_stream:
@@ -251,15 +282,17 @@ def stream_review_signal(
     )
 
     try:
+        system_prompt, model = _load_prompt("extension_review_signal", REVIEW_SIGNAL_SYSTEM_PROMPT)
+
         client = anthropic.Anthropic(
             api_key=anthropic_api_key,
             http_client=httpx.Client(timeout=180.0),
         )
 
         with client.messages.stream(
-            model="claude-sonnet-4-5-20250929",
+            model=model,
             max_tokens=4096,
-            system=REVIEW_SIGNAL_SYSTEM_PROMPT,
+            system=system_prompt,
             messages=[{"role": "user", "content": user_message}],
         ) as stream:
             for text in stream.text_stream:
