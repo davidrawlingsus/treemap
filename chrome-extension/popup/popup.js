@@ -12,6 +12,7 @@ const $ = (sel) => document.querySelector(sel);
 // ---- State ----
 let extractedAds = null;
 let extractedUrl = null;
+let signalGrade = null; // stored when signal analysis completes, used by synthesis
 
 // ---- DOM refs ----
 const loginSection = $("#loginSection");
@@ -698,18 +699,15 @@ function renderSynthesisText(raw, streaming) {
   const block = raw.replace(/===SYNTHESIS===/g, "").replace(/===END===/g, "").trim();
   if (!block) return `<div class="panel-status">Generating synthesis...</div>`;
 
-  const opportunityRaw = getField(block, "OPPORTUNITY");
-
-  // Extract just the number from "7 — long explanation text"
-  const oppMatch = opportunityRaw.match(/^(\d+)/);
-  const oppNum = oppMatch ? parseInt(oppMatch[1], 10) : 0;
-  const oppExplanation = opportunityRaw.replace(/^\d+\s*[—–-]\s*/, "").trim();
+  const adCopyRaw = getField(block, "AD_COPY_SCORE");
+  const copyMatch = adCopyRaw.match(/^(\d+)/);
+  const copyScore = copyMatch ? parseInt(copyMatch[1], 10) : 0;
+  const copyExplanation = adCopyRaw.replace(/^\d+\s*[—–-]\s*/, "").trim();
 
   const summary = getField(block, "SUMMARY");
 
-  // Multi-line fields: PATTERNS and PLAYBOOK may have bullet points
   const getMultiline = (label) => {
-    const re = new RegExp(`^${label}:\\s*(.+(?:\\n(?![A-Z]+:).+)*)`, "m");
+    const re = new RegExp(`^${label}:\\s*(.+(?:\\n(?![A-Z_]+:).+)*)`, "m");
     const m = block.match(re);
     return m ? m[1].trim() : "";
   };
@@ -717,14 +715,26 @@ function renderSynthesisText(raw, streaming) {
   const patterns = getMultiline("PATTERNS");
   const playbook = getMultiline("PLAYBOOK");
 
-  const oppClass = oppNum >= 7 ? "opp-high" : oppNum >= 4 ? "opp-mid" : "opp-low";
+  const copyClass = copyScore >= 7 ? "score-high" : copyScore >= 4 ? "score-mid" : "score-low";
+  const sigGrade = signalGrade || "—";
+  const sigClass = (sigGrade === "A" || sigGrade === "B") ? "score-high" : (sigGrade === "C") ? "score-mid" : "score-low";
 
   let html = `<div class="synthesis-card">`;
-  if (oppNum) {
-    html += `<div class="synthesis-opp-row"><span class="synthesis-label">Opportunity Score</span><span class="synthesis-opp ${oppClass}">${oppNum}/10</span></div>`;
-  }
-  if (oppExplanation) {
-    html += `<div class="synthesis-summary">${escHtml(oppExplanation)}</div>`;
+
+  // Two headline readouts side by side
+  html += `<div class="synthesis-scores-row">`;
+  html += `<div class="synthesis-score-box">
+    <span class="synthesis-score-label">Ad Copy</span>
+    <span class="synthesis-score-value ${copyClass}">${copyScore ? copyScore + "/10" : "—"}</span>
+  </div>`;
+  html += `<div class="synthesis-score-box">
+    <span class="synthesis-score-label">Review Signal</span>
+    <span class="synthesis-score-value ${sigClass}">${escHtml(sigGrade)}</span>
+  </div>`;
+  html += `</div>`;
+
+  if (copyExplanation) {
+    html += `<div class="synthesis-summary">${escHtml(copyExplanation)}</div>`;
   }
   if (summary) {
     html += `<div class="synthesis-summary">${escHtml(summary)}</div>`;
@@ -856,6 +866,7 @@ function renderSignalText(raw) {
       return m ? m[1].trim() : "";
     };
     const grade = get("GRADE");
+    if (grade) signalGrade = grade; // store for synthesis
     const high = get("HIGH");
     const medium = get("MEDIUM");
     const low = get("LOW");

@@ -124,7 +124,7 @@ You are a senior performance creative strategist. You have just analyzed a set o
 Given the full per-ad analysis below, write a short synthesis using EXACTLY this format:
 
 ===SYNTHESIS===
-OPPORTUNITY: <1-10 score — how beatable is this advertiser's creative? 10 = wide open, their ads are weak and you can crush them. 1 = elite creative, very hard to outperform.>
+AD_COPY_SCORE: <1-10 — overall quality of this advertiser's ad copy. 10 = elite, sophisticated VoC-driven creative. 1 = generic, formulaic, no emotional resonance.>
 SUMMARY: <2-3 sentences: overall quality of this advertiser's creative suite. Are they sophisticated or formulaic? VoC-rich or generic?>
 PATTERNS: <2-3 bullet points — recurring strengths or weaknesses across ads>
 PLAYBOOK: <2-3 bullet points — specific creative angles or tactics you'd use to beat them>
