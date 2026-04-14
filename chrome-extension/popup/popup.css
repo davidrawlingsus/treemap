@@ -677,6 +677,19 @@ select option {
 .synthesis-score-value.score-mid { color: #fbbf24; }
 .synthesis-score-value.score-low { color: #f87171; }
 
+.synthesis-gap-box { border-color: rgba(185, 240, 64, 0.15); }
+.synthesis-gap-value.gap-high { color: #B9F040; }
+.synthesis-gap-value.gap-mid { color: #fbbf24; }
+.synthesis-gap-value.gap-low { color: #f87171; }
+
+.signal-score-badge {
+  font-size: 12px;
+  font-weight: 900;
+  padding: 2px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .synthesis-summary {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.8);

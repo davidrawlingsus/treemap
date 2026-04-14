@@ -12,7 +12,7 @@ const $ = (sel) => document.querySelector(sel);
 // ---- State ----
 let extractedAds = null;
 let extractedUrl = null;
-let signalGrade = null; // stored when signal analysis completes, used by synthesis
+let signalGrade = null; // numeric 1-10 score, set when signal analysis completes
 
 // ---- DOM refs ----
 const loginSection = $("#loginSection");
@@ -718,20 +718,30 @@ function renderSynthesisText(raw, streaming) {
   const playbook = getMultiline("PLAYBOOK");
 
   const copyClass = copyScore >= 7 ? "score-high" : copyScore >= 4 ? "score-mid" : "score-low";
-  const sigGrade = signalGrade || "—";
-  const sigClass = (sigGrade === "A" || sigGrade === "B") ? "score-high" : (sigGrade === "C") ? "score-mid" : "score-low";
+  const sigScore = typeof signalGrade === "number" ? signalGrade : 0;
+  const sigDisplay = sigScore ? sigScore + "/10" : "—";
+  const sigClass = sigScore >= 7 ? "score-high" : sigScore >= 4 ? "score-mid" : "score-low";
+
+  // Gap = signal - copy (positive = untapped potential)
+  const gap = (sigScore && copyScore) ? sigScore - copyScore : null;
+  const gapDisplay = gap !== null ? (gap > 0 ? "+" + gap : String(gap)) : "—";
+  const gapClass = gap !== null ? (gap >= 4 ? "gap-high" : gap >= 1 ? "gap-mid" : "gap-low") : "";
 
   let html = `<div class="synthesis-card">`;
 
-  // Two headline readouts side by side
+  // Three headline readouts
   html += `<div class="synthesis-scores-row">`;
   html += `<div class="synthesis-score-box">
     <span class="synthesis-score-label">Ad Copy</span>
     <span class="synthesis-score-value ${copyClass}">${copyScore ? copyScore + "/10" : "—"}</span>
   </div>`;
   html += `<div class="synthesis-score-box">
-    <span class="synthesis-score-label">Review Signal</span>
-    <span class="synthesis-score-value synthesis-signal-value ${sigClass}">${escHtml(sigGrade)}</span>
+    <span class="synthesis-score-label">Signal</span>
+    <span class="synthesis-score-value synthesis-signal-value ${sigClass}">${sigDisplay}</span>
+  </div>`;
+  html += `<div class="synthesis-score-box synthesis-gap-box">
+    <span class="synthesis-score-label">Gap</span>
+    <span class="synthesis-score-value synthesis-gap-value ${gapClass}">${gapDisplay}</span>
   </div>`;
   html += `</div>`;
 
@@ -752,6 +762,23 @@ function renderSynthesisText(raw, streaming) {
   }
   html += `</div>`;
   return html;
+}
+
+// Update gap score when signal arrives after synthesis already rendered
+function updateGapScore() {
+  const gapEl = document.querySelector(".synthesis-gap-value");
+  const copyEl = document.querySelector(".synthesis-score-value:not(.synthesis-signal-value):not(.synthesis-gap-value)");
+  if (!gapEl || !copyEl) return;
+
+  const copyMatch = (copyEl.textContent || "").match(/(\d+)/);
+  const copyScore = copyMatch ? parseInt(copyMatch[1], 10) : 0;
+  const sigScore = typeof signalGrade === "number" ? signalGrade : 0;
+
+  if (copyScore && sigScore) {
+    const gap = sigScore - copyScore;
+    gapEl.textContent = gap > 0 ? "+" + gap : String(gap);
+    gapEl.className = `synthesis-score-value synthesis-gap-value ${gap >= 4 ? "gap-high" : gap >= 1 ? "gap-mid" : "gap-low"}`;
+  }
 }
 
 // ---- Review Engine Detection (still JSON, not streamed) ----
@@ -866,17 +893,20 @@ function renderSignalText(raw) {
       const m = block.match(new RegExp(`^${label}:\\s*(.+)$`, "m"));
       return m ? m[1].trim() : "";
     };
-    const grade = get("GRADE");
-    if (grade) {
-      signalGrade = grade;
+    const signalScoreRaw = get("SIGNAL_SCORE") || get("GRADE");
+    const sigMatch = signalScoreRaw.match(/^(\d+)/);
+    const sigNum = sigMatch ? parseInt(sigMatch[1], 10) : 0;
+    if (sigNum) {
+      signalGrade = sigNum;
       // Update the synthesis card if it already rendered before signal finished
       const sigEl = document.querySelector(".synthesis-signal-value");
       if (sigEl) {
-        sigEl.textContent = grade;
-        sigEl.className = `synthesis-score-value synthesis-signal-value ${
-          (grade === "A" || grade === "B") ? "score-high" : grade === "C" ? "score-mid" : "score-low"
-        }`;
+        sigEl.textContent = sigNum + "/10";
+        const cls = sigNum >= 7 ? "score-high" : sigNum >= 4 ? "score-mid" : "score-low";
+        sigEl.className = `synthesis-score-value synthesis-signal-value ${cls}`;
       }
+      // Also update the gap
+      updateGapScore();
     }
     const high = get("HIGH");
     const medium = get("MEDIUM");
@@ -884,11 +914,13 @@ function renderSignalText(raw) {
     const themes = get("THEMES");
     const verdict = get("VERDICT");
 
+    const sigClass = sigNum >= 7 ? "score-high" : sigNum >= 4 ? "score-mid" : "score-low";
+
     html += `
       <div class="signal-summary">
         <div class="signal-summary-header">
           <span class="signal-summary-title">Signal Report</span>
-          ${grade ? `<span class="grade-badge grade-${grade}">${grade}</span>` : ""}
+          ${sigNum ? `<span class="signal-score-badge ${sigClass}">${sigNum}/10</span>` : ""}
         </div>
         <div class="signal-counts">
           <span class="signal-count signal-count-high">High: ${high || 0}</span>

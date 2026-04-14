@@ -223,7 +223,7 @@ IMPORTANT CONTEXT: You are analyzing a SAMPLE of ~20 reviews from the first page
 For each batch of reviews, write your analysis using EXACTLY this format:
 
 ===SUMMARY===
-GRADE: <A|B|C|D|F>
+SIGNAL_SCORE: <1-10 — overall VoC signal quality of this review corpus. 10 = goldmine of emotional, specific, transformation-rich reviews. 1 = entirely generic praise with no usable VoC.>
 HIGH: <count>
 MEDIUM: <count>
 LOW: <count>
