@@ -565,6 +565,7 @@ async function streamAdAnalysis() {
     // onChunk
     (text) => {
       $("#adAnalysisLoading").style.display = "none";
+      extractCount.style.display = "none"; // hide "Found X ads" once progress starts
       injectCompletedBlocks(text);
       container.innerHTML = `<div class="panel-status">Analyzing ${injectedCount} of ${adsToAnalyze} ads...</div>`;
     },
@@ -818,7 +819,8 @@ function renderReviewEngine(data) {
     return;
   }
 
-  let html = `<div class="platform-domain">Domain: ${escHtml(data.company_domain)}</div>`;
+  const count = data.platforms.length;
+  let html = `<p class="extract-count">Found ${count} review platform${count !== 1 ? "s" : ""} on ${escHtml(data.company_domain)}</p>`;
 
   html += data.platforms
     .map(
