@@ -505,6 +505,7 @@
           padding: 8px 0;
           align-items: center;
           flex-wrap: wrap;
+          width: 100%;
         }
         .vzd-grade-pill {
           display: inline-flex;
