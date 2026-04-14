@@ -801,7 +801,6 @@ function renderReviewEngine(data) {
         <span class="platform-name">${p.review_url ? `<a href="${escHtml(p.review_url)}" target="_blank" class="platform-link">${escHtml(p.platform_display)}</a>` : escHtml(p.platform_display)}</span>
         <span class="confidence-badge confidence-${p.confidence}">${p.confidence === "high" ? "Embedded" : p.confidence === "medium" ? "Detected" : "Fallback"}</span>
       </div>
-      <div class="platform-notes">${escHtml(p.scraper_notes)}</div>
     </div>
   `
     )
