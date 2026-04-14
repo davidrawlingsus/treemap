@@ -254,12 +254,10 @@ def analyze_review_signal(
     )
 
     # Build source preamble so the frontend knows which platform was selected
-    trace_text = "\n".join(fetch_result.trace) if fetch_result.trace else ""
     source_line = (
         f"===SOURCE===\n"
         f"PLATFORM: {fetch_result.platform_display}\n"
         f"REVIEWS: {len(fetch_result.reviews)}\n"
-        f"TRACE: {trace_text}\n"
         f"===END===\n"
     )
 
@@ -267,7 +265,7 @@ def analyze_review_signal(
         def no_reviews_gen():
             yield source_line
             yield "===SUMMARY===\n"
-            yield f"GRADE: F\nHIGH: 0\nMEDIUM: 0\nLOW: 0\n"
+            yield f"SIGNAL_SCORE: 1\nHIGH: 0\nMEDIUM: 0\nLOW: 0\n"
             yield f"THEMES: none\n"
             yield f"VERDICT: No reviews found for {domain}.\n"
             yield "===END==="

@@ -894,8 +894,15 @@ function renderSignalText(raw) {
       return m ? m[1].trim() : "";
     };
     const signalScoreRaw = get("SIGNAL_SCORE") || get("GRADE");
+    // Parse numeric score, or convert letter grade to number
     const sigMatch = signalScoreRaw.match(/^(\d+)/);
-    const sigNum = sigMatch ? parseInt(sigMatch[1], 10) : 0;
+    let sigNum = sigMatch ? parseInt(sigMatch[1], 10) : 0;
+    if (!sigNum && signalScoreRaw) {
+      // Convert letter grade to numeric: A=9, B=7, C=5, D=3, F=1
+      const letterMap = { A: 9, B: 7, C: 5, D: 3, F: 1 };
+      const letter = signalScoreRaw.charAt(0).toUpperCase();
+      sigNum = letterMap[letter] || 0;
+    }
     if (sigNum) {
       signalGrade = sigNum;
       // Update the synthesis card if it already rendered before signal finished
