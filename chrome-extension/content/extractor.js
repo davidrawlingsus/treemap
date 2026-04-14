@@ -497,6 +497,42 @@
         @media (prefers-reduced-motion: reduce) {
           .vzd-loading-spinner { animation: none !important; }
         }
+
+        /* Grade filter pills */
+        .vzd-grade-filters {
+          display: flex;
+          gap: 6px;
+          padding: 8px 0;
+          align-items: center;
+          flex-wrap: wrap;
+        }
+        .vzd-grade-pill {
+          display: inline-flex;
+          align-items: center;
+          padding: 4px 12px;
+          border-radius: 16px;
+          border: 1px solid #ccd0d5;
+          background: #fff;
+          font-family: 'Lato', -apple-system, sans-serif;
+          font-size: 12px;
+          font-weight: 700;
+          color: #65676b;
+          cursor: pointer;
+          transition: all 0.15s;
+          user-select: none;
+        }
+        .vzd-grade-pill:hover { background: #f0f2f5; }
+        .vzd-grade-pill-empty { opacity: 0.4; }
+        .vzd-grade-pill-active {
+          background: #1A2B3C !important;
+          color: #fff !important;
+          border-color: #1A2B3C !important;
+        }
+        .vzd-grade-pill-A.vzd-grade-pill-active { background: #166534 !important; border-color: #166534 !important; }
+        .vzd-grade-pill-B.vzd-grade-pill-active { background: #3f6212 !important; border-color: #3f6212 !important; }
+        .vzd-grade-pill-C.vzd-grade-pill-active { background: #854d0e !important; border-color: #854d0e !important; }
+        .vzd-grade-pill-D.vzd-grade-pill-active { background: #991b1b !important; border-color: #991b1b !important; }
+        .vzd-grade-pill-F.vzd-grade-pill-active { background: #7f1d1d !important; border-color: #7f1d1d !important; }
       `;
     document.head.appendChild(style);
   }
@@ -531,17 +567,97 @@
   }
 
   // ---- Inject analysis panel onto an ad card ----
-  function injectAnalysis(adIndex, html) {
+  function injectAnalysis(adIndex, html, grade) {
     const container = document.querySelector(`[data-vzd-ad-index="${adIndex}"]`);
     if (!container) return;
     const existing = container.querySelector(".vzd-analysis");
     if (existing) existing.remove();
     ensureStyles();
 
+    // Store grade on the container for filtering
+    if (grade) container.setAttribute("data-vzd-grade", grade.toUpperCase());
+
     const panel = document.createElement("div");
     panel.className = "vzd-analysis";
     panel.innerHTML = html;
     insertAtPoint(container, panel);
+  }
+
+  // ---- Grade filter UI injected into FB toolbar ----
+  function setupGradeFilters() {
+    // Don't inject twice
+    if (document.getElementById("vzd-grade-filters")) return;
+
+    // Find the toolbar container — the div with keyword search + filters + sort
+    const toolbar = document.querySelector(".xuk3077.x78zum5.xdt5ytf");
+    if (!toolbar) return;
+
+    // Count grades
+    const counts = { A: 0, B: 0, C: 0, D: 0, F: 0 };
+    document.querySelectorAll("[data-vzd-grade]").forEach((el) => {
+      const g = el.getAttribute("data-vzd-grade");
+      if (counts.hasOwnProperty(g)) counts[g]++;
+    });
+
+    const filterBar = document.createElement("div");
+    filterBar.id = "vzd-grade-filters";
+    filterBar.className = "vzd-grade-filters";
+
+    const grades = ["A", "B", "C", "D", "F"];
+    const activeGrades = new Set(); // empty = show all
+
+    grades.forEach((grade) => {
+      const count = counts[grade] || 0;
+      const pill = document.createElement("button");
+      pill.className = `vzd-grade-pill vzd-grade-pill-${grade}`;
+      pill.textContent = `${grade} (${count})`;
+      pill.title = `Filter by grade ${grade}`;
+      if (count === 0) pill.classList.add("vzd-grade-pill-empty");
+
+      pill.addEventListener("click", () => {
+        if (activeGrades.has(grade)) {
+          activeGrades.delete(grade);
+          pill.classList.remove("vzd-grade-pill-active");
+        } else {
+          activeGrades.add(grade);
+          pill.classList.add("vzd-grade-pill-active");
+        }
+        applyGradeFilter(activeGrades);
+      });
+
+      filterBar.appendChild(pill);
+    });
+
+    // "All" reset button
+    const allBtn = document.createElement("button");
+    allBtn.className = "vzd-grade-pill vzd-grade-pill-all vzd-grade-pill-active";
+    allBtn.textContent = "All";
+    allBtn.addEventListener("click", () => {
+      activeGrades.clear();
+      filterBar.querySelectorAll(".vzd-grade-pill").forEach((p) => p.classList.remove("vzd-grade-pill-active"));
+      allBtn.classList.add("vzd-grade-pill-active");
+      applyGradeFilter(activeGrades);
+    });
+    filterBar.prepend(allBtn);
+
+    toolbar.appendChild(filterBar);
+  }
+
+  function applyGradeFilter(activeGrades) {
+    const allBtn = document.querySelector(".vzd-grade-pill-all");
+    if (activeGrades.size === 0) {
+      // Show all
+      if (allBtn) allBtn.classList.add("vzd-grade-pill-active");
+      document.querySelectorAll("[data-vzd-ad-index]").forEach((el) => {
+        el.style.display = "";
+      });
+      return;
+    }
+    if (allBtn) allBtn.classList.remove("vzd-grade-pill-active");
+    document.querySelectorAll("[data-vzd-ad-index]").forEach((el) => {
+      const grade = el.getAttribute("data-vzd-grade");
+      el.style.display = (grade && activeGrades.has(grade)) ? "" : "none";
+    });
   }
 
   // Show loading indicator on an ad card
@@ -624,7 +740,14 @@
     }
 
     if (message.action === "injectAnalysis") {
-      injectAnalysis(message.adIndex, message.html);
+      injectAnalysis(message.adIndex, message.html, message.grade);
+      sendResponse({ success: true });
+      return true;
+    }
+
+    if (message.action === "setupGradeFilters") {
+      ensureStyles();
+      setupGradeFilters();
       sendResponse({ success: true });
       return true;
     }

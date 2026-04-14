@@ -536,8 +536,9 @@ async function streamAdAnalysis() {
     const completedBlocks = parseCompletedAdBlocks(text);
     for (let i = lastInjectedCount; i < completedBlocks.length; i++) {
       const html = buildAdCardHtml(completedBlocks[i]);
+      const grade = getField(completedBlocks[i], "GRADE");
       if (tabId) {
-        chrome.tabs.sendMessage(tabId, { action: "injectAnalysis", adIndex: i, html }).catch(() => {});
+        chrome.tabs.sendMessage(tabId, { action: "injectAnalysis", adIndex: i, html, grade }).catch(() => {});
       }
       injectedCount++;
     }
@@ -571,6 +572,10 @@ async function streamAdAnalysis() {
       $("#adAnalysisLoading").style.display = "none";
       injectCompletedBlocks(text);
       container.innerHTML = `<div class="panel-status">All ${injectedCount} ads analyzed — generating synthesis...</div>`;
+      // Set up grade filters on the FB page
+      if (tabId) {
+        chrome.tabs.sendMessage(tabId, { action: "setupGradeFilters" }).catch(() => {});
+      }
       // Fire synthesis
       streamSynthesis(text, container);
     },
