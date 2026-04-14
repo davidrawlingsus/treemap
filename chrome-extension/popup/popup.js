@@ -731,7 +731,7 @@ function renderSynthesisText(raw, streaming) {
   </div>`;
   html += `<div class="synthesis-score-box">
     <span class="synthesis-score-label">Review Signal</span>
-    <span class="synthesis-score-value ${sigClass}">${escHtml(sigGrade)}</span>
+    <span class="synthesis-score-value synthesis-signal-value ${sigClass}">${escHtml(sigGrade)}</span>
   </div>`;
   html += `</div>`;
 
@@ -867,7 +867,17 @@ function renderSignalText(raw) {
       return m ? m[1].trim() : "";
     };
     const grade = get("GRADE");
-    if (grade) signalGrade = grade; // store for synthesis
+    if (grade) {
+      signalGrade = grade;
+      // Update the synthesis card if it already rendered before signal finished
+      const sigEl = document.querySelector(".synthesis-signal-value");
+      if (sigEl) {
+        sigEl.textContent = grade;
+        sigEl.className = `synthesis-score-value synthesis-signal-value ${
+          (grade === "A" || grade === "B") ? "score-high" : grade === "C" ? "score-mid" : "score-low"
+        }`;
+      }
+    }
     const high = get("HIGH");
     const medium = get("MEDIUM");
     const low = get("LOW");
