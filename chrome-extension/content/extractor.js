@@ -406,10 +406,10 @@
           font-weight: 900;
           flex-shrink: 0;
         }
-        .vzd-grade-A { background: #dcfce7; color: #166534; }
-        .vzd-grade-B { background: #ecfccb; color: #3f6212; }
-        .vzd-grade-C { background: #fef9c3; color: #854d0e; }
-        .vzd-grade-D { background: #fee2e2; color: #991b1b; }
+        .vzd-grade-A, .vzd-grade-A\\+, .vzd-grade-A- { background: #dcfce7; color: #166534; }
+        .vzd-grade-B, .vzd-grade-B\\+, .vzd-grade-B- { background: #ecfccb; color: #3f6212; }
+        .vzd-grade-C, .vzd-grade-C\\+, .vzd-grade-C- { background: #fef9c3; color: #854d0e; }
+        .vzd-grade-D, .vzd-grade-D\\+, .vzd-grade-D- { background: #fee2e2; color: #991b1b; }
         .vzd-grade-F { background: #fecaca; color: #7f1d1d; }
         .vzd-verdict {
           font-size: 13px;

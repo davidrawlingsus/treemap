@@ -387,10 +387,10 @@ select option {
   color: #000;
 }
 
-.grade-A { background: #B9F040; }
-.grade-B { background: #a0d636; }
-.grade-C { background: #fbbf24; }
-.grade-D { background: #f87171; color: #fff; }
+.grade-A, .grade-A\+, .grade-A- { background: #B9F040; }
+.grade-B, .grade-B\+, .grade-B- { background: #a0d636; }
+.grade-C, .grade-C\+, .grade-C- { background: #fbbf24; }
+.grade-D, .grade-D\+, .grade-D- { background: #f87171; color: #fff; }
 .grade-F { background: #dc2626; color: #fff; }
 
 /* ==========================================================================
