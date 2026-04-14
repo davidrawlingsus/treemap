@@ -106,7 +106,9 @@ def fetch_judgeme_reviews(
     )
 
     client = ApifyClient(api_token)
-    timeout = max(settings.apify_timeout_seconds, bounded * 2 + 60)
+    # Scale timeout with review count: small requests get short timeouts,
+    # large requests up to the configured max
+    timeout = min(settings.apify_timeout_seconds, max(60, bounded * 3 + 30))
 
     try:
         run = client.actor(actor_id).call(
