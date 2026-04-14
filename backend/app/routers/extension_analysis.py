@@ -66,7 +66,7 @@ class DetectReviewsResponse(BaseModel):
 class AnalyzeReviewSignalRequest(BaseModel):
     destination_url: str = Field(..., description="Destination URL to find reviews for")
     platform: Optional[str] = Field(None, description="Specific platform to use (auto-detect if omitted)")
-    max_reviews: int = Field(20, ge=1, le=50)
+    max_reviews: int = Field(50, ge=1, le=100)
     page_html: Optional[str] = Field(None, description="Pre-fetched HTML from extension (bypasses WAFs)")
 
 

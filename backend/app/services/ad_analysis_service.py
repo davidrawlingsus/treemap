@@ -248,7 +248,7 @@ Sort reviews by signal level: high first, then medium, then low."""
 def stream_review_signal(
     reviews: List[Dict[str, Any]],
     anthropic_api_key: str,
-    max_reviews: int = 20,
+    max_reviews: int = 50,
 ) -> Generator[str, None, None]:
     """Stream review signal analysis as formatted text chunks via Claude."""
     if not reviews:
