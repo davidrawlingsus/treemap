@@ -593,10 +593,10 @@
     const toolbar = document.querySelector(".xuk3077.x78zum5.xdt5ytf");
     if (!toolbar) return;
 
-    // Count grades
+    // Count grades — group by letter (A+, A, A- all count as A)
     const counts = { A: 0, B: 0, C: 0, D: 0, F: 0 };
     document.querySelectorAll("[data-vzd-grade]").forEach((el) => {
-      const g = el.getAttribute("data-vzd-grade");
+      const g = (el.getAttribute("data-vzd-grade") || "").charAt(0).toUpperCase();
       if (counts.hasOwnProperty(g)) counts[g]++;
     });
 
@@ -656,7 +656,7 @@
     }
     if (allBtn) allBtn.classList.remove("vzd-grade-pill-active");
     document.querySelectorAll("[data-vzd-ad-index]").forEach((el) => {
-      const grade = el.getAttribute("data-vzd-grade");
+      const grade = (el.getAttribute("data-vzd-grade") || "").charAt(0).toUpperCase();
       el.style.display = (grade && activeGrades.has(grade)) ? "" : "none";
     });
   }
