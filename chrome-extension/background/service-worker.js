@@ -285,14 +285,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.action === "fetchPageHtml") {
-    // Fetch a URL from the service worker context (bypasses some WAFs)
-    fetch(message.url, {
-      headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" },
-      redirect: "follow",
-    })
+    // Fetch destination URL to extract review platform signatures.
+    // No custom headers — avoids CORS preflight issues.
+    // Normalise http → https to avoid mixed-content blocks.
+    const url = (message.url || "").replace(/^http:\/\//i, "https://");
+    fetch(url, { redirect: "follow" })
       .then((resp) => resp.ok ? resp.text() : null)
       .then((html) => sendResponse({ success: true, html }))
-      .catch((err) => sendResponse({ success: false, error: err.message }));
+      .catch(() => sendResponse({ success: false }));
     return true; // async
   }
 });
