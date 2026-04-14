@@ -702,7 +702,9 @@ function renderSynthesisText(raw, streaming) {
   const adCopyRaw = getField(block, "AD_COPY_SCORE");
   const copyMatch = adCopyRaw.match(/^(\d+)/);
   const copyScore = copyMatch ? parseInt(copyMatch[1], 10) : 0;
-  const copyExplanation = adCopyRaw.replace(/^\d+\s*[—–-]\s*/, "").trim();
+  // Strip the leading number + optional dash, and filter out any result that's just a number
+  const copyExplanation = adCopyRaw.replace(/^\d+\s*[—–-]?\s*/, "").trim();
+  const isJustNumber = /^\d+$/.test(copyExplanation);
 
   const summary = getField(block, "SUMMARY");
 
@@ -733,7 +735,7 @@ function renderSynthesisText(raw, streaming) {
   </div>`;
   html += `</div>`;
 
-  if (copyExplanation) {
+  if (copyExplanation && !isJustNumber) {
     html += `<div class="synthesis-summary">${escHtml(copyExplanation)}</div>`;
   }
   if (summary) {
