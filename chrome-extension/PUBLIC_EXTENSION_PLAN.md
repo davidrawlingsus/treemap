@@ -151,19 +151,106 @@ Results cached server-side keyed by advertiser ID (from FB Ads Library URL param
 - If cached: inject grades on page from cache, render sidebar from cache, show "Cached from [date]" badge
 - Re-extract button forces fresh analysis (costs 1 credit)
 
-### Credits (Future — Power Users)
+### Credits & Payment
 
-For users who need more than 3 runs (agencies, consultants):
-- Stripe Checkout integration — "Buy Credits" button in sidebar
-- Backend: `/api/extension/create-checkout-session` → Stripe session URL
-- Backend: Stripe webhook credits the account
-- Credit packs: 50 analyses for $9, 200 for $29 (placeholder pricing)
-- Each run (ad scoring + review signal + synthesis) = 1 credit
-- Free tier: 3 lifetime runs, paid: unlimited within credit balance
+For users who need more than 3 runs (agencies, consultants, power users).
 
-**Backend files:**
-- `backend/app/routers/extension_billing.py` — checkout session, webhook, balance check
-- `backend/app/models/extension_usage.py` — run count, credit balance, advertiser cache
+**Credit model:**
+- 1 credit = 1 full analysis run (ad scoring + review signal + synthesis for one advertiser)
+- Free tier: 3 lifetime credits (awarded on account creation)
+- Revisiting a cached advertiser does NOT cost a credit
+- Re-analyzing a cached advertiser (forced refresh) costs 1 credit
+
+**Pricing (placeholder — adjust based on unit economics):**
+- Starter: 10 credits for $19
+- Pro: 50 credits for $49
+- Agency: 200 credits for $149
+
+**Stripe integration:**
+
+*Checkout flow:*
+1. User clicks "Buy Credits" in sidebar
+2. Extension calls `POST /api/extension/create-checkout-session` with price ID + user token
+3. Backend creates Stripe Checkout session, returns URL
+4. Extension opens URL in new tab — Stripe handles payment
+5. On success, Stripe redirects to a confirmation page on vizualizd.mapthegap.ai
+6. Stripe webhook fires → backend credits the account
+
+*Backend endpoints:*
+- `POST /api/extension/create-checkout-session` — creates Stripe session, requires auth
+- `POST /api/extension/stripe-webhook` — receives `checkout.session.completed`, credits account (no auth, verified by Stripe signature)
+- `GET /api/extension/balance` — returns `{ credits_remaining, credits_used, is_free_tier }`
+- `POST /api/extension/deduct-credit` — called internally before each analysis run
+
+*Backend models (`backend/app/models/extension_usage.py`):*
+```python
+class ExtensionUsage(Base):
+    id = Column(UUID, primary_key=True)
+    user_id = Column(UUID, ForeignKey("users.id"), unique=True)
+    credits_total = Column(Integer, default=3)       # lifetime purchased + free
+    credits_used = Column(Integer, default=0)
+    created_at = Column(DateTime)
+    updated_at = Column(DateTime)
+
+class ExtensionTransaction(Base):
+    id = Column(UUID, primary_key=True)
+    user_id = Column(UUID, ForeignKey("users.id"))
+    type = Column(String)          # "free_grant", "purchase", "deduct"
+    credits = Column(Integer)      # positive for grants/purchases, negative for deductions
+    stripe_session_id = Column(String, nullable=True)
+    advertiser_id = Column(String, nullable=True)    # which advertiser the deduction was for
+    created_at = Column(DateTime)
+```
+
+*Backend router (`backend/app/routers/extension_billing.py`):*
+- Stripe products/prices configured in Stripe Dashboard, IDs stored in config
+- `create-checkout-session`: creates session with `mode="payment"`, `line_items` from selected pack
+- Webhook: verifies signature via `stripe.Webhook.construct_event()`, looks up user by `client_reference_id`, adds credits
+- Balance: simple query on `ExtensionUsage` for the authenticated user
+- Alembic migration for new tables
+
+*Config additions (`config.py`):*
+```python
+stripe_secret_key: str | None = Field(default=None)
+stripe_webhook_secret: str | None = Field(default=None)
+stripe_price_starter: str | None = Field(default=None)   # price_xxx for 10 credits
+stripe_price_pro: str | None = Field(default=None)        # price_xxx for 50 credits
+stripe_price_agency: str | None = Field(default=None)     # price_xxx for 200 credits
+```
+
+**Extension UI:**
+
+*Credit balance display (sidebar header area):*
+- Small badge next to the refresh icon: "2 credits left" or "47 credits"
+- Turns yellow at 3 remaining, red at 1 remaining
+- When 0: analysis buttons disabled, "Buy Credits" CTA shown
+
+*Buy Credits modal/section (in sidebar):*
+- Three credit pack options styled as cards
+- Each shows: pack name, credit count, price, per-credit price
+- Click → opens Stripe Checkout in new tab
+- After purchase: balance refreshes automatically (poll `GET /balance` every 3s for 30s after redirect)
+
+*Credit check flow:*
+1. Before `startAnalysis()`: call `GET /api/extension/balance`
+2. If `credits_remaining <= 0`: show "No credits remaining" + Buy Credits CTA, block analysis
+3. If credits available: proceed with analysis
+4. On analysis complete (synthesis received): call `POST /api/extension/deduct-credit` with advertiser ID
+5. Update balance display in sidebar
+
+**Extension files:**
+- `popup.html`: add credit balance badge in header, buy credits section below import controls
+- `popup.js`: balance check before analysis, purchase flow, balance polling after redirect
+- `popup.css`: credit badge styles, pack card styles, empty state
+
+**Implementation order for credits:**
+1. Backend: `ExtensionUsage` + `ExtensionTransaction` models + Alembic migration
+2. Backend: `extension_billing.py` router (checkout session, webhook, balance, deduct)
+3. Backend: config additions for Stripe keys
+4. Stripe Dashboard: create products + prices
+5. Extension: balance check + display
+6. Extension: buy credits UI + flow
+7. Extension: deduct credit on analysis complete
 
 ## Ad Distribution Strategy
 
