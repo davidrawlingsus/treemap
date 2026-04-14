@@ -571,7 +571,13 @@ async function streamAdAnalysis() {
     (text) => {
       $("#adAnalysisLoading").style.display = "none";
       injectCompletedBlocks(text);
-      container.innerHTML = `<div class="panel-status">All ${injectedCount} ads analyzed — generating synthesis...</div>`;
+      // Remove orphaned loading indicators from ads that didn't get analyzed
+      if (tabId) {
+        for (let i = injectedCount; i < adsToAnalyze; i++) {
+          chrome.tabs.sendMessage(tabId, { action: "removeLoading", adIndex: i }).catch(() => {});
+        }
+      }
+      container.innerHTML = `<div class="panel-status">${injectedCount} of ${adsToAnalyze} ads analyzed — generating synthesis...</div>`;
       // Set up grade filters on the FB page
       if (tabId) {
         chrome.tabs.sendMessage(tabId, { action: "setupGradeFilters" }).catch(() => {});

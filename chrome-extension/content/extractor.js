@@ -740,6 +740,16 @@
       return true;
     }
 
+    if (message.action === "removeLoading") {
+      const container = document.querySelector(`[data-vzd-ad-index="${message.adIndex}"]`);
+      if (container) {
+        const loader = container.querySelector(".vzd-analysis.vzd-loading");
+        if (loader) loader.remove();
+      }
+      sendResponse({ success: true });
+      return true;
+    }
+
     if (message.action === "injectAnalysis") {
       injectAnalysis(message.adIndex, message.html, message.grade);
       sendResponse({ success: true });

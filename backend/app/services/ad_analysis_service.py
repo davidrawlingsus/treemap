@@ -97,9 +97,12 @@ def stream_ads_analysis(
             http_client=httpx.Client(timeout=180.0),
         )
 
+        # ~250 tokens per ad analysis, plus buffer
+        token_budget = max(4096, len(ads) * 300 + 512)
+
         with client.messages.stream(
             model="claude-sonnet-4-5-20250929",
-            max_tokens=4096,
+            max_tokens=token_budget,
             system=FULL_FUNNEL_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_message}],
         ) as stream:
