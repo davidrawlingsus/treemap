@@ -736,16 +736,16 @@ function renderSynthesisText(raw, streaming) {
   html += `</div>`;
 
   if (copyExplanation && !isJustNumber) {
-    html += `<div class="synthesis-summary">${escHtml(copyExplanation)}</div>`;
+    html += `<div class="synthesis-summary">${mdToHtml(copyExplanation)}</div>`;
   }
   if (summary) {
-    html += `<div class="synthesis-summary">${escHtml(summary)}</div>`;
+    html += `<div class="synthesis-summary">${mdToHtml(summary)}</div>`;
   }
   if (patterns) {
-    html += `<div class="synthesis-section-label">Patterns</div><div class="synthesis-bullets">${escHtml(patterns)}</div>`;
+    html += `<div class="synthesis-section-label">Patterns</div><div class="synthesis-bullets">${mdToHtml(patterns)}</div>`;
   }
   if (playbook) {
-    html += `<div class="synthesis-section-label">Playbook</div><div class="synthesis-bullets">${escHtml(playbook)}</div>`;
+    html += `<div class="synthesis-section-label">Playbook</div><div class="synthesis-bullets">${mdToHtml(playbook)}</div>`;
   }
   if (streaming) {
     html += `<div class="synthesis-streaming">...</div>`;
@@ -932,6 +932,14 @@ function escHtml(str) {
   const div = document.createElement("div");
   div.textContent = str || "";
   return div.innerHTML;
+}
+
+// Simple markdown → HTML (bold, bullets, line breaks)
+function mdToHtml(str) {
+  return escHtml(str || "")
+    .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+    .replace(/^[•●]\s*/gm, '<span class="md-bullet">•</span> ')
+    .replace(/\n/g, "<br>");
 }
 
 // ---- Init ----

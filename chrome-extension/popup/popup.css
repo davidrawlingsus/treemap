@@ -701,6 +701,14 @@ select option {
   white-space: pre-wrap;
 }
 
+.synthesis-bullets strong {
+  color: #fff;
+}
+
+.md-bullet {
+  color: #B9F040;
+}
+
 .synthesis-streaming {
   color: rgba(185, 240, 64, 0.4);
   font-size: 11px;
