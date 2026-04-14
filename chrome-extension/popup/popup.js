@@ -703,7 +703,7 @@ function renderSynthesisText(raw, streaming) {
   const copyMatch = adCopyRaw.match(/^(\d+)/);
   const copyScore = copyMatch ? parseInt(copyMatch[1], 10) : 0;
   // Strip the leading number + optional dash, and filter out any result that's just a number
-  const copyExplanation = adCopyRaw.replace(/^\d+\s*[—–-]?\s*/, "").trim();
+  const copyExplanation = adCopyRaw.replace(/^\d+\s*(?:\/10)?\s*[—–-]?\s*/, "").trim();
   const isJustNumber = /^\d+$/.test(copyExplanation);
 
   const summary = getField(block, "SUMMARY");
