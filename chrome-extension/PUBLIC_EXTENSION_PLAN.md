@@ -15,13 +15,15 @@ The ad hook: *"Ever wonder how much of your adspend is wasted?"*
 ## User Journey
 
 1. Install extension, open FB Ads Library, click icon → side panel opens
-2. **No login needed** — auto-extracts ads, runs full analysis (same streaming flow)
-3. Full analysis injected on each ad card + synthesis in sidebar — all for free
-4. Below the synthesis, email capture card: *"Want this report in your inbox? Get the full competitive teardown emailed to you."*
-5. User enters any email → triggers `/api/public/leadgen/start` pipeline + magic link request
-6. Confirmation: *"Check your inbox in ~5 minutes"*
-7. Magic link clicking upgrades to full authenticated mode (unlocks import, lead gen pipeline)
-8. **Exit-intent popup** on FB page if user tries to leave without giving email
+2. **First visit**: email capture — "Enter your email to grade these ads" (lightweight, one field)
+3. Email submitted → account created, magic link sent, **first analysis runs immediately**
+4. Full analysis injected on each ad card + synthesis in sidebar
+5. Results cached per advertiser — revisiting same advertiser loads instantly
+6. **3 free runs total** — tracked server-side per user account
+7. After 3 runs: "You've used all 3 free analyses. Want more? Get in touch." with CTA
+8. Magic link from email → full authenticated mode (import controls, lead gen pipeline)
+9. **Exit-intent popup** on FB page if user tries to leave without entering email
+10. **Future**: credit purchase for power users (agencies, consultants)
 
 ## Architecture: Open Analysis, Email for Delivery
 
@@ -112,6 +114,56 @@ Authenticated users additionally get import controls and lead gen pipeline acces
 4. **Exit intent**: Move mouse to top of browser window — popup should appear once
 5. **Auth upgrade**: Click magic link from email → reopen extension → import controls now visible
 6. **No regression**: Log in with existing account → full existing flow works unchanged, import controls visible
+
+## Usage Limits, Caching & Credits
+
+### Usage Limit (3 free runs)
+
+The primary use case is business owners grading their own ads — they only need 1-2 runs. Cap at 3 to control costs.
+
+**Must be server-side** — `chrome.storage.local` is per-device, so users could bypass it by switching machines. Tying it to the authenticated user account means:
+- Email capture is required before the first run (not after)
+- Run count stored on the User model or a separate `ExtensionUsage` table
+- Backend checks run count before allowing analysis endpoints
+- Extension shows "You've used 3 of 3 analyses. Want more? Get in touch." with a CTA
+
+**Flow adjustment:**
+1. User opens extension → sees email capture first (not analysis)
+2. Enters email → account created, magic link sent
+3. Analysis runs (1st of 3)
+4. On return visits, checks token → shows cached results or allows new run
+
+### Cached Results Per Advertiser
+
+Results cached server-side keyed by advertiser ID (from FB Ads Library URL param). On revisit:
+- Extension extracts advertiser ID from URL
+- Calls `GET /api/extension/cached-results?advertiser_id=X`
+- If cached: restores full analysis instantly (ad grades, synthesis, review signal) — no API cost
+- If not cached: runs fresh analysis (costs 1 credit)
+
+**Backend:**
+- New model: `ExtensionAnalysisCache` — `advertiser_id`, `user_id`, `ad_grades` (JSONB), `synthesis_text`, `review_detection` (JSONB), `signal_text`, `created_at`
+- New endpoints: `GET /api/extension/cached-results`, `POST /api/extension/cache-results`
+- Cache saved automatically after analysis completes
+
+**Extension:**
+- On open: check cache before starting analysis
+- If cached: inject grades on page from cache, render sidebar from cache, show "Cached from [date]" badge
+- Re-extract button forces fresh analysis (costs 1 credit)
+
+### Credits (Future — Power Users)
+
+For users who need more than 3 runs (agencies, consultants):
+- Stripe Checkout integration — "Buy Credits" button in sidebar
+- Backend: `/api/extension/create-checkout-session` → Stripe session URL
+- Backend: Stripe webhook credits the account
+- Credit packs: 50 analyses for $9, 200 for $29 (placeholder pricing)
+- Each run (ad scoring + review signal + synthesis) = 1 credit
+- Free tier: 3 lifetime runs, paid: unlimited within credit balance
+
+**Backend files:**
+- `backend/app/routers/extension_billing.py` — checkout session, webhook, balance check
+- `backend/app/models/extension_usage.py` — run count, credit balance, advertiser cache
 
 ## Ad Distribution Strategy
 
