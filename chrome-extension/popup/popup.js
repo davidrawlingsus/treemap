@@ -703,7 +703,6 @@ function renderSynthesisText(raw, streaming) {
   const adCopyRaw = getField(block, "AD_COPY_SCORE");
   const copyMatch = adCopyRaw.match(/^(\d+)/);
   const copyScore = copyMatch ? parseInt(copyMatch[1], 10) : 0;
-  // Strip the leading number + optional dash, and filter out any result that's just a number
   const copyExplanation = adCopyRaw.replace(/^\d+\s*(?:\/10)?\s*[—–-]?\s*/, "").trim();
   const isJustNumber = /^\d+$/.test(copyExplanation);
 
@@ -723,29 +722,35 @@ function renderSynthesisText(raw, streaming) {
   const sigDisplay = sigScore ? sigScore + "/10" : "—";
   const sigClass = sigScore >= 7 ? "score-high" : sigScore >= 4 ? "score-mid" : "score-low";
 
-  // Gap = signal - copy (positive = untapped potential)
   const gap = (sigScore && copyScore) ? sigScore - copyScore : null;
   const gapDisplay = gap !== null ? (gap > 0 ? "+" + gap : String(gap)) : "—";
   const gapClass = gap !== null ? (gap >= 4 ? "gap-high" : gap >= 1 ? "gap-mid" : "gap-low") : "";
 
+  // Render the three scores into the top-level Scores section
+  const scoresSection = $("#scoresSection");
+  const scoresResults = $("#scoresResults");
+  if (scoresSection && scoresResults) {
+    scoresSection.style.display = "block";
+    scoresResults.innerHTML = `
+      <div class="synthesis-scores-row">
+        <div class="synthesis-score-box">
+          <span class="synthesis-score-label">Ad Copy</span>
+          <span class="synthesis-score-value ${copyClass}">${copyScore ? copyScore + "/10" : "—"}</span>
+        </div>
+        <div class="synthesis-score-box">
+          <span class="synthesis-score-label">Signal</span>
+          <span class="synthesis-score-value synthesis-signal-value ${sigClass}">${sigDisplay}</span>
+        </div>
+        <div class="synthesis-score-box synthesis-gap-box">
+          <span class="synthesis-score-label">Gap</span>
+          <span class="synthesis-score-value synthesis-gap-value ${gapClass}">${gapDisplay}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // Render the rest into the Ad Analysis section
   let html = `<div class="synthesis-card">`;
-
-  // Three headline readouts
-  html += `<div class="synthesis-scores-row">`;
-  html += `<div class="synthesis-score-box">
-    <span class="synthesis-score-label">Ad Copy</span>
-    <span class="synthesis-score-value ${copyClass}">${copyScore ? copyScore + "/10" : "—"}</span>
-  </div>`;
-  html += `<div class="synthesis-score-box">
-    <span class="synthesis-score-label">Signal</span>
-    <span class="synthesis-score-value synthesis-signal-value ${sigClass}">${sigDisplay}</span>
-  </div>`;
-  html += `<div class="synthesis-score-box synthesis-gap-box">
-    <span class="synthesis-score-label">Gap</span>
-    <span class="synthesis-score-value synthesis-gap-value ${gapClass}">${gapDisplay}</span>
-  </div>`;
-  html += `</div>`;
-
   if (copyExplanation && !isJustNumber) {
     html += `<div class="synthesis-summary">${mdToHtml(copyExplanation)}</div>`;
   }

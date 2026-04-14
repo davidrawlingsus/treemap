@@ -48,9 +48,15 @@
       <div id="extractResult" style="display: none;">
         <p id="extractCount" class="extract-count"></p>
 
-        <!-- Ad Scores Section -->
+        <!-- Scores Section (top-level summary) -->
+        <div class="panel-section" id="scoresSection" style="display: none;">
+          <h3 class="panel-heading">Scores</h3>
+          <div id="scoresResults"></div>
+        </div>
+
+        <!-- Ad Analysis Section -->
         <div class="panel-section">
-          <h3 class="panel-heading">Ad Scores</h3>
+          <h3 class="panel-heading">Ad Analysis</h3>
           <div id="adAnalysisLoading" class="loading-state">
             <div class="spinner"></div>
             <p>Analyzing ad copy...</p>
@@ -58,9 +64,9 @@
           <div id="adAnalysisResults"></div>
         </div>
 
-        <!-- Reviews Section -->
+        <!-- Review Signal Analysis Section -->
         <div class="panel-section">
-          <h3 class="panel-heading">Reviews</h3>
+          <h3 class="panel-heading">Review Signal Analysis</h3>
           <div id="reviewEngineLoading" class="loading-state">
             <div class="spinner"></div>
             <p>Detecting review platforms...</p>
