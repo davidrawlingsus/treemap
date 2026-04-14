@@ -289,9 +289,12 @@ def stream_review_signal(
             http_client=httpx.Client(timeout=180.0),
         )
 
+        # ~120 tokens per review assessment + summary
+        token_budget = max(4096, len(review_texts) * 150 + 512)
+
         with client.messages.stream(
             model=model,
-            max_tokens=4096,
+            max_tokens=token_budget,
             system=system_prompt,
             messages=[{"role": "user", "content": user_message}],
         ) as stream:

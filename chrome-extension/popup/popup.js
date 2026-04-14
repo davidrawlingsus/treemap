@@ -815,7 +815,7 @@ function streamReviewSignal(destinationUrl, pageHtml) {
   const section = $("#reviewSignalSection");
   if (section) section.style.display = "block";
 
-  const body = { destination_url: destinationUrl, max_reviews: 20 };
+  const body = { destination_url: destinationUrl, max_reviews: 50 };
   if (pageHtml) body.page_html = pageHtml;
 
   streamSSE(
