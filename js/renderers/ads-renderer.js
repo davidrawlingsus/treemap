@@ -102,8 +102,12 @@ export function renderAdsGrid(container, ads) {
     const source = getAdsSource();
     const cardRenderer = source === 'current' ? renderCurrentAdCard : renderAdCard;
 
+    // Import-level analysis summary (for current ads only)
+    const importSummaryHtml = source === 'current' ? buildImportSummaryHtml() : '';
+
     // Add sizer elements for Masonry + ad cards
     container.innerHTML = `
+        ${importSummaryHtml}
         <div class="ads-grid-sizer"></div>
         <div class="ads-gutter-sizer"></div>
         ${ads.map(ad => cardRenderer(ad)).join('')}
@@ -150,7 +154,31 @@ export function renderAdsGrid(container, ads) {
             const accordion = trigger.closest('.ads-accordion');
             if (accordion) {
                 accordion.classList.toggle('expanded');
-                setTimeout(() => masonryInstance?.layout(), 260);
+                // Continuously relayout Masonry during the accordion transition
+                // so cards below move in sync instead of jumping after a delay
+                if (masonryInstance) {
+                    container.classList.add('masonry-animating');
+                    const content = accordion.querySelector('.ads-accordion__content');
+                    let rafId;
+                    const relayout = () => {
+                        masonryInstance.layout();
+                        rafId = requestAnimationFrame(relayout);
+                    };
+                    rafId = requestAnimationFrame(relayout);
+                    const onDone = () => {
+                        cancelAnimationFrame(rafId);
+                        masonryInstance.layout();
+                        container.classList.remove('masonry-animating');
+                        content.removeEventListener('transitionend', onDone);
+                    };
+                    content.addEventListener('transitionend', onDone);
+                    // Safety fallback in case transitionend doesn't fire
+                    setTimeout(() => {
+                        cancelAnimationFrame(rafId);
+                        container.classList.remove('masonry-animating');
+                        masonryInstance?.layout();
+                    }, 300);
+                }
             }
         };
         container.addEventListener('click', _adsCurrentAccordionHandler);
@@ -588,14 +616,144 @@ function renderCurrentAdCard(ad) {
         </div>
     ` : '';
 
+    // Ad critique accordion
+    const critiqueHtml = buildCritiqueAccordionHtml(ad.analysis_json);
+
     return `
         <div class="ads-card ads-card--current">
             ${labelsHtml}
             <div class="ads-card__mockup">${mockup}</div>
+            ${critiqueHtml}
             ${transcriptHtml}
         </div>
     `;
 }
+
+
+/**
+ * Build a critique accordion from the analysis_json stored per ad.
+ */
+function buildCritiqueAccordionHtml(analysis) {
+    if (!analysis || !analysis.grade) return '';
+
+    const grade = escapeHtml(analysis.grade || '');
+    const gradeClass = `critique-grade--${grade.charAt(0).toLowerCase()}`;
+
+    // Parse score fields: "7 — explanation" → { num, text }
+    function parseScore(raw) {
+        if (!raw) return null;
+        const m = raw.match(/^(\d+)\s*(?:\/10\s*)?[—–\-]\s*(.+)$/);
+        if (m) return { num: parseInt(m[1], 10), text: m[2].trim() };
+        const numOnly = raw.match(/^(\d+)/);
+        return numOnly ? { num: parseInt(numOnly[1], 10), text: '' } : null;
+    }
+
+    function scoreColor(num) {
+        if (num >= 7) return 'critique-score--high';
+        if (num >= 4) return 'critique-score--mid';
+        return 'critique-score--low';
+    }
+
+    function scoreRow(label, raw) {
+        const s = parseScore(raw);
+        if (!s) return '';
+        return `
+            <div class="critique-dimension">
+                <div class="critique-dimension__header">
+                    <span class="critique-dimension__label">${escapeHtml(label)}</span>
+                    <span class="critique-dimension__score ${scoreColor(s.num)}">${s.num}/10</span>
+                </div>
+                ${s.text ? `<p class="critique-dimension__text">${escapeHtml(s.text)}</p>` : ''}
+            </div>
+        `;
+    }
+
+    function tagRow(label, raw) {
+        if (!raw) return '';
+        const m = raw.match(/^(\S+)\s*[—–\-]\s*(.+)$/);
+        const tag = m ? m[1] : raw;
+        const text = m ? m[2].trim() : '';
+        return `
+            <div class="critique-dimension">
+                <div class="critique-dimension__header">
+                    <span class="critique-dimension__label">${escapeHtml(label)}</span>
+                    <span class="critique-tag">${escapeHtml(tag)}</span>
+                </div>
+                ${text ? `<p class="critique-dimension__text">${escapeHtml(text)}</p>` : ''}
+            </div>
+        `;
+    }
+
+    const dimensions = [
+        scoreRow('Hook', analysis.hook),
+        scoreRow('Mind Movie', analysis.mind_movie),
+        scoreRow('Specificity', analysis.specificity),
+        scoreRow('Emotion', analysis.emotion),
+        scoreRow('VoC Density', analysis.voc_density),
+        tagRow('Latency', analysis.latency),
+        tagRow('Funnel', analysis.funnel),
+    ].filter(Boolean).join('');
+
+    return `
+        <div class="ads-card__accordions">
+            <div class="ads-accordion">
+                <button class="ads-accordion__trigger" type="button">
+                    <span class="ads-accordion__title">
+                        Ad Critique
+                        <span class="critique-grade ${gradeClass}">${grade}</span>
+                    </span>
+                    <svg class="ads-accordion__chevron" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 6L8 10L12 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </button>
+                <div class="ads-accordion__content">
+                    <div class="ads-accordion__body">
+                        <div class="critique-body">
+                            <p class="critique-verdict">${escapeHtml(analysis.verdict || '')}</p>
+                            ${analysis.weakness ? `<p class="critique-weakness">${escapeHtml(analysis.weakness)}</p>` : ''}
+                            ${dimensions}
+                            ${analysis.longevity ? `<p class="critique-longevity">${escapeHtml(analysis.longevity)}</p>` : ''}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+
+/**
+ * Build the import-level analysis summary bar (scores + synthesis).
+ */
+function buildImportSummaryHtml() {
+    const data = window._currentImportAnalysis;
+    if (!data || !data.adCopyScore) return '';
+
+    function scoreBadge(label, value, max = 10) {
+        if (!value && value !== 0) return '';
+        const num = typeof value === 'number' ? value : parseFloat(value);
+        const cls = num >= 7 ? 'import-score--high' : num >= 4 ? 'import-score--mid' : 'import-score--low';
+        return `
+            <div class="import-score">
+                <span class="import-score__label">${escapeHtml(label)}</span>
+                <span class="import-score__value ${cls}">${num}/${max}</span>
+            </div>
+        `;
+    }
+
+    const scores = [
+        scoreBadge('Ad Copy Score', data.adCopyScore),
+        scoreBadge('Review Signal', data.signalScore),
+        scoreBadge('Opportunity', data.opportunityScore),
+    ].filter(Boolean).join('');
+
+    return `
+        <div class="import-summary">
+            <div class="import-summary__scores">${scores}</div>
+        </div>
+    `;
+}
+
 
 /**
  * Attach event listeners using event delegation
@@ -780,12 +938,29 @@ function attachEventListeners(container) {
             const accordion = accordionTrigger.closest('.ads-accordion');
             if (accordion) {
                 accordion.classList.toggle('expanded');
-                // Recalculate Masonry layout after accordion animation completes
-                setTimeout(() => {
-                    if (masonryInstance) {
+                // Continuously relayout Masonry during accordion transition
+                if (masonryInstance) {
+                    container.classList.add('masonry-animating');
+                    const content = accordion.querySelector('.ads-accordion__content');
+                    let rafId;
+                    const relayout = () => {
                         masonryInstance.layout();
-                    }
-                }, 260); // Slightly longer than the 250ms accordion transition
+                        rafId = requestAnimationFrame(relayout);
+                    };
+                    rafId = requestAnimationFrame(relayout);
+                    const onDone = () => {
+                        cancelAnimationFrame(rafId);
+                        masonryInstance.layout();
+                        container.classList.remove('masonry-animating');
+                        content.removeEventListener('transitionend', onDone);
+                    };
+                    content.addEventListener('transitionend', onDone);
+                    setTimeout(() => {
+                        cancelAnimationFrame(rafId);
+                        container.classList.remove('masonry-animating');
+                        masonryInstance?.layout();
+                    }, 300);
+                }
             }
             return;
         }
