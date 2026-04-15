@@ -796,8 +796,8 @@
           background: linear-gradient(135deg, #1A2B3C, #0F1B28);
           border: 1px solid rgba(185, 240, 64, 0.25);
           border-radius: 16px;
-          padding: 32px;
-          max-width: 480px;
+          padding: 40px;
+          max-width: 560px;
           width: 90%;
           position: relative;
           color: #fff;
@@ -845,23 +845,24 @@
         .vzd-opp-high { color: #B9F040; }
         .vzd-opp-gap { color: #B9F040; }
         .vzd-opp-headline {
-          font-size: 20px;
+          font-size: 26px;
           font-weight: 900;
-          line-height: 1.3;
-          margin-bottom: 12px;
+          line-height: 1.25;
+          margin-bottom: 16px;
           color: #fff;
+          text-align: center;
         }
         .vzd-opp-contrast {
-          font-size: 14px;
-          color: rgba(255, 255, 255, 0.75);
-          line-height: 1.5;
-          margin-bottom: 12px;
+          font-size: 16px;
+          color: #fff;
+          line-height: 1.6;
+          margin-bottom: 16px;
         }
         .vzd-opp-unlock {
-          font-size: 14px;
-          color: rgba(255, 255, 255, 0.75);
-          line-height: 1.5;
-          margin-bottom: 20px;
+          font-size: 16px;
+          color: #fff;
+          line-height: 1.6;
+          margin-bottom: 24px;
         }
         .vzd-opp-cta {
           display: block;
