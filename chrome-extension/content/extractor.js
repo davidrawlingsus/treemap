@@ -880,6 +880,13 @@
           transition: background 0.2s;
         }
         .vzd-opp-cta:hover { background: #a0d636; }
+        .vzd-opp-subtext {
+          font-size: 13px;
+          color: rgba(255, 255, 255, 0.6);
+          text-align: center;
+          margin-top: 10px;
+          line-height: 1.4;
+        }
       `;
       document.head.appendChild(style);
     }

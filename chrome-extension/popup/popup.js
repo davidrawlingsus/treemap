@@ -849,6 +849,7 @@ function buildOpportunityOverlayHtml(raw, copyScore, sigScore, gap) {
     <div class="vzd-opp-overlay">
       <div class="vzd-opp-card">
         <button class="vzd-opp-close">&times;</button>
+        ${headline ? `<h2 class="vzd-opp-headline">${escHtml(headline)}</h2>` : ""}
         <div class="vzd-opp-scores">
           <div class="vzd-opp-score-item">
             <span class="vzd-opp-score-label">Ad Copy</span>
@@ -863,10 +864,10 @@ function buildOpportunityOverlayHtml(raw, copyScore, sigScore, gap) {
             <span class="vzd-opp-score-num vzd-opp-gap">+${gap}</span>
           </div>
         </div>
-        ${headline ? `<h2 class="vzd-opp-headline">${escHtml(headline)}</h2>` : ""}
         ${contrast ? `<p class="vzd-opp-contrast">${escHtml(contrast)}</p>` : ""}
         ${unlock ? `<p class="vzd-opp-unlock">${escHtml(unlock)}</p>` : ""}
-        <a class="vzd-opp-cta" href="https://mapthegap.ai/free-strategy" target="_blank">Get Your Free Creative Strategy</a>
+        <a class="vzd-opp-cta" href="https://mapthegap.ai/free-strategy" target="_blank">Book a Free Strategy Call</a>
+        <p class="vzd-opp-subtext">You'll get a personalized strategy and free ad rewrites that close this gap.</p>
       </div>
     </div>
   `;
