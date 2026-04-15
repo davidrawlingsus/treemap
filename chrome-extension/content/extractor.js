@@ -887,6 +887,55 @@
           margin-top: 10px;
           line-height: 1.4;
         }
+
+        /* Minimized sticky CTA */
+        .vzd-opp-mini {
+          position: fixed;
+          bottom: 20px;
+          left: 20px;
+          z-index: 999999;
+          font-family: 'Lato', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        .vzd-opp-mini-card {
+          background: linear-gradient(135deg, #1A2B3C, #0F1B28);
+          border: 1px solid rgba(185, 240, 64, 0.3);
+          border-radius: 12px;
+          padding: 14px 20px;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .vzd-opp-mini-gap {
+          font-size: 13px;
+          font-weight: 900;
+          color: #B9F040;
+          white-space: nowrap;
+        }
+        .vzd-opp-mini-cta {
+          padding: 8px 18px;
+          background: #B9F040;
+          color: #000;
+          font-size: 12px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+          text-decoration: none;
+          border-radius: 6px;
+          white-space: nowrap;
+          transition: background 0.2s;
+        }
+        .vzd-opp-mini-cta:hover { background: #a0d636; }
+        .vzd-opp-mini-close {
+          background: none;
+          border: none;
+          color: rgba(255, 255, 255, 0.3);
+          font-size: 16px;
+          cursor: pointer;
+          padding: 0 0 0 4px;
+          line-height: 1;
+        }
+        .vzd-opp-mini-close:hover { color: #fff; }
       `;
       document.head.appendChild(style);
     }
@@ -896,10 +945,35 @@
     overlay.innerHTML = html;
     document.body.appendChild(overlay);
 
-    // Close on X button or overlay click
-    overlay.querySelector(".vzd-opp-close")?.addEventListener("click", () => overlay.remove());
+    // Extract gap value and CTA href for the minimized version
+    const ctaEl = overlay.querySelector(".vzd-opp-cta");
+    const ctaHref = ctaEl ? ctaEl.getAttribute("href") : "https://mapthegap.ai/free-strategy";
+    const gapEl = overlay.querySelector(".vzd-opp-gap");
+    const gapText = gapEl ? gapEl.textContent : "";
+
+    // Close → minimize to sticky CTA
+    function minimizeOverlay() {
+      overlay.remove();
+      // Don't re-inject if already minimized
+      if (document.getElementById("vzd-opp-mini")) return;
+
+      const mini = document.createElement("div");
+      mini.id = "vzd-opp-mini";
+      mini.className = "vzd-opp-mini";
+      mini.innerHTML = `
+        <div class="vzd-opp-mini-card">
+          <span class="vzd-opp-mini-gap">Gap: ${gapText}</span>
+          <a class="vzd-opp-mini-cta" href="${ctaHref}" target="_blank">Book a Free Strategy Call</a>
+          <button class="vzd-opp-mini-close">&times;</button>
+        </div>
+      `;
+      document.body.appendChild(mini);
+      mini.querySelector(".vzd-opp-mini-close")?.addEventListener("click", () => mini.remove());
+    }
+
+    overlay.querySelector(".vzd-opp-close")?.addEventListener("click", minimizeOverlay);
     overlay.addEventListener("click", (e) => {
-      if (e.target === overlay.querySelector(".vzd-opp-overlay")) overlay.remove();
+      if (e.target === overlay.querySelector(".vzd-opp-overlay")) minimizeOverlay();
     });
   }
 })();
