@@ -848,26 +848,42 @@ function buildOpportunityOverlayHtml(raw, copyScore, sigScore, gap) {
   return `
     <div class="vzd-opp-overlay">
       <div class="vzd-opp-card">
-        <button class="vzd-opp-close">&times;</button>
-        ${headline ? `<h2 class="vzd-opp-headline">${escHtml(headline)}</h2>` : ""}
-        <div class="vzd-opp-scores">
-          <div class="vzd-opp-score-item">
-            <span class="vzd-opp-score-label">Ad Copy</span>
-            <span class="vzd-opp-score-num vzd-opp-low">${copyScore}/10</span>
-          </div>
-          <div class="vzd-opp-score-item">
-            <span class="vzd-opp-score-label">Signal</span>
-            <span class="vzd-opp-score-num vzd-opp-high">${sigScore}/10</span>
-          </div>
-          <div class="vzd-opp-score-item">
-            <span class="vzd-opp-score-label">Gap</span>
-            <span class="vzd-opp-score-num vzd-opp-gap">+${gap}</span>
+        <div class="vzd-opp-slider">
+          <div class="vzd-opp-panels">
+            <div class="vzd-opp-panel">
+              <div class="vzd-opp-panel-content">
+                <button class="vzd-opp-close">&times;</button>
+                ${headline ? `<h2 class="vzd-opp-headline">${escHtml(headline)}</h2>` : ""}
+                <div class="vzd-opp-scores">
+                  <div class="vzd-opp-score-item">
+                    <span class="vzd-opp-score-label">Ad Copy</span>
+                    <span class="vzd-opp-score-num vzd-opp-low">${copyScore}/10</span>
+                  </div>
+                  <div class="vzd-opp-score-item">
+                    <span class="vzd-opp-score-label">Signal</span>
+                    <span class="vzd-opp-score-num vzd-opp-high">${sigScore}/10</span>
+                  </div>
+                  <div class="vzd-opp-score-item">
+                    <span class="vzd-opp-score-label">Gap</span>
+                    <span class="vzd-opp-score-num vzd-opp-gap">+${gap}</span>
+                  </div>
+                </div>
+                ${contrast ? `<p class="vzd-opp-contrast">${escHtml(contrast)}</p>` : ""}
+                ${unlock ? `<p class="vzd-opp-unlock">${escHtml(unlock)}</p>` : ""}
+                <button class="vzd-opp-cta vzd-opp-book-btn">Book a Free Strategy Call</button>
+                <p class="vzd-opp-subtext">You'll get a personalized strategy and free ad rewrites that close this gap.</p>
+              </div>
+            </div>
+            <div class="vzd-opp-panel vzd-opp-calendly-panel">
+              <div class="vzd-opp-calendly-header">
+                <button class="vzd-opp-calendly-back">&#8592; Back</button>
+                <span class="vzd-opp-calendly-title">Book Your Strategy Call</span>
+                <button class="vzd-opp-calendly-close">&times;</button>
+              </div>
+              <iframe class="vzd-opp-calendly-frame" src="" data-src="https://calendly.com/david-rawlings-gfm7/mapthegap-strategy-call?embed=true"></iframe>
+            </div>
           </div>
         </div>
-        ${contrast ? `<p class="vzd-opp-contrast">${escHtml(contrast)}</p>` : ""}
-        ${unlock ? `<p class="vzd-opp-unlock">${escHtml(unlock)}</p>` : ""}
-        <a class="vzd-opp-cta" href="https://mapthegap.ai/free-strategy" target="_blank">Book a Free Strategy Call</a>
-        <p class="vzd-opp-subtext">You'll get a personalized strategy and free ad rewrites that close this gap.</p>
       </div>
     </div>
   `;

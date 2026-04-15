@@ -796,12 +796,21 @@
           background: linear-gradient(135deg, #1A2B3C, #0F1B28);
           border: 1px solid rgba(185, 240, 64, 0.25);
           border-radius: 16px;
-          padding: 40px;
           max-width: 560px;
           width: 90%;
           position: relative;
           color: #fff;
           box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+          overflow: hidden;
+          transition: max-width 0.4s ease, background 0.4s ease;
+        }
+        .vzd-opp-card.vzd-showing-calendly {
+          max-width: 680px;
+          background: #fff;
+          border-color: #e5e7eb;
+        }
+        .vzd-opp-panel-content {
+          padding: 40px;
         }
         .vzd-opp-close {
           position: absolute;
@@ -879,13 +888,82 @@
           border-radius: 8px;
           transition: background 0.2s;
         }
-        .vzd-opp-cta:hover { background: #a0d636; }
+        .vzd-opp-cta:hover { background: #a0d636; cursor: pointer; }
         .vzd-opp-subtext {
           font-size: 13px;
           color: rgba(255, 255, 255, 0.6);
           text-align: center;
           margin-top: 10px;
           line-height: 1.4;
+        }
+
+        /* Two-panel slider container */
+        .vzd-opp-slider {
+          overflow: hidden;
+          position: relative;
+        }
+        .vzd-opp-panels {
+          display: flex;
+          transition: transform 0.4s ease;
+          width: 200%;
+        }
+        .vzd-opp-panels.vzd-slide-calendly {
+          transform: translateX(-50%);
+        }
+        .vzd-opp-panel {
+          width: 50%;
+          flex-shrink: 0;
+        }
+
+        /* Calendly panel — clean white to match Calendly's own UI */
+        .vzd-opp-calendly-panel {
+          background: #fff;
+          border-radius: 16px;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+        }
+        .vzd-opp-calendly-header {
+          display: flex;
+          align-items: center;
+          padding: 16px 20px;
+          border-bottom: 1px solid #e5e7eb;
+          background: #fff;
+        }
+        .vzd-opp-calendly-back {
+          background: none;
+          border: none;
+          color: #1A2B3C;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          padding: 0;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-family: 'Lato', -apple-system, sans-serif;
+        }
+        .vzd-opp-calendly-back:hover { color: #0F1B28; }
+        .vzd-opp-calendly-title {
+          flex: 1;
+          text-align: center;
+          font-size: 16px;
+          font-weight: 700;
+          color: #1A2B3C;
+        }
+        .vzd-opp-calendly-close {
+          background: none;
+          border: none;
+          color: #9ca3af;
+          font-size: 22px;
+          cursor: pointer;
+          line-height: 1;
+        }
+        .vzd-opp-calendly-close:hover { color: #1A2B3C; }
+        .vzd-opp-calendly-frame {
+          width: 100%;
+          height: 660px;
+          border: none;
         }
 
         /* Minimized sticky CTA */
@@ -945,16 +1023,31 @@
     overlay.innerHTML = html;
     document.body.appendChild(overlay);
 
-    // Extract gap value and CTA href for the minimized version
-    const ctaEl = overlay.querySelector(".vzd-opp-cta");
-    const ctaHref = ctaEl ? ctaEl.getAttribute("href") : "https://mapthegap.ai/free-strategy";
+    const card = overlay.querySelector(".vzd-opp-card");
+    const panels = overlay.querySelector(".vzd-opp-panels");
+    const calendlyFrame = overlay.querySelector(".vzd-opp-calendly-frame");
     const gapEl = overlay.querySelector(".vzd-opp-gap");
     const gapText = gapEl ? gapEl.textContent : "";
+    const calendlyUrl = "https://calendly.com/david-rawlings-gfm7/mapthegap-strategy-call?embed=true";
+
+    // Slide to Calendly
+    function showCalendly() {
+      if (calendlyFrame && !calendlyFrame.src) {
+        calendlyFrame.src = calendlyFrame.getAttribute("data-src");
+      }
+      panels?.classList.add("vzd-slide-calendly");
+      card?.classList.add("vzd-showing-calendly");
+    }
+
+    // Slide back to opportunity
+    function showOpportunity() {
+      panels?.classList.remove("vzd-slide-calendly");
+      card?.classList.remove("vzd-showing-calendly");
+    }
 
     // Close → minimize to sticky CTA
     function minimizeOverlay() {
       overlay.remove();
-      // Don't re-inject if already minimized
       if (document.getElementById("vzd-opp-mini")) return;
 
       const mini = document.createElement("div");
@@ -963,17 +1056,54 @@
       mini.innerHTML = `
         <div class="vzd-opp-mini-card">
           <span class="vzd-opp-mini-gap">Gap: ${gapText}</span>
-          <a class="vzd-opp-mini-cta" href="${ctaHref}" target="_blank">Book a Free Strategy Call</a>
+          <button class="vzd-opp-mini-cta vzd-opp-mini-book">Book a Free Strategy Call</button>
           <button class="vzd-opp-mini-close">&times;</button>
         </div>
       `;
       document.body.appendChild(mini);
       mini.querySelector(".vzd-opp-mini-close")?.addEventListener("click", () => mini.remove());
+      // Mini CTA opens calendly overlay directly
+      mini.querySelector(".vzd-opp-mini-book")?.addEventListener("click", () => {
+        mini.remove();
+        showCalendlyOverlay();
+      });
     }
 
+    // Standalone calendly overlay (from mini CTA)
+    function showCalendlyOverlay() {
+      const calOverlay = document.createElement("div");
+      calOverlay.id = "vzd-opportunity-overlay";
+      calOverlay.innerHTML = `
+        <div class="vzd-opp-overlay">
+          <div class="vzd-opp-card vzd-showing-calendly">
+            <div class="vzd-opp-calendly-panel" style="border-radius:16px;">
+              <div class="vzd-opp-calendly-header">
+                <span></span>
+                <span class="vzd-opp-calendly-title">Book Your Strategy Call</span>
+                <button class="vzd-opp-calendly-close">&times;</button>
+              </div>
+              <iframe class="vzd-opp-calendly-frame" src="${calendlyUrl}"></iframe>
+            </div>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(calOverlay);
+      calOverlay.querySelector(".vzd-opp-calendly-close")?.addEventListener("click", () => calOverlay.remove());
+      calOverlay.addEventListener("click", (e) => {
+        if (e.target.classList.contains("vzd-opp-overlay")) calOverlay.remove();
+      });
+    }
+
+    // Wire up events
+    overlay.querySelector(".vzd-opp-book-btn")?.addEventListener("click", (e) => {
+      e.preventDefault();
+      showCalendly();
+    });
+    overlay.querySelector(".vzd-opp-calendly-back")?.addEventListener("click", showOpportunity);
     overlay.querySelector(".vzd-opp-close")?.addEventListener("click", minimizeOverlay);
+    overlay.querySelector(".vzd-opp-calendly-close")?.addEventListener("click", minimizeOverlay);
     overlay.addEventListener("click", (e) => {
-      if (e.target === overlay.querySelector(".vzd-opp-overlay")) minimizeOverlay();
+      if (e.target.classList.contains("vzd-opp-overlay")) minimizeOverlay();
     });
   }
 })();
