@@ -796,10 +796,10 @@
           background: linear-gradient(135deg, #1A2B3C, #0F1B28);
           border: 1px solid rgba(185, 240, 64, 0.25);
           border-radius: 16px;
-          width: 900px;
+          width: 1060px;
           max-width: 95vw;
-          height: 700px;
-          max-height: 90vh;
+          height: 750px;
+          max-height: 92vh;
           position: relative;
           color: #fff;
           box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
@@ -811,13 +811,15 @@
           border-color: #e5e7eb;
         }
         .vzd-opp-panel-content {
-          padding: 0 40px 40px;
-          height: 700px;
-          max-height: 90vh;
+          padding: 0 60px 40px;
+          height: 750px;
+          max-height: 92vh;
           overflow-y: auto;
           display: flex;
           flex-direction: column;
           justify-content: center;
+          max-width: 700px;
+          margin: 0 auto;
         }
         .vzd-opp-close {
           position: absolute;
@@ -971,10 +973,13 @@
           width: 100%;
           flex: 1;
           border: none;
+          margin: 0;
+          padding: 0;
+          display: block;
         }
         .vzd-opp-calendly-panel {
-          height: 700px;
-          max-height: 90vh;
+          height: 750px;
+          max-height: 92vh;
         }
 
         /* Minimized sticky CTA */
