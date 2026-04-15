@@ -805,7 +805,8 @@
           transition: max-width 0.4s ease, background 0.4s ease;
         }
         .vzd-opp-card.vzd-showing-calendly {
-          max-width: 680px;
+          max-width: 1000px;
+          max-height: 90vh;
           background: #fff;
           border-color: #e5e7eb;
         }
@@ -962,7 +963,7 @@
         .vzd-opp-calendly-close:hover { color: #1A2B3C; }
         .vzd-opp-calendly-frame {
           width: 100%;
-          height: 660px;
+          height: calc(90vh - 60px);
           border: none;
         }
 
@@ -1061,15 +1062,15 @@
       mini.querySelector(".vzd-opp-mini-close")?.addEventListener("click", () => mini.remove());
       // Mini CTA opens calendly overlay directly
       mini.querySelector(".vzd-opp-mini-book")?.addEventListener("click", () => {
-        mini.remove();
-        showCalendlyOverlay();
+        mini.style.display = "none";
+        showCalendlyOverlay(mini);
       });
     }
 
     // Standalone calendly overlay (from mini CTA)
-    function showCalendlyOverlay() {
+    function showCalendlyOverlay(miniEl) {
       const calOverlay = document.createElement("div");
-      calOverlay.id = "vzd-opportunity-overlay";
+      calOverlay.id = "vzd-calendly-overlay";
       calOverlay.innerHTML = `
         <div class="vzd-opp-overlay">
           <div class="vzd-opp-card vzd-showing-calendly">
@@ -1085,9 +1086,16 @@
         </div>
       `;
       document.body.appendChild(calOverlay);
-      calOverlay.querySelector(".vzd-opp-calendly-close")?.addEventListener("click", () => calOverlay.remove());
+
+      function closeCalendly() {
+        calOverlay.remove();
+        // Re-show mini CTA
+        if (miniEl) miniEl.style.display = "";
+      }
+
+      calOverlay.querySelector(".vzd-opp-calendly-close")?.addEventListener("click", closeCalendly);
       calOverlay.addEventListener("click", (e) => {
-        if (e.target.classList.contains("vzd-opp-overlay")) calOverlay.remove();
+        if (e.target.classList.contains("vzd-opp-overlay")) closeCalendly();
       });
     }
 
