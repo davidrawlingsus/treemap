@@ -32,6 +32,7 @@ let _adsDocumentClickHandler = null;
 let _adsContainerInputHandler = null;
 let _adsContainerKeydownHandler = null;
 let _adsEventContainer = null;
+let _adsCurrentAccordionHandler = null;
 
 /**
  * Show loading state
@@ -108,6 +109,30 @@ export function renderAdsGrid(container, ads) {
         ${ads.map(ad => cardRenderer(ad)).join('')}
     `;
 
+    // Clean up all previous handlers before attaching new ones for the active source
+    if (_adsEventContainer) {
+        if (_adsContainerClickHandler) {
+            _adsEventContainer.removeEventListener('click', _adsContainerClickHandler);
+            _adsContainerClickHandler = null;
+        }
+        if (_adsCurrentAccordionHandler) {
+            _adsEventContainer.removeEventListener('click', _adsCurrentAccordionHandler);
+            _adsCurrentAccordionHandler = null;
+        }
+        if (_adsContainerInputHandler) {
+            _adsEventContainer.removeEventListener('input', _adsContainerInputHandler);
+            _adsContainerInputHandler = null;
+        }
+        if (_adsContainerKeydownHandler) {
+            _adsEventContainer.removeEventListener('keydown', _adsContainerKeydownHandler);
+            _adsContainerKeydownHandler = null;
+        }
+        if (_adsDocumentClickHandler) {
+            document.removeEventListener('click', _adsDocumentClickHandler);
+            _adsDocumentClickHandler = null;
+        }
+    }
+
     // Attach event delegation for interactive elements
     if (source === 'test') {
         attachEventListeners(container);
@@ -118,7 +143,8 @@ export function renderAdsGrid(container, ads) {
 
     // Accordion click handler for current ads (transcript expand/collapse)
     if (source === 'current') {
-        container.addEventListener('click', (e) => {
+        _adsEventContainer = container;
+        _adsCurrentAccordionHandler = (e) => {
             const trigger = e.target.closest('.ads-accordion__trigger');
             if (!trigger) return;
             const accordion = trigger.closest('.ads-accordion');
@@ -126,7 +152,8 @@ export function renderAdsGrid(container, ads) {
                 accordion.classList.toggle('expanded');
                 setTimeout(() => masonryInstance?.layout(), 260);
             }
-        });
+        };
+        container.addEventListener('click', _adsCurrentAccordionHandler);
     }
 
     if (source === 'test') updateBulkPublishButton();
