@@ -799,17 +799,14 @@ function updateGapScore() {
 
 // ---- Opportunity overlay (fires when both analyses complete and gap >= 3) ----
 async function checkAndFireOpportunity() {
-  console.log("[VZD-OPP] Check:", { opportunityFired, hasSynthesis: !!adSynthesisText, hasSignal: !!signalStreamText, adCopyScore, signalGrade });
   if (opportunityFired) return;
-  if (!adSynthesisText || !signalStreamText) return; // both must be done
+  if (!adSynthesisText || !signalStreamText) return;
   if (!adCopyScore || !signalGrade) return;
 
   const gap = signalGrade - adCopyScore;
-  console.log("[VZD-OPP] Gap:", gap);
-  if (gap < 3) return; // not enough opportunity
+  if (gap < 3) return;
 
   opportunityFired = true;
-  console.log("[VZD-OPP] Firing opportunity overlay...");
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const tabId = tab?.id;
@@ -827,16 +824,13 @@ async function checkAndFireOpportunity() {
     () => {},
     // onDone — inject overlay on the FB page
     (text) => {
-      console.log("[VZD-OPP] Overlay text received:", text.substring(0, 200));
       if (tabId) {
         const html = buildOpportunityOverlayHtml(text, adCopyScore, signalGrade, gap);
         chrome.tabs.sendMessage(tabId, { action: "injectOpportunityOverlay", html }).catch(() => {});
       }
     },
     // onError
-    (err) => {
-      console.warn("[VZD-OPP] Opportunity failed:", err);
-    }
+    () => {}
   );
 }
 
