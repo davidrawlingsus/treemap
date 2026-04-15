@@ -811,7 +811,7 @@
           border-color: #e5e7eb;
         }
         .vzd-opp-panel-content {
-          padding: 40px;
+          padding: 0 40px 40px;
           height: 700px;
           max-height: 90vh;
           overflow-y: auto;
@@ -861,10 +861,10 @@
         .vzd-opp-high { color: #B9F040; }
         .vzd-opp-gap { color: #B9F040; }
         .vzd-opp-headline {
-          font-size: 26px;
+          font-size: 36px;
           font-weight: 900;
-          line-height: 1.25;
-          margin-bottom: 16px;
+          line-height: 1.2;
+          margin-bottom: 20px;
           color: #fff;
           text-align: center;
         }
