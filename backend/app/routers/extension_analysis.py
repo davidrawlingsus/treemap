@@ -191,6 +191,42 @@ def synthesize_ads(
     )
 
 
+class OpportunityRequest(BaseModel):
+    ad_synthesis_text: str = Field(..., description="Ad copy synthesis text")
+    signal_text: str = Field(..., description="Review signal analysis text")
+    ad_copy_score: int = Field(..., ge=1, le=10)
+    signal_score: int = Field(..., ge=1, le=10)
+    gap: int = Field(..., description="signal_score - ad_copy_score")
+
+
+@router.post("/opportunity")
+def opportunity_overlay(
+    body: OpportunityRequest,
+    current_user: User = Depends(get_current_user_flexible),
+):
+    """Stream opportunity overlay text when gap is significant."""
+    settings = get_settings()
+    if not settings.anthropic_api_key:
+        raise HTTPException(status_code=503, detail="Anthropic API key not configured")
+
+    from app.services.ad_analysis_service import stream_opportunity
+
+    text_gen = stream_opportunity(
+        ad_synthesis_text=body.ad_synthesis_text,
+        signal_text=body.signal_text,
+        ad_copy_score=body.ad_copy_score,
+        signal_score=body.signal_score,
+        gap=body.gap,
+        anthropic_api_key=settings.anthropic_api_key,
+    )
+
+    return StreamingResponse(
+        _sse_generator(text_gen),
+        media_type="text/event-stream",
+        headers=SSE_HEADERS,
+    )
+
+
 @router.post("/detect-reviews", response_model=DetectReviewsResponse)
 def detect_reviews(
     body: DetectReviewsRequest,

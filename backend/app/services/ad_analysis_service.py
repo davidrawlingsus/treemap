@@ -194,6 +194,77 @@ def stream_synthesis(
 
 
 # ---------------------------------------------------------------------------
+# Opportunity Overlay (streaming text)
+# ---------------------------------------------------------------------------
+
+OPPORTUNITY_SYSTEM_PROMPT = """\
+You are a senior creative strategist writing a short, punchy opportunity brief for a potential client.
+
+You will receive:
+- An ad copy analysis summary describing the advertiser's creative weaknesses
+- A review signal analysis showing the richness of their customer voice data
+- Three scores: Ad Copy (1-10), Signal (1-10), Gap (the difference)
+
+The GAP between weak ad copy and strong customer voice is the opportunity. Your job is to make this opportunity feel visceral and urgent — not academic.
+
+Write using EXACTLY this format:
+
+===OPPORTUNITY===
+HEADLINE: <1 punchy line — the core opportunity in plain language, e.g. "Your customers are writing better ads than your agency">
+CONTRAST: <2-3 sentences showing a specific BLAND quote from their ads next to a specific RICH quote from their reviews. Make the contrast obvious and painful.>
+UNLOCK: <2-3 sentences — what becomes possible when you bridge this gap. Be specific about the type of ads you could build. Paint the picture.>
+===END===
+
+Rules:
+- Use actual examples from the analysis — real ad copy vs real review quotes
+- Keep it under 100 words total
+- Write like you're talking to the business owner, not a marketer
+- No jargon, no fluff, no "leverage" or "optimize"
+- Make them feel the gap in their gut
+
+Write nothing before ===OPPORTUNITY=== and nothing after ===END===."""
+
+
+def stream_opportunity(
+    ad_synthesis_text: str,
+    signal_text: str,
+    ad_copy_score: int,
+    signal_score: int,
+    gap: int,
+    anthropic_api_key: str,
+) -> Generator[str, None, None]:
+    """Stream opportunity overlay text based on the gap between ad copy and signal."""
+    user_message = (
+        f"AD COPY SCORE: {ad_copy_score}/10\n"
+        f"SIGNAL SCORE: {signal_score}/10\n"
+        f"GAP: {gap}\n\n"
+        f"--- AD ANALYSIS ---\n{ad_synthesis_text}\n\n"
+        f"--- REVIEW SIGNAL ---\n{signal_text}"
+    )
+
+    try:
+        system_prompt, model = _load_prompt("extension_opportunity", OPPORTUNITY_SYSTEM_PROMPT)
+
+        client = anthropic.Anthropic(
+            api_key=anthropic_api_key,
+            http_client=httpx.Client(timeout=180.0),
+        )
+
+        with client.messages.stream(
+            model=model,
+            max_tokens=512,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_message}],
+        ) as stream:
+            for text in stream.text_stream:
+                yield text
+
+    except Exception as e:
+        logger.exception("Opportunity streaming failed: %s", e)
+        yield f"\n\nError: {e}"
+
+
+# ---------------------------------------------------------------------------
 # Review Signal Analysis (streaming text)
 # ---------------------------------------------------------------------------
 

@@ -17,6 +17,7 @@ depends_on = None
 FULL_FUNNEL_ID = uuid.UUID("b2c3d4e5-f6a7-4890-bcde-f12345678901")
 SYNTHESIS_ID = uuid.UUID("b2c3d4e5-f6a7-4890-bcde-f12345678902")
 REVIEW_SIGNAL_ID = uuid.UUID("b2c3d4e5-f6a7-4890-bcde-f12345678903")
+OPPORTUNITY_ID = uuid.UUID("b2c3d4e5-f6a7-4890-bcde-f12345678904")
 
 FULL_FUNNEL_SYSTEM = """\
 You are a senior Facebook Ads creative strategist who specialises in direct-response performance creative grounded in Voice of Customer (VoC) methodology.
@@ -160,11 +161,23 @@ def upgrade():
             "all_clients": True,
             "llm_model": "claude-sonnet-4-5-20250929",
         },
+        {
+            "id": OPPORTUNITY_ID,
+            "name": "Extension: Opportunity Overlay",
+            "version": 1,
+            "prompt_type": "system",
+            "system_message": "You are a senior creative strategist writing a short, punchy opportunity brief for a potential client.\n\nYou will receive:\n- An ad copy analysis summary describing the advertiser's creative weaknesses\n- A review signal analysis showing the richness of their customer voice data\n- Three scores: Ad Copy (1-10), Signal (1-10), Gap (the difference)\n\nThe GAP between weak ad copy and strong customer voice is the opportunity. Your job is to make this opportunity feel visceral and urgent.\n\nWrite using EXACTLY this format:\n\n===OPPORTUNITY===\nHEADLINE: <1 punchy line - the core opportunity in plain language>\nCONTRAST: <2-3 sentences showing a specific BLAND quote from their ads next to a specific RICH quote from their reviews. Make the contrast obvious and painful.>\nUNLOCK: <2-3 sentences - what becomes possible when you bridge this gap. Be specific about the type of ads you could build.>\n===END===\n\nRules:\n- Use actual examples from the analysis\n- Keep it under 100 words total\n- Write like you're talking to the business owner, not a marketer\n- No jargon, no fluff\n- Make them feel the gap in their gut\n\nWrite nothing before ===OPPORTUNITY=== and nothing after ===END===.",
+            "prompt_purpose": "extension_opportunity",
+            "status": "live",
+            "client_facing": False,
+            "all_clients": True,
+            "llm_model": "claude-sonnet-4-5-20250929",
+        },
     ])
 
 
 def downgrade():
-    for pid in [FULL_FUNNEL_ID, SYNTHESIS_ID, REVIEW_SIGNAL_ID]:
+    for pid in [FULL_FUNNEL_ID, SYNTHESIS_ID, REVIEW_SIGNAL_ID, OPPORTUNITY_ID]:
         op.execute(
             sa.text("DELETE FROM prompts WHERE id = :id").bindparams(id=str(pid))
         )

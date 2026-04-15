@@ -13,6 +13,10 @@ const $ = (sel) => document.querySelector(sel);
 let extractedAds = null;
 let extractedUrl = null;
 let signalGrade = null; // numeric 1-10 score, set when signal analysis completes
+let adSynthesisText = null; // raw synthesis stream text, set when ad analysis completes
+let signalStreamText = null; // raw signal stream text, set when signal completes
+let adCopyScore = 0; // extracted from synthesis
+let opportunityFired = false; // prevent double-firing
 
 // ---- DOM refs ----
 const loginSection = $("#loginSection");
@@ -688,6 +692,12 @@ function streamSynthesis(analysisText, container) {
     // onDone
     (text) => {
       container.innerHTML = renderSynthesisText(text, false);
+      adSynthesisText = text;
+      // Extract ad copy score for opportunity check
+      const block = text.replace(/===SYNTHESIS===/g, "").replace(/===END===/g, "");
+      const scoreMatch = (getField(block, "AD_COPY_SCORE") || "").match(/^(\d+)/);
+      adCopyScore = scoreMatch ? parseInt(scoreMatch[1], 10) : 0;
+      checkAndFireOpportunity();
     },
     // onError
     (msg) => {
@@ -787,6 +797,81 @@ function updateGapScore() {
   }
 }
 
+// ---- Opportunity overlay (fires when both analyses complete and gap >= 3) ----
+async function checkAndFireOpportunity() {
+  if (opportunityFired) return;
+  if (!adSynthesisText || !signalStreamText) return; // both must be done
+  if (!adCopyScore || !signalGrade) return;
+
+  const gap = signalGrade - adCopyScore;
+  if (gap < 3) return; // not enough opportunity
+
+  opportunityFired = true;
+
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tabId = tab?.id;
+
+  streamSSE(
+    "/api/extension/opportunity",
+    {
+      ad_synthesis_text: adSynthesisText,
+      signal_text: signalStreamText,
+      ad_copy_score: adCopyScore,
+      signal_score: signalGrade,
+      gap: gap,
+    },
+    // onChunk — don't render partial
+    () => {},
+    // onDone — inject overlay on the FB page
+    (text) => {
+      if (tabId) {
+        const html = buildOpportunityOverlayHtml(text, adCopyScore, signalGrade, gap);
+        chrome.tabs.sendMessage(tabId, { action: "injectOpportunityOverlay", html }).catch(() => {});
+      }
+    },
+    // onError
+    () => {}
+  );
+}
+
+function buildOpportunityOverlayHtml(raw, copyScore, sigScore, gap) {
+  const block = raw.replace(/===OPPORTUNITY===/g, "").replace(/===END===/g, "").trim();
+  const get = (label) => {
+    const m = block.match(new RegExp(`^${label}:\\s*(.+)`, "m"));
+    return m ? m[1].trim() : "";
+  };
+
+  const headline = get("HEADLINE");
+  const contrast = get("CONTRAST");
+  const unlock = get("UNLOCK");
+
+  return `
+    <div class="vzd-opp-overlay">
+      <div class="vzd-opp-card">
+        <button class="vzd-opp-close">&times;</button>
+        <div class="vzd-opp-scores">
+          <div class="vzd-opp-score-item">
+            <span class="vzd-opp-score-label">Ad Copy</span>
+            <span class="vzd-opp-score-num vzd-opp-low">${copyScore}/10</span>
+          </div>
+          <div class="vzd-opp-score-item">
+            <span class="vzd-opp-score-label">Signal</span>
+            <span class="vzd-opp-score-num vzd-opp-high">${sigScore}/10</span>
+          </div>
+          <div class="vzd-opp-score-item">
+            <span class="vzd-opp-score-label">Gap</span>
+            <span class="vzd-opp-score-num vzd-opp-gap">+${gap}</span>
+          </div>
+        </div>
+        ${headline ? `<h2 class="vzd-opp-headline">${escHtml(headline)}</h2>` : ""}
+        ${contrast ? `<p class="vzd-opp-contrast">${escHtml(contrast)}</p>` : ""}
+        ${unlock ? `<p class="vzd-opp-unlock">${escHtml(unlock)}</p>` : ""}
+        <a class="vzd-opp-cta" href="https://mapthegap.ai/free-strategy" target="_blank">Get Your Free Creative Strategy</a>
+      </div>
+    </div>
+  `;
+}
+
 // ---- Review Engine Detection (still JSON, not streamed) ----
 async function runReviewDetection(destinationUrl, pageHtml) {
   try {
@@ -864,6 +949,8 @@ function streamReviewSignal(destinationUrl, pageHtml) {
     (text) => {
       $("#reviewSignalLoading").style.display = "none";
       container.innerHTML = renderSignalText(text);
+      signalStreamText = text;
+      checkAndFireOpportunity();
     },
     // onError
     (msg) => {

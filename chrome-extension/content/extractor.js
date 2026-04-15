@@ -762,5 +762,136 @@
       sendResponse({ success: true });
       return true;
     }
+
+    if (message.action === "injectOpportunityOverlay") {
+      injectOpportunityOverlay(message.html);
+      sendResponse({ success: true });
+      return true;
+    }
   });
+
+  // ---- Opportunity overlay injection ----
+  function injectOpportunityOverlay(html) {
+    // Remove existing
+    const existing = document.getElementById("vzd-opportunity-overlay");
+    if (existing) existing.remove();
+
+    // Inject styles
+    if (!document.getElementById("vzd-opp-styles")) {
+      const style = document.createElement("style");
+      style.id = "vzd-opp-styles";
+      style.textContent = `
+        .vzd-opp-overlay {
+          position: fixed;
+          inset: 0;
+          z-index: 999999;
+          background: rgba(0, 0, 0, 0.6);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-family: 'Lato', -apple-system, BlinkMacSystemFont, sans-serif;
+          backdrop-filter: blur(3px);
+        }
+        .vzd-opp-card {
+          background: linear-gradient(135deg, #1A2B3C, #0F1B28);
+          border: 1px solid rgba(185, 240, 64, 0.25);
+          border-radius: 16px;
+          padding: 32px;
+          max-width: 480px;
+          width: 90%;
+          position: relative;
+          color: #fff;
+          box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+        }
+        .vzd-opp-close {
+          position: absolute;
+          top: 12px;
+          right: 16px;
+          background: none;
+          border: none;
+          color: rgba(255, 255, 255, 0.4);
+          font-size: 24px;
+          cursor: pointer;
+          line-height: 1;
+        }
+        .vzd-opp-close:hover { color: #fff; }
+        .vzd-opp-scores {
+          display: flex;
+          gap: 12px;
+          margin-bottom: 20px;
+        }
+        .vzd-opp-score-item {
+          flex: 1;
+          text-align: center;
+          padding: 8px;
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .vzd-opp-score-label {
+          display: block;
+          font-size: 10px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: rgba(255, 255, 255, 0.5);
+          margin-bottom: 4px;
+        }
+        .vzd-opp-score-num {
+          font-size: 20px;
+          font-weight: 900;
+        }
+        .vzd-opp-low { color: #f87171; }
+        .vzd-opp-high { color: #B9F040; }
+        .vzd-opp-gap { color: #B9F040; }
+        .vzd-opp-headline {
+          font-size: 20px;
+          font-weight: 900;
+          line-height: 1.3;
+          margin-bottom: 12px;
+          color: #fff;
+        }
+        .vzd-opp-contrast {
+          font-size: 14px;
+          color: rgba(255, 255, 255, 0.75);
+          line-height: 1.5;
+          margin-bottom: 12px;
+        }
+        .vzd-opp-unlock {
+          font-size: 14px;
+          color: rgba(255, 255, 255, 0.75);
+          line-height: 1.5;
+          margin-bottom: 20px;
+        }
+        .vzd-opp-cta {
+          display: block;
+          width: 100%;
+          padding: 14px 24px;
+          background: #B9F040;
+          color: #000;
+          font-size: 15px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          text-align: center;
+          text-decoration: none;
+          border-radius: 8px;
+          transition: background 0.2s;
+        }
+        .vzd-opp-cta:hover { background: #a0d636; }
+      `;
+      document.head.appendChild(style);
+    }
+
+    const overlay = document.createElement("div");
+    overlay.id = "vzd-opportunity-overlay";
+    overlay.innerHTML = html;
+    document.body.appendChild(overlay);
+
+    // Close on X button or overlay click
+    overlay.querySelector(".vzd-opp-close")?.addEventListener("click", () => overlay.remove());
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay.querySelector(".vzd-opp-overlay")) overlay.remove();
+    });
+  }
 })();
