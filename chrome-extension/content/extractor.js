@@ -924,63 +924,58 @@
           flex-shrink: 0;
         }
 
-        /* Calendly panel — clean white to match Calendly's own UI */
+        /* Calendly panel — frameless, iframe fills entirely */
         .vzd-opp-calendly-panel {
           background: #fff;
           border-radius: 16px;
           overflow: hidden;
           display: flex;
           flex-direction: column;
+          height: 750px;
+          max-height: 92vh;
+          position: relative;
         }
-        .vzd-opp-calendly-header {
-          display: flex;
-          align-items: center;
-          padding: 16px 20px;
-          border-bottom: 1px solid #e5e7eb;
-          background: #fff;
-        }
-        .vzd-opp-calendly-back {
-          background: none;
-          border: none;
-          color: #1A2B3C;
-          font-size: 14px;
-          font-weight: 600;
-          cursor: pointer;
-          padding: 0;
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-family: 'Lato', -apple-system, sans-serif;
-        }
-        .vzd-opp-calendly-back:hover { color: #0F1B28; }
-        .vzd-opp-calendly-title {
-          flex: 1;
-          text-align: center;
-          font-size: 16px;
-          font-weight: 700;
-          color: #1A2B3C;
-        }
-        .vzd-opp-calendly-close {
-          background: none;
-          border: none;
-          color: #9ca3af;
-          font-size: 22px;
-          cursor: pointer;
-          line-height: 1;
-        }
-        .vzd-opp-calendly-close:hover { color: #1A2B3C; }
         .vzd-opp-calendly-frame {
           width: 100%;
-          flex: 1;
+          height: 100%;
           border: none;
           margin: 0;
           padding: 0;
           display: block;
         }
-        .vzd-opp-calendly-panel {
-          height: 750px;
-          max-height: 92vh;
+        .vzd-opp-calendly-back {
+          position: absolute;
+          top: 12px;
+          left: 16px;
+          z-index: 10;
+          background: rgba(255, 255, 255, 0.9);
+          border: 1px solid #e5e7eb;
+          border-radius: 6px;
+          color: #1A2B3C;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          padding: 6px 12px;
+          font-family: 'Lato', -apple-system, sans-serif;
+          backdrop-filter: blur(4px);
         }
+        .vzd-opp-calendly-back:hover { background: #fff; }
+        .vzd-opp-calendly-close {
+          position: absolute;
+          top: 12px;
+          right: 16px;
+          z-index: 10;
+          background: rgba(255, 255, 255, 0.9);
+          border: 1px solid #e5e7eb;
+          border-radius: 6px;
+          color: #6b7280;
+          font-size: 18px;
+          cursor: pointer;
+          padding: 4px 10px;
+          line-height: 1;
+          backdrop-filter: blur(4px);
+        }
+        .vzd-opp-calendly-close:hover { color: #1A2B3C; background: #fff; }
 
         /* Minimized sticky CTA */
         .vzd-opp-mini {
@@ -1090,11 +1085,7 @@
         <div class="vzd-opp-overlay">
           <div class="vzd-opp-card vzd-showing-calendly">
             <div class="vzd-opp-calendly-panel" style="border-radius:16px;">
-              <div class="vzd-opp-calendly-header">
-                <span></span>
-                <span class="vzd-opp-calendly-title">Book Your Strategy Call</span>
-                <button class="vzd-opp-calendly-close">&times;</button>
-              </div>
+              <button class="vzd-opp-calendly-close">&times;</button>
               <iframe class="vzd-opp-calendly-frame" src="${calendlyUrl}"></iframe>
             </div>
           </div>
