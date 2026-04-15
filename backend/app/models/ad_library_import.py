@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, Text, ForeignKey
+from sqlalchemy import Column, String, DateTime, Text, Integer, Float, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -14,6 +14,11 @@ class AdLibraryImport(Base):
     client_id = Column(UUID(as_uuid=True), ForeignKey('clients.id', ondelete='CASCADE'), nullable=False)
     source_url = Column(Text, nullable=False)
     imported_at = Column(DateTime(timezone=True), server_default=func.now())
+    synthesis_text = Column(Text, nullable=True)
+    signal_text = Column(Text, nullable=True)
+    ad_copy_score = Column(Integer, nullable=True)
+    signal_score = Column(Integer, nullable=True)
+    opportunity_score = Column(Float, nullable=True)
 
     # Relationships
     client = relationship("Client", foreign_keys=[client_id])

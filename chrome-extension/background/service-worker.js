@@ -140,7 +140,7 @@ async function uploadDirect(url, clientId, token, mediaType) {
 }
 
 // ---- Main import flow ----
-async function runImport(ads, sourceUrl, clientId, leadgen = false) {
+async function runImport(ads, sourceUrl, clientId, leadgen = false, analysisData = {}) {
   const { vzd_token: token } = await chrome.storage.local.get("vzd_token");
   if (!token) {
     importState.status = "error";
@@ -215,13 +215,21 @@ async function runImport(ads, sourceUrl, clientId, leadgen = false) {
 
   try {
     let postUrl, postBody;
+    const payload = {
+      source_url: sourceUrl,
+      ads,
+      synthesis_text: analysisData.synthesisText || null,
+      signal_text: analysisData.signalText || null,
+      ad_copy_score: analysisData.adCopyScore || null,
+      signal_score: analysisData.signalScore || null,
+      opportunity_score: analysisData.opportunityScore || null,
+    };
     if (leadgen) {
       postUrl = `${API_BASE}/api/ad-library-imports/from-extension-leadgen`;
-      postBody = JSON.stringify({ source_url: sourceUrl, ads });
     } else {
       postUrl = `${API_BASE}/api/clients/${clientId}/ad-library-imports/from-extension`;
-      postBody = JSON.stringify({ source_url: sourceUrl, ads });
     }
+    postBody = JSON.stringify(payload);
 
     const res = await fetch(postUrl, {
       method: "POST",
@@ -264,11 +272,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ started: false, error: "An import is already in progress" });
       return true;
     }
-    const { ads, sourceUrl, clientId, tabId, leadgen } = message;
+    const { ads, sourceUrl, clientId, tabId, leadgen, synthesisText, signalText, adCopyScore, signalScore, opportunityScore } = message;
     sourceTabId = tabId || null;
     resetState();
     importState.leadgen = !!leadgen;
-    runImport(ads, sourceUrl, clientId, !!leadgen);
+    runImport(ads, sourceUrl, clientId, !!leadgen, { synthesisText, signalText, adCopyScore, signalScore, opportunityScore });
     sendResponse({ started: true });
     return true;
   }

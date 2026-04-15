@@ -31,6 +31,8 @@ class AdLibraryAd(Base):
     page_name = Column(String(255), nullable=True)
     page_url = Column(Text, nullable=True)
     page_profile_image_url = Column(Text, nullable=True)
+    analysis_json = Column(JSONB, nullable=True)
+    analysis_text = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships

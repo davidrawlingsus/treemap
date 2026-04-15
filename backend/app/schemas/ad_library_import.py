@@ -43,6 +43,7 @@ class AdLibraryAdResponse(BaseModel):
     page_name: Optional[str] = None
     page_url: Optional[str] = None
     page_profile_image_url: Optional[str] = None
+    analysis_json: Optional[dict] = None
     created_at: datetime
 
     class Config:
@@ -72,6 +73,11 @@ class AdLibraryImportDetailResponse(BaseModel):
     client_id: UUID
     source_url: str
     imported_at: datetime
+    synthesis_text: Optional[str] = None
+    signal_text: Optional[str] = None
+    ad_copy_score: Optional[int] = None
+    signal_score: Optional[int] = None
+    opportunity_score: Optional[float] = None
     ads: List[AdLibraryAdDetailResponse] = []
 
     class Config:
@@ -127,12 +133,19 @@ class ExtensionAdItem(BaseModel):
     page_url: Optional[str] = None
     page_profile_image_url: Optional[str] = None
     media_items: List[ExtensionMediaItem] = []
+    analysis_json: Optional[dict] = None
+    analysis_text: Optional[str] = None
 
 
 class ExtensionImportRequest(BaseModel):
     """Request from Chrome extension to import pre-scraped ads."""
     source_url: str = Field(..., description="Meta Ads Library page URL the user was on")
     ads: List[ExtensionAdItem] = Field(..., max_length=500)
+    synthesis_text: Optional[str] = None
+    signal_text: Optional[str] = None
+    ad_copy_score: Optional[int] = Field(None, ge=1, le=10)
+    signal_score: Optional[int] = Field(None, ge=1, le=10)
+    opportunity_score: Optional[float] = Field(None, ge=0, le=10)
 
 
 class ExtensionImportResponse(BaseModel):
@@ -148,6 +161,11 @@ class ExtensionLeadgenImportRequest(BaseModel):
     """Request from Chrome extension to import ads and trigger lead gen pipeline."""
     source_url: str = Field(..., description="Meta Ads Library page URL")
     ads: List[ExtensionAdItem] = Field(..., max_length=500)
+    synthesis_text: Optional[str] = None
+    signal_text: Optional[str] = None
+    ad_copy_score: Optional[int] = Field(None, ge=1, le=10)
+    signal_score: Optional[int] = Field(None, ge=1, le=10)
+    opportunity_score: Optional[float] = Field(None, ge=0, le=10)
 
 
 class ExtensionLeadgenImportResponse(BaseModel):

@@ -260,6 +260,16 @@ async function fetchCurrentAds(clientId) {
     const detailRes = await fetch(`${apiBase}/api/clients/${clientId}/ad-library-imports/${latestId}`, { headers });
     if (!detailRes.ok) throw new Error('Failed to load import details');
     const detail = await detailRes.json();
+
+    // Store import-level analysis for the renderer
+    window._currentImportAnalysis = {
+        synthesisText: detail.synthesis_text || null,
+        signalText: detail.signal_text || null,
+        adCopyScore: detail.ad_copy_score || null,
+        signalScore: detail.signal_score || null,
+        opportunityScore: detail.opportunity_score || null,
+    };
+
     return detail.ads || [];
 }
 

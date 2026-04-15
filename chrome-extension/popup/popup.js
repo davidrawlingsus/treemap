@@ -17,6 +17,7 @@ let adSynthesisText = null; // raw synthesis stream text, set when ad analysis c
 let signalStreamText = null; // raw signal stream text, set when signal completes
 let adCopyScore = 0; // extracted from synthesis
 let opportunityFired = false; // prevent double-firing
+let adAnalysisBlocks = new Map(); // library_id → { json, text } for import
 
 // ---- DOM refs ----
 const loginSection = $("#loginSection");
@@ -368,14 +369,33 @@ importBtn.addEventListener("click", async () => {
   // Get the FB Ads Library tab ID so service worker can route video downloads
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
+  // Enrich ads with analysis data (if analysis has run)
+  const enrichedAds = extractedAds.map((ad, idx) => {
+    const key = ad.library_id || `Ad ${idx + 1}`;
+    const analysis = adAnalysisBlocks.get(key);
+    return {
+      ...ad,
+      analysis_json: analysis?.json || null,
+      analysis_text: analysis?.text || null,
+    };
+  });
+
+  // Compute opportunity score for import-level data
+  const oppResult = computeOpportunity(adCopyScore, signalGrade);
+
   // Send to service worker for background processing
   const response = await chrome.runtime.sendMessage({
     action: "startImport",
-    ads: extractedAds,
+    ads: enrichedAds,
     sourceUrl: extractedUrl || "",
     clientId: isLeadgen ? null : clientSelect.value,
     tabId: tab?.id || null,
     leadgen: isLeadgen,
+    synthesisText: adSynthesisText || null,
+    signalText: signalStreamText || null,
+    adCopyScore: adCopyScore || null,
+    signalScore: signalGrade || null,
+    opportunityScore: oppResult?.score || null,
   });
 
   if (response?.started === false) {
@@ -540,11 +560,15 @@ async function streamAdAnalysis() {
   function injectCompletedBlocks(text) {
     const completedBlocks = parseCompletedAdBlocks(text);
     for (let i = lastInjectedCount; i < completedBlocks.length; i++) {
-      const html = buildAdCardHtml(completedBlocks[i]);
-      const grade = getField(completedBlocks[i], "GRADE");
+      const block = completedBlocks[i];
+      const html = buildAdCardHtml(block);
+      const grade = getField(block, "GRADE");
       if (tabId) {
         chrome.tabs.sendMessage(tabId, { action: "injectAnalysis", adIndex: i, html, grade }).catch(() => {});
       }
+      // Store parsed analysis for import
+      const blockId = getField(block, "ID") || (extractedAds?.[i]?.library_id) || `Ad ${i + 1}`;
+      adAnalysisBlocks.set(blockId, { json: parseAnalysisToJson(block), text: block });
       injectedCount++;
     }
     lastInjectedCount = completedBlocks.length;
@@ -625,6 +649,22 @@ function computeOpportunity(adCopy, signal) {
   const raw = headroom * (1 + signal / 10);
   const score = Math.round((1 + (raw / 18) * 9) * 10) / 10;
   return { score, headroom, raw };
+}
+
+function parseAnalysisToJson(block) {
+  return {
+    grade: getField(block, "GRADE"),
+    verdict: getField(block, "VERDICT"),
+    weakness: getField(block, "WEAKNESS"),
+    hook: getField(block, "HOOK"),
+    mind_movie: getField(block, "MIND MOVIE"),
+    specificity: getField(block, "SPECIFICITY"),
+    emotion: getField(block, "EMOTION"),
+    voc_density: getField(block, "VOC DENSITY"),
+    latency: getField(block, "LATENCY"),
+    funnel: getField(block, "FUNNEL"),
+    longevity: getField(block, "LONGEVITY"),
+  };
 }
 
 function buildOpportunityExplanation(adCopy, signal) {

@@ -170,6 +170,11 @@ def get_ad_library_import(
         client_id=imp.client_id,
         source_url=imp.source_url,
         imported_at=imp.imported_at,
+        synthesis_text=imp.synthesis_text,
+        signal_text=imp.signal_text,
+        ad_copy_score=imp.ad_copy_score,
+        signal_score=imp.signal_score,
+        opportunity_score=imp.opportunity_score,
         ads=ads_with_media,
     )
 

@@ -138,7 +138,15 @@ def _do_import(client_id, body, db, current_user):
     )
 
     # Create import record
-    imp = AdLibraryImport(client_id=client_id, source_url=body.source_url)
+    imp = AdLibraryImport(
+        client_id=client_id,
+        source_url=body.source_url,
+        synthesis_text=getattr(body, "synthesis_text", None),
+        signal_text=getattr(body, "signal_text", None),
+        ad_copy_score=getattr(body, "ad_copy_score", None),
+        signal_score=getattr(body, "signal_score", None),
+        opportunity_score=getattr(body, "opportunity_score", None),
+    )
     db.add(imp)
     db.flush()
 
@@ -170,6 +178,8 @@ def _do_import(client_id, body, db, current_user):
             page_name=ad_data.page_name,
             page_url=ad_data.page_url,
             page_profile_image_url=ad_data.page_profile_image_url,
+            analysis_json=ad_data.analysis_json,
+            analysis_text=ad_data.analysis_text,
         )
         db.add(ad)
         db.flush()
