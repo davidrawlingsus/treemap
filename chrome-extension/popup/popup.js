@@ -880,7 +880,7 @@ function buildOpportunityOverlayHtml(raw, copyScore, sigScore, gap) {
                 <span class="vzd-opp-calendly-title">Book Your Strategy Call</span>
                 <button class="vzd-opp-calendly-close">&times;</button>
               </div>
-              <iframe class="vzd-opp-calendly-frame" src="" data-src="https://calendly.com/david-rawlings-gfm7/mapthegap-strategy-call?embed=true"></iframe>
+              <iframe class="vzd-opp-calendly-frame" src="https://calendly.com/david-rawlings-gfm7/mapthegap-strategy-call?embed=true"></iframe>
             </div>
           </div>
         </div>

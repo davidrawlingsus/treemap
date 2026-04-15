@@ -1032,9 +1032,6 @@
 
     // Slide to Calendly
     function showCalendly() {
-      if (calendlyFrame && !calendlyFrame.src) {
-        calendlyFrame.src = calendlyFrame.getAttribute("data-src");
-      }
       panels?.classList.add("vzd-slide-calendly");
       card?.classList.add("vzd-showing-calendly");
     }
