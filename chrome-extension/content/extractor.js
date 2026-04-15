@@ -870,6 +870,13 @@
           color: #fff;
           text-align: center;
         }
+        .vzd-opp-explanation {
+          font-size: 13px;
+          color: rgba(255,255,255,0.65);
+          text-align: center;
+          margin: 8px 0 20px;
+          line-height: 1.4;
+        }
         .vzd-opp-contrast {
           font-size: 16px;
           color: #fff;

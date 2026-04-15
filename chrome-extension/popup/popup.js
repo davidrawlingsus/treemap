@@ -618,6 +618,31 @@ function getField(block, label) {
   return m ? m[1].trim() : "";
 }
 
+// ---- Opportunity score: composite of headroom + signal leverage, normalized 1-10 ----
+function computeOpportunity(adCopy, signal) {
+  if (!adCopy || !signal) return null;
+  const headroom = 10 - adCopy;
+  const raw = headroom * (1 + signal / 10);
+  const score = Math.round((1 + (raw / 18) * 9) * 10) / 10;
+  return { score, headroom, raw };
+}
+
+function buildOpportunityExplanation(adCopy, signal) {
+  let copyPart;
+  if (adCopy <= 3) copyPart = "Your ad copy has significant room to improve";
+  else if (adCopy <= 5) copyPart = "Your ad copy has clear room to improve";
+  else if (adCopy <= 7) copyPart = "Your ads are decent but not fully optimized";
+  else copyPart = "Your ads are already strong";
+
+  let sigPart;
+  if (signal <= 3) sigPart = "limited review signal to draw from.";
+  else if (signal <= 5) sigPart = "moderate review signal to work with.";
+  else if (signal <= 7) sigPart = "solid customer voice data available.";
+  else sigPart = "rich customer voice data to fuel improvement.";
+
+  return copyPart + ", with " + sigPart;
+}
+
 // ---- Build HTML for injection onto the FB page ad card ----
 function buildAdCardHtml(block) {
   const grade = getField(block, "GRADE");
@@ -732,9 +757,10 @@ function renderSynthesisText(raw, streaming) {
   const sigDisplay = sigScore ? sigScore + "/10" : "—";
   const sigClass = sigScore >= 7 ? "score-high" : sigScore >= 4 ? "score-mid" : "score-low";
 
-  const multiplier = (sigScore && copyScore) ? Math.round((sigScore / copyScore) * 10) / 10 : null;
-  const multiplierDisplay = multiplier !== null ? multiplier + "x" : "—";
-  const gapClass = multiplier !== null ? (multiplier >= 3 ? "gap-high" : multiplier >= 1.5 ? "gap-mid" : "gap-low") : "";
+  const opp = computeOpportunity(copyScore, sigScore);
+  const oppDisplay = opp !== null ? opp.score + "/10" : "—";
+  const oppClass = opp !== null ? (opp.score >= 7 ? "gap-high" : opp.score >= 4 ? "gap-mid" : "gap-low") : "";
+  const oppExplanation = opp ? buildOpportunityExplanation(copyScore, sigScore) : "";
 
   // Render the three scores into the top-level Scores section
   const scoresSection = $("#scoresSection");
@@ -753,9 +779,10 @@ function renderSynthesisText(raw, streaming) {
         </div>
         <div class="synthesis-score-box synthesis-gap-box">
           <span class="synthesis-score-label">Opportunity</span>
-          <span class="synthesis-score-value synthesis-gap-value ${gapClass}">${multiplierDisplay}</span>
+          <span class="synthesis-score-value synthesis-gap-value ${oppClass}">${oppDisplay}</span>
         </div>
       </div>
+      ${oppExplanation ? `<p class="synthesis-explanation">${oppExplanation}</p>` : ""}
     `;
   }
 
@@ -791,20 +818,33 @@ function updateGapScore() {
   const sigScore = typeof signalGrade === "number" ? signalGrade : 0;
 
   if (copyScore && sigScore) {
-    const multiplier = Math.round((sigScore / copyScore) * 10) / 10;
-    gapEl.textContent = multiplier + "x";
-    gapEl.className = `synthesis-score-value synthesis-gap-value ${multiplier >= 3 ? "gap-high" : multiplier >= 1.5 ? "gap-mid" : "gap-low"}`;
+    const opp = computeOpportunity(copyScore, sigScore);
+    if (opp) {
+      gapEl.textContent = opp.score + "/10";
+      gapEl.className = `synthesis-score-value synthesis-gap-value ${opp.score >= 7 ? "gap-high" : opp.score >= 4 ? "gap-mid" : "gap-low"}`;
+      // Update explanation too
+      const explEl = document.querySelector(".synthesis-explanation");
+      const explanation = buildOpportunityExplanation(copyScore, sigScore);
+      if (explEl) {
+        explEl.textContent = explanation;
+      } else {
+        const row = document.querySelector(".synthesis-scores-row");
+        if (row && explanation) {
+          row.insertAdjacentHTML("afterend", `<p class="synthesis-explanation">${explanation}</p>`);
+        }
+      }
+    }
   }
 }
 
-// ---- Opportunity overlay (fires when both analyses complete and multiplier >= 2x) ----
+// ---- Opportunity overlay (fires when both analyses complete and opportunity >= 5) ----
 async function checkAndFireOpportunity() {
   if (opportunityFired) return;
   if (!adSynthesisText || !signalStreamText) return;
   if (!adCopyScore || !signalGrade) return;
 
-  const multiplier = Math.round((signalGrade / adCopyScore) * 10) / 10;
-  if (multiplier < 2) return;
+  const opp = computeOpportunity(adCopyScore, signalGrade);
+  if (!opp || opp.score < 5) return;
 
   opportunityFired = true;
 
@@ -818,14 +858,14 @@ async function checkAndFireOpportunity() {
       signal_text: signalStreamText,
       ad_copy_score: adCopyScore,
       signal_score: signalGrade,
-      multiplier: multiplier,
+      opportunity_score: opp.score,
     },
     // onChunk — don't render partial
     () => {},
     // onDone — inject overlay on the FB page
     (text) => {
       if (tabId) {
-        const html = buildOpportunityOverlayHtml(text, adCopyScore, signalGrade, multiplier);
+        const html = buildOpportunityOverlayHtml(text, adCopyScore, signalGrade, opp.score);
         chrome.tabs.sendMessage(tabId, { action: "injectOpportunityOverlay", html }).catch(() => {});
       }
     },
@@ -834,7 +874,7 @@ async function checkAndFireOpportunity() {
   );
 }
 
-function buildOpportunityOverlayHtml(raw, copyScore, sigScore, multiplier) {
+function buildOpportunityOverlayHtml(raw, copyScore, sigScore, oppScore) {
   const block = raw.replace(/===OPPORTUNITY===/g, "").replace(/===END===/g, "").trim();
   const get = (label) => {
     const m = block.match(new RegExp(`^${label}:\\s*(.+)`, "m"));
@@ -844,6 +884,7 @@ function buildOpportunityOverlayHtml(raw, copyScore, sigScore, multiplier) {
   const headline = get("HEADLINE");
   const contrast = get("CONTRAST");
   const unlock = get("UNLOCK");
+  const explanation = buildOpportunityExplanation(copyScore, sigScore);
 
   return `
     <div class="vzd-opp-overlay">
@@ -856,7 +897,7 @@ function buildOpportunityOverlayHtml(raw, copyScore, sigScore, multiplier) {
                 ${headline ? `<h2 class="vzd-opp-headline">${escHtml(headline)}</h2>` : ""}
                 <div class="vzd-opp-scores">
                   <div class="vzd-opp-score-item">
-                    <span class="vzd-opp-score-label">Ad Copy Score</span>
+                    <span class="vzd-opp-score-label">Ad Copy</span>
                     <span class="vzd-opp-score-num vzd-opp-low">${copyScore}/10</span>
                   </div>
                   <div class="vzd-opp-score-item">
@@ -865,9 +906,10 @@ function buildOpportunityOverlayHtml(raw, copyScore, sigScore, multiplier) {
                   </div>
                   <div class="vzd-opp-score-item">
                     <span class="vzd-opp-score-label">Opportunity</span>
-                    <span class="vzd-opp-score-num vzd-opp-gap">${multiplier}x</span>
+                    <span class="vzd-opp-score-num vzd-opp-gap">${oppScore}/10</span>
                   </div>
                 </div>
+                ${explanation ? `<p class="vzd-opp-explanation">${escHtml(explanation)}</p>` : ""}
                 ${contrast ? `<p class="vzd-opp-contrast">${escHtml(contrast)}</p>` : ""}
                 ${unlock ? `<p class="vzd-opp-unlock">${escHtml(unlock)}</p>` : ""}
                 <button class="vzd-opp-cta vzd-opp-book-btn">Book a Free Strategy Call</button>

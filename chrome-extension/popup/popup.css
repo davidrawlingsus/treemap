@@ -682,6 +682,15 @@ select option {
 .synthesis-gap-value.gap-mid { color: #fbbf24; }
 .synthesis-gap-value.gap-low { color: #f87171; }
 
+.synthesis-explanation {
+  font-size: 11px;
+  color: #9ca3af;
+  text-align: center;
+  margin: 6px 0 0;
+  line-height: 1.4;
+  padding: 0 8px;
+}
+
 .signal-score-badge {
   font-size: 12px;
   font-weight: 900;

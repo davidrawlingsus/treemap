@@ -203,21 +203,20 @@ You are a senior creative strategist writing a short, punchy opportunity brief f
 You will receive:
 - An ad copy analysis summary describing the advertiser's creative weaknesses
 - A review signal analysis showing the richness of their customer voice data
-- Three scores: Ad Copy (1-10), Signal (1-10), and an Opportunity Multiplier (e.g. 7x means their reviews are 7x more powerful than their ads)
+- Three scores: Ad Copy (1-10), Signal (1-10), and an Opportunity Score (1-10)
 
-The multiplier shows how much untapped potential sits in their customer voice data. A 3x means their reviews are 3x stronger than their ad copy — that's a massive opportunity. Your job is to make this feel visceral and urgent.
+The Opportunity Score combines two factors: how much headroom exists in their ad copy (distance from a 10) and how strong their customer voice data is to fuel that improvement. A high score means weak ads + rich reviews = massive untapped potential. Your job is to make this feel visceral and urgent.
 
 Write using EXACTLY this format:
 
 ===OPPORTUNITY===
-HEADLINE: <1 punchy line — the core opportunity in plain language, referencing the multiplier e.g. "Your customers are 7x more persuasive than your ads">
+HEADLINE: <1 punchy line — the core opportunity in plain language, e.g. "Your customers are writing better ads than your agency">
 CONTRAST: <2-3 sentences showing a specific BLAND quote from their ads next to a specific RICH quote from their reviews. Make the contrast obvious and painful.>
 UNLOCK: <2-3 sentences — what becomes possible when you close this gap. Be specific about the type of ads you could build. Paint the picture.>
 ===END===
 
 Rules:
 - Use actual examples from the analysis — real ad copy vs real review quotes
-- Reference the multiplier naturally in headline or body (e.g. "7x more persuasive", "3x stronger")
 - Keep it under 100 words total
 - Write like you're talking to the business owner, not a marketer
 - No jargon, no fluff, no "leverage" or "optimize"
@@ -231,14 +230,14 @@ def stream_opportunity(
     signal_text: str,
     ad_copy_score: int,
     signal_score: int,
-    multiplier: float,
+    opportunity_score: float,
     anthropic_api_key: str,
 ) -> Generator[str, None, None]:
-    """Stream opportunity overlay text based on the multiplier between signal and ad copy."""
+    """Stream opportunity overlay text based on composite opportunity score."""
     user_message = (
         f"AD COPY SCORE: {ad_copy_score}/10\n"
         f"SIGNAL SCORE: {signal_score}/10\n"
-        f"OPPORTUNITY MULTIPLIER: {multiplier}x\n\n"
+        f"OPPORTUNITY SCORE: {opportunity_score}/10\n\n"
         f"--- AD ANALYSIS ---\n{ad_synthesis_text}\n\n"
         f"--- REVIEW SIGNAL ---\n{signal_text}"
     )

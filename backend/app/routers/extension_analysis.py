@@ -196,7 +196,7 @@ class OpportunityRequest(BaseModel):
     signal_text: str = Field(..., description="Review signal analysis text")
     ad_copy_score: int = Field(..., ge=1, le=10)
     signal_score: int = Field(..., ge=1, le=10)
-    multiplier: float = Field(..., description="signal_score / ad_copy_score — opportunity multiplier")
+    opportunity_score: float = Field(..., description="Composite opportunity score 1-10 based on headroom and signal leverage")
 
 
 @router.post("/opportunity")
@@ -216,7 +216,7 @@ def opportunity_overlay(
         signal_text=body.signal_text,
         ad_copy_score=body.ad_copy_score,
         signal_score=body.signal_score,
-        multiplier=body.multiplier,
+        opportunity_score=body.opportunity_score,
         anthropic_api_key=settings.anthropic_api_key,
     )
 
