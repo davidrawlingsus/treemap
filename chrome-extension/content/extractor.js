@@ -436,8 +436,8 @@
           font-size: 12px;
         }
         .vzd-score-label {
-          color: #65676b;
-          font-weight: 600;
+          color: #1c1e21;
+          font-weight: 700;
           font-size: 11px;
         }
         .vzd-score-val { font-weight: 800; font-size: 12px; }
@@ -461,7 +461,7 @@
         .vzd-funnel-BOF { background: #dcfce7; color: #166534; }
         .vzd-score-reason {
           font-size: 11px;
-          color: #8a8d91;
+          color: #4b4f56;
           line-height: 1.4;
           margin-top: 1px;
         }
