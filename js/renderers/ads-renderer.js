@@ -586,6 +586,7 @@ function renderCurrentAdCard(ad) {
         imageUrl,
         posterUrl,
         readOnly: true,
+        analysisJson: ad.analysis_json || null,
     });
 
     // Metadata labels
@@ -616,14 +617,10 @@ function renderCurrentAdCard(ad) {
         </div>
     ` : '';
 
-    // Ad critique accordion
-    const critiqueHtml = buildCritiqueAccordionHtml(ad.analysis_json);
-
     return `
         <div class="ads-card ads-card--current">
             ${labelsHtml}
             <div class="ads-card__mockup">${mockup}</div>
-            ${critiqueHtml}
             ${transcriptHtml}
         </div>
     `;

@@ -36,7 +36,7 @@ export function isVideoUrl(url) {
  * @param {boolean} [params.muted=true] - If false, render video without muted attribute
  * @returns {string} HTML string
  */
-export function renderFBAdMockup({ adId, primaryText, headline, description, cta, displayUrl, logoSrc, clientName, imageUrl, posterUrl, readOnly = false, muted = true }) {
+export function renderFBAdMockup({ adId, primaryText, headline, description, cta, displayUrl, logoSrc, clientName, imageUrl, posterUrl, readOnly = false, muted = true, analysisJson = null }) {
     const profilePicContent = logoSrc 
         ? `<img src="${escapeHtml(logoSrc)}" alt="Client Logo" style="width:40px;height:40px;border-radius:50%;object-fit:contain;background:#fff;">`
         : 'Ad';
@@ -83,6 +83,7 @@ export function renderFBAdMockup({ adId, primaryText, headline, description, cta
                 <div class="pe-fb-ad__primary-text" style="font-size:15px;line-height:1.4;color:#050505;margin:0;padding:0;">${primaryText}</div>
                 ${gateOverlayHtml}
             </div>
+            ${analysisJson ? buildInlineCritiqueHtml(analysisJson) : ''}
             <div class="pe-fb-ad__media ${imageUrl ? 'has-image' : ''}" style="width:100%;${imageUrl ? '' : 'aspect-ratio:1.91/1;'}position:relative;cursor:pointer;margin:0;padding:0;${imageUrl ? '' : 'background:linear-gradient(to top right,transparent calc(50% - 1px),#9ca3af calc(50% - 1px),#9ca3af calc(50% + 1px),transparent calc(50% + 1px)),linear-gradient(to top left,transparent calc(50% - 1px),#9ca3af calc(50% - 1px),#9ca3af calc(50% + 1px),transparent calc(50% + 1px)),#e5e7eb;'}">
                 ${imageUrl ? (isVideoUrl(imageUrl)
                     ? `<div class="pe-fb-ad__video-wrapper">
@@ -192,6 +193,73 @@ export function formatPrimaryText(text) {
         })
         .join('');
 }
+
+// ============ Inline Critique Card (matches Chrome extension injection) ============
+
+function buildInlineCritiqueHtml(analysis) {
+    if (!analysis || !analysis.grade) return '';
+
+    const grade = escapeHtml(analysis.grade || '');
+
+    function parseScoreField(raw) {
+        if (!raw) return null;
+        const m = raw.match(/^(\d+)\s*(?:\/10\s*)?[—–\-]\s*(.+)$/);
+        if (m) return { num: parseInt(m[1], 10), text: m[2].trim() };
+        const numOnly = raw.match(/^(\d+)/);
+        return numOnly ? { num: parseInt(numOnly[1], 10), text: '' } : null;
+    }
+
+    function scoreColor(num) {
+        return num >= 7 ? 'vzd-score-high' : num >= 4 ? 'vzd-score-mid' : 'vzd-score-low';
+    }
+
+    function scoreRow(label, raw) {
+        const s = parseScoreField(raw);
+        if (!s) return '';
+        return `
+            <div class="vzd-dimension">
+                <div class="vzd-score-item">
+                    <span class="vzd-score-label">${escapeHtml(label)}</span>
+                    <span class="vzd-score-val ${scoreColor(s.num)}">${s.num}/10</span>
+                </div>
+                ${s.text ? `<div class="vzd-score-reason">${escapeHtml(s.text)}</div>` : ''}
+            </div>`;
+    }
+
+    function tagRow(label, raw, prefix) {
+        if (!raw) return '';
+        const m = raw.match(/^(\S+)\s*[—–\-]\s*(.+)$/);
+        if (m) {
+            return `
+                <div class="vzd-dimension">
+                    <div class="vzd-score-item">
+                        <span class="vzd-score-label">${escapeHtml(label)}</span>
+                        <span class="vzd-tag ${prefix}-${m[1].toLowerCase()}">${escapeHtml(m[1])}</span>
+                    </div>
+                    <div class="vzd-score-reason">${escapeHtml(m[2])}</div>
+                </div>`;
+        }
+        return `<div class="vzd-dimension"><div class="vzd-score-item"><span class="vzd-score-label">${escapeHtml(label)}</span></div><div class="vzd-score-reason">${escapeHtml(raw)}</div></div>`;
+    }
+
+    return `
+        <div class="vzd-analysis">
+            <div class="vzd-grade-row">
+                ${grade ? `<span class="vzd-grade vzd-grade-${grade}">${grade}</span>` : ''}
+                ${analysis.verdict ? `<span class="vzd-verdict">${escapeHtml(analysis.verdict)}</span>` : ''}
+            </div>
+            ${analysis.weakness ? `<div class="vzd-weakness">Weakness: ${escapeHtml(analysis.weakness)}</div>` : ''}
+            ${scoreRow('Hook', analysis.hook)}
+            ${scoreRow('Mind Movie', analysis.mind_movie)}
+            ${scoreRow('Specificity', analysis.specificity)}
+            ${scoreRow('Emotion', analysis.emotion)}
+            ${scoreRow('VoC Density', analysis.voc_density)}
+            ${tagRow('Latency', analysis.latency, 'vzd-latency')}
+            ${tagRow('Funnel', analysis.funnel, 'vzd-funnel')}
+            ${analysis.longevity ? `<div class="vzd-longevity">${escapeHtml(analysis.longevity)}</div>` : ''}
+        </div>`;
+}
+
 
 // ============ Video Player Controller ============
 
