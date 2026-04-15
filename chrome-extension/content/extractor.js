@@ -866,7 +866,7 @@
           font-size: 36px;
           font-weight: 900;
           line-height: 1.2;
-          margin-bottom: 20px;
+          margin-bottom: 35px;
           color: #fff;
           text-align: center;
         }
@@ -1063,7 +1063,7 @@
       mini.className = "vzd-opp-mini";
       mini.innerHTML = `
         <div class="vzd-opp-mini-card">
-          <span class="vzd-opp-mini-gap">Gap: ${gapText}</span>
+          <span class="vzd-opp-mini-gap">Opportunity: ${gapText}</span>
           <button class="vzd-opp-mini-cta vzd-opp-mini-book">Book a Free Strategy Call</button>
           <button class="vzd-opp-mini-close">&times;</button>
         </div>

@@ -732,9 +732,9 @@ function renderSynthesisText(raw, streaming) {
   const sigDisplay = sigScore ? sigScore + "/10" : "—";
   const sigClass = sigScore >= 7 ? "score-high" : sigScore >= 4 ? "score-mid" : "score-low";
 
-  const gap = (sigScore && copyScore) ? sigScore - copyScore : null;
-  const gapDisplay = gap !== null ? (gap > 0 ? "+" + gap : String(gap)) : "—";
-  const gapClass = gap !== null ? (gap >= 4 ? "gap-high" : gap >= 1 ? "gap-mid" : "gap-low") : "";
+  const multiplier = (sigScore && copyScore) ? Math.round((sigScore / copyScore) * 10) / 10 : null;
+  const multiplierDisplay = multiplier !== null ? multiplier + "x" : "—";
+  const gapClass = multiplier !== null ? (multiplier >= 3 ? "gap-high" : multiplier >= 1.5 ? "gap-mid" : "gap-low") : "";
 
   // Render the three scores into the top-level Scores section
   const scoresSection = $("#scoresSection");
@@ -744,16 +744,16 @@ function renderSynthesisText(raw, streaming) {
     scoresResults.innerHTML = `
       <div class="synthesis-scores-row">
         <div class="synthesis-score-box">
-          <span class="synthesis-score-label">Ad Copy</span>
+          <span class="synthesis-score-label">Ad Copy Score</span>
           <span class="synthesis-score-value ${copyClass}">${copyScore ? copyScore + "/10" : "—"}</span>
         </div>
         <div class="synthesis-score-box">
-          <span class="synthesis-score-label">Signal</span>
+          <span class="synthesis-score-label">Review Signal</span>
           <span class="synthesis-score-value synthesis-signal-value ${sigClass}">${sigDisplay}</span>
         </div>
         <div class="synthesis-score-box synthesis-gap-box">
-          <span class="synthesis-score-label">Gap</span>
-          <span class="synthesis-score-value synthesis-gap-value ${gapClass}">${gapDisplay}</span>
+          <span class="synthesis-score-label">Opportunity</span>
+          <span class="synthesis-score-value synthesis-gap-value ${gapClass}">${multiplierDisplay}</span>
         </div>
       </div>
     `;
@@ -791,20 +791,20 @@ function updateGapScore() {
   const sigScore = typeof signalGrade === "number" ? signalGrade : 0;
 
   if (copyScore && sigScore) {
-    const gap = sigScore - copyScore;
-    gapEl.textContent = gap > 0 ? "+" + gap : String(gap);
-    gapEl.className = `synthesis-score-value synthesis-gap-value ${gap >= 4 ? "gap-high" : gap >= 1 ? "gap-mid" : "gap-low"}`;
+    const multiplier = Math.round((sigScore / copyScore) * 10) / 10;
+    gapEl.textContent = multiplier + "x";
+    gapEl.className = `synthesis-score-value synthesis-gap-value ${multiplier >= 3 ? "gap-high" : multiplier >= 1.5 ? "gap-mid" : "gap-low"}`;
   }
 }
 
-// ---- Opportunity overlay (fires when both analyses complete and gap >= 3) ----
+// ---- Opportunity overlay (fires when both analyses complete and multiplier >= 2x) ----
 async function checkAndFireOpportunity() {
   if (opportunityFired) return;
   if (!adSynthesisText || !signalStreamText) return;
   if (!adCopyScore || !signalGrade) return;
 
-  const gap = signalGrade - adCopyScore;
-  if (gap < 3) return;
+  const multiplier = Math.round((signalGrade / adCopyScore) * 10) / 10;
+  if (multiplier < 2) return;
 
   opportunityFired = true;
 
@@ -818,14 +818,14 @@ async function checkAndFireOpportunity() {
       signal_text: signalStreamText,
       ad_copy_score: adCopyScore,
       signal_score: signalGrade,
-      gap: gap,
+      multiplier: multiplier,
     },
     // onChunk — don't render partial
     () => {},
     // onDone — inject overlay on the FB page
     (text) => {
       if (tabId) {
-        const html = buildOpportunityOverlayHtml(text, adCopyScore, signalGrade, gap);
+        const html = buildOpportunityOverlayHtml(text, adCopyScore, signalGrade, multiplier);
         chrome.tabs.sendMessage(tabId, { action: "injectOpportunityOverlay", html }).catch(() => {});
       }
     },
@@ -834,7 +834,7 @@ async function checkAndFireOpportunity() {
   );
 }
 
-function buildOpportunityOverlayHtml(raw, copyScore, sigScore, gap) {
+function buildOpportunityOverlayHtml(raw, copyScore, sigScore, multiplier) {
   const block = raw.replace(/===OPPORTUNITY===/g, "").replace(/===END===/g, "").trim();
   const get = (label) => {
     const m = block.match(new RegExp(`^${label}:\\s*(.+)`, "m"));
@@ -856,22 +856,22 @@ function buildOpportunityOverlayHtml(raw, copyScore, sigScore, gap) {
                 ${headline ? `<h2 class="vzd-opp-headline">${escHtml(headline)}</h2>` : ""}
                 <div class="vzd-opp-scores">
                   <div class="vzd-opp-score-item">
-                    <span class="vzd-opp-score-label">Ad Copy</span>
+                    <span class="vzd-opp-score-label">Ad Copy Score</span>
                     <span class="vzd-opp-score-num vzd-opp-low">${copyScore}/10</span>
                   </div>
                   <div class="vzd-opp-score-item">
-                    <span class="vzd-opp-score-label">Signal</span>
+                    <span class="vzd-opp-score-label">Review Signal</span>
                     <span class="vzd-opp-score-num vzd-opp-high">${sigScore}/10</span>
                   </div>
                   <div class="vzd-opp-score-item">
-                    <span class="vzd-opp-score-label">Gap</span>
-                    <span class="vzd-opp-score-num vzd-opp-gap">+${gap}</span>
+                    <span class="vzd-opp-score-label">Opportunity</span>
+                    <span class="vzd-opp-score-num vzd-opp-gap">${multiplier}x</span>
                   </div>
                 </div>
                 ${contrast ? `<p class="vzd-opp-contrast">${escHtml(contrast)}</p>` : ""}
                 ${unlock ? `<p class="vzd-opp-unlock">${escHtml(unlock)}</p>` : ""}
                 <button class="vzd-opp-cta vzd-opp-book-btn">Book a Free Strategy Call</button>
-                <p class="vzd-opp-subtext">You'll get a personalized strategy and free ad rewrites that close this gap.</p>
+                <p class="vzd-opp-subtext">You'll get a personalized strategy and free ad rewrites that unlock this opportunity.</p>
               </div>
             </div>
             <div class="vzd-opp-panel vzd-opp-calendly-panel">
