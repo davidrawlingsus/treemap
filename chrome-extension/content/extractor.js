@@ -796,22 +796,28 @@
           background: linear-gradient(135deg, #1A2B3C, #0F1B28);
           border: 1px solid rgba(185, 240, 64, 0.25);
           border-radius: 16px;
-          max-width: 560px;
-          width: 90%;
+          width: 900px;
+          max-width: 95vw;
+          height: 700px;
+          max-height: 90vh;
           position: relative;
           color: #fff;
           box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
           overflow: hidden;
-          transition: max-width 0.4s ease, background 0.4s ease;
+          transition: background 0.4s ease, border-color 0.4s ease;
         }
         .vzd-opp-card.vzd-showing-calendly {
-          max-width: 1000px;
-          max-height: 90vh;
           background: #fff;
           border-color: #e5e7eb;
         }
         .vzd-opp-panel-content {
           padding: 40px;
+          height: 700px;
+          max-height: 90vh;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
         }
         .vzd-opp-close {
           position: absolute;
@@ -963,8 +969,12 @@
         .vzd-opp-calendly-close:hover { color: #1A2B3C; }
         .vzd-opp-calendly-frame {
           width: 100%;
-          height: calc(90vh - 60px);
+          flex: 1;
           border: none;
+        }
+        .vzd-opp-calendly-panel {
+          height: 700px;
+          max-height: 90vh;
         }
 
         /* Minimized sticky CTA */
