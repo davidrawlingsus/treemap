@@ -478,15 +478,21 @@ def get_cached_analysis(
     if not current_user:
         return {"cached": False}
 
+    # Extract root domain from the advertiser URL for matching
+    domain, _ = _extract_domain(advertiser_url)
+    if not domain:
+        return {"cached": False}
+
     from app.models import AdLibraryImport, AdLibraryAd, Membership
 
-    # Find imports for this source URL where user has access
+    # Find imports where user has access AND any ad's destination_url contains this domain
     imp = (
         db.query(AdLibraryImport)
         .join(Membership, Membership.client_id == AdLibraryImport.client_id)
+        .join(AdLibraryAd, AdLibraryAd.import_id == AdLibraryImport.id)
         .filter(
             Membership.user_id == current_user.id,
-            AdLibraryImport.source_url.contains(advertiser_url),
+            AdLibraryAd.destination_url.ilike(f"%{domain}%"),
             AdLibraryImport.ad_copy_score.isnot(None),
         )
         .order_by(AdLibraryImport.imported_at.desc())
@@ -505,6 +511,7 @@ def get_cached_analysis(
     return {
         "cached": True,
         "import_id": str(imp.id),
+        "imported_at": imp.imported_at.isoformat() if imp.imported_at else None,
         "ad_copy_score": imp.ad_copy_score,
         "signal_score": imp.signal_score,
         "opportunity_score": imp.opportunity_score,

@@ -472,12 +472,98 @@ function liftGate() {
 // ANALYSIS FLOW — SSE streaming with progressive rendering
 // =========================================================================
 
+// ---- Restore from cached import (skip fresh analysis) ----
+function restoreFromCache(cached) {
+  trackEvent("analysis_started", { ad_count: cached.ads?.length || 0, cached: true });
+
+  // Set scores
+  adCopyScore = cached.ad_copy_score || 0;
+  signalGrade = cached.signal_score || 0;
+
+  // Show results container
+  extractResult.style.display = "block";
+  extractCount.textContent = `Cached analysis (${cached.ads?.length || 0} ads)`;
+
+  // Hide loading spinners
+  $("#adAnalysisLoading").style.display = "none";
+  $("#reviewEngineLoading").style.display = "none";
+  $("#reviewSignalLoading").style.display = "none";
+
+  // Render synthesis into Ad Analysis section
+  if (cached.synthesis_text) {
+    adSynthesisText = cached.synthesis_text;
+    $("#adAnalysisResults").innerHTML = renderSynthesisText(cached.synthesis_text, false);
+  }
+
+  // Render signal into Review Signal section
+  if (cached.signal_text) {
+    signalStreamText = cached.signal_text;
+    const signalSection = $("#reviewSignalSection");
+    if (signalSection) signalSection.style.display = "block";
+    $("#reviewSignalResults").innerHTML = renderSignalText(cached.signal_text);
+  }
+
+  // Inject per-ad critiques on the FB page
+  const tabId = adsLibraryTabId;
+  if (cached.ads?.length && tabId) {
+    cached.ads.forEach((ad, idx) => {
+      if (!ad.analysis_json) return;
+      // Reconstruct a text block from analysis_json for buildAdCardHtml
+      const json = ad.analysis_json;
+      const block = [
+        json.grade ? `GRADE: ${json.grade}` : "",
+        json.verdict ? `VERDICT: ${json.verdict}` : "",
+        json.weakness ? `WEAKNESS: ${json.weakness}` : "",
+        json.hook ? `HOOK: ${json.hook}` : "",
+        json.mind_movie ? `MIND MOVIE: ${json.mind_movie}` : "",
+        json.specificity ? `SPECIFICITY: ${json.specificity}` : "",
+        json.emotion ? `EMOTION: ${json.emotion}` : "",
+        json.voc_density ? `VOC DENSITY: ${json.voc_density}` : "",
+        json.latency ? `LATENCY: ${json.latency}` : "",
+        json.funnel ? `FUNNEL: ${json.funnel}` : "",
+        json.longevity ? `LONGEVITY: ${json.longevity}` : "",
+      ].filter(Boolean).join("\n");
+
+      const html = buildAdCardHtml(block);
+      const grade = json.grade || "";
+      chrome.tabs.sendMessage(tabId, { action: "injectAnalysis", adIndex: idx, html, grade }).catch(() => {});
+    });
+  }
+
+  // Show cached indicator
+  if (cached.imported_at) {
+    const date = new Date(cached.imported_at);
+    const dateStr = date.toLocaleDateString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    extractCount.textContent = `Cached analysis from ${dateStr}`;
+  }
+
+  console.log("[MTG] Restored from cache:", cached.ads?.length, "ads, scores:", adCopyScore, signalGrade);
+}
+
 // ---- Auto-analysis after extraction ----
 async function startAnalysis() {
   if (!extractedAds || extractedAds.length === 0) return;
 
   // Now that we have ads, try to match client by destination domain
   await tryMatchClient();
+
+  // Check for cached results before running fresh analysis
+  const token = await getToken();
+  if (token && extractedUrl) {
+    try {
+      const cacheRes = await apiFetch(`/api/extension/cached-analysis?advertiser_url=${encodeURIComponent(extractedUrl)}`);
+      if (cacheRes.ok) {
+        const cached = await cacheRes.json();
+        if (cached.cached && cached.ads?.length) {
+          console.log("[MTG] Cached results found, restoring from import", cached.import_id);
+          restoreFromCache(cached);
+          return;
+        }
+      }
+    } catch (err) {
+      console.log("[MTG] Cache check failed, running fresh analysis:", err);
+    }
+  }
 
   trackEvent("analysis_started", { ad_count: extractedAds.length });
 
