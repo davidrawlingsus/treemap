@@ -326,15 +326,18 @@ async function autoImport() {
 
 // ---- Listen for auth changes (gate lifting) ----
 chrome.storage.onChanged.addListener(async (changes, area) => {
+  console.log("[MTG] storage.onChanged:", area, Object.keys(changes));
   if (area === "local" && changes.vzd_token?.newValue) {
+    console.log("[MTG] Token detected! isGated:", isGated, "adAnalysisBlocks size:", adAnalysisBlocks.size);
     trackEvent("magic_link_clicked");
 
     // Try to match client now that we're authenticated
     await tryMatchClient();
+    console.log("[MTG] After tryMatchClient: isGated:", isGated, "matchedClientId:", matchedClientId);
 
     // Gate lifts on authentication — whether or not client matched
-    // If no client match, auto-import will use the leadgen path to create one
     if (isGated) {
+      console.log("[MTG] Lifting gate...");
       liftGate();
     }
   }
@@ -348,6 +351,7 @@ function showEmailGate() {
 }
 
 function liftGate() {
+  console.log("[MTG] liftGate called. adsLibraryTabId:", adsLibraryTabId, "adAnalysisBlocks size:", adAnalysisBlocks.size);
   trackEvent("gate_lifted");
   isGated = false;
 
@@ -360,16 +364,22 @@ function liftGate() {
   // Use stored adsLibraryTabId (not active tab — user may be on the vizualizd tab)
   const tabId = adsLibraryTabId;
   let idx = 0;
+  let injected = 0;
   for (const [key, { json, text }] of adAnalysisBlocks.entries()) {
     if (idx >= GATE_AD_THRESHOLD) {
       const html = buildAdCardHtml(text);
       const grade = getField(text, "GRADE");
+      console.log("[MTG] Injecting gated ad idx:", idx, "key:", key, "grade:", grade, "tabId:", tabId);
       if (tabId) {
-        chrome.tabs.sendMessage(tabId, { action: "injectAnalysis", adIndex: idx, html, grade }).catch(() => {});
+        chrome.tabs.sendMessage(tabId, { action: "injectAnalysis", adIndex: idx, html, grade }).catch((err) => {
+          console.error("[MTG] Failed to inject ad", idx, err);
+        });
+        injected++;
       }
     }
     idx++;
   }
+  console.log("[MTG] liftGate injected", injected, "ads");
 
   // Try auto-import now that we're authenticated
   autoImport();

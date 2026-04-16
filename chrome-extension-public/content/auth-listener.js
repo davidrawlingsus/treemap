@@ -18,9 +18,13 @@
   function checkForToken() {
     const token = localStorage.getItem(AUTH_TOKEN_KEY);
     if (token) {
+      console.log("[MTG auth-listener] Found token in localStorage, copying to chrome.storage");
       chrome.storage.local.get("vzd_token", (data) => {
         if (data.vzd_token !== token) {
+          console.log("[MTG auth-listener] Token is new, setting chrome.storage.local.vzd_token");
           chrome.storage.local.set({ vzd_token: token });
+        } else {
+          console.log("[MTG auth-listener] Token already matches chrome.storage");
         }
       });
       return;
