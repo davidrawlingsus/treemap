@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>MapTheGap — Test Lead Form</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0F1B28; color: #fff; font-family: 'Lato', -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .card { background: #1A2B3C; border-radius: 12px; padding: 32px; width: 100%; max-width: 400px; }
+    .brand { font-size: 24px; font-weight: 900; margin-bottom: 4px; }
+    .brand-map, .brand-gap { color: #B9F040; }
+    .subtitle { color: rgba(255,255,255,0.5); font-size: 13px; margin-bottom: 24px; }
+    label { display: block; font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.6); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+    input { width: 100%; padding: 10px 12px; border: 1px solid rgba(185,240,64,0.3); border-radius: 6px; background: rgba(255,255,255,0.08); color: #fff; font-size: 14px; margin-bottom: 16px; font-family: inherit; }
+    input::placeholder { color: rgba(255,255,255,0.35); }
+    input:focus { outline: none; border-color: #B9F040; }
+    button { width: 100%; padding: 12px; background: #B9F040; color: #0F1B28; border: none; border-radius: 8px; font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit; }
+    button:hover { background: #a8d835; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .result { margin-top: 16px; padding: 12px; border-radius: 6px; font-size: 13px; line-height: 1.5; }
+    .result--ok { background: rgba(185,240,64,0.15); color: #B9F040; }
+    .result--err { background: rgba(248,113,113,0.15); color: #f87171; }
+    .env { display: flex; gap: 8px; margin-bottom: 20px; }
+    .env button { flex: 1; padding: 8px; font-size: 12px; background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; }
+    .env button.active { background: rgba(185,240,64,0.15); color: #B9F040; border-color: #B9F040; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand"><span class="brand-map">Map</span><span>The</span><span class="brand-gap">Gap</span></div>
+    <p class="subtitle">Test Lead Form — simulates Facebook Lead Ads webhook</p>
+
+    <div class="env">
+      <button id="envProd" class="active" onclick="setEnv('prod')">Production</button>
+      <button id="envLocal" onclick="setEnv('local')">Localhost</button>
+    </div>
+
+    <label>Name</label>
+    <input id="name" placeholder="Jane Smith" value="Test Lead">
+
+    <label>Email</label>
+    <input id="email" type="email" placeholder="jane@example.com">
+
+    <label>Website URL</label>
+    <input id="url" placeholder="https://example.com">
+
+    <button id="submit" onclick="submitLead()">Send to Webhook</button>
+
+    <div id="result" style="display:none;"></div>
+  </div>
+
+  <script>
+    let apiBase = 'https://api.mapthegap.ai';
+
+    function setEnv(env) {
+      apiBase = env === 'local' ? 'http://localhost:8000' : 'https://api.mapthegap.ai';
+      document.getElementById('envProd').className = env === 'prod' ? 'active' : '';
+      document.getElementById('envLocal').className = env === 'local' ? 'active' : '';
+    }
+
+    async function submitLead() {
+      const btn = document.getElementById('submit');
+      const result = document.getElementById('result');
+      btn.disabled = true;
+      result.style.display = 'none';
+
+      const body = {
+        name: document.getElementById('name').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        website_url: document.getElementById('url').value.trim(),
+      };
+
+      if (!body.email || !body.website_url) {
+        result.className = 'result result--err';
+        result.textContent = 'Email and website URL are required.';
+        result.style.display = 'block';
+        btn.disabled = false;
+        return;
+      }
+
+      try {
+        const res = await fetch(`${apiBase}/api/extension/lead-webhook`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+          result.className = 'result result--ok';
+          result.innerHTML = `<strong>${data.created ? 'Created' : 'Already exists'}</strong><br>Client ID: ${data.client_id}`;
+        } else {
+          result.className = 'result result--err';
+          result.textContent = `Error ${res.status}: ${data.detail || JSON.stringify(data)}`;
+        }
+      } catch (err) {
+        result.className = 'result result--err';
+        result.textContent = `Network error: ${err.message}`;
+      }
+
+      result.style.display = 'block';
+      btn.disabled = false;
+    }
+  </script>
+</body>
+</html>
