@@ -118,7 +118,12 @@ SSE_HEADERS = {
 
 
 def _extract_domain(url: str) -> tuple:
-    """Extract (domain, full_url) from a destination URL."""
+    """Extract (root_domain, full_url) from a destination URL.
+
+    Strips www. and common marketing subdomains (lp, go, shop, get, try,
+    promo, offers, info, pages, landing, click, links) so that review
+    detection hits the main domain, not a landing page subdomain.
+    """
     try:
         parsed = urlparse(url)
         host = (parsed.netloc or "").lower().split(":")[0]
@@ -129,7 +134,19 @@ def _extract_domain(url: str) -> tuple:
             host = host[4:]
         if "facebook.com" in host or "fb.com" in host:
             return "", ""
-        return host, f"https://{host}"
+
+        # Strip common marketing/landing page subdomains to get the root domain
+        marketing_subdomains = {
+            "lp", "go", "shop", "get", "try", "promo", "offers",
+            "info", "pages", "landing", "click", "links", "track",
+            "app", "start", "join", "buy", "order", "checkout",
+        }
+        parts = host.split(".")
+        while len(parts) > 2 and parts[0] in marketing_subdomains:
+            parts.pop(0)
+        root_domain = ".".join(parts)
+
+        return root_domain, f"https://{root_domain}"
     except Exception:
         return "", ""
 
