@@ -328,15 +328,16 @@ async function autoImport() {
 chrome.storage.onChanged.addListener(async (changes, area) => {
   console.log("[MTG] storage.onChanged:", area, Object.keys(changes));
   if (area === "local" && changes.vzd_token?.newValue) {
-    console.log("[MTG] Token detected! isGated:", isGated, "adAnalysisBlocks size:", adAnalysisBlocks.size);
+    const wasGated = isGated;
+    console.log("[MTG] Token detected! wasGated:", wasGated, "adAnalysisBlocks size:", adAnalysisBlocks.size);
     trackEvent("magic_link_clicked");
 
     // Try to match client now that we're authenticated
     await tryMatchClient();
     console.log("[MTG] After tryMatchClient: isGated:", isGated, "matchedClientId:", matchedClientId);
 
-    // Gate lifts on authentication — whether or not client matched
-    if (isGated) {
+    // Lift gate if we WERE gated (tryMatchClient may have already set isGated=false)
+    if (wasGated) {
       console.log("[MTG] Lifting gate...");
       liftGate();
     }
