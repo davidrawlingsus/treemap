@@ -249,6 +249,17 @@ gateEmailBtn?.addEventListener("click", async () => {
 
   trackEvent("email_submitted");
 
+  // Request review permission if checkbox is checked (must be in click handler)
+  const reviewPermCheck = $("#reviewPermCheck");
+  if (reviewPermCheck?.checked) {
+    try {
+      const granted = await chrome.permissions.request({ origins: ["https://*/*"] });
+      console.log("[MTG] Review permission granted:", granted);
+    } catch (err) {
+      console.log("[MTG] Review permission request failed:", err);
+    }
+  }
+
   try {
     const res = await fetch(`${API_BASE}/api/auth/magic-link/request`, {
       method: "POST",
@@ -386,6 +397,9 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
 // ---- Gate UI ----
 function showEmailGate() {
   trackEvent("gate_shown");
+  // Populate domain in the review permission checkbox
+  const domainEl = $("#reviewPermDomain");
+  if (domainEl) domainEl.textContent = detectedDomain || "their website";
   const overlay = $("#gateOverlay");
   if (overlay) overlay.style.display = "flex";
 }
@@ -419,6 +433,25 @@ function liftGate() {
     idx++;
   }
   console.log("[MTG] liftGate injected", injected, "ads");
+
+  // If review permission was granted via gate checkbox, re-run review detection with HTML
+  (async () => {
+    let hasHostPermission = false;
+    try { hasHostPermission = await chrome.permissions.contains({ origins: ["https://*/*"] }); } catch {}
+    if (hasHostPermission && detectedDomain) {
+      const url = `https://${detectedDomain}`;
+      let pageHtml = null;
+      try {
+        const resp = await chrome.runtime.sendMessage({ action: "fetchPageHtml", url });
+        if (resp?.success && resp.html) pageHtml = resp.html;
+      } catch {}
+      if (pageHtml) {
+        console.log("[MTG] Re-running review detection with fetched HTML");
+        runReviewDetection(url, pageHtml);
+        streamReviewSignal(url, pageHtml);
+      }
+    }
+  })();
 
   // Try auto-import now that we're authenticated
   autoImport();
@@ -457,12 +490,52 @@ async function startAnalysis() {
   // Fire ad analysis immediately
   streamAdAnalysis();
   if (destinationUrl) {
-    // Pre-fetch destination page HTML once, share with both review endpoints
+    // Check if we have permission to fetch the destination page HTML
     let pageHtml = null;
+    let hasHostPermission = false;
     try {
-      const fetchResp = await chrome.runtime.sendMessage({ action: "fetchPageHtml", url: destinationUrl });
-      if (fetchResp?.success && fetchResp.html) pageHtml = fetchResp.html;
-    } catch (e) { /* backend will use its own fetch */ }
+      hasHostPermission = await chrome.permissions.contains({ origins: ["https://*/*"] });
+    } catch {}
+
+    if (hasHostPermission) {
+      // Permission already granted — fetch HTML for enhanced review detection
+      try {
+        const fetchResp = await chrome.runtime.sendMessage({ action: "fetchPageHtml", url: destinationUrl });
+        if (fetchResp?.success && fetchResp.html) pageHtml = fetchResp.html;
+      } catch (e) { /* backend will use its own fetch */ }
+    } else if (!isGated) {
+      // Journey A (ungated) — show a prompt to enable enhanced review detection
+      const reviewEngineResults = $("#reviewEngineResults");
+      if (reviewEngineResults) {
+        const domain = detectedDomain || "their website";
+        reviewEngineResults.innerHTML = `
+          <div class="review-perm-prompt">
+            <p>To compare ad copy to customer reviews, allow access to <strong>${escHtml(domain)}</strong></p>
+            <button id="reviewPermBtn" class="btn btn-primary btn-sm">Enable Review Analysis</button>
+          </div>
+        `;
+        $("#reviewEngineLoading").style.display = "none";
+        const permBtn = $("#reviewPermBtn");
+        permBtn?.addEventListener("click", async () => {
+          try {
+            const granted = await chrome.permissions.request({ origins: ["https://*/*"] });
+            if (granted) {
+              // Re-fetch HTML and re-run review detection
+              let html = null;
+              try {
+                const resp = await chrome.runtime.sendMessage({ action: "fetchPageHtml", url: destinationUrl });
+                if (resp?.success && resp.html) html = resp.html;
+              } catch {}
+              reviewEngineResults.innerHTML = "";
+              $("#reviewEngineLoading").style.display = "block";
+              runReviewDetection(destinationUrl, html);
+              streamReviewSignal(destinationUrl, html);
+            }
+          } catch {}
+        });
+      }
+    }
+    // For gated users, reviews run without HTML — permission requested via gate checkbox
 
     runReviewDetection(destinationUrl, pageHtml);
     streamReviewSignal(destinationUrl, pageHtml);

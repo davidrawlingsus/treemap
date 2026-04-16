@@ -12,7 +12,9 @@
     "https://api.mapthegap.ai/*",
     "https://vizualizd.mapthegap.ai/*",
     "http://localhost:8000/*",
-    "http://localhost:3000/*",
+    "http://localhost:3000/*"
+  ],
+  "optional_host_permissions": [
     "https://*/*"
   ],
   "content_scripts": [
