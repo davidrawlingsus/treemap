@@ -220,18 +220,23 @@ def _do_register_lead(body: RegisterLeadRequest, db: Session):
     if not advertiser_domain:
         raise HTTPException(status_code=400, detail="Could not extract domain from destination URL")
 
-    # Check domain match
-    # Allow exact match or email domain is parent of advertiser domain
-    # e.g. email: jane@cellexialabs.com, advertiser: lp.cellexialabs.com → match
-    if email_domain != advertiser_domain:
-        # Check if advertiser domain ends with email domain
-        if not advertiser_domain.endswith("." + email_domain):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Email domain ({email_domain}) must match the advertiser domain ({advertiser_domain})",
-            )
+    # Check whitelist — whitelisted emails skip domain matching
+    from app.config import get_settings
+    settings = get_settings()
+    whitelist = {e.strip().lower() for e in settings.extension_whitelist_emails.split(",") if e.strip()}
+    is_whitelisted = email in whitelist
 
-    root_domain = email_domain  # Use the email domain as the canonical root
+    # Check domain match (skip for whitelisted emails)
+    if not is_whitelisted:
+        if email_domain != advertiser_domain:
+            if not advertiser_domain.endswith("." + email_domain):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Email domain ({email_domain}) must match the advertiser domain ({advertiser_domain})",
+                )
+
+    # Use advertiser domain as root if whitelisted (email domain may differ)
+    root_domain = advertiser_domain if is_whitelisted else email_domain
     company_url = f"https://{root_domain}"
 
     # Find or create user

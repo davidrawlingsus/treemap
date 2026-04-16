@@ -116,6 +116,7 @@ class Settings(BaseSettings):
     apify_google_reviews_actor_id: str | None = Field(default=None)
     apify_judgeme_actor_id: str | None = Field(default=None)
     leadgen_skip_ad_generation: str = Field(default="true")
+    extension_whitelist_emails: str = Field(default="")  # comma-separated emails for unlimited extension access
 
     @property
     def skip_ad_generation(self) -> bool:
