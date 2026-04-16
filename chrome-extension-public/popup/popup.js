@@ -1212,6 +1212,10 @@ function renderReviewEngine(data) {
   }
 
   reviewsFoundPlatforms = true;
+  // If gate is showing, hide the review permission checkbox (no longer needed)
+  const reviewPermLabel = $("#reviewPermLabel");
+  if (reviewPermLabel && isGated) reviewPermLabel.style.display = "none";
+
   const count = data.platforms.length;
   let html = `<p class="extract-count">Found ${count} review platform${count !== 1 ? "s" : ""} on ${escHtml(data.company_domain)}</p>`;
 
