@@ -51,7 +51,8 @@ function hideMessage(el) {
 function hideAllSections() {
   mainSection.style.display = "none";
   wrongPageSection.style.display = "none";
-  waitingSection.style.display = "none";
+  const overlay = $("#gateOverlay");
+  if (overlay) overlay.style.display = "none";
 }
 
 async function getToken() {
@@ -104,9 +105,11 @@ async function checkAuth() {
     return;
   }
 
-  // Check for pending magic link
+  // Check for pending magic link — show overlay but keep main section visible behind it
   const { vzd_magic_link_pending } = await chrome.storage.local.get("vzd_magic_link_pending");
   if (vzd_magic_link_pending && !token) {
+    // Show main section so analysis streams behind the overlay
+    mainSection.style.display = "block";
     showWaiting(vzd_magic_link_pending);
     // Analysis may already be running — don't restart
     return;
@@ -132,11 +135,15 @@ async function checkAuth() {
 }
 
 function showWaiting(email) {
-  // Don't hide main section — analysis continues behind gate
-  waitingSection.style.display = "block";
+  // Slide from email input to "check your inbox" within the overlay
+  const slide1 = $("#gateSlide1");
+  const slide2 = $("#gateSlide2");
+  if (slide1) slide1.style.display = "none";
+  if (slide2) slide2.style.display = "block";
   waitingEmail.textContent = email;
-  const gateSection = $("#emailGateSection");
-  if (gateSection) gateSection.style.display = "none";
+  // Ensure overlay is visible
+  const overlay = $("#gateOverlay");
+  if (overlay) overlay.style.display = "flex";
 }
 
 async function showMain(tab) {
@@ -347,8 +354,8 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
 // ---- Gate UI ----
 function showEmailGate() {
   trackEvent("gate_shown");
-  const gateSection = $("#emailGateSection");
-  if (gateSection) gateSection.style.display = "block";
+  const overlay = $("#gateOverlay");
+  if (overlay) overlay.style.display = "flex";
 }
 
 function liftGate() {
@@ -356,10 +363,9 @@ function liftGate() {
   trackEvent("gate_lifted");
   isGated = false;
 
-  // Hide gate UI
-  const gateSection = $("#emailGateSection");
-  if (gateSection) gateSection.style.display = "none";
-  waitingSection.style.display = "none";
+  // Hide gate overlay
+  const overlay = $("#gateOverlay");
+  if (overlay) overlay.style.display = "none";
 
   // Render all buffered ads that were held back on the FB page
   // Use stored adsLibraryTabId (not active tab — user may be on the vizualizd tab)
