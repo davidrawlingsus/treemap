@@ -303,4 +303,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .catch(() => sendResponse({ success: false }));
     return true; // async
   }
+
+  if (message.action === "switchToAdsLibraryTab") {
+    // Find and activate the FB Ads Library tab after magic link auth
+    chrome.tabs.query({ url: "*://www.facebook.com/ads/library/*" }, (tabs) => {
+      if (tabs.length > 0) {
+        const tab = tabs[0];
+        chrome.tabs.update(tab.id, { active: true });
+        chrome.windows.update(tab.windowId, { focused: true });
+      }
+    });
+    sendResponse({ ok: true });
+    return true;
+  }
 });

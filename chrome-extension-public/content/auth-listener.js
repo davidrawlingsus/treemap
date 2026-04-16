@@ -23,6 +23,8 @@
         if (data.vzd_token !== token) {
           console.log("[MTG auth-listener] Token is new, setting chrome.storage.local.vzd_token");
           chrome.storage.local.set({ vzd_token: token });
+          // Ask service worker to switch back to the FB Ads Library tab
+          chrome.runtime.sendMessage({ action: "switchToAdsLibraryTab" }).catch(() => {});
         } else {
           console.log("[MTG auth-listener] Token already matches chrome.storage");
         }
