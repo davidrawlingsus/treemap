@@ -97,6 +97,17 @@ def receive_lead(
     db: Session = Depends(get_db),
 ):
     """Receive a lead from Zapier (Facebook Lead Ads → Zapier → here)."""
+    import traceback
+    try:
+        return _do_receive_lead(body, db)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Lead webhook error: %s\n%s", str(e), traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Lead webhook error: {str(e)}")
+
+
+def _do_receive_lead(body: LeadWebhookRequest, db: Session):
     domain = _extract_domain(body.website_url)
     if not domain:
         raise HTTPException(status_code=400, detail="Could not extract domain from website_url")
