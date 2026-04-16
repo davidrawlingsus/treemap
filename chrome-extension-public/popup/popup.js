@@ -26,6 +26,11 @@ let adsLibraryTabId = null; // FB Ads Library tab ID, stored on open
 const sessionId = crypto.randomUUID(); // analytics session ID (per panel open)
 const GATE_AD_THRESHOLD = 2; // show this many ads before gating
 
+// Build per-domain origin pattern for chrome.permissions API
+function domainOrigin() {
+  return detectedDomain ? [`https://${detectedDomain}/*`] : ["https://*/*"];
+}
+
 // ---- DOM refs ----
 const mainSection = $("#mainSection");
 const wrongPageSection = $("#wrongPageSection");
@@ -253,7 +258,7 @@ gateEmailBtn?.addEventListener("click", async () => {
   const reviewPermCheck = $("#reviewPermCheck");
   if (reviewPermCheck?.checked) {
     try {
-      const granted = await chrome.permissions.request({ origins: ["https://*/*"] });
+      const granted = await chrome.permissions.request({ origins: domainOrigin() });
       console.log("[MTG] Review permission granted:", granted);
     } catch (err) {
       console.log("[MTG] Review permission request failed:", err);
@@ -437,7 +442,7 @@ function liftGate() {
   // If review permission was granted via gate checkbox, re-run review detection with HTML
   (async () => {
     let hasHostPermission = false;
-    try { hasHostPermission = await chrome.permissions.contains({ origins: ["https://*/*"] }); } catch {}
+    try { hasHostPermission = await chrome.permissions.contains({ origins: domainOrigin() }); } catch {}
     if (hasHostPermission && detectedDomain) {
       const url = `https://${detectedDomain}`;
       let pageHtml = null;
@@ -494,7 +499,7 @@ async function startAnalysis() {
     let pageHtml = null;
     let hasHostPermission = false;
     try {
-      hasHostPermission = await chrome.permissions.contains({ origins: ["https://*/*"] });
+      hasHostPermission = await chrome.permissions.contains({ origins: domainOrigin() });
     } catch {}
 
     if (hasHostPermission) {
@@ -510,15 +515,15 @@ async function startAnalysis() {
         const domain = detectedDomain || "their website";
         reviewEngineResults.innerHTML = `
           <div class="review-perm-prompt">
-            <p>To compare ad copy to customer reviews, allow access to <strong>${escHtml(domain)}</strong></p>
-            <button id="reviewPermBtn" class="btn btn-primary btn-sm">Enable Review Analysis</button>
+            <p>Analyse customer reviews on <strong>${escHtml(domain)}</strong> to compare with ad copy</p>
+            <button id="reviewPermBtn" class="btn btn-primary btn-sm">Analyse Reviews</button>
           </div>
         `;
         $("#reviewEngineLoading").style.display = "none";
         const permBtn = $("#reviewPermBtn");
         permBtn?.addEventListener("click", async () => {
           try {
-            const granted = await chrome.permissions.request({ origins: ["https://*/*"] });
+            const granted = await chrome.permissions.request({ origins: domainOrigin() });
             if (granted) {
               // Re-fetch HTML and re-run review detection
               let html = null;
