@@ -30,6 +30,7 @@ class UserLogin(BaseModel):
 class MagicLinkRequest(BaseModel):
     """Request payload for initiating a magic-link email."""
     email: str
+    source: Optional[str] = None  # "extension" when sent from Chrome extension
 
 
 class MagicLinkVerifyRequest(BaseModel):

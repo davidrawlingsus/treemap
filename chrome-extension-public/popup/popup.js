@@ -212,7 +212,7 @@ gateEmailBtn?.addEventListener("click", async () => {
     const res = await fetch(`${API_BASE}/api/auth/magic-link/request`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
+      body: JSON.stringify({ email, source: "extension" }),
     });
 
     if (!res.ok) {
@@ -281,13 +281,15 @@ extractBtn.addEventListener("click", async () => {
 async function autoImport() {
   if (autoImportFired) return;
   if (!extractedAds?.length) return;
-  if (!matchedClientId) return; // need a client to import into
 
   const token = await getToken();
   if (!token) return;
 
+  // Use leadgen path if no client matched (creates lead client automatically)
+  const useLeadgen = !matchedClientId;
+
   autoImportFired = true;
-  trackEvent("auto_import_fired", { ad_count: extractedAds.length });
+  trackEvent("auto_import_fired", { ad_count: extractedAds.length, leadgen: useLeadgen });
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
@@ -307,9 +309,9 @@ async function autoImport() {
     action: "startImport",
     ads: enrichedAds,
     sourceUrl: extractedUrl || "",
-    clientId: matchedClientId,
+    clientId: useLeadgen ? null : matchedClientId,
     tabId: tab?.id || null,
-    leadgen: false,
+    leadgen: useLeadgen,
     synthesisText: adSynthesisText || null,
     signalText: signalStreamText || null,
     adCopyScore: adCopyScore || null,
@@ -328,13 +330,11 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
     // Try to match client now that we're authenticated
     await tryMatchClient();
 
-    if (!isGated) {
-      // Gate lifted — render all buffered ads
+    // Gate lifts on authentication — whether or not client matched
+    // If no client match, auto-import will use the leadgen path to create one
+    if (isGated) {
       liftGate();
     }
-
-    // Re-check auth to update UI state
-    checkAuth();
   }
 });
 

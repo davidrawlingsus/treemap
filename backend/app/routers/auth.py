@@ -255,6 +255,8 @@ def request_magic_link(payload: MagicLinkRequest, db: Session = Depends(get_db))
         magic_link_url = f"{base_url}/{redirect_path}?token={quote(token)}&email={quote(email)}"
     else:
         magic_link_url = f"{base_url}?token={quote(token)}&email={quote(email)}"
+    if payload.source:
+        magic_link_url += f"&source={quote(payload.source)}"
 
     try:
         db.commit()
