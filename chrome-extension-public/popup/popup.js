@@ -16,6 +16,7 @@ let signalGrade = null; // numeric 1-10 score, set when signal analysis complete
 let adSynthesisText = null; // raw synthesis stream text, set when ad analysis completes
 let signalStreamText = null; // raw signal stream text, set when signal completes
 let reviewsRanWithHtml = false; // whether review detection had pre-fetched HTML
+let reviewsFoundPlatforms = false; // whether review detection found platforms without HTML
 let adCopyScore = 0; // extracted from synthesis
 let opportunityFired = false; // prevent double-firing
 let adAnalysisBlocks = new Map(); // library_id → { json, text } for import
@@ -412,6 +413,11 @@ function showEmailGate() {
   // Populate domain in the review permission checkbox
   const domainEl = $("#reviewPermDomain");
   if (domainEl) domainEl.textContent = detectedDomain || "their website";
+  // Hide the review permission checkbox if reviews already found platforms (no HTML needed)
+  const reviewPermLabel = $("#reviewPermLabel");
+  if (reviewPermLabel) {
+    reviewPermLabel.style.display = (reviewsFoundPlatforms || reviewsRanWithHtml) ? "none" : "flex";
+  }
   const overlay = $("#gateOverlay");
   if (overlay) overlay.style.display = "flex";
 }
@@ -1205,6 +1211,7 @@ function renderReviewEngine(data) {
     return;
   }
 
+  reviewsFoundPlatforms = true;
   const count = data.platforms.length;
   let html = `<p class="extract-count">Found ${count} review platform${count !== 1 ? "s" : ""} on ${escHtml(data.company_domain)}</p>`;
 
