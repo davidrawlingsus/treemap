@@ -167,7 +167,7 @@ def _do_receive_lead(body: LeadWebhookRequest, db: Session):
         .first()
     )
     if not existing_membership:
-        membership = Membership(user_id=user.id, client_id=client.id, role="member")
+        membership = Membership(user_id=user.id, client_id=client.id, role="viewer")
         db.add(membership)
 
     db.commit()
