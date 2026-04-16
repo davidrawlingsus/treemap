@@ -22,6 +22,7 @@ let isGated = false; // true when no client match — gate after 2 ads
 let matchedClientId = null; // client UUID if matched by domain
 let autoImportFired = false; // prevent double auto-import
 let detectedDomain = null; // advertiser domain from destination URL
+let adsLibraryTabId = null; // FB Ads Library tab ID, stored on open
 const sessionId = crypto.randomUUID(); // analytics session ID (per panel open)
 const GATE_AD_THRESHOLD = 2; // show this many ads before gating
 
@@ -141,6 +142,7 @@ function showWaiting(email) {
 async function showMain(tab) {
   hideAllSections();
   mainSection.style.display = "block";
+  adsLibraryTabId = tab?.id || null;
 
   trackEvent("extension_opened", { ad_count: 0 });
 
@@ -354,23 +356,20 @@ function liftGate() {
   if (gateSection) gateSection.style.display = "none";
   waitingSection.style.display = "none";
 
-  // Render all buffered ads that were held back
-  const [tab] = [null]; // will be set below
-  chrome.tabs.query({ active: true, currentWindow: true }).then(([activeTab]) => {
-    const tabId = activeTab?.id;
-    for (const [key, { json, text }] of adAnalysisBlocks.entries()) {
-      const idx = [...adAnalysisBlocks.keys()].indexOf(key);
-      if (idx >= GATE_AD_THRESHOLD) {
-        // This ad was gated — now inject it
-        const block = text;
-        const html = buildAdCardHtml(block);
-        const grade = getField(block, "GRADE");
-        if (tabId) {
-          chrome.tabs.sendMessage(tabId, { action: "injectAnalysis", adIndex: idx, html, grade }).catch(() => {});
-        }
+  // Render all buffered ads that were held back on the FB page
+  // Use stored adsLibraryTabId (not active tab — user may be on the vizualizd tab)
+  const tabId = adsLibraryTabId;
+  let idx = 0;
+  for (const [key, { json, text }] of adAnalysisBlocks.entries()) {
+    if (idx >= GATE_AD_THRESHOLD) {
+      const html = buildAdCardHtml(text);
+      const grade = getField(text, "GRADE");
+      if (tabId) {
+        chrome.tabs.sendMessage(tabId, { action: "injectAnalysis", adIndex: idx, html, grade }).catch(() => {});
       }
     }
-  });
+    idx++;
+  }
 
   // Try auto-import now that we're authenticated
   autoImport();

@@ -275,22 +275,23 @@
   };
 
   const showExtensionRedirect = () => {
-    const overlay = global.document.createElement('div');
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0F1B28;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Lato,-apple-system,BlinkMacSystemFont,sans-serif;';
-    overlay.innerHTML = `
-      <div style="text-align:center;max-width:400px;padding:40px;">
-        <div style="font-size:28px;font-weight:900;margin-bottom:8px;">
-          <span style="color:#B9F040;">Map</span><span style="color:#fff;">The</span><span style="color:#B9F040;">Gap</span>
+    // Replace the entire page to prevent app router from overriding
+    global.document.title = 'MapTheGap — Verified';
+    global.document.body.innerHTML = `
+      <div style="position:fixed;inset:0;background:#0F1B28;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Lato,-apple-system,BlinkMacSystemFont,sans-serif;">
+        <div style="text-align:center;max-width:400px;padding:40px;">
+          <div style="font-size:28px;font-weight:900;margin-bottom:8px;">
+            <span style="color:#B9F040;">Map</span><span style="color:#fff;">The</span><span style="color:#B9F040;">Gap</span>
+          </div>
+          <div style="width:48px;height:48px;background:#B9F040;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:24px auto;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#0F1B28" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h2 style="color:#fff;font-size:22px;font-weight:700;margin:0 0 12px;">You're verified!</h2>
+          <p style="color:rgba(255,255,255,0.7);font-size:15px;line-height:1.5;margin:0 0 24px;">Switch back to your <strong style="color:#fff;">Facebook Ads Library</strong> tab to see your full analysis.</p>
+          <p style="color:rgba(255,255,255,0.4);font-size:13px;margin:0;">The extension unlocks automatically.</p>
         </div>
-        <div style="width:48px;height:48px;background:#B9F040;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:24px auto;">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#0F1B28" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-        <h2 style="color:#fff;font-size:22px;font-weight:700;margin:0 0 12px;">You're verified!</h2>
-        <p style="color:rgba(255,255,255,0.7);font-size:15px;line-height:1.5;margin:0 0 24px;">Switch back to your <strong style="color:#fff;">Facebook Ads Library</strong> tab to see your full analysis.</p>
-        <p style="color:rgba(255,255,255,0.4);font-size:13px;margin:0;">The extension unlocks automatically.</p>
       </div>
     `;
-    global.document.body.appendChild(overlay);
   };
 
   const processMagicLinkIfPresent = async () => {
