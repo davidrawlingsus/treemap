@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MapTheGap — Ad Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup">
+    <div class="header">
+      <div class="header-row">
+        <div>
+          <h1><span class="brand-map">Map</span><span class="brand-the">The</span><span class="brand-gap">Gap</span></h1>
+          <p class="subtitle">Ad Intelligence</p>
+        </div>
+        <button id="extractBtn" class="btn-icon" style="display: none;" title="Re-extract ads from page">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M13.65 2.35A7.96 7.96 0 0 0 8 0C3.58 0 0 3.58 0 8s3.58 8 8 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 8 14 6 6 0 1 1 8 2c1.66 0 3.14.69 4.22 1.78L9 7h7V0l-2.35 2.35z" fill="currentColor"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Waiting for magic link click (shown after gate email submission) -->
+    <div id="waitingSection" class="section" style="display: none;">
+      <p class="description">Magic link sent to <strong id="waitingEmail"></strong></p>
+      <p class="description">Click the link in your email to unlock the full analysis.</p>
+      <p class="description muted">The analysis will unlock automatically — keep this panel open.</p>
+    </div>
+
+    <!-- Main -->
+    <div id="mainSection" class="section" style="display: none;">
+      <span id="userEmail" style="display:none;"></span>
+
+      <div id="extractResult" style="display: none;">
+        <p id="extractCount" class="extract-count"></p>
+
+        <!-- Opportunity Score Section (top-level summary) -->
+        <div class="panel-section" id="scoresSection" style="display: none;">
+          <h3 class="panel-heading">Opportunity Score</h3>
+          <div id="scoresResults"></div>
+        </div>
+
+        <!-- Ad Analysis Section -->
+        <div class="panel-section">
+          <h3 class="panel-heading">Ad Analysis</h3>
+          <div id="adAnalysisLoading" class="loading-state">
+            <div class="spinner"></div>
+            <p>Analyzing ad copy...</p>
+          </div>
+          <div id="adAnalysisResults"></div>
+        </div>
+
+        <!-- Review Signal Analysis Section -->
+        <div class="panel-section">
+          <h3 class="panel-heading">Review Signal Analysis</h3>
+          <div id="reviewEngineLoading" class="loading-state">
+            <div class="spinner"></div>
+            <p>Detecting review platforms...</p>
+          </div>
+          <div id="reviewEngineResults"></div>
+
+          <!-- Signal (sub-section) -->
+          <div id="reviewSignalSection" style="display: none;">
+            <h4 class="panel-subheading">Signal</h4>
+            <div id="reviewSignalLoading" class="loading-state">
+              <div class="spinner"></div>
+              <p>Analyzing review signal...</p>
+            </div>
+            <div id="reviewSignalResults"></div>
+          </div>
+        </div>
+
+        <!-- Email gate (shown when no client match) -->
+        <div id="emailGateSection" class="section" style="display: none;">
+          <div class="email-gate">
+            <p class="email-gate__headline">Enter your email to unlock the full analysis</p>
+            <input type="email" id="gateEmailInput" placeholder="you@company.com" autocomplete="email" class="email-gate__input">
+            <button id="gateEmailBtn" class="btn btn-primary">Unlock Analysis</button>
+            <div id="gateMessage" class="message" style="display: none;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="statusMessage" class="message" style="display: none;"></div>
+    </div>
+
+    <!-- Not on ads library page -->
+    <div id="wrongPageSection" class="section" style="display: none;">
+      <p class="description">Navigate to a <strong>Meta Ads Library</strong> page to use this extension.</p>
+      <p class="description muted">facebook.com/ads/library/...</p>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

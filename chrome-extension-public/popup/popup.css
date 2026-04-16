@@ -1,0 +1,812 @@
+/* ==========================================================================
+   Marketably.ai — Ad Intelligence Sidebar
+   Brand tokens: #B9F040 lime, #1A2B3C navy, #0F1B28 navy-dark, Lato font
+   ========================================================================== */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Lato', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  color: #fff;
+  background: #0F1B28;
+  min-width: 320px;
+}
+
+.popup {
+  padding: 16px;
+}
+
+/* ---- Header / Brand ---- */
+
+.header {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(185, 240, 64, 0.2);
+}
+
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header h1 {
+  font-size: 20px;
+  font-weight: 900;
+  margin: 0;
+  letter-spacing: -0.5px;
+}
+
+.btn-icon {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.btn-icon:hover {
+  color: #B9F040;
+  border-color: rgba(185, 240, 64, 0.3);
+}
+
+.btn-icon-spin svg {
+  animation: spin 0.8s linear infinite;
+}
+
+.brand-map { color: #fff; }
+.brand-the { color: #fff; }
+.brand-gap { color: #B9F040; }
+
+.subtitle {
+  font-size: 11px;
+  color: #B9F040;
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-weight: 600;
+}
+
+/* ---- Layout ---- */
+
+.section {
+  margin-bottom: 12px;
+}
+
+.description {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.muted {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+}
+
+.label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ---- Form controls ---- */
+
+input[type="email"],
+input[type="text"],
+select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'Lato', sans-serif;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.05);
+  margin-bottom: 10px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+input:focus,
+select:focus {
+  border-color: #B9F040;
+  box-shadow: 0 0 0 2px rgba(185, 240, 64, 0.15);
+}
+
+select option {
+  background: #1A2B3C;
+  color: #fff;
+}
+
+/* ---- Buttons ---- */
+
+.btn {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Lato', sans-serif;
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s, transform 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn-primary {
+  background: #B9F040;
+  color: #000;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #a0d636;
+}
+
+.btn-success {
+  background: #B9F040;
+  color: #000;
+}
+
+.btn-success:hover:not(:disabled) {
+  background: #a0d636;
+}
+
+
+.btn-link {
+  background: none;
+  border: none;
+  color: #B9F040;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+  font-family: 'Lato', sans-serif;
+}
+
+.btn-link:hover {
+  text-decoration: underline;
+}
+
+.btn-row {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-row .btn {
+  flex: 1;
+}
+
+/* ---- User bar ---- */
+
+.user-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 6px 0;
+}
+
+.user-email {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 220px;
+}
+
+/* ---- Extract count ---- */
+
+.extract-count {
+  font-size: 13px;
+  font-weight: 700;
+  color: #B9F040;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  background: rgba(185, 240, 64, 0.08);
+  border-radius: 8px;
+  border: 1px solid rgba(185, 240, 64, 0.2);
+}
+
+/* ---- Messages ---- */
+
+.message {
+  font-size: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-top: 10px;
+  line-height: 1.4;
+}
+
+.message--success {
+  background: rgba(185, 240, 64, 0.1);
+  color: #B9F040;
+  border: 1px solid rgba(185, 240, 64, 0.25);
+}
+
+.message--error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.message--info {
+  background: rgba(185, 240, 64, 0.06);
+  color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(185, 240, 64, 0.15);
+}
+
+/* ---- Checkbox ---- */
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #fff;
+  cursor: pointer;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.04);
+  transition: border-color 0.2s;
+}
+
+.checkbox-label:hover {
+  border-color: #B9F040;
+}
+
+.checkbox-label input[type="checkbox"] {
+  accent-color: #B9F040;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.checkbox-label span {
+  font-weight: 600;
+}
+
+/* ---- Progress bar ---- */
+
+.progress-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #B9F040;
+  border-radius: 2px;
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+/* ==========================================================================
+   Panel Sections (stacked in sidebar)
+   ========================================================================== */
+
+.panel-section {
+  margin-bottom: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.panel-heading {
+  font-size: 11px;
+  font-weight: 700;
+  color: #B9F040;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(185, 240, 64, 0.2);
+}
+
+.panel-subheading {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 14px;
+  margin-bottom: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ---- Loading state ---- */
+
+.loading-state {
+  text-align: center;
+  padding: 24px 0;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #B9F040;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 8px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-state p {
+  font-size: 12px;
+}
+
+/* ==========================================================================
+   Grade badges
+   ========================================================================== */
+
+.grade-badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 900;
+  color: #000;
+}
+
+.grade-A, .grade-A\+, .grade-A- { background: #B9F040; }
+.grade-B, .grade-B\+, .grade-B- { background: #a0d636; }
+.grade-C, .grade-C\+, .grade-C- { background: #fbbf24; }
+.grade-D, .grade-D\+, .grade-D- { background: #f87171; color: #fff; }
+.grade-F { background: #dc2626; color: #fff; }
+
+/* ==========================================================================
+   Review Platform Detection
+   ========================================================================== */
+
+.platform-card {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.platform-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.platform-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.platform-link {
+  color: #B9F040;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.platform-link:hover {
+  text-decoration: underline;
+}
+
+.confidence-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.confidence-high { background: rgba(185, 240, 64, 0.15); color: #B9F040; }
+.confidence-medium { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+.confidence-low { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+
+.scrapable-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.scrapable-yes { background: rgba(185, 240, 64, 0.1); color: #B9F040; }
+.scrapable-no { background: rgba(248, 113, 113, 0.1); color: #f87171; }
+
+.platform-notes {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.45);
+  margin-top: 4px;
+  line-height: 1.3;
+}
+
+.platform-domain {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  margin-bottom: 6px;
+}
+
+/* Signal source badge */
+.signal-source {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 6px;
+  border-left: 2px solid #B9F040;
+}
+
+.signal-source strong {
+  color: #B9F040;
+}
+
+.signal-trace {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.35);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 6px 8px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: 'SF Mono', Monaco, Consolas, monospace;
+  line-height: 1.4;
+}
+
+/* ==========================================================================
+   Review Signal
+   ========================================================================== */
+
+.signal-summary {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: 12px;
+  margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.signal-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.signal-summary-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.signal-counts {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.signal-count {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.signal-count-high { color: #B9F040; }
+.signal-count-medium { color: #fbbf24; }
+.signal-count-low { color: #f87171; }
+
+.signal-verdict {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.5;
+}
+
+.signal-themes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.theme-tag {
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(185, 240, 64, 0.1);
+  color: #B9F040;
+  font-weight: 600;
+}
+
+.review-signal-card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.review-signal-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.review-signal-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.signal-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.signal-high { background: rgba(185, 240, 64, 0.15); color: #B9F040; }
+.signal-medium { background: rgba(251, 191, 36, 0.15); color: #fbbf24; }
+.signal-low { background: rgba(248, 113, 113, 0.15); color: #f87171; }
+
+.review-reason {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+
+.usable-quote {
+  font-size: 11px;
+  color: #B9F040;
+  font-style: italic;
+  line-height: 1.4;
+  padding: 6px 10px;
+  background: rgba(185, 240, 64, 0.06);
+  border-radius: 6px;
+  border-left: 3px solid #B9F040;
+}
+
+/* ==========================================================================
+   Status & Streaming
+   ========================================================================== */
+
+.stream-text {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.panel-status {
+  font-size: 12px;
+  color: #B9F040;
+  padding: 10px 12px;
+  text-align: center;
+  background: rgba(185, 240, 64, 0.06);
+  border-radius: 8px;
+  border: 1px solid rgba(185, 240, 64, 0.15);
+}
+
+.panel-status-done {
+  color: #B9F040;
+  background: rgba(185, 240, 64, 0.1);
+  border-color: rgba(185, 240, 64, 0.25);
+}
+
+/* ==========================================================================
+   Synthesis Card
+   ========================================================================== */
+
+.synthesis-card {
+  background: linear-gradient(135deg, #1A2B3C, #0F1B28);
+  border: 1px solid rgba(185, 240, 64, 0.2);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.synthesis-scores-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.synthesis-score-box {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.synthesis-score-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.synthesis-score-value {
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.synthesis-score-value.score-high { color: #B9F040; }
+.synthesis-score-value.score-mid { color: #fbbf24; }
+.synthesis-score-value.score-low { color: #f87171; }
+
+.synthesis-gap-box { border-color: rgba(185, 240, 64, 0.15); }
+.synthesis-gap-value.gap-high { color: #B9F040; }
+.synthesis-gap-value.gap-mid { color: #fbbf24; }
+.synthesis-gap-value.gap-low { color: #f87171; }
+
+.synthesis-explanation {
+  font-size: 11px;
+  color: #9ca3af;
+  text-align: center;
+  margin: 6px 0 0;
+  line-height: 1.4;
+  padding: 0 8px;
+}
+
+.signal-score-badge {
+  font-size: 12px;
+  font-weight: 900;
+  padding: 2px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.synthesis-summary {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.synthesis-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #B9F040;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 10px;
+  margin-bottom: 4px;
+}
+
+.synthesis-bullets {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.synthesis-bullets strong {
+  color: #fff;
+}
+
+.md-bullet {
+  color: #B9F040;
+}
+
+.synthesis-streaming {
+  color: rgba(185, 240, 64, 0.4);
+  font-size: 11px;
+  margin-top: 4px;
+}
+
+/* ==========================================================================
+   Import Section
+   ========================================================================== */
+
+/* ==========================================================================
+   Email Gate
+   ========================================================================== */
+
+.email-gate {
+  text-align: center;
+  padding: 20px 16px;
+  background: linear-gradient(to bottom, rgba(15, 27, 40, 0) 0%, rgba(15, 27, 40, 0.95) 30%);
+  margin-top: -40px;
+  position: relative;
+  z-index: 2;
+}
+
+.email-gate__headline {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 12px;
+}
+
+.email-gate__input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid rgba(185, 240, 64, 0.3);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 14px;
+  margin-bottom: 10px;
+  box-sizing: border-box;
+}
+
+.email-gate__input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.email-gate__input:focus {
+  outline: none;
+  border-color: #B9F040;
+}
+
+/* ==========================================================================
+   Error / Empty States
+   ========================================================================== */
+
+.panel-error {
+  text-align: center;
+  padding: 16px;
+  color: #f87171;
+  font-size: 12px;
+}
+
+.panel-empty {
+  text-align: center;
+  padding: 16px;
+  color: rgba(255, 255, 255, 0.35);
+  font-size: 12px;
+}
+
+/* ==========================================================================
+   Reduced Motion
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
