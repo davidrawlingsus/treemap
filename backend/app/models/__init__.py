@@ -54,6 +54,7 @@ from app.models.shopify import (
 )
 from app.models.custom_deal import CustomDeal, CustomDealPhase, CustomDealStripeState, DealStatus
 from app.models.deal_page_defaults import DealPageDefaults
+from app.models.extension_event import ExtensionEvent
 
 __all__ = [
     "Client",

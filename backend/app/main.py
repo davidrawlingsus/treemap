@@ -617,6 +617,10 @@ app.include_router(ad_library_extension.router)
 from app.routers import extension_analysis
 app.include_router(extension_analysis.router)
 
+# Extension webhook (analytics tracking + lead ingestion)
+from app.routers import extension_webhook
+app.include_router(extension_webhook.router)
+
 
 if __name__ == "__main__":
     import uvicorn

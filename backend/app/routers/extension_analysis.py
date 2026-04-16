@@ -13,8 +13,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from app.auth import get_current_user_flexible
+from sqlalchemy.orm import Session
+
+from app.auth import get_current_user_flexible, get_optional_current_user
 from app.config import get_settings
+from app.database import get_db
 from app.models import User
 
 router = APIRouter(prefix="/api/extension", tags=["extension-analysis"])
@@ -147,7 +150,7 @@ def _sse_generator(text_gen):
 @router.post("/analyze-ads")
 def analyze_ads(
     body: AnalyzeAdsRequest,
-    current_user: User = Depends(get_current_user_flexible),
+    current_user: Optional[User] = Depends(get_optional_current_user),
 ):
     """Stream Full Funnel ad analysis as formatted text via SSE."""
     settings = get_settings()
@@ -173,7 +176,7 @@ class SynthesisRequest(BaseModel):
 @router.post("/synthesize")
 def synthesize_ads(
     body: SynthesisRequest,
-    current_user: User = Depends(get_current_user_flexible),
+    current_user: Optional[User] = Depends(get_optional_current_user),
 ):
     """Stream opportunity synthesis based on completed ad analysis."""
     settings = get_settings()
@@ -202,7 +205,7 @@ class OpportunityRequest(BaseModel):
 @router.post("/opportunity")
 def opportunity_overlay(
     body: OpportunityRequest,
-    current_user: User = Depends(get_current_user_flexible),
+    current_user: Optional[User] = Depends(get_optional_current_user),
 ):
     """Stream opportunity overlay text when gap is significant."""
     settings = get_settings()
@@ -230,7 +233,7 @@ def opportunity_overlay(
 @router.post("/detect-reviews", response_model=DetectReviewsResponse)
 def detect_reviews(
     body: DetectReviewsRequest,
-    current_user: User = Depends(get_current_user_flexible),
+    current_user: Optional[User] = Depends(get_optional_current_user),
 ):
     """Detect which review platform(s) a business uses from their website."""
     domain, company_url = _extract_domain(body.destination_url)
@@ -267,7 +270,7 @@ def detect_reviews(
 @router.post("/analyze-review-signal")
 def analyze_review_signal(
     body: AnalyzeReviewSignalRequest,
-    current_user: User = Depends(get_current_user_flexible),
+    current_user: Optional[User] = Depends(get_optional_current_user),
 ):
     """Stream review signal analysis as formatted text via SSE."""
     settings = get_settings()
@@ -327,3 +330,125 @@ def analyze_review_signal(
         media_type="text/event-stream",
         headers=SSE_HEADERS,
     )
+
+
+# ---------------------------------------------------------------------------
+# Client matching — does this domain belong to an existing client?
+# ---------------------------------------------------------------------------
+
+class MatchClientRequest(BaseModel):
+    destination_url: str = Field(..., description="Destination URL from extracted ads")
+
+
+class MatchClientResponse(BaseModel):
+    matched: bool
+    client_id: Optional[str] = None
+    client_name: Optional[str] = None
+
+
+@router.post("/match-client", response_model=MatchClientResponse)
+def match_client(
+    body: MatchClientRequest,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_current_user),
+):
+    """Check if the destination URL matches an existing client for this user."""
+    if not current_user:
+        return MatchClientResponse(matched=False)
+
+    domain, _ = _extract_domain(body.destination_url)
+    if not domain:
+        return MatchClientResponse(matched=False)
+
+    from app.models import AuthorizedDomain, Client, Membership
+    from app.models.authorized_domain import AuthorizedDomainClient
+
+    # Find client by authorized domain where user has membership
+    client = (
+        db.query(Client)
+        .join(AuthorizedDomainClient, AuthorizedDomainClient.client_id == Client.id)
+        .join(AuthorizedDomain, AuthorizedDomain.id == AuthorizedDomainClient.domain_id)
+        .join(Membership, Membership.client_id == Client.id)
+        .filter(
+            AuthorizedDomain.domain == domain,
+            Membership.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if not client:
+        return MatchClientResponse(matched=False)
+
+    return MatchClientResponse(
+        matched=True,
+        client_id=str(client.id),
+        client_name=client.name,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Cached results — serve existing import if already analyzed
+# ---------------------------------------------------------------------------
+
+class CachedAnalysisResponse(BaseModel):
+    cached: bool
+    import_id: Optional[str] = None
+    ad_copy_score: Optional[int] = None
+    signal_score: Optional[int] = None
+    opportunity_score: Optional[float] = None
+    synthesis_text: Optional[str] = None
+    signal_text: Optional[str] = None
+    ads: Optional[List[dict]] = None
+
+
+@router.get("/cached-analysis")
+def get_cached_analysis(
+    advertiser_url: str,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_optional_current_user),
+):
+    """Return cached analysis if this advertiser was already analyzed for this user's client."""
+    if not current_user:
+        return {"cached": False}
+
+    from app.models import AdLibraryImport, AdLibraryAd, Membership
+
+    # Find imports for this source URL where user has access
+    imp = (
+        db.query(AdLibraryImport)
+        .join(Membership, Membership.client_id == AdLibraryImport.client_id)
+        .filter(
+            Membership.user_id == current_user.id,
+            AdLibraryImport.source_url.contains(advertiser_url),
+            AdLibraryImport.ad_copy_score.isnot(None),
+        )
+        .order_by(AdLibraryImport.imported_at.desc())
+        .first()
+    )
+
+    if not imp:
+        return {"cached": False}
+
+    ads = (
+        db.query(AdLibraryAd)
+        .filter(AdLibraryAd.import_id == imp.id)
+        .all()
+    )
+
+    return {
+        "cached": True,
+        "import_id": str(imp.id),
+        "ad_copy_score": imp.ad_copy_score,
+        "signal_score": imp.signal_score,
+        "opportunity_score": imp.opportunity_score,
+        "synthesis_text": imp.synthesis_text,
+        "signal_text": imp.signal_text,
+        "ads": [
+            {
+                "library_id": ad.library_id,
+                "analysis_json": ad.analysis_json,
+            }
+            for ad in ads
+            if ad.analysis_json
+        ],
+    }
