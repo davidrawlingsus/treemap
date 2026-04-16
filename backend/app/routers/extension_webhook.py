@@ -9,7 +9,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.auth import get_optional_current_user
@@ -74,7 +74,7 @@ def track_event(
 # ---------------------------------------------------------------------------
 
 class LeadWebhookRequest(BaseModel):
-    email: EmailStr
+    email: str = Field(..., min_length=3, pattern=r".+@.+\..+")
     website_url: str = Field(..., min_length=1)
     name: Optional[str] = None
 
