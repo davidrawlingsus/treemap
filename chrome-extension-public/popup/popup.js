@@ -187,33 +187,54 @@ async function tryMatchClient() {
   } catch {}
   console.log("[MTG] Destination URL:", destinationUrl, "domain:", detectedDomain);
 
-  const token = await getToken();
-  if (!token) {
-    console.log("[MTG] No token — gating");
-    isGated = true;
-    return;
-  }
-
-  console.log("[MTG] Have token, calling match-client API...");
+  // First: check if a client exists for this domain (no auth needed)
+  console.log("[MTG] Checking if client exists for domain...");
   try {
-    const res = await apiFetch("/api/extension/match-client", {
+    const checkRes = await fetch(`${API_BASE}/api/extension/check-domain`, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ destination_url: destinationUrl }),
     });
-    const data = await res.json();
-    console.log("[MTG] match-client response:", res.status, data);
-    if (res.ok && data.matched) {
-      matchedClientId = data.client_id;
-      isGated = false;
-      trackEvent("client_matched", { client_id: data.client_id });
-      return;
+    if (checkRes.ok) {
+      const checkData = await checkRes.json();
+      console.log("[MTG] check-domain response:", checkData);
+      if (checkData.exists) {
+        // Client exists — warm lead, skip gate
+        matchedClientId = checkData.client_id;
+        isGated = false;
+        trackEvent("client_matched", { client_id: checkData.client_id });
+        console.log("[MTG] Warm lead — client exists, skipping gate");
+        return;
+      }
     }
   } catch (err) {
-    console.error("[MTG] match-client error:", err);
+    console.error("[MTG] check-domain error:", err);
   }
 
-  // Authenticated but no client match — still gate
-  console.log("[MTG] Authenticated but no match — gating");
+  // If authenticated, try the full membership-based match
+  const token = await getToken();
+  if (token) {
+    console.log("[MTG] Have token, calling match-client API...");
+    try {
+      const res = await apiFetch("/api/extension/match-client", {
+        method: "POST",
+        body: JSON.stringify({ destination_url: destinationUrl }),
+      });
+      const data = await res.json();
+      console.log("[MTG] match-client response:", res.status, data);
+      if (res.ok && data.matched) {
+        matchedClientId = data.client_id;
+        isGated = false;
+        trackEvent("client_matched", { client_id: data.client_id });
+        return;
+      }
+    } catch (err) {
+      console.error("[MTG] match-client error:", err);
+    }
+  }
+
+  // No client exists and not authenticated — gate
+  console.log("[MTG] No client for domain, no auth — gating");
   isGated = true;
 }
 

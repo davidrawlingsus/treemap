@@ -333,6 +333,47 @@ def analyze_review_signal(
 
 
 # ---------------------------------------------------------------------------
+# Domain check — does a client exist for this domain? (no auth needed)
+# ---------------------------------------------------------------------------
+
+class CheckDomainRequest(BaseModel):
+    destination_url: str = Field(..., description="Destination URL from extracted ads")
+
+
+@router.post("/check-domain")
+def check_domain(
+    body: CheckDomainRequest,
+    db: Session = Depends(get_db),
+):
+    """Check if any client exists for this destination URL's domain. No auth required."""
+    domain, _ = _extract_domain(body.destination_url)
+    if not domain:
+        return {"exists": False}
+
+    from app.models import AuthorizedDomain, Client
+    from app.models.authorized_domain import AuthorizedDomainClient
+    from sqlalchemy import or_
+
+    domain_parts = domain.split(".")
+    candidate_domains = []
+    for i in range(len(domain_parts) - 1):
+        candidate_domains.append(".".join(domain_parts[i:]))
+
+    client = (
+        db.query(Client)
+        .join(AuthorizedDomainClient, AuthorizedDomainClient.client_id == Client.id)
+        .join(AuthorizedDomain, AuthorizedDomain.id == AuthorizedDomainClient.domain_id)
+        .filter(AuthorizedDomain.domain.in_(candidate_domains))
+        .first()
+    )
+
+    if not client:
+        return {"exists": False}
+
+    return {"exists": True, "client_id": str(client.id), "client_name": client.name}
+
+
+# ---------------------------------------------------------------------------
 # Client matching — does this domain belong to an existing client?
 # ---------------------------------------------------------------------------
 
