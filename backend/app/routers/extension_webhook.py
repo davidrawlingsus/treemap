@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.auth import get_optional_current_user
+from app.auth import get_optional_current_user, get_current_active_founder
 from app.database import get_db
 from app.models import User, Client, AuthorizedDomain
 from app.models.extension_event import ExtensionEvent
@@ -178,3 +178,35 @@ def _do_receive_lead(body: LeadWebhookRequest, db: Session):
     )
 
     return {"status": "ok", "client_id": str(client.id), "created": True}
+
+
+# ---------------------------------------------------------------------------
+# Founder-only: delete a lead client and its associated data
+# ---------------------------------------------------------------------------
+
+@router.delete("/lead-client/{client_id}", status_code=200)
+def delete_lead_client(
+    client_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Delete a lead client and all associated records. Founder only."""
+    from app.models import Membership
+    from app.models.authorized_domain import AuthorizedDomainClient
+
+    client = db.query(Client).filter(Client.id == client_id).first()
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    if not client.is_lead:
+        raise HTTPException(status_code=400, detail="Can only delete lead clients")
+
+    name = client.name
+
+    # Delete associated records
+    db.query(Membership).filter(Membership.client_id == client.id).delete()
+    db.query(AuthorizedDomainClient).filter(AuthorizedDomainClient.client_id == client.id).delete()
+    db.delete(client)
+    db.commit()
+
+    logger.info("Deleted lead client %s (id=%s)", name, client_id)
+    return {"status": "ok", "deleted": name}
