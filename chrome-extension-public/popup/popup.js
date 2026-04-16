@@ -161,7 +161,11 @@ async function showMain(tab) {
 }
 
 async function tryMatchClient() {
-  if (!extractedAds?.length) return;
+  console.log("[MTG] tryMatchClient called. extractedAds:", extractedAds?.length || 0);
+  if (!extractedAds?.length) {
+    console.log("[MTG] No extracted ads yet, skipping match");
+    return;
+  }
 
   // Find a destination URL
   let destinationUrl = null;
@@ -171,38 +175,45 @@ async function tryMatchClient() {
       break;
     }
   }
-  if (!destinationUrl) return;
+  if (!destinationUrl) {
+    console.log("[MTG] No destination URL found in ads");
+    return;
+  }
 
   // Extract domain for analytics
   try {
     const url = new URL(destinationUrl);
     detectedDomain = url.hostname.replace("www.", "");
   } catch {}
+  console.log("[MTG] Destination URL:", destinationUrl, "domain:", detectedDomain);
 
   const token = await getToken();
   if (!token) {
-    // No auth — must gate
+    console.log("[MTG] No token — gating");
     isGated = true;
     return;
   }
 
+  console.log("[MTG] Have token, calling match-client API...");
   try {
     const res = await apiFetch("/api/extension/match-client", {
       method: "POST",
       body: JSON.stringify({ destination_url: destinationUrl }),
     });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.matched) {
-        matchedClientId = data.client_id;
-        isGated = false;
-        trackEvent("client_matched", { client_id: data.client_id });
-        return;
-      }
+    const data = await res.json();
+    console.log("[MTG] match-client response:", res.status, data);
+    if (res.ok && data.matched) {
+      matchedClientId = data.client_id;
+      isGated = false;
+      trackEvent("client_matched", { client_id: data.client_id });
+      return;
     }
-  } catch {}
+  } catch (err) {
+    console.error("[MTG] match-client error:", err);
+  }
 
   // Authenticated but no client match — still gate
+  console.log("[MTG] Authenticated but no match — gating");
   isGated = true;
 }
 
