@@ -15,6 +15,7 @@ let extractedUrl = null;
 let signalGrade = null; // numeric 1-10 score, set when signal analysis completes
 let adSynthesisText = null; // raw synthesis stream text, set when ad analysis completes
 let signalStreamText = null; // raw signal stream text, set when signal completes
+let reviewsRanWithHtml = false; // whether review detection had pre-fetched HTML
 let adCopyScore = 0; // extracted from synthesis
 let opportunityFired = false; // prevent double-firing
 let adAnalysisBlocks = new Map(); // library_id → { json, text } for import
@@ -445,24 +446,29 @@ function liftGate() {
   }
   console.log("[MTG] liftGate injected", injected, "ads");
 
-  // If review permission was granted via gate checkbox, re-run review detection with HTML
-  (async () => {
-    let hasHostPermission = false;
-    try { hasHostPermission = await chrome.permissions.contains({ origins: domainOrigin() }); } catch {}
-    if (hasHostPermission && detectedDomain) {
-      const url = `https://${detectedDomain}`;
-      let pageHtml = null;
-      try {
-        const resp = await chrome.runtime.sendMessage({ action: "fetchPageHtml", url });
-        if (resp?.success && resp.html) pageHtml = resp.html;
-      } catch {}
-      if (pageHtml) {
-        console.log("[MTG] Re-running review detection with fetched HTML");
-        runReviewDetection(url, pageHtml);
-        streamReviewSignal(url, pageHtml);
+  // Only re-run reviews if they didn't already have HTML (avoids duplicate/flickering results)
+  if (!reviewsRanWithHtml) {
+    (async () => {
+      let hasHostPermission = false;
+      try { hasHostPermission = await chrome.permissions.contains({ origins: domainOrigin() }); } catch {}
+      if (hasHostPermission && detectedDomain) {
+        const url = `https://${detectedDomain}`;
+        let pageHtml = null;
+        try {
+          const resp = await chrome.runtime.sendMessage({ action: "fetchPageHtml", url });
+          if (resp?.success && resp.html) pageHtml = resp.html;
+        } catch {}
+        if (pageHtml) {
+          console.log("[MTG] Re-running review detection with fetched HTML");
+          reviewsRanWithHtml = true;
+          runReviewDetection(url, pageHtml);
+          streamReviewSignal(url, pageHtml);
+        }
       }
-    }
-  })();
+    })();
+  } else {
+    console.log("[MTG] Reviews already ran with HTML, skipping re-run");
+  }
 
   // Try auto-import now that we're authenticated
   autoImport();
@@ -598,7 +604,10 @@ async function startAnalysis() {
       // Permission already granted — fetch HTML for enhanced review detection
       try {
         const fetchResp = await chrome.runtime.sendMessage({ action: "fetchPageHtml", url: destinationUrl });
-        if (fetchResp?.success && fetchResp.html) pageHtml = fetchResp.html;
+        if (fetchResp?.success && fetchResp.html) {
+          pageHtml = fetchResp.html;
+          reviewsRanWithHtml = true;
+        }
       } catch (e) { /* backend will use its own fetch */ }
     } else if (!isGated) {
       // Journey A (ungated) — show a prompt to enable enhanced review detection
