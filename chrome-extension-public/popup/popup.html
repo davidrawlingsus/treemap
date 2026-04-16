@@ -34,23 +34,15 @@
             <svg width="32" height="32" viewBox="0 0 24 24" fill="none"><path d="M12 15V3m0 12l-4-4m4 4l4-4" stroke="#B9F040" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 17l.621 2.485A2 2 0 004.561 21h14.878a2 2 0 001.94-1.515L22 17" stroke="#B9F040" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
           <h3 class="gate-slide__title">Unlock the full analysis</h3>
-          <p class="gate-slide__subtitle">Enter your email to reveal all ad critiques, review signal, and your opportunity score.</p>
+          <p class="gate-slide__subtitle">Enter your work email to reveal all ad critiques, review signal, and your opportunity score.</p>
           <input type="email" id="gateEmailInput" placeholder="you@company.com" autocomplete="email" class="gate-slide__input">
           <label class="gate-slide__checkbox" id="reviewPermLabel">
             <input type="checkbox" id="reviewPermCheck" checked>
             <span>Analyse my customer reviews on <strong id="reviewPermDomain"></strong></span>
           </label>
           <button id="gateEmailBtn" class="btn btn-primary gate-slide__btn">Unlock Analysis</button>
+          <p class="gate-slide__hint">Your email domain must match the advertiser's domain</p>
           <div id="gateMessage" class="message" style="display: none;"></div>
-        </div>
-        <!-- Slide 2: Check your inbox -->
-        <div id="gateSlide2" class="gate-slide" style="display: none;">
-          <div class="gate-slide__icon">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" stroke="#B9F040" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
-          <h3 class="gate-slide__title">Check your inbox</h3>
-          <p class="gate-slide__subtitle">We sent a magic link to <strong id="waitingEmail"></strong></p>
-          <p class="gate-slide__subtitle">Click it to unlock your full analysis. This panel will update automatically.</p>
         </div>
       </div>
     </div>

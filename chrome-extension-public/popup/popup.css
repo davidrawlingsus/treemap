@@ -836,6 +836,13 @@ select option {
   width: 100%;
 }
 
+.gate-slide__hint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  margin: 8px 0 0;
+  text-align: center;
+}
+
 /* Review permission prompt (Journey A — ungated) */
 .review-perm-prompt {
   text-align: center;

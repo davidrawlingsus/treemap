@@ -110,15 +110,7 @@ async function checkAuth() {
     return;
   }
 
-  // Check for pending magic link — show overlay but keep main section visible behind it
-  const { vzd_magic_link_pending } = await chrome.storage.local.get("vzd_magic_link_pending");
-  if (vzd_magic_link_pending && !token) {
-    // Show main section so analysis streams behind the overlay
-    mainSection.style.display = "block";
-    showWaiting(vzd_magic_link_pending);
-    // Analysis may already be running — don't restart
-    return;
-  }
+  // Magic link pending check removed — registration is now instant (domain match)
 
   if (token) {
     try {
@@ -253,6 +245,7 @@ gateEmailBtn?.addEventListener("click", async () => {
   if (!email) return;
 
   trackEvent("email_submitted");
+  hideMessage(gateMessage);
 
   // Request review permission if checkbox is checked (must be in click handler)
   const reviewPermCheck = $("#reviewPermCheck");
@@ -265,25 +258,38 @@ gateEmailBtn?.addEventListener("click", async () => {
     }
   }
 
+  // Find the destination URL for domain matching
+  let destinationUrl = "";
+  for (const ad of (extractedAds || [])) {
+    if (ad.destination_url && !ad.destination_url.includes("facebook.com")) {
+      destinationUrl = ad.destination_url;
+      break;
+    }
+  }
+
   try {
-    const res = await fetch(`${API_BASE}/api/auth/magic-link/request`, {
+    // Register lead — backend validates email domain matches advertiser domain
+    const res = await fetch(`${API_BASE}/api/extension/register-lead`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, source: "extension" }),
+      body: JSON.stringify({ email, destination_url: destinationUrl }),
     });
 
+    const data = await res.json();
+
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      showMessage(gateMessage, err.detail || "Failed to send magic link", "error");
+      showMessage(gateMessage, data.detail || "Registration failed", "error");
       return;
     }
 
-    await chrome.storage.local.set({ vzd_magic_link_pending: email });
-    showWaiting(email);
+    // Store the JWT token — triggers chrome.storage.onChanged → liftGate
+    console.log("[MTG] Registration successful, storing token");
+    matchedClientId = data.client_id;
+    await chrome.storage.local.set({ vzd_token: data.access_token });
+    // Gate will lift via the onChanged listener
   } catch (err) {
     showMessage(gateMessage, "Network error: " + err.message, "error");
   }
-  hideMessage(statusMessage);
 });
 
 // Login section removed — public extension uses gate email instead

@@ -181,6 +181,132 @@ def _do_receive_lead(body: LeadWebhookRequest, db: Session):
 
 
 # ---------------------------------------------------------------------------
+# Register lead — domain-matched email creates account + token instantly
+# ---------------------------------------------------------------------------
+
+class RegisterLeadRequest(BaseModel):
+    email: str = Field(..., min_length=3)
+    destination_url: str = Field(..., min_length=1)
+
+
+@router.post("/register-lead", status_code=200)
+def register_lead(
+    body: RegisterLeadRequest,
+    db: Session = Depends(get_db),
+):
+    """Register a new lead when email domain matches the advertiser domain.
+
+    Creates user, client, membership, and returns a JWT token — no magic link needed.
+    """
+    import traceback
+    try:
+        return _do_register_lead(body, db)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Register lead error: %s\n%s", str(e), traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Registration error: {str(e)}")
+
+
+def _do_register_lead(body: RegisterLeadRequest, db: Session):
+    # Extract email domain
+    email = body.email.strip().lower()
+    if "@" not in email:
+        raise HTTPException(status_code=400, detail="Invalid email address")
+    email_domain = email.split("@")[1]
+
+    # Extract advertiser domain from destination URL
+    advertiser_domain = _extract_domain(body.destination_url)
+    if not advertiser_domain:
+        raise HTTPException(status_code=400, detail="Could not extract domain from destination URL")
+
+    # Check domain match
+    # Allow exact match or email domain is parent of advertiser domain
+    # e.g. email: jane@cellexialabs.com, advertiser: lp.cellexialabs.com → match
+    if email_domain != advertiser_domain:
+        # Check if advertiser domain ends with email domain
+        if not advertiser_domain.endswith("." + email_domain):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Email domain ({email_domain}) must match the advertiser domain ({advertiser_domain})",
+            )
+
+    root_domain = email_domain  # Use the email domain as the canonical root
+    company_url = f"https://{root_domain}"
+
+    # Find or create user
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        user = User(email=email, is_active=True)
+        db.add(user)
+        db.flush()
+
+    # Find or create client for this domain
+    from app.models.authorized_domain import AuthorizedDomainClient
+
+    client = (
+        db.query(Client)
+        .join(AuthorizedDomainClient, AuthorizedDomainClient.client_id == Client.id)
+        .join(AuthorizedDomain, AuthorizedDomain.id == AuthorizedDomainClient.domain_id)
+        .filter(AuthorizedDomain.domain == root_domain)
+        .first()
+    )
+
+    if not client:
+        from app.services.leadgen_voc_service import (
+            _sanitize_slug,
+            _unique_name,
+            _unique_slug,
+            _get_default_founder_id,
+            _ensure_authorized_domain,
+        )
+
+        founder_id = _get_default_founder_id(db)
+        client = Client(
+            name=_unique_name(db, root_domain),
+            slug=_unique_slug(db, _sanitize_slug(root_domain)),
+            client_url=company_url,
+            is_lead=True,
+            is_active=True,
+            founder_user_id=founder_id,
+        )
+        db.add(client)
+        db.flush()
+        _ensure_authorized_domain(db, root_domain, client)
+
+    # Ensure membership
+    from app.models import Membership
+
+    existing_membership = (
+        db.query(Membership)
+        .filter(Membership.user_id == user.id, Membership.client_id == client.id)
+        .first()
+    )
+    if not existing_membership:
+        membership = Membership(user_id=user.id, client_id=client.id, role="viewer")
+        db.add(membership)
+
+    db.commit()
+
+    # Issue JWT token
+    from app.auth import create_access_token
+
+    access_token = create_access_token(data={"sub": user.email})
+
+    logger.info(
+        "Register lead: user=%s, client=%s (id=%s), domain=%s",
+        email, client.name, client.id, root_domain,
+    )
+
+    return {
+        "status": "ok",
+        "access_token": access_token,
+        "client_id": str(client.id),
+        "client_name": client.name,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Founder-only: delete a lead client and its associated data
 # ---------------------------------------------------------------------------
 
