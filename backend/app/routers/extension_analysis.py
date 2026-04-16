@@ -364,13 +364,22 @@ def match_client(
     from app.models.authorized_domain import AuthorizedDomainClient
 
     # Find client by authorized domain where user has membership
+    # Match exact domain OR subdomain (e.g. lp.example.com matches example.com)
+    from sqlalchemy import or_
+
+    # Build list of candidate domains: "lp.cellexialabs.com" → ["lp.cellexialabs.com", "cellexialabs.com"]
+    domain_parts = domain.split(".")
+    candidate_domains = []
+    for i in range(len(domain_parts) - 1):
+        candidate_domains.append(".".join(domain_parts[i:]))
+
     client = (
         db.query(Client)
         .join(AuthorizedDomainClient, AuthorizedDomainClient.client_id == Client.id)
         .join(AuthorizedDomain, AuthorizedDomain.id == AuthorizedDomainClient.domain_id)
         .join(Membership, Membership.client_id == Client.id)
         .filter(
-            AuthorizedDomain.domain == domain,
+            AuthorizedDomain.domain.in_(candidate_domains),
             Membership.user_id == current_user.id,
         )
         .first()
