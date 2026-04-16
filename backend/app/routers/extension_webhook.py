@@ -74,7 +74,7 @@ def track_event(
 # ---------------------------------------------------------------------------
 
 class LeadWebhookRequest(BaseModel):
-    email: str = Field(..., min_length=3, pattern=r".+@.+\..+")
+    email: str = Field(..., min_length=3)
     website_url: str = Field(..., min_length=1)
     name: Optional[str] = None
 
