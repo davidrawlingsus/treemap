@@ -296,7 +296,7 @@ def _do_register_lead(body: RegisterLeadRequest, db: Session):
     # Issue JWT token
     from app.auth import create_access_token
 
-    access_token = create_access_token(data={"sub": user.email})
+    access_token = create_access_token(data={"sub": str(user.id)})
 
     logger.info(
         "Register lead: user=%s, client=%s (id=%s), domain=%s",
