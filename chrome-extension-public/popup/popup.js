@@ -750,7 +750,7 @@ async function streamAdAnalysis() {
       $("#adAnalysisLoading").style.display = "none";
       extractCount.style.display = "none"; // hide "Found X ads" once progress starts
       injectCompletedBlocks(text);
-      container.innerHTML = `<div class="panel-status">Analyzing ${injectedCount} of ${adsToAnalyze} ads...</div>`;
+      container.innerHTML = `<div class="panel-status">Analyzing ${lastInjectedCount} of ${adsToAnalyze} ads...</div>`;
     },
     // onDone
     (text) => {
@@ -762,7 +762,7 @@ async function streamAdAnalysis() {
           chrome.tabs.sendMessage(tabId, { action: "removeLoading", adIndex: i }).catch(() => {});
         }
       }
-      container.innerHTML = `<div class="panel-status">${injectedCount} of ${adsToAnalyze} ads analyzed — generating synthesis...</div>`;
+      container.innerHTML = `<div class="panel-status">${lastInjectedCount} of ${adsToAnalyze} ads analyzed — generating synthesis...</div>`;
       // Set up grade filters on the FB page
       if (tabId) {
         chrome.tabs.sendMessage(tabId, { action: "setupGradeFilters" }).catch(() => {});
