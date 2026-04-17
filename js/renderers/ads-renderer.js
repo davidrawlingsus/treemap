@@ -738,10 +738,23 @@ function buildImportSummaryHtml() {
         `;
     }
 
+    function oppBadge(value) {
+        if (!value && value !== 0) return '';
+        const num = typeof value === 'number' ? value : parseFloat(value);
+        const pct = Math.round(num * 10);
+        const cls = num >= 7 ? 'import-score--high' : num >= 4 ? 'import-score--mid' : 'import-score--low';
+        return `
+            <div class="import-score">
+                <span class="import-score__label">Opportunity</span>
+                <span class="import-score__value ${cls}">+${pct}%</span>
+            </div>
+        `;
+    }
+
     const scores = [
         scoreBadge('Ad Copy Score', data.adCopyScore),
         scoreBadge('Review Signal', data.signalScore),
-        scoreBadge('Opportunity', data.opportunityScore),
+        oppBadge(data.opportunityScore),
     ].filter(Boolean).join('');
 
     return `

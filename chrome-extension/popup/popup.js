@@ -798,7 +798,7 @@ function renderSynthesisText(raw, streaming) {
   const sigClass = sigScore >= 7 ? "score-high" : sigScore >= 4 ? "score-mid" : "score-low";
 
   const opp = computeOpportunity(copyScore, sigScore);
-  const oppDisplay = opp !== null ? opp.score + "/10" : "—";
+  const oppDisplay = opp !== null ? "+" + Math.round(opp.score * 10) + "%" : "—";
   const oppClass = opp !== null ? (opp.score >= 7 ? "gap-high" : opp.score >= 4 ? "gap-mid" : "gap-low") : "";
   const oppExplanation = opp ? buildOpportunityExplanation(copyScore, sigScore) : "";
 
@@ -860,7 +860,7 @@ function updateGapScore() {
   if (copyScore && sigScore) {
     const opp = computeOpportunity(copyScore, sigScore);
     if (opp) {
-      gapEl.textContent = opp.score + "/10";
+      gapEl.textContent = "+" + Math.round(opp.score * 10) + "%";
       gapEl.className = `synthesis-score-value synthesis-gap-value ${opp.score >= 7 ? "gap-high" : opp.score >= 4 ? "gap-mid" : "gap-low"}`;
       // Update explanation too
       const explEl = document.querySelector(".synthesis-explanation");
@@ -946,7 +946,7 @@ function buildOpportunityOverlayHtml(raw, copyScore, sigScore, oppScore) {
                   </div>
                   <div class="vzd-opp-score-item">
                     <span class="vzd-opp-score-label">Opportunity</span>
-                    <span class="vzd-opp-score-num vzd-opp-gap">${oppScore}/10</span>
+                    <span class="vzd-opp-score-num vzd-opp-gap">+${Math.round(oppScore * 10)}%</span>
                   </div>
                 </div>
                 ${explanation ? `<p class="vzd-opp-explanation">${escHtml(explanation)}</p>` : ""}
