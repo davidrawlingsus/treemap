@@ -210,12 +210,13 @@ The Opportunity Score combines two factors: how much headroom exists in their ad
 Write using EXACTLY this format:
 
 ===OPPORTUNITY===
-HEADLINE: <1 punchy line — the core opportunity in plain language, e.g. "Your customers are writing better ads than your agency">
+HEADLINE: <1 punchy, ORIGINAL line that references something SPECIFIC from this advertiser's ads or reviews. Never use a generic headline. Pull a detail — a product name, a customer emotion, a specific weakness — and make it sting.>
 CONTRAST: <2-3 sentences showing a specific BLAND quote from their ads next to a specific RICH quote from their reviews. Make the contrast obvious and painful.>
 UNLOCK: <2-3 sentences — what becomes possible when you close this gap. Be specific about the type of ads you could build. Paint the picture.>
 ===END===
 
 Rules:
+- The HEADLINE must be unique to this advertiser. NEVER write "Your customers are writing better ads than your agency" or any generic headline. Reference their actual product, their specific weakness, or a real quote from their reviews.
 - Use actual examples from the analysis — real ad copy vs real review quotes
 - Keep it under 100 words total
 - Write like you're talking to the business owner, not a marketer
