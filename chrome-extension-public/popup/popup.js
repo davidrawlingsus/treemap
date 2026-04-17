@@ -335,6 +335,7 @@ async function autoImport() {
 
   const oppResult = computeOpportunity(adCopyScore, signalGrade);
 
+  console.log("[MTG] autoImport firing:", { useLeadgen, matchedClientId, adCount: enrichedAds.length });
   chrome.runtime.sendMessage({
     action: "startImport",
     ads: enrichedAds,
@@ -347,7 +348,11 @@ async function autoImport() {
     adCopyScore: adCopyScore || null,
     signalScore: signalGrade || null,
     opportunityScore: oppResult?.score || null,
-  }).catch(() => {});
+  }).then(resp => {
+    console.log("[MTG] autoImport response:", resp);
+  }).catch(err => {
+    console.error("[MTG] autoImport error:", err);
+  });
 }
 
 

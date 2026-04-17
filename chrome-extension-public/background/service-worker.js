@@ -230,6 +230,7 @@ async function runImport(ads, sourceUrl, clientId, leadgen = false, analysisData
     }
     postBody = JSON.stringify(payload);
 
+    console.log("[MTG SW] Import POST:", postUrl, "leadgen:", leadgen);
     const res = await fetch(postUrl, {
       method: "POST",
       headers: {
@@ -241,6 +242,7 @@ async function runImport(ads, sourceUrl, clientId, leadgen = false, analysisData
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
+      console.error("[MTG SW] Import failed:", res.status, err);
       throw new Error(err.detail || `Import failed: ${res.status}`);
     }
 
