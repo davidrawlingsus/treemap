@@ -380,7 +380,8 @@ select option {
   flex-direction: column;
   gap: 10px;
   padding: 0 0 8px;
-  margin-top: 8px;
+  margin-top: 13px;
+}
 }
 
 .skeleton-block {
