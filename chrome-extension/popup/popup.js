@@ -747,6 +747,9 @@ function buildAdCardHtml(block) {
 
 // ---- Opportunity Synthesis (streams into sidebar after all ads analyzed) ----
 function streamSynthesis(analysisText, container) {
+  const adSkeleton = $("#adAnalysisSkeleton");
+  if (adSkeleton) adSkeleton.style.display = "none";
+
   streamSSE(
     "/api/extension/synthesize",
     { analysis_text: analysisText },
@@ -1039,6 +1042,8 @@ function streamReviewSignal(destinationUrl, pageHtml) {
     // onChunk
     (text) => {
       $("#reviewSignalLoading").style.display = "none";
+      const sigSkeleton = $("#reviewSignalSkeleton");
+      if (sigSkeleton) sigSkeleton.style.display = "none";
       container.innerHTML = renderSignalText(text);
     },
     // onDone
