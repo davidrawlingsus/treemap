@@ -5,7 +5,6 @@
  */
 
 const API_BASE = "https://api.mapthegap.ai";
-// const API_BASE = "http://localhost:8000";
 
 // ---- Open side panel on icon click ----
 chrome.action.onClicked.addListener(async (tab) => {

@@ -10,9 +10,7 @@
   "host_permissions": [
     "https://www.facebook.com/ads/library/*",
     "https://api.mapthegap.ai/*",
-    "https://vizualizd.mapthegap.ai/*",
-    "http://localhost:8000/*",
-    "http://localhost:3000/*"
+    "https://vizualizd.mapthegap.ai/*"
   ],
   "optional_host_permissions": [
     "https://*/*"
@@ -31,8 +29,7 @@
     },
     {
       "matches": [
-        "*://vizualizd.mapthegap.ai/*",
-        "*://localhost/*"
+        "*://vizualizd.mapthegap.ai/*"
       ],
       "js": ["content/auth-listener.js"],
       "run_at": "document_idle"
