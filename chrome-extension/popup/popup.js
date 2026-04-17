@@ -370,9 +370,13 @@ importBtn.addEventListener("click", async () => {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
   // Enrich ads with analysis data (if analysis has run)
+  // Build index-based fallback: adAnalysisBlocks may be keyed by LLM ID field
+  // which doesn't always match library_id exactly
+  const blocksByIndex = [...adAnalysisBlocks.values()];
+
   const enrichedAds = extractedAds.map((ad, idx) => {
     const key = ad.library_id || `Ad ${idx + 1}`;
-    const analysis = adAnalysisBlocks.get(key);
+    const analysis = adAnalysisBlocks.get(key) || blocksByIndex[idx] || null;
     return {
       ...ad,
       analysis_json: analysis?.json || null,
