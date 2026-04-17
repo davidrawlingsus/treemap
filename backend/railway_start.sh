@@ -43,9 +43,6 @@ with engine.begin() as conn:
             print(f"Removed {removed} stale 054* ancestor revision row(s)")
 PY
 
-echo "🌐 Ensuring Playwright browsers and deps are installed..."
-playwright install --with-deps chromium 2>/dev/null || python -m playwright install --with-deps chromium 2>/dev/null || echo "⚠️ Playwright browser install skipped"
-
 echo "📦 Running database migrations..."
 alembic upgrade head
 
