@@ -269,7 +269,9 @@ async function runImport(ads, sourceUrl, clientId, leadgen = false, analysisData
 // ---- Message handling ----
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "startImport") {
+    console.log("[MTG SW] startImport received, current state:", importState.status);
     if (importState.status === "uploading" || importState.status === "importing") {
+      console.log("[MTG SW] Import blocked — already in progress");
       sendResponse({ started: false, error: "An import is already in progress" });
       return true;
     }

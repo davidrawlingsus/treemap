@@ -335,6 +335,9 @@ async function autoImport() {
 
   const oppResult = computeOpportunity(adCopyScore, signalGrade);
 
+  // Reset any stuck import state from previous runs
+  await chrome.runtime.sendMessage({ action: "resetImportState" }).catch(() => {});
+
   console.log("[MTG] autoImport firing:", { useLeadgen, matchedClientId, adCount: enrichedAds.length });
   chrome.runtime.sendMessage({
     action: "startImport",
@@ -349,7 +352,7 @@ async function autoImport() {
     signalScore: signalGrade || null,
     opportunityScore: oppResult?.score || null,
   }).then(resp => {
-    console.log("[MTG] autoImport response:", resp);
+    console.log("[MTG] autoImport response:", JSON.stringify(resp));
   }).catch(err => {
     console.error("[MTG] autoImport error:", err);
   });
