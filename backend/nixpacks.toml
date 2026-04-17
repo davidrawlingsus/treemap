@@ -4,4 +4,4 @@ nixPkgs = ["...", "chromium", "nss", "nspr", "atk", "cups", "libdrm", "pango", "
 
 # Extends the default Python build with explicit installs.
 [phases.install]
-cmds = ["...", "pip install google-genai>=1.0.0", "playwright install --with-deps chromium"]
+cmds = ["...", "pip install google-genai>=1.0.0", "playwright install chromium"]
