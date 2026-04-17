@@ -546,6 +546,10 @@ async function startAnalysis() {
   // Reset panels
   $("#adAnalysisLoading").style.display = "block";
   $("#adAnalysisResults").innerHTML = "";
+  const adSkel = $("#adAnalysisSkeleton");
+  if (adSkel) adSkel.style.display = "";
+  const sigSkel = $("#reviewSignalSkeleton");
+  if (sigSkel) sigSkel.style.display = "";
   $("#reviewEngineLoading").style.display = "block";
   $("#reviewEngineResults").innerHTML = "";
   $("#reviewSignalLoading").style.display = "block";
