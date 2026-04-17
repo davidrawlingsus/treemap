@@ -218,9 +218,11 @@ gateEmailBtn?.addEventListener("click", async () => {
   trackEvent("email_submitted");
   hideMessage(gateMessage);
 
-  // Request review permission if checkbox is checked (must be in click handler)
+  // Request review permission if checkbox is checked AND visible (must be in click handler)
   const reviewPermCheck = $("#reviewPermCheck");
-  if (reviewPermCheck?.checked) {
+  const reviewPermLabel = $("#reviewPermLabel");
+  const checkboxVisible = reviewPermLabel && reviewPermLabel.style.display !== "none";
+  if (reviewPermCheck?.checked && checkboxVisible) {
     try {
       const granted = await chrome.permissions.request({ origins: domainOrigin() });
     } catch (err) {
