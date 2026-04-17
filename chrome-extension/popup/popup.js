@@ -1014,7 +1014,7 @@ function renderReviewEngine(data) {
     <div class="platform-card">
       <div class="platform-row">
         <span class="platform-name">${p.review_url ? `<a href="${escHtml(p.review_url)}" target="_blank" class="platform-link">${escHtml(p.platform_display)}</a>` : escHtml(p.platform_display)}</span>
-        <span class="confidence-badge confidence-${p.confidence}">${p.confidence === "high" ? "Embedded" : p.confidence === "medium" ? "Detected" : "Fallback"}</span>
+        <span class="confidence-badge confidence-${p.confidence}">Detected</span>
       </div>
     </div>
   `
@@ -1072,6 +1072,17 @@ function renderSignalText(raw) {
     const reviewCount = getSrc("REVIEWS");
     if (platform && platform !== "None") {
       html += `<div class="signal-source">Analyzing ${reviewCount} reviews from <strong>${escHtml(platform)}</strong></div>`;
+      // Update review engine section to show only the chosen platform
+      const engineContainer = $("#reviewEngineResults");
+      if (engineContainer) {
+        engineContainer.innerHTML = `
+          <div class="platform-card">
+            <div class="platform-row">
+              <span class="platform-name">${escHtml(platform)}</span>
+              <span class="confidence-badge confidence-high">Extracting</span>
+            </div>
+          </div>`;
+      }
     }
   }
 
