@@ -346,11 +346,11 @@ async function autoImport() {
     clientId: useLeadgen ? null : matchedClientId,
     tabId: tab?.id || null,
     leadgen: useLeadgen,
-    synthesisText: adSynthesisText || null,
-    signalText: signalStreamText || null,
-    adCopyScore: adCopyScore || null,
-    signalScore: signalGrade || null,
-    opportunityScore: oppResult?.score || null,
+    synthesisText: adSynthesisText ?? null,
+    signalText: signalStreamText ?? null,
+    adCopyScore: adCopyScore > 0 ? adCopyScore : null,
+    signalScore: signalGrade > 0 ? signalGrade : null,
+    opportunityScore: oppResult?.score > 0 ? oppResult.score : null,
   }).then(resp => {
     console.log("[MTG] autoImport response:", JSON.stringify(resp));
   }).catch(err => {

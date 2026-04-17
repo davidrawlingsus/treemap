@@ -422,10 +422,11 @@ def get_voc_clients(
     
     # Include clients with ad library imports (even if no VoC data)
     from app.models import AdLibraryImport
+    from app.models import AdLibraryAd
     import_clients = (
         db.query(Client)
         .join(AdLibraryImport, AdLibraryImport.client_id == Client.id)
-        .filter(AdLibraryImport.ad_copy_score.isnot(None))
+        .join(AdLibraryAd, AdLibraryAd.import_id == AdLibraryImport.id)
         .distinct()
         .all()
     )
