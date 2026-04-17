@@ -201,6 +201,17 @@ function buildInlineCritiqueHtml(analysis) {
 
     const grade = escapeHtml(analysis.grade || '');
 
+    const gradeColors = {
+        'A': 'background:#dcfce7;color:#166534;', 'A+': 'background:#dcfce7;color:#166534;', 'A-': 'background:#dcfce7;color:#166534;',
+        'B': 'background:#ecfccb;color:#3f6212;', 'B+': 'background:#ecfccb;color:#3f6212;', 'B-': 'background:#ecfccb;color:#3f6212;',
+        'C': 'background:#fef9c3;color:#854d0e;', 'C+': 'background:#fef9c3;color:#854d0e;', 'C-': 'background:#fef9c3;color:#854d0e;',
+        'D': 'background:#fee2e2;color:#991b1b;', 'D+': 'background:#fee2e2;color:#991b1b;', 'D-': 'background:#fee2e2;color:#991b1b;',
+        'F': 'background:#fecaca;color:#7f1d1d;',
+    };
+
+    const latencyColors = { 'low': 'background:#dcfce7;color:#166534;', 'medium': 'background:#fef9c3;color:#854d0e;', 'high': 'background:#fee2e2;color:#991b1b;' };
+    const funnelColors = { 'tof': 'background:#dbeafe;color:#1e40af;', 'mof': 'background:#ede9fe;color:#5b21b6;', 'bof': 'background:#dcfce7;color:#166534;' };
+
     function parseScoreField(raw) {
         if (!raw) return null;
         const m = raw.match(/^(\d+)\s*(?:\/10\s*)?[—–\-]\s*(.+)$/);
@@ -209,54 +220,57 @@ function buildInlineCritiqueHtml(analysis) {
         return numOnly ? { num: parseInt(numOnly[1], 10), text: '' } : null;
     }
 
-    function scoreColor(num) {
-        return num >= 7 ? 'vzd-score-high' : num >= 4 ? 'vzd-score-mid' : 'vzd-score-low';
+    function scoreColorStyle(num) {
+        return num >= 7 ? 'color:#166534;' : num >= 4 ? 'color:#a16207;' : 'color:#b91c1c;';
     }
 
     function scoreRow(label, raw) {
         const s = parseScoreField(raw);
         if (!s) return '';
         return `
-            <div class="vzd-dimension">
-                <div class="vzd-score-item">
-                    <span class="vzd-score-label">${escapeHtml(label)}</span>
-                    <span class="vzd-score-val ${scoreColor(s.num)}">${s.num}/10</span>
+            <div style="padding:5px 0;border-bottom:1px solid #f0f2f5;">
+                <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;gap:8px;">
+                    <span style="color:#1c1e21;font-weight:700;font-size:11px;">${escapeHtml(label)}</span>
+                    <span style="font-weight:800;font-size:12px;${scoreColorStyle(s.num)}">${s.num}/10</span>
                 </div>
-                ${s.text ? `<div class="vzd-score-reason">${escapeHtml(s.text)}</div>` : ''}
+                ${s.text ? `<div style="font-size:11px;color:#4b4f56;line-height:1.4;margin-top:1px;">${escapeHtml(s.text)}</div>` : ''}
             </div>`;
     }
 
-    function tagRow(label, raw, prefix) {
+    function tagRow(label, raw, colorMap) {
         if (!raw) return '';
         const m = raw.match(/^(\S+)\s*[—–\-]\s*(.+)$/);
         if (m) {
+            const tagStyle = colorMap[m[1].toLowerCase()] || 'background:rgba(55,53,47,0.06);color:#1c1e21;';
             return `
-                <div class="vzd-dimension">
-                    <div class="vzd-score-item">
-                        <span class="vzd-score-label">${escapeHtml(label)}</span>
-                        <span class="vzd-tag ${prefix}-${m[1].toLowerCase()}">${escapeHtml(m[1])}</span>
+                <div style="padding:5px 0;border-bottom:1px solid #f0f2f5;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;gap:8px;">
+                        <span style="color:#1c1e21;font-weight:700;font-size:11px;">${escapeHtml(label)}</span>
+                        <span style="display:inline-block;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.3px;${tagStyle}">${escapeHtml(m[1])}</span>
                     </div>
-                    <div class="vzd-score-reason">${escapeHtml(m[2])}</div>
+                    <div style="font-size:11px;color:#4b4f56;line-height:1.4;margin-top:1px;">${escapeHtml(m[2])}</div>
                 </div>`;
         }
-        return `<div class="vzd-dimension"><div class="vzd-score-item"><span class="vzd-score-label">${escapeHtml(label)}</span></div><div class="vzd-score-reason">${escapeHtml(raw)}</div></div>`;
+        return `<div style="padding:5px 0;border-bottom:1px solid #f0f2f5;"><div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;"><span style="color:#1c1e21;font-weight:700;font-size:11px;">${escapeHtml(label)}</span></div><div style="font-size:11px;color:#4b4f56;line-height:1.4;margin-top:1px;">${escapeHtml(raw)}</div></div>`;
     }
 
+    const gradeStyle = gradeColors[grade] || 'background:#f0f2f5;color:#1c1e21;';
+
     return `
-        <div class="vzd-analysis">
-            <div class="vzd-grade-row">
-                ${grade ? `<span class="vzd-grade vzd-grade-${grade}">${grade}</span>` : ''}
-                ${analysis.verdict ? `<span class="vzd-verdict">${escapeHtml(analysis.verdict)}</span>` : ''}
+        <div style="margin:0;padding:14px 16px;background:#fff;border-left:3px solid #B9F040;border-top:1px solid #e4e6eb;font-family:Lato,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:#1c1e21;line-height:1.4;box-sizing:border-box;">
+            <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:6px;">
+                ${grade ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;font-size:14px;font-weight:900;flex-shrink:0;${gradeStyle}">${grade}</span>` : ''}
+                ${analysis.verdict ? `<span style="font-size:13px;font-weight:700;color:#1c1e21;line-height:1.3;">${escapeHtml(analysis.verdict)}</span>` : ''}
             </div>
-            ${analysis.weakness ? `<div class="vzd-weakness">Weakness: ${escapeHtml(analysis.weakness)}</div>` : ''}
+            ${analysis.weakness ? `<div style="font-size:12px;color:#b91c1c;margin-bottom:6px;line-height:1.3;padding-left:38px;">Weakness: ${escapeHtml(analysis.weakness)}</div>` : ''}
             ${scoreRow('Hook', analysis.hook)}
             ${scoreRow('Mind Movie', analysis.mind_movie)}
             ${scoreRow('Specificity', analysis.specificity)}
             ${scoreRow('Emotion', analysis.emotion)}
             ${scoreRow('VoC Density', analysis.voc_density)}
-            ${tagRow('Latency', analysis.latency, 'vzd-latency')}
-            ${tagRow('Funnel', analysis.funnel, 'vzd-funnel')}
-            ${analysis.longevity ? `<div class="vzd-longevity">${escapeHtml(analysis.longevity)}</div>` : ''}
+            ${tagRow('Latency', analysis.latency, latencyColors)}
+            ${tagRow('Funnel', analysis.funnel, funnelColors)}
+            ${analysis.longevity ? `<div style="margin-top:6px;padding-top:6px;border-top:1px solid #f0f2f5;font-size:11px;color:#8a8d91;font-style:italic;line-height:1.3;">${escapeHtml(analysis.longevity)}</div>` : ''}
         </div>`;
 }
 
