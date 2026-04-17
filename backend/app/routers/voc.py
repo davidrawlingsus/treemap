@@ -420,6 +420,26 @@ def get_voc_clients(
                 # For the frontend, we can use client_name as identifier
                 pass
     
+    # Include clients with ad library imports (even if no VoC data)
+    from app.models import AdLibraryImport
+    import_clients = (
+        db.query(Client)
+        .join(AdLibraryImport, AdLibraryImport.client_id == Client.id)
+        .filter(AdLibraryImport.ad_copy_score.isnot(None))
+        .distinct()
+        .all()
+    )
+    for client in import_clients:
+        if client.id not in client_map:
+            client_map[client.id] = {
+                'client_uuid': client.id,
+                'client_name': client.name,
+                'data_source_count': 0,
+                'logo_url': client.logo_url,
+                'header_color': client.header_color,
+                'is_lead': client.is_lead,
+            }
+
     # Filter to only clients the user can access
     scoped_client_id = getattr(current_user, '_api_key_client_id', None)
     if scoped_client_id:
