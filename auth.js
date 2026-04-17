@@ -300,7 +300,6 @@
     const email = params.get('email');
     const source = params.get('source');
 
-    console.log('[MAGIC LINK] params:', { token: token?.substring(0, 10), email, source });
 
     if (!token || !email) {
       return false;
@@ -313,9 +312,7 @@
     const processingState = global.sessionStorage.getItem(magicLinkKey);
 
     if (processingState === 'processing' || processingState === 'completed') {
-      console.log('[MAGIC LINK] Already processed, state:', processingState, 'source was:', source);
       if (processingState === 'completed' && source === 'extension') {
-        console.log('[MAGIC LINK] Re-showing extension redirect for completed link');
         showExtensionRedirect();
       }
       return processingState === 'completed';
@@ -354,9 +351,7 @@
       global.sessionStorage.setItem(magicLinkKey, 'completed');
 
       // If this magic link was initiated from the extension, show a "go back" page
-      console.log('[MAGIC LINK] Verification complete, source:', source);
       if (source === 'extension') {
-        console.log('[MAGIC LINK] Showing extension redirect');
         showExtensionRedirect();
       }
 

@@ -36,8 +36,6 @@ function domainOrigin() {
 // ---- DOM refs ----
 const mainSection = $("#mainSection");
 const wrongPageSection = $("#wrongPageSection");
-const waitingSection = $("#waitingSection");
-const waitingEmail = $("#waitingEmail");
 const userEmail = $("#userEmail");
 const extractBtn = $("#extractBtn");
 const extractResult = $("#extractResult");
@@ -72,7 +70,7 @@ async function setToken(token) {
 }
 
 async function clearToken() {
-  await chrome.storage.local.remove(["vzd_token", "vzd_email", "vzd_magic_link_pending"]);
+  await chrome.storage.local.remove(["vzd_token", "vzd_email"]);
 }
 
 async function apiFetch(path, options = {}) {
@@ -84,9 +82,7 @@ async function apiFetch(path, options = {}) {
 }
 
 // ---- Check if import is in progress ----
-// Import state checking removed — auto-import runs silently
 
-// Import progress functions removed — auto-import runs silently
 
 // ---- Analytics ----
 function trackEvent(event, metadata = {}) {
@@ -112,14 +108,11 @@ async function checkAuth() {
     return;
   }
 
-  // Magic link pending check removed — registration is now instant (domain match)
-
   if (token) {
     try {
       const res = await apiFetch("/api/auth/me");
       if (res.ok) {
         const user = await res.json();
-        await chrome.storage.local.remove("vzd_magic_link_pending");
         userEmail.textContent = user.email || "";
       } else {
         await clearToken();
@@ -131,18 +124,6 @@ async function checkAuth() {
 
   // Show main section and start analysis (gated or ungated)
   await showMain(tab);
-}
-
-function showWaiting(email) {
-  // Slide from email input to "check your inbox" within the overlay
-  const slide1 = $("#gateSlide1");
-  const slide2 = $("#gateSlide2");
-  if (slide1) slide1.style.display = "none";
-  if (slide2) slide2.style.display = "block";
-  waitingEmail.textContent = email;
-  // Ensure overlay is visible
-  const overlay = $("#gateOverlay");
-  if (overlay) overlay.style.display = "flex";
 }
 
 async function showMain(tab) {
@@ -160,9 +141,7 @@ async function showMain(tab) {
 }
 
 async function tryMatchClient() {
-  console.log("[MTG] tryMatchClient called. extractedAds:", extractedAds?.length || 0);
   if (!extractedAds?.length) {
-    console.log("[MTG] No extracted ads yet, skipping match");
     return;
   }
 
@@ -175,7 +154,6 @@ async function tryMatchClient() {
     }
   }
   if (!destinationUrl) {
-    console.log("[MTG] No destination URL found in ads");
     return;
   }
 
@@ -184,10 +162,8 @@ async function tryMatchClient() {
     const url = new URL(destinationUrl);
     detectedDomain = url.hostname.replace("www.", "");
   } catch {}
-  console.log("[MTG] Destination URL:", destinationUrl, "domain:", detectedDomain);
 
   // First: check if a client exists for this domain (no auth needed)
-  console.log("[MTG] Checking if client exists for domain...");
   try {
     const checkRes = await fetch(`${API_BASE}/api/extension/check-domain`, {
       method: "POST",
@@ -196,31 +172,26 @@ async function tryMatchClient() {
     });
     if (checkRes.ok) {
       const checkData = await checkRes.json();
-      console.log("[MTG] check-domain response:", checkData);
       if (checkData.exists) {
         // Client exists — warm lead, skip gate
         matchedClientId = checkData.client_id;
         isGated = false;
         trackEvent("client_matched", { client_id: checkData.client_id });
-        console.log("[MTG] Warm lead — client exists, skipping gate");
         return;
       }
     }
   } catch (err) {
-    console.error("[MTG] check-domain error:", err);
   }
 
   // If authenticated, try the full membership-based match
   const token = await getToken();
   if (token) {
-    console.log("[MTG] Have token, calling match-client API...");
     try {
       const res = await apiFetch("/api/extension/match-client", {
         method: "POST",
         body: JSON.stringify({ destination_url: destinationUrl }),
       });
       const data = await res.json();
-      console.log("[MTG] match-client response:", res.status, data);
       if (res.ok && data.matched) {
         matchedClientId = data.client_id;
         isGated = false;
@@ -228,12 +199,10 @@ async function tryMatchClient() {
         return;
       }
     } catch (err) {
-      console.error("[MTG] match-client error:", err);
     }
   }
 
   // No client exists and not authenticated — gate
-  console.log("[MTG] No client for domain, no auth — gating");
   isGated = true;
 }
 
@@ -254,9 +223,7 @@ gateEmailBtn?.addEventListener("click", async () => {
   if (reviewPermCheck?.checked) {
     try {
       const granted = await chrome.permissions.request({ origins: domainOrigin() });
-      console.log("[MTG] Review permission granted:", granted);
     } catch (err) {
-      console.log("[MTG] Review permission request failed:", err);
     }
   }
 
@@ -285,7 +252,6 @@ gateEmailBtn?.addEventListener("click", async () => {
     }
 
     // Store the JWT token — triggers chrome.storage.onChanged → liftGate
-    console.log("[MTG] Registration successful, storing token");
     matchedClientId = data.client_id;
     await chrome.storage.local.set({ vzd_token: data.access_token });
     // Gate will lift via the onChanged listener
@@ -294,9 +260,7 @@ gateEmailBtn?.addEventListener("click", async () => {
   }
 });
 
-// Login section removed — public extension uses gate email instead
 
-// Logout removed — public extension doesn't have a logout button
 
 // ---- Auto-extract on popup open ----
 async function autoExtractAndAnalyze(tab) {
@@ -385,23 +349,18 @@ async function autoImport() {
   }).catch(() => {});
 }
 
-// Import progress listener removed — auto-import runs silently
 
 // ---- Listen for auth changes (gate lifting) ----
 chrome.storage.onChanged.addListener(async (changes, area) => {
-  console.log("[MTG] storage.onChanged:", area, Object.keys(changes));
   if (area === "local" && changes.vzd_token?.newValue) {
     const wasGated = isGated;
-    console.log("[MTG] Token detected! wasGated:", wasGated, "adAnalysisBlocks size:", adAnalysisBlocks.size);
     trackEvent("magic_link_clicked");
 
     // Try to match client now that we're authenticated
     await tryMatchClient();
-    console.log("[MTG] After tryMatchClient: isGated:", isGated, "matchedClientId:", matchedClientId);
 
     // Lift gate if we WERE gated (tryMatchClient may have already set isGated=false)
     if (wasGated) {
-      console.log("[MTG] Lifting gate...");
       liftGate();
     }
   }
@@ -423,7 +382,6 @@ function showEmailGate() {
 }
 
 function liftGate() {
-  console.log("[MTG] liftGate called. adsLibraryTabId:", adsLibraryTabId, "adAnalysisBlocks size:", adAnalysisBlocks.size);
   trackEvent("gate_lifted");
   isGated = false;
 
@@ -440,17 +398,14 @@ function liftGate() {
     if (idx >= GATE_AD_THRESHOLD) {
       const html = buildAdCardHtml(text);
       const grade = getField(text, "GRADE");
-      console.log("[MTG] Injecting gated ad idx:", idx, "key:", key, "grade:", grade, "tabId:", tabId);
       if (tabId) {
         chrome.tabs.sendMessage(tabId, { action: "injectAnalysis", adIndex: idx, html, grade }).catch((err) => {
-          console.error("[MTG] Failed to inject ad", idx, err);
         });
         injected++;
       }
     }
     idx++;
   }
-  console.log("[MTG] liftGate injected", injected, "ads");
 
   // Only re-run reviews if they didn't already succeed (avoids duplicate/flickering results)
   if (!reviewsRanWithHtml && !reviewsFoundPlatforms) {
@@ -465,7 +420,6 @@ function liftGate() {
           if (resp?.success && resp.html) pageHtml = resp.html;
         } catch {}
         if (pageHtml) {
-          console.log("[MTG] Re-running review detection with fetched HTML");
           reviewsRanWithHtml = true;
           runReviewDetection(url, pageHtml);
           streamReviewSignal(url, pageHtml);
@@ -473,7 +427,6 @@ function liftGate() {
       }
     })();
   } else {
-    console.log("[MTG] Reviews already completed successfully, skipping re-run");
   }
 
   // Try auto-import now that we're authenticated
@@ -549,7 +502,6 @@ function restoreFromCache(cached) {
     extractCount.textContent = `Cached analysis from ${dateStr}`;
   }
 
-  console.log("[MTG] Restored from cache:", cached.ads?.length, "ads, scores:", adCopyScore, signalGrade);
 }
 
 // ---- Auto-analysis after extraction ----
@@ -567,13 +519,11 @@ async function startAnalysis() {
       if (cacheRes.ok) {
         const cached = await cacheRes.json();
         if (cached.cached && cached.ads?.length) {
-          console.log("[MTG] Cached results found, restoring from import", cached.import_id);
           restoreFromCache(cached);
           return;
         }
       }
     } catch (err) {
-      console.log("[MTG] Cache check failed, running fresh analysis:", err);
     }
   }
 
