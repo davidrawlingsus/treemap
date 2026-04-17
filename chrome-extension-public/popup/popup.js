@@ -443,8 +443,8 @@ function liftGate() {
   } else {
   }
 
-  // Try auto-import now that we're authenticated
-  autoImport();
+  // Don't auto-import here — analysis is still running.
+  // autoImport() fires from checkAndFireOpportunity() when both analyses complete.
 }
 
 // =========================================================================
