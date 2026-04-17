@@ -255,8 +255,9 @@ async function fetchCurrentAds(clientId) {
     const imports = importsData.items || [];
     if (!imports.length) return [];
 
-    // Get latest import with full ads
-    const latestId = imports[0].id;
+    // Get most recent import that has ads (skip empty ones from dedup)
+    const withAds = imports.find(i => i.ad_count > 0);
+    const latestId = withAds ? withAds.id : imports[0].id;
     const detailRes = await fetch(`${apiBase}/api/clients/${clientId}/ad-library-imports/${latestId}`, { headers });
     if (!detailRes.ok) throw new Error('Failed to load import details');
     const detail = await detailRes.json();
