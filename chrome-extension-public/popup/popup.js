@@ -452,8 +452,8 @@ function liftGate() {
   }
   console.log("[MTG] liftGate injected", injected, "ads");
 
-  // Only re-run reviews if they didn't already have HTML (avoids duplicate/flickering results)
-  if (!reviewsRanWithHtml) {
+  // Only re-run reviews if they didn't already succeed (avoids duplicate/flickering results)
+  if (!reviewsRanWithHtml && !reviewsFoundPlatforms) {
     (async () => {
       let hasHostPermission = false;
       try { hasHostPermission = await chrome.permissions.contains({ origins: domainOrigin() }); } catch {}
@@ -473,7 +473,7 @@ function liftGate() {
       }
     })();
   } else {
-    console.log("[MTG] Reviews already ran with HTML, skipping re-run");
+    console.log("[MTG] Reviews already completed successfully, skipping re-run");
   }
 
   // Try auto-import now that we're authenticated
