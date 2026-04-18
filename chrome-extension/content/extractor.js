@@ -812,7 +812,7 @@
         }
         .vzd-opp-panel-content {
           padding: 0 60px 40px;
-          height: 750px;
+          min-height: 600px;
           max-height: 92vh;
           overflow-y: auto;
           display: flex;
@@ -863,11 +863,13 @@
         .vzd-opp-high { color: #B9F040; }
         .vzd-opp-gap { color: #B9F040; }
         .vzd-opp-headline {
-          font-size: 36px;
+          font-size: clamp(20px, 3.5vw, 36px);
           font-weight: 900;
           line-height: 1.2;
-          margin-bottom: 35px;
+          margin-bottom: 24px;
           color: #fff;
+          overflow-wrap: break-word;
+          word-wrap: break-word;
           text-align: center;
         }
         .vzd-opp-explanation {
@@ -878,13 +880,13 @@
           line-height: 1.4;
         }
         .vzd-opp-contrast {
-          font-size: 16px;
+          font-size: clamp(13px, 1.5vw, 16px);
           color: #fff;
           line-height: 1.6;
           margin-bottom: 16px;
         }
         .vzd-opp-unlock {
-          font-size: 16px;
+          font-size: clamp(13px, 1.5vw, 16px);
           color: #fff;
           line-height: 1.6;
           margin-bottom: 24px;
