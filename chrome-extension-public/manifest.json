@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "MapTheGap — Ad Intelligence",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Grade your Facebook ads instantly. See what's working, what's not, and where the opportunity is.",
   "permissions": ["activeTab", "storage", "sidePanel"],
   "background": {
