@@ -318,6 +318,11 @@ def analyze_review_signal(
     )
 
     if not fetch_result.reviews:
+        trace_lines = getattr(fetch_result, "trace", None) or []
+        logger.warning(
+            "[review-signal] No reviews for %s. Trace: %s",
+            domain, " | ".join(trace_lines),
+        )
         def no_reviews_gen():
             yield source_line
             yield "===SUMMARY===\n"
