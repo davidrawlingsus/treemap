@@ -55,7 +55,7 @@ def _build_actor_input(domain: str, min_reviews: int) -> Dict[str, Any]:
         "companyWebsite": review_url,
         "contentToExtract": "reviews",
         "sortBy": "recency",
-        "filterByStarRating": "",
+        "filterByStarRating": "all",
         "filterByLanguage": "",
         "filterByVerified": False,
         "filterByCountryOfReviewers": "",
