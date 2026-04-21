@@ -2292,6 +2292,22 @@ body.slideout-open .treemap-header.search-active .treemap-search-clear {
     font-weight: 500;
 }
 
+.inline-filter-toggle-all {
+    padding: 6px 12px;
+    margin-bottom: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    font-family: 'Lato', sans-serif;
+    color: #2563eb;
+    border-bottom: 1px solid rgba(55, 53, 47, 0.09);
+    user-select: none;
+}
+
+.inline-filter-toggle-all:hover {
+    background: rgba(37, 99, 235, 0.06);
+    text-decoration: underline;
+}
+
 .inline-filter-checkbox {
     width: 16px;
     height: 16px;

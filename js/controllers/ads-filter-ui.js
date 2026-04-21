@@ -4,8 +4,10 @@
  * Follows controller pattern - UI orchestration for filter components.
  */
 
-import { 
-    getAdsFilters, addAdsFilter, removeAdsFilter, clearAdsFilters 
+import {
+    getAdsFilters, addAdsFilter, removeAdsFilter, clearAdsFilters,
+    clearAdsFilterField,
+    getAdsActiveFilterFields, addAdsActiveFilterField, removeAdsActiveFilterField
 } from '/js/state/ads-state.js';
 import { escapeHtml, escapeHtmlForAttribute } from '/js/utils/dom.js';
 
@@ -111,32 +113,24 @@ function toggleExistingDropdown(dropdown, fieldId) {
  */
 function createInlineFilterDropdown(fieldId, field, getUniqueFilterValues, onFilterChange) {
     const values = getUniqueFilterValues(fieldId);
-    const filters = getAdsFilters();
-    
+
+    // Mark this field as active so the filter logic knows to apply OR matching.
+    addAdsActiveFilterField(fieldId);
+
+    // On first open (no prior selections for this field), pre-select all values
+    // so the visible ads match what the user sees — unchecking then narrows.
+    const existingForField = getAdsFilters().filter(f => f.field === fieldId);
+    if (existingForField.length === 0) {
+        values.forEach(v => addAdsFilter(fieldId, v));
+    }
+
     const filterChipsContainer = document.getElementById('adsFilterChips');
     if (!filterChipsContainer) return;
-    
+
     const inlineFilter = document.createElement('div');
     inlineFilter.className = 'inline-filter-dropdown';
     inlineFilter.id = `ads-inline-filter-${fieldId}`;
-    
-    const optionsHTML = values.map(value => {
-        const isSelected = filters.some(f => f.field === fieldId && f.value === value);
-        const escapedValue = escapeHtml(value);
-        const attrValue = escapeHtmlForAttribute(value);
-        return `
-            <div class="inline-filter-option ${isSelected ? 'selected' : ''}" 
-                 data-filter-value="${escapedValue}"
-                 onclick="event.stopPropagation(); toggleAdsInlineFilterValue('${fieldId}', '${attrValue}')">
-                <input type="checkbox" class="inline-filter-checkbox" ${isSelected ? 'checked' : ''} 
-                       data-filter-value="${escapedValue}"
-                       onclick="event.stopPropagation()" 
-                       onchange="event.stopPropagation(); toggleAdsInlineFilterValue('${fieldId}', '${attrValue}')">
-                <span>${escapedValue || '(empty)'}</span>
-            </div>
-        `;
-    }).join('');
-    
+
     inlineFilter.innerHTML = `
         <div class="inline-filter-header open" onclick="toggleAdsInlineFilterDropdown('${fieldId}', event)">
             <span class="inline-filter-icon">${field.icon}</span>
@@ -144,13 +138,48 @@ function createInlineFilterDropdown(fieldId, field, getUniqueFilterValues, onFil
             <span class="inline-filter-chevron">▼</span>
         </div>
         <div class="inline-filter-options open" style="display: block;">
-            ${optionsHTML}
+            ${buildInlineFilterOptionsHTML(fieldId, values)}
         </div>
         <div class="inline-filter-remove" onclick="event.stopPropagation(); removeAdsInlineFilter('${fieldId}')" title="Remove filter">×</div>
     `;
-    
+
     filterChipsContainer.appendChild(inlineFilter);
     setTimeout(() => updateAdsInlineFilterHeader(fieldId), 0);
+    if (onFilterChange) onFilterChange();
+}
+
+/**
+ * Build the options HTML (Select all/Clear all toggle + checkboxes) for a field.
+ */
+function buildInlineFilterOptionsHTML(fieldId, values) {
+    const filters = getAdsFilters();
+    const selectedCount = filters.filter(f => f.field === fieldId).length;
+    const allSelected = selectedCount === values.length && values.length > 0;
+    const toggleLabel = allSelected ? 'Clear all' : 'Select all';
+
+    const options = values.map(value => {
+        const isSelected = filters.some(f => f.field === fieldId && f.value === value);
+        const escapedValue = escapeHtml(value);
+        const attrValue = escapeHtmlForAttribute(value);
+        return `
+            <div class="inline-filter-option ${isSelected ? 'selected' : ''}"
+                 data-filter-value="${escapedValue}"
+                 onclick="event.stopPropagation(); toggleAdsInlineFilterValue('${fieldId}', '${attrValue}')">
+                <input type="checkbox" class="inline-filter-checkbox" ${isSelected ? 'checked' : ''}
+                       data-filter-value="${escapedValue}"
+                       onclick="event.stopPropagation()"
+                       onchange="event.stopPropagation(); toggleAdsInlineFilterValue('${fieldId}', '${attrValue}')">
+                <span>${escapedValue || '(empty)'}</span>
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <div class="inline-filter-toggle-all" onclick="event.stopPropagation(); toggleAdsInlineFilterAll('${fieldId}')">
+            ${toggleLabel}
+        </div>
+        ${options}
+    `;
 }
 
 /**
@@ -199,21 +228,57 @@ export function toggleAdsInlineFilterValue(fieldId, value, onFilterChange) {
 export function updateAdsInlineFilterOptions(fieldId) {
     const dropdown = document.getElementById(`ads-inline-filter-${fieldId}`);
     if (!dropdown) return;
-    
+
     const options = dropdown.querySelectorAll('.inline-filter-option');
     const filters = getAdsFilters();
-    
+
+    let selectedCount = 0;
     options.forEach(option => {
         const checkbox = option.querySelector('.inline-filter-checkbox');
         const value = option.getAttribute('data-filter-value') || checkbox?.getAttribute('data-filter-value');
         if (!value) return;
-        
+
         const isSelected = filters.some(f => f.field === fieldId && f.value === value);
         checkbox.checked = isSelected;
         option.classList.toggle('selected', isSelected);
+        if (isSelected) selectedCount++;
     });
-    
+
+    const toggleAll = dropdown.querySelector('.inline-filter-toggle-all');
+    if (toggleAll) {
+        const allSelected = options.length > 0 && selectedCount === options.length;
+        toggleAll.textContent = allSelected ? 'Clear all' : 'Select all';
+    }
+
     updateAdsInlineFilterHeader(fieldId);
+}
+
+/**
+ * Toggle all values in a field on or off.
+ * If all are selected → clears them (user sees 0 ads for this field).
+ * Otherwise → selects all (user sees all ads for this field).
+ */
+export function toggleAdsInlineFilterAll(fieldId, onFilterChange) {
+    const dropdown = document.getElementById(`ads-inline-filter-${fieldId}`);
+    if (!dropdown) return;
+
+    const options = dropdown.querySelectorAll('.inline-filter-option');
+    const filters = getAdsFilters();
+    const selectedCount = filters.filter(f => f.field === fieldId).length;
+    const allSelected = options.length > 0 && selectedCount === options.length;
+
+    if (allSelected) {
+        clearAdsFilterField(fieldId);
+    } else {
+        clearAdsFilterField(fieldId);
+        options.forEach(option => {
+            const value = option.getAttribute('data-filter-value');
+            if (value != null) addAdsFilter(fieldId, value);
+        });
+    }
+
+    updateAdsInlineFilterOptions(fieldId);
+    if (onFilterChange) onFilterChange();
 }
 
 /**
@@ -247,15 +312,12 @@ export function updateAdsInlineFilterHeader(fieldId) {
  * @param {Function} onFilterChange - Callback when filter changes
  */
 export function removeAdsInlineFilter(fieldId, onFilterChange) {
-    const filters = getAdsFilters();
-    const remaining = filters.filter(f => f.field !== fieldId);
-    
-    clearAdsFilters();
-    remaining.forEach(f => addAdsFilter(f.field, f.value));
-    
+    clearAdsFilterField(fieldId);
+    removeAdsActiveFilterField(fieldId);
+
     const dropdown = document.getElementById(`ads-inline-filter-${fieldId}`);
     if (dropdown) dropdown.remove();
-    
+
     if (onFilterChange) onFilterChange();
 }
 
@@ -265,8 +327,8 @@ export function removeAdsInlineFilter(fieldId, onFilterChange) {
 export function updateAdsFilterBadge() {
     const badge = document.getElementById('adsFilterBadge');
     if (!badge) return;
-    
-    const filters = getAdsFilters();
-    badge.textContent = filters.length > 0 ? filters.length : '';
-    badge.style.display = filters.length > 0 ? 'flex' : 'none';
+
+    const count = getAdsActiveFilterFields().size;
+    badge.textContent = count > 0 ? count : '';
+    badge.style.display = count > 0 ? 'flex' : 'none';
 }

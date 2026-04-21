@@ -13,6 +13,7 @@ let adsCurrentClientId = null;
 // Filter/Sort/Search state
 let adsSearchTerm = '';
 let adsFilters = [];  // [{field: 'angle', value: 'Social Proof'}, ...]
+let adsActiveFilterFields = new Set(); // Fields with an open dropdown — empty entries still narrow results
 let adsSortBy = 'created_at';
 let adsSortOrder = 'desc';
 
@@ -98,6 +99,7 @@ export function clearAdsState() {
     adsError = null;
     adsSearchTerm = '';
     adsFilters = [];
+    adsActiveFilterFields = new Set();
     adsSortBy = 'created_at';
     adsSortOrder = 'desc';
     adsViewMode = 'grid';
@@ -168,6 +170,32 @@ export function removeAdsFilter(field, value) {
  */
 export function clearAdsFilters() {
     adsFilters = [];
+    adsActiveFilterFields = new Set();
+}
+
+/**
+ * Clear filters for a single field
+ */
+export function clearAdsFilterField(field) {
+    adsFilters = adsFilters.filter(f => f.field !== field);
+}
+
+/**
+ * Active filter fields — a field is "active" while its dropdown is open.
+ * Active + empty values = show nothing for that field; non-active = no constraint.
+ */
+export function getAdsActiveFilterFields() {
+    return adsActiveFilterFields;
+}
+
+export function addAdsActiveFilterField(field) {
+    adsActiveFilterFields = new Set(adsActiveFilterFields);
+    adsActiveFilterFields.add(field);
+}
+
+export function removeAdsActiveFilterField(field) {
+    adsActiveFilterFields = new Set(adsActiveFilterFields);
+    adsActiveFilterFields.delete(field);
 }
 
 // ============ Sort State ============

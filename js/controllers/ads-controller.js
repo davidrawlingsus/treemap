@@ -10,6 +10,7 @@ import {
     getAdsCurrentClientId, setAdsCurrentClientId,
     getAdsSearchTerm, setAdsSearchTerm,
     getAdsFilters, getAdsSortOrder, setAdsSortOrder,
+    getAdsActiveFilterFields,
     getAdsViewMode, setAdsViewMode as stateSetViewMode,
     getAdsSource, setAdsSource as stateSetAdsSource,
     getSelectedAdIds, clearAdsSelection
@@ -22,6 +23,7 @@ import {
     openAdsFilterValueDialog as filterUIOpenDialog,
     toggleAdsInlineFilterDropdown as filterUIToggleDropdown,
     toggleAdsInlineFilterValue as filterUIToggleValue,
+    toggleAdsInlineFilterAll as filterUIToggleAll,
     removeAdsInlineFilter as filterUIRemoveInline,
     updateAdsFilterBadge,
     AD_STATUS_OPTIONS,
@@ -157,20 +159,29 @@ function getFilteredAndSortedAds(ads) {
         );
     }
 
-    // Only apply filters for test ads (current ads don't have angle/funnel)
+    // Only apply filters for test ads (current ads don't have angle/funnel).
+    // Semantics: OR within a field (any selected value matches), AND across fields.
+    // A field is "active" while its dropdown is open — an active field with zero
+    // selected values filters to zero ads for that field (distinct from no filter).
     if (getAdsSource() === 'test') {
-        filters.forEach(filter => {
+        const activeFields = getAdsActiveFilterFields();
+        activeFields.forEach(fieldId => {
+            const valuesForField = filters
+                .filter(f => f.field === fieldId)
+                .map(f => f.value.toLowerCase());
+
             filtered = filtered.filter(ad => {
-                if (filter.field === 'status') {
-                    const adStatus = normalizeStatus(ad.status);
-                    return adStatus === filter.value.toLowerCase();
+                let adValue;
+                if (fieldId === 'status') {
+                    adValue = normalizeStatus(ad.status);
+                } else {
+                    adValue = ad.full_json?.[fieldId];
+                    if (!adValue && fieldId === 'angle') {
+                        adValue = ad.full_json?.testType;
+                    }
                 }
-                let value = ad.full_json?.[filter.field];
-                if (!value && filter.field === 'angle') {
-                    value = ad.full_json?.testType;
-                }
-                if (!value) return false;
-                return value.toLowerCase() === filter.value.toLowerCase();
+                if (!adValue) return false;
+                return valuesForField.includes(String(adValue).toLowerCase());
             });
         });
     }
@@ -397,6 +408,10 @@ function toggleAdsInlineFilterValue(fieldId, value) {
     filterUIToggleValue(fieldId, value, handleFilterChange);
 }
 
+function toggleAdsInlineFilterAll(fieldId) {
+    filterUIToggleAll(fieldId, handleFilterChange);
+}
+
 function removeAdsInlineFilter(fieldId) {
     filterUIRemoveInline(fieldId, handleFilterChange);
 }
@@ -440,6 +455,7 @@ window.setAdsSortOrder = setAdsSortOrderAndRender;
 window.openAdsFilterValueDialog = openAdsFilterValueDialog;
 window.toggleAdsInlineFilterDropdown = toggleAdsInlineFilterDropdown;
 window.toggleAdsInlineFilterValue = toggleAdsInlineFilterValue;
+window.toggleAdsInlineFilterAll = toggleAdsInlineFilterAll;
 window.removeAdsInlineFilter = removeAdsInlineFilter;
 window.setAdsViewMode = setAdsViewMode;
 window.switchAdsSource = switchAdsSource;
