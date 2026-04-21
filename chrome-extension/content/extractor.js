@@ -1125,5 +1125,27 @@
     overlay.addEventListener("click", (e) => {
       if (e.target.classList.contains("vzd-opp-overlay")) minimizeOverlay();
     });
+
+    // Autofit dynamic headline: shrink font-size until the text fits within 3 lines.
+    const headlineEl = overlay.querySelector(".vzd-opp-headline");
+    if (headlineEl) {
+      const fitHeadline = () => {
+        const MAX_LINES = 3;
+        const LINE_HEIGHT = 1.2;
+        const MIN_PX = 18;
+        headlineEl.style.fontSize = "";
+        headlineEl.style.lineHeight = String(LINE_HEIGHT);
+        let fontPx = parseFloat(getComputedStyle(headlineEl).fontSize) || 36;
+        for (let i = 0; i < 40 && fontPx > MIN_PX; i++) {
+          const lineHeightPx = fontPx * LINE_HEIGHT;
+          const lines = Math.round(headlineEl.scrollHeight / lineHeightPx);
+          if (lines <= MAX_LINES) break;
+          fontPx -= 1;
+          headlineEl.style.fontSize = fontPx + "px";
+        }
+      };
+      requestAnimationFrame(fitHeadline);
+      window.addEventListener("resize", fitHeadline);
+    }
   }
 })();
