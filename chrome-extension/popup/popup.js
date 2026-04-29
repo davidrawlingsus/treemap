@@ -799,14 +799,14 @@ function renderSynthesisText(raw, streaming) {
   const patterns = getMultiline("PATTERNS");
   const playbook = getMultiline("PLAYBOOK");
 
-  const copyClass = copyScore >= 7 ? "score-high" : copyScore >= 4 ? "score-mid" : "score-low";
+  const copyClass = copyScore >= 7 ? "score-high" : "score-low";
   const sigScore = typeof signalGrade === "number" ? signalGrade : 0;
   const sigDisplay = sigScore ? sigScore + "/10" : "—";
-  const sigClass = sigScore >= 7 ? "score-high" : sigScore >= 4 ? "score-mid" : "score-low";
+  const sigClass = sigScore >= 5 ? "score-high" : "score-low";
 
   const opp = computeOpportunity(copyScore, sigScore);
   const oppDisplay = opp !== null ? "+" + Math.round(opp.score * 10) + "%" : "—";
-  const oppClass = opp !== null ? (opp.score >= 7 ? "gap-high" : opp.score >= 4 ? "gap-mid" : "gap-low") : "";
+  const oppClass = opp !== null ? (opp.score >= 3 ? "gap-high" : "gap-low") : "";
   const oppExplanation = opp ? buildOpportunityExplanation(copyScore, sigScore) : "";
 
   // Render the three scores into the top-level Scores section
@@ -868,7 +868,7 @@ function updateGapScore() {
     const opp = computeOpportunity(copyScore, sigScore);
     if (opp) {
       gapEl.textContent = "+" + Math.round(opp.score * 10) + "%";
-      gapEl.className = `synthesis-score-value synthesis-gap-value ${opp.score >= 7 ? "gap-high" : opp.score >= 4 ? "gap-mid" : "gap-low"}`;
+      gapEl.className = `synthesis-score-value synthesis-gap-value ${opp.score >= 3 ? "gap-high" : "gap-low"}`;
       // Update explanation too
       const explEl = document.querySelector(".synthesis-explanation");
       const explanation = buildOpportunityExplanation(copyScore, sigScore);
@@ -1119,7 +1119,7 @@ function renderSignalText(raw) {
       const sigEl = document.querySelector(".synthesis-signal-value");
       if (sigEl) {
         sigEl.textContent = sigNum + "/10";
-        const cls = sigNum >= 7 ? "score-high" : sigNum >= 4 ? "score-mid" : "score-low";
+        const cls = sigNum >= 5 ? "score-high" : "score-low";
         sigEl.className = `synthesis-score-value synthesis-signal-value ${cls}`;
       }
       // Also update the gap
@@ -1131,7 +1131,7 @@ function renderSignalText(raw) {
     const themes = get("THEMES");
     const verdict = get("VERDICT");
 
-    const sigClass = sigNum >= 7 ? "score-high" : sigNum >= 4 ? "score-mid" : "score-low";
+    const sigClass = sigNum >= 5 ? "score-high" : "score-low";
 
     html += `
       <div class="signal-summary">
