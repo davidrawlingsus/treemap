@@ -538,11 +538,12 @@
     document.head.appendChild(style);
   }
 
-  // Find insertion point: just after the ad copy div
+  // Find insertion point: just after the ad copy div, or just before the media
+  // container for ads with no static copy (e.g. "multiple versions" dynamic ads).
   function findInsertionPoint(container) {
     // The ad copy lives in a div with style="white-space: pre-wrap" inside ._7jyr
     const copyWrapper = container.querySelector("._7jyr");
-    if (copyWrapper) return copyWrapper.nextSibling || copyWrapper;
+    if (copyWrapper) return { ref: copyWrapper.nextSibling || copyWrapper, mode: "before" };
     // Fallback: look for the pre-wrap div directly
     const preWrap = container.querySelector('div[style*="white-space: pre-wrap"]');
     if (preWrap) {
@@ -552,16 +553,29 @@
         if (el.parentElement.classList.contains("_7jyr") || el.parentElement === container) break;
         el = el.parentElement;
       }
-      return el.nextSibling || el;
+      return { ref: el.nextSibling || el, mode: "before" };
     }
+    // No ad copy section (dynamic / multi-version ads). Insert just before the
+    // media container so the panel sits between the sponsored header and the video/image.
+    const mediaContainer = container.querySelector(
+      '[data-testid="ad-content-body-video-container"], [data-testid="ad-content-body-image-container"]'
+    );
+    if (mediaContainer) return { ref: mediaContainer, mode: "before" };
+    // Last resort: insert after the sponsored/author header block (._8nsi)
+    const headerBlock = container.querySelector("._8nsi");
+    if (headerBlock && headerBlock.parentNode) return { ref: headerBlock, mode: "after" };
     return null;
   }
 
   // Insert panel at the insertion point
   function insertAtPoint(container, panel) {
-    const ref = findInsertionPoint(container);
-    if (ref && ref.parentNode) {
-      ref.parentNode.insertBefore(panel, ref);
+    const point = findInsertionPoint(container);
+    if (point && point.ref && point.ref.parentNode) {
+      if (point.mode === "after") {
+        point.ref.parentNode.insertBefore(panel, point.ref.nextSibling);
+      } else {
+        point.ref.parentNode.insertBefore(panel, point.ref);
+      }
     } else {
       container.prepend(panel);
     }
@@ -811,7 +825,7 @@
           border-color: #e5e7eb;
         }
         .vzd-opp-panel-content {
-          padding: 0 60px 40px;
+          padding: 56px 60px 40px;
           min-height: 600px;
           max-height: 92vh;
           overflow-y: auto;
