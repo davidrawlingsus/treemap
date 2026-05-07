@@ -155,8 +155,7 @@ export function renderAdsGrid(container, ads) {
             if (deleteBtn) {
                 e.stopPropagation();
                 const adId = deleteBtn.dataset.adId;
-                const importId = deleteBtn.dataset.importId;
-                await handleDeleteCurrentAd(adId, importId);
+                await handleDeleteCurrentAd(adId);
                 return;
             }
 
@@ -629,13 +628,12 @@ function renderCurrentAdCard(ad) {
     ` : '';
 
     const adId = ad.id || '';
-    const importId = ad.import_id || '';
     return `
-        <div class="ads-card ads-card--current" data-ad-id="${adId}" data-import-id="${importId}">
+        <div class="ads-card ads-card--current" data-ad-id="${adId}">
             <div class="ads-card__header ads-card__header--current">
                 ${labelsHtml}
                 <div class="ads-card__actions">
-                    <button class="ads-card__delete" data-ad-id="${adId}" data-import-id="${importId}" title="Delete ad">×</button>
+                    <button class="ads-card__delete" data-ad-id="${adId}" title="Delete ad">×</button>
                 </div>
             </div>
             <div class="ads-card__mockup">${mockup}</div>
@@ -1352,10 +1350,11 @@ async function handleDeleteAd(adId, container) {
 
 /**
  * Handle deletion of a Current Ads card (Meta Ad Library import row).
+ * Soft-deletes server-side; media is preserved.
  */
-async function handleDeleteCurrentAd(adId, importId) {
-    if (!adId || !importId) {
-        console.error('[AdsRenderer] Missing adId or importId for current-ads delete', { adId, importId });
+async function handleDeleteCurrentAd(adId) {
+    if (!adId) {
+        console.error('[AdsRenderer] Missing adId for current-ads delete');
         return;
     }
     if (!confirm('Are you sure you want to delete this ad?')) {
@@ -1370,7 +1369,7 @@ async function handleDeleteCurrentAd(adId, importId) {
     }
 
     try {
-        await deleteAdLibraryAd(clientId, importId, adId);
+        await deleteAdLibraryAd(clientId, adId);
         removeAdFromCache(adId);
         if (window.renderAdsPage) {
             window.renderAdsPage();

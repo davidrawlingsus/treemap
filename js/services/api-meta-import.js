@@ -184,14 +184,14 @@ export async function listImportJobs(clientId, status = null, limit = 10) {
 }
 
 /**
- * Delete a single ad from an Ad Library import (the "Current Ads" view).
+ * Soft-delete a single ad on the "Current Ads" view (Meta Ad Library import).
+ * Hides the ad from the list; media rows + blob files are preserved server-side.
  * @param {string} clientId - Client UUID
- * @param {string} importId - AdLibraryImport UUID
  * @param {string} adId - AdLibraryAd UUID
  * @returns {Promise<void>}
  */
-export async function deleteAdLibraryAd(clientId, importId, adId) {
-    const apiUrl = `${getApiBaseUrl()}/api/clients/${encodeURIComponent(clientId)}/ad-library-imports/${encodeURIComponent(importId)}/ads/${encodeURIComponent(adId)}`;
+export async function deleteAdLibraryAd(clientId, adId) {
+    const apiUrl = `${getApiBaseUrl()}/api/clients/${encodeURIComponent(clientId)}/ad-library-ads/${encodeURIComponent(adId)}`;
 
     const authHeaders = getAuthHeaders();
     const headers = {};

@@ -3,6 +3,7 @@ Ad Library imports (copy only) for VOC comparison.
 Import ad copy from Meta Ads Library URL and store for comparison.
 POST returns 202 and runs the scrape in the background to avoid proxy timeouts.
 """
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session, joinedload
 from uuid import UUID
@@ -127,7 +128,10 @@ def list_ad_library_imports(
             client_id=imp.client_id,
             source_url=imp.source_url,
             imported_at=imp.imported_at,
-            ad_count=len(imp.ads),
+            # Hide soft-deleted ads from the visible count, since callers like
+            # fetchCurrentAds() use ad_count > 0 to pick the latest non-empty
+            # import to render.
+            ad_count=sum(1 for ad in imp.ads if ad.deleted_at is None),
         )
         for imp in imports
     ]
@@ -164,6 +168,7 @@ def get_ad_library_import(
             media_items=[AdLibraryMediaResponse.model_validate(m) for m in ad.media_items],
         )
         for ad in imp.ads
+        if ad.deleted_at is None
     ]
     return AdLibraryImportDetailResponse(
         id=imp.id,
@@ -238,29 +243,30 @@ def delete_ad_library_import(
 
 
 @router.delete(
-    "/api/clients/{client_id}/ad-library-imports/{import_id}/ads/{ad_id}",
+    "/api/clients/{client_id}/ad-library-ads/{ad_id}",
     status_code=204,
 )
 def delete_ad_library_ad(
     client_id: UUID,
-    import_id: UUID,
     ad_id: UUID,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_active_founder),
 ):
-    """Delete a single ad from an Ad Library import (media cascades)."""
+    """Soft-delete a single ad library ad. Media rows + blob files are kept
+    intact in case the ad needs to be restored later. The ad is hidden from
+    the Current Ads view via the deleted_at filter on read."""
     ad = (
         db.query(AdLibraryAd)
         .join(AdLibraryImport, AdLibraryAd.import_id == AdLibraryImport.id)
         .filter(
             AdLibraryAd.id == ad_id,
-            AdLibraryAd.import_id == import_id,
             AdLibraryImport.client_id == client_id,
         )
         .first()
     )
     if not ad:
         raise HTTPException(status_code=404, detail="Ad not found")
-    db.delete(ad)
-    db.commit()
+    if ad.deleted_at is None:
+        ad.deleted_at = datetime.now(timezone.utc)
+        db.commit()
     return None

@@ -34,6 +34,7 @@ class AdLibraryAd(Base):
     analysis_json = Column(JSONB, nullable=True)
     analysis_text = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    deleted_at = Column(DateTime(timezone=True), nullable=True, index=True)
 
     # Relationships
     import_run = relationship("AdLibraryImport", back_populates="ads")
