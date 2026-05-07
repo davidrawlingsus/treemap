@@ -184,6 +184,32 @@ export async function listImportJobs(clientId, status = null, limit = 10) {
 }
 
 /**
+ * Delete a single ad from an Ad Library import (the "Current Ads" view).
+ * @param {string} clientId - Client UUID
+ * @param {string} importId - AdLibraryImport UUID
+ * @param {string} adId - AdLibraryAd UUID
+ * @returns {Promise<void>}
+ */
+export async function deleteAdLibraryAd(clientId, importId, adId) {
+    const apiUrl = `${getApiBaseUrl()}/api/clients/${encodeURIComponent(clientId)}/ad-library-imports/${encodeURIComponent(importId)}/ads/${encodeURIComponent(adId)}`;
+
+    const authHeaders = getAuthHeaders();
+    const headers = {};
+    if (authHeaders.Authorization) {
+        headers.Authorization = authHeaders.Authorization;
+    }
+
+    const response = await fetch(apiUrl, {
+        method: 'DELETE',
+        headers: headers,
+    });
+
+    if (!response.ok) {
+        await handleApiError(response, 'Failed to delete ad');
+    }
+}
+
+/**
  * [DEPRECATED] Legacy synchronous import - use startMetaImportJob instead
  * Import media from Meta Ads Library URL (blocks until complete)
  * @param {string} clientId - Client UUID

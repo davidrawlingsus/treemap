@@ -235,3 +235,32 @@ def delete_ad_library_import(
     db.delete(imp)
     db.commit()
     return {"success": True}
+
+
+@router.delete(
+    "/api/clients/{client_id}/ad-library-imports/{import_id}/ads/{ad_id}",
+    status_code=204,
+)
+def delete_ad_library_ad(
+    client_id: UUID,
+    import_id: UUID,
+    ad_id: UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_active_founder),
+):
+    """Delete a single ad from an Ad Library import (media cascades)."""
+    ad = (
+        db.query(AdLibraryAd)
+        .join(AdLibraryImport, AdLibraryAd.import_id == AdLibraryImport.id)
+        .filter(
+            AdLibraryAd.id == ad_id,
+            AdLibraryAd.import_id == import_id,
+            AdLibraryImport.client_id == client_id,
+        )
+        .first()
+    )
+    if not ad:
+        raise HTTPException(status_code=404, detail="Ad not found")
+    db.delete(ad)
+    db.commit()
+    return None

@@ -5,6 +5,7 @@
  */
 
 import { deleteFacebookAd, updateFacebookAd } from '/js/services/api-facebook-ads.js';
+import { deleteAdLibraryAd } from '/js/services/api-meta-import.js';
 import { getAdsCache, removeAdFromCache, updateAdInCache, getAdsSearchTerm, getAdsFilters, getSelectedAdIds, toggleAdSelection, isAdSelected, clearAdsSelection, getAdsSource } from '/js/state/ads-state.js';
 import { AD_STATUS_OPTIONS, normalizeStatus, getStatusConfig } from '/js/controllers/ads-filter-ui.js';
 import { escapeHtml } from '/js/utils/dom.js';
@@ -145,10 +146,20 @@ export function renderAdsGrid(container, ads) {
     // Initialize Masonry for horizontal-first reading order
     initMasonry(container);
 
-    // Accordion click handler for current ads (transcript expand/collapse)
+    // Accordion + delete click handler for current ads
     if (source === 'current') {
         _adsEventContainer = container;
-        _adsCurrentAccordionHandler = (e) => {
+        _adsCurrentAccordionHandler = async (e) => {
+            // Delete button (per-card)
+            const deleteBtn = e.target.closest('.ads-card__delete');
+            if (deleteBtn) {
+                e.stopPropagation();
+                const adId = deleteBtn.dataset.adId;
+                const importId = deleteBtn.dataset.importId;
+                await handleDeleteCurrentAd(adId, importId);
+                return;
+            }
+
             const trigger = e.target.closest('.ads-accordion__trigger');
             if (!trigger) return;
             const accordion = trigger.closest('.ads-accordion');
@@ -589,12 +600,12 @@ function renderCurrentAdCard(ad) {
         analysisJson: ad.analysis_json || null,
     });
 
-    // Metadata labels
+    // Metadata labels (rendered inline inside the card header)
     const labels = [];
     if (ad.status) labels.push(`<span class="ads-card__current-label">${escapeHtml(ad.status)}</span>`);
     if (ad.started_running_on) labels.push(`<span class="ads-card__current-label">${escapeHtml(ad.started_running_on)}</span>`);
     if (ad.ad_format) labels.push(`<span class="ads-card__current-label">${escapeHtml(ad.ad_format)}</span>`);
-    const labelsHtml = labels.length ? `<div class="ads-card__current-labels">${labels.join('')}</div>` : '';
+    const labelsHtml = `<div class="ads-card__current-labels ads-card__current-labels--inline">${labels.join('')}</div>`;
 
     // Video transcript accordion
     const videoMedia = mediaItems.find(m => m.media_type === 'video');
@@ -617,9 +628,16 @@ function renderCurrentAdCard(ad) {
         </div>
     ` : '';
 
+    const adId = ad.id || '';
+    const importId = ad.import_id || '';
     return `
-        <div class="ads-card ads-card--current">
-            ${labelsHtml}
+        <div class="ads-card ads-card--current" data-ad-id="${adId}" data-import-id="${importId}">
+            <div class="ads-card__header ads-card__header--current">
+                ${labelsHtml}
+                <div class="ads-card__actions">
+                    <button class="ads-card__delete" data-ad-id="${adId}" data-import-id="${importId}" title="Delete ad">×</button>
+                </div>
+            </div>
             <div class="ads-card__mockup">${mockup}</div>
             ${transcriptHtml}
         </div>
@@ -1317,17 +1335,48 @@ async function handleDeleteAd(adId, container) {
     if (!confirm('Are you sure you want to delete this ad?')) {
         return;
     }
-    
+
     try {
         await deleteFacebookAd(adId);
         removeAdFromCache(adId);
-        
+
         // Re-render via controller
         if (window.renderAdsPage) {
             window.renderAdsPage();
         }
     } catch (error) {
         console.error('[AdsRenderer] Failed to delete ad:', error);
+        alert('Failed to delete ad: ' + error.message);
+    }
+}
+
+/**
+ * Handle deletion of a Current Ads card (Meta Ad Library import row).
+ */
+async function handleDeleteCurrentAd(adId, importId) {
+    if (!adId || !importId) {
+        console.error('[AdsRenderer] Missing adId or importId for current-ads delete', { adId, importId });
+        return;
+    }
+    if (!confirm('Are you sure you want to delete this ad?')) {
+        return;
+    }
+
+    const clientId = window.appStateGet?.('currentClientId') ||
+                     document.getElementById('clientSelect')?.value;
+    if (!clientId) {
+        alert('No client selected.');
+        return;
+    }
+
+    try {
+        await deleteAdLibraryAd(clientId, importId, adId);
+        removeAdFromCache(adId);
+        if (window.renderAdsPage) {
+            window.renderAdsPage();
+        }
+    } catch (error) {
+        console.error('[AdsRenderer] Failed to delete current ad:', error);
         alert('Failed to delete ad: ' + error.message);
     }
 }
