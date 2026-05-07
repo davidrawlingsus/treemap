@@ -521,6 +521,16 @@
     display: block !important;
     margin: 0 !important;
     padding: 0 !important;
+    font-weight: 400 !important;
+    font-style: normal !important;
+}
+
+/* Force regular weight on every descendant — defends against any rogue
+   <strong>/<b>/<em> wrapping injected by upstream markdown processing. */
+.pe-fb-ad__primary-text,
+.pe-fb-ad__primary-text * {
+    font-weight: 400 !important;
+    font-style: normal !important;
 }
 
 /* Paragraph divs inside primary text */

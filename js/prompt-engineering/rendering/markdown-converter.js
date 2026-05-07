@@ -435,10 +435,12 @@
         
         // Process inline formatting
         // Bold: **text** -> <strong>text</strong> (do this first)
-        html = html.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
-        
+        // Excludes `<` so an unbalanced ** can't span across HTML tag boundaries
+        // (e.g. wrap an inserted FB ad card in <strong> when the LLM emits stray **).
+        html = html.replace(/\*\*([^*<]+?)\*\*/g, '<strong>$1</strong>');
+
         // Italic: *text* -> <em>text</em> (after bold, so we don't match **)
-        html = html.replace(/\*([^*\n]+?)\*/g, '<em>$1</em>');
+        html = html.replace(/\*([^*\n<]+?)\*/g, '<em>$1</em>');
         
         // Inline code: `code` -> <code>code</code> (but not inside <pre>)
         html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
