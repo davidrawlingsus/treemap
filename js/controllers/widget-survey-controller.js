@@ -127,6 +127,7 @@ function renderView() {
             stats: state.stats,
             onBack: () => { state.view = 'list'; loadSurveys(); },
             onLoadMore: (offset) => loadMoreResponses(offset),
+            onDownloadCsv: () => downloadResponsesCsv(),
         });
     }
 }
@@ -160,6 +161,101 @@ async function openResponses(surveyId) {
         renderView();
     } catch (err) {
         showStatus('Failed to load responses: ' + err.message, 'error');
+    }
+}
+
+async function downloadResponsesCsv() {
+    if (!state.currentSurvey) return;
+    try {
+        const surveyId = state.currentSurvey.id;
+        const pageSize = 100;
+        let offset = 0;
+        let allItems = [];
+        let total = Infinity;
+        while (allItems.length < total) {
+            const page = await listWidgetSurveyResponses(surveyId, state.clientId, { limit: pageSize, offset });
+            const pageItems = page?.items || [];
+            total = page?.total ?? pageItems.length;
+            if (pageItems.length === 0) break;
+            allItems = allItems.concat(pageItems);
+            offset += pageItems.length;
+            if (pageItems.length < pageSize) break;
+        }
+
+        const version = state.currentSurvey.active_version || state.currentSurvey.draft_version || {};
+        const surveyQuestions = version.questions || [];
+        const orderedKeys = [];
+        const seenKeys = new Set();
+        const titleByKey = {};
+        surveyQuestions.forEach(q => {
+            const key = q.question_key;
+            if (key && !seenKeys.has(key)) {
+                orderedKeys.push(key);
+                seenKeys.add(key);
+                titleByKey[key] = q.title || key;
+            }
+        });
+        allItems.forEach(item => {
+            (item.answers || []).forEach(a => {
+                const key = a.question_key;
+                if (key && !seenKeys.has(key)) {
+                    orderedKeys.push(key);
+                    seenKeys.add(key);
+                    titleByKey[key] = key;
+                }
+            });
+        });
+
+        const escapeCsv = (val) => {
+            if (val === null || val === undefined) return '';
+            const s = String(val);
+            if (/[",\n\r]/.test(s)) {
+                return '"' + s.replace(/"/g, '""') + '"';
+            }
+            return s;
+        };
+
+        const headerRow = ['Submitted', 'Site', ...orderedKeys.map(k => titleByKey[k] || k), 'Session URL'];
+        const rows = [headerRow];
+        allItems.forEach(item => {
+            const answersByKey = {};
+            (item.answers || []).forEach(a => {
+                let val = a.answer_text;
+                if (val === null || val === undefined || val === '') {
+                    if (a.answer_json !== null && a.answer_json !== undefined) {
+                        val = Array.isArray(a.answer_json) ? a.answer_json.join('; ') : (typeof a.answer_json === 'object' ? JSON.stringify(a.answer_json) : String(a.answer_json));
+                    } else {
+                        val = '';
+                    }
+                }
+                answersByKey[a.question_key] = val;
+            });
+            const submitted = item.submitted_at ? new Date(item.submitted_at).toISOString() : '';
+            const row = [
+                submitted,
+                item.site_domain || '',
+                ...orderedKeys.map(k => answersByKey[k] ?? ''),
+                item.clarity_replay_url || '',
+            ];
+            rows.push(row);
+        });
+
+        const csv = rows.map(r => r.map(escapeCsv).join(',')).join('\r\n');
+        const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const safeTitle = (state.currentSurvey.title || 'survey').replace(/[^a-z0-9-_]+/gi, '_').toLowerCase();
+        const stamp = new Date().toISOString().split('T')[0];
+        a.href = url;
+        a.download = `${safeTitle}_responses_${stamp}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        showStatus(`Exported ${allItems.length} responses`);
+    } catch (err) {
+        showStatus('Failed to export CSV: ' + err.message, 'error');
     }
 }
 

@@ -809,12 +809,13 @@ export function renderSurveyEditor(container, { survey, onSave, onSaveAndPublish
 
 // ── Response Viewer ───────────────────────────────────────────────
 
-export function renderResponseViewer(container, { survey, responses, stats, onBack, onLoadMore }) {
+export function renderResponseViewer(container, { survey, responses, stats, onBack, onLoadMore, onDownloadCsv }) {
     if (!container) return;
     container.className = 'ws';
 
     const items = responses?.items || [];
     const total = responses?.total || 0;
+    const hasResponses = total > 0;
 
     const clarityBanner = stats?.detected_clarity_project_id
         ? `<div class="clarity-banner">Clarity detected: <strong>${escapeHtml(stats.detected_clarity_project_id)}</strong></div>`
@@ -869,12 +870,13 @@ export function renderResponseViewer(container, { survey, responses, stats, onBa
     }).join('');
 
     container.innerHTML = `
-        <div class="editor-header">
+        <div class="editor-header" style="display:flex;align-items:center;gap:12px;">
             <button class="btn" id="backBtn">
                 <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14"><path fill-rule="evenodd" d="M11.78 5.47a.75.75 0 0 1 0 1.06L8.31 10l3.47 3.47a.75.75 0 1 1-1.06 1.06l-4-4a.75.75 0 0 1 0-1.06l4-4a.75.75 0 0 1 1.06 0Z" clip-rule="evenodd"/></svg>
                 Surveys
             </button>
-            <h2>Responses: ${escapeHtml(survey?.title || '')}</h2>
+            <h2 style="flex:1;margin:0;">Responses: ${escapeHtml(survey?.title || '')}</h2>
+            ${hasResponses ? '<button class="btn btn-secondary" id="downloadCsvBtn">Download CSV</button>' : ''}
         </div>
         ${clarityBanner}
         ${statsHtml}
@@ -894,6 +896,20 @@ export function renderResponseViewer(container, { survey, responses, stats, onBa
 
     container.querySelector('#backBtn')?.addEventListener('click', onBack);
     container.querySelector('#loadMoreBtn')?.addEventListener('click', () => onLoadMore(items.length));
+    const dlBtn = container.querySelector('#downloadCsvBtn');
+    if (dlBtn && onDownloadCsv) {
+        dlBtn.addEventListener('click', async () => {
+            const original = dlBtn.textContent;
+            dlBtn.disabled = true;
+            dlBtn.textContent = 'Preparing…';
+            try {
+                await onDownloadCsv();
+            } finally {
+                dlBtn.disabled = false;
+                dlBtn.textContent = original;
+            }
+        });
+    }
 }
 
 // ── Embed Code ────────────────────────────────────────────────────
