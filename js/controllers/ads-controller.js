@@ -126,6 +126,79 @@ export function renderAdsPage() {
 }
 
 /**
+ * Build a JSON payload of the currently displayed ads + supporting content,
+ * then copy it to the clipboard. Shape depends on source (test vs current).
+ */
+export async function handleAdsCopyJson() {
+    const btn = document.getElementById('adsCopyJsonBtn');
+    const label = document.getElementById('adsCopyJsonLabel');
+    const originalLabel = label?.textContent || 'Copy JSON';
+
+    const ads = getAdsCache();
+    const filteredAds = getFilteredAndSortedAds(ads);
+    const source = getAdsSource();
+
+    let payload;
+    if (source === 'current') {
+        payload = filteredAds.map(ad => {
+            const mediaItems = ad.media_items || [];
+            const videoMedia = mediaItems.find(m => m.media_type === 'video');
+            return {
+                id: ad.id,
+                page_name: ad.page_name,
+                headline: ad.headline,
+                primary_text: ad.primary_text,
+                description: ad.description,
+                cta: ad.cta,
+                destination_url: ad.destination_url,
+                status: ad.status,
+                started_running_on: ad.started_running_on,
+                ad_format: ad.ad_format,
+                media_items: mediaItems.map(m => ({
+                    url: m.url,
+                    media_type: m.media_type,
+                    poster_url: m.poster_url,
+                })),
+                video_transcript: videoMedia?.video_analysis_json?.transcript || null,
+                analysis: ad.analysis_json || null,
+            };
+        });
+    } else {
+        payload = filteredAds.map(ad => {
+            const voc = (ad.voc_evidence && ad.voc_evidence.length > 0)
+                ? ad.voc_evidence
+                : (ad.full_json?.voc_evidence || []);
+            return {
+                id: ad.id,
+                headline: ad.headline,
+                primary_text: ad.primary_text,
+                description: ad.description,
+                call_to_action: ad.call_to_action,
+                destination_url: ad.destination_url,
+                status: ad.status,
+                angle: ad.full_json?.angle || ad.full_json?.testType || null,
+                funnel_step: ad.full_json?.funnel_step || null,
+                image_url: ad.full_json?.image_url || null,
+                voc_evidence: voc,
+                created_at: ad.created_at,
+            };
+        });
+    }
+
+    const json = JSON.stringify(payload, null, 2);
+    try {
+        await navigator.clipboard.writeText(json);
+        if (label) label.textContent = `Copied ${payload.length}`;
+    } catch (err) {
+        console.error('[AdsController] Clipboard write failed:', err);
+        if (label) label.textContent = 'Copy failed';
+    }
+    if (btn) {
+        setTimeout(() => { if (label) label.textContent = originalLabel; }, 1500);
+    }
+}
+
+/**
  * Handle bulk publish - open modal with selected ads
  */
 export function handleAdsBulkPublish() {
@@ -459,3 +532,4 @@ window.toggleAdsInlineFilterAll = toggleAdsInlineFilterAll;
 window.removeAdsInlineFilter = removeAdsInlineFilter;
 window.setAdsViewMode = setAdsViewMode;
 window.switchAdsSource = switchAdsSource;
+window.handleAdsCopyJson = handleAdsCopyJson;
