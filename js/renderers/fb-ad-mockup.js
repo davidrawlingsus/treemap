@@ -257,7 +257,7 @@ function buildInlineCritiqueHtml(analysis) {
     const gradeStyle = gradeColors[grade] || 'background:#f0f2f5;color:#1c1e21;';
 
     return `
-        <div style="margin:0;padding:14px 16px;background:#fff;border-left:3px solid #B9F040;border-top:1px solid #e4e6eb;font-family:Lato,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:#1c1e21;line-height:1.4;box-sizing:border-box;">
+        <div class="pe-fb-ad__inline-critique" style="margin:0;padding:14px 16px;background:#fff;border-left:3px solid #B9F040;border-top:1px solid #e4e6eb;font-family:Lato,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:13px;color:#1c1e21;line-height:1.4;box-sizing:border-box;">
             <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:6px;">
                 ${grade ? `<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;font-size:14px;font-weight:900;flex-shrink:0;${gradeStyle}">${grade}</span>` : ''}
                 ${analysis.verdict ? `<span style="font-size:13px;font-weight:700;color:#1c1e21;line-height:1.3;">${escapeHtml(analysis.verdict)}</span>` : ''}

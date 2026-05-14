@@ -387,13 +387,47 @@ function updateControlBarForSource() {
         '#adsViewToggle',
     ];
     hideSelectors.forEach(sel => {
-        const el = document.querySelector(sel);
-        if (el) el.style.display = isCurrent ? 'none' : '';
+        document.querySelectorAll(sel).forEach(el => {
+            el.style.display = isCurrent ? 'none' : '';
+        });
     });
+
+    // Copy JSON button is always available on both views — keep it visible.
+    const copyBtn = document.getElementById('adsCopyJsonBtn');
+    if (copyBtn) copyBtn.style.display = '';
+
+    // Score toggle is only meaningful on Current Ads.
+    const scoreToggleBtn = document.getElementById('adsScoreToggleBtn');
+    if (scoreToggleBtn) scoreToggleBtn.style.display = isCurrent ? '' : 'none';
+
+    // Apply the persisted score-visibility preference to the section.
+    applyAdsScoreVisibility();
 
     // Update heading
     const heading = document.querySelector('#ads-section .control-bar h1');
     if (heading) heading.textContent = isCurrent ? 'Current Ads' : 'Saved Ads';
+}
+
+// ============ Score Visibility Toggle (Current Ads) ============
+
+const ADS_SCORE_HIDDEN_KEY = 'vzd:ads:scoresHidden';
+
+function areAdsScoresHidden() {
+    try { return localStorage.getItem(ADS_SCORE_HIDDEN_KEY) === '1'; } catch { return false; }
+}
+
+function applyAdsScoreVisibility() {
+    const section = document.getElementById('ads-section');
+    const label = document.getElementById('adsScoreToggleLabel');
+    const hidden = areAdsScoresHidden();
+    if (section) section.classList.toggle('ads-section--hide-scores', hidden);
+    if (label) label.textContent = hidden ? 'Show Scores' : 'Hide Scores';
+}
+
+export function toggleAdsScoreVisibility() {
+    const next = !areAdsScoresHidden();
+    try { localStorage.setItem(ADS_SCORE_HIDDEN_KEY, next ? '1' : '0'); } catch {}
+    applyAdsScoreVisibility();
 }
 
 // ============ Event Handlers ============
@@ -533,3 +567,4 @@ window.removeAdsInlineFilter = removeAdsInlineFilter;
 window.setAdsViewMode = setAdsViewMode;
 window.switchAdsSource = switchAdsSource;
 window.handleAdsCopyJson = handleAdsCopyJson;
+window.toggleAdsScoreVisibility = toggleAdsScoreVisibility;

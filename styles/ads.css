@@ -2664,3 +2664,8 @@
 .pe-fb-ad--lead-gated .pe-fb-ad__edit-icon {
     display: none !important;
 }
+
+/* Toggle inline ad-critique scores on/off (Current Ads view) */
+#ads-section.ads-section--hide-scores .pe-fb-ad__inline-critique {
+    display: none !important;
+}
