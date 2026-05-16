@@ -349,8 +349,16 @@ function _registerVideoHandlers() {
             e.stopPropagation();
             e.preventDefault();
             const p = video.paused ? video.play() : (video.pause(), null);
-            if (p?.catch) p.catch(() => {});
+            if (p?.catch) p.catch((err) => {
+                console.error('[video] play() failed:', err?.name, err?.message, 'src:', video.currentSrc || video.src, 'networkState:', video.networkState, 'readyState:', video.readyState, 'error:', video.error?.code, video.error?.message);
+            });
         }
+    }, true);
+
+    document.addEventListener('error', (e) => {
+        if (e.target.tagName !== 'VIDEO') return;
+        const v = e.target;
+        console.error('[video] media error:', v.error?.code, v.error?.message, 'src:', v.currentSrc || v.src);
     }, true);
 
     // State listeners (capture phase)
