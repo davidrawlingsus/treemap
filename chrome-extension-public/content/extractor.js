@@ -742,9 +742,16 @@
     }
 
     if (message.action === "downloadMedia") {
+      console.log("[MTG content] downloadMedia received for", message.url?.substring(0, 100));
       downloadMedia(message.url)
-        .then((result) => sendResponse({ success: true, ...result }))
-        .catch((err) => sendResponse({ success: false, error: err.message }));
+        .then((result) => {
+          console.log("[MTG content] downloadMedia OK:", result.size, "bytes, type=", result.type);
+          sendResponse({ success: true, ...result });
+        })
+        .catch((err) => {
+          console.error("[MTG content] downloadMedia FAILED:", err?.message);
+          sendResponse({ success: false, error: err.message });
+        });
       return true; // keep channel open for async
     }
 

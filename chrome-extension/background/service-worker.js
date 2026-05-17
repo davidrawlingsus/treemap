@@ -52,29 +52,37 @@ function broadcastState() {
 let sourceTabId = null;
 
 async function uploadMediaFile(url, clientId, token, mediaType) {
+  console.log("[MTG upload] uploadMediaFile", { mediaType, sourceTabId, url: url?.substring(0, 80) });
   if (mediaType === "video" && sourceTabId) {
-    // Videos: route through content script (has FB page context/cookies)
     return uploadViaContentScript(url, clientId, token, mediaType);
   }
-  // Images: direct fetch works from service worker
+  if (mediaType === "video" && !sourceTabId) {
+    console.warn("[MTG upload] VIDEO falling back to direct fetch — sourceTabId is null, FB will likely 403");
+  }
   return uploadDirect(url, clientId, token, mediaType);
 }
 
 async function uploadViaContentScript(url, clientId, token, mediaType) {
-  // Step 1: Content script downloads from FB CDN (has page context)
-  const dlResponse = await chrome.tabs.sendMessage(sourceTabId, {
-    action: "downloadMedia",
-    url,
-  });
+  console.log("[MTG upload] via content script: sending downloadMedia to tab", sourceTabId);
+  let dlResponse;
+  try {
+    dlResponse = await chrome.tabs.sendMessage(sourceTabId, {
+      action: "downloadMedia",
+      url,
+    });
+  } catch (e) {
+    console.error("[MTG upload] chrome.tabs.sendMessage failed:", e?.message, "— tab probably closed/navigated");
+    throw new Error(`Tab message failed: ${e?.message}`);
+  }
+  console.log("[MTG upload] downloadMedia response:", dlResponse?.success ? `OK (size=${dlResponse.size}, type=${dlResponse.type})` : `FAIL: ${dlResponse?.error}`);
   if (!dlResponse?.success) {
     throw new Error(dlResponse?.error || "Content script download failed");
   }
 
-  // Step 2: Convert data URL back to blob in service worker
   const fetchResponse = await fetch(dlResponse.dataUrl);
   const blob = await fetchResponse.blob();
+  console.log("[MTG upload] dataUrl->blob:", blob.size, "bytes, type=", blob.type);
 
-  // Step 3: Upload from service worker (has CORS bypass via host_permissions)
   const isVideo = mediaType === "video" || (dlResponse.type || "").includes("video");
   const ext = isVideo ? "mp4" : "jpg";
   const uploadType = isVideo ? "video/mp4" : (dlResponse.type || "image/jpeg");
@@ -87,6 +95,7 @@ async function uploadViaContentScript(url, clientId, token, mediaType) {
   const uploadUrl = clientId
     ? `${API_BASE}/api/upload-ad-image?client_id=${clientId}`
     : `${API_BASE}/api/upload-ad-image`;
+  console.log("[MTG upload] POSTing to", uploadUrl, "filename=", filename, "size=", uploadBlob.size);
   const uploadRes = await fetch(uploadUrl, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
@@ -95,17 +104,30 @@ async function uploadViaContentScript(url, clientId, token, mediaType) {
 
   if (!uploadRes.ok) {
     const err = await uploadRes.json().catch(() => ({}));
+    console.error("[MTG upload] backend rejected upload:", uploadRes.status, err);
     throw new Error(err.error || `Upload failed: ${uploadRes.status}`);
   }
 
   const data = await uploadRes.json();
+  console.log("[MTG upload] SUCCESS, blob URL:", data.url);
   return data.url;
 }
 
 async function uploadDirect(url, clientId, token, mediaType) {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`Fetch failed: ${response.status}`);
+  console.log("[MTG upload] direct fetch from service worker:", url?.substring(0, 80));
+  let response;
+  try {
+    response = await fetch(url);
+  } catch (e) {
+    console.error("[MTG upload] direct fetch threw:", e?.message);
+    throw e;
+  }
+  if (!response.ok) {
+    console.error("[MTG upload] direct fetch returned", response.status);
+    throw new Error(`Fetch failed: ${response.status}`);
+  }
   const blob = await response.blob();
+  console.log("[MTG upload] direct blob:", blob.size, "bytes, type=", blob.type);
 
   const contentType = blob.type || "image/jpeg";
   let ext = "jpg";
@@ -124,6 +146,7 @@ async function uploadDirect(url, clientId, token, mediaType) {
   const uploadUrl = clientId
     ? `${API_BASE}/api/upload-ad-image?client_id=${clientId}`
     : `${API_BASE}/api/upload-ad-image`;
+  console.log("[MTG upload] POSTing to", uploadUrl, "filename=", filename, "size=", uploadBlob.size);
   const uploadRes = await fetch(uploadUrl, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
@@ -132,10 +155,12 @@ async function uploadDirect(url, clientId, token, mediaType) {
 
   if (!uploadRes.ok) {
     const err = await uploadRes.json().catch(() => ({}));
+    console.error("[MTG upload] backend rejected upload:", uploadRes.status, err);
     throw new Error(err.error || `Upload failed: ${uploadRes.status}`);
   }
 
   const data = await uploadRes.json();
+  console.log("[MTG upload] SUCCESS, blob URL:", data.url);
   return data.url;
 }
 
@@ -167,11 +192,11 @@ async function runImport(ads, sourceUrl, clientId, leadgen = false, analysisData
     // Upload media items
     for (const media of ad.media_items || []) {
       if (media.url) {
+        const originalUrl = media.url;
         try {
           media.url = await uploadMediaFile(media.url, clientId, token, media.media_type);
         } catch (e) {
-          console.warn("Failed to upload media:", media.media_type, media.url?.substring(0, 60), e.message);
-          // Keep original URL as fallback
+          console.error("[MTG upload] FAILED for", media.media_type, "— keeping original FB URL as fallback. Error:", e?.message, "URL:", originalUrl?.substring(0, 120));
         }
         importState.uploadedMedia++;
         broadcastState();
