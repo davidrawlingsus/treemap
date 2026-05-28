@@ -3920,8 +3920,26 @@
                     chartTitleEl.textContent = questionText || 'Topics by Category';
                 }
                 
-                // Render horizontal bar chart for multi_choice and numeric.
-                // For single-select multi_choice, honour the user's bar/pie preference.
+                // Layout adjustments must happen BEFORE rendering — the pie chart
+                // measures container width and bakes it into the SVG, so the parent
+                // grid needs to be in its full-width state first.
+                const topicsChartLabels = document.getElementById('topicsChartLabels');
+                const topicsChartBars = document.getElementById('topicsChartBars');
+                if (topicsChartLabels) topicsChartLabels.innerHTML = '';
+                if (topicsChartBars) topicsChartBars.innerHTML = '';
+                const treemap = document.getElementById('treemap');
+                if (treemap) treemap.innerHTML = '';
+                const treemapSection = document.querySelector('.treemap-section');
+                if (treemapSection) treemapSection.style.display = 'none';
+                const visualizationsGrid = document.querySelector('.visualizations-grid');
+                if (visualizationsGrid) {
+                    visualizationsGrid.style.display = 'grid';
+                    visualizationsGrid.classList.add('chart-fullwidth');
+                }
+                const topicsChart = document.querySelector('.chart[aria-label="All Topics"]');
+                if (topicsChart) topicsChart.style.display = 'none';
+
+                // Render chart now that the layout is settled.
                 const data = questionType === 'multi_choice'
                     ? processMultiChoiceData()
                     : processNumericData();
@@ -3948,25 +3966,6 @@
                 // Update footer count
                 const totalCountEl = document.getElementById('totalCount');
                 if (totalCountEl) totalCountEl.textContent = data.totalCount;
-                // Hide other visualizations
-                const topicsChartLabels = document.getElementById('topicsChartLabels');
-                const topicsChartBars = document.getElementById('topicsChartBars');
-                if (topicsChartLabels) topicsChartLabels.innerHTML = '';
-                if (topicsChartBars) topicsChartBars.innerHTML = '';
-                const treemap = document.getElementById('treemap');
-                if (treemap) treemap.innerHTML = '';
-                // Hide treemap section
-                const treemapSection = document.querySelector('.treemap-section');
-                if (treemapSection) treemapSection.style.display = 'none';
-                // Show visualizations grid with full width layout
-                const visualizationsGrid = document.querySelector('.visualizations-grid');
-                if (visualizationsGrid) {
-                    visualizationsGrid.style.display = 'grid';
-                    visualizationsGrid.classList.add('chart-fullwidth');
-                }
-                // Hide the second chart column (All Topics chart)
-                const topicsChart = document.querySelector('.chart[aria-label="All Topics"]');
-                if (topicsChart) topicsChart.style.display = 'none';
             } else if (questionType === 'geo') {
                 // Hide multi_choice chart-type toggle
                 const chartTypeToggleGeo = document.getElementById('chartTypeToggle');
