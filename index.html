@@ -4138,11 +4138,7 @@
             }
 
             if (currentFilterType === 'metadata' && currentMetadataField) {
-                // Format field name nicely (e.g., "user_type" -> "User Type")
-                const fieldLabel = currentMetadataField
-                    .split('_')
-                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                    .join(' ');
+                const fieldLabel = getMetadataFieldLabel(currentMetadataField);
                 title.textContent = `Select ${fieldLabel} Values`;
             } else {
                 const typeLabels = {
@@ -4253,29 +4249,51 @@
             return items;
         }
         
+        // Get a human-friendly label for a metadata field name.
+        // Survey metadata keys are usually the question text (e.g. "How did you first come across X?");
+        // prefer the dimension's custom display name (e.g. "04. Referral Source") when we can match it.
+        function getMetadataFieldLabel(fieldName) {
+            if (typeof fullRawData !== 'undefined' && Array.isArray(fullRawData)) {
+                const match = fullRawData.find(row =>
+                    row && row.question_text === fieldName && row.dimension_ref
+                );
+                if (match) {
+                    const displayName = getDimensionDisplayName(match.dimension_ref);
+                    if (displayName) return displayName;
+                }
+            }
+            return fieldName
+                .split('_')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+        }
+
         function populateMetadataFieldList() {
             const fieldList = document.getElementById('metadataFieldList');
             fieldList.innerHTML = '';
-            
+
             // Get all metadata fields, excluding sentiment (top-level) and dimension_name (removed)
             const fields = Object.keys(availableMetadataFields)
                 .filter(key => key !== 'sentiment' && key !== 'dimension_name')
                 .sort();
-            
+
             if (fields.length === 0) {
                 fieldList.innerHTML = '<div style="padding: 12px; color: #999; text-align: center;">No metadata fields found</div>';
                 return;
             }
-            
+
+            // Sort fields by their resolved display label so users see them in dimension-name order
+            fields.sort((a, b) => {
+                const labelA = getMetadataFieldLabel(a).toLowerCase();
+                const labelB = getMetadataFieldLabel(b).toLowerCase();
+                return labelA.localeCompare(labelB);
+            });
+
             fields.forEach(fieldName => {
                 const values = availableMetadataFields[fieldName];
                 const valueCount = values.length;
-                
-                // Format field name nicely (e.g., "user_type" -> "User Type")
-                const fieldLabel = fieldName
-                    .split('_')
-                    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                    .join(' ');
+
+                const fieldLabel = getMetadataFieldLabel(fieldName);
                 
                 const fieldItem = document.createElement('div');
                 fieldItem.style.cssText = 'padding: 12px; margin: 4px 0; border: 1px solid #e0e0e0; border-radius: 6px; cursor: pointer; transition: background 0.2s;';
@@ -4417,11 +4435,7 @@
                     
                     let typeLabel;
                     if (rule.type === 'metadata' && rule.metadataField) {
-                        // Format metadata field name nicely
-                        const fieldLabel = rule.metadataField
-                            .split('_')
-                            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-                            .join(' ');
+                        const fieldLabel = getMetadataFieldLabel(rule.metadataField);
                         typeLabel = `Metadata: ${fieldLabel}`;
                     } else {
                         const typeLabels = {
