@@ -127,9 +127,11 @@ body.slideout-open {
     flex-direction: row;
     align-items: center;
     gap: 10px;
-    margin-left: auto;
-    margin-right: 12px;
     white-space: nowrap;
+}
+
+.marketably-user-info .nav-plan-indicator {
+    margin-right: 4px;
 }
 
 .nav-plan-badge {
@@ -144,21 +146,21 @@ body.slideout-open {
 }
 
 .nav-plan-badge--basic {
-    background: #f1f5f9;
-    color: #64748b;
-    border: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.24);
 }
 
 .nav-plan-badge--pro {
-    background: rgba(185, 240, 64, 0.15);
-    color: #4a7c00;
-    border: 1px solid rgba(185, 240, 64, 0.4);
+    background: rgba(185, 240, 64, 0.18);
+    color: #B9F040;
+    border: 1px solid rgba(185, 240, 64, 0.5);
 }
 
 .nav-plan-badge--enterprise {
-    background: rgba(99, 102, 241, 0.1);
-    color: #4338ca;
-    border: 1px solid rgba(99, 102, 241, 0.3);
+    background: rgba(129, 140, 248, 0.18);
+    color: #c7d2fe;
+    border: 1px solid rgba(129, 140, 248, 0.5);
 }
 
 .nav-trial-counter {
@@ -170,7 +172,7 @@ body.slideout-open {
 .nav-trial-bar {
     width: 56px;
     height: 5px;
-    background: #e2e8f0;
+    background: rgba(255, 255, 255, 0.16);
     border-radius: 2px;
     overflow: hidden;
 }
@@ -183,20 +185,20 @@ body.slideout-open {
 }
 
 .nav-trial-bar__fill--exhausted {
-    background: #e53e3e;
+    background: #ff6b6b;
 }
 
 .nav-trial-label {
     font-size: 11px;
     font-weight: 500;
-    color: #94a3b8;
+    color: rgba(255, 255, 255, 0.7);
     white-space: nowrap;
 }
 
 .nav-upgrade-link {
     font-size: 11px;
     font-weight: 700;
-    color: #4a7c00;
+    color: #B9F040;
     text-decoration: none;
     transition: opacity 0.2s;
 }

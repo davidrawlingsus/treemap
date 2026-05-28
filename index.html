@@ -7939,10 +7939,10 @@
         }
         
         function updateNavPlanBadge() {
-            const nav = document.querySelector('.app-navigation');
-            if (!nav) return;
+            const headerUserInfo = document.getElementById('headerUserInfo');
+            if (!headerUserInfo) return;
 
-            let container = nav.querySelector('#navPlanIndicator');
+            let container = document.getElementById('navPlanIndicator');
 
             const userInfo = Auth?.getStoredUserInfo?.();
             if (userInfo?.is_founder) {
@@ -7955,15 +7955,16 @@
             const trialRemaining = subStateGetTrialUsesRemaining();
             const isBasic = subStateIsBasicPlan();
 
-            if (!container) {
+            if (!container || container.parentElement !== headerUserInfo) {
+                if (container) container.remove();
                 container = document.createElement('div');
                 container.id = 'navPlanIndicator';
                 container.className = 'nav-plan-indicator';
-                const logoContainer = nav.querySelector('#navClientLogoContainer');
-                if (logoContainer) {
-                    nav.insertBefore(container, logoContainer);
+                const emailEl = document.getElementById('headerUserEmail');
+                if (emailEl) {
+                    headerUserInfo.insertBefore(container, emailEl);
                 } else {
-                    nav.appendChild(container);
+                    headerUserInfo.insertBefore(container, headerUserInfo.firstChild);
                 }
             }
 
