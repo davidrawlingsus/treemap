@@ -347,6 +347,18 @@ export function renderPieChart(data, containerId, totalCount) {
         '#A97FFF', '#77D9D6', '#F8A04C', '#58B3F0', '#6ED49B', '#F47280', '#9A7B6C', '#FFB366', '#B794F6', '#4ECDC4'
     ];
 
+    // Collapse the long tail (<3%) into a single 'Other' slice if there are
+    // multiple tiny slices — keeps leader-line labels from stacking up.
+    const MIN_SLICE_PCT = 3;
+    const smallSlices = data.filter(d => d.percent < MIN_SLICE_PCT);
+    let chartData = data;
+    if (smallSlices.length > 1) {
+        const bigSlices = data.filter(d => d.percent >= MIN_SLICE_PCT);
+        const otherCount = smallSlices.reduce((s, d) => s + d.count, 0);
+        const otherPct = smallSlices.reduce((s, d) => s + d.percent, 0);
+        chartData = [...bigSlices, { value: 'Other', count: otherCount, percent: otherPct }];
+    }
+
     const width = barsContainer.clientWidth || 600;
     const height = Math.min(width, 460);
     const radius = Math.min(width, height) / 2 - 24;
@@ -355,7 +367,8 @@ export function renderPieChart(data, containerId, totalCount) {
         .append('svg')
         .attr('width', width)
         .attr('height', height)
-        .style('display', 'block');
+        .style('display', 'block')
+        .style('overflow', 'visible');
 
     const g = svg.append('g')
         .attr('transform', `translate(${width / 2}, ${height / 2})`);
@@ -368,12 +381,8 @@ export function renderPieChart(data, containerId, totalCount) {
         .innerRadius(0)
         .outerRadius(radius);
 
-    const labelArc = d3.arc()
-        .innerRadius(radius * 0.62)
-        .outerRadius(radius * 0.62);
-
     const arcs = g.selectAll('.arc')
-        .data(pie(data))
+        .data(pie(chartData))
         .enter()
         .append('g')
         .attr('class', 'arc');
@@ -389,32 +398,42 @@ export function renderPieChart(data, containerId, totalCount) {
         .append('title')
         .text(d => `${d.data.value}: ${d.data.count} (${d.data.percent.toFixed(1)}%)`);
 
+    // Leader-line labels: polyline from slice edge → bend → horizontal segment
+    // toward the chart edge; text anchored on the side matching the slice's half.
+    const midAngleOf = d => (d.startAngle + d.endAngle) / 2;
+    const isRightHalf = d => midAngleOf(d) < Math.PI;
+    const bendOffset = 14;
+    const labelGap = 6;
+    const labelEdgeX = radius + bendOffset + 4;
+
+    arcs.append('polyline')
+        .attr('points', d => {
+            const a = midAngleOf(d);
+            const sin = Math.sin(a);
+            const cos = Math.cos(a);
+            const start = [sin * radius, -cos * radius];
+            const bend = [sin * (radius + bendOffset), -cos * (radius + bendOffset)];
+            const end = [(isRightHalf(d) ? 1 : -1) * labelEdgeX, bend[1]];
+            return [start, bend, end].map(p => p.join(',')).join(' ');
+        })
+        .attr('fill', 'none')
+        .attr('stroke', '#999')
+        .attr('stroke-width', 1);
+
     arcs.append('text')
-        .attr('transform', d => `translate(${labelArc.centroid(d)})`)
-        .attr('text-anchor', 'middle')
+        .attr('transform', d => {
+            const a = midAngleOf(d);
+            const y = -Math.cos(a) * (radius + bendOffset);
+            const x = (isRightHalf(d) ? 1 : -1) * (labelEdgeX + labelGap);
+            return `translate(${x}, ${y})`;
+        })
+        .attr('text-anchor', d => isRightHalf(d) ? 'start' : 'end')
         .attr('dominant-baseline', 'central')
         .style('font-family', 'Lato, sans-serif')
-        .style('font-size', '12px')
-        .style('font-weight', '600')
-        .style('fill', '#fff')
+        .style('font-size', '13px')
+        .style('fill', '#333')
         .style('pointer-events', 'none')
-        .text(d => d.data.percent >= 5 ? `${d.data.percent.toFixed(1)}%` : '');
-
-    const legend = document.createElement('div');
-    legend.className = 'pie-chart__legend';
-    data.forEach((item, i) => {
-        const row = document.createElement('div');
-        row.className = 'pie-chart__legend-item';
-        const swatch = document.createElement('span');
-        swatch.className = 'pie-chart__legend-swatch';
-        swatch.style.background = categoryColors[i % categoryColors.length];
-        const label = document.createElement('span');
-        label.textContent = `${item.value} (${item.percent.toFixed(1)}%)`;
-        row.appendChild(swatch);
-        row.appendChild(label);
-        legend.appendChild(row);
-    });
-    barsContainer.appendChild(legend);
+        .text(d => `${d.data.value} (${d.data.percent.toFixed(1)}%)`);
 }
 
 /**
