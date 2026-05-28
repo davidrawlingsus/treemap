@@ -319,6 +319,105 @@ export function renderHorizontalBarChart(data, containerId, totalCount, isMultiC
 }
 
 /**
+ * Render pie chart for single-select multi-choice question types.
+ * Renders into the same containers as renderHorizontalBarChart (labels container
+ * is cleared; svg + legend live in the bars container).
+ * @param {Array} data - Items shaped like {value, count, percent}
+ * @param {string} containerId - Container element ID prefix (uses `${id}Bars` and `${id}Labels`)
+ * @param {number} totalCount - Total count (unused but kept for parity with bar renderer signature)
+ */
+export function renderPieChart(data, containerId, totalCount) {
+    const labelsContainer = document.getElementById(`${containerId}Labels`);
+    const barsContainer = document.getElementById(`${containerId}Bars`);
+
+    if (!barsContainer) {
+        console.error(`Containers not found for ${containerId}`);
+        return;
+    }
+
+    if (labelsContainer) labelsContainer.innerHTML = '';
+    barsContainer.innerHTML = '';
+
+    if (!data || data.length === 0) {
+        barsContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">No data available</div>';
+        return;
+    }
+
+    const categoryColors = window.colorSchemesCATEGORY_COLORS || [
+        '#A97FFF', '#77D9D6', '#F8A04C', '#58B3F0', '#6ED49B', '#F47280', '#9A7B6C', '#FFB366', '#B794F6', '#4ECDC4'
+    ];
+
+    const width = barsContainer.clientWidth || 600;
+    const height = Math.min(width, 460);
+    const radius = Math.min(width, height) / 2 - 24;
+
+    const svg = d3.select(barsContainer)
+        .append('svg')
+        .attr('width', width)
+        .attr('height', height)
+        .style('display', 'block');
+
+    const g = svg.append('g')
+        .attr('transform', `translate(${width / 2}, ${height / 2})`);
+
+    const pie = d3.pie()
+        .value(d => d.count)
+        .sort(null);
+
+    const arc = d3.arc()
+        .innerRadius(0)
+        .outerRadius(radius);
+
+    const labelArc = d3.arc()
+        .innerRadius(radius * 0.62)
+        .outerRadius(radius * 0.62);
+
+    const arcs = g.selectAll('.arc')
+        .data(pie(data))
+        .enter()
+        .append('g')
+        .attr('class', 'arc');
+
+    arcs.append('path')
+        .attr('d', arc)
+        .attr('fill', (d, i) => categoryColors[i % categoryColors.length])
+        .attr('stroke', '#fff')
+        .attr('stroke-width', 2)
+        .style('opacity', 0.85)
+        .on('mouseover', function () { d3.select(this).style('opacity', 1); })
+        .on('mouseout', function () { d3.select(this).style('opacity', 0.85); })
+        .append('title')
+        .text(d => `${d.data.value}: ${d.data.count} (${d.data.percent.toFixed(1)}%)`);
+
+    arcs.append('text')
+        .attr('transform', d => `translate(${labelArc.centroid(d)})`)
+        .attr('text-anchor', 'middle')
+        .attr('dominant-baseline', 'central')
+        .style('font-family', 'Lato, sans-serif')
+        .style('font-size', '12px')
+        .style('font-weight', '600')
+        .style('fill', '#fff')
+        .style('pointer-events', 'none')
+        .text(d => d.data.percent >= 5 ? `${d.data.percent.toFixed(1)}%` : '');
+
+    const legend = document.createElement('div');
+    legend.className = 'pie-chart__legend';
+    data.forEach((item, i) => {
+        const row = document.createElement('div');
+        row.className = 'pie-chart__legend-item';
+        const swatch = document.createElement('span');
+        swatch.className = 'pie-chart__legend-swatch';
+        swatch.style.background = categoryColors[i % categoryColors.length];
+        const label = document.createElement('span');
+        label.textContent = `${item.value} (${item.percent.toFixed(1)}%)`;
+        row.appendChild(swatch);
+        row.appendChild(label);
+        legend.appendChild(row);
+    });
+    barsContainer.appendChild(legend);
+}
+
+/**
  * Render bar chart with categories and topics
  * @param {Object} options - Rendering options
  * @param {Array} options.rawData - Raw data array

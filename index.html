@@ -399,6 +399,7 @@
             renderBarChart as chartRendererRenderBarChart,
             renderTopicsChart as chartRendererRenderTopicsChart,
             renderHorizontalBarChart as chartRendererRenderHorizontalBarChart,
+            renderPieChart as chartRendererRenderPieChart,
             toggleCategory as chartRendererToggleCategory,
             generateCategoryColorPalette as chartRendererGenerateCategoryColorPalette,
             adjustColorLightness as chartRendererAdjustColorLightness,
@@ -746,6 +747,7 @@
         window.chartRendererRenderBarChart = chartRendererRenderBarChart;
         window.chartRendererRenderTopicsChart = chartRendererRenderTopicsChart;
         window.chartRendererRenderHorizontalBarChart = chartRendererRenderHorizontalBarChart;
+        window.chartRendererRenderPieChart = chartRendererRenderPieChart;
         window.chartRendererToggleCategory = chartRendererToggleCategory;
         window.chartRendererGenerateCategoryColorPalette = chartRendererGenerateCategoryColorPalette;
         window.chartRendererAdjustColorLightness = chartRendererAdjustColorLightness;
@@ -1123,7 +1125,12 @@
                     </div>
                 </div>
                 <div class="treemap-svg-container">
-                    <div class="loading" id="loading">Loading data...</div>
+                    <div class="loading" id="loading">
+                        <div class="loading-label" id="loadingLabel">Loading data...</div>
+                        <div class="loading-progress">
+                            <div class="loading-progress-bar" id="loadingProgressBar"></div>
+                        </div>
+                    </div>
                     <svg id="treemap"></svg>
                 </div>
             </div>
@@ -1135,6 +1142,14 @@
                     <div class="chart__header">
                         <div class="chart__header-top">
                             <h2 class="chart__title">Topics by Category</h2>
+                            <div class="chart__chart-type-toggle" id="chartTypeToggle" role="group" aria-label="Chart type" style="display: none;">
+                                <button type="button" class="chart-type-btn" data-chart-type="bar" onclick="setMultiChoiceChartType('bar')" aria-label="Bar chart" title="Bar chart">
+                                    <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/chart-icons/bar_chart.svg" alt="" width="16" height="16" aria-hidden="true">
+                                </button>
+                                <button type="button" class="chart-type-btn" data-chart-type="pie" onclick="setMultiChoiceChartType('pie')" aria-label="Pie chart" title="Pie chart">
+                                    <img src="https://neeuv3c4wu4qzcdw.public.blob.vercel-storage.com/chart-icons/pie_chart.svg" alt="" width="16" height="16" aria-hidden="true">
+                                </button>
+                            </div>
                             <button class="chart__toggle" onclick="toggleChart(this)" aria-label="Toggle chart visibility">
                                 <svg class="chart__toggle-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M4 6 L8 10 L12 6" stroke-linecap="round" stroke-linejoin="round"/>
@@ -2906,6 +2921,56 @@
             charts.forEach(c => c.classList.toggle('is-loading', isLoading));
         }
 
+        // Progress bar controller for the visualization load.
+        // The data fetch is a single non-streaming request, so we estimate progress
+        // by combining real stage transitions with an asymptotic time-based crawl
+        // between them. The bar always moves but never reaches the next stage's
+        // target until that stage actually completes.
+        const loadingProgress = {
+            rafId: null,
+            current: 0,
+            _setBar() {
+                const bar = document.getElementById('loadingProgressBar');
+                if (bar) bar.style.width = this.current + '%';
+            },
+            setStage(percent, label) {
+                if (this.rafId) {
+                    cancelAnimationFrame(this.rafId);
+                    this.rafId = null;
+                }
+                if (percent > this.current) this.current = percent;
+                this._setBar();
+                if (label !== undefined) {
+                    const lbl = document.getElementById('loadingLabel');
+                    if (lbl) lbl.textContent = label;
+                }
+            },
+            crawlTo(targetPercent, timeConstantMs) {
+                if (this.rafId) cancelAnimationFrame(this.rafId);
+                const startTime = performance.now();
+                const startPct = this.current;
+                const tick = () => {
+                    const elapsed = performance.now() - startTime;
+                    // Asymptotic approach: 1 - exp(-t/τ). Hits ~63% at τ, ~95% at 3τ, ~99% at 5τ.
+                    const t = 1 - Math.exp(-elapsed / timeConstantMs);
+                    this.current = startPct + (targetPercent - startPct) * t;
+                    this._setBar();
+                    this.rafId = requestAnimationFrame(tick);
+                };
+                this.rafId = requestAnimationFrame(tick);
+            },
+            reset() {
+                if (this.rafId) cancelAnimationFrame(this.rafId);
+                this.rafId = null;
+                this.current = 0;
+                this._setBar();
+            },
+            stop() {
+                if (this.rafId) cancelAnimationFrame(this.rafId);
+                this.rafId = null;
+            }
+        };
+
         // Group process_voc rows by respondent_id and merge topics
         function groupProcessVocRows(processVocRows, dimensionRef = null) {
             console.log(`Grouping ${processVocRows.length} rows${dimensionRef ? ` for dimension ${dimensionRef}` : ' (all dimensions)'}`);
@@ -3049,13 +3114,21 @@
         async function loadDataSource(clientUuid, dataSource, savedState = null) {
             console.log(`loadDataSource() called: client=${clientUuid}, project=${currentProjectName || 'None'}, source=${dataSource || 'None'}`);
             try {
-                document.getElementById('loading').style.display = 'flex';
-                document.getElementById('loading').innerHTML = 'Loading data...';
+                // Restore the progress bar markup in case an earlier error replaced it
+                const loadingEl = document.getElementById('loading');
+                loadingEl.innerHTML = '<div class="loading-label" id="loadingLabel">Loading data...</div>'
+                    + '<div class="loading-progress"><div class="loading-progress-bar" id="loadingProgressBar"></div></div>';
+                loadingEl.style.display = 'flex';
                 setLoading(true);
-                
+                loadingProgress.reset();
+                loadingProgress.setStage(2, 'Loading data...');
+                loadingProgress.crawlTo(55, 2500);
+
                 // Fetch VOC data using API module
                 const processVocRows = await window.vocDataApiLoadVocData(clientUuid, currentProjectName, dataSource, getAuthHeaders);
                 console.log(`Loaded ${processVocRows.length} process_voc rows`);
+                loadingProgress.setStage(60, `Processing ${processVocRows.length.toLocaleString()} responses...`);
+                loadingProgress.crawlTo(82, 800);
                 
                 // Store raw process_voc rows
                 fullRawData = processVocRows;
@@ -3072,7 +3145,10 @@
                 // Detect if this is survey data with multiple questions
                 // This will set up the question filter and call filterByQuestion which groups and renders
                 await detectAndSetupQuestionFilter(savedState);
-                
+
+                loadingProgress.setStage(85, 'Rendering charts...');
+                loadingProgress.crawlTo(98, 500);
+
                 // If detectAndSetupQuestionFilter didn't set up questions (no dimensions found),
                 // or if it returned early, we need to group and render the data ourselves
                 // filterByQuestion should have been called if questions were found, but as a fallback:
@@ -3102,12 +3178,17 @@
                     renderTopicsChart();
                 }
                 // Otherwise, filterByQuestion already handled grouping and rendering
-                
+
+                loadingProgress.setStage(100);
+                // Give the eye a beat to register the filled bar before hiding
+                await new Promise(resolve => setTimeout(resolve, 180));
                 document.getElementById('loading').style.display = 'none';
                 setLoading(false);
+                loadingProgress.reset();
             } catch (error) {
                 console.error('Error in loadDataSource:', error);
-                document.getElementById('loading').innerHTML = 
+                loadingProgress.stop();
+                document.getElementById('loading').innerHTML =
                     '<div class="error">Error loading data: ' + error.message + '</div>';
                 setLoading(false);
             }
@@ -3147,7 +3228,63 @@
             if (!currentQuestionRefKey) return null;
             return questionTypesMap[currentQuestionRefKey] || null;
         }
-        
+
+        // Detect whether a multi_choice dimension is single-select or multi-select
+        // by comparing total response rows to distinct respondents. Multi-select rows
+        // appear once per chosen option, so total rows > respondent count.
+        function detectMultiChoiceSelectMode(dimensionRef) {
+            if (!dimensionRef || !Array.isArray(fullRawData) || fullRawData.length === 0) {
+                return 'single';
+            }
+            const rows = fullRawData.filter(r => r.dimension_ref === dimensionRef);
+            if (rows.length === 0) return 'single';
+            const respondents = new Set(rows.map(r => r.respondent_id));
+            // 5% tolerance for the rare duplicate row
+            return rows.length > respondents.size * 1.05 ? 'multi' : 'single';
+        }
+
+        // Per-dimension chart type preference (localStorage). Default: pie for single-select.
+        function getChartTypePreference(dimensionRef) {
+            if (!dimensionRef) return 'pie';
+            try {
+                const key = `multiChoiceChartType:${currentDataSourceId || 'na'}:${dimensionRef}`;
+                return localStorage.getItem(key) || 'pie';
+            } catch (e) {
+                return 'pie';
+            }
+        }
+
+        function setChartTypePreference(dimensionRef, type) {
+            if (!dimensionRef) return;
+            try {
+                const key = `multiChoiceChartType:${currentDataSourceId || 'na'}:${dimensionRef}`;
+                localStorage.setItem(key, type);
+            } catch (e) { /* localStorage unavailable */ }
+        }
+
+        function updateChartTypeToggleUI(activeType) {
+            const toggle = document.getElementById('chartTypeToggle');
+            if (!toggle) return;
+            toggle.querySelectorAll('.chart-type-btn').forEach(btn => {
+                btn.classList.toggle('is-active', btn.dataset.chartType === activeType);
+            });
+        }
+
+        // Toggle handler — re-renders the current multi_choice dimension as bar or pie.
+        function setMultiChoiceChartType(type) {
+            if (type !== 'bar' && type !== 'pie') return;
+            setChartTypePreference(currentQuestionRefKey, type);
+            updateChartTypeToggleUI(type);
+            const data = processMultiChoiceData();
+            if (type === 'pie') {
+                renderPieChart(data.values, 'barChart', data.totalCount);
+            } else {
+                renderHorizontalBarChart(data.values, 'barChart', data.totalCount, true);
+            }
+        }
+        window.setMultiChoiceChartType = setMultiChoiceChartType;
+
+
         // Detect survey format and setup question filter
         async function detectAndSetupQuestionFilter(savedState = null) {
             const questionSelect = document.getElementById('questionSelect');
@@ -3783,11 +3920,31 @@
                     chartTitleEl.textContent = questionText || 'Topics by Category';
                 }
                 
-                // Render horizontal bar chart for multi_choice and numeric
-                const data = questionType === 'multi_choice' 
-                    ? processMultiChoiceData() 
+                // Render horizontal bar chart for multi_choice and numeric.
+                // For single-select multi_choice, honour the user's bar/pie preference.
+                const data = questionType === 'multi_choice'
+                    ? processMultiChoiceData()
                     : processNumericData();
-                renderHorizontalBarChart(data.values, 'barChart', data.totalCount, questionType === 'multi_choice');
+                const chartTypeToggle = document.getElementById('chartTypeToggle');
+                if (questionType === 'multi_choice') {
+                    const selectMode = detectMultiChoiceSelectMode(currentQuestionRefKey);
+                    if (selectMode === 'single') {
+                        const chartType = getChartTypePreference(currentQuestionRefKey);
+                        if (chartTypeToggle) chartTypeToggle.style.display = 'inline-flex';
+                        updateChartTypeToggleUI(chartType);
+                        if (chartType === 'pie') {
+                            renderPieChart(data.values, 'barChart', data.totalCount);
+                        } else {
+                            renderHorizontalBarChart(data.values, 'barChart', data.totalCount, true);
+                        }
+                    } else {
+                        if (chartTypeToggle) chartTypeToggle.style.display = 'none';
+                        renderHorizontalBarChart(data.values, 'barChart', data.totalCount, true);
+                    }
+                } else {
+                    if (chartTypeToggle) chartTypeToggle.style.display = 'none';
+                    renderHorizontalBarChart(data.values, 'barChart', data.totalCount, false);
+                }
                 // Update footer count
                 const totalCountEl = document.getElementById('totalCount');
                 if (totalCountEl) totalCountEl.textContent = data.totalCount;
@@ -3811,6 +3968,9 @@
                 const topicsChart = document.querySelector('.chart[aria-label="All Topics"]');
                 if (topicsChart) topicsChart.style.display = 'none';
             } else if (questionType === 'geo') {
+                // Hide multi_choice chart-type toggle
+                const chartTypeToggleGeo = document.getElementById('chartTypeToggle');
+                if (chartTypeToggleGeo) chartTypeToggleGeo.style.display = 'none';
                 // Render geo map
                 const data = processGeoData();
                 renderGeoMap(data);
@@ -3831,6 +3991,9 @@
                 if (visualizationsGrid) visualizationsGrid.style.display = 'none';
             } else {
                 // Default: open_text or unknown - use existing visualizations
+                // Hide multi_choice chart-type toggle
+                const chartTypeToggleDefault = document.getElementById('chartTypeToggle');
+                if (chartTypeToggleDefault) chartTypeToggleDefault.style.display = 'none';
                 // Reset chart title to default
                 const chartTitleEl = document.querySelector('.chart[aria-label="Topics by Category"] .chart__title');
                 if (chartTitleEl) {
@@ -5946,6 +6109,10 @@
 
         function renderHorizontalBarChart(data, containerId, totalCount, isMultiChoice = false) {
             window.chartRendererRenderHorizontalBarChart(data, containerId, totalCount, isMultiChoice);
+        }
+
+        function renderPieChart(data, containerId, totalCount) {
+            window.chartRendererRenderPieChart(data, containerId, totalCount);
         }
 
         function renderTopicsChart() {

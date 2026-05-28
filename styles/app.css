@@ -3451,6 +3451,32 @@ body.slideout-open .treemap-header.search-active .treemap-search-clear {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    min-width: 280px;
+}
+
+.loading-label {
+    font-size: 16px;
+    font-weight: 500;
+    color: #667eea;
+}
+
+.loading-progress {
+    width: 100%;
+    height: 6px;
+    background: rgba(102, 126, 234, 0.15);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.loading-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #667eea, #8b9cf0);
+    border-radius: 999px;
 }
 
 /* Skeleton loading states */
@@ -3960,6 +3986,69 @@ body.slideout-open .treemap-header.search-active .treemap-search-clear {
     color: #666;
     transition: color 0.2s, transform 0.2s;
     border-radius: 4px;
+    flex-shrink: 0;
+}
+
+.chart__chart-type-toggle {
+    display: inline-flex;
+    background: #f0f0f0;
+    border-radius: 6px;
+    padding: 2px;
+    flex-shrink: 0;
+}
+
+.chart-type-btn {
+    background: none;
+    border: none;
+    padding: 4px 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s, box-shadow 0.15s;
+}
+
+.chart-type-btn img {
+    display: block;
+    opacity: 0.45;
+    transition: opacity 0.15s;
+}
+
+.chart-type-btn:hover img {
+    opacity: 0.75;
+}
+
+.chart-type-btn.is-active {
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.chart-type-btn.is-active img {
+    opacity: 1;
+}
+
+.pie-chart__legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px 18px;
+    margin-top: 12px;
+    font-family: 'Lato', sans-serif;
+    font-size: 13px;
+    color: #333;
+}
+
+.pie-chart__legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pie-chart__legend-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
     flex-shrink: 0;
 }
 
