@@ -398,42 +398,78 @@ export function renderPieChart(data, containerId, totalCount) {
         .append('title')
         .text(d => `${d.data.value}: ${d.data.count} (${d.data.percent.toFixed(1)}%)`);
 
-    // Leader-line labels: polyline from slice edge → bend → horizontal segment
-    // toward the chart edge; text anchored on the side matching the slice's half.
+    // Leader-line labels with vertical anti-collision. Each label's natural y
+    // is the bend point; if two labels on the same side end up closer than
+    // MIN_LABEL_SPACING, the lower ones are nudged down. Sub-1% slices are
+    // omitted — they'd be illegible and the value is available via tooltip.
     const midAngleOf = d => (d.startAngle + d.endAngle) / 2;
     const isRightHalf = d => midAngleOf(d) < Math.PI;
     const bendOffset = 14;
     const labelGap = 6;
     const labelEdgeX = radius + bendOffset + 4;
+    const MIN_LABEL_SPACING = 16;
+    const MIN_LABEL_PCT = 1;
 
-    arcs.append('polyline')
-        .attr('points', d => {
+    const labelEntries = pie(chartData)
+        .filter(d => d.data.percent >= MIN_LABEL_PCT)
+        .map(d => {
             const a = midAngleOf(d);
             const sin = Math.sin(a);
             const cos = Math.cos(a);
-            const start = [sin * radius, -cos * radius];
-            const bend = [sin * (radius + bendOffset), -cos * (radius + bendOffset)];
-            const end = [(isRightHalf(d) ? 1 : -1) * labelEdgeX, bend[1]];
-            return [start, bend, end].map(p => p.join(',')).join(' ');
-        })
-        .attr('fill', 'none')
-        .attr('stroke', '#999')
-        .attr('stroke-width', 1);
+            return {
+                d,
+                side: isRightHalf(d) ? 'right' : 'left',
+                yNatural: -cos * (radius + bendOffset),
+                sliceEdge: [sin * radius, -cos * radius],
+                bend: [sin * (radius + bendOffset), -cos * (radius + bendOffset)],
+            };
+        });
 
-    arcs.append('text')
-        .attr('transform', d => {
-            const a = midAngleOf(d);
-            const y = -Math.cos(a) * (radius + bendOffset);
-            const x = (isRightHalf(d) ? 1 : -1) * (labelEdgeX + labelGap);
-            return `translate(${x}, ${y})`;
-        })
-        .attr('text-anchor', d => isRightHalf(d) ? 'start' : 'end')
-        .attr('dominant-baseline', 'central')
-        .style('font-family', 'Lato, sans-serif')
-        .style('font-size', '13px')
-        .style('fill', '#333')
-        .style('pointer-events', 'none')
-        .text(d => `${d.data.value} (${d.data.percent.toFixed(1)}%)`);
+    const maxY = height / 2 - 8;
+    const minY = -maxY;
+    function resolveSide(entries) {
+        entries.sort((a, b) => a.yNatural - b.yNatural);
+        // Top-down pass: push down anything overlapping the entry above.
+        entries.forEach((e, i) => {
+            if (i === 0) {
+                e.y = e.yNatural;
+            } else {
+                e.y = Math.max(e.yNatural, entries[i - 1].y + MIN_LABEL_SPACING);
+            }
+        });
+        // Bottom-up pass: if the stack overshoots the chart edge, push the
+        // overflowing labels back up.
+        for (let i = entries.length - 1; i >= 0; i--) {
+            if (entries[i].y > maxY) entries[i].y = maxY - (entries.length - 1 - i) * MIN_LABEL_SPACING;
+            if (i < entries.length - 1 && entries[i + 1].y - entries[i].y < MIN_LABEL_SPACING) {
+                entries[i].y = entries[i + 1].y - MIN_LABEL_SPACING;
+            }
+            if (entries[i].y < minY) entries[i].y = minY + i * MIN_LABEL_SPACING;
+        }
+    }
+    resolveSide(labelEntries.filter(e => e.side === 'right'));
+    resolveSide(labelEntries.filter(e => e.side === 'left'));
+
+    const labelGroup = g.append('g').attr('class', 'pie-labels');
+    labelEntries.forEach(e => {
+        const endX = (e.side === 'right' ? 1 : -1) * labelEdgeX;
+        const points = [e.sliceEdge, e.bend, [endX, e.y]];
+        labelGroup.append('polyline')
+            .attr('points', points.map(p => p.join(',')).join(' '))
+            .attr('fill', 'none')
+            .attr('stroke', '#999')
+            .attr('stroke-width', 1);
+        labelGroup.append('text')
+            .attr('x', (e.side === 'right' ? 1 : -1) * (labelEdgeX + labelGap))
+            .attr('y', e.y)
+            .attr('text-anchor', e.side === 'right' ? 'start' : 'end')
+            .attr('dominant-baseline', 'central')
+            .style('font-family', 'Lato, sans-serif')
+            .style('font-size', '13px')
+            .style('fill', '#333')
+            .style('pointer-events', 'none')
+            .text(`${e.d.data.value} (${e.d.data.percent.toFixed(1)}%)`);
+    });
 }
 
 /**
