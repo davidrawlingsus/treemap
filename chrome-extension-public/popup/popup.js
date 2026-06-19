@@ -1086,6 +1086,13 @@ function renderSynthesisText(raw, streaming) {
   }
 
   // Library-level diversity diagnostics
+  const diversityValClass = (v) => {
+    const s = (v || "").toLowerCase();
+    if (s.includes("concentrated")) return "diversity-low";
+    if (s.startsWith("average")) return "diversity-mid";
+    if (s.startsWith("excellent") || s.startsWith("good")) return "diversity-good";
+    return "";
+  };
   const diversityRow = (label, raw) => {
     if (!raw) return "";
     const [value, finding] = splitValueFinding(raw);
@@ -1093,7 +1100,7 @@ function renderSynthesisText(raw, streaming) {
       <div class="synthesis-diversity-row">
         <div class="synthesis-diversity-head">
           <span class="synthesis-diversity-label">${label}</span>
-          <span class="synthesis-diversity-val">${escHtml(value)}</span>
+          <span class="synthesis-diversity-val ${diversityValClass(value)}">${escHtml(value)}</span>
         </div>
         ${finding ? `<div class="synthesis-diversity-finding">${escHtml(finding)}</div>` : ""}
       </div>`;

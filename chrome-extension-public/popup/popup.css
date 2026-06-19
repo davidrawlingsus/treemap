@@ -787,6 +787,9 @@ select option {
   color: #B9F040;
   white-space: nowrap;
 }
+.synthesis-diversity-val.diversity-good { color: #B9F040; }
+.synthesis-diversity-val.diversity-mid { color: #f5b301; }
+.synthesis-diversity-val.diversity-low { color: #ff6b6b; }
 .synthesis-diversity-finding {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.7);

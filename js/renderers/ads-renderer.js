@@ -825,13 +825,20 @@ function buildImportSummaryHtml() {
         if (!m) m = raw.match(/^(.+?)\s+-\s+([\s\S]+)$/);
         return m ? [m[1].trim(), m[2].trim()] : [raw.trim(), ''];
     }
+    function diversityValClass(v) {
+        const s = (v || '').toLowerCase();
+        if (s.includes('concentrated')) return 'diversity-low';
+        if (s.startsWith('average')) return 'diversity-mid';
+        if (s.startsWith('excellent') || s.startsWith('good')) return 'diversity-good';
+        return '';
+    }
     function diversityRow(label, raw) {
         if (!raw) return '';
         const [value, finding] = splitValueFinding(raw);
         return `
             <div class="import-diversity__row">
                 <span class="import-diversity__label">${escapeHtml(label)}</span>
-                <span class="import-diversity__val">${escapeHtml(value)}</span>
+                <span class="import-diversity__val ${diversityValClass(value)}">${escapeHtml(value)}</span>
             </div>
             ${finding ? `<div class="import-diversity__finding">${escapeHtml(finding)}</div>` : ''}
         `;

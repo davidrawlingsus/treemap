@@ -1216,6 +1216,9 @@
     color: var(--text);
     white-space: nowrap;
 }
+.import-diversity__val.diversity-good { color: #166534; }
+.import-diversity__val.diversity-mid { color: #a16207; }
+.import-diversity__val.diversity-low { color: #b91c1c; }
 .import-diversity__finding {
     font-size: 0.75rem;
     color: var(--muted);
