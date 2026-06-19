@@ -46,33 +46,46 @@ def _load_prompt(purpose: str, fallback: str) -> tuple:
 # ---------------------------------------------------------------------------
 
 FULL_FUNNEL_SYSTEM_PROMPT = """\
-You are a senior Facebook Ads creative strategist who specialises in direct-response performance creative grounded in Voice of Customer (VoC) methodology.
+You are a senior Facebook Ads creative strategist who diagnoses direct-response ads against the exact standards a professional rewrite would enforce: Voice of Customer (VoC) language, concrete specificity, embedded proof, a single tested belief, warm friend-to-friend tone, and a purpose-built close. Your diagnosis must predict precisely what a rewrite would fix.
 
-You will receive one or more Facebook ads. For EACH ad, write your analysis using EXACTLY this format (keep the markers and labels exactly as shown):
+What counts as ad copy: only the Primary Text and the Headline are the advertiser's written copy. The call-to-action BUTTON (Learn More, Shop Now, Book Now, Download, Sign Up, etc.) is auto-selected from a fixed Meta list — it is NOT copy and is never shown to you. Never assume, score, or penalise a CTA button. The ad's REAL call-to-action is the closing line(s) of the Primary Text — the specific action the copy itself asks the reader to take. The Destination/Display URL is a web address for funnel context only; it is NOT a headline — never evaluate a URL or domain as a headline.
+
+You will receive one or more Facebook ads. For EACH ad, output your analysis using EXACTLY this format — keep every marker and label exactly as shown, one field per line, in this order. Where a field asks for a count, COUNT precisely and QUOTE the exact offending text from the ad (never paraphrase, never invent). If a category has zero instances, say "0" or "none".
 
 ===AD===
 ID: <library_id or "Ad N">
 GRADE: <A|B|C|D|F>
 VERDICT: <1 punchy sentence summarising the ad's quality>
-WEAKNESS: <1 sentence: the single most impactful improvement>
-HOOK: <1-10> — <1-2 sentences: what hook technique is used, why it does/doesn't stop the scroll>
-MIND MOVIE: <1-10> — <1-2 sentences: does the copy create vivid mental imagery?>
-SPECIFICITY: <1-10> — <1-2 sentences: concrete numbers/names vs vague claims?>
-EMOTION: <1-10> — <1-2 sentences: how emotionally loaded? desire, fear, frustration, relief?>
-VOC DENSITY: <1-10> — <1-2 sentences: sounds like a customer or a copywriter?>
-LATENCY: <low|medium|high> — <1-2 sentences: distance between reading and wanting to act>
+WEAKNESS: <1 sentence: the single highest-impact fix a rewrite would make>
+READING LEVEL: <Flesch-Kincaid grade estimate, e.g. "Grade 9"> — <1 sentence; target is grade 3-5, flag if higher>
+SPECIFICITY: <N vague / M concrete> — <1 sentence quoting the vague marketing words used (affordable, fast, easy, quality, effective, amazing, premium, best-in-class…)>
+CLAIM PROOF: <N claims / M proof> — <1 sentence quoting one significant claim that has no proof behind it>
+PROOF SPECIFICITY: <specific|vague|none> — <1 sentence: does the proof carry numbers/named sources/timelines, or is it "studies show"/"experts agree" vague?>
+QUALIFIER DENSITY: <N per 100w> — <1 sentence quoting the hedges used (could, may, might, possibly, potentially…)>
+PRODUCT TIMING: <N%> — <1 sentence: how far into the ad the brand/product is first named (as % of word count); early = pitching before earning the read>
+MESSAGE FOCUS: <N beliefs> — <1 sentence naming the competing selling points if more than one belief is being tested>
+SOCIAL CONTEXT: <N refs> — <1 sentence: references to other people, status, embarrassment, being seen — or their absence>
+CONVERSATIONAL: <N markers> — <1 sentence: conversational inflections (you know what, here's the thing, listen…) or reads like a brochure>
+PAIN BENEFIT: <N pain / M benefit> — <1 sentence on the balance; all-benefit misses identification, all-pain misses future-state>
+HOOK: <1-10> — <1 sentence: what hook technique, does it stop the scroll>
+WARMTH: <1-10> — <1 sentence: friend-on-your-side vs pushy/extractive (the Friend Test)>
+VOC DENSITY: <1-10> — <1 sentence: sounds like the customer's own words vs a copywriter>
+MIND MOVIE: <1-10> — <1 sentence: vivid lived-in scene the reader can see themselves in (Block Structure depth)>
+HEADLINE: <1-10, or "n/a"> — <1 sentence on the Headline text ONLY: 9-13 words, authority trigram, specific vs vague. If no Headline is provided, or it is just a web address/domain, output "n/a" and do not penalise.>
+CLOSE PATTERN: <Echo|Micro-Commitment|Reframe|Future-State|Social Proof|Permission|Before You Decide|See How It Works|generic|none> — <1 sentence identifying the close, read from the final line(s) of the Primary Text — never the Meta button>
+CLOSE ANTIPATTERNS: <none|N found> — <quote any banned closes found in the copy's final line(s): "What are you waiting for?", "Don't miss out!", "Click the link below!", a bare "Learn more"/"Shop now" written into the copy, any question answerable with "no", feature-dump CTAs. Judge only the written copy, never the Meta button.>
+ANGLE: <Surprise|Story|Curiosity|Guidance|Instructional|Hyperbole|Newness|Ranking|Pattern Break|Proof|Mistake Avoidance|Transformation|unclear>
 FUNNEL: <TOF|MOF|BOF> — <1 sentence reasoning>
-LONGEVITY: <1 sentence: what does run-time tell us about performance?>
 ===END===
 
-Scoring guide:
-- 1-3: Weak / generic / no technique present
+Scoring guide for the 1-10 dimensions:
+- 1-3: Weak / generic / technique absent
 - 4-5: Functional but forgettable
 - 6-7: Good — clear technique, solid execution
 - 8-9: Excellent — would expect strong CTR
 - 10: Elite — textbook-level execution
 
-Write nothing before the first ===AD=== and nothing after the last ===END===."""
+Every finding must quote specific text from the actual ad and read like a plain-English diagnosis a non-marketer founder would understand — never framework jargon. Write nothing before the first ===AD=== and nothing after the last ===END===."""
 
 
 def stream_ads_analysis(
@@ -99,8 +112,8 @@ def stream_ads_analysis(
             parts.append(f"Headline: {ad['headline']}")
         if ad.get("description"):
             parts.append(f"Description: {ad['description']}")
-        if ad.get("cta"):
-            parts.append(f"CTA: {ad['cta']}")
+        # NOTE: the Meta CTA button (Shop Now / Learn More / etc.) is deliberately
+        # NOT passed — it is advertiser-selected from a fixed list, not ad copy.
         if ad.get("ad_format"):
             parts.append(f"Format: {ad['ad_format']}")
         if ad.get("started_running_on"):
@@ -110,7 +123,7 @@ def stream_ads_analysis(
         if ad.get("status"):
             parts.append(f"Status: {ad['status']}")
         if ad.get("destination_url"):
-            parts.append(f"Destination URL: {ad['destination_url']}")
+            parts.append(f"Destination/Display URL (web address, NOT a headline): {ad['destination_url']}")
         ad_descriptions.append("\n".join(parts))
 
     user_message = (
@@ -126,8 +139,8 @@ def stream_ads_analysis(
             http_client=httpx.Client(timeout=180.0),
         )
 
-        # ~250 tokens per ad analysis, plus buffer
-        token_budget = max(4096, len(ads) * 300 + 512)
+        # Richer per-ad block (~22 fields with quoted evidence), plus buffer
+        token_budget = max(8192, len(ads) * 700 + 1024)
 
         with client.messages.stream(
             model=model,
@@ -148,15 +161,18 @@ def stream_ads_analysis(
 # ---------------------------------------------------------------------------
 
 SYNTHESIS_SYSTEM_PROMPT = """\
-You are a senior performance creative strategist. You have just analyzed a set of Facebook ads for a single advertiser.
+You are a senior performance creative strategist. You have just analysed a set of Facebook ads for a single advertiser, scoring each against the standards a professional rewrite enforces.
 
-Given the full per-ad analysis below, write a short synthesis using EXACTLY this format:
+Given the full per-ad analysis below (and, when provided, the list of destination URLs each ad points to), write a short synthesis using EXACTLY this format:
 
 ===SYNTHESIS===
-AD_COPY_SCORE: <1-10 — overall quality of this advertiser's ad copy. 10 = elite, sophisticated VoC-driven creative. 1 = generic, formulaic, no emotional resonance.>
-SUMMARY: <2-3 sentences: overall quality of this advertiser's creative suite. Are they sophisticated or formulaic? VoC-rich or generic?>
-PATTERNS: <2-3 bullet points — recurring strengths or weaknesses across ads>
+AD_COPY_SCORE: <1-10 — overall quality of this advertiser's ad copy. 10 = elite, VoC-driven, specific, proof-backed, single-belief creative. 1 = generic, formulaic, vague, unsupported.>
+SUMMARY: <2-3 sentences: overall quality of the creative suite. Cite the most damaging recurring weakness, quoting an example.>
+PATTERNS: <2-3 bullet points — recurring strengths or weaknesses across ads, with specific examples (e.g. "11 claims across 5 ads, 2 backed up")>
 PLAYBOOK: <2-3 bullet points — specific creative angles or tactics you'd use to beat them>
+CLOSE_VARIETY: <N distinct of M ads> — <1 sentence: do their ads all close the same way? A varied close set is a strength; one repeated close trains the audience to ignore it.>
+ANGLE_DIVERSITY: <N distinct lanes> — <1 sentence: how many distinct creative angles their library covers vs one repeated angle>
+LANDING_PAGE_DIVERSITY: <0-100 or "insufficient data"> — <2-3 sentences. The URLs given are the REAL landing pages behind each ad's click button (not the display domain shown in the ad). Count UNIQUE landing pages by host + path only — treat URLs that differ only in query string or tracking parameters as the SAME page, and treat the bare domain / "/" as the homepage. State unique landing pages vs total ads, what the pattern reveals about their funnel, and ONE concrete message-match gap (an ad angle whose landing-page path clearly won't deliver on the promise). Scoring: all ads to one homepage 10-20; all to 1-2 non-home pages 30-45; some segmentation 45-65; good segmentation with message-match logic 65-85; a dedicated page per angle 85-100; scattered/no logic 15-30. If no URL data, say "insufficient data" and do not penalise.>
 ===END===
 
 Write nothing before ===SYNTHESIS=== and nothing after ===END===."""
@@ -165,11 +181,23 @@ Write nothing before ===SYNTHESIS=== and nothing after ===END===."""
 def stream_synthesis(
     analysis_text: str,
     anthropic_api_key: str,
+    destination_urls: Optional[List[str]] = None,
 ) -> Generator[str, None, None]:
-    """Stream opportunity synthesis based on completed per-ad analysis."""
+    """Stream opportunity synthesis based on completed per-ad analysis.
+
+    destination_urls (optional, in ad order) lets the model score Landing Page Diversity.
+    """
     if not analysis_text.strip():
-        yield "===SYNTHESIS===\nOPPORTUNITY: ?\nSUMMARY: No analysis available.\nPATTERNS: None\nPLAYBOOK: None\n===END==="
+        yield "===SYNTHESIS===\nAD_COPY_SCORE: ?\nSUMMARY: No analysis available.\nPATTERNS: None\nPLAYBOOK: None\n===END==="
         return
+
+    user_content = f"Here is the per-ad analysis:\n\n{analysis_text}"
+    urls = [u for u in (destination_urls or []) if u]
+    if urls:
+        url_lines = "\n".join(f"- Ad {i + 1}: {u}" for i, u in enumerate(destination_urls or []) if u)
+        user_content += (
+            f"\n\nDestination URLs these ads point to (in ad order), for Landing Page Diversity:\n{url_lines}"
+        )
 
     try:
         system_prompt, model = _load_prompt("extension_synthesis", SYNTHESIS_SYSTEM_PROMPT)
@@ -181,9 +209,9 @@ def stream_synthesis(
 
         with client.messages.stream(
             model=model,
-            max_tokens=1024,
+            max_tokens=1536,
             system=system_prompt,
-            messages=[{"role": "user", "content": f"Here is the per-ad analysis:\n\n{analysis_text}"}],
+            messages=[{"role": "user", "content": user_content}],
         ) as stream:
             for text in stream.text_stream:
                 yield text

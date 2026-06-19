@@ -681,11 +681,31 @@ function buildCritiqueAccordionHtml(analysis) {
         `;
     }
 
+    // Split "<value> — finding" (prefers em/en dash, falls back to spaced hyphen)
+    function splitValueFinding(raw) {
+        let m = raw.match(/^(.+?)\s+[—–]\s+([\s\S]+)$/);
+        if (!m) m = raw.match(/^(.+?)\s+-\s+([\s\S]+)$/);
+        return m ? [m[1].trim(), m[2].trim()] : [raw.trim(), ''];
+    }
+
+    // Metric row: neutral value chip + finding (e.g. "5 vague / 2 concrete — …")
+    function metricRow(label, raw) {
+        if (!raw) return '';
+        const [value, finding] = splitValueFinding(raw);
+        return `
+            <div class="critique-dimension">
+                <div class="critique-dimension__header">
+                    <span class="critique-dimension__label">${escapeHtml(label)}</span>
+                    <span class="critique-metric">${escapeHtml(value)}</span>
+                </div>
+                ${finding ? `<p class="critique-dimension__text">${escapeHtml(finding)}</p>` : ''}
+            </div>
+        `;
+    }
+
     function tagRow(label, raw) {
         if (!raw) return '';
-        const m = raw.match(/^(\S+)\s*[—–\-]\s*(.+)$/);
-        const tag = m ? m[1] : raw;
-        const text = m ? m[2].trim() : '';
+        const [tag, text] = splitValueFinding(raw);
         return `
             <div class="critique-dimension">
                 <div class="critique-dimension__header">
@@ -697,15 +717,35 @@ function buildCritiqueAccordionHtml(analysis) {
         `;
     }
 
-    const dimensions = [
+    // Data-driven: render whichever keys are present, so old (hook/emotion/latency…)
+    // and new (reading_level/claim_proof/warmth…) reports both render correctly.
+    const rows = [
+        // Diagnostics (metric dimensions — new)
+        metricRow('Reading Level', analysis.reading_level),
+        metricRow('Specificity', analysis.specificity),
+        metricRow('Claim : Proof', analysis.claim_proof),
+        metricRow('Proof Specificity', analysis.proof_specificity),
+        metricRow('Qualifier Density', analysis.qualifier_density),
+        metricRow('Product Timing', analysis.product_timing),
+        metricRow('Message Focus', analysis.message_focus),
+        metricRow('Social Context', analysis.social_context),
+        metricRow('Conversational', analysis.conversational),
+        metricRow('Pain : Benefit', analysis.pain_benefit),
+        // Craft scores
         scoreRow('Hook', analysis.hook),
-        scoreRow('Mind Movie', analysis.mind_movie),
-        scoreRow('Specificity', analysis.specificity),
-        scoreRow('Emotion', analysis.emotion),
+        scoreRow('Warmth', analysis.warmth),
         scoreRow('VoC Density', analysis.voc_density),
-        tagRow('Latency', analysis.latency),
+        scoreRow('Mind Movie', analysis.mind_movie),
+        scoreRow('Headline', analysis.headline),
+        scoreRow('Emotion', analysis.emotion), // legacy
+        // Close & angle
+        tagRow('Close Pattern', analysis.close_pattern),
+        metricRow('Close Anti-patterns', analysis.close_antipatterns),
+        tagRow('Angle', analysis.angle),
+        tagRow('Latency', analysis.latency), // legacy
         tagRow('Funnel', analysis.funnel),
-    ].filter(Boolean).join('');
+    ];
+    const dimensions = rows.filter(Boolean).join('');
 
     return `
         <div class="ads-card__accordions">
@@ -773,9 +813,39 @@ function buildImportSummaryHtml() {
         oppBadge(data.opportunityScore),
     ].filter(Boolean).join('');
 
+    // Library-level diversity diagnostics, parsed from the synthesis text (new imports only).
+    function synthField(label) {
+        const text = data.synthesisText || '';
+        const re = new RegExp(`^${label}:\\s*(.+(?:\\n(?![A-Z_]+:|===).+)*)`, 'm');
+        const m = text.match(re);
+        return m ? m[1].trim() : '';
+    }
+    function splitValueFinding(raw) {
+        let m = raw.match(/^(.+?)\s+[—–]\s+([\s\S]+)$/);
+        if (!m) m = raw.match(/^(.+?)\s+-\s+([\s\S]+)$/);
+        return m ? [m[1].trim(), m[2].trim()] : [raw.trim(), ''];
+    }
+    function diversityRow(label, raw) {
+        if (!raw) return '';
+        const [value, finding] = splitValueFinding(raw);
+        return `
+            <div class="import-diversity__row">
+                <span class="import-diversity__label">${escapeHtml(label)}</span>
+                <span class="import-diversity__val">${escapeHtml(value)}</span>
+            </div>
+            ${finding ? `<div class="import-diversity__finding">${escapeHtml(finding)}</div>` : ''}
+        `;
+    }
+    const diversity = [
+        diversityRow('Close Variety', synthField('CLOSE_VARIETY')),
+        diversityRow('Angle Diversity', synthField('ANGLE_DIVERSITY')),
+        diversityRow('Landing Page Diversity', synthField('LANDING_PAGE_DIVERSITY')),
+    ].filter(Boolean).join('');
+
     return `
         <div class="import-summary">
             <div class="import-summary__scores">${scores}</div>
+            ${diversity ? `<div class="import-diversity">${diversity}</div>` : ''}
         </div>
     `;
 }

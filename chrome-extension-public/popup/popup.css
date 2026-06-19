@@ -763,6 +763,37 @@ select option {
   margin-top: 4px;
 }
 
+.synthesis-diversity-row {
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.synthesis-diversity-row:last-child {
+  border-bottom: none;
+}
+.synthesis-diversity-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.synthesis-diversity-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+}
+.synthesis-diversity-val {
+  font-size: 12px;
+  font-weight: 800;
+  color: #B9F040;
+  white-space: nowrap;
+}
+.synthesis-diversity-finding {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.5;
+  margin-top: 2px;
+}
+
 /* ==========================================================================
    Import Section
    ========================================================================== */

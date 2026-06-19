@@ -1175,6 +1175,54 @@
     color: var(--text);
 }
 
+.critique-metric {
+    font-size: 11px;
+    font-weight: 800;
+    padding: 1px 7px;
+    border-radius: 4px;
+    background: rgba(55, 53, 47, 0.06);
+    color: var(--text);
+    white-space: nowrap;
+}
+
+.critique-section-label {
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    margin: 10px 0 2px;
+}
+
+.import-diversity {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+}
+.import-diversity__row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    font-size: 0.75rem;
+}
+.import-diversity__label {
+    font-weight: 700;
+    color: var(--text);
+}
+.import-diversity__val {
+    font-weight: 800;
+    color: var(--text);
+    white-space: nowrap;
+}
+.import-diversity__finding {
+    font-size: 0.75rem;
+    color: var(--muted);
+    line-height: 1.4;
+    flex: 1;
+}
+
 .critique-longevity {
     font-size: 0.75rem;
     color: var(--muted);

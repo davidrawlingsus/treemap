@@ -188,6 +188,9 @@ def analyze_ads(
 
 class SynthesisRequest(BaseModel):
     analysis_text: str = Field(..., description="Full per-ad analysis text to synthesize")
+    destination_urls: Optional[List[str]] = Field(
+        None, description="Destination URLs in ad order, for Landing Page Diversity scoring"
+    )
 
 
 @router.post("/synthesize")
@@ -202,7 +205,11 @@ def synthesize_ads(
 
     from app.services.ad_analysis_service import stream_synthesis
 
-    text_gen = stream_synthesis(body.analysis_text, settings.anthropic_api_key)
+    text_gen = stream_synthesis(
+        body.analysis_text,
+        settings.anthropic_api_key,
+        destination_urls=body.destination_urls,
+    )
 
     return StreamingResponse(
         _sse_generator(text_gen),

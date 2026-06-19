@@ -799,6 +799,28 @@ function parseCompletedAdBlocks(raw) {
   return blocks;
 }
 
+// ---- Normalize a destination URL to its real landing page for diversity ----
+// The captured URL is the real page behind the ad's button, but it carries
+// per-impression tracking (fbclid, utm_*, etc.) that makes every URL look unique.
+// Strip those so unique-landing-page counts reflect host+path, not tracking noise.
+const TRACKING_PARAM_RE = /^(fbclid|gclid|dclid|msclkid|igshid|mc_eid|mc_cid|_ga|_gl|yclid|ttclid|twclid|li_fat_id|wbraid|gbraid|epik|s_kwcid|utm_[a-z_]+)$/i;
+function cleanDestinationUrl(url) {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    const kept = [];
+    for (const [k, v] of u.searchParams.entries()) {
+      if (!TRACKING_PARAM_RE.test(k)) kept.push([k, v]);
+    }
+    u.search = "";
+    for (const [k, v] of kept) u.searchParams.append(k, v);
+    u.hash = "";
+    return u.toString();
+  } catch (_) {
+    return url;
+  }
+}
+
 // ---- Extract a field from a text block ----
 function getField(block, label) {
   const re = new RegExp(`^${label}:\\s*(.+)$`, "m");
@@ -820,14 +842,28 @@ function parseAnalysisToJson(block) {
     grade: getField(block, "GRADE"),
     verdict: getField(block, "VERDICT"),
     weakness: getField(block, "WEAKNESS"),
-    hook: getField(block, "HOOK"),
-    mind_movie: getField(block, "MIND MOVIE"),
+    // Metric dimensions (value + finding)
+    reading_level: getField(block, "READING LEVEL"),
     specificity: getField(block, "SPECIFICITY"),
-    emotion: getField(block, "EMOTION"),
+    claim_proof: getField(block, "CLAIM PROOF"),
+    proof_specificity: getField(block, "PROOF SPECIFICITY"),
+    qualifier_density: getField(block, "QUALIFIER DENSITY"),
+    product_timing: getField(block, "PRODUCT TIMING"),
+    message_focus: getField(block, "MESSAGE FOCUS"),
+    social_context: getField(block, "SOCIAL CONTEXT"),
+    conversational: getField(block, "CONVERSATIONAL"),
+    pain_benefit: getField(block, "PAIN BENEFIT"),
+    // Craft scores (1-10)
+    hook: getField(block, "HOOK"),
+    warmth: getField(block, "WARMTH"),
     voc_density: getField(block, "VOC DENSITY"),
-    latency: getField(block, "LATENCY"),
+    mind_movie: getField(block, "MIND MOVIE"),
+    headline: getField(block, "HEADLINE"),
+    // Tags
+    close_pattern: getField(block, "CLOSE PATTERN"),
+    close_antipatterns: getField(block, "CLOSE ANTIPATTERNS"),
+    angle: getField(block, "ANGLE"),
     funnel: getField(block, "FUNNEL"),
-    longevity: getField(block, "LONGEVITY"),
   };
 }
 
@@ -847,14 +883,20 @@ function buildOpportunityExplanation(adCopy, signal) {
   return copyPart + ", with " + sigPart;
 }
 
+// Split a "value — finding" field into [value, finding] (prefers em/en dash).
+function splitValueFinding(raw) {
+  let m = raw.match(/^(.+?)\s+[—–]\s+([\s\S]+)$/);
+  if (!m) m = raw.match(/^(.+?)\s+-\s+([\s\S]+)$/);
+  return m ? [m[1].trim(), m[2].trim()] : [raw.trim(), ""];
+}
+
 // ---- Build HTML for injection onto the FB page ad card ----
 function buildAdCardHtml(block) {
   const grade = getField(block, "GRADE");
   const verdict = getField(block, "VERDICT");
   const weakness = getField(block, "WEAKNESS");
-  const longevity = getField(block, "LONGEVITY");
 
-  // Score line: "7 — Analysis text here" → score badge + analysis text
+  // Craft score line: "7 — Analysis text" → 1-10 badge + reason
   const scoreHtml = (label, display) => {
     const raw = getField(block, label);
     if (!raw) return "";
@@ -874,22 +916,35 @@ function buildAdCardHtml(block) {
     return `<div class="vzd-dimension"><div class="vzd-score-item"><span class="vzd-score-label">${display}</span></div><div class="vzd-score-reason">${escHtml(raw)}</div></div>`;
   };
 
-  // Tag line: "low — Analysis text" → tag badge + analysis text
+  // Metric line: "<value> — finding" → neutral value chip + finding
+  const metricHtml = (label, display) => {
+    const raw = getField(block, label);
+    if (!raw) return "";
+    const [value, finding] = splitValueFinding(raw);
+    return `
+      <div class="vzd-dimension">
+        <div class="vzd-score-item">
+          <span class="vzd-score-label">${display}</span>
+          <span class="vzd-metric-val">${escHtml(value)}</span>
+        </div>
+        ${finding ? `<div class="vzd-score-reason">${escHtml(finding)}</div>` : ""}
+      </div>`;
+  };
+
+  // Tag line: "<value> — finding" or just "<value>" → categorical chip + optional finding
   const tagHtml = (label, display, prefix) => {
     const raw = getField(block, label);
     if (!raw) return "";
-    const m = raw.match(/^(\S+)\s*[—–-]\s*(.+)$/);
-    if (m) {
-      return `
-        <div class="vzd-dimension">
-          <div class="vzd-score-item">
-            <span class="vzd-score-label">${display}</span>
-            <span class="vzd-tag ${prefix}-${m[1].toLowerCase()}">${m[1]}</span>
-          </div>
-          <div class="vzd-score-reason">${escHtml(m[2])}</div>
-        </div>`;
-    }
-    return `<div class="vzd-dimension"><div class="vzd-score-item"><span class="vzd-score-label">${display}</span></div><div class="vzd-score-reason">${escHtml(raw)}</div></div>`;
+    const [value, finding] = splitValueFinding(raw);
+    const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+    return `
+      <div class="vzd-dimension">
+        <div class="vzd-score-item">
+          <span class="vzd-score-label">${display}</span>
+          <span class="vzd-tag ${prefix}-${slug}">${escHtml(value)}</span>
+        </div>
+        ${finding ? `<div class="vzd-score-reason">${escHtml(finding)}</div>` : ""}
+      </div>`;
   };
 
   return `
@@ -898,14 +953,28 @@ function buildAdCardHtml(block) {
       ${verdict ? `<span class="vzd-verdict">${escHtml(verdict)}</span>` : ""}
     </div>
     ${weakness ? `<div class="vzd-weakness">Weakness: ${escHtml(weakness)}</div>` : ""}
+    <div class="vzd-section-label">Diagnostics</div>
+    ${metricHtml("READING LEVEL", "Reading Level")}
+    ${metricHtml("SPECIFICITY", "Specificity")}
+    ${metricHtml("CLAIM PROOF", "Claim : Proof")}
+    ${metricHtml("PROOF SPECIFICITY", "Proof Specificity")}
+    ${metricHtml("QUALIFIER DENSITY", "Qualifier Density")}
+    ${metricHtml("PRODUCT TIMING", "Product Timing")}
+    ${metricHtml("MESSAGE FOCUS", "Message Focus")}
+    ${metricHtml("SOCIAL CONTEXT", "Social Context")}
+    ${metricHtml("CONVERSATIONAL", "Conversational")}
+    ${metricHtml("PAIN BENEFIT", "Pain : Benefit")}
+    <div class="vzd-section-label">Craft</div>
     ${scoreHtml("HOOK", "Hook")}
-    ${scoreHtml("MIND MOVIE", "Mind Movie")}
-    ${scoreHtml("SPECIFICITY", "Specificity")}
-    ${scoreHtml("EMOTION", "Emotion")}
+    ${scoreHtml("WARMTH", "Warmth")}
     ${scoreHtml("VOC DENSITY", "VoC Density")}
-    ${tagHtml("LATENCY", "Latency", "vzd-latency")}
+    ${scoreHtml("MIND MOVIE", "Mind Movie")}
+    ${scoreHtml("HEADLINE", "Headline")}
+    <div class="vzd-section-label">Close & Angle</div>
+    ${tagHtml("CLOSE PATTERN", "Close Pattern", "vzd-close")}
+    ${metricHtml("CLOSE ANTIPATTERNS", "Close Anti-patterns")}
+    ${tagHtml("ANGLE", "Angle", "vzd-angle")}
     ${tagHtml("FUNNEL", "Funnel", "vzd-funnel")}
-    ${longevity ? `<div class="vzd-longevity">${escHtml(longevity)}</div>` : ""}
   `;
 }
 
@@ -915,9 +984,13 @@ function streamSynthesis(analysisText, container) {
   const adSkeleton = $("#adAnalysisSkeleton");
   if (adSkeleton) adSkeleton.style.display = "none";
 
+  const destinationUrls = (extractedAds || [])
+    .slice(0, 50)
+    .map((ad) => cleanDestinationUrl(ad.destination_url));
+
   streamSSE(
     "/api/extension/synthesize",
-    { analysis_text: analysisText },
+    { analysis_text: analysisText, destination_urls: destinationUrls },
     // onChunk
     (text) => {
       container.innerHTML = renderSynthesisText(text, true);
@@ -959,6 +1032,9 @@ function renderSynthesisText(raw, streaming) {
 
   const patterns = getMultiline("PATTERNS");
   const playbook = getMultiline("PLAYBOOK");
+  const closeVariety = getField(block, "CLOSE_VARIETY");
+  const angleDiversity = getField(block, "ANGLE_DIVERSITY");
+  const landingPageDiversity = getMultiline("LANDING_PAGE_DIVERSITY");
 
   const copyClass = copyScore >= 7 ? "score-high" : "score-low";
   const sigScore = typeof signalGrade === "number" ? signalGrade : 0;
@@ -1008,6 +1084,28 @@ function renderSynthesisText(raw, streaming) {
   if (playbook) {
     html += `<div class="synthesis-section-label">Playbook</div><div class="synthesis-bullets">${mdToHtml(playbook)}</div>`;
   }
+
+  // Library-level diversity diagnostics
+  const diversityRow = (label, raw) => {
+    if (!raw) return "";
+    const [value, finding] = splitValueFinding(raw);
+    return `
+      <div class="synthesis-diversity-row">
+        <div class="synthesis-diversity-head">
+          <span class="synthesis-diversity-label">${label}</span>
+          <span class="synthesis-diversity-val">${escHtml(value)}</span>
+        </div>
+        ${finding ? `<div class="synthesis-diversity-finding">${escHtml(finding)}</div>` : ""}
+      </div>`;
+  };
+  const diversityHtml =
+    diversityRow("Close Variety", closeVariety) +
+    diversityRow("Angle Diversity", angleDiversity) +
+    diversityRow("Landing Page Diversity", landingPageDiversity);
+  if (diversityHtml.trim()) {
+    html += `<div class="synthesis-section-label">Library Diagnostics</div>${diversityHtml}`;
+  }
+
   if (streaming) {
     html += `<div class="synthesis-streaming">...</div>`;
   }

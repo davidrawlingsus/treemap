@@ -169,6 +169,12 @@
         if (t.length > bodyText.length && t.length > 20) bodyText = t;
       }
 
+      // A display URL (e.g. "EXAMPLE.COM" or "EXAMPLE.COM/SHOP") sits in the same
+      // link block as the headline. It's a single token with a dot and no spaces —
+      // never a headline. Skip it so it doesn't get captured as headline/description.
+      const looksLikeDisplayUrl = (t) =>
+        !/\s/.test(t) && /\.[a-z]{2,}(\/|$)/i.test(t);
+
       // Headline + description from CTA link area
       const ctaLink = container.querySelector(
         'a[target="_blank"][href*="l.facebook.com"], a[target="_blank"][href*="l.php"]'
@@ -178,7 +184,7 @@
           'div[style*="line-clamp"]'
         )) {
           const t = (div.innerText || div.textContent || "").trim();
-          if (!t) continue;
+          if (!t || looksLikeDisplayUrl(t)) continue;
           const style = div.getAttribute("style") || "";
           const heightMatch = style.match(/max-height:\s*(\d+)px/);
           const height = heightMatch ? parseInt(heightMatch[1], 10) : 0;
@@ -197,7 +203,7 @@
         )) {
           const t = (div.innerText || div.textContent || "").trim();
           const clean = t.replace(/^Sponsored\s*/i, "").trim();
-          if (clean.length > 0 && clean.length <= 200) headlineText = clean;
+          if (clean.length > 0 && clean.length <= 200 && !looksLikeDisplayUrl(clean)) headlineText = clean;
         }
       }
 
@@ -456,9 +462,30 @@
         .vzd-latency-low { background: #dcfce7; color: #166534; }
         .vzd-latency-medium { background: #fef9c3; color: #854d0e; }
         .vzd-latency-high { background: #fee2e2; color: #991b1b; }
-        .vzd-funnel-TOF { background: #dbeafe; color: #1e40af; }
-        .vzd-funnel-MOF { background: #ede9fe; color: #5b21b6; }
-        .vzd-funnel-BOF { background: #dcfce7; color: #166534; }
+        .vzd-funnel-TOF, .vzd-funnel-tof { background: #dbeafe; color: #1e40af; }
+        .vzd-funnel-MOF, .vzd-funnel-mof { background: #ede9fe; color: #5b21b6; }
+        .vzd-funnel-BOF, .vzd-funnel-bof { background: #dcfce7; color: #166534; }
+        .vzd-metric-val {
+          font-weight: 800;
+          font-size: 11px;
+          color: #1c1e21;
+          background: #f0f2f5;
+          padding: 1px 7px;
+          border-radius: 4px;
+          white-space: nowrap;
+        }
+        .vzd-section-label {
+          font-size: 10px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: #8a8d91;
+          margin: 9px 0 2px;
+        }
+        [class^="vzd-close-"], [class*=" vzd-close-"] { background: #ede9fe; color: #5b21b6; }
+        .vzd-close-none, .vzd-close-generic { background: #fee2e2; color: #991b1b; }
+        [class^="vzd-angle-"], [class*=" vzd-angle-"] { background: #e0f2fe; color: #075985; }
+        .vzd-angle-unclear { background: #f3f4f6; color: #6b7280; }
         .vzd-score-reason {
           font-size: 11px;
           color: #4b4f56;
