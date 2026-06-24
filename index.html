@@ -1419,7 +1419,8 @@
 
         // Global state
         let rawData = [];
-        let fullRawData = []; // Store unfiltered data
+        let fullRawData = []; // Accumulating cache of rows for dimensions loaded so far (lazy per-dimension)
+        let loadedDimensions = new Set(); // dimension_refs whose rows are already in fullRawData
         let dimensionFilteredData = []; // Store dimension-filtered data (before category filtering)
         let hierarchyData = null;
         let currentView = 'root';
@@ -3124,45 +3125,44 @@
                 loadingProgress.setStage(2, 'Loading data...');
                 loadingProgress.crawlTo(55, 2500);
 
-                // Fetch VOC data using API module
-                const processVocRows = await window.vocDataApiLoadVocData(clientUuid, currentProjectName, dataSource, getAuthHeaders);
-                console.log(`Loaded ${processVocRows.length} process_voc rows`);
-                loadingProgress.setStage(60, `Processing ${processVocRows.length.toLocaleString()} responses...`);
-                loadingProgress.crawlTo(82, 800);
-                
-                // Store raw process_voc rows
-                fullRawData = processVocRows;
-                // Force regroup/re-render against the new dataset each load.
+                // Reset the per-dimension cache. We no longer bulk-load every dimension
+                // up front — each dimension's rows are fetched lazily on first view via
+                // ensureDimensionLoaded(), keeping the initial load small and fast.
+                fullRawData = [];
+                loadedDimensions = new Set();
                 rawData = [];
                 dimensionFilteredData = [];
-                
+                loadingProgress.setStage(60, 'Loading dimensions...');
+                loadingProgress.crawlTo(82, 800);
+
                 // Update treemap title with question text if available
                 updateTreemapTitle();
-                
+
                 // Update breadcrumb
                 updateBreadcrumb();
-                
-                // Detect if this is survey data with multiple questions
-                // This will set up the question filter and call filterByQuestion which groups and renders
-                await detectAndSetupQuestionFilter(savedState);
+
+                // Detect survey dimensions, pick the active one, and lazy-load just that
+                // dimension's rows (detectAndSetupQuestionFilter -> filterByQuestion).
+                // Returns true when dimensions were found and one was rendered.
+                const hasDimensions = await detectAndSetupQuestionFilter(savedState);
 
                 loadingProgress.setStage(85, 'Rendering charts...');
                 loadingProgress.crawlTo(98, 500);
 
-                // If detectAndSetupQuestionFilter didn't set up questions (no dimensions found),
-                // or if it returned early, we need to group and render the data ourselves
-                // filterByQuestion should have been called if questions were found, but as a fallback:
-                if (!rawData || rawData.length === 0) {
-                    console.log('No data grouped yet, grouping now...');
+                // Fallback: this data source has no survey dimensions. Load all of its
+                // rows (a single implicit dimension) and render directly.
+                if (!hasDimensions && (!rawData || rawData.length === 0)) {
+                    console.log('No dimensions found, loading all rows for this source...');
+                    fullRawData = await window.vocDataApiLoadVocData(clientUuid, currentProjectName, dataSource, getAuthHeaders);
                     const groupedData = groupProcessVocRows(fullRawData, null);
                     rawData = groupedData;
                     dimensionFilteredData = groupedData; // Set to grouped data (has text field)
-                    
+
                     // Extract and setup category filter
                     extractAvailableFilterOptions(rawData);
                     filterRules = []; // Reset filters when loading new data
                     updateFilterUI();
-                    
+
                     // If the filter selection view is currently visible, refresh it with new data
                     const filterSelectionView = document.getElementById('filterSelectionView');
                     if (filterSelectionView && filterSelectionView.style.display === 'block') {
@@ -3170,7 +3170,7 @@
                         currentFilterSelections.clear();
                         populateFilterSelectionList();
                     }
-                    
+
                     // Process and render
                     processData();
                     renderTreemap(hierarchyData);
@@ -3301,9 +3301,9 @@
                     window.AIInsightsPanel.setCurrentDimension('');
                 }
                 syncFilterTabState();
-                return;
+                return false;
             }
-            
+
             try {
                 // Load questions from API using module
                 const questions = await window.vocDataApiLoadQuestions(currentClientId, currentDataSourceId, currentProjectName, getAuthHeaders);
@@ -3349,9 +3349,9 @@
                         window.AIInsightsPanel.setCurrentDimension('');
                     }
                     syncFilterTabState();
-                    return;
+                    return false;
                 }
-                
+
                 // Populate question selector
                 questionSelect.innerHTML = '';
                 availableQuestions.forEach(refKey => {
@@ -3360,13 +3360,7 @@
                     option.textContent = getDimensionDisplayName(refKey);
                     questionSelect.appendChild(option);
                 });
-                
-                // Add "All Dimensions" option at the bottom
-                const allDimensionsOption = document.createElement('option');
-                allDimensionsOption.value = '';
-                allDimensionsOption.textContent = 'All Dimensions';
-                questionSelect.appendChild(allDimensionsOption);
-                
+
                 // Show question selector
                 questionSelect.style.display = 'inline';
                 document.getElementById('questionLabel').style.display = 'inline';
@@ -3404,25 +3398,21 @@
                 // Setup inline dimension editor
                 setupInlineDimensionEditor();
                 
-                // Restore saved question or default to first dimension
+                // Restore saved dimension if it still exists, else default to the first.
                 let questionToSelect = null;
-                if (savedState && savedState.questionRefKey !== undefined) {
-                    // Allow empty string for "All Dimensions" or specific dimension
-                    if (savedState.questionRefKey === '' || availableQuestions.includes(savedState.questionRefKey)) {
-                        questionToSelect = savedState.questionRefKey;
-                    }
+                if (savedState && savedState.questionRefKey && availableQuestions.includes(savedState.questionRefKey)) {
+                    questionToSelect = savedState.questionRefKey;
                 }
-                // Default to first dimension if nothing was restored (but not if "All Dimensions" was explicitly saved)
                 if (questionToSelect === null && availableQuestions.length > 0) {
                     questionToSelect = availableQuestions[0];
                 }
-                
-                // Apply the selection (questionToSelect can be empty string for "All Dimensions" or a dimension ref)
+
+                // Apply the selection and lazy-load that dimension's rows.
                 if (questionToSelect !== null) {
                     const previousRefKey = currentQuestionRefKey; // Save old value before updating
                     currentQuestionRefKey = questionToSelect;
                     questionSelect.value = questionToSelect;
-                    filterByQuestion(questionToSelect, previousRefKey);
+                    await filterByQuestion(questionToSelect, previousRefKey);
                     dimensionNameEditor.style.display = 'none';
                     // Update AI Insights panel with restored dimension
                     if (window.AIInsightsPanel) {
@@ -3430,6 +3420,7 @@
                     }
                 }
                 syncFilterTabState();
+                return true;
             } catch (error) {
                 console.error('Error loading questions:', error);
                 // Hide question selector on error
@@ -3442,6 +3433,7 @@
                     window.AIInsightsPanel.setCurrentDimension('');
                 }
                 syncFilterTabState();
+                return false;
             }
         }
         
@@ -3486,7 +3478,36 @@
             }
         }
         
-        function filterByQuestion(refKey, previousRefKey = null) {
+        // Lazily fetch a single dimension's rows and merge them into the in-memory
+        // cache. Each dimension is fetched once on first view and kept thereafter, so
+        // re-selecting an already-visited dimension stays instant.
+        async function ensureDimensionLoaded(refKey) {
+            if (!refKey || loadedDimensions.has(refKey)) return;
+            const loadingEl = document.getElementById('loading');
+            // Only manage the spinner ourselves if it isn't already showing (e.g. the
+            // initial loadDataSource flow owns it during first load).
+            const showSpinner = loadingEl && loadingEl.style.display === 'none';
+            try {
+                if (showSpinner) {
+                    loadingEl.innerHTML = '<div class="loading-label">Loading dimension…</div>'
+                        + '<div class="loading-progress"><div class="loading-progress-bar" style="width:65%"></div></div>';
+                    loadingEl.style.display = 'flex';
+                }
+                const rows = await window.vocDataApiLoadVocData(
+                    currentClientId, currentProjectName, currentDataSourceId, getAuthHeaders, refKey
+                );
+                if (Array.isArray(rows) && rows.length) {
+                    fullRawData = fullRawData.concat(rows);
+                }
+                loadedDimensions.add(refKey); // mark loaded even if empty, to avoid refetching
+            } catch (err) {
+                console.error('Failed to load dimension', refKey, err);
+            } finally {
+                if (showSpinner && loadingEl) loadingEl.style.display = 'none';
+            }
+        }
+
+        async function filterByQuestion(refKey, previousRefKey = null) {
             // Save current filters for the previous dimension before switching
             // Use previousRefKey if provided (from onchange handler), otherwise use currentQuestionRefKey
             const oldRefKey = previousRefKey !== null ? previousRefKey : currentQuestionRefKey;
@@ -3496,7 +3517,10 @@
                 // Switching from "all dimensions" to a specific dimension
                 saveFiltersForDimension(null);
             }
-            
+
+            // Lazy-load this dimension's rows if we haven't fetched them yet.
+            await ensureDimensionLoaded(refKey);
+
             // Group process_voc rows with optional dimension filter
             const groupedData = groupProcessVocRows(fullRawData, refKey || null);
             

@@ -6,16 +6,18 @@ import { API_BASE_URL } from './api-config.js';
  * @param {string} projectName - Project name (optional)
  * @param {string} dataSource - Data source identifier
  * @param {Function} getAuthHeaders - Function to get auth headers
+ * @param {string} [dimensionRef] - Optional dimension_ref to load a single dimension only
  * @returns {Promise<Array>} Array of process_voc rows
  */
-export async function loadVocData(clientUuid, projectName, dataSource, getAuthHeaders) {
+export async function loadVocData(clientUuid, projectName, dataSource, getAuthHeaders, dimensionRef = null) {
     try {
         // Build query parameters
         const params = new URLSearchParams();
         if (clientUuid) params.append('client_uuid', clientUuid);
         if (projectName) params.append('project_name', projectName);
         if (dataSource) params.append('data_source', dataSource);
-        
+        if (dimensionRef) params.append('dimension_ref', dimensionRef);
+
         const url = `${API_BASE_URL}/api/voc/data?${params.toString()}`;
         const response = await fetch(url, {
             headers: getAuthHeaders()
