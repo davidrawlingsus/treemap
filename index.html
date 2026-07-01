@@ -12602,6 +12602,15 @@
 
                     // Wrap in object to satisfy backend schema (voc_data must be a dict, not array)
                     vocDataForAPI = { verbatims: cleanVerbatims };
+                    // Attach the drilled-down focus so the LLM builds ads around the
+                    // specific category/topic the user right-clicked, rather than
+                    // latching onto whatever else is salient in the verbatims.
+                    // extractCleanVerbatims() flattens away the topic label, so we
+                    // re-attach it here from the context the user clicked.
+                    if (contextData.category) vocDataForAPI.focus_category = contextData.category;
+                    if (contextData.type === 'topic' && contextData.topic_label) {
+                        vocDataForAPI.focus_topic = contextData.topic_label;
+                    }
                     if (contextSamplingMeta) {
                         vocDataForAPI.sampling_metadata = contextSamplingMeta;
                     }
