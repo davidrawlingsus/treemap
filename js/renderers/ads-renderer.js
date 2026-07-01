@@ -91,6 +91,10 @@ export function renderAdsGrid(container, ads) {
         masonryInstance = null;
     }
     
+    // Clear any stale import summary from a previous render
+    const staleSummaryEl = document.getElementById('adsImportSummary');
+    if (staleSummaryEl) staleSummaryEl.innerHTML = '';
+
     if (!ads || ads.length === 0) {
         if (hasFiltersOrSearch && allAds.length > 0) {
             renderEmpty(container, 'No ads match your search or filters');
@@ -103,12 +107,15 @@ export function renderAdsGrid(container, ads) {
     const source = getAdsSource();
     const cardRenderer = source === 'current' ? renderCurrentAdCard : renderAdCard;
 
-    // Import-level analysis summary (for current ads only)
-    const importSummaryHtml = source === 'current' ? buildImportSummaryHtml() : '';
+    // Import-level analysis summary (for current ads only).
+    // Rendered into a sibling element outside the Masonry container so the
+    // absolutely-positioned ad cards don't overlap it.
+    if (staleSummaryEl && source === 'current') {
+        staleSummaryEl.innerHTML = buildImportSummaryHtml();
+    }
 
     // Add sizer elements for Masonry + ad cards
     container.innerHTML = `
-        ${importSummaryHtml}
         <div class="ads-grid-sizer"></div>
         <div class="ads-gutter-sizer"></div>
         ${ads.map(ad => cardRenderer(ad)).join('')}
@@ -314,7 +321,7 @@ function renderAdCard(ad) {
         ? `${focusCategory} › ${focusTopic}`
         : (ad.full_json?.focus || focusTopic || focusCategory || '');
     const focusHtml = focusDisplay
-        ? `<div class="ads-card__focus" title="Focus this ad was generated from">🎯 ${escapeHtml(focusDisplay)}</div>`
+        ? `<div class="ads-card__focus" title="Focus this ad was generated from">${escapeHtml(focusDisplay)}</div>`
         : '';
 
     const isSelected = isAdSelected(id);
