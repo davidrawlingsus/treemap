@@ -272,14 +272,23 @@ def _ensure_authorized_domain(db: Session, domain: str, client: Client) -> None:
         db.flush()
 
 
-def _copy_rows_to_process_voc(db: Session, run_id: str, client_uuid: UUID) -> int:
-    """Delete existing ProcessVoc rows for this client and copy from LeadgenVocRow."""
+def _copy_rows_to_process_voc(
+    db: Session, run_id: str, client_uuid: UUID, replace: bool = True
+) -> int:
+    """Copy ProcessVoc rows from LeadgenVocRow into a client.
+
+    When ``replace`` is True (a lead client we own), existing ProcessVoc rows for
+    the client are cleared first so a re-run refreshes cleanly. When False (we are
+    merging a lead run into a company that is already a client), existing rows are
+    kept and the lead's VoC is appended — never wipe a real client's data.
+    """
     from sqlalchemy import text
 
     # Use session-scoped replica role to bypass triggers (safe with concurrent users)
     db.execute(text("SET LOCAL session_replication_role = 'replica'"))
     try:
-        db.query(ProcessVoc).filter(ProcessVoc.client_uuid == client_uuid).delete()
+        if replace:
+            db.query(ProcessVoc).filter(ProcessVoc.client_uuid == client_uuid).delete()
 
         rows = (
             db.query(LeadgenVocRow)
@@ -326,6 +335,54 @@ def _copy_rows_to_process_voc(db: Session, run_id: str, client_uuid: UUID) -> in
         db.execute(text("SET LOCAL session_replication_role = 'origin'"))
 
 
+def _extract_domain(value: Optional[str]) -> str:
+    """Normalize a URL or domain to a bare host, e.g. 'https://www.Foo.com/x' -> 'foo.com'."""
+    if not value:
+        return ""
+    v = value.strip().lower()
+    v = re.sub(r"^https?://", "", v)
+    v = v.split("/")[0].split("?")[0]
+    if v.startswith("www."):
+        v = v[4:]
+    return v.strip()
+
+
+def _find_existing_client_by_domain(db: Session, run: LeadgenVocRun) -> Optional[Client]:
+    """Find a client that already represents this company, matched by domain.
+
+    Prevents the lead-gen flow from spawning a duplicate '(2)' client when the
+    company is already a client (or an earlier lead). Non-lead (real) clients are
+    preferred over lead clients. Returns None if no confident match.
+    """
+    target = _extract_domain(run.company_domain) or _extract_domain(run.company_url)
+    if not target:
+        return None
+
+    # 1. Explicit authorized-domain link (domains are stored normalized/lowercased).
+    by_auth = (
+        db.query(Client)
+        .join(AuthorizedDomainClient, AuthorizedDomainClient.client_id == Client.id)
+        .join(AuthorizedDomain, AuthorizedDomain.id == AuthorizedDomainClient.domain_id)
+        .filter(AuthorizedDomain.domain == target)
+        .order_by(Client.is_lead.asc().nullslast())
+        .first()
+    )
+    if by_auth:
+        return by_auth
+
+    # 2. Domain extracted from the client's own URL (handles scheme/www/slash variance).
+    candidates = (
+        db.query(Client).filter(Client.client_url.isnot(None)).all()
+    )
+    matches = [c for c in candidates if _extract_domain(c.client_url) == target]
+    if matches:
+        # Prefer real clients over leads, then the earliest-created.
+        matches.sort(key=lambda c: (bool(c.is_lead), c.created_at or datetime.max.replace(tzinfo=timezone.utc)))
+        return matches[0]
+
+    return None
+
+
 def create_or_update_lead_client(
     db: Session,
     run: LeadgenVocRun,
@@ -335,7 +392,9 @@ def create_or_update_lead_client(
     Create (or reuse) a Client record flagged as a lead from a LeadgenVocRun,
     copy VoC rows into process_voc, and set up domain authorization.
     """
-    # 1. Check if a Client already exists for this run
+    # 1. Check if a Client already exists for this run, then fall back to matching an
+    #    existing client by company domain (so a company that is already a client, or
+    #    an earlier lead, receives the ads + VoC instead of spawning a '(2)' duplicate).
     client = None
 
     if run.converted_client_uuid:
@@ -348,13 +407,27 @@ def create_or_update_lead_client(
             .first()
         )
 
-    # 2. Create or update the Client
+    if not client:
+        client = _find_existing_client_by_domain(db, run)
+
+    # 2. Create or update the Client.
+    #    treat_as_lead governs the destructive behaviours (flagging is_lead, wiping and
+    #    replacing VoC): only true for our own lead clients — never for a pre-existing
+    #    real (non-lead) client we merely matched, whose data must be preserved.
     if client:
-        # Update existing client fields in case company info changed
-        client.client_url = run.company_url
-        client.is_lead = True
+        treat_as_lead = bool(client.is_lead)
+        # Refresh company info; only (re)flag as a lead if it already is one.
+        # For a matched real client, don't overwrite an existing URL — only fill gaps.
+        if run.company_url and (treat_as_lead or not client.client_url):
+            client.client_url = run.company_url
         client.is_active = True
+        if treat_as_lead:
+            client.is_lead = True
+        # Record run linkage for traceability if not already set.
+        if not client.leadgen_run_id:
+            client.leadgen_run_id = run.run_id
     else:
+        treat_as_lead = True
         f_id = founder_user_id or _get_default_founder_id(db)
         client = Client(
             name=_unique_name(db, run.company_name),
@@ -371,8 +444,9 @@ def create_or_update_lead_client(
     # 3. Set up domain authorization for magic-link access
     _ensure_authorized_domain(db, run.company_domain, client)
 
-    # 4. Copy VoC rows into process_voc
-    count = _copy_rows_to_process_voc(db, run.run_id, client.id)
+    # 4. Copy VoC rows into process_voc. Merging into a pre-existing real client
+    #    appends (replace=False) so we never wipe that client's existing VoC.
+    count = _copy_rows_to_process_voc(db, run.run_id, client.id, replace=treat_as_lead)
     logger.info(
         "Lead client %s (%s): copied %d rows to process_voc",
         client.name, client.id, count,

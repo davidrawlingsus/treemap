@@ -330,9 +330,11 @@ def import_from_extension_leadgen(
         from app.services.leadgen_voc_service import create_or_update_lead_client
 
         lead_client = create_or_update_lead_client(db, run, founder_user_id=current_user.id)
-        if logo_url:
+        # Only fill logo/URL when missing — never clobber the branding of a company
+        # that was already an existing client (matched by domain in the helper).
+        if logo_url and not lead_client.logo_url:
             lead_client.logo_url = logo_url
-        if company_url:
+        if company_url and not lead_client.client_url:
             lead_client.client_url = company_url
         db.flush()
 
