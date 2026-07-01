@@ -416,6 +416,16 @@
             fullJson.funnel_step = funnelStep;
         }
 
+        // Tag the ad with the drilled-down focus (category/topic the user
+        // right-clicked) so the Ads tab can label and filter by it.
+        const focusCategory = slideoutPanel?.currentFocusCategory || null;
+        const focusTopic = slideoutPanel?.currentFocusTopic || null;
+        if (focusCategory) fullJson.focus_category = focusCategory;
+        if (focusTopic) fullJson.focus_topic = focusTopic;
+        // Single display/filter value: prefer the specific topic, fall back to category.
+        const focus = focusTopic || focusCategory;
+        if (focus) fullJson.focus = focus;
+
         const adData = {
             primary_text: ideaData.primary_text,
             headline: ideaData.headline,

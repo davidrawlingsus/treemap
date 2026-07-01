@@ -12665,7 +12665,13 @@
                     if (upper.includes('BOFU')) return 'BOFU';
                     return null;
                 })();
-                
+
+                // Remember the drilled-down focus (category/topic the user right-clicked)
+                // so ads saved from this run get tagged with it for labelling + filtering.
+                // Only meaningful for context-specific runs, not the full aggregated view.
+                this.currentFocusCategory = (!useFullAggregatedData && contextData?.category) || null;
+                this.currentFocusTopic = (!useFullAggregatedData && contextData?.type === 'topic' && contextData?.topic_label) || null;
+
                 // Open slideout in create mode - this sets up the panel structure
                 // If using full aggregated data, pass minimal contextData with 'category' as origin_type
                 // (since we're at dimension level, similar to AI Overview)

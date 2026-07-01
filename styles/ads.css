@@ -2639,6 +2639,25 @@
     padding: 6px 16px 0;
 }
 
+/* Focus label — names the category/topic this ad was generated from */
+.ads-card__focus {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 10px 16px 0;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(99, 102, 241, 0.1);
+    color: #4f46e5;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    max-width: calc(100% - 32px);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .ads-card__section-title--ad {
     padding-bottom: 4px;
 }

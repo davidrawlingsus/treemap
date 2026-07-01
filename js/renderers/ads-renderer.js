@@ -307,6 +307,16 @@ function renderAdCard(ad) {
         ? `<span class="ads-card__funnel-pill ads-card__funnel-pill--${funnelStep.toLowerCase()}">${escapeHtml(funnelStep)}</span>`
         : '';
     
+    // Focus label — the category/topic this ad was generated from (from full_json).
+    const focusCategory = ad.full_json?.focus_category || '';
+    const focusTopic = ad.full_json?.focus_topic || '';
+    const focusDisplay = (focusCategory && focusTopic && focusCategory !== focusTopic)
+        ? `${focusCategory} › ${focusTopic}`
+        : (ad.full_json?.focus || focusTopic || focusCategory || '');
+    const focusHtml = focusDisplay
+        ? `<div class="ads-card__focus" title="Focus this ad was generated from">🎯 ${escapeHtml(focusDisplay)}</div>`
+        : '';
+
     const isSelected = isAdSelected(id);
     return `
         <div class="ads-card" data-ad-id="${id}">
@@ -339,6 +349,7 @@ function renderAdCard(ad) {
             </div>
             
             <div class="ads-card__voc-evidence">
+                ${focusHtml}
                 <div class="ads-card__section-title">The VoC</div>
                 ${vocHtml}
             </div>
